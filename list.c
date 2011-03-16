@@ -87,6 +87,19 @@ tList* tlist_prepend2(tTask* task, tList* list, tValue v1, tValue v2) {
     return nlist;
 }
 
+tList* tlist_prepend4(tTask* task, tList* list, tValue v1, tValue v2, tValue v3, tValue v4) {
+    int size = tlist_size(list);
+    trace("%s :: %s :: ... :: [%d]", t_str(v1), t_str(v2), size);
+
+    tList *nlist = tlist_new(task, size + 4);
+    memcpy(nlist->data + 2, list->data, sizeof(tValue) * size);
+    nlist->data[0] = v1;
+    nlist->data[1] = v2;
+    nlist->data[2] = v3;
+    nlist->data[3] = v4;
+    return nlist;
+}
+
 tList* tlist_new_add(tTask* task, tValue v) {
     trace("[] :: %s", t_str(v));
     tList* list = tlist_new(task, 1);
@@ -99,6 +112,16 @@ tList* tlist_new_add2(tTask* task, tValue v1, tValue v2) {
     tList* list = tlist_new(task, 2);
     tlist_set_(list, 0, v1);
     tlist_set_(list, 1, v2);
+    return list;
+}
+
+tList* tlist_new_add4(tTask* task, tValue v1, tValue v2, tValue v3, tValue v4) {
+    trace("[] :: %s :: %s ...", t_str(v1), t_str(v2));
+    tList* list = tlist_new(task, 2);
+    tlist_set_(list, 0, v1);
+    tlist_set_(list, 1, v2);
+    tlist_set_(list, 2, v3);
+    tlist_set_(list, 3, v4);
     return list;
 }
 

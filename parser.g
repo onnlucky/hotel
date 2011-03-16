@@ -23,6 +23,14 @@ static inline int writesome(ParseContext* cx, char* buf, int len) {
 #define L(l) tlist_as(l)
 #define TASK yyxvar->task
 
+tList* set_target(tList* call, tList* target) {
+    assert(tlist_size(call) >= 2);
+    assert(tlist_get(call, 0) == _CALL_);
+    assert(tlist_get(call, 1) == null);
+    tlist_set_(call, 1, target);
+    return call;
+}
+
 %}
 
  start = __ b:body __ !.   { $$ = b; }
@@ -38,7 +46,29 @@ static inline int writesome(ParseContext* cx, char* buf, int len) {
        | call
        | value
 
-  call = n:ref _ "("__ as:cargs __")"  { $$ = tlist_prepend2(TASK, L(as), _CALL_, n); }
+  tail = "("__ as:cargs __")" t:tail {
+           $$ = set_target(L(t), tlist_prepend2(TASK, L(as), _CALL_, null));
+       }
+       | "("__ as:cargs __")" {
+           $$ = tlist_prepend2(TASK, L(as), _CALL_, null);
+       }
+       | "." n:name "("__ as:cargs __")" t:tail {
+           $$ = set_target(L(t), tlist_prepend4(TASK, L(as), _CALL_, _SEND_, null, n));
+       }
+       | "." n:name "("__ as:cargs __")" {
+           $$ = tlist_prepend4(TASK, L(as), _CALL_, _SEND_, null, n)
+       }
+       | "." n:name t:tail {
+           $$ = set_target(L(t), tlist_new_add4(TASK, _CALL_, _SEND_, null, n));
+       }
+       | "." n:name {
+           $$ = tlist_new_add4(TASK, _CALL_, _SEND_, null, n);
+       }
+
+  call = n:ref _ "("__ as:cargs __")" t:tail {
+           $$ = set_target(L(t), tlist_prepend2(TASK, L(as), _CALL_, n));
+       }
+       | n:ref _ "("__ as:cargs __")"  { $$ = tlist_prepend2(TASK, L(as), _CALL_, n); }
  cargs = e:expr __","__ as:cargs       { $$ = tlist_prepend(TASK, L(as), e); }
        | e:expr                        { $$ = tlist_new_add(TASK, e) }
        |                               { $$ = tlist_new(TASK, 0); }
@@ -79,6 +109,7 @@ void yydeinit(GREG *G) {
 }
 
 tValue compile(tText* text) {
+    print("COMPILE: '%s'", t_str(text));
     tTask* task = ttask_new_global();
     ParseContext cx;
     cx.task = task;
@@ -88,7 +119,9 @@ tValue compile(tText* text) {
     GREG g;
     yyinit(&g);
     g.data = &cx;
-    yyparse(&g);
+    if (!yyparse(&g)) {
+        print("ERROR?");
+    }
     tValue v = g.ss;
     yydeinit(&g);
 

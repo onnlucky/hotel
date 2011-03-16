@@ -73,7 +73,7 @@ void tcode_print(tCode* code) {
             ops++; ops++; break;
         case OCALL:
             print("%s %d", name, *(ops++)); break;
-        case OGETTEMP: case OCGETTEMP:
+        case OGETTEMP: case OCGETTEMP: case OSETTEMP:
             print("%s %d", name, *(ops++)); break;
         case OGETDATA: case OCGETDATA:
             print("%s %d = %s", name, *ops, t_str(code->data[*(ops++)])); break;

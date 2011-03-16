@@ -60,7 +60,7 @@ int main() {
     list_init();
     text_init();
 
-    tValue v = compile(tTEXT("print(43)"));
+    tValue v = compile(tTEXT("print(43)()"));
     if (t_type(v) == TCode) {
         tcode_print(tcode_as(v));
     }

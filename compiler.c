@@ -3,6 +3,7 @@
 #define _REF_  tINT(3)
 #define _TEMP_ tINT(4)
 #define _LIST_ tINT(5)
+#define _SEND_ tINT(6)
 
 bool isBODY(tValue v) { return tlist_is(v) && tlist_get(v, 0) == _BODY_; }
 bool isCALL(tValue v) { return tlist_is(v) && tlist_get(v, 0) == _CALL_; }
