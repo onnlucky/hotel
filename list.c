@@ -59,7 +59,7 @@ tList* tlist_add(tTask* task, tList* list, tValue v) {
     assert(tlist_is(list));
 
     int osize = tlist_size(list);
-    trace("list_add %d :: = %s", osize, t_str(v));
+    trace("[%d] :: %s", osize, t_str(v));
 
     tList* nlist = tlist_copy(task, list, osize + 1);
     tlist_set_(nlist, osize, v);
@@ -68,6 +68,8 @@ tList* tlist_add(tTask* task, tList* list, tValue v) {
 
 tList* tlist_prepend(tTask* task, tList* list, tValue v) {
     int size = tlist_size(list);
+    trace("%s :: [%d]", t_str(v), size);
+
     tList *nlist = tlist_new(task, size + 1);
     memcpy(nlist->data + 1, list->data, sizeof(tValue) * size);
     nlist->data[0] = v;
@@ -76,6 +78,8 @@ tList* tlist_prepend(tTask* task, tList* list, tValue v) {
 
 tList* tlist_prepend2(tTask* task, tList* list, tValue v1, tValue v2) {
     int size = tlist_size(list);
+    trace("%s :: %s :: [%d]", t_str(v1), t_str(v2), size);
+
     tList *nlist = tlist_new(task, size + 2);
     memcpy(nlist->data + 2, list->data, sizeof(tValue) * size);
     nlist->data[0] = v1;
@@ -84,16 +88,22 @@ tList* tlist_prepend2(tTask* task, tList* list, tValue v1, tValue v2) {
 }
 
 tList* tlist_new_add(tTask* task, tValue v) {
+    trace("[] :: %s", t_str(v));
     tList* list = tlist_new(task, 1);
     tlist_set_(list, 0, v);
     return list;
 }
 
 tList* tlist_new_add2(tTask* task, tValue v1, tValue v2) {
+    trace("[] :: %s :: %s", t_str(v1), t_str(v2));
     tList* list = tlist_new(task, 2);
     tlist_set_(list, 0, v1);
     tlist_set_(list, 1, v2);
     return list;
+}
+
+void list_init() {
+    t_empty_list = global_alloc(TList, 0);
 }
 
 #if 0

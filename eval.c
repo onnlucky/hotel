@@ -4,25 +4,22 @@
 
 typedef struct tSlab tSlab;
 
+typedef struct tEnv tEnv;
+typedef struct tFun tFun;
 typedef struct tCall tCall;
 typedef struct tThunk tThunk;
+typedef struct tFrame tFrame;
+typedef struct tEvalFrame tEvalFrame;
 
-typedef struct tEnv tEnv;
-typedef struct tCode tCode;
-typedef struct tFun tFun;
+typedef struct tCTask tCTask;
+typedef struct tCFun tCFun;
+typedef tValue(*tcfun_cb)(tArgs* args);
 
 tCall* tcall_as(tValue v) { return (tCall*)v; }
 tThunk* tthunk_as(tValue v) { return (tThunk*)v; }
 tFun* tfun_as(tValue v) { return (tFun*)v; }
-
-typedef struct tFrame tFrame;
-typedef struct tEvalFrame tEvalFrame;
-
 tFrame* tframe_new(tTask* task, tFun* fun, tCall* call);
 tEvalFrame* tevalframe_new(tTask* task, tCall* call);
-
-typedef struct tCFun tCFun;
-typedef tValue(*tcfun_cb)(tArgs* args);
 
 tArgs* targs_new_cfun(tTask* task, tCFun* fun, tCall* call);
 tArgs* targs_new_thunk(tTask* task, tThunk* thunk, tCall* call);
@@ -143,32 +140,6 @@ tValue tenv_get(tEnv* env, tSym key) {
     case '-': return env->fields[11]; // -
     }
     return 0;
-}
-
-struct tCode {
-    tHead head;
-    intptr_t temps;
-    const uint8_t* ops;
-
-    tValue localkeys;
-    tValue data[];
-};
-tCode* tcode_new_global(int size, int temps) {
-    tCode* code = (tCode*)global_alloc(TCode, size);
-    code->temps = temps;
-    code->localkeys = 0;
-    return code;
-}
-tCode* tcode_new(tTask* task, int size, int temps, tList* localkeys, tList* data) {
-    tCode* code = task_alloc(task, TCode, tlist_size(data));
-    code->temps = temps;
-    code->ops = malloc(size);
-    code->localkeys = localkeys;
-    memcpy(code->data, data->data, sizeof(tValue)*tlist_size(data));
-    return code;
-}
-char* tcode_bytes_(tCode* code) {
-    return (char*)code->ops;
 }
 
 struct tFun {
@@ -581,14 +552,6 @@ static OP ops[] = {
     GETDATA, GETTEMP, GETENV, SETTEMP, GETENV,
     CALL, CGETDATA, CGETTEMP, CGETENV, EVAL,
 };
-enum {
-    OEND=0,
-    OARG_EVAL, OARG_EVAL_DEFAULT, OARG_LAZY, OARG_REST, OARGS,
-    ORESULT, ORESULT_REST,
-    OBIND,
-    OGETDATA, OGETTEMP, OGETENV, OSETTEMP, OSETENV,
-    OCALL, OCGETDATA, OCGETTEMP, OCGETENV, OEVAL,
-};
 
 tCode* test_hello() {
     tCode* code = tcode_new_global(2, 0);
@@ -726,17 +689,6 @@ void task_run(tTask* task) {
 }
 
 int main_eval_test() {
-    // assert assumptions on memory layout, pointer size etc
-    assert(sizeof(tHead) == sizeof(intptr_t));
-    tHead h; h.moved = 0; h.flags = 1;
-    assert(h.moved == (void*)1);
-    h.moved = &h; assert((h.flags & 3) == 0);
-
-    print("    field size: %zd", sizeof(tValue));
-    print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
-    print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
-
     return 0;
 
     // init

@@ -1,5 +1,4 @@
 // author: Onne Gorter <onne@onnlucky.com>
-#include "../config.h"
 
 #ifndef _debug_h_
 #define _debug_h_

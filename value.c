@@ -53,7 +53,7 @@ const int8_t type_to_private[] = {
     2, 2, 0, 0,
     0, 0, 1
 };
-const char* type_to_str[] = {
+const char* const type_to_str[] = {
     "invalid",
     "Undefined", "Null", "Bool", "Sym", "Int", "Float",
     "List", "Map", "Env",
@@ -93,7 +93,7 @@ tType t_type(tValue v) {
 }
 
 const char* t_type_str(tValue v) { return type_to_str[t_type(v)]; }
-const char* t_str(tValue v) { return t_type_str(v); }
+const char* t_str(tValue v);
 
 bool tsym_is(tValue v) { return t_type(v) == TSym; }
 bool tint_is(tValue v) { return t_type(v) == TInt; }
@@ -101,6 +101,7 @@ bool ttext_is(tValue v) { return t_type(v) == TText; }
 bool tlist_is(tValue v) { return t_type(v) == TList; }
 bool ttask_is(tValue v) { return t_type(v) == TTask; }
 
+tText* ttext_as(tValue v) { assert(ttext_is(v)); return (tText*)v; }
 tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
 tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
 

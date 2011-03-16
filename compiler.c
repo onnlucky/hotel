@@ -28,7 +28,7 @@ uint8_t getOrAdd(tTask* task, Context* cx, tValue v) {
     }
     cx->data = tlist_add(task, cx->data, v);
     assert(tlist_size(cx->data) < 256);
-    return tlist_size(cx->data);
+    return tlist_size(cx->data) - 1;
 }
 
 void addForCall(tTask* task, Context* cx, tValue in) {
@@ -115,17 +115,17 @@ void addForBody(tTask* task, Context* cx, tValue in) {
 tCode* newBody(tTask* task, tList *in) {
     assert(tlist_get(in, 0) == _BODY_);
 
-    Context* cx = calloc(1, sizeof(cx));
+    Context* cx = calloc(1, sizeof(Context));
     cx->buf = tbuffer_new();
     cx->data = tlist_new(task, 0);
 
-    tbuffer_write_uint8(cx->buf, 0); // temps
+    emit(cx, OARGS);
     for (int i = 1; i < tlist_size(in); i++) {
         addForBody(task, cx, tlist_get(in, i));
     }
     emit(cx, OEND);
 
     tCode* code = tcode_new(task, tbuffer_canread(cx->buf), cx->maxtemps, null, cx->data);
-    tbuffer_write(cx->buf, tcode_bytes_(code), tbuffer_canread(cx->buf));
+    tbuffer_read(cx->buf, tcode_bytes_(code), tbuffer_canread(cx->buf));
     return code;
 }

@@ -1,5 +1,7 @@
 // ** platform and bit manipulation routines **
 
+#define HAVE_DEBUG
+
 // default includes
 #define _GNU_SOURCE
 #include <string.h>

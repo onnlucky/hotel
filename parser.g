@@ -25,6 +25,8 @@ static inline int writesome(ParseContext* cx, char* buf, int len) {
 
 %}
 
+ start = __ b:body __ !.   { $$ = b; }
+
   body = ts:stms           { $$ = tlist_prepend(TASK, L(ts), _BODY_); }
   stms = t:stm eol ts:body { $$ = tlist_prepend(TASK, L(ts), t); }
        | t:stm             { $$ = tlist_new_add(TASK, t); }
@@ -50,8 +52,8 @@ static inline int writesome(ParseContext* cx, char* buf, int len) {
        | "undefined" { $$ = tUndef; }
 
 number = < [0-9]+ >                 { $$ = tINT(atoi(yytext)); }
-  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tSYM(yytext); }
-  text = '"' < (!'"' .)* > '"'      { $$ = tTEXT(yytext); }
+  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tTEXT(strdup(yytext)); }
+  text = '"' < (!'"' .)* > '"'      { $$ = tTEXT(strdup(yytext)); }
 
 slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* "*/"
@@ -76,21 +78,21 @@ void yydeinit(GREG *G) {
     free(G->vals);
 }
 
-int main() {
+tValue compile(tText* text) {
+    tTask* task = ttask_new_global();
     ParseContext cx;
-    cx.task = task_new();
+    cx.task = task;
     cx.at = 0;
-    cx.text = tTEXT("print(42,43,44,foo(999))");
+    cx.text = text;
 
     GREG g;
     yyinit(&g);
     g.data = &cx;
-    while(yyparse(&g));
-    Value v = g.ss;
+    yyparse(&g);
+    tValue v = g.ss;
     yydeinit(&g);
 
-    tFun* fun = newBody(task, tList_as(v));
-
-    return 0;
+    v = newBody(task, tlist_as(v));
+    //ttask_free(task);
+    return v;
 }
-

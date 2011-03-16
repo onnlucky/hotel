@@ -68,3 +68,10 @@ const char* tmem_bytes(tMem* mem) {
 char* tmem_bytes_(tMem* mem) {
     return (char*)mem->bytes;
 }
+
+void text_init() {
+    t_empty_text = global_alloc(TText, 0);
+    t_empty_text->bytes = "";
+    t_empty_text->size = 0;
+}
+
