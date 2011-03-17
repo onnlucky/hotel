@@ -1,14 +1,11 @@
 // ** this is how all tl values look in memory **
 
 typedef void* tValue;
-typedef union tHead tHead;
-union tHead {
-    struct {
-        uint8_t flags; // must be least significant byte
-        uint8_t type;
-        uint16_t size;
-    };
-    tValue moved;
+typedef struct tHead tHead;
+struct tHead {
+    uint8_t flags; // must be least significant byte
+    uint8_t type;
+    uint16_t size;
 };
 struct tFields {
     tHead head;

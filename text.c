@@ -24,7 +24,6 @@ tText* ttext_new_global(const char* str) {
 }
 
 static tText* tTEXT(const char *s) { return ttext_new_global(s); }
-static tSym tSYM(const char *s) { return (tSym)s[0]; }
 
 static void ttext_free(tText *text) {
     assert(ttext_is(text));

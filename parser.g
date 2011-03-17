@@ -82,7 +82,7 @@ tList* set_target(tList* call, tList* target) {
        | "undefined" { $$ = tUndef; }
 
 number = < [0-9]+ >                 { $$ = tINT(atoi(yytext)); }
-  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tTEXT(strdup(yytext)); }
+  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tSYM(strdup(yytext)); }
   text = '"' < (!'"' .)* > '"'      { $$ = tTEXT(strdup(yytext)); }
 
 slcomment = "//" (!nl .)*
@@ -120,7 +120,7 @@ tValue compile(tText* text) {
     yyinit(&g);
     g.data = &cx;
     if (!yyparse(&g)) {
-        print("ERROR?");
+        print("ERROR: %s", g.text + g.pos);
     }
     tValue v = g.ss;
     yydeinit(&g);

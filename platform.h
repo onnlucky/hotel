@@ -29,8 +29,8 @@
 #include <execinfo.h>
 
 //#include "../config.h"
-//#include "llib/lhashmap.h"
-//#include "llib/lqueue.h"
+#include "llib/lhashmap.h"
+#include "llib/lqueue.h"
 
 #include "debug.h"
 #include "trace-off.h"

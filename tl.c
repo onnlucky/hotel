@@ -3,6 +3,7 @@
 #include "value.c"
 #include "text.c"
 #include "list.c"
+#include "sym.c"
 
 #include "bytecode.c"
 #include "eval.c"
@@ -39,31 +40,34 @@ const char* t_str(tValue v) {
     _str_buf = _str_bufs[_str_buf_at];
 
     switch (t_type(v)) {
-        case TText: return ttext_bytes(ttext_as(v));
-        case TInt: snprintf(_str_buf, _BUF_SIZE, "%d", t_int(v)); return _str_buf;
-        default: return t_type_str(v);
+    case TText:
+        return ttext_bytes(ttext_as(v));
+    case TSym:
+        snprintf(_str_buf, _BUF_SIZE, "#%s", ttext_bytes(tsym_to_text(v)));
+        return _str_buf;
+    case TInt:
+        snprintf(_str_buf, _BUF_SIZE, "%d", t_int(v));
+        return _str_buf;
+    default: return t_type_str(v);
     }
 }
 
 int main() {
     // assert assumptions on memory layout, pointer size etc
-    assert(sizeof(tHead) == sizeof(intptr_t));
-    tHead h; h.moved = 0; h.flags = 1;
-    assert(h.moved == (void*)1);
-    h.moved = &h; assert((h.flags & 3) == 0);
+    assert(sizeof(tHead) <= sizeof(intptr_t));
 
     print("    field size: %zd", sizeof(tValue));
-    //print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    //print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
-    //print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
+    print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
+    print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
+    print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
 
     list_init();
     text_init();
+    sym_init();
 
-    tValue v = compile(tTEXT("print(43)()"));
+    tValue v = compile(tTEXT("print(43)"));
     if (t_type(v) == TCode) {
         tcode_print(tcode_as(v));
     }
     print("done");
 }
-

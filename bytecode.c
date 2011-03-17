@@ -67,18 +67,22 @@ void tcode_print(tCode* code) {
 
         switch (op) {
         case OARG_EVAL: case OARG_LAZY: case OARGS_REST: case ORESULT: case ORESULT_REST:
-            print("%s %d = %s", name, *ops, t_str(code->data[*(ops++)])); break;
+            print("%s %d = %s", name, *ops, t_str(code->data[*ops]));
+            ops++; break;
         case OARG_EVAL_DEFAULT:
-            print("%s %d %d = %s or %s", name, *ops, *(ops+1), t_str(code->data[*ops]), t_str(code->data[*(ops+1)]));
+            print("%s %d %d = %s or %s", name, *ops, *(ops+1),
+                  t_str(code->data[*ops]), t_str(code->data[*(ops+1)]));
             ops++; ops++; break;
         case OCALL:
             print("%s %d", name, *(ops++)); break;
         case OGETTEMP: case OCGETTEMP: case OSETTEMP:
             print("%s %d", name, *(ops++)); break;
         case OGETDATA: case OCGETDATA:
-            print("%s %d = %s", name, *ops, t_str(code->data[*(ops++)])); break;
+            print("%s %d = %s", name, *ops, t_str(code->data[*ops]));
+            ops++; break;
         case OGETENV: case OCGETENV:
-            print("%s %d = %s", name, *ops, t_str(code->data[*(ops++)])); break;
+            print("%s %d = %s", name, *ops, t_str(code->data[*ops]));
+            ops++; break;
         default:
             print("%s", ops_to_str[op]);
         }
