@@ -1,4 +1,4 @@
-#include "trace-on.h"
+#include "trace-off.h"
 
 enum {
     OEND=0,
@@ -28,7 +28,6 @@ struct tCode {
     tHead head;
     intptr_t temps;
     const uint8_t* ops;
-
     tValue localkeys;
     tValue data[];
 };
@@ -87,4 +86,5 @@ void tcode_print(tCode* code) {
             print("%s", ops_to_str[op]);
         }
     }
+    print("%s", ops_to_str[*ops]);
 }

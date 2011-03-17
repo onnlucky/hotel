@@ -2,16 +2,16 @@
 
 #include "trace-off.h"
 
-static tList* t_empty_list;
+static tList* t_list_empty;
 
 tList* tlist_new_global(int size) {
-    if (size == 0) return t_empty_list;
+    if (size == 0) return t_list_empty;
     assert(size > 0 && size < MAX_DATA_SIZE);
     return (tList*) global_alloc(TList, size);
 }
 
 tList* tlist_new(tTask* task, int size) {
-    if (size == 0) return t_empty_list;
+    if (size == 0) return t_list_empty;
     assert(size > 0 && size < MAX_DATA_SIZE);
     return (tList*)task_alloc(task, TList, size);
 }
@@ -37,7 +37,7 @@ tList* tlist_copy(tTask* task, tList* list, int size) {
     int osize = tlist_size(list);
     if (size == -1) size = osize;
 
-    if (size == 0) return t_empty_list;
+    if (size == 0) return t_list_empty;
 
     tList* nlist =  (tList*)task_alloc(task, TList, size);
     if (osize > size) osize = size;
@@ -126,7 +126,7 @@ tList* tlist_new_add4(tTask* task, tValue v1, tValue v2, tValue v3, tValue v4) {
 }
 
 void list_init() {
-    t_empty_list = global_alloc(TList, 0);
+    t_list_empty = global_alloc(TList, 0);
 }
 
 #if 0

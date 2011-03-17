@@ -1,10 +1,9 @@
 // ** evaluation of tl bytecode **
 
-#include "trace-on.h"
+#include "trace-off.h" // !! there is anotherone just before NATIVE_ARGS
 
 typedef struct tSlab tSlab;
 
-typedef struct tEnv tEnv;
 typedef struct tFun tFun;
 typedef struct tCall tCall;
 typedef struct tThunk tThunk;
@@ -58,7 +57,7 @@ tValue tslab_alloc(tSlab* slab, uint8_t type, int size) {
     if (_slab_size - slab->at < totsize) return null;
     tHead* head = (tHead*)(slab->fields + slab->at);
     slab->at += totsize;
-    print("avail: %d", _slab_size - slab->at);
+    trace("avail: %d", _slab_size - slab->at);
 #endif
     head->flags = 1;
     head->type = type;
@@ -94,54 +93,6 @@ tValue task_alloc(tTask* task, uint8_t type, int size) {
     return v;
 }
 
-struct tEnv {
-    tHead head;
-    tList* keys;
-    tValue fields[];
-};
-tEnv* tenv_new(tTask* task, tEnv* parent, tList* keys) {
-    if (!keys) return null;
-    tEnv* env = task_alloc(task, TEnv, tlist_size(keys));
-    env->keys = keys;
-    return env;
-}
-tEnv* tenv_new_global(int size) {
-    tEnv* env = global_alloc(TEnv, size);
-    env->keys = tlist_new_global(size);
-    return env;
-}
-tValue tenv_set(tTask* task, tEnv* env, tSym key, tValue val) {
-    char c = (intptr_t)key >> 2;
-    print("ENV SET: %c = %s", c, t_str(val));
-    switch (c) {
-    case 'x': env->fields[7] = val; break;
-    case 'y': env->fields[8] = val; break;
-    case 'z': env->fields[9] = val; break;
-    case 'n': env->fields[10] = val; break;
-    default: assert(false);
-    }
-    return env;
-}
-tValue tenv_get(tEnv* env, tSym key) {
-    char c = (intptr_t)key >> 2;
-    print("ENV GET: %c", c);
-    switch (c) {
-    case 'p': return env->fields[0]; // print
-    case 'b': return env->fields[1]; // bool
-    case '<': return env->fields[2]; // <=
-    case '*': return env->fields[3]; // *
-    case 'h': return env->fields[4]; // hello
-    case 'i': return env->fields[5]; // if
-    case 'f': return env->fields[6]; // fac
-    case 'x': return env->fields[7]; // x
-    case 'y': return env->fields[8]; // y
-    case 'z': return env->fields[9]; // z
-    case 'n': return env->fields[10]; // n
-    case '-': return env->fields[11]; // -
-    }
-    return 0;
-}
-
 struct tFun {
     tHead head;
     tCode* code;
@@ -172,9 +123,9 @@ struct tCall {
     tValue fields[];
 };
 tCall* call_new(tTask* task, int size) {
-    print("call_new: %d", size);
-    tCall* call = task_alloc(task, TCall, size + 1);
-    assert(call->head.size == size + 1);
+    trace("call_new: %d", size);
+    tCall* call = task_alloc(task, TCall, size);
+    assert(call->head.size == size);
     return call;
 }
 int tcall_size(tCall* call) {
@@ -193,18 +144,19 @@ int tcall_arg_count(tCall* call) {
 }
 void tcall_eval(tCall* call, tTask* task);
 void eval(tTask* task, tCall* call, tValue callable) {
+    trace("!! NEW FRAME FOR CALL: %s(%d)", t_str(call->fields[0]), call->head.size);
     uint8_t type = t_type(callable);
     if (type == TCall) {
         task->frame = (tFrame*)tevalframe_new(task, call);
         tcall_eval(callable, task);
     } else if (type == TFun) {
-        print("eval: fun: %s", t_str(callable));
+        trace("eval: fun: %s", t_str(callable));
         task->frame = tframe_new(task, tfun_as(callable), call);
     } else if (type == TThunk) {
-        print("eval: thunk: %s", t_str(callable));
+        trace("eval: thunk: %s", t_str(callable));
         task->frame = (tFrame*)targs_new_thunk(task, callable, call);
     } else if (type == TCFun) {
-        print("eval: cfun: %s", t_str(callable));
+        trace("eval: cfun: %s", t_str(callable));
         task->frame = (tFrame*)targs_new_cfun(task, callable, call);
     } else {
         assert(false);
@@ -230,7 +182,7 @@ struct tFrame {
     int count;
 
     const uint8_t* ops;
-    const tValue* data;
+    tCode* code;
 
     tFrame* caller;
     tCall* call;
@@ -244,7 +196,7 @@ tFrame* tframe_new(tTask* task, tFun* fun, tCall* call) {
     frame->ops = fun->code->ops;
     frame->caller = task->frame;
     frame->call = call;
-    frame->data = fun->code->data;
+    frame->code = fun->code;
     //frame->locals = env_new(task, fun->env, fun->code->localkeys);
     frame->locals = fun->env;
     return frame;
@@ -261,7 +213,7 @@ tEvalFrame* tevalframe_new(tTask* task, tCall* call) {
     return frame;
 }
 void tevalframe_eval(tTask* task, tEvalFrame* frame) {
-    print("EVALFRAME: %s", t_str(task->value));
+    trace("EVALFRAME: %s", t_str(task->value));
     task->frame = frame->caller;
     eval(task, frame->call, task->value);
 }
@@ -270,15 +222,20 @@ uint8_t frame_op_next(tFrame* frame) { return *(frame->ops++); }
 void frame_op_rewind(tFrame* frame) { --frame->ops; }
 int frame_op_next_int(tFrame* frame) {
     uint8_t n = *(frame->ops++);
+    trace("%d", n);
     assert(n < 255); // TODO read a tagged int from data
     return n;
 }
-
-tValue frame_op_next_data(tFrame* frame) {
-    tValue v = *(frame->data++); print("%s", t_str(v)); return v;
+tSym frame_op_next_name(tFrame* frame) {
+    int at = frame_op_next_int(frame);
+    assert(at >= 0 && at < frame->code->head.size);
+    return tsym_as(frame->code->data[at]);
 }
-tSym frame_op_next_sym(tFrame* frame) {
-    tValue v = *(frame->data++); print("%s", t_str(v)); return tsym_as(v);
+tValue frame_op_next_data(tFrame* frame) {
+    int at = frame_op_next_int(frame);
+    assert(at >= 0 && at < frame->code->head.size);
+    assert(frame->code->data[at]);
+    return frame->code->data[at];
 }
 
 struct tArgs {
@@ -308,6 +265,7 @@ tCFun* tcfun_new_global(tcfun_cb cb) {
 }
 tArgs* targs_new_cfun(tTask* task, tCFun* fun, tCall* call) {
     assert(fun);
+    trace("!! C-ARGS: %d", tcall_arg_count(call));
     tArgs* args = task_alloc(task, TArgs, tcall_arg_count(call));
     args->caller = task->frame;
     args->call = call;
@@ -323,10 +281,11 @@ tArgs* targs_new_thunk(tTask* task, tThunk* thunk, tCall* call) {
     return args;
 }
 
+#include "trace-on.h"
+
 void NATIVE_ARGS(tTask* task, tArgs* args) {
-    print("%d - %d", args->count, args->head.size);
     while (true) {
-        if (args->count + 1 >= args->head.size) break; // ready to run
+        if (args->count >= args->head.size) break; // ready to run
         if (args->head.flags & INARGS) {
             args->fields[args->count] = task->value;
             args->head.flags &= ~INARGS;
@@ -334,6 +293,7 @@ void NATIVE_ARGS(tTask* task, tArgs* args) {
             continue;
         }
         tValue val = tcall_get(args->call, args->count);
+        trace("(%d) -> %s", args->count, t_str(val));
         if (t_type(val) == TCall) {
             args->head.flags |= INARGS;
             tcall_eval(tcall_as(val), task);
@@ -345,7 +305,7 @@ void NATIVE_ARGS(tTask* task, tArgs* args) {
     }
     uint8_t tt = t_type(args->target);
     if (tt == TCFun) {
-        print(" !! !! CFUN EVAL");
+        trace(" !! !! CFUN EVAL");
         tCFun* cf = (tCFun*)args->target;
         task->value = cf->cb(args);
         if (!task->value) task->value = tNull;
@@ -353,7 +313,7 @@ void NATIVE_ARGS(tTask* task, tArgs* args) {
     } else if (tt == TThunk) {
         task->frame = args->caller;
         tThunk* thunk = (tThunk*)args->target;
-        print(" !! !! THUNK EVAL %s", t_str(thunk->val));
+        trace(" !! !! THUNK EVAL %s", t_str(thunk->val));
         if (t_type(thunk->val) == TCall) {
             tcall_eval(tcall_as(thunk->val), task);
             return;
@@ -366,20 +326,20 @@ void NATIVE_ARGS(tTask* task, tArgs* args) {
 }
 
 void END(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     task->frame = frame->caller;
 }
 void ARG_LAZY(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     tValue val = tcall_get(frame->call, frame->count);
     if (val == null) val = tNull;
     val = tthunk_new(task, val);
-    tSym name = frame_op_next_sym(frame);
+    tSym name = frame_op_next_name(frame);
     frame->locals = tenv_set(task, frame->locals, name, val);
     frame->count++;
 }
 void ARG_EVAL(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     tValue val;
     if (frame->head.flags & INARGS) {
         frame->head.flags &= ~INARGS;
@@ -395,7 +355,7 @@ void ARG_EVAL(tTask* task, tFrame* frame) {
         }
     }
 
-    tSym name = frame_op_next_sym(frame);
+    tSym name = frame_op_next_name(frame);
     if (!val) val = tNull;
     frame->locals = tenv_set(task, frame->locals, name, val);
     frame->count++;
@@ -405,7 +365,7 @@ void ARG_EVAL_DEFAULT(tTask* task, tFrame* frame) {
      //frame_op_next_data(frame); else frame_op_next_data(frame);
 }
 void ARGS_REST(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     tCall* call = frame->call;
     tList* list = frame->temps[0];
     if (!list) {
@@ -433,7 +393,7 @@ void ARGS_REST(tTask* task, tFrame* frame) {
     frame->count = 0;
 }
 void ARGS(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     while (true) {
         if (frame->head.flags & INARGS) {
             frame->head.flags &= ~INARGS;
@@ -454,8 +414,8 @@ void ARGS(tTask* task, tFrame* frame) {
     frame->count = 0;
 }
 void RESULT(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
-    tSym name = frame_op_next_sym(frame);
+    trace("%s", t_str(task->value));
+    tSym name = frame_op_next_name(frame);
     if (t_type(task->value) == TResult) {
         //env_set(task, frame->locals, name, result_get(task->value, frame->count));
         tenv_set(task, frame->locals, name, tNull);
@@ -467,8 +427,8 @@ void RESULT(tTask* task, tFrame* frame) {
     frame->count++;
 }
 void RESULT_REST(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
-    tSym name = frame_op_next_sym(frame);
+    trace("%s", t_str(task->value));
+    tSym name = frame_op_next_name(frame);
     if (t_type(task->value) == TResult) {
         //List* list = result_slice(task, task->value, frame->count);
         tenv_set(task, frame->locals, name, tNull);
@@ -481,65 +441,75 @@ void RESULT_REST(tTask* task, tFrame* frame) {
     }
 }
 void BIND(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     tFun* fun = tfun_as(task->value);
     task->value = tfun_bind(task, fun, frame->locals);
 }
 void GETDATA(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     task->value = frame_op_next_data(frame);
 }
 void GETTEMP(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     int temp = frame_op_next_int(frame);
     assert(temp < frame->head.size);
     task->value = frame->temps[temp];
 }
 void GETENV(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
-    tSym name = frame_op_next_sym(frame);
+    trace("%s", t_str(task->value));
+    tSym name = frame_op_next_name(frame);
     task->value = tenv_get(frame->locals, name);
 }
 void SETTEMP(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
+    trace("%s", t_str(task->value));
     int temp = frame_op_next_int(frame);
     assert(temp < frame->head.size);
     frame->temps[temp] = task->value;
 }
 void SETENV(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
-    tSym name = frame_op_next_sym(frame);
+    tSym name = frame_op_next_name(frame);
+    trace("env[%s] = %s", t_str(name), t_str(task->value));
     frame->locals = tenv_set(task, frame->locals, name, task->value);
 }
 void CALL(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
     int size = frame_op_next_int(frame);
     task->value = call_new(task, size);
+    trace("setup call: %d", size);
     frame->count = 0;
 }
 void CGETDATA(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
     tCall* call = tcall_as(task->value);
-    call->fields[frame->count] = frame_op_next_data(frame);
+    int at = frame_op_next_int(frame);
+    assert(at < frame->code->head.size);
+    call->fields[frame->count] = frame->code->data[at];
+    trace("(%d) = data[%d] (%s)", frame->count, at, t_str(call->fields[frame->count]));
     frame->count++;
 }
 void CGETTEMP(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
     tCall* call = tcall_as(task->value);
     int temp = frame_op_next_int(frame);
     assert(temp < frame->head.size);
     call->fields[frame->count] = frame->temps[temp];
+    trace("(%d) = temp[%d] (%s)", frame->count, temp, t_str(call->fields[frame->count]));
     frame->count++;
 }
 void CGETENV(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
     tCall* call = tcall_as(task->value);
-    call->fields[frame->count] = tenv_get(frame->locals, frame_op_next_sym(frame));
+    tSym name = frame_op_next_name(frame);
+    call->fields[frame->count] = tenv_get(frame->locals, name);
+    trace("(%d) = env[%s] (%s)", frame->count, t_str(name), t_str(call->fields[frame->count]));
     frame->count++;
 }
 void EVAL(tTask* task, tFrame* frame) {
-    print("%s", t_str(task->value));
     tCall* call = tcall_as(task->value);
+    trace("(%d)", call->head.size);
+    tcall_eval(call, task);
+    frame->count = 0;
+}
+void GOTO(tTask* task, tFrame* frame) {
+    tCall* call = tcall_as(task->value);
+    trace("(%d)", call->head.size);
+    fatal("TODO actually make this do a goto -- fix tcall_eval");
     tcall_eval(call, task);
     frame->count = 0;
 }
@@ -549,120 +519,11 @@ static OP ops[] = {
     ARG_EVAL, ARG_EVAL_DEFAULT, ARG_LAZY, ARGS_REST, ARGS,
     RESULT, RESULT_REST,
     BIND,
-    GETDATA, GETTEMP, GETENV, SETTEMP, GETENV,
-    CALL, CGETDATA, CGETTEMP, CGETENV, EVAL,
+    GETTEMP, GETDATA, GETENV,
+    SETTEMP, SETENV,
+    CGETTEMP, CGETDATA, CGETENV,
+    CALL, EVAL, GOTO
 };
-
-tCode* test_hello() {
-    tCode* code = tcode_new_global(2, 0);
-    static const uint8_t ops[] = {
-        OARGS,
-        OCALL, 1, OCGETENV, OCGETDATA, OEVAL, // (print "hello world!")
-        OEND
-    };
-    code->ops = ops;
-    code->data[0] = tSYM("print");
-    code->data[1] = tTEXT("hello world!");
-    return code;
-}
-
-tCode* test_if() {
-    tCode* code = tcode_new_global(7, 1);
-    static const uint8_t ops[] = {
-        OARG_EVAL, OARG_LAZY, OARG_LAZY, OARGS,                        // c, &t, &f ->
-        OCALL, 3, OCGETENV, OCGETENV, OCGETENV, OCGETENV, OSETTEMP, 0, // (bool c t f)
-        OCALL, 0, OCGETTEMP, 0, OEVAL,                                 // ($0)
-        OEND
-    };
-    code->ops = ops;
-    code->data[0] = code->data[4] = tSYM("x");
-    code->data[1] = code->data[5] = tSYM("y");
-    code->data[2] = code->data[6] = tSYM("z");
-    code->data[3] = tSYM("bool");
-    return code;
-}
-tCode* test_fac() {
-    tCode* code = tcode_new_global(12, 4);
-    static const uint8_t ops[] = {
-        OARG_EVAL, OARGS,                                                 // n ->
-        OCALL, 2, OCGETENV, OCGETENV, OCGETDATA, OSETTEMP, 0,             // (<= n 1)
-        OCALL, 2, OCGETENV, OCGETENV, OCGETDATA, OSETTEMP, 1,             // (- n 1)
-        OCALL, 1, OCGETENV, OCGETTEMP, 1, OSETTEMP, 2,                    // (fac $1)
-        OCALL, 2, OCGETENV, OCGETENV, OCGETTEMP, 2, OSETTEMP, 3,          // (* n $2)
-        OCALL, 3, OCGETENV, OCGETTEMP, 0, OCGETDATA, OCGETTEMP, 3, OEVAL, // (if $1 1 $3)
-        OEND
-    };
-    code->ops = ops;
-    code->data[0] = tSYM("n");
-
-    code->data[1] = tSYM("<=");
-    code->data[2] = tSYM("n");
-    code->data[3] = tINT(1);
-
-    code->data[4] = tSYM("-");
-    code->data[5] = tSYM("n");
-    code->data[6] = tINT(1);
-
-    code->data[7] = tSYM("fac");
-
-    code->data[8] = tSYM("*");
-    code->data[9] = tSYM("n");
-
-    code->data[10] = tSYM("if");
-    code->data[11] = tINT(1);
-    return code;
-}
-
-tValue c_bool(tArgs* args) {
-    tValue c = targs_get(args, 0);
-    print("BOOL: %s", t_bool(c)?"true":"false");
-    if (t_bool(c)) return targs_get(args, 1);
-    return targs_get(args, 2);
-}
-tValue c_lte(tArgs* args) {
-    print("%d <= %d", t_int(targs_get(args, 0)), t_int(targs_get(args, 1)));
-    return tBOOL(t_int(targs_get(args, 0)) <= t_int(targs_get(args, 1)));
-}
-tValue c_mul(tArgs* args) {
-    int res = t_int(targs_get(args, 0)) * t_int(targs_get(args, 1));
-    print("MUL: %d", res);
-    return tINT(res);
-}
-tValue c_sub(tArgs* args) {
-    int res = t_int(targs_get(args, 0)) - t_int(targs_get(args, 1));
-    print("MUL: %d", res);
-    return tINT(res);
-}
-
-tValue c_print(tArgs* args) {
-    printf(">> ");
-    for (int i = 0; i < args->head.size; i++) {
-        if (i > 0) printf(" ");
-        printf("%s", t_str(targs_get(args, i)));
-    }
-    printf("\n");
-    return tNull;
-}
-
-tEnv* test_env() {
-    tEnv* env = tenv_new_global(12);
-    env->fields[0] = tcfun_new_global(c_print);
-    env->fields[1] = tcfun_new_global(c_bool);
-    env->fields[2] = tcfun_new_global(c_lte);
-    env->fields[3] = tcfun_new_global(c_mul);
-    env->fields[4] = tfun_new_global(test_hello(), env, tSYM("hello"));
-    env->fields[5] = tfun_new_global(test_if(), env, tSYM("if"));
-    env->fields[6] = tfun_new_global(test_fac(), env, tSYM("fac"));
-    env->fields[7] = tNull; // x
-    env->fields[8] = tNull; // y
-    env->fields[9] = tNull; // z
-    env->fields[10] = tNull; // n
-    env->fields[11] = tcfun_new_global(c_sub);
-    return env;
-}
-
-static tTask* __main;
-static tSlab* __heap;
 
 OP op_to_function(uint8_t op) {
     assert(op < sizeof(ops));
@@ -671,7 +532,6 @@ OP op_to_function(uint8_t op) {
 
 void frame_run(tTask* task, tFrame* frame) {
     OP op = op_to_function(frame_op_next(frame));
-    print("%p", frame);
     op(task, frame);
 }
 
@@ -688,34 +548,3 @@ void task_run(tTask* task) {
     }
 }
 
-int main_eval_test() {
-    return 0;
-
-    // init
-    tSlab* slab = __heap = tslab_create();
-    tTask* task = __main = ttask_new(slab);
-    tEnv* env = test_env();
-
-    {
-        tFun* fun = tenv_get(env, tSYM("hello"));
-        assert(fun);
-        tCall* call = call_new(task, 0);
-        call->fields[0] = fun;
-        tcall_eval(call, task);
-        while (task->frame) task_run(task);
-        print("%s", t_str(task->value));
-    }
-    printf("\n\n");
-    {
-        tFun* fun = tenv_get(env, tSYM("fac"));
-        assert(fun);
-        tCall* call = call_new(task, 1);
-        call->fields[0] = fun;
-        call->fields[1] = tINT(4);
-        tcall_eval(call, task);
-        while (task->frame) task_run(task);
-        print("%s", t_str(task->value));
-        print("%d", t_int(task->value));
-    }
-    return 0;
-}

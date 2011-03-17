@@ -6,31 +6,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <execinfo.h>
-
-static void _abort() {
-#if 0
-    void *bt[128];
-    char **strings;
-    size_t size;
-
-    size = backtrace(bt, 128);
-    strings = backtrace_symbols(bt, size);
-
-    fprintf(stderr, "\nfatal error; vm backtrace:\n");
-    for (int i = 0; i < size; i++) {
-        fprintf(stderr, "%s\n", strings[i]);
-    }
-    fflush(stderr);
-    free(strings);
-#endif
-    abort();
-}
 
 #define print(f, x...) do { fprintf(stdout, f"\n", ##x); fflush(stdout); } while(0)
 #define eprint(f, x...) do { fprintf(stderr, f"\n", ##x); fflush(stderr); } while(0)
-#define TODO() do { fprintf(stderr, "FATAL: %s:%u %s() - TODO\n", __FILE__, __LINE__, __FUNCTION__); _abort(); } while(0)
-#define fatal(f, x...) do { fprintf(stdout, "FATAL: %s:%u %s() - "f"\n", __FILE__, __LINE__, __FUNCTION__, ##x); fflush(stdout); _abort(); } while(0)
+#define TODO() do { fprintf(stderr, "FATAL: %s:%u %s() - TODO\n", __FILE__, __LINE__, __FUNCTION__); abort(); } while(0)
+#define fatal(f, x...) do { fprintf(stdout, "FATAL: %s:%u %s() - "f"\n", __FILE__, __LINE__, __FUNCTION__, ##x); fflush(stdout); abort(); } while(0)
 
 #define STRACE 0
 
@@ -43,7 +23,7 @@ static void _abort() {
 
 #define  print(f, x...) do { fprintf(stdout, "%s:%u %s() - "f"\n", __FILE__, __LINE__, __FUNCTION__, ##x); fflush(stdout); } while(0)
 #define eprint(f, x...) do { fprintf(stderr, "%s:%u %s() - "f"\n", __FILE__, __LINE__, __FUNCTION__, ##x); fflush(stdout); } while(0)
-#define fatal(f, x...)  do { fprintf(stderr, "FATAL: %s:%u %s() - "f"\n", __FILE__, __LINE__, __FUNCTION__, ##x); _abort(); } while(0)
+#define fatal(f, x...)  do { fprintf(stderr, "FATAL: %s:%u %s() - "f"\n", __FILE__, __LINE__, __FUNCTION__, ##x); abort(); } while(0)
 
 //#ifndef HAVE_STRACE
 //#define HAVE_STRACE
@@ -112,7 +92,7 @@ static void _abort() {
 #define HAVE_API_ASSERTS
 #endif
 
-#define assert(t) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: "#t"\n", __FILE__, __LINE__, __FUNCTION__); _abort(); }
+#define assert(t) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: "#t"\n", __FILE__, __LINE__, __FUNCTION__); abort(); }
 
 #else // no HAVE_ASSERTS
 
@@ -123,7 +103,7 @@ static void _abort() {
 /* HAVE_API_ASSERTS macros */
 #ifdef HAVE_API_ASSERTS
 
-#define api_assert(t, f, x...) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: "#t": ", __FILE__, __LINE__, __FUNCTION__); fprintf(stderr, f"\n", ##x); _abort(); }
+#define api_assert(t, f, x...) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: "#t": ", __FILE__, __LINE__, __FUNCTION__); fprintf(stderr, f"\n", ##x); abort(); }
 
 #else // no HAVE_API_ASSERTS
 
