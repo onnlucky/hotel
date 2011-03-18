@@ -1,5 +1,7 @@
 CFLAGS=-Wall -Wno-unused-function -g -std=c99
 
+all: tl
+
 lhashmap.o: llib/lhashmap.h llib/lhashmap.c
 	$(CC) $(CFLAGS) -c llib/lhashmap.c -o lhashmap.o
 
@@ -12,9 +14,7 @@ tl: lhashmap.o lqueue.o parser.c *.c *.h
 parser.c: parser.g
 	greg -o parser.c parser.g
 
-all: tl
-
-run: tl
+run: tl run.tl
 	valgrind -q --track-origins=yes ./tl
 
 clean:

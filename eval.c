@@ -14,9 +14,14 @@ typedef struct tCTask tCTask;
 typedef struct tCFun tCFun;
 typedef tValue(*tcfun_cb)(tArgs* args);
 
-tCall* tcall_as(tValue v) { return (tCall*)v; }
-tThunk* tthunk_as(tValue v) { return (tThunk*)v; }
-tFun* tfun_as(tValue v) { return (tFun*)v; }
+bool tcall_is(tValue v) { return t_type(v) == TCall; }
+bool tthunk_is(tValue v) { return t_type(v) == TThunk; }
+bool tfun_is(tValue v) { return t_type(v) == TFun; }
+
+tCall* tcall_as(tValue v) { assert(tcall_is(v)); return (tCall*)v; }
+tThunk* tthunk_as(tValue v) { assert(tthunk_is(v)); return (tThunk*)v; }
+tFun* tfun_as(tValue v) { assert(tfun_is(v)); return (tFun*)v; }
+
 tFrame* tframe_new(tTask* task, tFun* fun, tCall* call);
 tEvalFrame* tevalframe_new(tTask* task, tCall* call);
 
@@ -191,6 +196,7 @@ struct tFrame {
 };
 tFrame* tframe_new(tTask* task, tFun* fun, tCall* call) {
     assert(fun && t_type(fun) == TFun);
+    assert(fun->code);
     tFrame* frame = task_alloc(task, TFrame, fun->code->temps);
     frame->count = 0;
     frame->ops = fun->code->ops;
@@ -442,8 +448,7 @@ void RESULT_REST(tTask* task, tFrame* frame) {
 }
 void BIND(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
-    tFun* fun = tfun_as(task->value);
-    task->value = tfun_bind(task, fun, frame->locals);
+    task->value = tfun_new(task, tcode_as(task->value), frame->locals, tNull);
 }
 void GETDATA(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));

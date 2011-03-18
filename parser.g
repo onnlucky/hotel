@@ -36,15 +36,32 @@ tList* set_target(tList* call, tList* target) {
  start = __ b:body __ !.   { $$ = b; }
 
   body = ts:stms           { $$ = tlist_prepend(TASK, L(ts), _BODY_); }
-  stms = t:stm eol ts:body { $$ = tlist_prepend(TASK, L(ts), t); }
+
+  stms = t:stm eol ts:stms { $$ = tlist_prepend(TASK, L(ts), t); }
        | t:stm             { $$ = tlist_new_add(TASK, t); }
        |                   { $$ = tlist_new(TASK, 0); }
 
-   stm = expr
+   stm = assign | expr
+assign = n:name _"="__ e:expr {
+    $$ = tlist_new_add3(TASK, _SETENV_, n, e);
+}
+
   expr = paren
  paren = "("__ body __")"
+       | fn
        | call
        | value
+
+fn = "{" __ as:fargs __ "=>" __ ts:stms __ "}" {
+    $$ = tlist_prepend(TASK, tlist_cat(TASK, L(as), L(ts)), _BODY_);
+}
+
+fargs = a:farg __","__ as:fargs { $$ = tlist_prepend(TASK, L(as), a); }
+      | a:farg                  { $$ = tlist_new_add(TASK, a); }
+      |                         { $$ = tlist_new(TASK, 0); }
+
+farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
+     |     n:name { $$ = tlist_new_add2(TASK, _ARG_EVAL_, n); }
 
   tail = "("__ as:cargs __")" t:tail {
            $$ = set_target(L(t), tlist_prepend2(TASK, L(as), _CALL_, null));

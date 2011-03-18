@@ -92,15 +92,20 @@ tType t_type(tValue v) {
 const char* t_type_str(tValue v) { return type_to_str[t_type(v)]; }
 const char* t_str(tValue v);
 
-bool tsym_is(tValue v) { return t_type(v) == TSym; }
 bool tint_is(tValue v) { return t_type(v) == TInt; }
+
+bool tsym_is(tValue v) { return t_type(v) == TSym; }
+tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
+
 bool ttext_is(tValue v) { return t_type(v) == TText; }
+tText* ttext_as(tValue v) { assert(ttext_is(v)); return (tText*)v; }
+
 bool tlist_is(tValue v) { return t_type(v) == TList; }
+tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
+tList* tlist_cast(tValue v) { if (!tlist_is(v)) return null; else return (tList*)v; }
+
 bool ttask_is(tValue v) { return t_type(v) == TTask; }
 
-tText* ttext_as(tValue v) { assert(ttext_is(v)); return (tText*)v; }
-tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
-tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
 
 // creating primitives
 

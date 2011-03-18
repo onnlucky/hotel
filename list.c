@@ -115,14 +115,34 @@ tList* tlist_new_add2(tTask* task, tValue v1, tValue v2) {
     return list;
 }
 
+tList* tlist_new_add3(tTask* task, tValue v1, tValue v2, tValue v3) {
+    trace("[] :: %s :: %s ...", t_str(v1), t_str(v2));
+    tList* list = tlist_new(task, 3);
+    tlist_set_(list, 0, v1);
+    tlist_set_(list, 1, v2);
+    tlist_set_(list, 2, v3);
+    return list;
+}
+
 tList* tlist_new_add4(tTask* task, tValue v1, tValue v2, tValue v3, tValue v4) {
     trace("[] :: %s :: %s ...", t_str(v1), t_str(v2));
-    tList* list = tlist_new(task, 2);
+    tList* list = tlist_new(task, 4);
     tlist_set_(list, 0, v1);
     tlist_set_(list, 1, v2);
     tlist_set_(list, 2, v3);
     tlist_set_(list, 3, v4);
     return list;
+}
+
+tList* tlist_cat(tTask* task, tList* left, tList* right) {
+    int lsize = tlist_size(left);
+    int rsize = tlist_size(right);
+    if (lsize == 0) return right;
+    if (rsize == 0) return left;
+
+    tList *nlist = tlist_copy(task, left, lsize + rsize);
+    memcpy(nlist->data + lsize, right->data, sizeof(tValue) * rsize);
+    return nlist;
 }
 
 void list_init() {

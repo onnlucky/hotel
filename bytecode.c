@@ -77,9 +77,7 @@ void tcode_print(tCode* code) {
         case OGETTEMP: case OCGETTEMP: case OSETTEMP:
             print("%s %d", name, *(ops++)); break;
         case OGETDATA: case OCGETDATA:
-            print("%s %d = %s", name, *ops, t_str(code->data[*ops]));
-            ops++; break;
-        case OGETENV: case OCGETENV:
+        case OGETENV: case OCGETENV: case OSETENV:
             print("%s %d = %s", name, *ops, t_str(code->data[*ops]));
             ops++; break;
         default:
