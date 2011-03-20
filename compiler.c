@@ -6,6 +6,7 @@
 #define _TEMP_ tINT(400)
 #define _LIST_ tINT(500)
 #define _SEND_ tINT(600)
+#define _ASSIGN_ tINT(700)
 
 #define _ARG_EVAL_  tINT(10)
 #define _ARG_EVAL_DEFAULT_ tINT(11)
@@ -13,7 +14,8 @@
 #define _ARGS_      tINT(13)
 #define _ARGS_REST_ tINT(14)
 
-#define _SETENV_ tINT(20)
+#define _RESULT_      tINT(30)
+#define _RESULT_REST_ tINT(31)
 
 bool isBODY(tValue v) { return tlist_is(v) && tlist_get(v, 0) == _BODY_; }
 bool isCALL(tValue v) { return tlist_is(v) && tlist_get(v, 0) == _CALL_; }
@@ -29,7 +31,7 @@ typedef struct Context {
 } Context;
 
 void emit(Context* cx, uint8_t op) {
-    trace("emit: %s", ops_to_str[op]);
+    //trace("emit: %s", ops_to_str[op]);
     if (tbuffer_canwrite(cx->buf) < 1) tbuffer_grow(cx->buf);
     tbuffer_write_uint8(cx->buf, op);
 }
@@ -99,13 +101,13 @@ tList* addSubCalls(tTask* task, Context* cx, tList* in) {
 
 void addCall(tTask* task, Context* cx, tList* in) {
     in = addSubCalls(task, cx, in);
-    trace("> call: %d", tlist_size(in));
+    //trace("> call: %d", tlist_size(in));
     emit(cx, OCALL);
     emitd(cx, tlist_size(in) - 1);
     for (int i = 1; i < tlist_size(in); i++) {
         addForCall(task, cx, tlist_get(in, i));
     }
-    trace("< call: %d", tlist_size(in));
+    //trace("< call: %d", tlist_size(in));
 }
 
 void addForBody(tTask* task, Context* cx, tValue in) {
@@ -143,10 +145,13 @@ void addForBody(tTask* task, Context* cx, tValue in) {
             emitd(cx, getOrAdd(task, cx, tlist_get(list, 1)));
             return;
         }
-        if (what == _SETENV_) {
-            addForBody(task, cx, tlist_get(list, 2));
-            emit(cx, OSETENV);
-            emitd(cx, getOrAdd(task, cx, tlist_get(list, 1)));
+        if (what == _ASSIGN_) {
+            addForBody(task, cx, tlist_get(list, 1));
+            for (int i = 2; i < tlist_size(list); i += 2) {
+                if (tlist_get(list, i) == _RESULT_) { emit(cx, ORESULT); }
+                else { assert(tlist_get(list, i) == _RESULT_REST_) emit(cx, ORESULT_REST); }
+                emitd(cx, getOrAdd(task, cx, tlist_get(list, i + 1)));
+            }
             return;
         }
         assert(false);
@@ -164,17 +169,16 @@ tCode* newBody(tTask* task, tList *in) {
     cx->buf = tbuffer_new();
     cx->data = tlist_new(task, 0);
 
-    trace("> body: %d", tlist_size(in));
+    //trace("> body: %d", tlist_size(in));
     for (int i = 1; i < tlist_size(in); i++) {
         addForBody(task, cx, tlist_get(in, i));
     }
     emit(cx, OEND);
-    trace("< body: %d", tlist_size(in));
+    //trace("< body: %d", tlist_size(in));
 
     tCode* code = tcode_new(task, tbuffer_canread(cx->buf), cx->maxtemps, null, cx->data);
     tbuffer_read(cx->buf, tcode_bytes_(code), tbuffer_canread(cx->buf));
 
-    print("CODE:");
     tcode_print(code);
     print();
     return code;

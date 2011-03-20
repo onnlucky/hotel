@@ -420,15 +420,15 @@ void ARGS(tTask* task, tFrame* frame) {
     frame->count = 0;
 }
 void RESULT(tTask* task, tFrame* frame) {
-    trace("%s", t_str(task->value));
     tSym name = frame_op_next_name(frame);
+    trace("count=%d, name=%s", frame->count, t_str(name));
     if (t_type(task->value) == TResult) {
-        //env_set(task, frame->locals, name, result_get(task->value, frame->count));
-        tenv_set(task, frame->locals, name, tNull);
+        assert(false);
+        //frame->locals = env_set(task, frame->locals, name, result_get(task->value, frame->count));
     } else if (frame->count == 0) {
-        tenv_set(task, frame->locals, name, task->value);
+        frame->locals = tenv_set(task, frame->locals, name, task->value);
     } else {
-        tenv_set(task, frame->locals, name, tNull);
+        frame->locals = tenv_set(task, frame->locals, name, tNull);
     }
     frame->count++;
 }
@@ -437,13 +437,13 @@ void RESULT_REST(tTask* task, tFrame* frame) {
     tSym name = frame_op_next_name(frame);
     if (t_type(task->value) == TResult) {
         //List* list = result_slice(task, task->value, frame->count);
-        tenv_set(task, frame->locals, name, tNull);
+        frame->locals = tenv_set(task, frame->locals, name, tNull);
     } else if (frame->count == 0) {
         tList* list = tlist_new(task, 1);
         tlist_set_(list, 0, task->value);
-        tenv_set(task, frame->locals, name, list);
+        frame->locals = tenv_set(task, frame->locals, name, list);
     } else {
-        tenv_set(task, frame->locals, name, tlist_new(task, 0));
+        frame->locals = tenv_set(task, frame->locals, name, t_list_empty);
     }
 }
 void BIND(tTask* task, tFrame* frame) {

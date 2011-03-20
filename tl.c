@@ -116,16 +116,13 @@ int main() {
     text_init();
     sym_init();
 
+    tEnv* globals = test_env();
+
     tBuffer* buf = tbuffer_new_from_file("run.tl");
     tbuffer_write_uint8(buf, 0);
     assert(buf);
     tText* text = tTEXT(tbuffer_free_get(buf));
-
-    tEnv* globals = test_env();
     tValue v = compile(text);
-    if (t_type(v) == TCode) {
-        tcode_print(tcode_as(v));
-    }
 
     tTask* task = ttask_new_global();
     tFun* fun = tfun_new(task, tcode_as(v), globals, tSYM("main"));
