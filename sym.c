@@ -2,7 +2,10 @@
 
 #include "trace-off.h"
 
-static tSym s_cc;
+static tSym s_cont;
+static tSym s_caller;
+static tSym s_return;
+static tSym s_goto;
 static tSym s_this;
 static tSym s_args;
 
@@ -105,10 +108,13 @@ static void strfree(void *str) { }
 
 static void sym_init() {
     trace("");
-    symbols = lhashmap_new(strequals, strhash, strfree);
-    s_cc   = tSYM("continuation");
-    s_this = tSYM("this");
-    s_args = tSYM("args");
+    symbols  = lhashmap_new(strequals, strhash, strfree);
+    s_cont   = tSYM("continuation");
+    s_caller = tSYM("caller-continuation");
+    s_return = tSYM("return");
+    s_goto   = tSYM("goto");
+    s_this   = tSYM("this");
+    s_args   = tSYM("args");
 
     //globals = lhashmap_new(strequals, strhash, strfree);
 

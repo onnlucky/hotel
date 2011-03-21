@@ -118,8 +118,8 @@ farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
        | "false"     { $$ = tFalse; }
        | "null"      { $$ = tNull; }
        | "undefined" { $$ = tUndef; }
-       | "return"    { $$ = _CALL1(_REF(tSYM("return")), _REF(s_cc)); }
-       | "goto"      { $$ = _CALL1(_REF(tSYM("goto")), _REF(s_cc)); }
+       | "return"    { $$ = _CALL1(_REF(s_return), _REF(s_caller)); }
+       | "goto"      { $$ = _CALL1(_REF(s_goto), _REF(s_caller)); }
 
    mut = "$" n:name  { $$ = _CALL1(_REF(tSYM("%get")), _REF(n)); }
    ref = n:name      { $$ = _REF(n); }

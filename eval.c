@@ -20,6 +20,7 @@ bool tfun_is(tValue v) { return t_type(v) == TFun; }
 
 tCall* tcall_as(tValue v) { assert(tcall_is(v)); return (tCall*)v; }
 tThunk* tthunk_as(tValue v) { assert(tthunk_is(v)); return (tThunk*)v; }
+tThunk* tthunk_cast(tValue v) { if (tthunk_is(v)) return tthunk_as(v); else return null; }
 tFun* tfun_as(tValue v) { assert(tfun_is(v)); return (tFun*)v; }
 
 tFrame* tframe_new(tTask* task, tFun* fun, tCall* call);
@@ -28,8 +29,9 @@ tEvalFrame* tevalframe_new(tTask* task, tCall* call);
 tArgs* targs_new_cfun(tTask* task, tCFun* fun, tCall* call);
 tArgs* targs_new_thunk(tTask* task, tThunk* thunk, tCall* call);
 
-const uint8_t VALID  = 1 << 0;
-const uint8_t INARGS = 1 << 1;
+const uint8_t FLAG_MOVED  = 1 << 0;
+const uint8_t FLAG_INARGS = 1 << 1;
+const uint8_t FLAG_CLOSED = 1 << 2;
 
 struct tSlab {
     tSlab* prev;
@@ -185,6 +187,9 @@ void eval(tTask* task, tCall* call, tValue callable) {
     } else if (type == TCFun) {
         trace("eval: cfun: %s", t_str(callable));
         task->frame = (tFrame*)targs_new_cfun(task, callable, call);
+    } else if (type == TFrame) {
+        trace("eval: continuation: %s", t_str(callable));
+        task->frame = (tFrame*)callable;
     } else {
         fatal("unexpected type: %s", t_str(callable));
     }
@@ -228,6 +233,7 @@ tFrame* tframe_new(tTask* task, tFun* fun, tCall* call) {
     frame->code = fun->code;
     //frame->locals = env_new(task, fun->env, fun->code->localkeys);
     frame->locals = fun->env;
+    print("START FRAME: %p", frame);
     return frame;
 }
 struct tEvalFrame {
@@ -247,9 +253,33 @@ void tevalframe_eval(tTask* task, tEvalFrame* frame) {
     eval(task, frame->call, task->value);
 }
 
-uint8_t frame_op_next(tFrame* frame) { return *(frame->ops++); }
-void frame_op_rewind(tFrame* frame) { --frame->ops; }
+bool tframe_isopen(tFrame* frame) {
+    return (frame->head.flags & FLAG_CLOSED) == 0;
+}
+tFrame* tframe_close(tFrame* frame) {
+    if (!frame) return null;
+    if (!tframe_isopen(frame)) return frame;
+    frame->head.flags |= FLAG_CLOSED;
+    return frame;
+}
+tFrame* tframe_reopen(tTask* task, tFrame* frame) {
+    if (tframe_isopen(frame)) return frame;
+    tframe_close(frame->caller);
+    tFrame* nframe = task_alloc(task, TFrame, frame->code->temps);
+    nframe->count = frame->count;
+    nframe->ops = frame->ops;
+    nframe->caller = frame->caller;
+    nframe->call = frame->call;
+    nframe->code = frame->code;
+    nframe->locals = frame->locals;
+    print("REOPEN FRAME: %p", frame);
+    return nframe;
+}
+
+uint8_t frame_op_next(tFrame* frame) { assert(tframe_isopen(frame)); return *(frame->ops++); }
+void frame_op_rewind(tFrame* frame) { assert(tframe_isopen(frame)); --frame->ops; }
 int frame_op_next_int(tFrame* frame) {
+    assert(tframe_isopen(frame));
     uint8_t n = *(frame->ops++);
     trace("%d", n);
     assert(n < 255); // TODO read a tagged int from data
@@ -315,16 +345,16 @@ tArgs* targs_new_thunk(tTask* task, tThunk* thunk, tCall* call) {
 void NATIVE_ARGS(tTask* task, tArgs* args) {
     while (true) {
         if (args->count >= args->head.size) break; // ready to run
-        if (args->head.flags & INARGS) {
+        if (args->head.flags & FLAG_INARGS) {
             args->fields[args->count] = task->value;
-            args->head.flags &= ~INARGS;
+            args->head.flags &= ~FLAG_INARGS;
             args->count++;
             continue;
         }
         tValue val = tcall_get(args->call, args->count);
         trace("(%d) -> %s", args->count, t_str(val));
         if (t_type(val) == TCall) {
-            args->head.flags |= INARGS;
+            args->head.flags |= FLAG_INARGS;
             tcall_eval(tcall_as(val), task);
             return;
         }
@@ -336,8 +366,10 @@ void NATIVE_ARGS(tTask* task, tArgs* args) {
     if (tt == TCFun) {
         trace(" !! !! CFUN EVAL");
         tCFun* cf = (tCFun*)args->target;
-        task->value = cf->cb(task, args);
-        if (!task->value) task->value = tNull;
+        task->value = null;
+        tValue res = cf->cb(task, args);
+        if (!res) { assert(task->value); return; }
+        task->value = res;
         task->frame = args->caller;
     } else if (tt == TThunk) {
         task->frame = args->caller;
@@ -370,14 +402,14 @@ void ARG_LAZY(tTask* task, tFrame* frame) {
 void ARG_EVAL(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
     tValue val;
-    if (frame->head.flags & INARGS) {
-        frame->head.flags &= ~INARGS;
+    if (frame->head.flags & FLAG_INARGS) {
+        frame->head.flags &= ~FLAG_INARGS;
         assert(task->value);
         val = task->value;
     } else {
         val = tcall_get(frame->call, frame->count);
         if (t_type(val) == TCall) {
-            frame->head.flags |= INARGS;
+            frame->head.flags |= FLAG_INARGS;
             frame_op_rewind(frame);
             tcall_eval(tcall_as(val), task);
             return;
@@ -401,9 +433,9 @@ void ARGS_REST(tTask* task, tFrame* frame) {
         list = frame->temps[0] = tlist_new(task, tcall_argc(call) - frame->count);
     }
     while (true) {
-        if (frame->head.flags & INARGS) {
-            frame->head.flags &= ~INARGS;
-            tlist_set_(list, frame->count - tlist_size(list), task->value);
+        if (frame->head.flags & FLAG_INARGS) {
+            frame->head.flags &= ~FLAG_INARGS;
+            tlist_set_(list, frame->count - (tcall_argc(call) - tlist_size(list)), task->value);
             frame->count++;
             continue;
         }
@@ -412,7 +444,7 @@ void ARGS_REST(tTask* task, tFrame* frame) {
         if (!val) break;
         if (t_type(val) == TCall) {
             frame_op_rewind(frame);
-            frame->head.flags |= INARGS;
+            frame->head.flags |= FLAG_INARGS;
             tcall_eval(tcall_as(val), task);
             return;
         }
@@ -426,8 +458,8 @@ void ARGS_REST(tTask* task, tFrame* frame) {
 void ARGS(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
     while (true) {
-        if (frame->head.flags & INARGS) {
-            frame->head.flags &= ~INARGS;
+        if (frame->head.flags & FLAG_INARGS) {
+            frame->head.flags &= ~FLAG_INARGS;
             frame->count++;
             continue;
         }
@@ -435,7 +467,7 @@ void ARGS(tTask* task, tFrame* frame) {
         if (!val) break;
         if (t_type(val) == TCall) {
             frame_op_rewind(frame);
-            frame->head.flags |= INARGS;
+            frame->head.flags |= FLAG_INARGS;
             tcall_eval(tcall_as(val), task);
             return;
         }
@@ -470,6 +502,7 @@ void RESULT_REST(tTask* task, tFrame* frame) {
     } else {
         frame->locals = tenv_set(task, frame->locals, name, t_list_empty);
     }
+    frame->count = 0;
 }
 void BIND(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
@@ -478,18 +511,22 @@ void BIND(tTask* task, tFrame* frame) {
 void GETDATA(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
     task->value = frame_op_next_data(frame);
+    frame->count = 0;
 }
 void GETTEMP(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
     int temp = frame_op_next_int(frame);
     assert(temp < frame->head.size);
     task->value = frame->temps[temp];
+    frame->count = 0;
 }
 void GETENV(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
     tSym name = frame_op_next_name(frame);
-    if (name == s_cc) { task->value = frame; return; }
+    if (name == s_cont)   { task->value = tframe_close(frame); return; }
+    if (name == s_caller) { task->value = tframe_close(frame->caller); return; }
     task->value = tenv_get(frame->locals, name);
+    frame->count = 0;
 }
 void SETTEMP(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
@@ -527,8 +564,10 @@ void CGETTEMP(tTask* task, tFrame* frame) {
 void CGETENV(tTask* task, tFrame* frame) {
     tCall* call = tcall_as(task->value);
     tSym name = frame_op_next_name(frame);
-    if (name == s_cc) {
-        call->fields[frame->count] = frame;
+    if (name == s_cont) {
+        call->fields[frame->count] = tframe_close(frame);
+    } else if (name == s_caller) {
+        call->fields[frame->count] = tframe_close(frame->caller);
     } else {
         call->fields[frame->count] = tenv_get(frame->locals, name);
     }
@@ -566,6 +605,7 @@ OP op_to_function(uint8_t op) {
 }
 
 void frame_run(tTask* task, tFrame* frame) {
+    frame = task->frame = tframe_reopen(task, frame);
     OP op = op_to_function(frame_op_next(frame));
     op(task, frame);
 }
@@ -583,12 +623,29 @@ void task_run(tTask* task) {
     }
 }
 
+tValue _goto(tTask* task, tArgs* args) {
+    tFrame* caller = tframe_cast(targs_get(args, 0));
+    assert(caller || targs_get(args, 0) == tNull);
+    tThunk* thunk = tthunk_cast(targs_get(args, 1));
+    assert(thunk);
+    trace("_GOTO");
+    task->value = tNull;
+    task->frame = caller;
+    if (t_type(thunk->val) == TCall) {
+        tcall_eval(tcall_as(thunk->val), task);
+    } else {
+        task->value = thunk->val;
+    }
+    return null;
+}
 tValue _return(tTask* task, tArgs* args) {
-    tFrame* frame = tframe_cast(targs_get(args, 0));
-    assert(frame);
+    tFrame* caller = tframe_cast(targs_get(args, 0));
+    assert(caller || targs_get(args, 0) == tNull);
     tList* ls = tlist_cast(targs_get(args, 1));
     assert(ls);
-    task->frame = frame->caller;
-    return tresult_from(task, ls);
+    trace("_RETURN");
+    task->frame = caller;
+    task->value = tresult_from(task, ls);
+    return null;
 }
 

@@ -1,3 +1,5 @@
-return = { cc => { *args => _return(cc, args) }}
-return(1, 2, 3)
+goto = { pcont => { &fn => _goto(pcont, fn) }}
+return = { pcont => { *args => _return(pcont, args) }}
+
+goto(print("here"), print("second"))
 

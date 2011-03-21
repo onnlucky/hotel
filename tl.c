@@ -98,10 +98,12 @@ tEnv* test_env() {
     env = tenv_set(null, env, tSYM("-"), tcfun_new_global(c_sub));
 
     env = tenv_set(null, env, tSYM("_return"), tcfun_new_global(_return));
+    env = tenv_set(null, env, tSYM("_goto"), tcfun_new_global(_goto));
 
     assert(start->parent == env->parent);
     //assert(start == env);
     assert(tenv_get(env, tSYM("print")) == test_print);
+    assert(tenv_get(env, tSYM("_goto")));
     return env;
 }
 
