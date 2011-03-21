@@ -79,12 +79,14 @@ anames =     n:name _","_ as:anames { $$ = tlist_prepend2(TASK, L(as), _RESULT_,
   expr = paren
 
 fn = "{" __ as:fargs __ "=>" __ ts:stms __ "}" {
-    $$ = tlist_prepend(TASK, _CAT(L(as), L(ts)), _BODY_);
+    tList* args = tlist_prepend(TASK, L(as), _ARGUMENTS_);
+    $$ = tlist_prepend2(TASK, L(ts), _BODY_, args);
 }
 
-fargs = a:farg __","__ as:fargs { $$ = tlist_prepend(TASK, L(as), a); }
-      | a:farg                  { $$ = tlist_new_add(TASK, a); }
-      |                         { $$ = t_list_empty; }
+fargs = a:farg __","__ as:fargs { $$ = tlist_cat(TASK, L(a), L(as)); }
+      | a:farg                  { $$ = tlist_add(TASK, a, _ARGS_); }
+      | "*" n:name              { $$ = tlist_new_add2(TASK, _ARGS_REST_, n); }
+      |                         { $$ = tlist_new_add(TASK, _ARGS_); }
 
 farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
      |     n:name { $$ = tlist_new_add2(TASK, _ARG_EVAL_, n); }
@@ -107,7 +109,7 @@ farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
        |                               { $$ = t_list_empty; }
 
  paren = "("__ b:body __")" t:tail     { $$ = set_target(L(t), b); }
-       | fn
+       | f:fn t:tail                   { $$ = set_target(L(t), f); }
        | v:value t:tail                { $$ = set_target(L(t), v); }
 
  value = lit | number | text | mut | ref | sym
@@ -116,6 +118,8 @@ farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
        | "false"     { $$ = tFalse; }
        | "null"      { $$ = tNull; }
        | "undefined" { $$ = tUndef; }
+       | "return"    { $$ = _CALL1(_REF(tSYM("return")), _REF(s_cc)); }
+       | "goto"      { $$ = _CALL1(_REF(tSYM("goto")), _REF(s_cc)); }
 
    mut = "$" n:name  { $$ = _CALL1(_REF(tSYM("%get")), _REF(n)); }
    ref = n:name      { $$ = _REF(n); }

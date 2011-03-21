@@ -7,6 +7,7 @@
 #define _LIST_ tINT(500)
 #define _SEND_ tINT(600)
 #define _ASSIGN_ tINT(700)
+#define _ARGUMENTS_ tINT(800)
 
 #define _ARG_EVAL_  tINT(10)
 #define _ARG_EVAL_DEFAULT_ tINT(11)
@@ -135,14 +136,29 @@ void addForBody(tTask* task, Context* cx, tValue in) {
             emitd(cx, getOrAdd(task, cx, tlist_get(list, 1)));
             return;
         }
-        if (what == _ARG_EVAL_) {
-            emit(cx, OARG_EVAL);
-            emitd(cx, getOrAdd(task, cx, tlist_get(list, 1)));
-            return;
-        }
-        if (what == _ARG_LAZY_) {
-            emit(cx, OARG_LAZY);
-            emitd(cx, getOrAdd(task, cx, tlist_get(list, 1)));
+        if (what == _ARGUMENTS_) {
+            for (int i = 1; i < tlist_size(list); i++) {
+                tValue o = tlist_get(list, i);
+                if (o == _ARG_EVAL_) {
+                    emit(cx, OARG_EVAL); i++;
+                    emitd(cx, getOrAdd(task, cx, tlist_get(list, i)));
+                } else if (o == _ARG_LAZY_) {
+                    emit(cx, OARG_LAZY); i++;
+                    emitd(cx, getOrAdd(task, cx, tlist_get(list, i)));
+                } else if (o == _ARG_EVAL_DEFAULT_) {
+                    emit(cx, OARG_EVAL_DEFAULT); i++;
+                    emitd(cx, getOrAdd(task, cx, tlist_get(list, i))); i++;
+                    emitd(cx, getOrAdd(task, cx, tlist_get(list, i)));
+                } else if (o == _ARGS_REST_) {
+                    cx->maxtemps = 1;
+                    emit(cx, OARGS_REST); i++;
+                    emitd(cx, getOrAdd(task, cx, tlist_get(list, i)));
+                } else if (o == _ARGS_) {
+                    emit(cx, OARGS);
+                } else {
+                    assert(false);
+                }
+            }
             return;
         }
         if (what == _ASSIGN_) {

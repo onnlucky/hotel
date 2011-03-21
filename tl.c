@@ -56,30 +56,30 @@ const char* t_str(tValue v) {
     }
 }
 
-tValue c_bool(tArgs* args) {
+tValue c_bool(tTask* task, tArgs* args) {
     tValue c = targs_get(args, 0);
     trace("BOOL: %s", t_bool(c)?"true":"false");
     if (t_bool(c)) return targs_get(args, 1);
     return targs_get(args, 2);
 }
-tValue c_lte(tArgs* args) {
+tValue c_lte(tTask* task, tArgs* args) {
     trace("%d <= %d", t_int(targs_get(args, 0)), t_int(targs_get(args, 1)));
     return tBOOL(t_int(targs_get(args, 0)) <= t_int(targs_get(args, 1)));
 }
-tValue c_mul(tArgs* args) {
+tValue c_mul(tTask* task, tArgs* args) {
     int res = t_int(targs_get(args, 0)) * t_int(targs_get(args, 1));
     trace("MUL: %d", res);
     return tINT(res);
 }
-tValue c_sub(tArgs* args) {
+tValue c_sub(tTask* task, tArgs* args) {
     int res = t_int(targs_get(args, 0)) - t_int(targs_get(args, 1));
     trace("MUL: %d", res);
     return tINT(res);
 }
 
-tValue c_print(tArgs* args) {
+tValue c_print(tTask* task, tArgs* args) {
     printf(">> ");
-    for (int i = 0; i < args->head.size; i++) {
+    for (int i = 0; i < targs_size(args); i++) {
         if (i > 0) printf(" ");
         printf("%s", t_str(targs_get(args, i)));
     }
@@ -96,6 +96,8 @@ tEnv* test_env() {
     env = tenv_set(null, env, tSYM("<="), tcfun_new_global(c_lte));
     env = tenv_set(null, env, tSYM("*"), tcfun_new_global(c_mul));
     env = tenv_set(null, env, tSYM("-"), tcfun_new_global(c_sub));
+
+    env = tenv_set(null, env, tSYM("_return"), tcfun_new_global(_return));
 
     assert(start->parent == env->parent);
     //assert(start == env);
@@ -131,6 +133,6 @@ int main() {
     tcall_eval(call, task);
     while (task->frame) task_run(task);
 
-    print("%s", t_str(task->value));
+    print("%s", t_str(tresult_default(task->value)));
     print("DONE");
 }

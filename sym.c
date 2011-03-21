@@ -2,6 +2,10 @@
 
 #include "trace-off.h"
 
+static tSym s_cc;
+static tSym s_this;
+static tSym s_args;
+
 static LHashMap *symbols = 0;
 
 static tSym _SYM_FROM_TEXT(tText* v) { return (tSym)((intptr_t)v | 2); }
@@ -102,9 +106,12 @@ static void strfree(void *str) { }
 static void sym_init() {
     trace("");
     symbols = lhashmap_new(strequals, strhash, strfree);
+    s_cc   = tSYM("continuation");
+    s_this = tSYM("this");
+    s_args = tSYM("args");
+
     //globals = lhashmap_new(strequals, strhash, strfree);
 
-    //s_args   = tSYM("args");
 
     //for (int i = 0; i < TYPE_LAST; i++) {
     //    char *buf;

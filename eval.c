@@ -12,7 +12,7 @@ typedef struct tEvalFrame tEvalFrame;
 
 typedef struct tCTask tCTask;
 typedef struct tCFun tCFun;
-typedef tValue(*tcfun_cb)(tArgs* args);
+typedef tValue(*tcfun_cb)(tTask* task, tArgs* args);
 
 bool tcall_is(tValue v) { return t_type(v) == TCall; }
 bool tthunk_is(tValue v) { return t_type(v) == TThunk; }
@@ -98,6 +98,25 @@ tValue task_alloc(tTask* task, uint8_t type, int size) {
     return v;
 }
 
+tValue tresult_from(tTask* task, tList* list) {
+    if (tlist_size(list) <= 1) return tlist_get(list, 0);
+    tResult* res = task_alloc(task, TResult, tlist_size(list));
+    for (int i = 0; i < tlist_size(list); i++) {
+        res->data[i] = list->data[i];
+    }
+    return res;
+}
+tValue tresult_get(tResult* res, int at) {
+    if (at < 0 || at >= res->head.size) return tNull;
+    return res->data[at];
+}
+tValue tresult_default(tValue v) {
+    if (t_type(v) == TResult) {
+        return tresult_get((tResult*)v, 0);
+    }
+    return v;
+}
+
 struct tFun {
     tHead head;
     tCode* code;
@@ -139,6 +158,9 @@ int tcall_size(tCall* call) {
 tValue tcall_get_fn(tCall* call) {
     return call->fields[0];
 }
+int tcall_argc(tCall* call) {
+    return call->head.size - 1;
+}
 tValue tcall_get(tCall* call, int at) {
     at++;
     if (at < 1 || at >= call->head.size) return null;
@@ -164,7 +186,7 @@ void eval(tTask* task, tCall* call, tValue callable) {
         trace("eval: cfun: %s", t_str(callable));
         task->frame = (tFrame*)targs_new_cfun(task, callable, call);
     } else {
-        assert(false);
+        fatal("unexpected type: %s", t_str(callable));
     }
 }
 void tcall_eval(tCall* call, tTask* task) {
@@ -194,6 +216,7 @@ struct tFrame {
     tEnv* locals;
     tValue temps[];
 };
+tFrame* tframe_cast(tValue v) { if (t_type(v) == TFrame) return (tFrame*)v; else return null; }
 tFrame* tframe_new(tTask* task, tFun* fun, tCall* call) {
     assert(fun && t_type(fun) == TFun);
     assert(fun->code);
@@ -255,11 +278,11 @@ struct tArgs {
 };
 tArgs* asArgs(tValue v) { assert(t_type(v) == TArgs); return (tArgs*)v; }
 tArgs* targs_as(tValue v) { assert(t_type(v) == TArgs); return (tArgs*)v; }
+int targs_size(tArgs* args) { return args->head.size; }
 tValue targs_get(tArgs* args, int at) {
     if (at < 0 || at >= args->head.size) return 0;
     return args->fields[at];
 }
-
 struct tCFun {
     tHead head;
     tcfun_cb cb;
@@ -313,7 +336,7 @@ void NATIVE_ARGS(tTask* task, tArgs* args) {
     if (tt == TCFun) {
         trace(" !! !! CFUN EVAL");
         tCFun* cf = (tCFun*)args->target;
-        task->value = cf->cb(args);
+        task->value = cf->cb(task, args);
         if (!task->value) task->value = tNull;
         task->frame = args->caller;
     } else if (tt == TThunk) {
@@ -375,7 +398,7 @@ void ARGS_REST(tTask* task, tFrame* frame) {
     tCall* call = frame->call;
     tList* list = frame->temps[0];
     if (!list) {
-        list = frame->temps[0] = tlist_new(task, tcall_size(call) - frame->count);
+        list = frame->temps[0] = tlist_new(task, tcall_argc(call) - frame->count);
     }
     while (true) {
         if (frame->head.flags & INARGS) {
@@ -385,6 +408,7 @@ void ARGS_REST(tTask* task, tFrame* frame) {
             continue;
         }
         tValue val = tcall_get(frame->call, frame->count);
+        trace("count: %d -- %s", frame->count, t_str(val));
         if (!val) break;
         if (t_type(val) == TCall) {
             frame_op_rewind(frame);
@@ -392,10 +416,11 @@ void ARGS_REST(tTask* task, tFrame* frame) {
             tcall_eval(tcall_as(val), task);
             return;
         }
-        tlist_set_(list, frame->count - tlist_size(list), val);
+        tlist_set_(list, frame->count - (tcall_argc(call) - tlist_size(list)), val);
         frame->count++;
     }
-    task->value = list;
+    tSym name = frame_op_next_name(frame);
+    frame->locals = tenv_set(task, frame->locals, name, list);
     frame->count = 0;
 }
 void ARGS(tTask* task, tFrame* frame) {
@@ -423,8 +448,8 @@ void RESULT(tTask* task, tFrame* frame) {
     tSym name = frame_op_next_name(frame);
     trace("count=%d, name=%s", frame->count, t_str(name));
     if (t_type(task->value) == TResult) {
-        assert(false);
-        //frame->locals = env_set(task, frame->locals, name, result_get(task->value, frame->count));
+        frame->locals = tenv_set(task, frame->locals, name,
+                tresult_get((tResult*)task->value, frame->count));
     } else if (frame->count == 0) {
         frame->locals = tenv_set(task, frame->locals, name, task->value);
     } else {
@@ -463,6 +488,7 @@ void GETTEMP(tTask* task, tFrame* frame) {
 void GETENV(tTask* task, tFrame* frame) {
     trace("%s", t_str(task->value));
     tSym name = frame_op_next_name(frame);
+    if (name == s_cc) { task->value = frame; return; }
     task->value = tenv_get(frame->locals, name);
 }
 void SETTEMP(tTask* task, tFrame* frame) {
@@ -501,7 +527,11 @@ void CGETTEMP(tTask* task, tFrame* frame) {
 void CGETENV(tTask* task, tFrame* frame) {
     tCall* call = tcall_as(task->value);
     tSym name = frame_op_next_name(frame);
-    call->fields[frame->count] = tenv_get(frame->locals, name);
+    if (name == s_cc) {
+        call->fields[frame->count] = frame;
+    } else {
+        call->fields[frame->count] = tenv_get(frame->locals, name);
+    }
     trace("(%d) = env[%s] (%s)", frame->count, t_str(name), t_str(call->fields[frame->count]));
     frame->count++;
 }
@@ -551,5 +581,14 @@ void task_run(tTask* task) {
     } else {
         assert(false);
     }
+}
+
+tValue _return(tTask* task, tArgs* args) {
+    tFrame* frame = tframe_cast(targs_get(args, 0));
+    assert(frame);
+    tList* ls = tlist_cast(targs_get(args, 1));
+    assert(ls);
+    task->frame = frame->caller;
+    return tresult_from(task, ls);
 }
 
