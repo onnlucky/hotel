@@ -1,5 +1,7 @@
-goto = { pcont => { &fn => _goto(pcont, fn) }}
-return = { pcont => { *args => _return(pcont, args) }}
+//if cond, tblock, fblock => bool(cond, tblock, fblock)()
+if (true):
+  print("BLOCK 1")
+  print("BLOCK 2")
 
-goto(print("here"), print("second"))
+print("PARENT")
 

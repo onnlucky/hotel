@@ -5,6 +5,8 @@ typedef struct ParseContext {
     tTask* task;
     tText* text;
     int at;
+    int current_indent;
+    int indents[100];
 } ParseContext;
 
 static inline int writesome(ParseContext* cx, char* buf, int len) {
@@ -56,6 +58,10 @@ tList* set_target(tList* call, tList* target) {
 #define _GET(n)    tlist_new_add2(TASK, _GET_, n)
 #define _SET(n, v) tlist_new_add3(TASK, _SET_, n, v)
 
+bool check_indent(void*);
+bool push_indent(void*);
+bool pop_indent(void*);
+
 %}
 
  start = __ b:body __ !.   { $$ = b; }
@@ -65,6 +71,11 @@ tList* set_target(tList* call, tList* target) {
   stms = t:stm eol ts:stms { $$ = tlist_prepend(TASK, L(ts), t); }
        | t:stm             { $$ = tlist_new_add(TASK, t); }
        |                   { $$ = t_list_empty; }
+
+bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = tlist_prepend(TASK, L(ts), _BODY_) }
+       | &{ pop_indent(G) }
+stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
+       | _ &{ check_indent(G) } t:stm               { $$ = tlist_new_add(TASK, t); }
 
    stm = var | assign | expr
 
@@ -91,7 +102,12 @@ fargs = a:farg __","__ as:fargs { $$ = tlist_cat(TASK, L(a), L(as)); }
 farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
      |     n:name { $$ = tlist_new_add2(TASK, _ARG_EVAL_, n); }
 
-  tail = _"("__ as:cargs __")" t:tail {
+  tail = _"("__ as:cargs __")"_":"_ b:bodynl {
+           print("BODYNL");
+           $$ = tlist_add(TASK, tlist_prepend2(TASK, L(as), _CALL_, null), b);
+           //$$ = tlist_prepend2(TASK, L(as), _CALL_, null);
+       }
+       | _"("__ as:cargs __")" t:tail {
            $$ = set_target(L(t), tlist_prepend2(TASK, L(as), _CALL_, null));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
@@ -142,6 +158,42 @@ slcomment = "//" (!nl .)*
 
 %%
 
+int find_indent(GREG* G) {
+    int indent = 1;
+    while (G->pos - indent >= 0) {
+        char c = G->buf[G->pos - indent];
+        //print("char=%c, pos=%d, indent=%d", c, G->pos, indent);
+        if (c == '\n' || c == '\r') break;
+        indent++;
+    }
+    if (G->pos - indent < 0) return 65535;
+    indent--;
+    return indent;
+}
+int peek_indent(GREG* G) {
+    return G->data->indents[G->data->current_indent];
+}
+bool push_indent(void* data) {
+    GREG* G = (GREG*)data;
+    int indent = find_indent(G);
+    G->data->current_indent++;
+    assert(G->data->current_indent < 100);
+    G->data->indents[G->data->current_indent] = indent;
+    print("NEW INDENT: %d", peek_indent(G));
+    return true;
+}
+bool pop_indent(void* data) {
+    GREG* G = (GREG*)data;
+    G->data->current_indent--;
+    assert(G->data->current_indent >= 0);
+    print("NEW INDENT: %d", peek_indent(G));
+    return false;
+}
+bool check_indent(void* data) {
+    GREG* G = (GREG*)data;
+    return peek_indent(G) == find_indent(G);
+}
+
 void yyinit(GREG *G) {
     memset(G, 0, sizeof(GREG));
 }
@@ -160,12 +212,14 @@ tValue compile(tText* text) {
     cx.task = task;
     cx.at = 0;
     cx.text = text;
+    cx.current_indent = 0;
+    cx.indents[0] = 0;
 
     GREG g;
     yyinit(&g);
     g.data = &cx;
     if (!yyparse(&g)) {
-        print("ERROR: %s", g.text + g.pos);
+        print("ERROR: %d", g.pos + g.offset);
     }
     tValue v = g.ss;
     yydeinit(&g);

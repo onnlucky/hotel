@@ -63,7 +63,7 @@ void addForCall(tTask* task, Context* cx, tValue in) {
         emitd(cx, getOrAdd(task, cx, tlist_get(in, 1)));
         return;
     }
-    assert(ttext_is(in) || tint_is(in) || tsym_is(in));
+    assert(ttext_is(in) || ttag_is(in));
     emit(cx, OCGETDATA);
     emitd(cx, getOrAdd(task, cx, in));
 }
