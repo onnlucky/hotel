@@ -4,6 +4,7 @@
 #include "text.c"
 #include "sym.c"
 #include "list.c"
+#include "map.c"
 #include "env.c"
 
 #include "bytecode.c"
@@ -19,7 +20,7 @@
 const size_t type_to_size[] = {
     -1,
     -1, -1, -1, -1, -1, -1/*sizeof(tFloat)*/,
-    sizeof(tList), -1/*sizeof(tMap)*/, sizeof(tEnv),
+    sizeof(tList), sizeof(tMap), sizeof(tEnv),
     sizeof(tText), sizeof(tMem),
     sizeof(tCall), sizeof(tThunk), sizeof(tResult),
     sizeof(tFun), sizeof(tCFun),
@@ -116,9 +117,13 @@ int main() {
     print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
     print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
 
-    list_init();
     text_init();
     sym_init();
+    list_init();
+    map_init();
+
+    map_test();
+    return 0;
 
     tEnv* globals = test_env();
 

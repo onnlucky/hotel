@@ -39,7 +39,10 @@ tList* tlist_copy(tTask* task, tList* list, int size) {
 
     if (size == 0) return t_list_empty;
 
-    tList* nlist =  (tList*)task_alloc(task, TList, size);
+    tList* nlist;
+    if (task) nlist = task_alloc(task, TList, size);
+    else nlist = global_alloc(TList, size);
+
     if (osize > size) osize = size;
     memcpy(nlist->data, list->data, sizeof(tValue) * osize);
     return nlist;
