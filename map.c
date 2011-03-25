@@ -172,6 +172,24 @@ tMap* tmap_set(tTask* task, tMap* map, tValue key, tValue v) {
     return nmap;
 }
 
+tMap* tmap_new_from(tTask* task, tList* pairs) {
+    trace("");
+    tMap* map = task_alloc(task, TMap, tlist_size(pairs));
+    map->order = tlist_new(task, tlist_size(pairs));
+    map->keys = tlist_new(task, tlist_size(pairs));
+
+    for (int i = 0; i < tlist_size(pairs); i++) {
+        tList* pair = tlist_get(pairs, i);
+        tValue key = tlist_get(pair, 0);
+        tValue val = tlist_get(pair, 1);
+        trace("PAIR %d: %s = %s", i, t_str(key), t_str(val));
+        fatal("NOT IMPLEMENTED");
+    }
+
+    map_dump(map);
+    return map;
+}
+
 void map_init() {
     t_map_empty = global_alloc(TMap, 0);
     t_map_empty->keys = t_list_empty;

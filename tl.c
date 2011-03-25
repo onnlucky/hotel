@@ -122,8 +122,8 @@ int main() {
     list_init();
     map_init();
 
-    map_test();
-    return 0;
+    //map_test();
+    //return 0;
 
     tEnv* globals = test_env();
 

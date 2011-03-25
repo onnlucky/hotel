@@ -64,7 +64,19 @@ bool pop_indent(void*);
 
 %}
 
- start = __ b:body __ !.   { $$ = b; }
+ start = __ map __ !.
+
+   map = is:items               { $$ = tmap_new_from(TASK, L(is)); }
+ items = i:item _","__ is:items { $$ = tlist_prepend(TASK, L(is), i); }
+       | i:item                 { $$ = tlist_new_add(TASK, i); }
+       |                        { $$ = t_list_empty; }
+
+  item = "+"_ n:name            { $$ = tlist_new_add2(TASK, n, tTrue); }
+       | "-"_ n:name            { $$ = tlist_new_add2(TASK, n, tFalse); }
+       | n:name _"="__ v:value  { $$ = tlist_new_add2(TASK, n, v); }
+       | v:value                { $$ = tlist_new_add2(TASK, tNull, v); }
+
+ sstart = __ b:body __ !.   { $$ = b; }
 
   body = ts:stms           { $$ = tlist_prepend(TASK, L(ts), _BODY_); }
 
@@ -221,6 +233,7 @@ tValue compile(tText* text) {
     if (!yyparse(&g)) {
         print("ERROR: %d", g.pos + g.offset);
     }
+    print("PARSED");
     tValue v = g.ss;
     yydeinit(&g);
 
