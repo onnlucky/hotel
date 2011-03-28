@@ -15,38 +15,41 @@ static tSym _SYM_FROM_TEXT(tText* v) { return (tSym)((intptr_t)v | 2); }
 static tText* _TEXT_FROM_SYM(tSym v) { return (tText*)((intptr_t)v & ~2); }
 
 tText* tsym_to_text(tSym sym) {
+    assert(tsym_is(sym));
     return _TEXT_FROM_SYM(sym);
 }
 
-tSym ttext_to_sym(tText* text) {
-    trace("#%s", t_str(text));
+tSym tsym_from_static(tTask* task, const char* s) {
+    assert(s);
+    assert(symbols);
+    trace("#%s", s);
+
+    tSym cur = (tSym)lhashmap_get(symbols, s);
+    if (cur) return cur;
+
+    return tsym_from(task, ttext_from_static(task, s));
+}
+
+tSym tsym_from_copy(tTask* task, const char* s) {
+    assert(s);
+    assert(symbols);
+    trace("#%s", s);
+    tSym cur = (tSym)lhashmap_get(symbols, s);
+    if (cur) return cur;
+
+    return tsym_from(task, ttext_from_copy(task, s));
+}
+
+tSym tsym_from(tTask* task, tText* text) {
     assert(ttext_is(text));
     assert(symbols);
+    trace("#%s", t_str(text));
+
     tSym sym = _SYM_FROM_TEXT(text);
     tSym cur = (tSym)lhashmap_putif(symbols, (char*)ttext_bytes(text), sym, 0);
 
     if (cur) return cur;
     return sym;
-}
-
-tSym tSYM(const char* s) {
-    trace("#%s", s);
-    tSym cur = (tSym)lhashmap_get(symbols, s);
-    if (cur) return cur;
-
-    tText* text = tTEXT(s);
-    tSym sym = _SYM_FROM_TEXT(text);
-    cur = (tSym)lhashmap_putif(symbols, (char*)ttext_bytes(text), sym, 0);
-    if (cur) {
-        // TODO ttext_free(text);
-        return cur;
-    }
-    return sym;
-}
-
-const char* ensure_sym(const char *s) {
-    tSYM(s);
-    return s;
 }
 
 #if 0
@@ -109,12 +112,12 @@ static void strfree(void *str) { }
 static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
-    s_cont   = tSYM("continuation");
-    s_caller = tSYM("caller-continuation");
-    s_return = tSYM("return");
-    s_goto   = tSYM("goto");
-    s_this   = tSYM("this");
-    s_args   = tSYM("args");
+    s_cont   = tSYM(null, "continuation");
+    s_caller = tSYM(null, "caller-continuation");
+    s_return = tSYM(null, "return");
+    s_goto   = tSYM(null, "goto");
+    s_this   = tSYM(null, "this");
+    s_args   = tSYM(null, "args");
 
     //globals = lhashmap_new(strequals, strhash, strfree);
 

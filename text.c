@@ -1,76 +1,63 @@
 // ** simple text type, wraps a char array with size and tag **
 
-// TODO does use byte length, not utf8 length
-
 #include "trace-off.h"
 
-static tText* t_empty_text;
+static tText* v_empty_text;
+
+static void text_init() {
+    v_empty_text = ttext_from_static(null, "");
+}
+
 struct tText {
     tHead head;
-    intptr_t chars;
-    intptr_t hash;
-    intptr_t size;
-    const char* bytes;
+    const char* ptr;
+    tInt bytes;
+    tInt size;
+    tInt hash;
 };
+#define T_TEXT_FIELDS (sizeof(tText)/sizeof(tValue) - 1)
 
-tText* ttext_new_global(const char* str) {
-    int size = strlen(str);
-    if (size == 0) return t_empty_text;
-
-    tText* text = global_alloc(TText, 0);
-    text->bytes = str;
-    text->size = size;
+tText* ttext_from_static(tTask* task, const char* s) {
+    tText* text = task_alloc(task, TText, T_TEXT_FIELDS);
+    text->head.flags = TPTR|TCONST;
+    text->ptr = s;
+    return text;
+}
+tText* ttext_from_take(tTask* task, char* s) {
+    tText* text = task_alloc(task, TText, T_TEXT_FIELDS);
+    text->head.flags = TPTR;
+    text->ptr = s;
     return text;
 }
 
-static tText* tTEXT(const char *s) { return ttext_new_global(s); }
+tText* ttext_from_copy(tTask* task, const char* s) {
+    size_t size = strlen(s);
+    assert(size < T_MAX_INT);
+    char *d = malloc(size + 1);
+    assert(d);
+    memcpy(d, s, size + 1);
+
+    tText* text = ttext_from_take(task, d);
+    text->size = tINT(size);
+    return text;
+}
 
 static void ttext_free(tText *text) {
     assert(ttext_is(text));
-    free(text);
+    if (text->head.flags & TCONST) return;
+    free((char*)text->ptr);
+}
+
+const char * ttext_bytes(tText *text) {
+    assert(ttext_is(text));
+    return text->ptr;
 }
 
 int ttext_size(tText* text) {
-    return text->size;
-}
-
-static const char * ttext_bytes(tText *text) {
     assert(ttext_is(text));
-    return text->bytes;
-}
-
-struct tMem {
-    tHead head;
-    intptr_t size;
-    const char* bytes;
-};
-
-tMem* tmem_new(tTask* task, const char* bytes, size_t size) {
-    assert(bytes);
-    tMem* mem = task_alloc(task, TMem, 0);
-    mem->size = size;
-    mem->bytes = bytes;
-    return mem;
-}
-tMem* tmem_new_size(tTask* task, size_t size) {
-    return tmem_new(task, malloc(size), size);
-}
-
-int tmem_size(tMem* mem) {
-    return mem->size;
-}
-
-const char* tmem_bytes(tMem* mem) {
-    return mem->bytes;
-}
-
-char* tmem_bytes_(tMem* mem) {
-    return (char*)mem->bytes;
-}
-
-void text_init() {
-    t_empty_text = global_alloc(TText, 0);
-    t_empty_text->bytes = "";
-    t_empty_text->size = 0;
+    if (!text->bytes) {
+        text->bytes = tINT(strlen(ttext_bytes(text)));
+    }
+    return t_int(text->bytes);
 }
 

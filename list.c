@@ -2,18 +2,49 @@
 
 #include "trace-off.h"
 
-static tList* t_list_empty;
-
-tList* tlist_new_global(int size) {
-    if (size == 0) return t_list_empty;
-    assert(size > 0 && size < MAX_DATA_SIZE);
-    return (tList*) global_alloc(TList, size);
-}
+static tList* v_list_empty;
 
 tList* tlist_new(tTask* task, int size) {
-    if (size == 0) return t_list_empty;
-    assert(size > 0 && size < MAX_DATA_SIZE);
-    return (tList*)task_alloc(task, TList, size);
+    if (size == 0) return v_list_empty;
+    assert(size > 0 && size < T_MAX_DATA_SIZE);
+    return (tList*)task_alloc(task, TLIST, size);
+}
+
+tList* tlist_from1(tTask* task, tValue v1) {
+    tList* list = tlist_new(task, 1);
+    tlist_set_(list, 0, v1);
+    return list;
+}
+
+tList* tlist_from2(tTask* task, tValue v1, tValue v2) {
+    tList* list = tlist_new(task, 2);
+    assert(tlist_size(list) == 2);
+    tlist_set_(list, 0, v1);
+    tlist_set_(list, 1, v2);
+    return list;
+}
+
+tList* tlist_from(tTask* task, ...) {
+    va_list ap;
+    int size = 0;
+
+    va_start(ap, task);
+    for (tValue v = va_arg(ap, tValue); v; v = va_arg(ap, tValue)) size++;
+    va_end(ap);
+
+    tList* list = tlist_new(task, size);
+
+    va_start(ap, task);
+    for (int i = 0; i < size; i++) tlist_set_(list, i, va_arg(ap, tValue));
+    va_end(ap);
+
+    return list;
+}
+
+tList* tlist_from_a(tTask* task, tValue* as, int size) {
+    tList* list = tlist_new(task, size);
+    for (int i = 0; i < size; i++) tlist_set_(list, i, as[i]);
+    return list;
 }
 
 int tlist_size(tList* list) {
@@ -23,9 +54,12 @@ int tlist_size(tList* list) {
 
 tValue tlist_get(tList* list, int at) {
     assert(tlist_is(list));
-    trace("%d, %d", tlist_size(list), at);
 
-    if (at < 0 || at >= tlist_size(list)) return tUndef;
+    if (at < 0 || at >= tlist_size(list)) {
+        trace("%d, %d = undefined", tlist_size(list), at);
+        return tUndefined;
+    }
+    trace("%d, %d = %s", tlist_size(list), at, t_str(list->data[at]));
     return list->data[at];
 }
 
@@ -37,11 +71,9 @@ tList* tlist_copy(tTask* task, tList* list, int size) {
     int osize = tlist_size(list);
     if (size == -1) size = osize;
 
-    if (size == 0) return t_list_empty;
+    if (size == 0) return v_list_empty;
 
-    tList* nlist;
-    if (task) nlist = task_alloc(task, TList, size);
-    else nlist = global_alloc(TList, size);
+    tList* nlist = tlist_new(task, size);
 
     if (osize > size) osize = size;
     memcpy(nlist->data, list->data, sizeof(tValue) * osize);
@@ -148,171 +180,70 @@ tList* tlist_cat(tTask* task, tList* left, tList* right) {
     return nlist;
 }
 
-void list_init() {
-    t_list_empty = global_alloc(TList, 0);
-}
-
-#if 0
-
-static List * list_add(List *list, Value v);
-static List * list_set(List *list, int index, Value v) {
-    if (index == list_size(list)) return list_add(list, v);
-
-    int nsize = list_size(list);
-    if (nsize < index + 1) nsize = index + 1;
-    List *nlist = list_copy(list, nsize);
-    nlist->data[index] = v;
-    return nlist;
-}
-
-static List * list_add(List *list, Value v) {
-    assert(isList(list));
-
-    int osize = list_size(list);
-    trace("list_add %d :: = %s", osize, string_from(v));
-
-    List *nlist = list_copy(list, osize + 1);
-    list_set_(nlist, osize, v);
-    return nlist;
+static void list_init() {
+    v_list_empty = task_alloc(null, TLIST, 0);
 }
 
 
-// ** interface **
+// ** set **
 
-// used by hotel compiler when lists contain non constants
-static Value _list_clone(CONTEXT) {
-    trace("cloning: %s, %d", string_from(args_get(args, 0)), args_size(args));
-    if (args_size(args) < 1) return Undefined;
-    if (!args_size(args) % 2 == 1) return Undefined;
+int set_indexof(tList* set, tValue key) {
+    int size = tlist_size(set);
+    if (key == null || size == 0) return -1;
 
-    List *list = data_get(args, 0);
-    if (!isList(list)) return Undefined;
+    int min = 0, max = size - 1;
+    do {
+        int mid = (min + max) / 2;
+        if (set->data[mid] < key) min = mid + 1; else max = mid;
+    } while (min < max);
+    if (min != max) return -1;
+    if (set->data[min] != key) return -1;
+    return min;
+}
 
-    List *nlist = list_copy(list, list_size(list));
+tList* set_add(tTask* task, tList* set, tValue key, int* at) {
+    trace();
+    *at = set_indexof(set, key);
+    if (key == null || *at >= 0) return set;
 
-    for (int i = 1; i < args_size(args); i += 2) {
-        Value at = args_get(args, i + 0);
-        Value v  = args_get(args, i + 1);
-        if (!isInt(at)) return Undefined;
-        assert(v);
-        list_set_(nlist, int_from(at), v);
+    trace("adding key: %s", t_str(key));
+    int size = tlist_size(set);
+    tList* nset = tlist_new(task, size + 1);
+
+    int i = 0;
+    for (; i < size && set->data[i] < key; i++) nset->data[i] = set->data[i];
+    *at = i;
+    nset->data[i] = key;
+    for (; i < size; i++) nset->data[i + 1] = set->data[i];
+
+    return nset;
+}
+
+int set_add_(tList* set, tValue key) {
+    int size = tlist_size(set);
+    assert(!set->data[size - 1]);
+
+    if (!set->data[0]) {
+        set->data[0] = key;
+        return 0;
     }
-    return nlist;
-}
 
-// used by hotel runtime when lists are called as functions
-static Value _list_get(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Int, vat); int at = int_from(vat);
-    return list_get(list, at);
-}
-
-static Value _list_slice(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Int, vfirst);
-    ARG3(Value, vlast);
-
-    int first = int_from(vfirst);
-    int last = 0;
-    if (isInt(vlast)) last = int_from(vlast);
-
-    if (first < 0) first = list_size(list) + first;
-    if (first < 0) return empty_list;
-    if (first >= list_size(list)) return empty_list;
-    if (last <= 0) last = list_size(list) + last;
-    if (last < first) return empty_list;
-    int len = last - first;
-
-    List *nlist = new(task, List, len);
-    for (int i = 0; i < len; i++) {
-        list_set_(nlist, i, list_get(list, i + first));
+    int at = set_indexof(set, key);
+    if (at == -1) {
+        int i = size - 2;
+        for (; i >= 0; i--) {
+            if (set->data[i]) {
+                set->data[i + 1] = key;
+                return i + 1;
+            }
+        }
+        assert(false);
     }
-    return nlist;
-}
 
-static Value _list_new(CONTEXT) {
-    int size = args_size(args);
-    List *list = new(task, List, size);
-    for (int i = 0; i < size; i++) {
-        list_set_(list, i, args_get(args, i));
+    for (int i = size - 2; i >= at; i--) {
+        set->data[i + 1] = set->data[i];
     }
-    return list;
+    set->data[at] = key;
+    return at;
 }
 
-static Value _list_new_size(CONTEXT) {
-    ARG1(Int, vsize);
-    return new(task, List, int_from(vsize));
-}
-
-static Value _list_size(CONTEXT) {
-    ARG1(List, list);
-    return INT(list_size(list));
-}
-
-static Value _list_copy(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Int, size);
-    return list_copy(list, int_from(size));
-}
-
-static Value _list_set_(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Int, vat);
-    int at = int_from(vat);
-    ARG3(Value, v);
-    trace("list_set_ %d, %d = %s", list_size(list), at, string_from(v));
-
-    if (at < 0) at = list_size(list) - at;
-    if (at < 0 || at >= list_size(list)) return Undefined;
-
-    list_set_(list, at, v);
-    return list;
-}
-
-static Value _list_add(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Value, v);
-    return list_add(list, v);
-}
-
-static Value _list_set(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Int, vat);
-    ARG3(Value, v);
-    return list_set(list, int_from(index), v);
-}
-
-static Value _list_prepend(CONTEXT) {
-    ARG1(List, list);
-    ARG2(Value, v);
-
-    int size = list_size(list);
-    List *nlist = global_new(List, size + 1);
-    memcpy(nlist->data + 1, list->data, sizeof(Value) * size);
-    nlist->data[0] = v;
-    return nlist;
-}
-
-static Value _list_cat(CONTEXT) {
-    ARG1(List, left);
-    ARG2(List, right);
-
-    int lsize = list_size(left);
-    int rsize = list_size(right);
-    if (rsize == 0) return left;
-
-    List *nlist = list_copy(left, lsize + rsize);
-    memcpy(nlist->data + lsize, right->data, sizeof(Value) * rsize);
-    return nlist;
-}
-
-static Value list_cmp(List *left, List *right) {
-    return CMP((intptr_t)left - (intptr_t)right);
-}
-
-static Value _list_cmp(CONTEXT) {
-    ARG1(List, left);
-    ARG2(List, right);
-    return list_cmp(left, right);
-}
-#endif

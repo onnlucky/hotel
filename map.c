@@ -1,215 +1,175 @@
-// an ordered multi map implementation
-// TODO
-// it is currently not *MULTI* map ...
-//
-// this is a very inefficient implementation
-// * compare ints differently so we can find the largest/smallest quickly
-// * allow number only maps to use a list
-// * use a rope like thing, with 8 size order needs 4 bits per entry = 32 bits total
-//
-// implement addFirst/addLast list like behaviour and such...
+// a map implementation
 
 #include "trace-on.h"
 
-typedef struct tMap tMap;
-struct tMap {
-    tHead head;
-    tList* keys;
-    tList* order;
-    tValue data[];
-};
-bool tmap_is(tValue v) { return t_type(v) == TMap; }
-tMap* tmap_as(tValue v) { assert(tmap_is(v)); return (tMap*)v; }
-tMap* tmap_cast(tValue v) { if (tmap_is(v)) return (tMap*)v; else return null; }
+static tMap* v_map_empty;
 
-static tMap* t_map_empty;
-
-int tmap_size(tMap* map) { return map->head.size; }
-
-void map_dump(tMap* map) {
-    print("*******************************");
-    for (int i = 0; i < tmap_size(map); i++) {
-        print("%d - %d = %s -> %s", i, t_int(map->order->data[i]),
-                t_str(map->keys->data[i]), t_str(map->data[i]));
-    }
-    print("*******************************");
+static void map_init() {
+    v_map_empty = tmap_as(v_list_empty);
 }
 
+#define HASKEYS(m) ((m->head.flags & TKEYS) == TKEYS)
+#define HASLIST(m) ((m->head.flags & TLIST) == TLIST)
+#define _KEYS(m) m->data[0]
+#define _LIST(m) m->data[1]
+#define _OFFSET(m) (HASKEYS(m) + HASLIST(m))
 
-// ** set **
-
-int set_indexof(tList* set, tValue key) {
-    int size = tlist_size(set);
-    if (key == null || size == 0) return -1;
-
-    int min = 0, max = size - 1;
-    do {
-        int mid = (min + max) / 2;
-        if (set->data[mid] < key) min = mid + 1; else max = mid;
-    } while (min < max);
-    if (min != max) return -1;
-    if (set->data[min] != key) return -1;
-    return min;
-}
-
-tList* set_add(tTask* task, tList* set, tValue key, int* at) {
-    trace();
-    *at = set_indexof(set, key);
-    if (key == null || *at >= 0) return set;
-
-    trace("adding key: %s", t_str(key));
-    int size = tlist_size(set);
-    tList* nset;
-    if (task) nset = tlist_new(task, size + 1);
-    else nset = tlist_new_global(size + 1);
-
-    int i = 0;
-    for (; i < size && set->data[i] < key; i++) nset->data[i] = set->data[i];
-    *at = i;
-    nset->data[i] = key;
-    for (; i < size; i++) nset->data[i + 1] = set->data[i];
-
-    return nset;
-}
-
-
-// ** map **
-
-tMap* tmap_new_global(int size) {
-    if (size == 0) return t_map_empty;
-    tMap* map = global_alloc(TMap, size);
-    return map;
-}
-
-tMap* tmap_new(tTask* task, int size) {
-    if (size == 0) return t_map_empty;
-    tMap* map = task_alloc(task, TMap, size);
-    return map;
-}
-
-// get value by its key
-tValue tmap_get(tMap* map, tValue key) {
-    assert(tmap_is(map));
-    int at = set_indexof(map->keys, key);
-    if (at >= 0) {
-        trace("get: %s = %s", t_str(key), t_str(map->data[at]));
-        return map->data[at];
-    }
-    return tUndef;
-}
-
-void tmap_at(tMap* map, int at, tValue* key, tValue* val) {
-    assert(tmap_is(map));
-    assert(at >= 0 && at < tmap_size(map));
-    int i = t_int(tlist_get(map->order, at));
-    assert(i >= 0 && i < tmap_size(map));
-
-    *key = map->keys->data[i];
-    *val = map->data[i];
-}
-
-tInt tmap_nextint(tMap* map) {
-    int max = 0;
-    for (int i = 0; i < tlist_size(map->keys); i++) {
-        tValue key = tlist_get(map->keys, i);
-        if (tint_is(key)) {
-            int n = t_int(key);
-            if (n > max) max = n;
+void tmap_dump(tMap* map) {
+    print("---- MAP DUMP @ %p ----", map);
+    if (HASLIST(map)) {
+        tList* list = _LIST(map);
+        for (int i = 0; i < tlist_size(list); i++) {
+            print("%d: %s", i, t_str(tlist_get(list, i)));
         }
     }
-    return tINT(max + 1);
+    if (HASKEYS(map)) {
+        tList* keys = _KEYS(map);
+        for (int i = 0; i < tlist_size(keys); i++) {
+            tValue key = tlist_get(keys, i);
+            if (key) {
+                tValue v = map->data[_OFFSET(map) + i];
+                print("%s: %s", t_str(key), t_str(v));
+            }
+        }
+    }
 }
 
-// set a value for a key, adding the key as the last element, if needed
-tMap* tmap_set(tTask* task, tMap* map, tValue key, tValue v) {
-    assert(tmap_is(map));
-    if (key == tNull) key = tmap_nextint(map);
+tMap* tmap_new(tTask* task, tList* keys) {
+    tMap* map = task_alloc(task, TMap, tlist_size(keys) + 1);
+    map->head.flags |= TKEYS;
+    _KEYS(map) = keys;
+    return map;
+}
 
-    int size = tmap_size(map);
-    int at = -1;
-    tList* keys = set_add(task, map->keys, key, &at);
-    assert(at >= 0);
-    assert(tlist_is(keys));
+tMap* tmap_from1(tTask* task, tValue key, tValue v) {
+    if (key == tZero) return tlist_from1(task, v);
+    tMap* map = task_alloc(task, TMap, 2);
+    map->head.flags |= TKEYS;
+    _KEYS(map) = tlist_from1(task, key);
+    map->data[_OFFSET(map)] = v;
+    return map;
+}
 
-    tMap* nmap;
-    if (task) nmap = tmap_new(task, tlist_size(keys));
-    else nmap = tmap_new_global(tlist_size(keys));
-    nmap->keys = keys;
+tMap* tmap_from_list(tTask* task, tList* pairs) {
+    int size = tlist_size(pairs);
+    assert(size % 2 == 0);
+    size = size / 2;
 
-    if (keys == map->keys) {
-        assert(tmap_size(map) == tmap_size(nmap));
-        nmap->order = map->order;
+    tList* list = null;
+    tList* keys = null;
+
+    int intsize = 0;
+    for (int i = 0; i < size; i++) if (tlist_get(pairs, i * 2) == tNull) intsize++;
+    if (intsize) list = tlist_new(task, intsize);
+
+    int keysize = size - intsize;
+    if (keysize) {
+        keys = tlist_new(task, keysize);
         for (int i = 0; i < size; i++) {
-            nmap->data[i] = map->data[i];
+            tValue key = tlist_get(pairs, i * 2);
+            if (key == tNull) continue;
+            set_add_(keys, key);
         }
-        nmap->data[at] = v;
-        return nmap;
+        int realkeysize = keysize;
+        for (int i = keysize - 1; i >= 0; i--) {
+            if (tlist_get(keys, i)) break;
+            realkeysize--;
+        }
+        trace("keysize/realkeysize: %d/%d", keysize, realkeysize);
+        if (keysize/(float)realkeysize > 1.3) {
+            keys = tlist_copy(task, keys, realkeysize);
+        }
+        keysize = realkeysize;
+    }
+    trace("CONSTRUCT: %d, %d", intsize, keysize);
+
+    tMap* map = task_alloc(task, TMap, (list?1:0)+(keys?1:0)+keysize);
+    if (list) {
+        map->head.flags |= TLIST;
+        _LIST(map) = list;
+        assert(keys);
+    }
+    if (keys) {
+        map->head.flags |= TKEYS;
+        _KEYS(map) = keys;
+    }
+    if (list) assert(_LIST(map) == list);
+    if (keys) assert(_KEYS(map) == keys);
+
+    int nextint = 0;
+    for (int i = 0; i < size; i++) {
+        tValue key = tlist_get(pairs, i * 2);
+        tValue v = tlist_get(pairs, i * 2 + 1);
+        if (key == tNull) {
+            tlist_set_(_LIST(map), nextint, v); nextint++;
+        } else {
+            int at = set_indexof(keys, key);
+            assert(at >= 0);
+            map->data[_OFFSET(map) + at] = v;
+        }
     }
 
-    trace("growing map");
-    assert(tmap_size(map) == tmap_size(nmap) - 1);
-
-    // update the order of inserts
-    nmap->order = tlist_copy(task, map->order, tmap_size(nmap));
-    nmap->order->data[tmap_size(nmap) - 1] = tINT(at);
-    for (int i = 0; i < tmap_size(nmap); i++) {
-        int n = t_int(nmap->order->data[i]);
-        if (n >= at) nmap->order->data[i] = tINT(n + 1);
-    }
-    nmap->order->data[tmap_size(nmap) - 1] = tINT(at);
-
-    int i = 0;
-    for (; i < at; i++) {
-        nmap->data[i] = map->data[i];
-    }
-    nmap->data[i] = v;
-    for (; i < size; i++) {
-        nmap->data[i + 1] = map->data[i];
-    }
-
-    trace("SET %d: %s = %s", at, t_str(key), t_str(v));
-    map_dump(map);
-    return nmap;
-}
-
-tMap* tmap_new_from(tTask* task, tList* pairs) {
-    trace("");
-    tMap* map = task_alloc(task, TMap, tlist_size(pairs));
-    map->order = tlist_new(task, tlist_size(pairs));
-    map->keys = tlist_new(task, tlist_size(pairs));
-
-    for (int i = 0; i < tlist_size(pairs); i++) {
-        tList* pair = tlist_get(pairs, i);
-        tValue key = tlist_get(pair, 0);
-        tValue val = tlist_get(pair, 1);
-        trace("PAIR %d: %s = %s", i, t_str(key), t_str(val));
-        fatal("NOT IMPLEMENTED");
-    }
-
-    map_dump(map);
+    if (list) assert(_LIST(map) == list);
+    if (keys) assert(_KEYS(map) == keys);
+    tmap_dump(map);
     return map;
 }
 
-void map_init() {
-    t_map_empty = global_alloc(TMap, 0);
-    t_map_empty->keys = t_list_empty;
-    t_map_empty->order = t_list_empty;
+int tmap_size(tMap* map) {
+    if (HASKEYS(map)) {
+        if (HASLIST(map)) {
+            return tlist_size(_KEYS(map)) + tlist_size(_LIST(map));
+        }
+        return tlist_size(_KEYS(map));
+    }
+    return tlist_size(map);
 }
 
-void map_test() {
-    tMap* map = t_map_empty;
-    map = tmap_set(null, map, tSYM("foo"), tTEXT("foo entry"));
-    map = tmap_set(null, map, tNull, tTEXT("one"));
-    map = tmap_set(null, map, tNull, tTEXT("two"));
-    map = tmap_set(null, map, tTEXT("oops"), tTEXT("oops entry"));
+int tmap_is_empty(tMap* map) { return tmap_size(map) == 0; }
 
-    print("test: foo = %s", t_str(tmap_get(map, tSYM("foo"))));
-    for (int i = 0; i < tmap_size(map); i++) {
-        tValue key;
-        tValue val;
-        tmap_at(map, i, &key, &val);
-        print("%d: %s = %s", i, t_str(key), t_str(val));
+tValue tmap_get_int(tMap* map, int key) {
+    if (HASLIST(map)) {
+        if (!(key < 0 || key >= tlist_size(_LIST(map)))) {
+            trace("list get: %d = %s", key, t_str(tlist_get(_LIST(map), key)));
+            return tlist_get(_LIST(map), key);
+        }
     }
-    return;
+    if (HASKEYS(map)) {
+        int at = set_indexof(_KEYS(map), tINT(key));
+        if (at >= 0) {
+            trace("keys get: %d = %s", key, t_str(map->data[_OFFSET(map) + at]));
+            return map->data[_OFFSET(map) + at];
+        }
+    }
+    return tUndefined;
+}
+
+void tmap_set_int_(tMap* map, int key, tValue v) {
+    if (HASLIST(map)) {
+        if (!(key < 0 || key >= tlist_size(_LIST(map)))) {
+            trace("list set: %d = %s", key, t_str(v));
+            tlist_set_(_LIST(map), key, v);
+            return;
+        }
+    }
+    if (HASKEYS(map)) {
+        int at = set_indexof(_KEYS(map), tINT(key));
+        if (at >= 0) {
+            trace("keys set: %d = %s", key, t_str(v));
+            map->data[_OFFSET(map) + at] = v;
+        }
+    }
+    assert(false);
+}
+
+tValue tmap_get_sym(tMap* map, tSym key) {
+    if (HASKEYS(map)) {
+        int at = set_indexof(_KEYS(map), key);
+        if (at >= 0) {
+            trace("keys get: %s = %s", t_str(key), t_str(map->data[_OFFSET(map) + at]));
+            return map->data[_OFFSET(map) + at];
+        }
+    }
+    return tUndefined;
 }
 

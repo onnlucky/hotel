@@ -92,11 +92,15 @@
 #define HAVE_API_ASSERTS
 #endif
 
+#ifndef assert
 #define assert(t) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: "#t"\n", __FILE__, __LINE__, __FUNCTION__); abort(); }
+#endif
 
 #else // no HAVE_ASSERTS
 
+#ifndef assert
 #define assert(t, x...)
+#endif
 
 #endif // HAVE_ASSERTS
 

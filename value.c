@@ -1,55 +1,21 @@
 // ** this is how all tl values look in memory **
 
-typedef void* tValue;
-typedef struct tHead tHead;
-struct tHead {
-    uint8_t flags; // must be least significant byte
-    uint8_t type;
-    uint16_t size;
-};
-struct tFields {
-    tHead head;
-    tValue data[];
-};
+uint8_t t_type(tValue v) {
+    if ((intptr_t)v & 1) return TInt;
+    if ((intptr_t)v & 2) return TSym;
+    if ((intptr_t)v < 1024) {
+        switch ((intptr_t)v) {
+            case 1 << 2: return TUndefined;
+            case 2 << 2: return TNull;
+            case 3 << 2: return TBool;
+            case 4 << 2: return TBool;
+            default: return TInvalid;
+        }
+    }
+    if (tref_is(v)) return t_head(v)->type;
+    return TInvalid;
+}
 
-#define MAX_DATA_SIZE 65530
-
-typedef tValue tSym;
-typedef tValue tInt;
-typedef struct tText tText;
-typedef struct tMem tMem;
-
-typedef struct tFields tFields;
-typedef struct tFields tList;
-typedef struct tFields tResult;
-
-typedef struct tTask tTask;
-typedef struct tArgs tArgs;
-
-// ** all known types **
-typedef enum {
-    TInvalid = 0,
-    TUndefined, TNull, TBool, TSym, TInt, TFloat,
-    TList, TMap, TEnv,
-    TText, TMem,
-    TCall, TThunk, TResult,
-    TFun, TCFun,
-    TCode, TFrame, TArgs, TEvalFrame,
-    TTask, TVar, TCTask,
-    TLAST
-} tType;
-
-const size_t type_to_size[];
-const int8_t type_to_private[] = {
-    -1,
-    -1, -1, -1, -1, -1, 1,
-    0, 0, 0,
-    -1, -1,
-    0, 0, 0,
-    0, 1,
-    2, 2, 0, 0,
-    0, 0, 1
-};
 const char* const type_to_str[] = {
     "invalid",
     "Undefined", "Null", "Bool", "Sym", "Int", "Float",
@@ -61,56 +27,11 @@ const char* const type_to_str[] = {
     "Task", "Var", "CTask"
 };
 
-bool ttag_is(tValue v) {
-    return ((intptr_t)(v) & 3) != 0 || (intptr_t)(v)  < 1024;
-}
-bool tref_is(tValue v) {
-    return ((intptr_t)(v) & 3) == 0 && (intptr_t)(v) >= 1024;
-}
-static inline tHead* t_head(tValue v) {
-    assert(tref_is(v)); return (tHead*)v;
-}
-
-const tValue tUndef = (tHead*)(1 << 2);
-const tValue tNull  = (tHead*)(2 << 2);
-const tValue tFalse = (tHead*)(3 << 2);
-const tValue tTrue  = (tHead*)(4 << 2);
-
-tType t_type(tValue v) {
-    if (tref_is(v)) return t_head(v)->type;
-    if ((intptr_t)v & 1) return TInt;
-    if ((intptr_t)v & 2) return TSym;
-    switch ((intptr_t)v) {
-    case 1 << 2: return TUndefined;
-    case 2 << 2: return TNull;
-    case 3 << 2: return TBool;
-    case 4 << 2: return TBool;
-    }
-    return TInvalid;
-}
-
 const char* t_type_str(tValue v) { return type_to_str[t_type(v)]; }
-const char* t_str(tValue v);
 
-bool tint_is(tValue v) { return t_type(v) == TInt; }
-
-bool tsym_is(tValue v) { return t_type(v) == TSym; }
-tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
-
-bool ttext_is(tValue v) { return t_type(v) == TText; }
-tText* ttext_as(tValue v) { assert(ttext_is(v)); return (tText*)v; }
-
-bool tlist_is(tValue v) { return t_type(v) == TList; }
-tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
-tList* tlist_cast(tValue v) { if (!tlist_is(v)) return null; else return (tList*)v; }
-
-bool ttask_is(tValue v) { return t_type(v) == TTask; }
-
-
-// creating primitives
-
-tValue tBOOL(bool i) { if (i) return tTrue; return tFalse; }
-bool t_bool(tValue v) { return !(v == null || v == tUndef || v == tNull || v == tFalse); }
+// creating tagged values
+tValue tBOOL(void* c) { if (c) return tTrue; return tFalse; }
+int t_bool(tValue v) { return !(v == null || v == tUndefined || v == tNull || v == tFalse); }
 
 tValue tINT(int i) { return (tValue)((intptr_t)i << 2 | 1); }
 int t_int(tValue v) {
@@ -120,17 +41,42 @@ int t_int(tValue v) {
     return i >> 2;
 }
 
-
-// creating other values
-
-tValue global_alloc(uint8_t type, int size) {
+// creating value objects
+tValue task_alloc(tTask* task, uint8_t type, int size) {
     assert(type > 0 && type < TLAST);
-    tHead* head = (tHead*)calloc(1, type_to_size[type] + sizeof(tValue)*size);
-    head->flags = 1;
+    tHead* head = (tHead*)calloc(1, sizeof(tHead) + sizeof(tValue) * size);
     head->type = type;
     head->size = size;
     return (tValue)head;
 }
 
-tValue task_alloc(tTask* task, uint8_t type, int size);
+// pritive toString
+#define _BUF_COUNT 8
+#define _BUF_SIZE 128
+static char** _str_bufs;
+static char* _str_buf;
+static int _str_buf_at = -1;
+
+const char* t_str(tValue v) {
+    if (_str_buf_at == -1) {
+        trace("init buffers for output");
+        _str_buf_at = 0;
+        _str_bufs = calloc(_BUF_COUNT, sizeof(_str_buf));
+        for (int i = 0; i < _BUF_COUNT; i++) _str_bufs[i] = malloc(_BUF_SIZE);
+    }
+    _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
+    _str_buf = _str_bufs[_str_buf_at];
+
+    switch (t_type(v)) {
+    case TText:
+        return ttext_bytes(ttext_as(v));
+    case TSym:
+        snprintf(_str_buf, _BUF_SIZE, "#%s", ttext_bytes(tsym_to_text(v)));
+        return _str_buf;
+    case TInt:
+        snprintf(_str_buf, _BUF_SIZE, "%d", t_int(v));
+        return _str_buf;
+    default: return t_type_str(v);
+    }
+}
 

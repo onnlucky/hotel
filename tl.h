@@ -1,0 +1,272 @@
+// author: Onne Gorter <onne@onnlucky.com>
+#ifndef _tl_h_
+#define _tl_h_
+#pragma once
+
+#include <stdint.h>
+#include <assert.h>
+
+typedef void* tValue;
+typedef tValue tSym;
+typedef tValue tInt;
+
+// common head of all ref values
+typedef struct tHead {
+    uint8_t flags;
+    uint8_t type;
+    uint16_t size;
+    // TOOD only on 64 bit .. and what to put in here?
+    uint32_t pad;
+} tHead;
+
+// this is all possible value layouts
+typedef struct tMem {
+    tHead head;
+    const char bytes[];
+} tMem;
+typedef struct tList {
+    tHead head;
+    tValue data[];
+} tList;
+typedef struct tPtr {
+    tHead head;
+    const char* ptr;
+    tValue data[];
+} tPtr;
+
+// combinatory ...
+typedef struct tPtrKeys {
+    tHead head;
+    const char* bytes;
+    tList* keys;
+    tValue data[];
+} tPtrKeys;
+typedef struct tListKeys {
+    tHead head;
+    tList* keys;
+    tValue data[];
+} tListKeys;
+typedef struct tListKeysList {
+    tHead head;
+    tList* keys;
+    tList* list;
+    tValue data[];
+} tListKeysList;
+
+// flags on how the memory looks
+static const uint8_t TMEM   = 0x80;
+static const uint8_t TPTR   = 0x40;
+static const uint8_t TCONST = 0x80; //TMEM;
+static const uint8_t TKEYS  = 0x20;
+static const uint8_t TLIST  = 0x10;
+
+// static predefined value
+static const tValue tUndefined = (tHead*)(1 << 2);
+static const tValue tNull =      (tHead*)(2 << 2);
+static const tValue tFalse =     (tHead*)(3 << 2);
+static const tValue tTrue =      (tHead*)(4 << 2);
+static const tValue tZero = (tHead*)((0 << 1)|1);
+static const tValue tOne =  (tHead*)((1 << 1)|1);
+static const tValue tTwo =  (tHead*)((2 << 1)|1);
+#ifdef M32
+static const tValue tIntMax = (tHead*)(0x7FFFFFFF);
+static const tValue tIntMin = (tHead*)(0xFFFFFFFF);
+#define T_MAX_INT 0x3FFFFFFF
+#define T_MIN_INT 0xBFFFFFFF
+#else
+static const tValue tIntMax = (tHead*)(0x7FFFFFFFFFFFFFFF);
+static const tValue tIntMin = (tHead*)(0xFFFFFFFFFFFFFFFF);
+#define T_MAX_INT 0x3FFFFFFFFFFFFFFF
+#define T_MIN_INT 0xBFFFFFFFFFFFFFFF
+#endif
+
+#define T_MAX_DATA_SIZE 65530
+#define T_MAX_ARGS_SIZE 2000
+
+// all known primitive types
+enum {
+    TInvalid = 0,
+    TUndefined, TNull, TBool, TSym, TInt, TFloat,
+    TText, TMem,
+    TList, TMap, TObject,
+    TEnv,
+    TCall, TThunk, TResult,
+    TFun, TCFun,
+    TCode, TFrame, TArgs, TEvalFrame,
+    TTask, TVar, TCTask,
+    TLAST
+};
+
+// a list is also a map, but a map may be a sparse list or map other type of values to keys
+typedef struct tList tMap;
+// a text is can be a tPtr or a tMem
+typedef struct tText tText;
+
+static inline int tref_is(tValue v) { return ((intptr_t)v & 3) == 0 && (intptr_t)v > 1024; }
+static inline tHead* t_head(tValue v) { assert(tref_is(v)); return (tHead*)v; }
+
+static inline int tint_is(tValue v) { return ((intptr_t)v & 1); }
+static inline tInt tint_as(tValue v) { assert(tint_is(v)); return v; }
+static inline tInt tint_cast(tValue v) { return tint_is(v)?tint_as(v):0; }
+
+static inline int tsym_is(tValue v) { return ((intptr_t)v & 2) && (intptr_t)v > 1024; }
+static inline tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
+static inline tSym tsym_cast(tValue v) { return tsym_is(v)?tsym_as(v):0; }
+
+static inline int tmem_is(tValue v) { return tref_is(v) && (t_head(v)->flags & TMEM) == TMEM; }
+static inline tMem* tmem_as(tValue v) { assert(tmem_is(v)); return (tMem*)v; }
+static inline tMem* tmem_cast(tValue v) { return tmem_is(v)?tmem_as(v):0; }
+
+static inline int tptr_is(tValue v) { return tref_is(v) && (t_head(v)->flags & TPTR); }
+static inline tPtr* tptr_as(tValue v) { assert(tref_is(v)); return (tPtr*)v; }
+
+static inline int tlist_is(tValue v) { return tref_is(v) && !tmem_is(v) && !tptr_is(v); }
+static inline tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
+static inline tList* tlist_cast(tValue v) { return tlist_is(v)?tlist_as(v):0; }
+
+static inline int tmap_is(tValue v) { return tref_is(v) && !tmem_is(v); }
+static inline tMap* tmap_as(tValue v) { assert(tmap_is(v)); return (tMap*)v; }
+static inline tMap* tmap_cast(tValue v) { return tmap_is(v)?tmap_as(v):0; }
+
+static inline int ttext_is(tValue v) { return tref_is(v) && t_head(v)->type == TText; }
+static inline tText* ttext_as(tValue v) { assert(ttext_is(v)); return (tText*)v; }
+static inline tText* ttext_cast(tValue v) { return ttext_is(v)?ttext_as(v):0; }
+
+// simple primitive functions
+tValue tBOOL(void* c);
+int t_bool(tValue v);
+
+tInt tINT(int i);
+int t_int(tValue v);
+
+const char* t_str(tValue v);
+
+
+// main api
+typedef struct tVm tVm;
+typedef struct tWorker tWorker;
+typedef struct tTask tTask;
+#define tT tTask *task
+
+
+// ** text **
+// notice not all language text objects are actually tTexts, some are implemented using ropes
+int ttext_size(tText* text);
+const char* ttext_bytes(tText* text);
+
+tText* tvalue_to_text(tT, tValue v);
+
+tText* ttext_from_static(tT, const char* s);
+tText* ttext_from_copy(tT, const char* s);
+tText* ttext_from_take(tT, char* s);
+#define tTEXT ttext_from_static
+
+tSym tsym_from_static(tT, const char* s);
+tSym tsym_from_copy(tT, const char* s);
+tSym tsym_from(tT, tText* text);
+#define tSYM tsym_from_static
+
+tText* tsym_to_text(tSym s);
+
+
+// ** list **
+int tlist_size(tList* list);
+int tlist_is_empty(tList* list);
+tValue tlist_at(tList* list);
+
+tList* tlist_new(tT, int size);
+tList* tlist_copy(tT, tList* list, int size);
+tList* tlist_from1(tT, tValue v);
+tList* tlist_from2(tT, tValue v1, tValue v2);
+tList* tlist_from(tT, ... /*tValue*/);
+tList* tlist_from_a(tT, tValue* vs, int len);
+#define tLIST tlist_from1
+#define tLIST2 tlist_from2
+
+tList* tlist_add(tT, tList* list, tValue v);
+tList* tlist_set(tT, tList* list, int at, tValue v);
+tList* tlist_cat(tT, tList* lhs, tList* rhs);
+tList* tlist_slice(tT, tList* list, int first, int last);
+
+void tlist_set_(tList* list, int at, tValue v);
+
+
+// ** map **
+int tmap_size(tMap* map);
+int tmap_is_empty(tMap* map);
+tValue tmap_get_int(tMap* map, int key);
+tValue tmap_get_sym(tMap* map, tSym key);
+
+tMap* tmap_new(tT, tList* keys);
+tMap* tmap_copy(tT, tMap* map);
+tMap* tmap_from1(tT, tValue key, tValue v);
+tMap* tmap_from(tT, ... /*tValue, tValue*/);
+tMap* tmap_from_a(tT, tValue* vs, int len /*multiple of 2*/);
+tMap* tmap_from_list(tT, tList* ls);
+#define tMAP tmap_from1
+
+tMap* tmap_get(tT, tMap* map, tValue key, tValue v);
+tMap* tmap_cat(tT, tMap* lhs, tMap* rhs);
+
+tMap* tmap_set(tT, tMap* map, tValue key, tValue v);
+tMap* tmap_set_int(tT, tMap* map, int key, tValue v);
+tMap* tmap_set_sym(tT, tMap* map, tSym key, tValue v);
+
+// maps have to contain the key already
+void tmap_set_int_(tMap* map, int key, tValue v);
+void tmap_set_sym_(tMap* map, tSym key, tValue v);
+
+
+// ** environment (scope) **
+typedef struct tEnv tEnv;
+tEnv* tenv_new(tT, tEnv* parent, tList* keys);
+void tenv_close(tT, tEnv* env);
+tValue tenv_get(tT, tEnv* env, tSym key);
+tEnv* tenv_set(tT, tEnv* env, tSym key, tValue v);
+
+
+// ** vm **
+tVm* tvm_new();
+void tvm_delete(tVm* vm);
+
+tWorker* tvm_new_worker(tVm* vm);
+void tworker_delete(tWorker* worker);
+void tworker_run(tWorker* worker);
+
+void tworker_attach(tWorker* worker, tTask* task);
+void tworker_detach(tWorker* worker, tTask* task);
+
+
+// ** tasks **
+tTask* tvm_new_task(tVm* task);
+void ttask_delete(tT);
+
+tVm* ttask_get_vm(tT);
+tWorker* ttask_get_worker(tT);
+
+tValue ttask_value(tT);
+tValue ttask_exception(tT);
+
+void ttask_ready(tT);
+void ttask_call(tT, tValue fn, tMap* args);
+
+typedef int tRES;
+tRES ttask_return1(tT, tValue);
+tRES ttask_return(tT, ... /*tValue*/);
+tRES ttask_return_a(tT, tValue* vs, int len);
+
+
+// ** callbacks **
+typedef tRES(*t_native)(tTask*, const tMap*);
+typedef struct tFun tFun;
+
+// for general functions
+tFun* tFUN(tT, t_native);
+// for primitive functions that never invoke the evaluator again
+tFun* tFUN_PRIM(tT, t_native);
+
+tValue parse(tText* text);
+tValue compile(tText* text);
+
+#endif // _tl_h_
+

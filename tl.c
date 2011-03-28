@@ -1,145 +1,56 @@
-#include "platform.h"
-
-#include "value.c"
-#include "text.c"
-#include "sym.c"
-#include "list.c"
-#include "map.c"
-#include "env.c"
-
-#include "bytecode.c"
-#include "eval.c"
-
-#include "buffer.c"
-
-#include "compiler.c"
-#include "parser.c"
-
+#include "tl.h"
+#include "debug.h"
 #include "trace-on.h"
 
-const size_t type_to_size[] = {
-    -1,
-    -1, -1, -1, -1, -1, -1/*sizeof(tFloat)*/,
-    sizeof(tList), sizeof(tMap), sizeof(tEnv),
-    sizeof(tText), sizeof(tMem),
-    sizeof(tCall), sizeof(tThunk), sizeof(tResult),
-    sizeof(tFun), sizeof(tCFun),
-    sizeof(tCode), sizeof(tFrame), sizeof(tArgs), sizeof(tEvalFrame),
-    sizeof(tTask), -1, -1 /*sizeof(tVar), sizeof(tCTask)*/
-};
+// this is how a print function might look
+static tRES _print(tTask* task, const tMap* args) {
+    tText* sep = tTEXT(task, " ");
+    tValue v = tmap_get_sym(args, tSYM(task, "sep"));
+    if (v) sep = tvalue_to_text(task, v);
 
-#define _BUF_COUNT 8
-#define _BUF_SIZE 128
-static char** _str_bufs;
-static char* _str_buf;
-static int _str_buf_at = -1;
-
-const char* t_str(tValue v) {
-    if (_str_buf_at == -1) {
-        trace("init buffers for output");
-        _str_buf_at = 0;
-        _str_bufs = calloc(_BUF_COUNT, sizeof(_str_buf));
-        for (int i = 0; i < _BUF_COUNT; i++) _str_bufs[i] = malloc(_BUF_SIZE);
+    for (int i = 0; i < T_ARGS_MAX; i++) {
+        tValue v = tmap_get_int(args, i);
+        if (!v) break;
+        if (i > 0) printf("%s", ttext_bytes(sep));
+        printf("%s", ttext_bytes(tvalue_to_text(task, v)));
     }
-    _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
-    _str_buf = _str_bufs[_str_buf_at];
-
-    switch (t_type(v)) {
-    case TText:
-        return ttext_bytes(ttext_as(v));
-    case TSym:
-        snprintf(_str_buf, _BUF_SIZE, "#%s", ttext_bytes(tsym_to_text(v)));
-        return _str_buf;
-    case TInt:
-        snprintf(_str_buf, _BUF_SIZE, "%d", t_int(v));
-        return _str_buf;
-    default: return t_type_str(v);
-    }
+    return ttask_return1(task, tUndefined);
 }
 
-tValue c_bool(tTask* task, tArgs* args) {
-    tValue c = targs_get(args, 0);
-    trace("BOOL: %s", t_bool(c)?"true":"false");
-    if (t_bool(c)) return targs_get(args, 1);
-    return targs_get(args, 2);
-}
-tValue c_lte(tTask* task, tArgs* args) {
-    trace("%d <= %d", t_int(targs_get(args, 0)), t_int(targs_get(args, 1)));
-    return tBOOL(t_int(targs_get(args, 0)) <= t_int(targs_get(args, 1)));
-}
-tValue c_mul(tTask* task, tArgs* args) {
-    int res = t_int(targs_get(args, 0)) * t_int(targs_get(args, 1));
-    trace("MUL: %d", res);
-    return tINT(res);
-}
-tValue c_sub(tTask* task, tArgs* args) {
-    int res = t_int(targs_get(args, 0)) - t_int(targs_get(args, 1));
-    trace("MUL: %d", res);
-    return tINT(res);
-}
+// this is how to setup a vm
+int main(int argc, char** argv) {
+    tVm* vm = tvm_new();
+    tTask* task = tvm_new_task(vm);
 
-tValue c_print(tTask* task, tArgs* args) {
-    printf(">> ");
-    for (int i = 0; i < targs_size(args); i++) {
-        if (i > 0) printf(" ");
-        printf("%s", t_str(targs_get(args, i)));
-    }
-    printf("\n");
-    return tNull;
-}
+    tSym s_print = tSYM(task, "print");
+    tFun* f_print = tFUN(task, _print);
 
-tEnv* test_env() {
-    tEnv* env = tenv_new_global(null, null);
-    tEnv* start = env;
-    tValue test_print = tcfun_new_global(c_print);
-    env = tenv_set(null, env, tSYM("print"), test_print);
-    env = tenv_set(null, env, tSYM("bool"), tcfun_new_global(c_bool));
-    env = tenv_set(null, env, tSYM("<="), tcfun_new_global(c_lte));
-    env = tenv_set(null, env, tSYM("*"), tcfun_new_global(c_mul));
-    env = tenv_set(null, env, tSYM("-"), tcfun_new_global(c_sub));
+    tEnv* env = tenv_new(task, null, null);
+    tenv_set(task, env, s_print, f_print);
 
-    env = tenv_set(null, env, tSYM("_return"), tcfun_new_global(_return));
-    env = tenv_set(null, env, tSYM("_goto"), tcfun_new_global(_goto));
+    tList* args = tlist_new(task, 2);
+    tlist_set_(args, 0, tTEXT(task, "hello"));
+    tlist_set_(args, 1, tTEXT(task, "world"));
 
-    assert(start->parent == env->parent);
-    //assert(start == env);
-    assert(tenv_get(env, tSYM("print")) == test_print);
-    assert(tenv_get(env, tSYM("_goto")));
-    return env;
+    // setup a call to print as next thing for the task to do
+    ttask_call(task, f_print, tmap_as(args));
+
+    // add task to vm ready queue
+    ttask_ready(task);
+
+    // create a worker (rule of thumb, one worker per thread)
+    tWorker* worker = tvm_new_worker(vm);
+
+    // let worker run until there are no more tasks scheduled
+    tworker_run(worker);
+
+    // this part is a bit magic, but tvalue_to_text might invoke random to-text methods
+    tworker_attach(worker, task);
+    printf("DONE: %s", ttext_bytes(tvalue_to_text(task, ttask_value(task))));
+    tworker_detach(worker, task);
+
+    // delete anything related to this vm (including tasks and workers)
+    tvm_delete(vm);
+    return 0;
 }
 
-int main() {
-    // assert assumptions on memory layout, pointer size etc
-    assert(sizeof(tHead) <= sizeof(intptr_t));
-
-    print("    field size: %zd", sizeof(tValue));
-    print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
-    print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
-
-    text_init();
-    sym_init();
-    list_init();
-    map_init();
-
-    //map_test();
-    //return 0;
-
-    tEnv* globals = test_env();
-
-    tBuffer* buf = tbuffer_new_from_file("run.tl");
-    tbuffer_write_uint8(buf, 0);
-    assert(buf);
-    tText* text = tTEXT(tbuffer_free_get(buf));
-    tValue v = compile(text);
-
-    tTask* task = ttask_new_global();
-    tFun* fun = tfun_new(task, tcode_as(v), globals, tSYM("main"));
-    tCall* call = call_new(task, 1);
-    call->fields[0] = fun;
-    tcall_eval(call, task);
-    while (task->frame) task_run(task);
-
-    print("%s", t_str(tresult_default(task->value)));
-    print("DONE");
-}

@@ -35,14 +35,18 @@
 #include "debug.h"
 #include "trace-off.h"
 
-#define UNUSED(x) (x = x)
-#define null ((void *)0)
-typedef int bool;
-#define false 0
+#ifndef bool
+#define bool int
 #define true 1
+#define false 0
+#endif
+#ifndef null
+#define null 0
+#endif
 
+#define UNUSED(x) (x = x)
+#define PUBLIC
 #define INTERNAL
-#define API
 
 #define min(l, r) (((l) <= (r))?(l):(r))
 #define max(l, r) (((l) >= (r))?(l):(r))
@@ -142,11 +146,11 @@ typedef int bool;
 #endif
 
 #ifndef PLATFORM_LINUX
-INTERNAL size_t strnlen(const char* s, size_t n) {
+static inline size_t strnlen(const char* s, size_t n) {
     char *p = memchr(s, 0, n);
     return (p?p-s:n);
 }
-INTERNAL char* strndup(const char* s, size_t n) {
+static inline char* strndup(const char* s, size_t n) {
     size_t len = strnlen(s, n);
     char* ret = malloc(len + 1);
     memcpy(ret, s, len);
@@ -154,3 +158,4 @@ INTERNAL char* strndup(const char* s, size_t n) {
     return ret;
 }
 #endif
+
