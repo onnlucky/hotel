@@ -76,6 +76,15 @@ const char* t_str(tValue v) {
     case TInt:
         snprintf(_str_buf, _BUF_SIZE, "%d", t_int(v));
         return _str_buf;
+
+    case TBool:
+        if (v == tFalse) return "false";
+        if (v == tTrue) return "true";
+    case TNull:
+        if (v == tNull) return "null";
+    case TUndefined:
+        if (v == tUndefined) return "undefined";
+        assert(false);
     default: return t_type_str(v);
     }
 }

@@ -240,6 +240,8 @@ int set_add_(tList* set, tValue key) {
         assert(false);
     }
 
+    if (set->data[at] == key) return at;
+
     for (int i = size - 2; i >= at; i--) {
         set->data[i + 1] = set->data[i];
     }

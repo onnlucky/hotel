@@ -1,5 +1,6 @@
 // ** platform and bit manipulation routines **
 
+#pragma once
 #define HAVE_DEBUG
 
 // default includes

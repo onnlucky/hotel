@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include "platform.h"
 
 typedef void* tValue;
 typedef tValue tSym;
@@ -71,13 +72,13 @@ static const tValue tTwo =  (tHead*)((2 << 1)|1);
 #ifdef M32
 static const tValue tIntMax = (tHead*)(0x7FFFFFFF);
 static const tValue tIntMin = (tHead*)(0xFFFFFFFF);
-#define T_MAX_INT 0x3FFFFFFF
-#define T_MIN_INT 0xBFFFFFFF
+#define T_MAX_INT ((int32_t)0x3FFFFFFF)
+#define T_MIN_INT ((int32_t)0xBFFFFFFF)
 #else
 static const tValue tIntMax = (tHead*)(0x7FFFFFFFFFFFFFFF);
 static const tValue tIntMin = (tHead*)(0xFFFFFFFFFFFFFFFF);
-#define T_MAX_INT 0x3FFFFFFFFFFFFFFF
-#define T_MIN_INT 0xBFFFFFFFFFFFFFFF
+#define T_MAX_INT ((int64_t)0x3FFFFFFFFFFFFFFF)
+#define T_MIN_INT ((int64_t)0xBFFFFFFFFFFFFFFF)
 #endif
 
 #define T_MAX_DATA_SIZE 65530
