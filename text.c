@@ -5,9 +5,10 @@
 static tText* v_empty_text;
 
 static void text_init() {
-    v_empty_text = ttext_from_static(null, "");
+    v_empty_text = tTEXT("");
 }
 
+// TODO short strings should be "inline" saves finalizer
 struct tText {
     tHead head;
     const char* ptr;
@@ -15,17 +16,16 @@ struct tText {
     tInt size;
     tInt hash;
 };
-#define T_TEXT_FIELDS (sizeof(tText)/sizeof(tValue) - 1)
 
-tText* ttext_from_static(tTask* task, const char* s) {
-    tText* text = task_alloc(task, TText, T_TEXT_FIELDS);
-    text->head.flags = TPTR|TCONST;
+tText* ttext_from_static(const char* s) {
+    tText* text = task_alloc_priv(null, TText, 0, 4);
+    text->head.flags |= T_FLAG_NOFREE;
     text->ptr = s;
     return text;
 }
+
 tText* ttext_from_take(tTask* task, char* s) {
-    tText* text = task_alloc(task, TText, T_TEXT_FIELDS);
-    text->head.flags = TPTR;
+    tText* text = task_alloc_priv(task, TText, 0, 4);
     text->ptr = s;
     return text;
 }
@@ -44,7 +44,7 @@ tText* ttext_from_copy(tTask* task, const char* s) {
 
 static void ttext_free(tText *text) {
     assert(ttext_is(text));
-    if (text->head.flags & TCONST) return;
+    if (text->head.flags & T_FLAG_NOFREE) return;
     free((char*)text->ptr);
 }
 

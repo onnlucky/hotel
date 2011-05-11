@@ -8,8 +8,8 @@ static void map_init() {
     v_map_empty = tmap_as(v_list_empty);
 }
 
-#define HASKEYS(m) ((m->head.flags & TKEYS) == TKEYS)
-#define HASLIST(m) ((m->head.flags & TLIST) == TLIST)
+#define HASKEYS(m) ((m->head.flags & T_FLAG_HASKEYS) > 0)
+#define HASLIST(m) ((m->head.flags & T_FLAG_HASLIST) > 0)
 #define _KEYS(m) m->data[0]
 #define _LIST(m) m->data[1]
 #define _OFFSET(m) (HASKEYS(m) + HASLIST(m))
@@ -36,7 +36,7 @@ void tmap_dump(tMap* map) {
 
 tMap* tmap_new(tTask* task, tList* keys) {
     tMap* map = task_alloc(task, TMap, tlist_size(keys) + 1);
-    map->head.flags |= TKEYS;
+    map->head.flags |= T_FLAG_HASKEYS;
     _KEYS(map) = keys;
     return map;
 }
@@ -44,7 +44,7 @@ tMap* tmap_new(tTask* task, tList* keys) {
 tMap* tmap_from1(tTask* task, tValue key, tValue v) {
     if (key == tZero) return tlist_from1(task, v);
     tMap* map = task_alloc(task, TMap, 2);
-    map->head.flags |= TKEYS;
+    map->head.flags |= T_FLAG_HASKEYS;
     _KEYS(map) = tlist_from1(task, key);
     map->data[_OFFSET(map)] = v;
     return map;
@@ -85,12 +85,12 @@ tMap* tmap_from_list(tTask* task, tList* pairs) {
 
     tMap* map = task_alloc(task, TMap, (list?1:0)+(keys?1:0)+keysize);
     if (list) {
-        map->head.flags |= TLIST;
+        map->head.flags |= T_FLAG_HASLIST;
         _LIST(map) = list;
         assert(keys);
     }
     if (keys) {
-        map->head.flags |= TKEYS;
+        map->head.flags |= T_FLAG_HASKEYS;
         _KEYS(map) = keys;
     }
     if (list) assert(_LIST(map) == list);
@@ -106,6 +106,8 @@ tMap* tmap_from_list(tTask* task, tList* pairs) {
             int at = set_indexof(keys, key);
             assert(at >= 0);
             map->data[_OFFSET(map) + at] = v;
+            if (list) assert(_LIST(map) == list);
+            if (keys) assert(_KEYS(map) == keys);
         }
     }
 

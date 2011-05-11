@@ -30,7 +30,7 @@ const char* const type_to_str[] = {
 const char* t_type_str(tValue v) { return type_to_str[t_type(v)]; }
 
 // creating tagged values
-tValue tBOOL(void* c) { if (c) return tTrue; return tFalse; }
+tValue tBOOL(unsigned c) { if (c) return tTrue; return tFalse; }
 int t_bool(tValue v) { return !(v == null || v == tUndefined || v == tNull || v == tFalse); }
 
 tValue tINT(int i) { return (tValue)((intptr_t)i << 2 | 1); }
@@ -45,8 +45,15 @@ int t_int(tValue v) {
 tValue task_alloc(tTask* task, uint8_t type, int size) {
     assert(type > 0 && type < TLAST);
     tHead* head = (tHead*)calloc(1, sizeof(tHead) + sizeof(tValue) * size);
+    head->flags = 0;
     head->type = type;
     head->size = size;
+    return (tValue)head;
+}
+tValue task_alloc_priv(tTask* task, uint8_t type, int size, uint8_t privs) {
+    assert(privs <= 0x0F);
+    tHead* head = task_alloc(task, type, size + privs);
+    head->flags = privs;
     return (tValue)head;
 }
 

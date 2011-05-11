@@ -4,11 +4,14 @@
 
 typedef struct tSlab tSlab;
 
-typedef struct tFun tFun;
+//typedef struct tFun tFun;
+typedef struct tArgs tArgs;
 typedef struct tCall tCall;
 typedef struct tThunk tThunk;
 typedef struct tFrame tFrame;
 typedef struct tEvalFrame tEvalFrame;
+typedef struct tList tResult;
+typedef struct tError tError;
 
 typedef struct tCTask tCTask;
 typedef struct tCFun tCFun;
@@ -33,72 +36,14 @@ const uint8_t FLAG_MOVED  = 1 << 0;
 const uint8_t FLAG_INARGS = 1 << 1;
 const uint8_t FLAG_CLOSED = 1 << 2;
 
-struct tSlab {
-    tSlab* prev;
-    tSlab* next;
-    int at;
-    tValue fields[];
-};
-
-static int _slab_bytes;
-static int _slab_size;
-tSlab* tslab_create() {
-    _slab_bytes = getpagesize();
-    _slab_size = (_slab_bytes - sizeof(tSlab)) / sizeof(tValue);
-
-    tSlab* slab = (tSlab*)calloc(1, _slab_bytes);
-    slab->prev = null;
-    slab->next = null;
-    slab->at = 0;
-    return slab;
-}
-tValue tslab_alloc(tSlab* slab, uint8_t type, int size) {
-    size_t bytes = type_to_size[type];
-    assert(bytes >= sizeof(tHead));
-    bytes += sizeof(tValue) * size;
-    int totsize = bytes / sizeof(tValue);
-#if 1
-    tHead* head = (tHead*)calloc(1, bytes);
-    UNUSED(totsize);
-#else
-    if (_slab_size - slab->at < totsize) return null;
-    tHead* head = (tHead*)(slab->fields + slab->at);
-    slab->at += totsize;
-    trace("avail: %d", _slab_size - slab->at);
-#endif
-    head->flags = 1;
-    head->type = type;
-    head->size = size;
-    return head;
-}
-
 struct tTask {
     tHead head;
+    tVm* vm;
+    tWorker* worker;
 
-    tSlab* slab;
     tFrame* frame;
     tValue value;
-    tValue exception;
 };
-tTask* ttask_new_global() {
-    tTask* task = global_alloc(TTask, 0);
-    task->slab = tslab_create();
-    return task;
-}
-tTask* ttask_new(tSlab* slab) {
-    tTask* task = (tTask*)tslab_alloc(slab, TTask, 0);
-
-    task->slab = tslab_create();
-    return task;
-}
-tValue task_alloc(tTask* task, uint8_t type, int size) {
-    tValue v = tslab_alloc(task->slab, type, size);
-    if (v) return v;
-    task->slab = tslab_create();
-    v = tslab_alloc(task->slab, type, size);
-    assert(v);
-    return v;
-}
 
 tValue tresult_from(tTask* task, tList* list) {
     if (tlist_size(list) <= 1) return tlist_get(list, 0);
@@ -127,13 +72,6 @@ struct tFun {
 };
 tFun* tfun_new(tTask* task, tCode* code, tEnv* env, tSym name) {
     tFun* fun = task_alloc(task, TFun, 0);
-    fun->code = code;
-    fun->env = env;
-    fun->name = name;
-    return fun;
-}
-tFun* tfun_new_global(tCode* code, tEnv* env, tSym name) {
-    tFun* fun = global_alloc(TFun, 0);
     fun->code = code;
     fun->env = env;
     fun->name = name;
@@ -317,11 +255,21 @@ struct tCFun {
     tHead head;
     tcfun_cb cb;
 };
-tCFun* tcfun_new_global(tcfun_cb cb) {
-    tCFun* fun = global_alloc(TCFun, 0);
+tCFun* tcfun_new(tTask* task, tcfun_cb cb) {
+    tCFun* fun = task_alloc(task, TCFun, 0);
     fun->cb = cb;
     return fun;
 }
+
+tFun* tFUN(t_native fn) {
+    //TODO
+    return null;
+}
+tFun* tPRIMFUN(t_native fn) {
+    //TODO
+    return null;
+}
+
 tArgs* targs_new_cfun(tTask* task, tCFun* fun, tCall* call) {
     assert(fun);
     trace("!! C-ARGS: %d", tcall_arg_count(call));
@@ -338,6 +286,22 @@ tArgs* targs_new_thunk(tTask* task, tThunk* thunk, tCall* call) {
     args->call = call;
     args->target = thunk;
     return args;
+}
+
+tRES ttask_return1(tTask* task, tValue v) {
+    task->value = v;
+    if (task->frame) task->frame = task->frame->caller;
+    return 0;
+}
+
+tValue ttask_value(tTask* task) {
+    return task->value;
+}
+
+void ttask_call(tTask* task, tValue fn, tMap* args) {
+}
+
+void ttask_ready(tTask* task) {
 }
 
 #include "trace-on.h"
@@ -500,7 +464,7 @@ void RESULT_REST(tTask* task, tFrame* frame) {
         tlist_set_(list, 0, task->value);
         frame->locals = tenv_set(task, frame->locals, name, list);
     } else {
-        frame->locals = tenv_set(task, frame->locals, name, t_list_empty);
+        frame->locals = tenv_set(task, frame->locals, name, v_list_empty);
     }
     frame->count = 0;
 }
@@ -525,7 +489,7 @@ void GETENV(tTask* task, tFrame* frame) {
     tSym name = frame_op_next_name(frame);
     if (name == s_cont)   { task->value = tframe_close(frame); return; }
     if (name == s_caller) { task->value = tframe_close(frame->caller); return; }
-    task->value = tenv_get(frame->locals, name);
+    task->value = tenv_get(task, frame->locals, name);
     frame->count = 0;
 }
 void SETTEMP(tTask* task, tFrame* frame) {
@@ -569,7 +533,7 @@ void CGETENV(tTask* task, tFrame* frame) {
     } else if (name == s_caller) {
         call->fields[frame->count] = tframe_close(frame->caller);
     } else {
-        call->fields[frame->count] = tenv_get(frame->locals, name);
+        call->fields[frame->count] = tenv_get(task, frame->locals, name);
     }
     trace("(%d) = env[%s] (%s)", frame->count, t_str(name), t_str(call->fields[frame->count]));
     frame->count++;

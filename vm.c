@@ -7,26 +7,13 @@
 #include "map.c"
 #include "env.c"
 
-#include "bytecode.c"
-#include "eval.c"
-
 #include "buffer.c"
 
+#include "bytecode.c"
 #include "compiler.c"
-#include "parser.c"
+#include "eval.c"
 
 #include "trace-on.h"
-
-const size_t type_to_size[] = {
-    -1,
-    -1, -1, -1, -1, -1, -1/*sizeof(tFloat)*/,
-    sizeof(tList), sizeof(tMap), sizeof(tEnv),
-    sizeof(tText), sizeof(tMem),
-    sizeof(tCall), sizeof(tThunk), sizeof(tResult),
-    sizeof(tFun), sizeof(tCFun),
-    sizeof(tCode), sizeof(tFrame), sizeof(tArgs), sizeof(tEvalFrame),
-    sizeof(tTask), -1, -1 /*sizeof(tVar), sizeof(tCTask)*/
-};
 
 tValue c_bool(tTask* task, tArgs* args) {
     tValue c = targs_get(args, 0);
@@ -60,26 +47,26 @@ tValue c_print(tTask* task, tArgs* args) {
 }
 
 tEnv* test_env() {
-    tEnv* env = tenv_new_global(null, null);
+    tEnv* env = tenv_new(null, null, null);
     tEnv* start = env;
-    tValue test_print = tcfun_new_global(c_print);
+    tValue test_print = tcfun_new(null, c_print);
     env = tenv_set(null, env, tSYM("print"), test_print);
-    env = tenv_set(null, env, tSYM("bool"), tcfun_new_global(c_bool));
-    env = tenv_set(null, env, tSYM("<="), tcfun_new_global(c_lte));
-    env = tenv_set(null, env, tSYM("*"), tcfun_new_global(c_mul));
-    env = tenv_set(null, env, tSYM("-"), tcfun_new_global(c_sub));
+    env = tenv_set(null, env, tSYM("bool"), tcfun_new(null, c_bool));
+    env = tenv_set(null, env, tSYM("<="), tcfun_new(null, c_lte));
+    env = tenv_set(null, env, tSYM("*"), tcfun_new(null, c_mul));
+    env = tenv_set(null, env, tSYM("-"), tcfun_new(null, c_sub));
 
-    env = tenv_set(null, env, tSYM("_return"), tcfun_new_global(_return));
-    env = tenv_set(null, env, tSYM("_goto"), tcfun_new_global(_goto));
+    env = tenv_set(null, env, tSYM("_return"), tcfun_new(null, _return));
+    env = tenv_set(null, env, tSYM("_goto"), tcfun_new(null, _goto));
 
     assert(start->parent == env->parent);
     //assert(start == env);
-    assert(tenv_get(env, tSYM("print")) == test_print);
-    assert(tenv_get(env, tSYM("_goto")));
+    assert(tenv_get(null, env, tSYM("print")) == test_print);
+    assert(tenv_get(null, env, tSYM("_goto")));
     return env;
 }
 
-int main() {
+void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
     assert(sizeof(tHead) <= sizeof(intptr_t));
 
@@ -92,25 +79,35 @@ int main() {
     sym_init();
     list_init();
     map_init();
-
-    //map_test();
-    //return 0;
-
-    tEnv* globals = test_env();
-
-    tBuffer* buf = tbuffer_new_from_file("run.tl");
-    tbuffer_write_uint8(buf, 0);
-    assert(buf);
-    tText* text = tTEXT(tbuffer_free_get(buf));
-    tValue v = compile(text);
-
-    tTask* task = ttask_new_global();
-    tFun* fun = tfun_new(task, tcode_as(v), globals, tSYM("main"));
-    tCall* call = call_new(task, 1);
-    call->fields[0] = fun;
-    tcall_eval(call, task);
-    while (task->frame) task_run(task);
-
-    print("%s", t_str(tresult_default(task->value)));
-    print("DONE");
 }
+
+void tworker_attach(tWorker* worker, tTask* task) {
+    //assert(task->vm == worker->vm);
+    assert(!task->worker);
+    task->worker = worker;
+}
+
+void tworker_detach(tWorker* worker, tTask* task) {
+    assert(task->worker == worker);
+    task->worker = null;
+}
+
+void tworker_run(tWorker* worker) {
+    tTask* task = null; //TODO worker->task;
+    while (task->frame) task_run(task);
+}
+
+tVm* tvm_new() {
+    return null;
+}
+void tvm_delete(tVm* vm) {
+}
+
+tTask* tvm_create_task(tVm* vm) {
+    return null;
+}
+
+tWorker* tvm_create_worker(tVm* vm) {
+    return null;
+}
+

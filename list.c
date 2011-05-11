@@ -7,7 +7,7 @@ static tList* v_list_empty;
 tList* tlist_new(tTask* task, int size) {
     if (size == 0) return v_list_empty;
     assert(size > 0 && size < T_MAX_DATA_SIZE);
-    return (tList*)task_alloc(task, TLIST, size);
+    return task_alloc(task, TList, size);
 }
 
 tList* tlist_from1(tTask* task, tValue v1) {
@@ -181,7 +181,7 @@ tList* tlist_cat(tTask* task, tList* left, tList* right) {
 }
 
 static void list_init() {
-    v_list_empty = task_alloc(null, TLIST, 0);
+    v_list_empty = task_alloc(null, TList, 0);
 }
 
 

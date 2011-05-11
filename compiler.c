@@ -63,7 +63,7 @@ void addForCall(tTask* task, Context* cx, tValue in) {
         emitd(cx, getOrAdd(task, cx, tlist_get(in, 1)));
         return;
     }
-    assert(ttext_is(in) || ttag_is(in));
+    assert(ttext_is(in) || !tref_is(in));
     emit(cx, OCGETDATA);
     emitd(cx, getOrAdd(task, cx, in));
 }
@@ -165,7 +165,7 @@ void addForBody(tTask* task, Context* cx, tValue in) {
             addForBody(task, cx, tlist_get(list, 1));
             for (int i = 2; i < tlist_size(list); i += 2) {
                 if (tlist_get(list, i) == _RESULT_) { emit(cx, ORESULT); }
-                else { assert(tlist_get(list, i) == _RESULT_REST_) emit(cx, ORESULT_REST); }
+                else { assert(tlist_get(list, i) == _RESULT_REST_); emit(cx, ORESULT_REST); }
                 emitd(cx, getOrAdd(task, cx, tlist_get(list, i + 1)));
             }
             return;
@@ -199,3 +199,4 @@ tCode* newBody(tTask* task, tList *in) {
     print();
     return code;
 }
+

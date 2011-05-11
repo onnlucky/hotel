@@ -3,8 +3,9 @@ CFLAGS=-std=c99 -Wall -Wno-unused-function -g
 
 all: tl
 
-run: parser-test
+run: parser-test tl
 	valgrind -q --track-origins=yes ./parser-test
+	valgrind -q --track-origins=yes ./tl
 
 parser.c: parser.g tl.h Makefile
 	greg -o parser.c parser.g
@@ -21,8 +22,8 @@ lhashmap.o: llib/lhashmap.h llib/lhashmap.c
 lqueue.o: llib/lqueue.h llib/lqueue.c
 	$(CC) $(CFLAGS) -c llib/lqueue.c -o lqueue.o
 
-tl: tl.c tl.h
-	$(CC) $(CFLAGS) tl.c -o tl
+tl: lhashmap.o parser.o *.c *.h
+	$(CC) $(CFLAGS) tl.c lhashmap.o parser.o -o tl
 
 clean:
 	rm -rf tl parser.c *.o *.so tl.dSYM

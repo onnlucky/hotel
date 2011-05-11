@@ -19,7 +19,7 @@ tText* tsym_to_text(tSym sym) {
     return _TEXT_FROM_SYM(sym);
 }
 
-tSym tsym_from_static(tTask* task, const char* s) {
+tSym tsym_from_static(const char* s) {
     assert(s);
     assert(symbols);
     trace("#%s", s);
@@ -27,7 +27,7 @@ tSym tsym_from_static(tTask* task, const char* s) {
     tSym cur = (tSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tsym_from(task, ttext_from_static(task, s));
+    return tsym_from(null, tTEXT(s));
 }
 
 tSym tsym_from_copy(tTask* task, const char* s) {
@@ -112,12 +112,12 @@ static void strfree(void *str) { }
 static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
-    s_cont   = tSYM(null, "continuation");
-    s_caller = tSYM(null, "caller-continuation");
-    s_return = tSYM(null, "return");
-    s_goto   = tSYM(null, "goto");
-    s_this   = tSYM(null, "this");
-    s_args   = tSYM(null, "args");
+    s_cont   = tSYM("continuation");
+    s_caller = tSYM("caller-continuation");
+    s_return = tSYM("return");
+    s_goto   = tSYM("goto");
+    s_this   = tSYM("this");
+    s_args   = tSYM("args");
 
     //globals = lhashmap_new(strequals, strhash, strfree);
 

@@ -16,50 +16,23 @@ typedef struct tHead {
     uint8_t flags;
     uint8_t type;
     uint16_t size;
-    // TOOD only on 64 bit .. and what to put in here?
+#ifdef M64
     uint32_t pad;
+#endif
 } tHead;
 
-// this is all possible value layouts
-typedef struct tMem {
-    tHead head;
-    const char bytes[];
-} tMem;
+// this is how all values look in memory
 typedef struct tList {
     tHead head;
     tValue data[];
 } tList;
-typedef struct tPtr {
-    tHead head;
-    const char* ptr;
-    tValue data[];
-} tPtr;
 
-// combinatory ...
-typedef struct tPtrKeys {
-    tHead head;
-    const char* bytes;
-    tList* keys;
-    tValue data[];
-} tPtrKeys;
-typedef struct tListKeys {
-    tHead head;
-    tList* keys;
-    tValue data[];
-} tListKeys;
-typedef struct tListKeysList {
-    tHead head;
-    tList* keys;
-    tList* list;
-    tValue data[];
-} tListKeysList;
+#define T_PRIVATE_SIZE(s) (sizeof(s) / sizeof(tValue) - 1)
+static inline int _private(tValue v) { return ((tList*)v)->head.flags & 0x0F; }
 
-// flags on how the memory looks
-static const uint8_t TMEM   = 0x80;
-static const uint8_t TPTR   = 0x40;
-static const uint8_t TCONST = 0x80; //TMEM;
-static const uint8_t TKEYS  = 0x20;
-static const uint8_t TLIST  = 0x10;
+static const uint8_t T_FLAG_NOFREE = 0x10;
+static const uint8_t T_FLAG_HASKEYS = 0x10;
+static const uint8_t T_FLAG_HASLIST = 0x20;
 
 // static predefined value
 static const tValue tUndefined = (tHead*)(1 << 2);
@@ -87,20 +60,29 @@ static const tValue tIntMin = (tHead*)(0xFFFFFFFFFFFFFFFF);
 // all known primitive types
 enum {
     TInvalid = 0,
-    TUndefined, TNull, TBool, TSym, TInt, TFloat,
-    TText, TMem,
+
     TList, TMap, TObject,
+
+    TNum, TFloat,
+    TText,
+
     TEnv,
-    TCall, TThunk, TResult,
+    TThunk, TResult, TError,
+    TCall, TCall_m,
+    TSend, TSend_m,
+
     TFun, TCFun,
     TCode, TFrame, TArgs, TEvalFrame,
     TTask, TVar, TCTask,
-    TLAST
+
+    TLAST,
+
+    // these never appear in head->type since these are tagged
+    TUndefined, TNull, TBool, TSym, TInt,
 };
 
 // a list is also a map, but a map may be a sparse list or map other type of values to keys
 typedef struct tList tMap;
-// a text is can be a tPtr or a tMem
 typedef struct tText tText;
 
 static inline int tref_is(tValue v) { return ((intptr_t)v & 3) == 0 && (intptr_t)v > 1024; }
@@ -114,18 +96,11 @@ static inline int tsym_is(tValue v) { return ((intptr_t)v & 2) && (intptr_t)v > 
 static inline tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
 static inline tSym tsym_cast(tValue v) { return tsym_is(v)?tsym_as(v):0; }
 
-static inline int tmem_is(tValue v) { return tref_is(v) && (t_head(v)->flags & TMEM) == TMEM; }
-static inline tMem* tmem_as(tValue v) { assert(tmem_is(v)); return (tMem*)v; }
-static inline tMem* tmem_cast(tValue v) { return tmem_is(v)?tmem_as(v):0; }
-
-static inline int tptr_is(tValue v) { return tref_is(v) && (t_head(v)->flags & TPTR); }
-static inline tPtr* tptr_as(tValue v) { assert(tref_is(v)); return (tPtr*)v; }
-
-static inline int tlist_is(tValue v) { return tref_is(v) && !tmem_is(v) && !tptr_is(v); }
+static inline int tlist_is(tValue v) { return tref_is(v); }
 static inline tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
 static inline tList* tlist_cast(tValue v) { return tlist_is(v)?tlist_as(v):0; }
 
-static inline int tmap_is(tValue v) { return tref_is(v) && !tmem_is(v); }
+static inline int tmap_is(tValue v) { return tref_is(v) && t_head(v)->type <= TObject; }
 static inline tMap* tmap_as(tValue v) { assert(tmap_is(v)); return (tMap*)v; }
 static inline tMap* tmap_cast(tValue v) { return tmap_is(v)?tmap_as(v):0; }
 
@@ -134,12 +109,17 @@ static inline tText* ttext_as(tValue v) { assert(ttext_is(v)); return (tText*)v;
 static inline tText* ttext_cast(tValue v) { return ttext_is(v)?ttext_as(v):0; }
 
 // simple primitive functions
-tValue tBOOL(void* c);
-int t_bool(tValue v);
-
+tValue tBOOL(unsigned c);
 tInt tINT(int i);
-int t_int(tValue v);
 
+// tTEXT and tSYM are only to be used in before tvm_init();
+#define tTEXT ttext_from_static
+tText* ttext_from_static(const char* s);
+#define tSYM tsym_from_static
+tSym tsym_from_static(const char* s);
+
+int t_bool(tValue v);
+int t_int(tValue v);
 const char* t_str(tValue v);
 
 
@@ -157,15 +137,11 @@ const char* ttext_bytes(tText* text);
 
 tText* tvalue_to_text(tT, tValue v);
 
-tText* ttext_from_static(tT, const char* s);
 tText* ttext_from_copy(tT, const char* s);
 tText* ttext_from_take(tT, char* s);
-#define tTEXT ttext_from_static
 
-tSym tsym_from_static(tT, const char* s);
 tSym tsym_from_copy(tT, const char* s);
 tSym tsym_from(tT, tText* text);
-#define tSYM tsym_from_static
 
 tText* tsym_to_text(tSym s);
 
@@ -230,7 +206,7 @@ tEnv* tenv_set(tT, tEnv* env, tSym key, tValue v);
 tVm* tvm_new();
 void tvm_delete(tVm* vm);
 
-tWorker* tvm_new_worker(tVm* vm);
+tWorker* tvm_create_worker(tVm* vm);
 void tworker_delete(tWorker* worker);
 void tworker_run(tWorker* worker);
 
@@ -239,7 +215,7 @@ void tworker_detach(tWorker* worker, tTask* task);
 
 
 // ** tasks **
-tTask* tvm_new_task(tVm* task);
+tTask* tvm_create_task(tVm* task);
 void ttask_delete(tT);
 
 tVm* ttask_get_vm(tT);
@@ -258,13 +234,13 @@ tRES ttask_return_a(tT, tValue* vs, int len);
 
 
 // ** callbacks **
-typedef tRES(*t_native)(tTask*, const tMap*);
+typedef tRES(*t_native)(tTask*, tMap*);
 typedef struct tFun tFun;
 
 // for general functions
-tFun* tFUN(tT, t_native);
+tFun* tFUN(t_native);
 // for primitive functions that never invoke the evaluator again
-tFun* tFUN_PRIM(tT, t_native);
+tFun* tFUN_PRIM(t_native);
 
 tValue parse(tText* text);
 tValue compile(tText* text);

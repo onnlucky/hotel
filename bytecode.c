@@ -34,14 +34,6 @@ struct tCode {
 bool tcode_is(tValue v) { return t_type(v) == TCode; }
 tCode* tcode_as(tValue v) { assert(tcode_is(v)); return (tCode*)v; }
 
-tCode* tcode_new_global(int size, int temps) {
-    trace("%d", size);
-    tCode* code = (tCode*)global_alloc(TCode, size);
-    code->temps = temps;
-    code->localkeys = 0;
-    return code;
-}
-
 tCode* tcode_new(tTask* task, int size, int temps, tList* localkeys, tList* data) {
     trace("%d", tlist_size(data));
     tCode* code = task_alloc(task, TCode, tlist_size(data));

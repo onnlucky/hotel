@@ -9,10 +9,10 @@
 
 #define HAVE_BLOOM 1
 
-typedef struct tEnv tEnv;
 struct tEnv {
     tHead head;
     intptr_t bloom;
+
     tEnv* parent;
     tList* keys;
     tValue data[];
@@ -26,18 +26,9 @@ int tenv_size(tEnv* env) {
 }
 
 tEnv* tenv_new(tTask* task, tEnv* parent, tList* keys) {
-    if (!keys) keys = t_list_empty;
+    if (!keys) keys = v_list_empty;
     trace("%d", tlist_size(keys));
-    tEnv* env = task_alloc(task, TEnv, tlist_size(keys));
-    env->parent = parent;
-    env->keys = keys;
-    return env;
-}
-
-tEnv* tenv_new_global(tEnv* parent, tList* keys) {
-    if (!keys) keys = t_list_empty;
-    trace("%d", tlist_size(keys));
-    tEnv* env = global_alloc(TEnv, tlist_size(keys));
+    tEnv* env = task_alloc_priv(task, TEnv, tlist_size(keys) + 2, 1);
     env->parent = parent;
     env->keys = keys;
     return env;
@@ -68,9 +59,7 @@ tList* names_add(tTask* task, tList* set, tSym key, int* at) {
 
     trace("adding name");
     int size = tlist_size(set);
-    tList* nset;
-    if (task) nset = tlist_new(task, size + 1);
-    else nset = tlist_new_global(size + 1);
+    tList* nset; tlist_new(task, size + 1);
 
     int i = 0;
     for (; i < size && set->data[i] < key; i++) nset->data[i] = set->data[i];
@@ -81,7 +70,7 @@ tList* names_add(tTask* task, tList* set, tSym key, int* at) {
     return nset;
 }
 
-tValue tenv_get(tEnv* env, tSym key) {
+tValue tenv_get(tTask* task, tEnv* env, tSym key) {
     assert(tenv_is(env));
     while (env) {
 #ifdef BLOOM
@@ -108,9 +97,7 @@ tEnv* tenv_set(tTask* task, tEnv* env, tSym key, tValue v) {
     assert(at >= 0);
     assert(tlist_is(keys));
 
-    tEnv* nenv;
-    if (task) nenv = tenv_new(task, env->parent, keys);
-    else nenv = tenv_new_global(env->parent, keys);
+    tEnv* nenv = tenv_new(task, env->parent, keys);
 
     nenv->parent = env->parent;
     nenv->keys = keys;

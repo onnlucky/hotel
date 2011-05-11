@@ -2,6 +2,7 @@
 
 #ifndef _debug_h_
 #define _debug_h_
+#pragma once
 
 #include <string.h>
 #include <stdio.h>
