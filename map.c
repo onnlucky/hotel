@@ -34,11 +34,46 @@ void tmap_dump(tMap* map) {
     }
 }
 
-tMap* tmap_new(tTask* task, tList* keys) {
-    tMap* map = task_alloc(task, TMap, tlist_size(keys) + 1);
-    map->head.flags |= T_FLAG_HASKEYS;
-    _KEYS(map) = keys;
+tMap* tmap_new(tTask* task, int size) {
+    return task_alloc(task, TMap, size);
+}
+tMap* tmap_copy(tTask* task, tMap* o) {
+    assert(tmap_is(o));
+    tMap* map = task_alloc(task, TMap, o->head.size);
+    if (HASKEYS(o)) {
+        map->head.flags |= T_FLAG_HASKEYS;
+        _KEYS(map) = _KEYS(o);
+    }
+    if (HASLIST(o)) {
+        assert(HASKEYS(map));
+        map->head.flags |= T_FLAG_HASLIST;
+        _LIST(map) = tlist_new(task, tlist_size(_LIST(o)));
+    }
     return map;
+}
+
+tMap* tmap_new_keys(tTask* task, tList* keys, int size) {
+    trace("new map keys: %s %d", t_str(keys), size);
+    tMap* map;
+    if (keys) map = tmap_copy(task, tlist_get(keys, size));
+    else map = tmap_new(task, size);
+    return map;
+}
+void tmap_set_key_(tMap* map, tValue key, int at, tValue v) {
+    trace("SET KEY: %d %d -- %d", HASLIST(map), HASKEYS(map), at);
+    tmap_dump(map);
+    if (key) {
+        assert(HASLIST(map));
+        if (tint_is(key)) {
+            tmap_set_int_(map, t_int(key), v);
+        } else {
+            tmap_set_sym_(map, tsym_as(key), v);
+        }
+    } else {
+        assert(!(HASLIST(map) && HASKEYS(map)));
+        assert(!(at < 0 && at >= map->head.size));
+        map->data[at] = v;
+    }
 }
 
 tMap* tmap_from1(tTask* task, tValue key, tValue v) {
@@ -179,5 +214,13 @@ tValue tmap_get_sym(tMap* map, tSym key) {
         }
     }
     return null;
+}
+
+void tmap_set_sym_(tMap* map, tSym key, tValue v) {
+    trace("set sym: %s", t_str(key));
+    assert(HASKEYS(map));
+    int at = set_indexof(_KEYS(map), key);
+    assert(at >= 0);
+    map->data[_OFFSET(map) + at] = v;
 }
 

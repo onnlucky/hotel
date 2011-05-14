@@ -180,7 +180,7 @@ int tmap_is_empty(tMap* map);
 tValue tmap_get_int(tMap* map, int key);
 tValue tmap_get_sym(tMap* map, tSym key);
 
-tMap* tmap_new(tT, tList* keys);
+tMap* tmap_new(tT, int size);
 tMap* tmap_copy(tT, tMap* map);
 tMap* tmap_from1(tT, tValue key, tValue v);
 tMap* tmap_from(tT, ... /*tValue, tValue*/);

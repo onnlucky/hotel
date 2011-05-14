@@ -25,7 +25,7 @@ struct tFun {
 };
 struct tCall {
     tHead head;
-    tMap* keys;
+    tList* keys;
     tValue fn;
     tValue args[];
 };
@@ -90,9 +90,16 @@ int tcall_argc(tCall* call) { return call->head.size - 2; }
 tCall* tcall_new(tTask* task, int argc) {
     return task_alloc(task, TCall, argc + 2);
 }
+tCall* tcall_new_keys(tTask* task, int argc, tList* keys) {
+    tCall* call = task_alloc(task, TCall, argc + 2);
+    call->keys = keys;
+    assert(tmap_is(tlist_get(keys, tlist_size(keys) - 1)));
+    return call;
+}
 tCall* tcall_copy_fn(tTask* task, tCall* o, tValue fn) {
     int argc = tcall_argc(o);
     tCall* call = tcall_new(task, argc);
+    call->keys = o->keys;
     call->fn = fn;
     for (int i = 0; i < argc; i++) call->args[i] = o->args[i];
     return call;
@@ -151,6 +158,13 @@ void ttask_call(tTask* task, tCall* call) {
     tValue run = task->run;
     task->run = ttask_run(task, run, call);
     trace(">> CALL %p -> %p", run, task->run);
+
+    // DESIGN calling with keywords arguments
+    // there must be a list with names, and last entry must be a map ready to be cloned
+    if (call->keys) {
+        assert(tcall_argc(call) == tlist_size(call->keys) - 1);
+        assert(tmap_is(tlist_get(call->keys, tcall_argc(call))));
+    }
 }
 
 // return true if we have to step into a run
@@ -159,13 +173,16 @@ bool ttask_force(tTask* task, tValue v) {
     return false;
 }
 
+// we use this to evaluate calls in function position
+// DESIGN: we copy the incoming arguments; instead we could:
+// - mutate the arguments (only sometimes)
+// - normalize fn as a field in every eval frame, saves copy here, costs 1 field on every frame
 void tevalcall_step(tTask* task, tValue v) {
     tEvalCall* run = tevalcall_as(v);
     trace("%p", run);
 
     // second time
     if (flag_incall_has(run)) {
-        // TODO we copy call here, but we can also pass fn to all runs
         tValue fn = task->value;
         tCall* ncall = tcall_copy_fn(task, run->call, fn);
         task->run = ttask_run(task, run->caller, ncall);
@@ -177,30 +194,37 @@ void tevalcall_step(tTask* task, tValue v) {
     trace(">> EVAL FN %p -> %p", run, task->run);
 }
 
+static inline tValue keys_tr(tList* keys, int at) {
+    if (keys) return tlist_get(keys, at); else return null;
+}
+
 // TODO check if still open ...
 void tevalfun_step(tTask* task, tValue v) {
     trace();
     tEvalFun* run = tevalfun_as(v);
-    int argc = tcall_argc(run->call);
+    tCall* call = run->call;
+    tList* keys = call->keys;
+    int argc = tcall_argc(call);
 
     // ensure we have an argument list
-    if (!run->args) run->args = tlist_new(task, argc);
+    if (!run->args) run->args = tmap_new_keys(task, keys, argc);
 
     // if we returned here from a call; collect it
     if (flag_incall_has(run)) {
         flag_incall_clear(run);
-        tlist_set_(run->args, run->count, ttask_value(task));
+        tmap_set_key_(run->args, keys_tr(keys, run->count), run->count, ttask_value(task));
         run->count++;
     }
 
     // evaluate each argument
     for (; run->count < argc; run->count++) {
-        tValue v = tcall_get_arg(run->call, run->count);
+        tValue v = tcall_get_arg(call, run->count);
         if (ttask_force(task, v)) { flag_incall_set(run); return; }
-        tlist_set_(run->args, run->count, v);
+        tmap_set_key_(run->args, keys_tr(keys, run->count), run->count, v);
     }
-    tFun* fun = tfun_as(tcall_get_fn(run->call));
+    tFun* fun = tfun_as(tcall_get_fn(call));
     trace(">> NATIVE %s", t_str(fun->name));
+    tmap_dump(run->args);
     fun->native(task, tmap_as(run->args));
 }
 

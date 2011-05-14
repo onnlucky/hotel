@@ -57,7 +57,7 @@ tValue tlist_get(tList* list, int at) {
 
     if (at < 0 || at >= tlist_size(list)) {
         trace("%d, %d = undefined", tlist_size(list), at);
-        return tUndefined;
+        return null;
     }
     trace("%d, %d = %s", tlist_size(list), at, t_str(list->data[at]));
     return list->data[at];
