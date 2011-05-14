@@ -25,26 +25,19 @@ static tRES _print(tTask* task, tMap* args) {
     return ttask_return1(task, tUndefined);
 }
 
-#if 0
-int testtest() {
-    tEnv* globals;// = test_env();
+static tRES _test1(tTask* task, tMap* args) {
+    return ttask_return1(task, tTEXT("thanks"));
+}
+static tRES _test2(tTask* task, tMap* args) {
+    return ttask_return1(task, tFUN(tSYM("print"), _print));
+}
 
+#if 0
     tBuffer* buf = tbuffer_new_from_file("run.tl");
     tbuffer_write_uint8(buf, 0);
     assert(buf);
     tText* text = tTEXT(tbuffer_free_get(buf));
     tValue v = compile(text);
-
-    tTask* task = tvmttask_new();
-    tFun* fun = tfun_new(task, tcode_as(v), globals, tSYM("main"));
-    tCall* call = call_new(task, 1);
-    call->fields[0] = fun;
-    tcall_eval(call, task);
-    while (task->frame) task_run(task);
-
-    print("%s", t_str(tresult_default(task->value)));
-    print("DONE");
-}
 #endif
 
 // this is how to setup a vm
@@ -54,18 +47,25 @@ int main(int argc, char** argv) {
     //tWorker* worker = tvm_create_worker(vm);
     tTask* task = tvm_create_task(vm);
 
+    tFun* f_test1 = tFUN(tSYM("test1"), _test1);
+    tFun* f_test2 = tFUN(tSYM("test2"), _test2);
     tFun* f_print = tFUN(tSYM("print"), _print);
 
+    tCall* call1 = tcall_new(task, 0);
+    tcall_set_fn_(call1, f_test1);
+    tCall* call2 = tcall_new(task, 0);
+    tcall_set_fn_(call2, f_test2);
+
     tCall* call = tcall_new(task, 2);
-    tcall_set_fn_(call, f_print);
-    tcall_set_arg_(call, 0, tTEXT("hello"));
+    tcall_set_fn_(call, call2);
+    tcall_set_arg_(call, 0, call1);
     tcall_set_arg_(call, 1, tTEXT("world"));
 
     // setup a call to print as next thing for the task to do
     ttask_call(task, call);
 
     // TODO use proper tworker thing
-    while (task->run) ttask_run(task);
+    while (task->run) ttask_step(task);
 
     printf("DONE: %s", t_str(ttask_value(task)));
 

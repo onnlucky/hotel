@@ -33,6 +33,7 @@ static inline int _private(tValue v) { return ((tList*)v)->head.flags & 0x0F; }
 static const uint8_t T_FLAG_NOFREE = 0x10;
 static const uint8_t T_FLAG_HASKEYS = 0x10;
 static const uint8_t T_FLAG_HASLIST = 0x20;
+static const uint8_t T_FLAG_INCALL = 0x10;
 
 // static predefined value
 static const tValue tUndefined = (tHead*)(1 << 2);
@@ -70,11 +71,14 @@ enum {
     TResult, TError,
     TThunk, TCall, TSend,
 
-    TEval,
-
     TFun, TCFun,
     TCode, TFrame, TArgs, TEvalFrame,
+
     TTask, TVar, TCTask,
+
+    TEvalCall,
+    TEvalFun,
+    TEval,
 
     TLAST,
 

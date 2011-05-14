@@ -98,7 +98,7 @@ void tworker_detach(tWorker* worker, tTask* task) {
 
 void tworker_run(tWorker* worker) {
     tTask* task = null; //TODO worker->task;
-    while (task->run) ttask_run(task);
+    while (task->run) ttask_step(task);
 }
 
 tVm* tvm_new() {
