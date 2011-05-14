@@ -59,7 +59,7 @@ tList* names_add(tTask* task, tList* set, tSym key, int* at) {
 
     trace("adding name");
     int size = tlist_size(set);
-    tList* nset; tlist_new(task, size + 1);
+    tList* nset = tlist_new(task, size + 1);
 
     int i = 0;
     for (; i < size && set->data[i] < key; i++) nset->data[i] = set->data[i];

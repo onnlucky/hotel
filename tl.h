@@ -127,6 +127,7 @@ const char* t_str(tValue v);
 typedef struct tVm tVm;
 typedef struct tWorker tWorker;
 typedef struct tTask tTask;
+typedef struct tCall tCall;
 #define tT tTask *task
 
 
@@ -225,7 +226,7 @@ tValue ttask_value(tT);
 tValue ttask_exception(tT);
 
 void ttask_ready(tT);
-void ttask_call(tT, tValue fn, tMap* args);
+void ttask_call(tT, tCall* args);
 
 typedef int tRES;
 tRES ttask_return1(tT, tValue);
@@ -238,9 +239,9 @@ typedef tRES(*t_native)(tTask*, tMap*);
 typedef struct tFun tFun;
 
 // for general functions
-tFun* tFUN(t_native);
+tFun* tFUN(tSym name, t_native);
 // for primitive functions that never invoke the evaluator again
-tFun* tFUN_PRIM(t_native);
+tFun* tFUN_PRIM(tSym name, t_native);
 
 tValue parse(tText* text);
 tValue compile(tText* text);

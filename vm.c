@@ -11,10 +11,13 @@
 
 #include "bytecode.c"
 #include "compiler.c"
-#include "eval.c"
+#include "task.c"
+
+//#include "eval.c"
 
 #include "trace-on.h"
 
+#if 0
 tValue c_bool(tTask* task, tArgs* args) {
     tValue c = targs_get(args, 0);
     trace("BOOL: %s", t_bool(c)?"true":"false");
@@ -65,6 +68,7 @@ tEnv* test_env() {
     assert(tenv_get(null, env, tSYM("_goto")));
     return env;
 }
+#endif
 
 void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
@@ -72,7 +76,7 @@ void tvm_init() {
 
     print("    field size: %zd", sizeof(tValue));
     print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
+    //print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
     print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
 
     text_init();
@@ -94,7 +98,7 @@ void tworker_detach(tWorker* worker, tTask* task) {
 
 void tworker_run(tWorker* worker) {
     tTask* task = null; //TODO worker->task;
-    while (task->frame) task_run(task);
+    while (task->run) ttask_run(task);
 }
 
 tVm* tvm_new() {

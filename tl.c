@@ -19,6 +19,8 @@ static tRES _print(tTask* task, tMap* args) {
         //TODO printf("%s", ttext_bytes(tvalue_to_text(task, v)));
         printf("%s", t_str(v));
     }
+    printf("\n");
+    fflush(stdout);
     return ttask_return1(task, tUndefined);
 }
 
@@ -48,35 +50,23 @@ int testtest() {
 int main(int argc, char** argv) {
     tvm_init();
     tVm* vm = tvm_new();
+    //tWorker* worker = tvm_create_worker(vm);
     tTask* task = tvm_create_task(vm);
 
-    tSym s_print = tSYM("print");
-    tFun* f_print = tFUN(_print);
+    tFun* f_print = tFUN(tSYM("print"), _print);
 
-    tEnv* env = tenv_new(task, 0, 0);
-    tenv_set(task, env, s_print, f_print);
-
-    tList* args = tlist_new(task, 2);
-    tlist_set_(args, 0, tTEXT("hello"));
-    tlist_set_(args, 1, tTEXT("world"));
+    tCall* call = tcall_new(task, 2);
+    tcall_set_fn_(call, f_print);
+    tcall_set_arg_(call, 0, tTEXT("hello"));
+    tcall_set_arg_(call, 0, tTEXT("world"));
 
     // setup a call to print as next thing for the task to do
-    ttask_call(task, f_print, tmap_as(args));
+    ttask_call(task, call);
 
-    // add task to vm ready queue
-    ttask_ready(task);
+    // TODO use proper tworker thing
+    while (task->run) ttask_run(task);
 
-    // create a worker (rule of thumb, one worker per thread)
-    tWorker* worker = tvm_create_worker(vm);
-
-    // let worker run until there are no more tasks scheduled
-    tworker_run(worker);
-
-    // this part is a bit magic, but tvalue_to_text might invoke random to-text methods
-    tworker_attach(worker, task);
-    //TODO printf("DONE: %s", ttext_bytes(tvalue_to_text(task, ttask_value(task))));
     printf("DONE: %s", t_str(ttask_value(task)));
-    tworker_detach(worker, task);
 
     // delete anything related to this vm (including tasks and workers)
     tvm_delete(vm);
