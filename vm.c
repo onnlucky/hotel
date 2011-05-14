@@ -108,7 +108,7 @@ void tvm_delete(tVm* vm) {
 }
 
 tTask* tvm_create_task(tVm* vm) {
-    return null;
+    return ttask_new(vm);
 }
 
 tWorker* tvm_create_worker(tVm* vm) {

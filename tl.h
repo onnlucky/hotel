@@ -67,9 +67,10 @@ enum {
     TText,
 
     TEnv,
-    TThunk, TResult, TError,
-    TCall, TCall_m,
-    TSend, TSend_m,
+    TResult, TError,
+    TThunk, TCall, TSend,
+
+    TEval,
 
     TFun, TCFun,
     TCode, TFrame, TArgs, TEvalFrame,

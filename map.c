@@ -1,6 +1,6 @@
 // a map implementation
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 static tMap* v_map_empty;
 
@@ -130,6 +130,7 @@ int tmap_size(tMap* map) {
 int tmap_is_empty(tMap* map) { return tmap_size(map) == 0; }
 
 tValue tmap_get_int(tMap* map, int key) {
+    trace("get: %p %d %d", map, key, map->head.size);
     if (HASLIST(map)) {
         if (!(key < 0 || key >= tlist_size(_LIST(map)))) {
             trace("list get: %d = %s", key, t_str(tlist_get(_LIST(map), key)));
@@ -142,8 +143,12 @@ tValue tmap_get_int(tMap* map, int key) {
             trace("keys get: %d = %s", key, t_str(map->data[_OFFSET(map) + at]));
             return map->data[_OFFSET(map) + at];
         }
+    } else {
+        assert(_OFFSET(map) == 0);
+        if (key < 0 || key >= map->head.size) return null;
+        return map->data[key];
     }
-    return tUndefined;
+    return null;
 }
 
 void tmap_set_int_(tMap* map, int key, tValue v) {
@@ -161,6 +166,7 @@ void tmap_set_int_(tMap* map, int key, tValue v) {
             map->data[_OFFSET(map) + at] = v;
         }
     }
+    // TODO just a list...
     assert(false);
 }
 
@@ -172,6 +178,6 @@ tValue tmap_get_sym(tMap* map, tSym key) {
             return map->data[_OFFSET(map) + at];
         }
     }
-    return tUndefined;
+    return null;
 }
 

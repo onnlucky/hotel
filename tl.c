@@ -7,12 +7,13 @@
 
 // this is how a print function might look
 static tRES _print(tTask* task, tMap* args) {
+    trace("!! PRINT: %d", tmap_size(args));
     tText* sep = tTEXT(" ");
     tValue v = tmap_get_sym(args, tSYM("sep"));
     //TODO if (v) sep = tvalue_to_text(task, v);
     UNUSED(v);
 
-    for (int i = 0; i < T_MAX_ARGS_SIZE; i++) {
+    for (int i = 0; i < 20; i++) {
         tValue v = tmap_get_int(args, i);
         if (!v) break;
         if (i > 0) printf("%s", ttext_bytes(sep));
@@ -58,7 +59,7 @@ int main(int argc, char** argv) {
     tCall* call = tcall_new(task, 2);
     tcall_set_fn_(call, f_print);
     tcall_set_arg_(call, 0, tTEXT("hello"));
-    tcall_set_arg_(call, 0, tTEXT("world"));
+    tcall_set_arg_(call, 1, tTEXT("world"));
 
     // setup a call to print as next thing for the task to do
     ttask_call(task, call);

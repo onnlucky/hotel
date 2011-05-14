@@ -4,7 +4,7 @@ CFLAGS=-std=c99 -Wall -Wno-unused-function -g
 all: tl
 
 run: parser-test tl
-	valgrind -q --track-origins=yes ./parser-test
+	#valgrind -q --track-origins=yes ./parser-test
 	valgrind -q --track-origins=yes ./tl
 
 parser.c: parser.g tl.h Makefile
