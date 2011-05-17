@@ -68,17 +68,22 @@ enum {
     TText,
 
     TEnv,
-    TResult, TError,
-    TThunk, TCall, TSend,
 
-    TFun, TCFun,
-    TCode, TFrame, TArgs, TEvalFrame,
-
-    TTask, TVar, TCTask,
+    TCall,
+    TBody, TFun,
 
     TEvalCall,
     TEvalFun,
     TEval,
+
+    TThunk,
+    TResult,
+    TError,
+
+    TTask, TVar,
+
+    TCode,
+    TCTask,
 
     TLAST,
 
@@ -133,6 +138,7 @@ typedef struct tVm tVm;
 typedef struct tWorker tWorker;
 typedef struct tTask tTask;
 typedef struct tCall tCall;
+typedef struct tBody tBody;
 #define tT tTask *task
 
 

@@ -23,16 +23,27 @@ struct tFun {
     t_native native;
     tSym name;
 };
+struct tBody {
+    tHead head;
+    tList* code;
+};
 struct tCall {
     tHead head;
     tList* keys;
     tValue fn;
     tValue args[];
 };
+TTYPE(tFun, tfun, TFun);
+TTYPE(tBody, tbody, TBody);
+TTYPE(tCall, tcall, TCall);
+
 typedef struct tEval {
     tHead head;
     int count;
     tValue caller;
+    tCall* call;
+    tList* args;
+    tList* code;
 } tEval;
 typedef struct tEvalFun {
     tHead head;
@@ -47,9 +58,6 @@ typedef struct tEvalCall {
     tValue caller;
     tCall* call;
 } tEvalCall;
-
-TTYPE(tFun, tfun, TFun);
-TTYPE(tCall, tcall, TCall);
 TTYPE(tEval, teval, TEval);
 TTYPE(tEvalFun, tevalfun, TEvalFun);
 TTYPE(tEvalCall, tevalcall, TEvalCall);
@@ -67,6 +75,13 @@ tFun* tFUN(tSym name, t_native native) {
     return fun;
 }
 
+tEval* teval_new(tTask* task, tValue caller, tCall* call) {
+    tEval* run = task_alloc_priv(task, TEval, 3, 1);
+    run->caller = caller;
+    run->call = call;
+    run->code = tbody_as(call->fn)->code;
+    return run;
+}
 tEvalFun* tevalfun_new(tTask* task, tValue caller, tCall* call) {
     tEvalFun* run = task_alloc_priv(task, TEvalFun, 3, 1);
     run->caller = caller;
@@ -79,14 +94,12 @@ tEvalCall* tevalcall_new(tTask* task, tValue caller, tCall* call) {
     run->call = call;
     return run;
 }
-tEval* teval_new(tTask* task, tValue caller, tCall* call) {
-    tEval* run = task_alloc(task, TEval, 3);
-    run->caller = caller;
-    return run;
+
+tBody* tbody_new(tTask* task) {
+    return task_alloc(task, TBody, 1);
 }
 
 int tcall_argc(tCall* call) { return call->head.size - 2; }
-
 tCall* tcall_new(tTask* task, int argc) {
     return task_alloc(task, TCall, argc + 2);
 }
@@ -147,6 +160,7 @@ tValue ttask_run(tTask* task, tValue caller, tCall* call) {
     tValue fn = tcall_get_fn(call);
     trace("run: %s(%d)", t_str(fn), tcall_argc(call));
 
+    if (tbody_is(fn)) return teval_new(task, caller, call);
     if (tfun_is(fn)) return tevalfun_new(task, caller, call);
     if (tcall_is(fn)) return tevalcall_new(task, caller, call);
 
@@ -198,7 +212,6 @@ static inline tValue keys_tr(tList* keys, int at) {
     if (keys) return tlist_get(keys, at); else return null;
 }
 
-// TODO check if still open ...
 void tevalfun_step(tTask* task, tValue v) {
     trace();
     tEvalFun* run = tevalfun_as(v);
@@ -228,9 +241,28 @@ void tevalfun_step(tTask* task, tValue v) {
     fun->native(task, tmap_as(run->args));
 }
 
+void teval_step(tTask* task, tValue v) {
+    trace();
+    tEval* run = teval_as(v);
+
+    int pc = run->count++;
+    tValue op = tlist_get(run->code, pc);
+    if (!op) {
+        task->run = run->caller;
+        return;
+    }
+    if (tcall_is(op)) {
+        ttask_call(task, tcall_as(op));
+        return;
+    }
+    assert(false);
+}
+
 void ttask_step(tTask* task) {
     tValue run = task->run;
     trace("%s", t_str(run));
+    // TODO check if still open ... clone otherwise
+    if (teval_is(run)) { teval_step(task, run); return; }
     if (tevalfun_is(run)) { tevalfun_step(task, run); return; }
     if (tevalcall_is(run)) { tevalcall_step(task, run); return; }
     assert(false);
