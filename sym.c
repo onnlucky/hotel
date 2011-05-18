@@ -12,7 +12,25 @@ static tSym s_args;
 static LHashMap *symbols = 0;
 
 static tSym _SYM_FROM_TEXT(tText* v) { return (tSym)((intptr_t)v | 2); }
-static tText* _TEXT_FROM_SYM(tSym v) { return (tText*)((intptr_t)v & ~2); }
+static tText* _TEXT_FROM_SYM(tSym v) { return (tText*)((intptr_t)v & ~7); }
+
+bool tlookup_is(tValue v) { return (((intptr_t)v) & 7) == 6; }
+tSym tlookup_to_sym(tSym s) {
+    intptr_t v = (intptr_t)s;
+    assert(tlookup_is((tValue)v));
+    assert(tsym_is((tValue)v));
+    v = v & ~4;
+    assert(!tlookup_is((tValue)v));
+    assert(tsym_is((tValue)v));
+    return (tSym)v;
+}
+tSym tLOOKUP(const char* s) {
+    intptr_t v = (intptr_t)tSYM(s);
+    assert(!tlookup_is((tValue)v));
+    v = v | 6;
+    assert(tlookup_is((tValue)v));
+    return (tSym)v;
+}
 
 tText* tsym_to_text(tSym sym) {
     assert(tsym_is(sym));
@@ -25,7 +43,7 @@ tSym tsym_from_static(const char* s) {
     trace("#%s", s);
 
     tSym cur = (tSym)lhashmap_get(symbols, s);
-    if (cur) return cur;
+    if (cur) { assert(!tlookup_is(cur)); return cur; }
 
     return tsym_from(null, tTEXT(s));
 }
@@ -35,7 +53,7 @@ tSym tsym_from_copy(tTask* task, const char* s) {
     assert(symbols);
     trace("#%s", s);
     tSym cur = (tSym)lhashmap_get(symbols, s);
-    if (cur) return cur;
+    if (cur) { assert(!tlookup_is(cur)); return cur; }
 
     return tsym_from(task, ttext_from_copy(task, s));
 }
@@ -48,7 +66,8 @@ tSym tsym_from(tTask* task, tText* text) {
     tSym sym = _SYM_FROM_TEXT(text);
     tSym cur = (tSym)lhashmap_putif(symbols, (char*)ttext_bytes(text), sym, 0);
 
-    if (cur) return cur;
+    if (cur) { assert(!tlookup_is(cur)); return cur; }
+    assert(!tlookup_is(cur));
     return sym;
 }
 

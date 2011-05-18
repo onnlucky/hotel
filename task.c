@@ -26,6 +26,7 @@ struct tFun {
 struct tBody {
     tHead head;
     tList* code;
+    tEnv* env;
 };
 struct tCall {
     tHead head;
@@ -41,9 +42,11 @@ typedef struct tEval {
     tHead head;
     int count;
     tValue caller;
+
     tCall* call;
     tList* args;
     tList* code;
+    tEnv* env;
 } tEval;
 typedef struct tEvalFun {
     tHead head;
@@ -76,10 +79,12 @@ tFun* tFUN(tSym name, t_native native) {
 }
 
 tEval* teval_new(tTask* task, tValue caller, tCall* call) {
-    tEval* run = task_alloc_priv(task, TEval, 3, 1);
+    tEval* run = task_alloc_priv(task, TEval, 5, 1);
     run->caller = caller;
     run->call = call;
-    run->code = tbody_as(call->fn)->code;
+    tBody* body = tbody_as(call->fn);
+    run->code = body->code;
+    run->env = body->env;
     return run;
 }
 tEvalFun* tevalfun_new(tTask* task, tValue caller, tCall* call) {
@@ -96,12 +101,41 @@ tEvalCall* tevalcall_new(tTask* task, tValue caller, tCall* call) {
 }
 
 tBody* tbody_new(tTask* task) {
-    return task_alloc(task, TBody, 1);
+    return task_alloc(task, TBody, 2);
 }
 
 int tcall_argc(tCall* call) { return call->head.size - 2; }
 tCall* tcall_new(tTask* task, int argc) {
     return task_alloc(task, TCall, argc + 2);
+}
+
+tValue tcall_get(tCall* call, int at) {
+    trace("%d -- %d", at, tcall_argc(call));
+    assert(at >= 0);
+    if (at < 0 || at > tcall_argc(call)) return null;
+    if (at == 0) return call->fn;
+    return call->args[at - 1];
+}
+void tcall_set_(tCall* call, int at, tValue v) {
+    assert(at >= 0 && at <= tcall_argc(call));
+    if (at == 0) { call->fn = v; return; }
+    call->args[at - 1] = v;
+}
+
+tCall* tcall_from(tTask* task, ...) {
+    va_list ap;
+    int size = 0;
+
+    va_start(ap, task);
+    for (tValue v = va_arg(ap, tValue); v; v = va_arg(ap, tValue)) size++;
+    va_end(ap);
+
+    tCall* call = tcall_new(task, size - 1);
+
+    va_start(ap, task);
+    for (int i = 0; i < size; i++) tcall_set_(call, i, va_arg(ap, tValue));
+    va_end(ap);
+    return call;
 }
 tCall* tcall_new_keys(tTask* task, int argc, tList* keys) {
     tCall* call = task_alloc(task, TCall, argc + 2);
@@ -241,6 +275,27 @@ void tevalfun_step(tTask* task, tValue v) {
     fun->native(task, tmap_as(run->args));
 }
 
+tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
+    trace("%p", env);
+    int argc = tcall_argc(o);
+    tCall* call = tcall_new(task, argc);
+    for (int i = 0; i < argc + 1; i++) {
+        tValue v = tcall_get(o, i);
+        trace("!! before lookup: %s", t_str(v));
+        if (tlookup_is(v)) {
+            trace("!! is lookup");
+            v = tenv_get(task, env, tlookup_to_sym(v));
+        }
+        if (tcall_is(v)) {
+            v = tcall_fillclone(task, o, env);
+        }
+        assert(v);
+        print("fillclone: %d = %s", i, t_str(v));
+        tcall_set_(call, i, v);
+    }
+    return call;
+}
+
 void teval_step(tTask* task, tValue v) {
     trace();
     tEval* run = teval_as(v);
@@ -252,7 +307,8 @@ void teval_step(tTask* task, tValue v) {
         return;
     }
     if (tcall_is(op)) {
-        ttask_call(task, tcall_as(op));
+        tCall* call = tcall_fillclone(task, tcall_as(op), run->env);
+        ttask_call(task, call);
         return;
     }
     assert(false);

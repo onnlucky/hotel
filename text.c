@@ -63,6 +63,7 @@ int ttext_size(tText* text) {
 
 tText* tvalue_to_text(tTask* task, tValue v) {
     if (ttext_is(v)) return v;
+    if (!tref_is(v)) return ttext_from_copy(task, t_str(v));
     warning("to_text not implemented yet: %s", t_str(v));
     return tTEXT("<ERROR.to-text>");
 }

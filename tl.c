@@ -55,6 +55,7 @@ tBody* _body1() {
 
 void test_fun();
 void test_body();
+void test_lookup();
 
 // this is how to setup a vm
 int main(int argc, char** argv) {
@@ -65,9 +66,41 @@ int main(int argc, char** argv) {
     f_print = tFUN(tSYM("print"), _print);
     f_body1 = _body1();
 
+    test_lookup();
+    return 0;
+
     test_fun();
     test_body();
     return 0;
+}
+
+void test_lookup() {
+    tVm* vm = tvm_new();
+    tTask* task = tvm_create_task(vm);
+
+    tEnv* env = tenv_new(null, null, null);
+    env = tenv_set(null, env, tSYM("print"), f_print);
+    // x = 999
+    env = tenv_set(null, env, tSYM("x"), tINT(999));
+    // y = 42
+    env = tenv_set(null, env, tSYM("y"), tINT(42));
+
+    tBody* body = tbody_new(null);
+    body->env = env;
+
+    // print(x, y)
+    tList* code = body->code = tlist_new(null, 1);
+    tlist_set_(code, 0, tcall_from(null, f_print, tLOOKUP("x"), tLOOKUP("y"), null));
+
+    assert(tenv_get(null, env, tSYM("print")) == f_print);
+    assert(tenv_get(null, env, tSYM("x")) == tINT(999));
+    assert(tenv_get(null, env, tSYM("y")) == tINT(42));
+
+    ttask_call(task, tcall_from(null, body, null));
+
+    while (task->run) ttask_step(task);
+    printf("DONE: %s", t_str(ttask_value(task)));
+    tvm_delete(vm);
 }
 
 void test_body() {
@@ -80,7 +113,6 @@ void test_body() {
 
     while (task->run) ttask_step(task);
     printf("DONE: %s", t_str(ttask_value(task)));
-
     tvm_delete(vm);
 }
 

@@ -45,6 +45,7 @@ int t_int(tValue v) {
 tValue task_alloc(tTask* task, uint8_t type, int size) {
     assert(type > 0 && type < TLAST);
     tHead* head = (tHead*)calloc(1, sizeof(tHead) + sizeof(tValue) * size);
+    assert((((intptr_t)head) & 7) == 0);
     head->flags = 0;
     head->type = type;
     head->size = size;
@@ -53,6 +54,7 @@ tValue task_alloc(tTask* task, uint8_t type, int size) {
 tValue task_alloc_priv(tTask* task, uint8_t type, int size, uint8_t privs) {
     assert(privs <= 0x0F);
     tHead* head = task_alloc(task, type, size + privs);
+    assert((((intptr_t)head) & 7) == 0);
     head->flags = privs;
     return (tValue)head;
 }

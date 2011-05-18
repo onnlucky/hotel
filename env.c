@@ -22,7 +22,7 @@ bool tenv_is(tValue v) { return t_type(v) == TEnv; }
 tEnv* tenv_as(tValue v) { assert(tenv_is(v)); return (tEnv*)v; }
 
 int tenv_size(tEnv* env) {
-    return env->head.size;
+    return env->head.size - 3;
 }
 
 tEnv* tenv_new(tTask* task, tEnv* parent, tList* keys) {
@@ -72,6 +72,7 @@ tList* names_add(tTask* task, tList* set, tSym key, int* at) {
 
 tValue tenv_get(tTask* task, tEnv* env, tSym key) {
     assert(tenv_is(env));
+    trace("%p.get %zx", env, (intptr_t)key);
     while (env) {
 #ifdef BLOOM
         if ((env->bloom & hash_pointer(n)) == hash_pointer(n)) {
