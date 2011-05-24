@@ -9,6 +9,7 @@
 
 typedef void* tValue;
 typedef tValue tSym;
+typedef tValue tLookup;
 typedef tValue tInt;
 
 // common head of all ref values
@@ -128,6 +129,8 @@ tText* ttext_from_static(const char* s);
 #define tSYM tsym_from_static
 tSym tsym_from_static(const char* s);
 
+tSym tLOOKUP(const char* s);
+
 int t_bool(tValue v);
 int t_int(tValue v);
 const char* t_str(tValue v);
@@ -138,6 +141,7 @@ typedef struct tVm tVm;
 typedef struct tWorker tWorker;
 typedef struct tTask tTask;
 typedef struct tCall tCall;
+typedef struct tSend tSend;
 typedef struct tBody tBody;
 #define tT tTask *task
 
@@ -154,8 +158,27 @@ tText* ttext_from_take(tT, char* s);
 
 tSym tsym_from_copy(tT, const char* s);
 tSym tsym_from(tT, tText* text);
+tSym tlookup_from_sym(tSym s);
 
 tText* tsym_to_text(tSym s);
+
+
+tBody* tbody_from(tT, tList* stms);
+
+bool tcall_is(tValue v);
+tCall* tcall_cast(tValue v);
+tCall* tcall_as(tValue v);
+
+tCall* tcall_from_args(tT, tValue fn, tList* args);
+tValue tcall_get_fn(tCall* call);
+void tcall_set_fn_(tCall* call, tValue v);
+
+bool tsend_is(tValue v);
+tSend* tsend_cast(tValue v);
+tSend* tsend_as(tValue v);
+
+tValue tsend_get_oop(tSend* call);
+void tsend_set_oop_(tSend* call, tValue v);
 
 
 // ** list **

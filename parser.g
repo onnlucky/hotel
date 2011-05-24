@@ -31,32 +31,32 @@ bool check_indent(void* data);
 #define YY_XTYPE ParseContext*
 #define YY_INPUT(buf, len, max, cx) { len = writesome(cx, buf, max); }
 
-static tValue s_type = null;
-static tValue s_send = null;
-static tValue s_call = null;
-
-tMap* set_target(tMap* call, tMap* target) {
-    if (!call || tmap_is_empty(call)) return target;
-    if (tmap_get_sym(call, s_type) == s_send) {
-        tMap* pos = tmap_cast(tmap_get_int(call, 2));
-        if (!pos) {
-            tmap_set_int_(call, 2, target);
-            return call;
+tValue set_target(tValue on, tValue target) {
+    if (!on) return target;
+    if (tcall_is(on)) {
+        tCall* call = tcall_as(on);
+        tValue fn = tcall_get_fn(call);
+        if (!fn) {
+            tcall_set_fn_(call, target);
+            return on;
         } else {
-            set_target(pos, target);
-            return call;
+            set_target(fn, target);
+            return on;
         }
     }
-    if (tmap_get_sym(call, s_type) == s_call) {
-        tMap* pos = tmap_cast(tmap_get_int(call, 1));
-        if (!pos) {
-            tmap_set_int_(call, 1, target);
-            return call;
+#if 0
+    if (tsend_is(on)) {
+        tSend* send = tsend_as(on);
+        tValue oop = tsend_get_oop(send);
+        if (!oop) {
+            tsend_set_oop_(send, target);
+            return on;
         } else {
-            set_target(pos, target);
-            return call;
+            set_target(oop, target);
+            return on;
         }
     }
+#endif
     assert(false);
     return null;
 }
@@ -68,7 +68,7 @@ tMap* set_target(tMap* call, tMap* target) {
 
  start = __ b:body __ !.   { $$ = b; }
 
-  body = ts:stms           { $$ = ts; /*tlist_prepend(TASK, L(ts), _BODY_);*/ }
+  body = ts:stms           { print("BODY"); $$ = tbody_from(TASK, ts); }
 
   stms = t:stm eol ts:stms { $$ = tlist_prepend(TASK, L(ts), t); }
        | t:stm             { $$ = tlist_from1(TASK, t); }
@@ -112,6 +112,7 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
        }
        | _"("__ as:cargs __")" t:tail {
            print("function call");
+           $$ = set_target(tcall_from_args(TASK, null, as), t);
            //$$ = set_target(L(t), tlist_prepend2(TASK, L(as), _CALL_, null));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
@@ -124,7 +125,7 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
        }
        | _ {
            print("end of tail");
-           $$ = tlist_empty();
+           $$ = null;
        }
 
  cargs = e:expr __","__ as:cargs       { $$ = tlist_prepend(TASK, L(as), e); }
@@ -133,7 +134,7 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
 
  paren = "("__ b:body __")" t:tail     { $$ = set_target(L(t), b); }
 #       | f:fn t:tail                   { $$ = set_target(L(t), f); }
-       | v:value t:tail                { $$ = set_target(L(t), v); }
+       | v:value t:tail                { $$ = set_target(t, v); }
 
 
 
@@ -161,13 +162,13 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
 
 #   mut = "$" n:name  { $$ = _CALL1(_REF(tSYM("%get")), _REF(n)); }
 #   ref = n:name      { $$ = _REF(n); }
- lookup = n:name      { $$ = tLOOKUP(n); }
+ lookup = n:name      { print("LOOKUP: %s", t_str(n)); $$ = tlookup_from_sym(n); print("LOOKUP: %s", t_str($$)); }
 
    sym = "#" n:name                 { $$ = n }
 number = < "-"? [0-9]+ >            { $$ = tINT(atoi(yytext)); }
   text = '"' < (!'"' .)* > '"'      { $$ = ttext_from_copy(TASK, yytext); }
 
-  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = ttext_from_copy(TASK, yytext); }
+  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tsym_from_copy(TASK, yytext); print("%s", t_str($$)); }
 
 slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* "*/"

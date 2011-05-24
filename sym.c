@@ -24,12 +24,17 @@ tSym tlookup_to_sym(tSym s) {
     assert(tsym_is((tValue)v));
     return (tSym)v;
 }
-tSym tLOOKUP(const char* s) {
-    intptr_t v = (intptr_t)tSYM(s);
+tSym tlookup_from_sym(tSym s) {
+    intptr_t v = (intptr_t)s;
+    assert(tsym_is(s));
     assert(!tlookup_is((tValue)v));
     v = v | 6;
     assert(tlookup_is((tValue)v));
+    assert(tsym_is((tSym)v));
     return (tSym)v;
+}
+tSym tLOOKUP(const char* s) {
+    return tlookup_from_sym(tSYM(s));
 }
 
 tText* tsym_to_text(tSym sym) {

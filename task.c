@@ -103,6 +103,11 @@ tEvalCall* tevalcall_new(tTask* task, tValue caller, tCall* call) {
 tBody* tbody_new(tTask* task) {
     return task_alloc(task, TBody, 2);
 }
+tBody* tbody_from(tTask* task, tList* stms) {
+    tBody* body = tbody_new(task);
+    body->code = stms;
+    return body;
+}
 
 int tcall_argc(tCall* call) { return call->head.size - 2; }
 tCall* tcall_new(tTask* task, int argc) {
@@ -121,7 +126,6 @@ void tcall_set_(tCall* call, int at, tValue v) {
     if (at == 0) { call->fn = v; return; }
     call->args[at - 1] = v;
 }
-
 tCall* tcall_from(tTask* task, ...) {
     va_list ap;
     int size = 0;
@@ -165,7 +169,15 @@ void tcall_set_arg_(tCall* call, int at, tValue v) {
     assert(at >= 0 && at < tcall_argc(call));
     call->args[at] = v;
 }
-
+tCall* tcall_from_args(tTask* task, tValue fn, tList* args) {
+    int size = tlist_size(args);
+    tCall* call = tcall_new(task, size);
+    tcall_set_fn_(call, fn);
+    for (int i = 0; i < size; i++) {
+        tcall_set_arg_(call, i, tlist_get(args, i));
+    }
+    return call;
+}
 
 tTask* ttask_new(tVm* vm) {
     tTask* task = task_alloc(null, TTask, 4);

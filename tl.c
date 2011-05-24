@@ -53,6 +53,12 @@ void test_lookup();
 // this is how to setup a vm
 int main(int argc, char** argv) {
     tvm_init();
+    tVm* vm = tvm_new();
+    tTask* task = tvm_create_task(vm);
+
+    f_print = tFUN(tSYM("print"), _print);
+    tEnv* env = tenv_new(null, null, null);
+    env = tenv_set(null, env, tSYM("print"), f_print);
 
     tBuffer* buf = tbuffer_new_from_file("run.tl");
     tbuffer_write_uint8(buf, 0);
@@ -60,17 +66,16 @@ int main(int argc, char** argv) {
     tText* text = tTEXT(tbuffer_free_get(buf));
     tValue v = parse(text);
 
-    return 0;
-    f_test1 = tFUN(tSYM("test1"), _test1);
-    f_test2 = tFUN(tSYM("test2"), _test2);
-    f_print = tFUN(tSYM("print"), _print);
-    f_body1 = _body1();
+    tBody* body = tbody_cast(v);
+    assert(body);
+    body->env = env;
 
-    test_lookup();
-    return 0;
+    ttask_call(task, tcall_from(null, body, null));
 
-    test_fun();
-    test_body();
+    while (task->run) ttask_step(task);
+    printf("DONE: %s", t_str(ttask_value(task)));
+    tvm_delete(vm);
+
     return 0;
 }
 
