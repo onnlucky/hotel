@@ -163,6 +163,7 @@ int tlist_size(tList* list);
 int tlist_is_empty(tList* list);
 tValue tlist_at(tList* list);
 
+tList* tlist_empty();
 tList* tlist_new(tT, int size);
 tList* tlist_copy(tT, tList* list, int size);
 tList* tlist_from1(tT, tValue v);
@@ -173,6 +174,7 @@ tList* tlist_from_a(tT, tValue* vs, int len);
 #define tLIST2 tlist_from2
 
 tList* tlist_add(tT, tList* list, tValue v);
+tList* tlist_prepend(tT, tList* list, tValue v);
 tList* tlist_set(tT, tList* list, int at, tValue v);
 tList* tlist_cat(tT, tList* lhs, tList* rhs);
 tList* tlist_slice(tT, tList* list, int first, int last);

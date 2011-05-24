@@ -1,1 +1,1 @@
-42, +test, -test, foo="bar"
+print("hello")

@@ -45,13 +45,6 @@ tBody* _body1() {
     return body;
 }
 
-#if 0
-    tBuffer* buf = tbuffer_new_from_file("run.tl");
-    tbuffer_write_uint8(buf, 0);
-    assert(buf);
-    tText* text = tTEXT(tbuffer_free_get(buf));
-    tValue v = compile(text);
-#endif
 
 void test_fun();
 void test_body();
@@ -61,6 +54,13 @@ void test_lookup();
 int main(int argc, char** argv) {
     tvm_init();
 
+    tBuffer* buf = tbuffer_new_from_file("run.tl");
+    tbuffer_write_uint8(buf, 0);
+    assert(buf);
+    tText* text = tTEXT(tbuffer_free_get(buf));
+    tValue v = parse(text);
+
+    return 0;
     f_test1 = tFUN(tSYM("test1"), _test1);
     f_test2 = tFUN(tSYM("test2"), _test2);
     f_print = tFUN(tSYM("print"), _print);
@@ -73,6 +73,35 @@ int main(int argc, char** argv) {
     test_body();
     return 0;
 }
+
+/*
+tBody* b_maybe1() {
+    tBody* body = tbody_new(null);
+    tList* code = body->code = tlist_new(null, 1);
+    tlist_set_(code, 0, tcall_from(null, f_return));
+    return body;
+}
+
+void test_maybe() {
+    tVm* vm = tvm_new();
+    tTask* task = tvm_create_task(vm);
+
+    tEnv* env = tenv_new(null, null, null);
+    env = tenv_set(null, env, tSYM("print"), f_print);
+
+    tList* code = tlist_new(null, 4);
+    tlist_set_(code, 0, tlist_from1(null, tSYM("msg")));
+    tlist_set_(code, 1, tlist_from1(null, tThunk));
+    // if math.random > 0.5: return
+    tlist_set_(code, 2, tcall_from(null, tLOOKUP("rndbool"), tBIND(b_maybe1())));
+    // msg()
+    tlist_set_(code, 3, tcall_from(null, tLOOKUP("msg")))
+
+    while (task->run) ttask_step(task);
+    printf("DONE: %s", t_str(ttask_value(task)));
+    tvm_delete(vm);
+}
+*/
 
 void test_lookup() {
     tVm* vm = tvm_new();

@@ -4,6 +4,8 @@
 
 static tList* v_list_empty;
 
+tList* tlist_empty() { return v_list_empty; }
+
 tList* tlist_new(tTask* task, int size) {
     if (size == 0) return v_list_empty;
     assert(size > 0 && size < T_MAX_DATA_SIZE);
