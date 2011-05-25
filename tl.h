@@ -129,7 +129,7 @@ tText* ttext_from_static(const char* s);
 #define tSYM tsym_from_static
 tSym tsym_from_static(const char* s);
 
-tSym tLOOKUP(const char* s);
+tValue tACTIVE(tValue v);
 
 int t_bool(tValue v);
 int t_int(tValue v);
@@ -158,7 +158,6 @@ tText* ttext_from_take(tT, char* s);
 
 tSym tsym_from_copy(tT, const char* s);
 tSym tsym_from(tT, tText* text);
-tSym tlookup_from_sym(tSym s);
 
 tText* tsym_to_text(tSym s);
 

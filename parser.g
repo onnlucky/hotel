@@ -68,7 +68,7 @@ tValue set_target(tValue on, tValue target) {
 
  start = __ b:body __ !.   { $$ = b; }
 
-  body = ts:stms           { print("BODY"); $$ = tbody_from(TASK, ts); }
+  body = ts:stms           { $$ = tbody_from(TASK, ts); }
 
   stms = t:stm eol ts:stms { $$ = tlist_prepend(TASK, L(ts), t); }
        | t:stm             { $$ = tlist_from1(TASK, t); }
@@ -111,9 +111,7 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
            //$$ = tlist_prepend2(TASK, L(as), _CALL_, null);
        }
        | _"("__ as:cargs __")" t:tail {
-           print("function call");
            $$ = set_target(tcall_from_args(TASK, null, as), t);
-           //$$ = set_target(L(t), tlist_prepend2(TASK, L(as), _CALL_, null));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
            print("method call")
@@ -132,7 +130,8 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
        | e:expr                        { $$ = tlist_from1(TASK, e) }
        |                               { $$ = tlist_empty(); }
 
- paren = "("__ b:body __")" t:tail     { $$ = set_target(L(t), b); }
+ paren = "("__ e:expr __")" t:tail     { $$ = set_target(t, e); }
+       | "("__ b:body __")" t:tail     { $$ = set_target(t, tACTIVE(b)); }
 #       | f:fn t:tail                   { $$ = set_target(L(t), f); }
        | v:value t:tail                { $$ = set_target(t, v); }
 
@@ -162,7 +161,7 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
 
 #   mut = "$" n:name  { $$ = _CALL1(_REF(tSYM("%get")), _REF(n)); }
 #   ref = n:name      { $$ = _REF(n); }
- lookup = n:name      { print("LOOKUP: %s", t_str(n)); $$ = tlookup_from_sym(n); print("LOOKUP: %s", t_str($$)); }
+ lookup = n:name      { $$ = tACTIVE(n); }
 
    sym = "#" n:name                 { $$ = n }
 number = < "-"? [0-9]+ >            { $$ = tINT(atoi(yytext)); }

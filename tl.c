@@ -108,6 +108,7 @@ void test_maybe() {
 }
 */
 
+#define LOOKUP(s) tactive_from_value(tsym_from_static(s))
 void test_lookup() {
     tVm* vm = tvm_new();
     tTask* task = tvm_create_task(vm);
@@ -124,7 +125,7 @@ void test_lookup() {
 
     // print(x, y)
     tList* code = body->code = tlist_new(null, 1);
-    tlist_set_(code, 0, tcall_from(null, f_print, tLOOKUP("x"), tLOOKUP("y"), null));
+    tlist_set_(code, 0, tcall_from(null, f_print, LOOKUP("x"), LOOKUP("y"), null));
 
     assert(tenv_get(null, env, tSYM("print")) == f_print);
     assert(tenv_get(null, env, tSYM("x")) == tINT(999));

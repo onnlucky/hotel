@@ -293,10 +293,18 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
     tCall* call = tcall_new(task, argc);
     for (int i = 0; i < argc + 1; i++) {
         tValue v = tcall_get(o, i);
-        trace("!! before lookup: %s", t_str(v));
-        if (tlookup_is(v)) {
-            trace("!! is lookup");
-            v = tenv_get(task, env, tlookup_to_sym(v));
+        if (tactive_is(v)) {
+            print("activated: %p", v);
+            v = tvalue_from_active(v);
+            print("activated: %p", v);
+            print("activated entry: %s", t_str(v));
+            if (tsym_is(v)) {
+                v = tenv_get(task, env, v);
+            } else if (tbody_is(v)) {
+                fatal("active body: not implemented");
+            } else {
+                assert(false);
+            }
         }
         if (tcall_is(v)) {
             v = tcall_fillclone(task, o, env);
