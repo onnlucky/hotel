@@ -159,7 +159,7 @@ int tmap_size(tMap* map) {
         }
         return tlist_size(_KEYS(map));
     }
-    return tlist_size(map);
+    return map->head.size;
 }
 
 int tmap_is_empty(tMap* map) { return tmap_size(map) == 0; }

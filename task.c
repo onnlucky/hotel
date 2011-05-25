@@ -302,10 +302,10 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
         if (tactive_is(v)) {
             v = tvalue_from_active(v);
             if (tsym_is(v)) {
-                print("call op: active sym");
+                print("call op: active sym: %s = %s", t_str(v), t_str(tenv_get(task, env, v)));
                 v = tenv_get(task, env, v);
             } else if (tbody_is(v)) {
-                print("call op: active body");
+                print("call op: active body: %s", t_str(v));
                 v = tbody_bind(task, tbody_as(v), env);
             } else {
                 assert(false);
@@ -337,7 +337,7 @@ void teval_step(tTask* task, tValue v) {
     }
     // a call means run it
     if (tcall_is(op)) {
-        trace("op: call");
+        trace("op: call: %s", t_str(op));
         tCall* call = tcall_fillclone(task, tcall_as(op), run->env);
         ttask_call(task, call);
         return;
@@ -348,14 +348,14 @@ void teval_step(tTask* task, tValue v) {
         tValue v = tvalue_from_active(op);
         // a body means bind it with current env and set to value
         if (tbody_is(v)) {
-            trace("op: active body");
+            trace("op: active body: %s", t_str(v));
             task->value = tbody_bind(task, tbody_as(v), run->env);
             return;
         }
         // a sym means lookup in current env and set to value
         if (tsym_is(v)) {
-            trace("op: active sym");
-            task->value = tenv_get(task, run->env, v);
+            trace("op: active sym: %s = %s", t_str(v), t_str(tenv_get(task, run->env, tsym_as(v))));
+            task->value = tenv_get(task, run->env, tsym_as(v));
             return;
         }
         warning("oeps: %p %p", op, v);
@@ -364,11 +364,13 @@ void teval_step(tTask* task, tValue v) {
 
     // just a symbol means setting the current value under this name in env
     if (tsym_is(op)) {
-        trace("op: sym");
-        fatal("not implemented yet: sym %s", t_str(op));
+        trace("op: sym -- %s = %s", t_str(op), t_str(task->value));
+        run->env = tenv_set(task, run->env, tsym_as(op), task->value);
+        return;
     }
-    warning("oeps: %p", op);
-    fatal("unknown eval step: %s", t_str(op));
+    if (tbody_is(op)) assert(tenv_is(tbody_as(op)->env));
+    trace("op: data: %s", t_str(op));
+    task->value = op;
 }
 
 void ttask_step(tTask* task) {

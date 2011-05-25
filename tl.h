@@ -106,7 +106,7 @@ static inline int tsym_is(tValue v) { return ((intptr_t)v & 2) && (intptr_t)v > 
 static inline tSym tsym_as(tValue v) { assert(tsym_is(v)); return (tSym)v; }
 static inline tSym tsym_cast(tValue v) { return tsym_is(v)?tsym_as(v):0; }
 
-static inline int tlist_is(tValue v) { return tref_is(v); }
+static inline int tlist_is(tValue v) { return tref_is(v) && t_head(v)->type == TList; }
 static inline tList* tlist_as(tValue v) { assert(tlist_is(v)); return (tList*)v; }
 static inline tList* tlist_cast(tValue v) { return tlist_is(v)?tlist_as(v):0; }
 

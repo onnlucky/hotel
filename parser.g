@@ -70,8 +70,8 @@ tValue set_target(tValue on, tValue target) {
 
   body = ts:stms           { $$ = tbody_from(TASK, ts); }
 
-  stms = t:stm eol ts:stms { $$ = tlist_prepend(TASK, L(ts), t); }
-       | t:stm             { $$ = tlist_from1(TASK, t); }
+  stms = t:stm eol ts:stms { $$ = tlist_cat(TASK, L(t), L(ts)); }
+       | t:stm             { $$ = L(t); }
        |                   { $$ = tlist_empty(); }
 
 bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = ts; /*tlist_prepend(TASK, L(ts), _BODY_)*/ }
@@ -79,7 +79,7 @@ bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = ts; /*tlist_prep
 stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
        | _ &{ check_indent(G) } t:stm               { $$ = tlist_from1(TASK, t); }
 
-   stm = expr
+   stm = singleassign | exprstm
 #   stm = var | assign | expr
 
 #   var = "var" _ "$" n:name _"="__ e:expr { $$ = tlist_new_add4(TASK, _ASSIGN_, _CALL1(_REF(tSYM("%var")), e), _RESULT_, n); }
@@ -89,6 +89,9 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
 #anames =     n:name _","_ as:anames { $$ = tlist_prepend2(TASK, L(as), _RESULT_, n); }
 #       | "*" n:name                 { $$ = tlist_new_add2(TASK, _RESULT_REST_, n); }
 #       |     n:name                 { $$ = tlist_new_add2(TASK, _RESULT_, n); }
+
+singleassign = n:name _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
+     exprstm = e:expr { $$ = tlist_from1(TASK, e); }
 
   expr = paren
 
