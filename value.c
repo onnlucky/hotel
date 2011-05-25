@@ -12,22 +12,45 @@ uint8_t t_type(tValue v) {
             default: return TInvalid;
         }
     }
-    if (tref_is(v)) return t_head(v)->type;
+    if (tref_is(v)) {
+        uint8_t t = t_head(v)->type;
+        assert(t > 0 || t <= TInt);
+        return t;
+    }
     return TInvalid;
 }
 
 const char* const type_to_str[] = {
-    "invalid",
-    "Undefined", "Null", "Bool", "Sym", "Int", "Float",
-    "List", "Map", "Env",
-    "Text", "Mem",
-    "Call", "Thunk", "Result",
-    "Fun", "CFun",
-    "Code", "Frame", "Args", "EvalFrame",
-    "Task", "Var", "CTask"
+    "TInvalid",
+    "TList", "TMap", "TObject",
+    "TNum", "TFloat",
+    "TText",
+    "TEnv",
+
+    "TCall",
+    "TBody",
+    "TFun",
+
+    "TEvalCall",
+    "TEvalFun",
+    "TEval",
+    "TThunk",
+    "TResult",
+    "TError",
+
+    "TVar",
+    "TTask",
+    "TLAST",
+    // these never appear in head->type since these are tagged
+    "TUndefined", "TNull", "TBool", "TSym", "TInt",
+    "<ERROR>"
 };
 
-const char* t_type_str(tValue v) { return type_to_str[t_type(v)]; }
+const char* t_type_str(tValue v) {
+    int type = t_type(v);
+    assert(type > 0 && type <= TInt);
+    return type_to_str[type];
+}
 
 // creating tagged values
 tValue tBOOL(unsigned c) { if (c) return tTrue; return tFalse; }
@@ -47,6 +70,7 @@ tValue task_alloc(tTask* task, uint8_t type, int size) {
     tHead* head = (tHead*)calloc(1, sizeof(tHead) + sizeof(tValue) * size);
     assert((((intptr_t)head) & 7) == 0);
     head->flags = 0;
+    assert(type > 0 && type < TLAST);
     head->type = type;
     head->size = size;
     return (tValue)head;

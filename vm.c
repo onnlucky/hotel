@@ -8,9 +8,6 @@
 #include "env.c"
 
 #include "buffer.c"
-
-#include "bytecode.c"
-#include "compiler.c"
 #include "task.c"
 
 //#include "eval.c"

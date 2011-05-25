@@ -108,6 +108,12 @@ tBody* tbody_from(tTask* task, tList* stms) {
     body->code = stms;
     return body;
 }
+tBody* tbody_bind(tTask* task, tBody* from, tEnv* env) {
+    tBody* body = tbody_new(task);
+    body->code = from->code;
+    body->env = env;
+    return body;
+}
 
 int tcall_argc(tCall* call) { return call->head.size - 2; }
 tCall* tcall_new(tTask* task, int argc) {
@@ -288,26 +294,25 @@ void tevalfun_step(tTask* task, tValue v) {
 }
 
 tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
-    trace("%p", env);
+    trace("%p -- %p", env, o);
     int argc = tcall_argc(o);
     tCall* call = tcall_new(task, argc);
     for (int i = 0; i < argc + 1; i++) {
         tValue v = tcall_get(o, i);
         if (tactive_is(v)) {
-            print("activated: %p", v);
             v = tvalue_from_active(v);
-            print("activated: %p", v);
-            print("activated entry: %s", t_str(v));
             if (tsym_is(v)) {
+                print("call op: active sym");
                 v = tenv_get(task, env, v);
             } else if (tbody_is(v)) {
-                fatal("active body: not implemented");
+                print("call op: active body");
+                v = tbody_bind(task, tbody_as(v), env);
             } else {
                 assert(false);
             }
         }
         if (tcall_is(v)) {
-            v = tcall_fillclone(task, o, env);
+            v = tcall_fillclone(task, v, env);
         }
         assert(v);
         print("fillclone: %d = %s", i, t_str(v));
@@ -316,22 +321,54 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
     return call;
 }
 
+// this is the main part of eval: running the "list" of "bytecode"
 void teval_step(tTask* task, tValue v) {
-    trace();
     tEval* run = teval_as(v);
 
+    // TODO make this a while loop ...
     int pc = run->count++;
     tValue op = tlist_get(run->code, pc);
+    trace("pc=%d, op=%s", pc, t_str(op));
+
+    // end
     if (!op) {
         task->run = run->caller;
         return;
     }
+    // a call means run it
     if (tcall_is(op)) {
+        trace("op: call");
         tCall* call = tcall_fillclone(task, tcall_as(op), run->env);
         ttask_call(task, call);
         return;
     }
-    assert(false);
+
+    // a value marked as active
+    if (tactive_is(op)) {
+        tValue v = tvalue_from_active(op);
+        // a body means bind it with current env and set to value
+        if (tbody_is(v)) {
+            trace("op: active body");
+            task->value = tbody_bind(task, tbody_as(v), run->env);
+            return;
+        }
+        // a sym means lookup in current env and set to value
+        if (tsym_is(v)) {
+            trace("op: active sym");
+            task->value = tenv_get(task, run->env, v);
+            return;
+        }
+        warning("oeps: %p %p", op, v);
+        fatal("unknown active value: %s", t_str(v));
+    }
+
+    // just a symbol means setting the current value under this name in env
+    if (tsym_is(op)) {
+        trace("op: sym");
+        fatal("not implemented yet: sym %s", t_str(op));
+    }
+    warning("oeps: %p", op);
+    fatal("unknown eval step: %s", t_str(op));
 }
 
 void ttask_step(tTask* task) {

@@ -126,14 +126,14 @@ stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L
            $$ = null;
        }
 
- cargs = e:expr __","__ as:cargs       { $$ = tlist_prepend(TASK, L(as), e); }
-       | e:expr                        { $$ = tlist_from1(TASK, e) }
-       |                               { $$ = tlist_empty(); }
+ cargs = e:expr __","__ as:cargs   { $$ = tlist_prepend(TASK, L(as), e); }
+       | e:expr                    { $$ = tlist_from1(TASK, e) }
+       |                           { $$ = tlist_empty(); }
 
- paren = "("__ e:expr __")" t:tail     { $$ = set_target(t, e); }
-       | "("__ b:body __")" t:tail     { $$ = set_target(t, tACTIVE(b)); }
-#       | f:fn t:tail                   { $$ = set_target(L(t), f); }
-       | v:value t:tail                { $$ = set_target(t, v); }
+ paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
+       | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }
+#       | f:fn t:tail               { $$ = set_target(L(t), f); }
+       | v:value t:tail            { $$ = set_target(t, v); }
 
 
 

@@ -71,7 +71,8 @@ enum {
     TEnv,
 
     TCall,
-    TBody, TFun,
+    TBody,
+    TFun,
 
     TEvalCall,
     TEvalFun,
@@ -81,10 +82,8 @@ enum {
     TResult,
     TError,
 
-    TTask, TVar,
-
-    TCode,
-    TCTask,
+    TVar,
+    TTask,
 
     TLAST,
 
