@@ -48,7 +48,7 @@ const char* const type_to_str[] = {
 
 const char* t_type_str(tValue v) {
     int type = t_type(v);
-    assert(type > 0 && type <= TInt);
+    assert(type >= 0 && type <= TInt);
     return type_to_str[type];
 }
 
