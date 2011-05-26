@@ -100,6 +100,7 @@ const char* t_str(tValue v) {
     _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
     _str_buf = _str_bufs[_str_buf_at];
 
+    if (tactive_is(v)) v = tvalue_from_active(v);
     switch (t_type(v)) {
     case TText:
         return ttext_bytes(ttext_as(v));
