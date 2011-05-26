@@ -8,6 +8,7 @@
 #include "env.c"
 
 #include "buffer.c"
+#include "body.c"
 #include "task.c"
 
 //#include "eval.c"

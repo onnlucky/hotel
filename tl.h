@@ -70,9 +70,11 @@ enum {
 
     TEnv,
 
-    TCall,
     TBody,
+    TClosure,
     TFun,
+
+    TCall,
 
     TEvalCall,
     TEvalFun,
