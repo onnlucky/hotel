@@ -1,4 +1,7 @@
-msg1 = "hello"
-msg2 = "world"
-print(msg1, msg2)
+greeter = (hello => print("hello world!"))
+greeter()
+greeter()
+greeter()
+greeter()
+greeter()
 

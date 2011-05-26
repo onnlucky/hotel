@@ -95,18 +95,21 @@ singleassign = n:name _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
 
   expr = paren
 
-#fn = "{" __ as:fargs __ "=>" __ ts:stms __ "}" {
-#    tList* args = tlist_prepend(TASK, L(as), _ARGUMENTS_);
-#    $$ = tlist_prepend2(TASK, L(ts), _BODY_, args);
-#}
-#
-#fargs = a:farg __","__ as:fargs { $$ = tlist_cat(TASK, L(a), L(as)); }
-#      | a:farg                  { $$ = tlist_add(TASK, a, _ARGS_); }
-#      | "*" n:name              { $$ = tlist_new_add2(TASK, _ARGS_REST_, n); }
-#      |                         { $$ = tlist_new_add(TASK, _ARGS_); }
-#
-#farg = "&" n:name { $$ = tlist_new_add2(TASK, _ARG_LAZY_, n); }
-#     |     n:name { $$ = tlist_new_add2(TASK, _ARG_EVAL_, n); }
+fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
+    tBody* body = tbody_as(b);
+    //tlist_set_(body->code, 0, as);
+    $$ = body;
+}
+
+fargs = a:farg __","__ as:fargs { $$ = tlist_prepend(TASK, L(as), a); }
+      | a:farg                  { $$ = tlist_from1(TASK, a); }
+      |                         { $$ = tlist_empty(); }
+
+farg =
+#      "&&" n:name { $$ = tACTIVE(tlist_from1(TASK, n)); }
+#    | "*" n:name { $$ = tlist_from1(TASK, n); }
+       "&" n:name { $$ = tACTIVE(n); }
+     |     n:name { $$ = n }
 
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
            print("function + bodynl");
@@ -135,7 +138,7 @@ singleassign = n:name _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
 
  paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }
-#       | f:fn t:tail               { $$ = set_target(L(t), f); }
+       | f:fn t:tail               { $$ = set_target(t, tACTIVE(f)); }
        | v:value t:tail            { $$ = set_target(t, v); }
 
 

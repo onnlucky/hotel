@@ -160,6 +160,9 @@ tSym tsym_from(tT, tText* text);
 
 tText* tsym_to_text(tSym s);
 
+bool tbody_is(tValue v);
+tBody* tbody_cast(tValue v);
+tBody* tbody_as(tValue v);
 
 tBody* tbody_from(tT, tList* stms);
 
