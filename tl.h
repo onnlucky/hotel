@@ -31,10 +31,12 @@ typedef struct tList {
 #define T_PRIVATE_SIZE(s) (sizeof(s) / sizeof(tValue) - 1)
 static inline int _private(tValue v) { return ((tList*)v)->head.flags & 0x0F; }
 
+// various flags we use; cannot mix randomly
 static const uint8_t T_FLAG_NOFREE = 0x10;
 static const uint8_t T_FLAG_HASKEYS = 0x10;
 static const uint8_t T_FLAG_HASLIST = 0x20;
 static const uint8_t T_FLAG_INCALL = 0x10;
+static const uint8_t T_FLAG_INARGS = 0x20;
 
 // static predefined value
 static const tValue tUndefined = (tHead*)(1 << 2);

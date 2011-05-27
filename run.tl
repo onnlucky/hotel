@@ -1,7 +1,3 @@
-greeter = (first, last => print("hello world!"))
-greeter()
-greeter()
-greeter()
-greeter()
-greeter()
+greeter = (first, last => print(first, last))
+greeter("hello", "world")
 

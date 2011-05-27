@@ -4,6 +4,10 @@ bool flag_incall_has(tValue v) { return t_head(v)->flags & T_FLAG_INCALL; }
 void flag_incall_clear(tValue v) { t_head(v)->flags &= ~T_FLAG_INCALL; }
 void flag_incall_set(tValue v) { t_head(v)->flags |= T_FLAG_INCALL; }
 
+bool flag_inargs_has(tValue v) { return t_head(v)->flags & T_FLAG_INARGS; }
+void flag_inargs_clear(tValue v) { t_head(v)->flags &= ~T_FLAG_INARGS; }
+void flag_inargs_set(tValue v) { t_head(v)->flags |= T_FLAG_INARGS; }
+
 struct tTask {
     tHead head;
     tValue vm;
@@ -80,6 +84,7 @@ tEval* teval_new(tTask* task, tValue caller, tCall* call) {
     tClosure* fn = tclosure_as(call->fn);
     run->body = fn->body;
     run->env = fn->env;
+    flag_inargs_set(run);
     return run;
 }
 tEvalFun* tevalfun_new(tTask* task, tValue caller, tCall* call) {
@@ -226,6 +231,35 @@ bool ttask_force(tTask* task, tValue v) {
     return false;
 }
 
+// from a suspended call, resolve all names and bind all code
+tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
+    trace("%p -- %p", env, o);
+    int argc = tcall_argc(o);
+    tCall* call = tcall_new(task, argc);
+    for (int i = 0; i < argc + 1; i++) {
+        tValue v = tcall_get(o, i);
+        if (tactive_is(v)) {
+            v = tvalue_from_active(v);
+            if (tsym_is(v)) {
+                print("call op: active sym: %s = %s", t_str(v), t_str(tenv_get(task, env, v)));
+                v = tenv_get(task, env, v);
+            } else if (tbody_is(v)) {
+                print("call op: active body: %s", t_str(v));
+                v = tclosure_new(task, tbody_as(v), env);
+            } else {
+                assert(false);
+            }
+        }
+        if (tcall_is(v)) {
+            v = tcall_fillclone(task, v, env);
+        }
+        assert(v);
+        print("fillclone: %d = %s", i, t_str(v));
+        tcall_set_(call, i, v);
+    }
+    return call;
+}
+
 // we use this to evaluate calls in function position
 // DESIGN: we copy the incoming arguments; instead we could:
 // - mutate the arguments (only sometimes)
@@ -249,6 +283,36 @@ void tevalcall_step(tTask* task, tValue v) {
 
 static inline tValue keys_tr(tList* keys, int at) {
     if (keys) return tlist_get(keys, at); else return null;
+}
+
+void targs_step(tTask* task, tValue v) {
+    trace();
+    tEvalFun* run = (tEvalFun*)v;
+
+    tCall* call = run->call;
+    int argc = tcall_argc(call);
+
+    // ensure we have an argument list
+    if (!run->args) run->args = tmap_new_keys(task, null, argc);
+
+    // if we returned here from a call; collect it
+    if (flag_incall_has(run)) {
+        flag_incall_clear(run);
+        tmap_set_key_(run->args, null, run->count, ttask_value(task));
+        run->count++;
+    }
+
+    // evaluate each argument
+    for (; run->count < argc; run->count++) {
+        tValue v = tcall_get_arg(call, run->count);
+        if (ttask_force(task, v)) { flag_incall_set(run); return; }
+        tmap_set_key_(run->args, null, run->count, v);
+    }
+
+    // done
+    trace("!! ARGS STEP DONE");
+    flag_inargs_clear(run);
+    run->count = 0;
 }
 
 void tevalfun_step(tTask* task, tValue v) {
@@ -280,48 +344,44 @@ void tevalfun_step(tTask* task, tValue v) {
     fun->native(task, tmap_as(run->args));
 }
 
-tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
-    trace("%p -- %p", env, o);
-    int argc = tcall_argc(o);
-    tCall* call = tcall_new(task, argc);
-    for (int i = 0; i < argc + 1; i++) {
-        tValue v = tcall_get(o, i);
-        if (tactive_is(v)) {
-            v = tvalue_from_active(v);
-            if (tsym_is(v)) {
-                print("call op: active sym: %s = %s", t_str(v), t_str(tenv_get(task, env, v)));
-                v = tenv_get(task, env, v);
-            } else if (tbody_is(v)) {
-                print("call op: active body: %s", t_str(v));
-                v = tclosure_new(task, tbody_as(v), env);
-            } else {
-                assert(false);
-            }
-        }
-        if (tcall_is(v)) {
-            v = tcall_fillclone(task, v, env);
-        }
-        assert(v);
-        print("fillclone: %d = %s", i, t_str(v));
-        tcall_set_(call, i, v);
-    }
-    return call;
-}
-
 // this is the main part of eval: running the "list" of "bytecode"
 void teval_step(tTask* task, tValue v) {
+    trace("%p", v);
     tEval* run = teval_as(v);
+
+    // check if we need to eval args
+    if (flag_inargs_has(v)) {
+        targs_step(task, v);
+        if (flag_inargs_has(v)) return;
+
+        // collect args into env
+        // TODO first check name, then position
+        // TODO do defaults
+        tList* names = run->body->argnames;
+        if (names) {
+            int size = tlist_size(names);
+            for (int i = 0; i < size; i++) {
+                tSym name = tsym_as(tlist_get(names, i));
+                tValue v = tmap_get_int(run->args, i);
+                if (!v) v = tNull;
+                trace("set arg: %s = %s", t_str(name), t_str(v));
+                run->env = tenv_set(task, run->env, name, v);
+            }
+        }
+    }
+
+    // check for end
+    if (run->count + 4 >= run->body->head.size) {
+        trace("end of code");
+        task->run = run->caller;
+        return;
+    }
 
     // TODO make this a while loop ...
     int pc = run->count++;
     tValue op = run->body->ops[pc];
     trace("pc=%d, op=%s", pc, t_str(op));
 
-    // end
-    if (!op) {
-        task->run = run->caller;
-        return;
-    }
     // a call means run it
     if (tcall_is(op)) {
         trace("op: call: %s", t_str(op));
