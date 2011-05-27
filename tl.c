@@ -5,14 +5,6 @@
 #include "debug.h"
 #include "trace-on.h"
 
-static tFun* f_print;
-static tFun* f_test1;
-static tFun* f_test2;
-static tBody* f_body1;
-
-static tRES _test1(tTask* task, tMap* args) { return ttask_return1(task, tTEXT("thanks")); }
-static tRES _test2(tTask* task, tMap* args) { return ttask_return1(task, f_print); }
-
 // this is how a print function could look
 static tRES _print(tTask* task, tMap* args) {
     trace("print(%d)", tmap_size(args));
@@ -37,26 +29,25 @@ int main(int argc, char** argv) {
     tVm* vm = tvm_new();
     tTask* task = tvm_create_task(vm);
 
-    f_print = tFUN(tSYM("print"), _print);
     tEnv* env = tenv_new(null, null, null);
+
+    tFun* f_print = tFUN(tSYM("print"), _print);
     env = tenv_set(null, env, tSYM("print"), f_print);
 
     tBuffer* buf = tbuffer_new_from_file("run.tl");
     tbuffer_write_uint8(buf, 0);
-    assert(buf);
-    tText* text = tTEXT(tbuffer_free_get(buf));
-    tValue v = parse(text);
+    tText* text = ttext_from_take(null, tbuffer_free_get(buf));
 
-    tBody* body = tbody_cast(v);
+    tBody* body = tbody_cast(parse(text));
     assert(body);
-    tClosure* fn = tclosure_new(null, body, env);
 
+    tClosure* fn = tclosure_new(null, body, env);
     ttask_call(task, tcall_from(null, fn, null));
 
     while (task->run) ttask_step(task);
+
     printf("DONE: %s", t_str(ttask_value(task)));
     tvm_delete(vm);
-
     return 0;
 }
 
