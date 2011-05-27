@@ -1,10 +1,5 @@
 #include "trace-on.h"
 
-#define TTYPE(P, N, T) \
-    bool N##_is(tValue v) { return tref_is(v) && t_head(v)->type == T; } \
-    P* N##_as(tValue v) { assert(N##_is(v)); return (P*)v; } \
-    P* N##_cast(tValue v) { return N##_is(v)?(P*)v:null; }
-
 bool flag_incall_has(tValue v) { return t_head(v)->flags & T_FLAG_INCALL; }
 void flag_incall_clear(tValue v) { t_head(v)->flags &= ~T_FLAG_INCALL; }
 void flag_incall_set(tValue v) { t_head(v)->flags |= T_FLAG_INCALL; }
@@ -23,11 +18,11 @@ struct tFun {
     t_native native;
     tSym name;
 };
-struct tBody {
+typedef struct tClosure {
     tHead head;
-    tList* code;
+    tBody* body;
     tEnv* env;
-};
+} tClosure;
 struct tCall {
     tHead head;
     tList* keys;
@@ -35,7 +30,7 @@ struct tCall {
     tValue args[];
 };
 TTYPE(tFun, tfun, TFun);
-TTYPE(tBody, tbody, TBody);
+TTYPE(tClosure, tclosure, TClosure);
 TTYPE(tCall, tcall, TCall);
 
 typedef struct tEval {
@@ -45,7 +40,7 @@ typedef struct tEval {
 
     tCall* call;
     tList* args;
-    tList* code;
+    tBody* body;
     tEnv* env;
 } tEval;
 typedef struct tEvalFun {
@@ -82,9 +77,9 @@ tEval* teval_new(tTask* task, tValue caller, tCall* call) {
     tEval* run = task_alloc_priv(task, TEval, 5, 1);
     run->caller = caller;
     run->call = call;
-    tBody* body = tbody_as(call->fn);
-    run->code = body->code;
-    run->env = body->env;
+    tClosure* fn = tclosure_as(call->fn);
+    run->body = fn->body;
+    run->env = fn->env;
     return run;
 }
 tEvalFun* tevalfun_new(tTask* task, tValue caller, tCall* call) {
@@ -100,19 +95,11 @@ tEvalCall* tevalcall_new(tTask* task, tValue caller, tCall* call) {
     return run;
 }
 
-tBody* tbody_new(tTask* task) {
-    return task_alloc(task, TBody, 2);
-}
-tBody* tbody_from(tTask* task, tList* stms) {
-    tBody* body = tbody_new(task);
-    body->code = stms;
-    return body;
-}
-tBody* tbody_bind(tTask* task, tBody* from, tEnv* env) {
-    tBody* body = tbody_new(task);
-    body->code = from->code;
-    body->env = env;
-    return body;
+tClosure* tclosure_new(tTask* task, tBody* body, tEnv* env) {
+    tClosure* fn = task_alloc(task, TClosure, 2);
+    fn->body = body;
+    fn->env = env;
+    return fn;
 }
 
 int tcall_argc(tCall* call) { return call->head.size - 2; }
@@ -212,7 +199,7 @@ tValue ttask_run(tTask* task, tValue caller, tCall* call) {
     tValue fn = tcall_get_fn(call);
     trace("run: %s(%d)", t_str(fn), tcall_argc(call));
 
-    if (tbody_is(fn)) return teval_new(task, caller, call);
+    if (tclosure_is(fn)) return teval_new(task, caller, call);
     if (tfun_is(fn)) return tevalfun_new(task, caller, call);
     if (tcall_is(fn)) return tevalcall_new(task, caller, call);
 
@@ -306,7 +293,7 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
                 v = tenv_get(task, env, v);
             } else if (tbody_is(v)) {
                 print("call op: active body: %s", t_str(v));
-                v = tbody_bind(task, tbody_as(v), env);
+                v = tclosure_new(task, tbody_as(v), env);
             } else {
                 assert(false);
             }
@@ -327,7 +314,7 @@ void teval_step(tTask* task, tValue v) {
 
     // TODO make this a while loop ...
     int pc = run->count++;
-    tValue op = tlist_get(run->code, pc);
+    tValue op = run->body->ops[pc];
     trace("pc=%d, op=%s", pc, t_str(op));
 
     // end
@@ -349,7 +336,7 @@ void teval_step(tTask* task, tValue v) {
         // a body means bind it with current env and set to value
         if (tbody_is(v)) {
             trace("op: active body: %s", t_str(v));
-            task->value = tbody_bind(task, tbody_as(v), run->env);
+            task->value = tclosure_new(task, tbody_as(v), run->env);
             return;
         }
         // a sym means lookup in current env and set to value
@@ -368,7 +355,6 @@ void teval_step(tTask* task, tValue v) {
         run->env = tenv_set(task, run->env, tsym_as(op), task->value);
         return;
     }
-    if (tbody_is(op)) assert(tenv_is(tbody_as(op)->env));
     trace("op: data: %s", t_str(op));
     task->value = op;
 }

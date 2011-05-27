@@ -1,4 +1,4 @@
-greeter = (hello => print("hello world!"))
+greeter = (first, last => print("hello world!"))
 greeter()
 greeter()
 greeter()

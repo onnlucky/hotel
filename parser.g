@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "tl.h"
+#include "body.h"
 #include "debug.h"
 
 #include "platform.h"
@@ -96,9 +97,8 @@ singleassign = n:name _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
   expr = paren
 
 fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
-    tBody* body = tbody_as(b);
-    //tlist_set_(body->code, 0, as);
-    $$ = body;
+    tbody_set_argnames_(tbody_as(b), as);
+    $$ = b;
 }
 
 fargs = a:farg __","__ as:fargs { $$ = tlist_prepend(TASK, L(as), a); }

@@ -25,15 +25,19 @@ const char* const type_to_str[] = {
     "TList", "TMap", "TObject",
     "TNum", "TFloat",
     "TText",
+
     "TEnv",
 
-    "TCall",
     "TBody",
+    "TClosure",
     "TFun",
+
+    "TCall",
 
     "TEvalCall",
     "TEvalFun",
     "TEval",
+
     "TThunk",
     "TResult",
     "TError",
