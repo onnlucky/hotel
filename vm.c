@@ -74,7 +74,7 @@ void tvm_init() {
 
     print("    field size: %zd", sizeof(tValue));
     print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    //print("frame overhead: %zd (%zd)", sizeof(tFrame), sizeof(tFrame)/sizeof(tValue));
+    print("frame overhead: %zd (%zd)", sizeof(tEval), sizeof(tEval)/sizeof(tValue));
     print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
 
     text_init();

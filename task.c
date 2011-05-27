@@ -113,7 +113,6 @@ tCall* tcall_new(tTask* task, int argc) {
 }
 
 tValue tcall_get(tCall* call, int at) {
-    trace("%d -- %d", at, tcall_argc(call));
     assert(at >= 0);
     if (at < 0 || at > tcall_argc(call)) return null;
     if (at == 0) return call->fn;
@@ -187,7 +186,6 @@ tValue ttask_value(tTask* task) {
     return task->value;
 }
 tValue ttask_caller(tTask* task) {
-    trace();
     return ((tEval*)(task->run))->caller;
 }
 
@@ -241,10 +239,10 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
         if (tactive_is(v)) {
             v = tvalue_from_active(v);
             if (tsym_is(v)) {
-                print("call op: active sym: %s = %s", t_str(v), t_str(tenv_get(task, env, v)));
                 v = tenv_get(task, env, v);
+                // TODO throw error if not in env
+                if (!v) v = tNull;
             } else if (tbody_is(v)) {
-                print("call op: active body: %s", t_str(v));
                 v = tclosure_new(task, tbody_as(v), env);
             } else {
                 assert(false);
@@ -265,8 +263,8 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
 // - mutate the arguments (only sometimes)
 // - normalize fn as a field in every eval frame, saves copy here, costs 1 field on every frame
 void tevalcall_step(tTask* task, tValue v) {
+    trace("%p", v);
     tEvalCall* run = tevalcall_as(v);
-    trace("%p", run);
 
     // second time
     if (flag_incall_has(run)) {
@@ -285,7 +283,7 @@ static inline tValue keys_tr(tList* keys, int at) {
     if (keys) return tlist_get(keys, at); else return null;
 }
 
-void targs_step(tTask* task, tValue v) {
+void targs_step(tTask* task, tValue v, tList* names) {
     trace();
     tEvalFun* run = (tEvalFun*)v;
 
@@ -316,7 +314,7 @@ void targs_step(tTask* task, tValue v) {
 }
 
 void tevalfun_step(tTask* task, tValue v) {
-    trace();
+    trace("%p", v);
     tEvalFun* run = tevalfun_as(v);
     tCall* call = run->call;
     tList* keys = call->keys;
@@ -340,7 +338,6 @@ void tevalfun_step(tTask* task, tValue v) {
     }
     tFun* fun = tfun_as(tcall_get_fn(call));
     trace(">> NATIVE %s", t_str(fun->name));
-    tmap_dump(run->args);
     fun->native(task, tmap_as(run->args));
 }
 
@@ -351,13 +348,14 @@ void teval_step(tTask* task, tValue v) {
 
     // check if we need to eval args
     if (flag_inargs_has(v)) {
-        targs_step(task, v);
+        tList* names = run->body->argnames;
+        targs_step(task, v, names);
+        // if we are not done processing arguments
         if (flag_inargs_has(v)) return;
 
         // collect args into env
         // TODO first check name, then position
         // TODO do defaults
-        tList* names = run->body->argnames;
         if (names) {
             int size = tlist_size(names);
             for (int i = 0; i < size; i++) {
@@ -421,7 +419,6 @@ void teval_step(tTask* task, tValue v) {
 
 void ttask_step(tTask* task) {
     tValue run = task->run;
-    trace("%s", t_str(run));
     // TODO check if still open ... clone otherwise
     if (teval_is(run)) { teval_step(task, run); return; }
     if (tevalfun_is(run)) { tevalfun_step(task, run); return; }

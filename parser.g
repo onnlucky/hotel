@@ -112,11 +112,12 @@ farg =
      |     n:name { $$ = n }
 
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
-           print("function + bodynl");
+           print("function call + bodynl");
            //$$ = tlist_add(TASK, tlist_prepend2(TASK, L(as), _CALL_, null), b);
            //$$ = tlist_prepend2(TASK, L(as), _CALL_, null);
        }
        | _"("__ as:cargs __")" t:tail {
+           print("function call");
            $$ = set_target(tcall_from_args(TASK, null, as), t);
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
@@ -128,7 +129,7 @@ farg =
            //$$ = set_target(L(t), _CALL2(_SEND_, null, n));
        }
        | _ {
-           print("end of tail");
+           print("no tail");
            $$ = null;
        }
 
@@ -173,7 +174,7 @@ farg =
 number = < "-"? [0-9]+ >            { $$ = tINT(atoi(yytext)); }
   text = '"' < (!'"' .)* > '"'      { $$ = ttext_from_copy(TASK, yytext); }
 
-  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tsym_from_copy(TASK, yytext); print("%s", t_str($$)); }
+  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tsym_from_copy(TASK, yytext); }
 
 slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* "*/"
@@ -208,14 +209,14 @@ bool push_indent(void* data) {
     G->data->current_indent++;
     assert(G->data->current_indent < 100);
     G->data->indents[G->data->current_indent] = indent;
-    print("NEW INDENT: %d", peek_indent(G));
+    //print("NEW INDENT: %d", peek_indent(G));
     return true;
 }
 bool pop_indent(void* data) {
     GREG* G = (GREG*)data;
     G->data->current_indent--;
     assert(G->data->current_indent >= 0);
-    print("NEW INDENT: %d", peek_indent(G));
+    //print("NEW INDENT: %d", peek_indent(G));
     return false;
 }
 bool check_indent(void* data) {
@@ -224,7 +225,7 @@ bool check_indent(void* data) {
 }
 
 tValue parse(tText* text) {
-    print("PARSING: %s", t_str(text));
+    print("\n----PARSING----\n%s----", t_str(text));
 
     ParseContext data;
     data.at = 0;
@@ -241,7 +242,7 @@ tValue parse(tText* text) {
     tValue v = g.ss;
     yydeinit(&g);
 
-    print("PARSED");
+    print("\n----PARSED----");
     return v;
 }
 

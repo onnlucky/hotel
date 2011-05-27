@@ -61,7 +61,6 @@ tMap* tmap_new_keys(tTask* task, tList* keys, int size) {
 }
 void tmap_set_key_(tMap* map, tValue key, int at, tValue v) {
     trace("SET KEY: %d %d -- %d", HASLIST(map), HASKEYS(map), at);
-    tmap_dump(map);
     if (key) {
         assert(HASLIST(map));
         if (tint_is(key)) {
@@ -148,7 +147,6 @@ tMap* tmap_from_list(tTask* task, tList* pairs) {
 
     if (list) assert(_LIST(map) == list);
     if (keys) assert(_KEYS(map) == keys);
-    tmap_dump(map);
     return map;
 }
 
