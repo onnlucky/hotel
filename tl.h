@@ -58,6 +58,10 @@ static const tValue tIntMin = (tHead*)(0xFFFFFFFFFFFFFFFF);
 #define T_MIN_INT ((int64_t)0xBFFFFFFFFFFFFFFF)
 #endif
 
+static const tValue tThunkNull =    (tHead*)(50 << 2);
+static const tValue tCollectLazy =  (tHead*)(51 << 2);
+static const tValue tCollectEager = (tHead*)(52 << 2);
+
 #define T_MAX_DATA_SIZE 65530
 #define T_MAX_ARGS_SIZE 2000
 

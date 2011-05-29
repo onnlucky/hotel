@@ -1,2 +1,7 @@
-greeter = (first, last => print(first, last))
-greeter("hello", "world")
+greeter = (&postpone =>
+    print("before")
+    postpone()
+    print("after")
+)
+greeter(print("hello"))
+

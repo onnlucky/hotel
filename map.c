@@ -84,6 +84,26 @@ tMap* tmap_from1(tTask* task, tValue key, tValue v) {
     return map;
 }
 
+tMap* tmap_from_pairs(tTask* task, tList* pairs) {
+    int size = tlist_size(pairs);
+    tList* keys = tlist_new(task, size);
+    for (int i = 0; i < size; i++) {
+        tList* pair = tlist_as(tlist_get(pairs, i));
+        tSym name = tsym_as(tlist_get(pair, 0));
+        set_add_(keys, name);
+    }
+    tMap* map = tmap_new(task, size + 1);
+    map->head.flags |= T_FLAG_HASKEYS;
+    _KEYS(map) = keys;
+    for (int i = 0; i < size; i++) {
+        tList* pair = tlist_as(tlist_get(pairs, i));
+        tSym name = tsym_as(tlist_get(pair, 0));
+        tValue v = tlist_get(pair, 1);
+        tmap_set_sym_(map, name, v);
+    }
+    tmap_dump(map);
+    return map;
+}
 tMap* tmap_from_list(tTask* task, tList* pairs) {
     int size = tlist_size(pairs);
     assert(size % 2 == 0);

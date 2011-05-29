@@ -1,7 +1,6 @@
 TODO
 rename eval to run (TRunCall, TRunBody, TRunArgs, TRun...)
 rename body to code?
-lazy arguments
 start adding testcases
 env should: know about #args, #this, #body, ... return ... etc
 split evalbody in evalargs and evalcode?

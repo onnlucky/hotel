@@ -27,6 +27,10 @@ typedef struct tClosure {
     tBody* body;
     tEnv* env;
 } tClosure;
+typedef struct tThunk {
+    tHead head;
+    tValue value;
+} tThunk;
 struct tCall {
     tHead head;
     tList* keys;
@@ -35,6 +39,7 @@ struct tCall {
 };
 TTYPE(tFun, tfun, TFun);
 TTYPE(tClosure, tclosure, TClosure);
+TTYPE(tThunk, tthunk, TThunk);
 TTYPE(tCall, tcall, TCall);
 
 typedef struct tEval {
@@ -76,7 +81,11 @@ tFun* tFUN(tSym name, t_native native) {
     fun->name = name;
     return fun;
 }
-
+tThunk* tthunk_new(tTask* task, tValue v) {
+    tThunk* thunk = task_alloc(task, TThunk, 1);
+    thunk->value = v;
+    return thunk;
+}
 tEval* teval_new(tTask* task, tValue caller, tCall* call) {
     tEval* run = task_alloc_priv(task, TEval, 5, 1);
     run->caller = caller;
@@ -205,6 +214,15 @@ tValue ttask_run(tTask* task, tValue caller, tCall* call) {
     if (tclosure_is(fn)) return teval_new(task, caller, call);
     if (tfun_is(fn)) return tevalfun_new(task, caller, call);
     if (tcall_is(fn)) return tevalcall_new(task, caller, call);
+    if (tthunk_is(fn)) {
+        // TODO implement arguments
+        assert(tcall_argc(call) == 0);
+        tValue v = tthunk_as(fn)->value;
+        trace("THUNKED: %s", t_str(v));
+        if (tcall_is(v)) return ttask_run(task, caller, tcall_as(v));
+        task->value = v;
+        return caller;
+    }
 
     warning("unable to run: %s", t_str(fn));
     assert(false);
@@ -234,11 +252,13 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
     trace("%p -- %p", env, o);
     int argc = tcall_argc(o);
     tCall* call = tcall_new(task, argc);
+    tSym name = null; // TODO debug only
     for (int i = 0; i < argc + 1; i++) {
         tValue v = tcall_get(o, i);
         if (tactive_is(v)) {
             v = tvalue_from_active(v);
             if (tsym_is(v)) {
+                name = v;
                 v = tenv_get(task, env, v);
                 // TODO throw error if not in env
                 if (!v) v = tNull;
@@ -252,7 +272,8 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
             v = tcall_fillclone(task, v, env);
         }
         assert(v);
-        print("fillclone: %d = %s", i, t_str(v));
+        if (name) trace("fillclone: %d %s = %s", i, t_str(name), t_str(v));
+        else trace("fillclone: %d = %s", i, t_str(v));
         tcall_set_(call, i, v);
     }
     return call;
@@ -283,7 +304,8 @@ static inline tValue keys_tr(tList* keys, int at) {
     if (keys) return tlist_get(keys, at); else return null;
 }
 
-void targs_step(tTask* task, tValue v, tList* names) {
+// this is only without incoming keys
+void targs_step(tTask* task, tValue v, tList* names, tMap* defaults) {
     trace();
     tEvalFun* run = (tEvalFun*)v;
 
@@ -302,8 +324,18 @@ void targs_step(tTask* task, tValue v, tList* names) {
 
     // evaluate each argument
     for (; run->count < argc; run->count++) {
+        tSym name = null;
+        if (names) name = tlist_get(names, run->count);
+        tValue d = tNull;
+        if (name && defaults) d = tmap_get_sym(defaults, name);
+
         tValue v = tcall_get_arg(call, run->count);
-        if (ttask_force(task, v)) { flag_incall_set(run); return; }
+        if (tthunk_is(d) || d == tThunkNull) {
+            v = tthunk_new(task, v);
+        } else if (ttask_force(task, v)) {
+            flag_incall_set(run);
+            return;
+        }
         tmap_set_key_(run->args, null, run->count, v);
     }
 
@@ -349,7 +381,8 @@ void teval_step(tTask* task, tValue v) {
     // check if we need to eval args
     if (flag_inargs_has(v)) {
         tList* names = run->body->argnames;
-        targs_step(task, v, names);
+        tMap* defaults = run->body->argdefaults;
+        targs_step(task, v, names, defaults);
         // if we are not done processing arguments
         if (flag_inargs_has(v)) return;
 

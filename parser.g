@@ -97,7 +97,7 @@ singleassign = n:name _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
   expr = paren
 
 fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
-    tbody_set_argnames_(tbody_as(b), as);
+    tbody_set_args_(TASK, tbody_as(b), L(as));
     $$ = b;
 }
 
@@ -105,11 +105,10 @@ fargs = a:farg __","__ as:fargs { $$ = tlist_prepend(TASK, L(as), a); }
       | a:farg                  { $$ = tlist_from1(TASK, a); }
       |                         { $$ = tlist_empty(); }
 
-farg =
-#      "&&" n:name { $$ = tACTIVE(tlist_from1(TASK, n)); }
-#    | "*" n:name { $$ = tlist_from1(TASK, n); }
-       "&" n:name { $$ = tACTIVE(n); }
-     |     n:name { $$ = n }
+farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
+     | "**" n:name { $$ = tlist_from2(TASK, n, tCollectEager); }
+     | "&" n:name { $$ = tlist_from2(TASK, n, tThunkNull); }
+     |     n:name { $$ = tlist_from2(TASK, n, tNull); }
 
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
            print("function call + bodynl");

@@ -5,7 +5,7 @@ struct tBody {
     tInt flags;
     tSym name;
     tList* argnames;
-    tList* argdefaults;
+    tMap* argdefaults;
     tValue ops[];
 };
 TTYPE(tBody, tbody, TBody);
@@ -24,12 +24,32 @@ tBody* tbody_from(tTask* task, tList* ops) {
 void tbody_set_name_(tBody* body, tSym name) {
     body->name = name;
 }
-void tbody_set_argnames_(tBody* body, tList* names) {
+void tbody_set_ops_(tBody* body, tList* ops) {
+    int size = tlist_size(ops);
+    for (int i = 0; i < size; i++) {
+        body->ops[i] = tlist_get(ops, i);
+    }
+}
+// TODO filter out collects ...
+void tbody_set_args_(tTask* task, tBody* body, tList* args) {
+    print("HERE!!");
+    // args = [name, default]*
+    // output: name*, {name->default}
+
+    int size = tlist_size(args);
+    tMap* defaults = tmap_from_pairs(task, args);
+
+    tList* names = tlist_new(task, size);
+    for (int i = 0; i < size; i++) {
+        tList* entry = tlist_as(tlist_get(args, i));
+        tSym name = tsym_as(tlist_get(entry, 0));
+        tlist_set_(names, i, name);
+    }
     body->argnames = names;
-}
-void tbody_set_argdefaults_(tBody* body, tList* defaults) {
     body->argdefaults = defaults;
+    print("DONE!!");
 }
+
 void tbody_set_arg_name_defaults_(tTask* task, tBody* body, tList* name_defaults) {
     int size = tlist_size(name_defaults);
     tList* names = tlist_new(task, size / 2);
@@ -46,12 +66,6 @@ void tbody_set_arg_name_defaults_(tTask* task, tBody* body, tList* name_defaults
     body->argnames = names;
     if (have_defaults) {
         body->argdefaults = defaults;
-    }
-}
-void tbody_set_ops_(tBody* body, tList* ops) {
-    int size = tlist_size(ops);
-    for (int i = 0; i < size; i++) {
-        body->ops[i] = tlist_get(ops, i);
     }
 }
 
