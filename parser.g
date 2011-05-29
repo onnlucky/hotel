@@ -1,5 +1,6 @@
 %{
 #include <stdio.h>
+#include <string.h>
 
 #include "tl.h"
 #include "body.h"
@@ -61,6 +62,27 @@ tValue set_target(tValue on, tValue target) {
     assert(false);
     return null;
 }
+static char* unescape(const char* s) {
+    char* t = strdup(s);
+    int i = 0, j = 0;
+    for (; s[i]; i++, j++) {
+        if (s[i] == '\\') {
+            i++;
+            char c = s[i];
+            switch (c) {
+                case '\\': t[j] = '\\'; break;
+                case 'n': t[j] = '\n'; break;
+                case 'r': t[j] = '\r'; break;
+                case 't': t[j] = '\t'; break;
+                default: j--; break;
+            }
+        } else {
+            t[j] = s[i];
+        }
+    }
+    t[j] = 0;
+    return t;
+}
 
 #define TASK yyxvar->task
 #define L(l) tlist_as(l)
@@ -111,24 +133,24 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
      |     n:name { $$ = tlist_from2(TASK, n, tNull); }
 
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
-           print("function call + bodynl");
+           trace("function call + bodynl");
            //$$ = tlist_add(TASK, tlist_prepend2(TASK, L(as), _CALL_, null), b);
            //$$ = tlist_prepend2(TASK, L(as), _CALL_, null);
        }
        | _"("__ as:cargs __")" t:tail {
-           print("function call");
+           trace("function call");
            $$ = set_target(tcall_from_args(TASK, null, as), t);
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
-           print("method call")
+           trace("method call")
            //$$ = set_target(L(t), _CAT(_CALL2(_SEND_, null, n), as));
        }
        | _"."_ n:name t:tail {
-           print("method call")
+           trace("method call")
            //$$ = set_target(L(t), _CALL2(_SEND_, null, n));
        }
        | _ {
-           print("no tail");
+           trace("no tail");
            $$ = null;
        }
 
@@ -171,7 +193,18 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
 
    sym = "#" n:name                 { $$ = n }
 number = < "-"? [0-9]+ >            { $$ = tINT(atoi(yytext)); }
-  text = '"' < (!'"' .)* > '"'      { $$ = ttext_from_copy(TASK, yytext); }
+
+  text = '"' '"'          { $$ = ttext_empty(); }
+       | '"'  t:stext '"' { $$ = t }
+       | '"' ts:ctext '"' { $$ = tcall_new(tACTIVE(tSYM("text_cat")), L(ts)); }
+
+ stext = < (!"$" !"\"" .)+ > { $$ = ttext_from_take(TASK, unescape(yytext)); }
+ ptext = "$("_ e:expr _")"   { $$ = e }
+       | "$" l:lookup        { $$ = l }
+ ctext = t:ptext ts:ctext    { $$ = tlist_prepend(TASK, ts, t); }
+       | t:stext ts:ctext    { $$ = tlist_prepend(TASK, ts, t); }
+       | t:ptext             { $$ = tlist_from1(TASK, t); }
+       | t:stext             { $$ = tlist_from(TASK, t); }
 
   name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tsym_from_copy(TASK, yytext); }
 
@@ -191,7 +224,7 @@ int find_indent(GREG* G) {
     int indent = 1;
     while (G->pos - indent >= 0) {
         char c = G->buf[G->pos - indent];
-        //print("char=%c, pos=%d, indent=%d", c, G->pos, indent);
+        //trace("char=%c, pos=%d, indent=%d", c, G->pos, indent);
         if (c == '\n' || c == '\r') break;
         indent++;
     }
@@ -208,14 +241,14 @@ bool push_indent(void* data) {
     G->data->current_indent++;
     assert(G->data->current_indent < 100);
     G->data->indents[G->data->current_indent] = indent;
-    //print("NEW INDENT: %d", peek_indent(G));
+    //trace("NEW INDENT: %d", peek_indent(G));
     return true;
 }
 bool pop_indent(void* data) {
     GREG* G = (GREG*)data;
     G->data->current_indent--;
     assert(G->data->current_indent >= 0);
-    //print("NEW INDENT: %d", peek_indent(G));
+    //trace("NEW INDENT: %d", peek_indent(G));
     return false;
 }
 bool check_indent(void* data) {
@@ -224,7 +257,7 @@ bool check_indent(void* data) {
 }
 
 tValue parse(tText* text) {
-    print("\n----PARSING----\n%s----", t_str(text));
+    trace("\n----PARSING----\n%s----", t_str(text));
 
     ParseContext data;
     data.at = 0;
@@ -236,12 +269,12 @@ tValue parse(tText* text) {
     yyinit(&g);
     g.data = &data;
     if (!yyparse(&g)) {
-        print("ERROR: %d", g.pos + g.offset);
+        fatal("ERROR: %d", g.pos + g.offset);
     }
     tValue v = g.ss;
     yydeinit(&g);
 
-    print("\n----PARSED----");
+    trace("\n----PARSED----");
     return v;
 }
 

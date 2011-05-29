@@ -17,6 +17,8 @@ struct tText {
     tInt hash;
 };
 
+tText* ttext_empty() { return v_empty_text; }
+
 tText* ttext_from_static(const char* s) {
     tText* text = task_alloc_priv(null, TText, 0, 4);
     text->head.flags |= T_FLAG_NOFREE;

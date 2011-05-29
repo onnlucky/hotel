@@ -1,7 +1,1 @@
-greeter = (&postpone =>
-    print("before")
-    postpone()
-    print("after")
-)
-greeter(print("hello"))
-
+out("hello\nworld\n")

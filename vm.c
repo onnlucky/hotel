@@ -72,10 +72,10 @@ void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
     assert(sizeof(tHead) <= sizeof(intptr_t));
 
-    print("    field size: %zd", sizeof(tValue));
-    print(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    print("frame overhead: %zd (%zd)", sizeof(tEval), sizeof(tEval)/sizeof(tValue));
-    print(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
+    trace("    field size: %zd", sizeof(tValue));
+    trace(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
+    trace("frame overhead: %zd (%zd)", sizeof(tEval), sizeof(tEval)/sizeof(tValue));
+    trace(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
 
     text_init();
     sym_init();

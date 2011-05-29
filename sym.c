@@ -14,7 +14,7 @@ static LHashMap *symbols = 0;
 static tSym _SYM_FROM_TEXT(tText* v) { return (tSym)((intptr_t)v | 2); }
 static tText* _TEXT_FROM_SYM(tSym v) { return (tText*)((intptr_t)v & ~7); }
 
-bool tactive_is(tValue v) { return (((intptr_t)v) & 7) >= 4; }
+bool tactive_is(tValue v) { return (tsym_is(v) || tref_is(v)) && (((intptr_t)v) & 7) >= 4; }
 tValue tvalue_from_active(tValue a) {
     assert(tactive_is(a));
     assert(tref_is(a) || tsym_is(a));
@@ -24,7 +24,6 @@ tValue tvalue_from_active(tValue a) {
     return v;
 }
 tValue tactive_from_value(tValue v) {
-    print("activating: %p -> %s", v, t_str(v));
     assert(tref_is(v) || tsym_is(v));
     assert(!tactive_is(v));
     tValue a = (tValue)((intptr_t)v | 4);

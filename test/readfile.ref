@@ -1,0 +1,9 @@
+len: 170
+buf = %buffer_new()
+file = %io_file_open("./test/noboot/readfile.tl", O_RDONLY)
+
+len = %io_read(file, buf)
+%io_close(file)
+out("len: ", len, "\n")
+%buffer_read_text(buf)
+

@@ -32,7 +32,7 @@ void tbody_set_ops_(tBody* body, tList* ops) {
 }
 // TODO filter out collects ...
 void tbody_set_args_(tTask* task, tBody* body, tList* args) {
-    print("HERE!!");
+    trace("%d", tlist_size(args));
     // args = [name, default]*
     // output: name*, {name->default}
 
@@ -47,7 +47,6 @@ void tbody_set_args_(tTask* task, tBody* body, tList* args) {
     }
     body->argnames = names;
     body->argdefaults = defaults;
-    print("DONE!!");
 }
 
 void tbody_set_arg_name_defaults_(tTask* task, tBody* body, tList* name_defaults) {

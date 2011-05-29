@@ -101,7 +101,6 @@ tMap* tmap_from_pairs(tTask* task, tList* pairs) {
         tValue v = tlist_get(pair, 1);
         tmap_set_sym_(map, name, v);
     }
-    tmap_dump(map);
     return map;
 }
 tMap* tmap_from_list(tTask* task, tList* pairs) {

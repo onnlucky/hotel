@@ -1,7 +1,13 @@
 *.o
+*.lo
 *.a
+*.la
+*.so
 
 parser.c
 parser-test
 tl
+
+test/*.log
+test/*.out
 
