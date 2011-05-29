@@ -1,1 +1,2 @@
-out("hello\nworld\n")
+return("OK")
+"ERROR"
