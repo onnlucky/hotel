@@ -249,11 +249,11 @@ bool ttask_force(tTask* task, tValue v) {
 
 // from a suspended call, resolve all names and bind all code
 tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
-    trace("%p -- %p", env, o);
     int argc = tcall_argc(o);
     tCall* call = tcall_new(task, argc);
-    tSym name = null; // TODO debug only
+    trace(">> %p", call);
     for (int i = 0; i < argc + 1; i++) {
+        tSym name = null; // TODO debug only
         tValue v = tcall_get(o, i);
         if (tactive_is(v)) {
             v = tvalue_from_active(v);
@@ -267,15 +267,15 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
             } else {
                 assert(false);
             }
-        }
-        if (tcall_is(v)) {
+        } else if (tcall_is(v)) {
             v = tcall_fillclone(task, v, env);
         }
         assert(v);
-        if (name) trace("fillclone: %d %s = %s", i, t_str(name), t_str(v));
-        else trace("fillclone: %d = %s", i, t_str(v));
+        if (name) trace("fillclone: %p -- %d %s = %s", call, i, t_str(name), t_str(v));
+        else trace("fillclone: %p -- %d = %s", call, i, t_str(v));
         tcall_set_(call, i, v);
     }
+    trace("<< %p", call);
     return call;
 }
 

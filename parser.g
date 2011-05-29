@@ -139,7 +139,7 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
        }
        | _"("__ as:cargs __")" t:tail {
            trace("function call");
-           $$ = set_target(tcall_from_args(TASK, null, as), t);
+           $$ = set_target(t, tcall_from_args(TASK, null, as));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
            trace("method call")
