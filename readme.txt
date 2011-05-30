@@ -1,7 +1,6 @@
-TODO
+# TODO
 rename eval to run (TRunCall, TRunBody, TRunArgs, TRun...)
-rename body to code?
-start adding testcases
+rename body to code or block or?
 env should: know about #args, #this, #body, ... return ... etc
 split evalbody in evalargs and evalcode?
 
@@ -16,3 +15,7 @@ add static initializers, until first vm is created allow tSYM("...") tText("..."
 
 implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
 
+
+# how does the evaluator work
+
+Basically the only thing the "bytecode" does is call functions, bind functions and collect return values.

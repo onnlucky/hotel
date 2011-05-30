@@ -161,6 +161,7 @@ typedef struct tBody tBody;
 int ttext_size(tText* text);
 const char* ttext_bytes(tText* text);
 
+tText* ttext_empty();
 tText* tvalue_to_text(tT, tValue v);
 
 tText* ttext_from_copy(tT, const char* s);

@@ -196,7 +196,7 @@ number = < "-"? [0-9]+ >            { $$ = tINT(atoi(yytext)); }
 
   text = '"' '"'          { $$ = ttext_empty(); }
        | '"'  t:stext '"' { $$ = t }
-       | '"' ts:ctext '"' { $$ = tcall_new(tACTIVE(tSYM("text_cat")), L(ts)); }
+       | '"' ts:ctext '"' { $$ = tcall_from_args(TASK, tACTIVE(tSYM("text_cat")), L(ts)); }
 
  stext = < (!"$" !"\"" .)+ > { $$ = ttext_from_take(TASK, unescape(yytext)); }
  ptext = "$("_ e:expr _")"   { $$ = e }
