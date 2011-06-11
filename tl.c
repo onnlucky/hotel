@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
 
     trace("DONE");
     tValue v = ttask_value(task);
-    if (t_bool(v)) print("%s", t_str(v));
+    if (t_bool(v)) printf("%s\n", t_str(v));
     tvm_delete(vm);
     return 0;
 }
