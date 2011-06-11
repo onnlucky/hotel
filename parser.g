@@ -133,7 +133,7 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
      |     n:name { $$ = tlist_from2(TASK, n, tNull); }
 
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
-           trace("function call + bodynl");
+           fatal("function call + bodynl");
            //$$ = tlist_add(TASK, tlist_prepend2(TASK, L(as), _CALL_, null), b);
            //$$ = tlist_prepend2(TASK, L(as), _CALL_, null);
        }
@@ -142,11 +142,11 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
            $$ = set_target(t, tcall_from_args(TASK, null, as));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
-           trace("method call")
+           fatal("method call")
            //$$ = set_target(L(t), _CAT(_CALL2(_SEND_, null, n), as));
        }
        | _"."_ n:name t:tail {
-           trace("method call")
+           fatal("method call")
            //$$ = set_target(L(t), _CALL2(_SEND_, null, n));
        }
        | _ {
@@ -157,6 +157,32 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
  cargs = e:expr __","__ as:cargs   { $$ = tlist_prepend(TASK, L(as), e); }
        | e:expr                    { $$ = tlist_from1(TASK, e) }
        |                           { $$ = tlist_empty(); }
+
+
+#// this doesn't work :( greg cannot handle it because it doesn't memoize
+op_log = l:op_not _ "or"  __ r:op_log { $$ = tcall_from(TASK, tACTIVE(tSYM("or")), l, r, null); }
+       | l:op_not _ "and" __ r:op_log { $$ = tcall_from(TASK, tACTIVE(tSYM("and")), l, r, null); }
+       | l:op_not _ "xor" __ r:op_log { $$ = tcall_from(TASK, tACTIVE(tSYM("xor")), l, r, null); }
+       | op_not
+op_not = "not" __ r:op_cmp            { $$ = tcall_from(TASK, tACTIVE(tSYM("not")), r, null); }
+       | op_cmp
+op_cmp = l:op_add _ "<=" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("lte")), l, r, null); }
+       | l:op_add _ "<"  __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("lt")), l, r, null); }
+       | l:op_add _ ">"  __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("gt")), l, r, null); }
+       | l:op_add _ ">=" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("gte")), l, r, null); }
+       | l:op_add _ "==" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("eq")), l, r, null); }
+       | l:op_add _ "!=" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("neq")), l, r, null); }
+       | op_add
+op_add = l:op_mul _ "+" __ r:op_add { $$ = tcall_from(TASK, tACTIVE(tSYM("add")), l, r, null); }
+       | l:op_mul _ "-" __ r:op_add { $$ = tcall_from(TASK, tACTIVE(tSYM("sub")), l, r, null); }
+       | op_mul
+op_mul = l:op_pow _ "*" __ r:op_mul { $$ = tcall_from(TASK, tACTIVE(tSYM("mul")), l, r, null); }
+       | l:op_pow _ "/" __ r:op_mul { $$ = tcall_from(TASK, tACTIVE(tSYM("div")), l, r, null); }
+       | l:op_pow _ "%" __ r:op_mul { $$ = tcall_from(TASK, tACTIVE(tSYM("mod")), l, r, null); }
+       | op_pow
+op_pow = l:paren _ "^" __ r:op_pow  { $$ = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
+       | paren
+
 
  paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }

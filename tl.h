@@ -184,6 +184,7 @@ bool tcall_is(tValue v);
 tCall* tcall_cast(tValue v);
 tCall* tcall_as(tValue v);
 
+tCall* tcall_from(tTask* task, ...);
 tCall* tcall_from_args(tT, tValue fn, tList* args);
 tValue tcall_get_fn(tCall* call);
 void tcall_set_fn_(tCall* call, tValue v);
