@@ -34,7 +34,7 @@ tEnv* tenv_copy(tTask* task, tEnv* env) {
     tEnv* nenv = tenv_new(task, env->parent);
     nenv->run = env->run;
     nenv->map = env->map;
-    return env;
+    return nenv;
 }
 
 tEnv* tenv_set_run(tTask* task, tEnv* env, tValue run) {
@@ -67,7 +67,14 @@ tEnv* tenv_set(tTask* task, tEnv* env, tSym key, tValue v) {
     assert(tenv_is(env));
     trace("%p.set %s = %s", env, t_str(key), t_str(v));
 
-    if (flag_closed_has(env)) env = tenv_copy(task, env);
+    if (flag_closed_has(env)) {
+        env = tenv_copy(task, env);
+        trace("%p.set !! %s = %s", env, t_str(key), t_str(v));
+    } else if (tmap_get_sym(env->map, key)) {
+        env = tenv_copy(task, env);
+        trace("%p.set !! %s = %s", env, t_str(key), t_str(v));
+    }
+
     env->map = tmap_set(task, env->map, key, v);
     return env;
 }
