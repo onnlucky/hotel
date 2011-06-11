@@ -102,19 +102,20 @@ bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = ts; /*tlist_prep
 stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
        | _ &{ check_indent(G) } t:stm               { $$ = tlist_from1(TASK, t); }
 
-   stm = singleassign | exprstm
+   stm = singleassign | multiassign | noassign
 #   stm = var | assign | expr
 
 #   var = "var" _ "$" n:name _"="__ e:expr { $$ = tlist_new_add4(TASK, _ASSIGN_, _CALL1(_REF(tSYM("%var")), e), _RESULT_, n); }
 #       |         "$" n:name _"="__ e:expr { $$ = _CALL2(_REF(tSYM("%set")), _REF(n), e); }
 #assign =          as:anames _"="__ e:expr { $$ = tlist_prepend2(TASK, L(as), _ASSIGN_, e); }
-#
-#anames =     n:name _","_ as:anames { $$ = tlist_prepend2(TASK, L(as), _RESULT_, n); }
-#       | "*" n:name                 { $$ = tlist_new_add2(TASK, _RESULT_REST_, n); }
-#       |     n:name                 { $$ = tlist_new_add2(TASK, _RESULT_, n); }
 
-singleassign = n:name _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
-     exprstm = e:expr { $$ = tlist_from1(TASK, e); }
+anames =     n:name _","_ as:anames { $$ = tlist_prepend(TASK, L(as), n); }
+       #| "*" n:name                 { $$ = tlist_from1(TASK, n); }
+       |     n:name                 { $$ = tlist_from1(TASK, n); }
+
+singleassign = n:name    _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
+ multiassign = ns:anames _"="__ e:expr { $$ = tlist_from(TASK, e, ns, null); }
+    noassign =                  e:expr { $$ = tlist_from1(TASK, e); }
 
   expr = paren
 

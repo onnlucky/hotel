@@ -1,6 +1,2 @@
-if = ( cond, &tb, &fb => bool(cond, tb, fb)() )
-fib = ( n =>
-    if(lte(n, 2), return(1))
-    add(fib(sub(n, 1)), fib(sub(n, 2)))
-)
-fib(3)
+a, b, c = (=> return(1, 2, 3, 4))();
+out(a, b, c);

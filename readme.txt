@@ -1,8 +1,16 @@
 # TODO
+implement multiple returns
+implement goto
+impelment continuations
+
+do other/better parser? or help greg along?
+
 rename eval to run (TRunCall, TRunBody, TRunArgs, TRun...)
 rename body to code or block or?
-env should: know about #args, #this, #body, ... return ... etc
 split evalbody in evalargs and evalcode?
+add keyworded arguments and processing for hotel functions
+
+lookup should handle: #this, #body, #goto and some others
 
 do the open/close correctly; do close a lazy as possible? if x: return x ... no need to close/copy
 
