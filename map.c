@@ -241,3 +241,42 @@ void tmap_set_sym_(tMap* map, tSym key, tValue v) {
     map->data[_OFFSET(map) + at] = v;
 }
 
+tMap* tmap_set(tTask* task, tMap* map, tValue key, tValue v) {
+    trace("set map: %s = %s", t_str(key), t_str(v));
+    //if (tint_is(key)) return tmap_set_int(task, map, tint_as(key), v);
+
+    tList* keys = null;
+    int at = 0;
+    if (HASKEYS(map)) {
+        keys = _KEYS(map);
+        at = set_indexof(keys, key);
+        if (at >= 0) {
+            tMap* nmap = tmap_copy(task, map);
+            for (int i = 0; i < tlist_size(keys); i++) {
+                nmap->data[_OFFSET(nmap) + i] = map->data[_OFFSET(map) + i];
+            }
+            nmap->data[_OFFSET(nmap) + at] = v;
+            return nmap;
+        }
+        keys = tlist_copy(task, keys, tlist_size(keys) + 1);
+        at = set_add_(keys, key);
+    } else {
+        keys = tlist_from1(task, key);
+    }
+    assert(!HASLIST(map));
+    assert(keys);
+
+    tMap* nmap = tmap_new(task, tlist_size(keys) + 1);
+    nmap->head.flags |= T_FLAG_HASKEYS;
+    _KEYS(nmap) = keys;
+    int i;
+    for (i = 0; i < at; i++) {
+        nmap->data[_OFFSET(nmap) + i] = map->data[_OFFSET(map) + i];
+    }
+    nmap->data[_OFFSET(nmap) + at] = v; i++;
+    for (; i < tlist_size(keys); i++) {
+        nmap->data[_OFFSET(nmap) + i] = map->data[_OFFSET(map) + i - 1];
+    }
+    return nmap;
+}
+

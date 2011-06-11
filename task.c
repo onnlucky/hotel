@@ -112,7 +112,7 @@ tEvalCall* tevalcall_new(tTask* task, tValue caller, tCall* call) {
 tClosure* tclosure_new(tTask* task, tBody* body, tEnv* env) {
     tClosure* fn = task_alloc(task, TClosure, 2);
     fn->body = body;
-    fn->env = env;
+    fn->env = tenv_new(task, env);
     return fn;
 }
 

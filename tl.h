@@ -38,6 +38,8 @@ static const uint8_t T_FLAG_HASLIST = 0x20;
 static const uint8_t T_FLAG_INCALL = 0x10;
 static const uint8_t T_FLAG_INARGS = 0x20;
 
+static const uint8_t T_FLAG_CLOSED = 0x40;
+
 // static predefined value
 static const tValue tUndefined = (tHead*)(1 << 2);
 static const tValue tNull =      (tHead*)(2 << 2);
@@ -246,8 +248,7 @@ void tmap_set_sym_(tMap* map, tSym key, tValue v);
 
 // ** environment (scope) **
 typedef struct tEnv tEnv;
-tEnv* tenv_new(tT, tEnv* parent, tList* keys);
-void tenv_close(tT, tEnv* env);
+tEnv* tenv_new(tT, tEnv* parent);
 tValue tenv_get(tT, tEnv* env, tSym key);
 tEnv* tenv_set(tT, tEnv* env, tSym key, tValue v);
 
