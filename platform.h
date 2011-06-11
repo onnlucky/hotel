@@ -146,6 +146,8 @@
   #error "unknown endian type, define BIG_ENDIAN or LITTLE_ENDIAN"
 #endif
 
+// don't ask, don't tell
+char* strdup(const char*);
 #ifndef PLATFORM_LINUX
 static inline size_t strnlen(const char* s, size_t n) {
     char *p = memchr(s, 0, n);
