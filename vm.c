@@ -11,62 +11,43 @@
 #include "body.c"
 #include "task.c"
 
-//#include "eval.c"
-
 #include "trace-on.h"
 
-#if 0
-tValue c_bool(tTask* task, tArgs* args) {
-    tValue c = targs_get(args, 0);
-    trace("BOOL: %s", t_bool(c)?"true":"false");
-    if (t_bool(c)) return targs_get(args, 1);
-    return targs_get(args, 2);
-}
-tValue c_lte(tTask* task, tArgs* args) {
-    trace("%d <= %d", t_int(targs_get(args, 0)), t_int(targs_get(args, 1)));
-    return tBOOL(t_int(targs_get(args, 0)) <= t_int(targs_get(args, 1)));
-}
-tValue c_mul(tTask* task, tArgs* args) {
-    int res = t_int(targs_get(args, 0)) * t_int(targs_get(args, 1));
-    trace("MUL: %d", res);
-    return tINT(res);
-}
-tValue c_sub(tTask* task, tArgs* args) {
-    int res = t_int(targs_get(args, 0)) - t_int(targs_get(args, 1));
-    trace("MUL: %d", res);
-    return tINT(res);
-}
-
-tValue c_print(tTask* task, tArgs* args) {
-    printf(">> ");
-    for (int i = 0; i < targs_size(args); i++) {
-        if (i > 0) printf(" ");
-        printf("%s", t_str(targs_get(args, i)));
+static tRES _out(tTask* task, tFun* fn, tMap* args) {
+    trace("out(%d)", tmap_size(args));
+    for (int i = 0; i < 1000; i++) {
+        tValue v = tmap_get_int(args, i);
+        if (!v) break;
+        printf("%s", ttext_bytes(tvalue_to_text(task, v)));
     }
-    printf("\n");
-    return tNull;
+    fflush(stdout);
+    return ttask_return1(task, tNull);
 }
-
-tEnv* test_env() {
-    tEnv* env = tenv_new(null, null, null);
-    tEnv* start = env;
-    tValue test_print = tcfun_new(null, c_print);
-    env = tenv_set(null, env, tSYM("print"), test_print);
-    env = tenv_set(null, env, tSYM("bool"), tcfun_new(null, c_bool));
-    env = tenv_set(null, env, tSYM("<="), tcfun_new(null, c_lte));
-    env = tenv_set(null, env, tSYM("*"), tcfun_new(null, c_mul));
-    env = tenv_set(null, env, tSYM("-"), tcfun_new(null, c_sub));
-
-    env = tenv_set(null, env, tSYM("_return"), tcfun_new(null, _return));
-    env = tenv_set(null, env, tSYM("_goto"), tcfun_new(null, _goto));
-
-    assert(start->parent == env->parent);
-    //assert(start == env);
-    assert(tenv_get(null, env, tSYM("print")) == test_print);
-    assert(tenv_get(null, env, tSYM("_goto")));
-    return env;
+static tRES _bool(tTask* task, tFun* fn, tMap* args) {
+    tValue c = tmap_get_int(args, 0);
+    trace("BOOL: %s", t_bool(c)?"true":"false");
+    if (t_bool(c)) return ttask_return1(task, tmap_get_int(args, 1));
+    return ttask_return1(task, tmap_get_int(args, 2));
 }
-#endif
+static tRES _lte(tTask* task, tFun* fn, tMap* args) {
+    trace("%d <= %d", t_int(tmap_get_int(args, 0)), t_int(tmap_get_int(args, 1)));
+    return ttask_return1(task, tBOOL(t_int(tmap_get_int(args, 0)) <= t_int(tmap_get_int(args, 1))));
+}
+static tRES _add(tTask* task, tFun* fn, tMap* args) {
+    int res = t_int(tmap_get_int(args, 0)) + t_int(tmap_get_int(args, 1));
+    trace("ADD: %d", res);
+    return ttask_return1(task, tINT(res));
+}
+static tRES _sub(tTask* task, tFun* fn, tMap* args) {
+    int res = t_int(tmap_get_int(args, 0)) - t_int(tmap_get_int(args, 1));
+    trace("SUB: %d", res);
+    return ttask_return1(task, tINT(res));
+}
+static tRES _mul(tTask* task, tFun* fn, tMap* args) {
+    int res = t_int(tmap_get_int(args, 0)) * t_int(tmap_get_int(args, 1));
+    trace("MUL: %d", res);
+    return ttask_return1(task, tINT(res));
+}
 
 void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
@@ -103,6 +84,17 @@ tVm* tvm_new() {
     return null;
 }
 void tvm_delete(tVm* vm) {
+}
+
+tEnv* tvm_global_env(tVm* vm) {
+    tEnv* env = tenv_new(null, null, null);
+    env = tenv_set(null, env, tSYM("out"), tFUN(_out, tSYM("out")));
+    env = tenv_set(null, env, tSYM("bool"), tFUN(_bool, tSYM("bool")));
+    env = tenv_set(null, env, tSYM("lte"), tFUN(_lte, tSYM("lte")));
+    env = tenv_set(null, env, tSYM("add"), tFUN(_add, tSYM("add")));
+    env = tenv_set(null, env, tSYM("sub"), tFUN(_sub, tSYM("sub")));
+    env = tenv_set(null, env, tSYM("mul"), tFUN(_mul, tSYM("mul")));
+    return env;
 }
 
 tTask* tvm_create_task(tVm* vm) {

@@ -284,13 +284,13 @@ tRES ttask_return_a(tT, tValue* vs, int len);
 
 
 // ** callbacks **
-typedef tRES(*t_native)(tTask*, tMap*);
 typedef struct tFun tFun;
+typedef tRES(*t_native)(tTask*, tFun*, tMap*);
 
 // for general functions
-tFun* tFUN(tSym name, t_native);
+tFun* tFUN(t_native, tValue data);
 // for primitive functions that never invoke the evaluator again
-tFun* tFUN_PRIM(tSym name, t_native);
+tFun* tFUN_PRIM(t_native, tValue data);
 
 tValue parse(tText* text);
 tValue compile(tText* text);

@@ -20,7 +20,7 @@ TTYPE(tTask, ttask, TTask);
 struct tFun {
     tHead head;
     t_native native;
-    tSym name;
+    tValue data;
 };
 typedef struct tClosure {
     tHead head;
@@ -69,16 +69,16 @@ TTYPE(tEval, teval, TEval);
 TTYPE(tEvalFun, tevalfun, TEvalFun);
 TTYPE(tEvalCall, tevalcall, TEvalCall);
 
-tFun* tfun_new(tTask* task, tSym name, t_native native) {
+tFun* tfun_new(tTask* task, t_native native, tValue data) {
     tFun* fun = task_alloc_priv(task, TFun, 1, 1);
     fun->native = native;
-    fun->name = name;
+    fun->data = data;
     return fun;
 }
-tFun* tFUN(tSym name, t_native native) {
+tFun* tFUN(t_native native, tValue data) {
     tFun* fun = task_alloc_priv(null, TFun, 1, 1);
     fun->native = native;
-    fun->name = name;
+    fun->data = data;
     return fun;
 }
 tThunk* tthunk_new(tTask* task, tValue v) {
@@ -92,7 +92,7 @@ tEval* teval_new(tTask* task, tValue caller, tCall* call) {
     run->call = call;
     tClosure* fn = tclosure_as(call->fn);
     run->body = fn->body;
-    run->env = fn->env;
+    run->env = tenv_set_run(task, fn->env, run);
     flag_inargs_set(run);
     return run;
 }
@@ -209,7 +209,7 @@ tRES ttask_return1(tTask* task, tValue v) {
 
 tValue ttask_run(tTask* task, tValue caller, tCall* call) {
     tValue fn = tcall_get_fn(call);
-    trace("run: %s(%d)", t_str(fn), tcall_argc(call));
+    //trace("%s(%d)", t_str(fn), tcall_argc(call));
 
     if (tclosure_is(fn)) return teval_new(task, caller, call);
     if (tfun_is(fn)) return tevalfun_new(task, caller, call);
@@ -218,7 +218,6 @@ tValue ttask_run(tTask* task, tValue caller, tCall* call) {
         // TODO implement arguments
         assert(tcall_argc(call) == 0);
         tValue v = tthunk_as(fn)->value;
-        trace("THUNKED: %s", t_str(v));
         if (tcall_is(v)) return ttask_run(task, caller, tcall_as(v));
         task->value = v;
         return caller;
@@ -231,7 +230,7 @@ tValue ttask_run(tTask* task, tValue caller, tCall* call) {
 void ttask_call(tTask* task, tCall* call) {
     tValue run = task->run;
     task->run = ttask_run(task, run, call);
-    trace(">> CALL %p -> %p", run, task->run);
+    trace(">> CALL %p -> %p -- %s(%d)", run, task->run, t_str(tcall_get_fn(call)), tcall_argc(call));
 
     // DESIGN calling with keywords arguments
     // there must be a list with names, and last entry must be a map ready to be cloned
@@ -239,6 +238,21 @@ void ttask_call(tTask* task, tCall* call) {
         assert(tcall_argc(call) == tlist_size(call->keys) - 1);
         assert(tmap_is(tlist_get(call->keys, tcall_argc(call))));
     }
+}
+
+static tRES _return(tTask* task, tFun* fn, tMap* args) {
+    trace("<< RETURN(%d)", tmap_size(args));
+    task->run = teval_as(fn->data)->caller;
+    task->value = tmap_get_int(args, 0);
+    return 0;
+}
+
+tValue lookup(tTask* task, tEnv* env, tSym name) {
+    if (name == s_return) {
+        tValue run = tenv_get_run(env); assert(run);
+        return tfun_new(task, _return, run);
+    }
+    return tenv_get(task, env, name);
 }
 
 // return true if we have to step into a run
@@ -251,7 +265,6 @@ bool ttask_force(tTask* task, tValue v) {
 tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
     int argc = tcall_argc(o);
     tCall* call = tcall_new(task, argc);
-    trace(">> %p", call);
     for (int i = 0; i < argc + 1; i++) {
         tSym name = null; // TODO debug only
         tValue v = tcall_get(o, i);
@@ -259,7 +272,7 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
             v = tvalue_from_active(v);
             if (tsym_is(v)) {
                 name = v;
-                v = tenv_get(task, env, v);
+                v = lookup(task, env, v);
                 // TODO throw error if not in env
                 if (!v) v = tNull;
             } else if (tbody_is(v)) {
@@ -271,11 +284,10 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
             v = tcall_fillclone(task, v, env);
         }
         assert(v);
-        if (name) trace("fillclone: %p -- %d %s = %s", call, i, t_str(name), t_str(v));
-        else trace("fillclone: %p -- %d = %s", call, i, t_str(v));
+        if (name) trace("%p -- %d %s = %s", call, i, t_str(name), t_str(v));
+        else trace("%p -- %d = %s", call, i, t_str(v));
         tcall_set_(call, i, v);
     }
-    trace("<< %p", call);
     return call;
 }
 
@@ -292,12 +304,13 @@ void tevalcall_step(tTask* task, tValue v) {
         tValue fn = task->value;
         tCall* ncall = tcall_copy_fn(task, run->call, fn);
         task->run = ttask_run(task, run->caller, ncall);
-        trace(">> FN DONE %p -> %p", run, task->run);
+        trace(">> FN DONE %p -> %p -- %s(%d)", run, task->run, t_str(tcall_get_fn(ncall)), tcall_argc(ncall));
         return;
     }
     flag_incall_set(run);
-    task->run = ttask_run(task, run, tcall_as(run->call->fn));
-    trace(">> EVAL FN %p -> %p", run, task->run);
+    tCall* call = tcall_as(run->call->fn);
+    task->run = ttask_run(task, run, call);
+    trace(">> EVAL FN %p -> %p -- %s(%d)", run, task->run, t_str(tcall_get_fn(call)), tcall_argc(call));
 }
 
 static inline tValue keys_tr(tList* keys, int at) {
@@ -306,11 +319,14 @@ static inline tValue keys_tr(tList* keys, int at) {
 
 // this is only without incoming keys
 void targs_step(tTask* task, tValue v, tList* names, tMap* defaults) {
-    trace();
     tEvalFun* run = (tEvalFun*)v;
 
     tCall* call = run->call;
     int argc = tcall_argc(call);
+    if (names) {
+        int c = tlist_size(names);
+        if (c > argc) argc = c;
+    }
 
     // ensure we have an argument list
     if (!run->args) run->args = tmap_new_keys(task, null, argc);
@@ -340,7 +356,6 @@ void targs_step(tTask* task, tValue v, tList* names, tMap* defaults) {
     }
 
     // done
-    trace("!! ARGS STEP DONE");
     flag_inargs_clear(run);
     run->count = 0;
 }
@@ -369,13 +384,12 @@ void tevalfun_step(tTask* task, tValue v) {
         tmap_set_key_(run->args, keys_tr(keys, run->count), run->count, v);
     }
     tFun* fun = tfun_as(tcall_get_fn(call));
-    trace(">> NATIVE %s", t_str(fun->name));
-    fun->native(task, tmap_as(run->args));
+    trace(">> NATIVE %p", fun);
+    fun->native(task, fun, tmap_as(run->args));
 }
 
 // this is the main part of eval: running the "list" of "bytecode"
 void teval_step(tTask* task, tValue v) {
-    trace("%p", v);
     tEval* run = teval_as(v);
 
     // check if we need to eval args
@@ -395,7 +409,7 @@ void teval_step(tTask* task, tValue v) {
                 tSym name = tsym_as(tlist_get(names, i));
                 tValue v = tmap_get_int(run->args, i);
                 if (!v) v = tNull;
-                trace("set arg: %s = %s", t_str(name), t_str(v));
+                trace("%p set arg: %s = %s", run, t_str(name), t_str(v));
                 run->env = tenv_set(task, run->env, name, v);
             }
         }
@@ -403,7 +417,7 @@ void teval_step(tTask* task, tValue v) {
 
     // check for end
     if (run->count + 4 >= run->body->head.size) {
-        trace("end of code");
+        trace("<< END %p", run);
         task->run = run->caller;
         return;
     }
@@ -411,11 +425,11 @@ void teval_step(tTask* task, tValue v) {
     // TODO make this a while loop ...
     int pc = run->count++;
     tValue op = run->body->ops[pc];
-    trace("pc=%d, op=%s", pc, t_str(op));
+    //trace("pc=%d, op=%s", pc, t_str(op));
 
     // a call means run it
     if (tcall_is(op)) {
-        trace("op: call: %s", t_str(op));
+        trace("%p op: call: %s", run, t_str(op));
         tCall* call = tcall_fillclone(task, tcall_as(op), run->env);
         ttask_call(task, call);
         return;
@@ -426,14 +440,14 @@ void teval_step(tTask* task, tValue v) {
         tValue v = tvalue_from_active(op);
         // a body means bind it with current env and set to value
         if (tbody_is(v)) {
-            trace("op: active body: %s", t_str(v));
+            trace("%p op: active body: %s", run, t_str(v));
             task->value = tclosure_new(task, tbody_as(v), run->env);
             return;
         }
         // a sym means lookup in current env and set to value
         if (tsym_is(v)) {
-            trace("op: active sym: %s = %s", t_str(v), t_str(tenv_get(task, run->env, tsym_as(v))));
-            task->value = tenv_get(task, run->env, tsym_as(v));
+            trace("%p op: active sym: %s = %s", run, t_str(v), t_str(lookup(task, run->env, tsym_as(v))));
+            task->value = lookup(task, run->env, tsym_as(v));
             return;
         }
         warning("oeps: %p %p", op, v);
@@ -442,11 +456,11 @@ void teval_step(tTask* task, tValue v) {
 
     // just a symbol means setting the current value under this name in env
     if (tsym_is(op)) {
-        trace("op: sym -- %s = %s", t_str(op), t_str(task->value));
+        trace("%p op: sym -- %s = %s", run, t_str(op), t_str(task->value));
         run->env = tenv_set(task, run->env, tsym_as(op), task->value);
         return;
     }
-    trace("op: data: %s", t_str(op));
+    trace("%p op: data: %s", run, t_str(op));
     task->value = op;
 }
 

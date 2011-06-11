@@ -14,6 +14,7 @@ struct tEnv {
     intptr_t bloom;
 
     tEnv* parent;
+    tValue run;
     tList* keys;
     tValue data[];
 };
@@ -22,17 +23,24 @@ bool tenv_is(tValue v) { return t_type(v) == TEnv; }
 tEnv* tenv_as(tValue v) { assert(tenv_is(v)); return (tEnv*)v; }
 
 int tenv_size(tEnv* env) {
-    return env->head.size - 3;
+    return env->head.size - 4;
 }
 
 tEnv* tenv_new(tTask* task, tEnv* parent, tList* keys) {
     if (!keys) keys = v_list_empty;
     trace("%d", tlist_size(keys));
-    tEnv* env = task_alloc_priv(task, TEnv, tlist_size(keys) + 2, 1);
+    tEnv* env = task_alloc_priv(task, TEnv, tlist_size(keys) + 3, 1);
     env->parent = parent;
     env->keys = keys;
     return env;
 }
+
+// TODO return copy
+tEnv* tenv_set_run(tTask* task, tEnv* env, tValue run) {
+    env->run = run;
+    return env;
+}
+tValue tenv_get_run(tEnv* env) { return env->run; }
 
 intptr_t hash_pointer(void *v) {
     return (intptr_t)v;
@@ -99,6 +107,7 @@ tEnv* tenv_set(tTask* task, tEnv* env, tSym key, tValue v) {
     assert(tlist_is(keys));
 
     tEnv* nenv = tenv_new(task, env->parent, keys);
+    nenv->run = env->run;
 
     nenv->parent = env->parent;
     nenv->keys = keys;

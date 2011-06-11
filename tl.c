@@ -5,19 +5,8 @@
 #include "debug.h"
 #include "trace-on.h"
 
-static tRES _out(tTask* task, tMap* args) {
-    trace("out(%d)", tmap_size(args));
-    for (int i = 0; i < 1000; i++) {
-        tValue v = tmap_get_int(args, i);
-        if (!v) break;
-        printf("%s", ttext_bytes(tvalue_to_text(task, v)));
-    }
-    fflush(stdout);
-    return ttask_return1(task, tNull);
-}
-
 // this is how a print function could look
-static tRES _print(tTask* task, tMap* args) {
+static tRES _print(tTask* task, tFun* fn, tMap* args) {
     trace("print(%d)", tmap_size(args));
     tText* sep = tTEXT(" ");
     tValue v = tmap_get_sym(args, tSYM("sep"));
@@ -50,11 +39,9 @@ int main(int argc, char** argv) {
     tVm* vm = tvm_new();
     tTask* task = tvm_create_task(vm);
 
-    tEnv* env = tenv_new(null, null, null);
-    tFun* f_print = tFUN(tSYM("print"), _print);
+    tEnv* env = tvm_global_env(vm);
+    tFun* f_print = tFUN(_print, tSYM("print"));
     env = tenv_set(null, env, tSYM("print"), f_print);
-    tFun* f_out = tFUN(tSYM("out"), _out);
-    env = tenv_set(null, env, tSYM("out"), f_out);
 
     tBody* body = tbody_cast(parse(script));
     assert(body);
