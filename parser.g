@@ -117,7 +117,7 @@ singleassign = n:name    _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
  multiassign = ns:anames _"="__ e:expr { $$ = tlist_from(TASK, e, ns, null); }
     noassign =                  e:expr { $$ = tlist_from1(TASK, e); }
 
-  expr = paren
+  expr = op_log
 
 fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
     tbody_set_args_(TASK, tbody_as(b), L(as));
@@ -160,30 +160,28 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
        |                           { $$ = tlist_empty(); }
 
 
-#// this doesn't work :( greg cannot handle it because it doesn't memoize
-op_log = l:op_not _ "or"  __ r:op_log { $$ = tcall_from(TASK, tACTIVE(tSYM("or")), l, r, null); }
-       | l:op_not _ "and" __ r:op_log { $$ = tcall_from(TASK, tACTIVE(tSYM("and")), l, r, null); }
-       | l:op_not _ "xor" __ r:op_log { $$ = tcall_from(TASK, tACTIVE(tSYM("xor")), l, r, null); }
-       | op_not
-op_not = "not" __ r:op_cmp            { $$ = tcall_from(TASK, tACTIVE(tSYM("not")), r, null); }
+op_log = l:op_not _ ("or"  __ r:op_not { l = tcall_from(TASK, tACTIVE(tSYM("or")), l, r, null); }
+                  _ |"and" __ r:op_not { l = tcall_from(TASK, tACTIVE(tSYM("and")), l, r, null); }
+                  _ |"xor" __ r:op_not { l = tcall_from(TASK, tACTIVE(tSYM("xor")), l, r, null); }
+                    )*                 { $$ = l }
+op_not = "not" __ r:op_cmp             { $$ = tcall_from(TASK, tACTIVE(tSYM("not")), r, null); }
        | op_cmp
-op_cmp = l:op_add _ "<=" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("lte")), l, r, null); }
-       | l:op_add _ "<"  __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("lt")), l, r, null); }
-       | l:op_add _ ">"  __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("gt")), l, r, null); }
-       | l:op_add _ ">=" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("gte")), l, r, null); }
-       | l:op_add _ "==" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("eq")), l, r, null); }
-       | l:op_add _ "!=" __ r:op_cmp { $$ = tcall_from(TASK, tACTIVE(tSYM("neq")), l, r, null); }
-       | op_add
-op_add = l:op_mul _ "+" __ r:op_add { $$ = tcall_from(TASK, tACTIVE(tSYM("add")), l, r, null); }
-       | l:op_mul _ "-" __ r:op_add { $$ = tcall_from(TASK, tACTIVE(tSYM("sub")), l, r, null); }
-       | op_mul
-op_mul = l:op_pow _ "*" __ r:op_mul { $$ = tcall_from(TASK, tACTIVE(tSYM("mul")), l, r, null); }
-       | l:op_pow _ "/" __ r:op_mul { $$ = tcall_from(TASK, tACTIVE(tSYM("div")), l, r, null); }
-       | l:op_pow _ "%" __ r:op_mul { $$ = tcall_from(TASK, tACTIVE(tSYM("mod")), l, r, null); }
-       | op_pow
-op_pow = l:paren _ "^" __ r:op_pow  { $$ = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
-       | paren
-
+op_cmp = l:op_add _ ("<=" __ r:op_add { l = tcall_from(TASK, tACTIVE(tSYM("lte")), l, r, null); }
+                    |"<"  __ r:op_add { l = tcall_from(TASK, tACTIVE(tSYM("lt")), l, r, null); }
+                    |">"  __ r:op_add { l = tcall_from(TASK, tACTIVE(tSYM("gt")), l, r, null); }
+                    |">=" __ r:op_add { l = tcall_from(TASK, tACTIVE(tSYM("gte")), l, r, null); }
+                    |"==" __ r:op_add { l = tcall_from(TASK, tACTIVE(tSYM("eq")), l, r, null); }
+                    |"!=" __ r:op_add { l = tcall_from(TASK, tACTIVE(tSYM("neq")), l, r, null); }
+                    )*                { $$ = l; }
+op_add = l:op_mul _ ("+" __ r:op_mul { l = tcall_from(TASK, tACTIVE(tSYM("add")), l, r, null); }
+                    |"-" __ r:op_mul { l = tcall_from(TASK, tACTIVE(tSYM("sub")), l, r, null); }
+                    )*               { $$ = l; }
+op_mul = l:op_pow _ ("*" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("mul")), l, r, null); }
+                    |"/" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("div")), l, r, null); }
+                    |"%" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("mod")), l, r, null); }
+                    )*               { $$ = l; }
+op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
+                    )*
 
  paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }

@@ -48,6 +48,16 @@ static tRES _mul(tTask* task, tFun* fn, tMap* args) {
     trace("MUL: %d", res);
     return ttask_return1(task, tINT(res));
 }
+static tRES _div(tTask* task, tFun* fn, tMap* args) {
+    int res = t_int(tmap_get_int(args, 0)) / t_int(tmap_get_int(args, 1));
+    trace("DIV: %d", res);
+    return ttask_return1(task, tINT(res));
+}
+static tRES _mod(tTask* task, tFun* fn, tMap* args) {
+    int res = t_int(tmap_get_int(args, 0)) % t_int(tmap_get_int(args, 1));
+    trace("MOD: %d", res);
+    return ttask_return1(task, tINT(res));
+}
 
 void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
@@ -94,6 +104,8 @@ tEnv* tvm_global_env(tVm* vm) {
     env = tenv_set(null, env, tSYM("add"), tFUN(_add, tSYM("add")));
     env = tenv_set(null, env, tSYM("sub"), tFUN(_sub, tSYM("sub")));
     env = tenv_set(null, env, tSYM("mul"), tFUN(_mul, tSYM("mul")));
+    env = tenv_set(null, env, tSYM("div"), tFUN(_div, tSYM("div")));
+    env = tenv_set(null, env, tSYM("mod"), tFUN(_mod, tSYM("mod")));
     return env;
 }
 
