@@ -40,6 +40,7 @@ const char* const type_to_str[] = {
 
     "TThunk",
     "TResult",
+    "TCollect",
     "TError",
 
     "TVar",

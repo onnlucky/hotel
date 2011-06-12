@@ -69,6 +69,17 @@ TTYPE(tEval, teval, TEval);
 TTYPE(tEvalFun, tevalfun, TEvalFun);
 TTYPE(tEvalCall, tevalcall, TEvalCall);
 
+typedef struct tResult {
+    tHead head;
+    tValue data[];
+} tResult;
+typedef struct tCollect {
+    tHead head;
+    tValue data[];
+} tCollect;
+TTYPE(tResult, tresult, TResult);
+TTYPE(tCollect, tcollect, TCollect);
+
 tFun* tfun_new(tTask* task, t_native native, tValue data) {
     tFun* fun = task_alloc_priv(task, TFun, 1, 1);
     fun->native = native;
@@ -240,10 +251,39 @@ void ttask_call(tTask* task, tCall* call) {
     }
 }
 
+tValue tcollect_new_(tTask* task, tList* list) {
+    list->head.type = TCollect;
+    return list;
+}
+tValue tresult_new(tTask* task, tMap* args) {
+    int size = tmap_size(args);
+    tResult* res = task_alloc(task, TResult, size);
+    for (int i = 0; i < size; i++) {
+        res->data[i] = tmap_get_int(args, i);
+    }
+    return res;
+}
+
+tValue tresult_get(tValue v, int at) {
+    assert(at >= 0);
+    if (!tresult_is(v)) {
+        print("NOT A RESULT: %s", t_str(v));
+        if (at == 0) return v;
+        return tNull;
+    }
+    tResult* result = tresult_as(v);
+    if (at < result->head.size) return result->data[at];
+    return tNull;
+}
+
 static tRES _return(tTask* task, tFun* fn, tMap* args) {
     trace("<< RETURN(%d)", tmap_size(args));
+    if (tmap_size(args) == 1) {
+        task->value = tmap_get_int(args, 0);
+    } else {
+        task->value = tresult_new(task, args);
+    }
     task->run = teval_as(fn->data)->caller;
-    task->value = tmap_get_int(args, 0);
     return 0;
 }
 
@@ -458,6 +498,16 @@ void teval_step(tTask* task, tValue v) {
     if (tsym_is(op)) {
         trace("%p op: sym -- %s = %s", run, t_str(op), t_str(task->value));
         run->env = tenv_set(task, run->env, tsym_as(op), task->value);
+        return;
+    }
+    if (tcollect_is(op)) {
+        tCollect* names = tcollect_as(op);
+        trace("%p op: collect -- %d -- %s", run, names->head.size, t_str(task->value));
+        for (int i = 0; i < names->head.size; i++) {
+            tSym name = tsym_as(names->data[i]);
+            tValue v = tresult_get(task->value, i);
+            run->env = tenv_set(task, run->env, name, v);
+        }
         return;
     }
     trace("%p op: data: %s", run, t_str(op));

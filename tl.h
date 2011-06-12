@@ -90,6 +90,7 @@ enum {
 
     TThunk,
     TResult,
+    TCollect,
     TError,
 
     TVar,

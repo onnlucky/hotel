@@ -87,6 +87,8 @@ static char* unescape(const char* s) {
 #define TASK yyxvar->task
 #define L(l) tlist_as(l)
 
+tValue tcollect_new_(tTask* task, tList* list);
+
 %}
 
  start = __ b:body __ !.   { $$ = b; }
@@ -114,7 +116,7 @@ anames =     n:name _","_ as:anames { $$ = tlist_prepend(TASK, L(as), n); }
        |     n:name                 { $$ = tlist_from1(TASK, n); }
 
 singleassign = n:name    _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
- multiassign = ns:anames _"="__ e:expr { $$ = tlist_from(TASK, e, ns, null); }
+ multiassign = ns:anames _"="__ e:expr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
     noassign =                  e:expr { $$ = tlist_from1(TASK, e); }
 
   expr = op_log
