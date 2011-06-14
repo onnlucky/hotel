@@ -301,6 +301,20 @@ bool ttask_force(tTask* task, tValue v) {
     return false;
 }
 
+// from an activated map, resolve all activated values
+tMap* tmap_fillclone(tTask* task, tMap* inmap, tEnv* env) {
+    trace();
+    tMap* map = tmap_copy(task, inmap);
+    for (int i = 0; true; i++) {
+        tValue v = tmap_value_iter(map, i);
+        if (!v) break;
+        fatal("not implemented");
+        //v = decode(tTask* task, v, env);
+        //tmap_value_iter_set_(map, i, v)
+    }
+    return map;
+}
+
 // from a suspended call, resolve all names and bind all code
 tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
     int argc = tcall_argc(o);
@@ -488,6 +502,12 @@ void teval_step(tTask* task, tValue v) {
         if (tsym_is(v)) {
             trace("%p op: active sym: %s = %s", run, t_str(v), t_str(lookup(task, run->env, tsym_as(v))));
             task->value = lookup(task, run->env, tsym_as(v));
+            return;
+        }
+        // a map means it contains values to be looked up from scope
+        if (tmap_is(v)) {
+            trace("%p op: active map: %d", run, tmap_size(tmap_as(v)));
+            task->value = tmap_fillclone(task, tmap_as(v), run->env);
             return;
         }
         warning("oeps: %p %p", op, v);

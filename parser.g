@@ -33,6 +33,21 @@ bool check_indent(void* data);
 #define YY_XTYPE ParseContext*
 #define YY_INPUT(buf, len, max, cx) { len = writesome(cx, buf, max); }
 
+tValue map_activate(tMap* map) {
+    print("MAP_ACTIVATE: %d", tmap_size(map));
+    bool active = false;
+    int i = 0;
+    do {
+        tValue v = tmap_value_iter(map, i);
+        print("%d: %s", i, t_str(v));
+        if (!v) break;
+        if (tactive_is(v)) { active = true; break; }
+        i++;
+    } while (true);
+    print("MAP_ACTIVATE: %d", active);
+    if (active) return tACTIVE(map);
+    return map;
+}
 tValue set_target(tValue on, tValue target) {
     if (!on) return target;
     if (tcall_is(on)) {
@@ -192,10 +207,10 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow"))
 
 
 
-   map = is:items               { $$ = tmap_from_list(TASK, L(is)); }
+   map = "{"__ is:items __"}"   { $$ = map_activate(tmap_from_list(TASK, L(is))); }
  items = i:item _","__ is:items { $$ = tlist_cat(TASK, L(i), L(is)); }
        | i:item                 { $$ = i }
-       |                        { $$ = tNull; }
+       |                        { $$ = tlist_empty(); }
 
   item = "+"_ n:name            { $$ = tLIST2(TASK, n, tTrue); }
        | "-"_ n:name            { $$ = tLIST2(TASK, n, tFalse); }
@@ -203,9 +218,8 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow"))
        | v:value                { $$ = tLIST2(TASK, tNull, v); }
 
 
-
 # value = lit | number | text | mut | ref | sym
- value = lit | number | text | sym | lookup
+ value = lit | number | text | map | sym | lookup
 
    lit = "true"      { $$ = tTrue; }
        | "false"     { $$ = tFalse; }

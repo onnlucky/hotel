@@ -227,6 +227,7 @@ int tmap_size(tMap* map);
 int tmap_is_empty(tMap* map);
 tValue tmap_get_int(tMap* map, int key);
 tValue tmap_get_sym(tMap* map, tSym key);
+tValue tmap_value_iter(tMap* map, int i);
 
 tMap* tmap_new(tT, int size);
 tMap* tmap_copy(tT, tMap* map);

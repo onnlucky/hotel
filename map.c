@@ -1,6 +1,6 @@
 // a map implementation
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tMap* v_map_empty;
 
@@ -30,6 +30,10 @@ void tmap_dump(tMap* map) {
                 tValue v = map->data[_OFFSET(map) + i];
                 print("%s: %s", t_str(key), t_str(v));
             }
+        }
+    } else {
+        for (int i = 0; i < map->head.size; i++) {
+            print("%d: %s", i, t_str(map->data[i]));
         }
     }
 }
@@ -136,6 +140,21 @@ tMap* tmap_from_list(tTask* task, tList* pairs) {
     }
     trace("CONSTRUCT: %d, %d", intsize, keysize);
 
+    if (!keys) {
+        if (intsize == 0) return v_map_empty;
+        for (int i = 0; i < size; i++) {
+            tValue key = tlist_get(pairs, i * 2);
+            assert(key == tNull);
+            tValue v = tlist_get(pairs, i * 2 + 1);
+            assert(v);
+            tlist_set_(list, i, v);
+        }
+        list->head.type = TMap;
+        assert(tmap_is(list));
+        tmap_dump(list);
+        return list;
+    }
+
     tMap* map = task_alloc(task, TMap, (list?1:0)+(keys?1:0)+keysize);
     if (list) {
         map->head.flags |= T_FLAG_HASLIST;
@@ -180,6 +199,23 @@ int tmap_size(tMap* map) {
 }
 
 int tmap_is_empty(tMap* map) { return tmap_size(map) == 0; }
+
+tValue tmap_value_iter(tMap* map, int i) {
+    tmap_dump(map);
+    assert(i >= 0);
+    if (HASLIST(map)) {
+        print("HASLIST: %d", i);
+        tList* list = _LIST(map);
+        if (i < tlist_size(list)) return tlist_get(list, i);
+        i -= tlist_size(list);
+    }
+    print("OFFSET=%d at=%d size=%d", _OFFSET(map), i, map->head.size);
+    if (i + _OFFSET(map) < map->head.size) {
+        print("%s", t_str(tmap_get_int(map, i)));
+        return map->data[_OFFSET(map) + i];
+    }
+    return null;
+}
 
 tValue tmap_get_int(tMap* map, int key) {
     trace("get: %p %d %d", map, key, map->head.size);
