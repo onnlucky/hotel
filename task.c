@@ -301,6 +301,8 @@ bool ttask_force(tTask* task, tValue v) {
     return false;
 }
 
+tValue decode(tTask* task, tValue v, tEnv* env);
+
 // from an activated map, resolve all activated values
 tMap* tmap_fillclone(tTask* task, tMap* inmap, tEnv* env) {
     trace();
@@ -308,9 +310,8 @@ tMap* tmap_fillclone(tTask* task, tMap* inmap, tEnv* env) {
     for (int i = 0; true; i++) {
         tValue v = tmap_value_iter(map, i);
         if (!v) break;
-        fatal("not implemented");
-        //v = decode(tTask* task, v, env);
-        //tmap_value_iter_set_(map, i, v)
+        v = decode(task, v, env);
+        tmap_value_iter_set_(map, i, v);
     }
     return map;
 }
@@ -343,6 +344,30 @@ tCall* tcall_fillclone(tTask* task, tCall* o, tEnv* env) {
         tcall_set_(call, i, v);
     }
     return call;
+}
+
+tValue decode(tTask* task, tValue v, tEnv* env) {
+    if (tactive_is(v)) {
+        v = tvalue_from_active(v);
+        trace("%s", t_str(v));
+        if (tsym_is(v)) {
+            // TODO throw error if not found
+            v = lookup(task, env, v);
+            if (!v) v = tNull;
+            return v;
+        }
+        if (tbody_is(v)) {
+            return tclosure_new(task, tbody_as(v), env);
+        }
+        if (tmap_is(v)) {
+            return tmap_fillclone(task, tmap_as(v), env);
+        }
+    }
+    trace("%s", t_str(v));
+    if (tcall_is(v)) {
+        return tcall_fillclone(task, tcall_as(v), env);
+    }
+    return v;
 }
 
 // we use this to evaluate calls in function position

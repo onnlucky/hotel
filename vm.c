@@ -59,6 +59,12 @@ static tRES _mod(tTask* task, tFun* fn, tMap* args) {
     return ttask_return1(task, tINT(res));
 }
 
+static tRES _map_get(tTask* task, tFun* fn, tMap* args) {
+    tMap* map = tmap_cast(tmap_get_int(args, 0));
+    tValue key = tmap_get_int(args, 1);
+    return ttask_return1(task, tmap_get(task, map, key));
+}
+
 void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
     assert(sizeof(tHead) <= sizeof(intptr_t));
@@ -106,6 +112,8 @@ tEnv* tvm_global_env(tVm* vm) {
     env = tenv_set(null, env, tSYM("mul"), tFUN(_mul, tSYM("mul")));
     env = tenv_set(null, env, tSYM("div"), tFUN(_div, tSYM("div")));
     env = tenv_set(null, env, tSYM("mod"), tFUN(_mod, tSYM("mod")));
+
+    env = tenv_set(null, env, tSYM("map_get"), tFUN(_map_get, tSYM("map_get")));
     return env;
 }
 

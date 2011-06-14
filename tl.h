@@ -237,7 +237,7 @@ tMap* tmap_from_a(tT, tValue* vs, int len /*multiple of 2*/);
 tMap* tmap_from_list(tT, tList* ls);
 #define tMAP tmap_from1
 
-tMap* tmap_get(tT, tMap* map, tValue key, tValue v);
+tValue tmap_get(tT, tMap* map, tValue key);
 tMap* tmap_cat(tT, tMap* lhs, tMap* rhs);
 
 tMap* tmap_set(tT, tMap* map, tValue key, tValue v);

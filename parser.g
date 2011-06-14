@@ -42,6 +42,7 @@ tValue map_activate(tMap* map) {
         print("%d: %s", i, t_str(v));
         if (!v) break;
         if (tactive_is(v)) { active = true; break; }
+        if (tcall_is(v)) { active = true; break; }
         i++;
     } while (true);
     print("MAP_ACTIVATE: %d", active);
@@ -214,8 +215,8 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow"))
 
   item = "+"_ n:name            { $$ = tLIST2(TASK, n, tTrue); }
        | "-"_ n:name            { $$ = tLIST2(TASK, n, tFalse); }
-       | n:name _"="__ v:value  { $$ = tLIST2(TASK, n, v); }
-       | v:value                { $$ = tLIST2(TASK, tNull, v); }
+       | n:name _"="__ v:expr   { $$ = tLIST2(TASK, n, v); }
+       | v:expr                 { $$ = tLIST2(TASK, tNull, v); }
 
 
 # value = lit | number | text | mut | ref | sym

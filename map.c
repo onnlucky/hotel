@@ -41,7 +41,7 @@ void tmap_dump(tMap* map) {
 tMap* tmap_new(tTask* task, int size) {
     return task_alloc(task, TMap, size);
 }
-tMap* tmap_copy(tTask* task, tMap* o) {
+tMap* tmap_copy_empty(tTask* task, tMap* o) {
     assert(tmap_is(o));
     tMap* map = task_alloc(task, TMap, o->head.size);
     if (HASKEYS(o)) {
@@ -55,11 +55,22 @@ tMap* tmap_copy(tTask* task, tMap* o) {
     }
     return map;
 }
+tMap* tmap_copy(tTask* task, tMap* o) {
+    tMap* map = tmap_copy_empty(task, o);
+    if (HASLIST(map)) {
+        assert(HASLIST(o));
+        _LIST(map) = tlist_copy(task, _LIST(o), -1);
+    }
+    for (int i = _OFFSET(map); i < map->head.size; i++) {
+        map->data[i] = o->data[i];
+    }
+    return map;
+}
 
 tMap* tmap_new_keys(tTask* task, tList* keys, int size) {
     trace("new map keys: %s %d", t_str(keys), size);
     tMap* map;
-    if (keys) map = tmap_copy(task, tlist_get(keys, size));
+    if (keys) map = tmap_copy_empty(task, tlist_get(keys, size));
     else map = tmap_new(task, size);
     return map;
 }
@@ -201,20 +212,33 @@ int tmap_size(tMap* map) {
 int tmap_is_empty(tMap* map) { return tmap_size(map) == 0; }
 
 tValue tmap_value_iter(tMap* map, int i) {
-    tmap_dump(map);
     assert(i >= 0);
     if (HASLIST(map)) {
-        print("HASLIST: %d", i);
         tList* list = _LIST(map);
         if (i < tlist_size(list)) return tlist_get(list, i);
         i -= tlist_size(list);
     }
-    print("OFFSET=%d at=%d size=%d", _OFFSET(map), i, map->head.size);
     if (i + _OFFSET(map) < map->head.size) {
-        print("%s", t_str(tmap_get_int(map, i)));
         return map->data[_OFFSET(map) + i];
     }
     return null;
+}
+
+void tmap_value_iter_set_(tMap* map, int i, tValue v) {
+    assert(i >= 0);
+    if (HASLIST(map)) {
+        tList* list = _LIST(map);
+        if (i < tlist_size(list)) {
+            tlist_set_(list, i, v);
+            return;
+        }
+        i -= tlist_size(list);
+    }
+    if (i + _OFFSET(map) < map->head.size) {
+        map->data[_OFFSET(map) + i] = v;
+        return;
+    }
+    assert(false);
 }
 
 tValue tmap_get_int(tMap* map, int key) {
@@ -277,6 +301,13 @@ void tmap_set_sym_(tMap* map, tSym key, tValue v) {
     map->data[_OFFSET(map) + at] = v;
 }
 
+tValue tmap_get(tTask* task, tMap* map, tValue key) {
+    if (tint_is(key)) return tmap_get_int(map, t_int(key));
+    if (tsym_is(key)) return tmap_get_sym(map, tsym_as(key));
+    fatal("not implemented");
+    return tNull;
+}
+
 tMap* tmap_set(tTask* task, tMap* map, tValue key, tValue v) {
     trace("set map: %s = %s", t_str(key), t_str(v));
     //if (tint_is(key)) return tmap_set_int(task, map, tint_as(key), v);
@@ -288,9 +319,6 @@ tMap* tmap_set(tTask* task, tMap* map, tValue key, tValue v) {
         at = set_indexof(keys, key);
         if (at >= 0) {
             tMap* nmap = tmap_copy(task, map);
-            for (int i = 0; i < tlist_size(keys); i++) {
-                nmap->data[_OFFSET(nmap) + i] = map->data[_OFFSET(map) + i];
-            }
             nmap->data[_OFFSET(nmap) + at] = v;
             return nmap;
         }

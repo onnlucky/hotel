@@ -1,3 +1,4 @@
 hello = 7
-{hello}
+map = { print(4 + 4) }
+map_get(map, 0)
 
