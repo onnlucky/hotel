@@ -224,21 +224,22 @@ tValue tmap_value_iter(tMap* map, int i) {
     return null;
 }
 
-void tmap_value_iter_set_(tMap* map, int i, tValue v) {
+tMap* tmap_value_iter_set_(tMap* map, int i, tValue v) {
     assert(i >= 0);
     if (HASLIST(map)) {
         tList* list = _LIST(map);
         if (i < tlist_size(list)) {
             tlist_set_(list, i, v);
-            return;
+            return map;
         }
         i -= tlist_size(list);
     }
     if (i + _OFFSET(map) < map->head.size) {
         map->data[_OFFSET(map) + i] = v;
-        return;
+        return map;
     }
     assert(false);
+    return map;
 }
 
 tValue tmap_get_int(tMap* map, int key) {

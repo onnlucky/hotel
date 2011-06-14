@@ -44,11 +44,13 @@ int main(int argc, char** argv) {
     env = tenv_set(null, env, tSYM("print"), f_print);
 
     tBody* body = tbody_cast(parse(script));
+    trace("PARSED");
     assert(body);
 
     tClosure* fn = tclosure_new(null, body, env);
     ttask_call(task, tcall_from(null, fn, null));
 
+    trace("STEPPING");
     while (task->run) ttask_step(task);
 
     trace("DONE");

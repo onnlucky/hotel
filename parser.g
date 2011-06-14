@@ -49,6 +49,21 @@ tValue map_activate(tMap* map) {
     if (active) return tACTIVE(map);
     return map;
 }
+tValue tcall_value_iter(tCall* call, int i);
+tCall* tcall_value_iter_set_(tCall* call, int i, tValue v);
+tValue call_activate(tValue* in) {
+    if (tcall_is(in)) {
+        tCall* call = tcall_as(in);
+        for (int i = 0;; i++) {
+            tValue v = tcall_value_iter(call, i);
+            if (!v) break;
+            tValue v2 = call_activate(v);
+            if (v != v2) tcall_value_iter_set_(call, i, v2);
+        }
+        return tACTIVE(call);
+    }
+    return in;
+}
 tValue set_target(tValue on, tValue target) {
     if (!on) return target;
     if (tcall_is(on)) {
@@ -201,10 +216,10 @@ op_mul = l:op_pow _ ("*" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("mul"))
 op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
                     )*
 
- paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
-       | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }
-       | f:fn t:tail               { $$ = set_target(t, tACTIVE(f)); }
-       | v:value t:tail            { $$ = set_target(t, v); }
+ paren = "("__ e:expr __")" t:tail { $$ = call_activate(set_target(t, e)); }
+       | "("__ b:body __")" t:tail { $$ = call_activate(set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty()))); }
+       | f:fn t:tail               { $$ = call_activate(set_target(t, tACTIVE(f))); }
+       | v:value t:tail            { $$ = call_activate(set_target(t, v)); }
 
 
 

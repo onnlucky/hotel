@@ -1,19 +1,11 @@
 # TODO
+fix new run implementation, runs always need to return values ...
+rename task_yield and yielding and such ... maybe
+
 implement goto
 implement continuations
 
-Implement run_call and such as non primitive c functions. Think about tRun, maybe looks as:
-struct tRun {
-    tHead head;
-    intptr_t data;
-    tRun* caller;
-    tFun* fn;
-    tValue data[];
-};
-
-rename eval to run (TRunCall, TRunBody, TRunArgs, TRun...)
 rename body to code or block or?
-split evalbody in evalargs and evalcode?
 add keyworded arguments and processing for hotel functions
 
 lookup should handle: #this, #body, #goto and some others

@@ -83,6 +83,7 @@ enum {
     TFun,
 
     TCall,
+    TRun,
 
     TEvalCall,
     TEvalFun,
@@ -283,7 +284,6 @@ void ttask_call(tT, tCall* args);
 
 typedef int tRES;
 tRES ttask_return1(tT, tValue);
-tRES ttask_return(tT, ... /*tValue*/);
 tRES ttask_return_a(tT, tValue* vs, int len);
 
 

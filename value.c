@@ -33,6 +33,7 @@ const char* const type_to_str[] = {
     "TFun",
 
     "TCall",
+    "TRun",
 
     "TEvalCall",
     "TEvalFun",
@@ -85,6 +86,17 @@ tValue task_alloc_priv(tTask* task, uint8_t type, int size, uint8_t privs) {
     tHead* head = task_alloc(task, type, size + privs);
     assert((((intptr_t)head) & 7) == 0);
     head->flags = privs;
+    return (tValue)head;
+}
+tValue task_alloc_full(tTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
+    assert(type > 0 && type < TLAST);
+    assert(privs <= 0x0F);
+    int size = bytes + (privs + datas) * sizeof(tValue);
+    assert(size < 0xFFFF);
+    tHead* head = calloc(1, size);
+    assert((((intptr_t)head) & 7) == 0);
+    head->type = type;
+    head->size = size;
     return (tValue)head;
 }
 

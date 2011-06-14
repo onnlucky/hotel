@@ -71,7 +71,7 @@ void tvm_init() {
 
     trace("    field size: %zd", sizeof(tValue));
     trace(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    trace("frame overhead: %zd (%zd)", sizeof(tEval), sizeof(tEval)/sizeof(tValue));
+    trace("frame overhead: %zd (%zd)", sizeof(tRun), sizeof(tRun)/sizeof(tValue));
     trace(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
 
     text_init();
