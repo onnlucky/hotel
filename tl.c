@@ -6,7 +6,7 @@
 #include "trace-on.h"
 
 // this is how a print function could look
-static tRES _print(tTask* task, tFun* fn, tMap* args) {
+static tValue _print(tTask* task, tFun* fn, tMap* args) {
     trace("print(%d)", tmap_size(args));
     tText* sep = tTEXT(" ");
     tValue v = tmap_get_sym(args, tSYM("sep"));
@@ -20,7 +20,7 @@ static tRES _print(tTask* task, tFun* fn, tMap* args) {
     }
     printf("\n");
     fflush(stdout);
-    return ttask_return1(task, tNull);
+    return tNull;
 }
 
 // this is how to setup a vm

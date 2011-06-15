@@ -289,7 +289,7 @@ tRES ttask_return_a(tT, tValue* vs, int len);
 
 // ** callbacks **
 typedef struct tFun tFun;
-typedef tRES(*t_native)(tTask*, tFun*, tMap*);
+typedef tValue(*t_native)(tTask*, tFun*, tMap*);
 
 // for general functions
 tFun* tFUN(t_native, tValue data);

@@ -1,4 +1,5 @@
-hello = 7
-map = { 4 }
+map = { "hello", "world!" }
+out("hello world!\n")
 map_get(map, 0)
+map_get(map, 1)
 

@@ -13,7 +13,7 @@
 
 #include "trace-on.h"
 
-static tRES _out(tTask* task, tFun* fn, tMap* args) {
+static tValue _out(tTask* task, tFun* fn, tMap* args) {
     trace("out(%d)", tmap_size(args));
     for (int i = 0; i < 1000; i++) {
         tValue v = tmap_get_int(args, i);
@@ -21,48 +21,51 @@ static tRES _out(tTask* task, tFun* fn, tMap* args) {
         printf("%s", ttext_bytes(tvalue_to_text(task, v)));
     }
     fflush(stdout);
-    return ttask_return1(task, tNull);
+    return tNull;
 }
-static tRES _bool(tTask* task, tFun* fn, tMap* args) {
+static tValue _bool(tTask* task, tFun* fn, tMap* args) {
     tValue c = tmap_get_int(args, 0);
     trace("BOOL: %s", t_bool(c)?"true":"false");
-    if (t_bool(c)) return ttask_return1(task, tmap_get_int(args, 1));
-    return ttask_return1(task, tmap_get_int(args, 2));
+    tValue res = tmap_get_int(args, t_bool(c)?1:2);
+    if (!res) return tNull;
+    return res;
 }
-static tRES _lte(tTask* task, tFun* fn, tMap* args) {
+static tValue _lte(tTask* task, tFun* fn, tMap* args) {
     trace("%d <= %d", t_int(tmap_get_int(args, 0)), t_int(tmap_get_int(args, 1)));
-    return ttask_return1(task, tBOOL(t_int(tmap_get_int(args, 0)) <= t_int(tmap_get_int(args, 1))));
+    return tBOOL(t_int(tmap_get_int(args, 0)) <= t_int(tmap_get_int(args, 1)));
 }
-static tRES _add(tTask* task, tFun* fn, tMap* args) {
+static tValue _add(tTask* task, tFun* fn, tMap* args) {
     int res = t_int(tmap_get_int(args, 0)) + t_int(tmap_get_int(args, 1));
     trace("ADD: %d", res);
-    return ttask_return1(task, tINT(res));
+    return tINT(res);
 }
-static tRES _sub(tTask* task, tFun* fn, tMap* args) {
+static tValue _sub(tTask* task, tFun* fn, tMap* args) {
     int res = t_int(tmap_get_int(args, 0)) - t_int(tmap_get_int(args, 1));
     trace("SUB: %d", res);
-    return ttask_return1(task, tINT(res));
+    return tINT(res);
 }
-static tRES _mul(tTask* task, tFun* fn, tMap* args) {
+static tValue _mul(tTask* task, tFun* fn, tMap* args) {
     int res = t_int(tmap_get_int(args, 0)) * t_int(tmap_get_int(args, 1));
     trace("MUL: %d", res);
-    return ttask_return1(task, tINT(res));
+    return tINT(res);
 }
-static tRES _div(tTask* task, tFun* fn, tMap* args) {
+static tValue _div(tTask* task, tFun* fn, tMap* args) {
     int res = t_int(tmap_get_int(args, 0)) / t_int(tmap_get_int(args, 1));
     trace("DIV: %d", res);
-    return ttask_return1(task, tINT(res));
+    return tINT(res);
 }
-static tRES _mod(tTask* task, tFun* fn, tMap* args) {
+static tValue _mod(tTask* task, tFun* fn, tMap* args) {
     int res = t_int(tmap_get_int(args, 0)) % t_int(tmap_get_int(args, 1));
     trace("MOD: %d", res);
-    return ttask_return1(task, tINT(res));
+    return tINT(res);
 }
 
-static tRES _map_get(tTask* task, tFun* fn, tMap* args) {
+static tValue _map_get(tTask* task, tFun* fn, tMap* args) {
     tMap* map = tmap_cast(tmap_get_int(args, 0));
     tValue key = tmap_get_int(args, 1);
-    return ttask_return1(task, tmap_get(task, map, key));
+    tValue res = tmap_get(task, map, key);
+    if (!res) return tNull;
+    return res;
 }
 
 void tvm_init() {
