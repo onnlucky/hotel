@@ -250,30 +250,24 @@ tTask* ttask_new(tVm* vm) {
     task->vm = vm;
     return task;
 }
-void ttask_return(tTask* task) {
-    assert(task->run);
-    task->run = task->run->caller;
-}
-void ttask_yield(tTask* task, tValue v) {
+void ttask_return(tTask* task, tValue v) {
     tRun* run = trun_as(v);
-    run->caller = task->run;
+    assert(task->run == run);
+    trace("%p <<<< %p", run->caller, run);
+    task->run = run->caller;
+}
+void ttask_run(tTask* task, tValue v) {
+    tRun* run = trun_as(v);
+    trace("%p >>>> %p", task->run, run);
     task->run = run;
 }
-bool ttask_yielding(tTask* task, tValue v) {
-    tRun* run = trun_as(v);
-    assert(trun_is(run));
-    return task->run != run;
-}
-tValue ttask_value(tTask* task) {
-    return tresult_get(task->value, 0);
+void set_caller(tValue run, tValue caller) {
+    trace("%p.caller = %p", run, caller);
+    trun_as(run)->caller = trun_as(caller);
 }
 
-tRES ttask_return1(tTask* task, tValue v) {
-    assert(task->run);
-    trace(" << RETURN %p -> %p", task->run, task->run->caller);
-    //task->run = task->run->caller;
-    task->value = (v)?v:tNull;
-    return 0;
+tValue ttask_value(tTask* task) {
+    return tresult_get(task->value, 0);
 }
 
 tValue apply(tTask* task, tCall* call);
@@ -355,7 +349,7 @@ tValue activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env)
                 }
                 run->count = -1 - i;
                 run->call = call;
-                trun_as(v)->caller = trun_as(run);
+                set_caller(v, run);
                 return run;
             }
             call = tcall_value_iter_set_(call, i, v);
@@ -387,7 +381,7 @@ tValue activate_map(tTask* task, tRunActivateMap* run, tMap* map, tEnv* env) {
                 }
                 run->count = -1 - i;
                 run->map = map;
-                trun_as(v)->caller = trun_as(run);
+                set_caller(v, run);
                 return run;
             }
             map = tmap_value_iter_set_(map, i, v);
@@ -426,7 +420,7 @@ tValue first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
         if (trun_is(fn)) {
             run = trun_alloc(task, sizeof(tRunFirst), 0, first_step);
             run->call = call;
-            trun_as(fn)->caller = trun_as(run);
+            set_caller(fn, run);
             return run;
         }
     } else {
@@ -434,8 +428,11 @@ tValue first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
     }
     call = tcall_copy_fn(task, call, fn);
     trace("%p << first: %p %p", run, call, fn);
-    if (run) task->run = run->caller;
-    return apply(task, call);
+    tValue v = apply(task, call);
+    if (run && trun_is(v)) {
+        set_caller(v, run->caller);
+    }
+    return v;
 }
 
 tValue chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* names);
@@ -484,7 +481,7 @@ tValue trun_args_step(tTask* task, tRunArgs* run) {
             if (trun_is(v)) {
                 run->count = -1 - i;
                 run->args = args;
-                trun_as(v)->caller = trun_as(run);
+                set_caller(v, run);
                 return run;
             }
         }
@@ -549,7 +546,7 @@ tValue trun_args_host_step(tTask* task, tRunArgs* run) {
             if (trun_is(v)) {
                 run->count = -1 - i;
                 run->args = args;
-                trun_as(v)->caller = trun_as(run);
+                set_caller(v, run);
                 return run;
             }
         }
@@ -561,8 +558,9 @@ tValue trun_args_host_step(tTask* task, tRunArgs* run) {
     if (tfun_is(v)) {
         tFun* fun = tfun_as(v);
         trace(">> NATIVE %p", fun);
-        if (run) task->run = run->caller;
+        if (run) ttask_return(task, run);
         tValue v = fun->native(task, fun, tmap_as(args));
+        if (!v) v = tNull;
         assert(!tcall_is(v));
         assert(!trun_is(v));
         return v;
@@ -594,7 +592,7 @@ tValue trun_code_step(tTask* task, tRunCode* run) {
                 trace("%p op: active yield: %p", run, op);
                 run->pc = pc + 1;
                 run->env = env;
-                trun_as(op)->caller = trun_as(run);
+                set_caller(op, run);
                 return run;
             }
 
@@ -626,7 +624,7 @@ tValue trun_code_step(tTask* task, tRunCode* run) {
         trace("%p op: data: %s", run, t_str(op));
         task->value = op;
     }
-    if (run) task->run = run->caller;
+    if (run) ttask_return(task, run);
     return task->value;
 }
 
@@ -640,15 +638,15 @@ tValue trun_thunk(tTask* task, tThunk* thunk) {
 
 tValue trun_args(tTask* task, tCall* call) {
     tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, (tHostStep)trun_args_step);
-    task->run = trun_as(run);
     run->call = call;
+    ttask_run(task, run);
     return run;
 }
 
 tValue trun_args_host(tTask* task, tCall* call) {
     tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, (tHostStep)trun_args_host_step);
-    task->run = trun_as(run);
     run->call = call;
+    ttask_run(task, run);
     return run;
 }
 
@@ -681,12 +679,7 @@ void ttask_step(tTask* task) {
     tRun* run = task->run;
     trace("%p", run);
     assert(run->step);
-    tValue v = run->step(task, run);
-    if (trun_is(v)) return;
-
-    if (v) task->value = v;
-    trace("%p <<<< %p", run->caller, task->run);
-    task->run = run->caller;
+    run->step(task, run);
     assert(!task->run || trun_is(task->run));
 }
 
