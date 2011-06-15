@@ -290,7 +290,8 @@ void ttask_call(tTask* task, tCall* call) {
         if (!v) { assert(i >= tcall_argc(call)); break; }
         assert(!tactive_is(v));
     }
-    task->run = apply(task, call);
+    tValue v = apply(task, call);
+    if (!trun_is(v)) task->value = v;
 }
 
 static tValue _return(tTask* task, tFun* fn, tMap* args) {
@@ -433,6 +434,7 @@ tValue first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
     }
     call = tcall_copy_fn(task, call, fn);
     trace("%p << first: %p %p", run, call, fn);
+    if (run) task->run = run->caller;
     return apply(task, call);
 }
 
@@ -559,6 +561,7 @@ tValue trun_args_host_step(tTask* task, tRunArgs* run) {
     if (tfun_is(v)) {
         tFun* fun = tfun_as(v);
         trace(">> NATIVE %p", fun);
+        if (run) task->run = run->caller;
         tValue v = fun->native(task, fun, tmap_as(args));
         assert(!tcall_is(v));
         assert(!trun_is(v));
@@ -569,14 +572,14 @@ tValue trun_args_host_step(tTask* task, tRunArgs* run) {
 
 // this is the main part of eval: running the "list" of "bytecode"
 tValue trun_code_step(tTask* task, tRunCode* run) {
-    trace("%p", run);
     int pc = run->pc;
+    trace("%p -- %d", run, pc);
     tBody* code = run->code;
     tEnv* env = run->env;
 
     for (;pc < code->head.size - 4; pc++) {
         tValue op = code->ops[pc];
-        trace("pc=%d, op=%s", pc, t_str(op));
+        trace("%p pc=%d, op=%s", run, pc, t_str(op));
 
         // a value marked as active
         if (tactive_is(op)) {
@@ -584,11 +587,14 @@ tValue trun_code_step(tTask* task, tRunCode* run) {
             op = activate(task, tvalue_from_active(op), env);
             assert(op);
             if (tcall_is(op)) {
+                trace("%p op: active call: %p", run, op);
                 op = apply(task, tcall_as(op));
             }
             if (trun_is(op)) {
+                trace("%p op: active yield: %p", run, op);
                 run->pc = pc + 1;
                 run->env = env;
+                trun_as(op)->caller = trun_as(run);
                 return run;
             }
 
@@ -620,7 +626,8 @@ tValue trun_code_step(tTask* task, tRunCode* run) {
         trace("%p op: data: %s", run, t_str(op));
         task->value = op;
     }
-    return null;
+    if (run) task->run = run->caller;
+    return task->value;
 }
 
 tValue trun_thunk(tTask* task, tThunk* thunk) {
@@ -633,14 +640,15 @@ tValue trun_thunk(tTask* task, tThunk* thunk) {
 
 tValue trun_args(tTask* task, tCall* call) {
     tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, (tHostStep)trun_args_step);
+    task->run = trun_as(run);
     run->call = call;
     return run;
 }
 
 tValue trun_args_host(tTask* task, tCall* call) {
     tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, (tHostStep)trun_args_host_step);
+    task->run = trun_as(run);
     run->call = call;
-    run->caller = task->run;
     return run;
 }
 
@@ -648,36 +656,25 @@ tValue apply(tTask* task, tCall* call) {
     tValue fn = tcall_get_fn(call);
     trace("%p: fn=%s", call, t_str(fn));
 
-    tRun* run = task->run;
-    tValue res = null;
     switch(t_head(fn)->type) {
     case TClosure:
         // TODO if zero args, or no key args ... optimize
-        res = trun_args(task, call);
-        break;
+        return trun_args(task, call);
     case TFun:
-        res = trun_args_host(task, call);
+        return trun_args_host(task, call);
         break;
     case TCall:
-        res = first(task, null, call, tcall_as(fn));
-        break;
+        return first(task, null, call, tcall_as(fn));
     case TThunk:
         if (tcall_argc(call) > 0) {
-            res = trun_args(task, call);
-            break;
+            return trun_args(task, call);
         }
-        res =  trun_thunk(task, tthunk_as(fn));
-        break;
+        return trun_thunk(task, tthunk_as(fn));
     default:
         warning("unable to run: %s", t_str(fn));
         assert(false);
     }
-    assert(task->run == run);
-    if (trun_is(res)) {
-        trace("%p >>>> %p", run, res);
-        task->run = trun_as(res);
-    }
-    return res;
+    return null;
 }
 
 void ttask_step(tTask* task) {
