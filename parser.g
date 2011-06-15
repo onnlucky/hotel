@@ -34,18 +34,15 @@ bool check_indent(void* data);
 #define YY_INPUT(buf, len, max, cx) { len = writesome(cx, buf, max); }
 
 tValue map_activate(tMap* map) {
-    print("MAP_ACTIVATE: %d", tmap_size(map));
     bool active = false;
     int i = 0;
     do {
         tValue v = tmap_value_iter(map, i);
-        print("%d: %s", i, t_str(v));
         if (!v) break;
         if (tactive_is(v)) { active = true; break; }
         if (tcall_is(v)) { active = true; break; }
         i++;
     } while (true);
-    print("MAP_ACTIVATE: %d", active);
     if (active) return tACTIVE(map);
     return map;
 }

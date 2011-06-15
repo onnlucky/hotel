@@ -237,7 +237,6 @@ tValue tresult_new(tTask* task, tMap* args) {
 tValue tresult_get(tValue v, int at) {
     assert(at >= 0);
     if (!tresult_is(v)) {
-        print("NOT A RESULT: %s", t_str(v));
         if (at == 0) return v;
         return tNull;
     }

@@ -162,7 +162,6 @@ tMap* tmap_from_list(tTask* task, tList* pairs) {
         }
         list->head.type = TMap;
         assert(tmap_is(list));
-        tmap_dump(list);
         return list;
     }
 
