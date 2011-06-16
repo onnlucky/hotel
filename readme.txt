@@ -1,14 +1,20 @@
 # TODO
-HostStep functions should only return tRun's never anything else (use ttask->value for that)
-Only materialize a run if we have to, but always for code blocks(?)
+rename body to code or block or?
+rework the code, remove non used stuff, chain by including .c
+remove start_args ... we don't need to materialize its run all the time
+
+add more arg processing:
+* no keys in -> no names + defaults in target
+* no keys in -> names + defaults in target
+* keys in -> no names in target
+* keys in -> names + defaults in target
+do collector and splays ...
 
 implement goto
 implement blocks
 implement continuations
 implement keyworded argument passing into function
 implement default arguments for function
-
-rename body to code or block or?
 
 experiment with refcounting, experiment with alloc pool per task for certain sizes ...
 * alloc ref=1
@@ -21,9 +27,6 @@ optimize the code by: collecting all local names, use that as dict, and keep val
 lookup should handle: #this, #body, #goto and some others
 
 do the open/close correctly; do close a lazy as possible? if x: return x ... no need to close/copy
-
-think about how to run non primitive c functions, a stackpool?
- - maybe capture stack between begin and start when doing spagetti
 
 how to do gc? global+train vcc + local refcounted heap + nursery
 
