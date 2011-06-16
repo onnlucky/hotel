@@ -1,5 +1,5 @@
-CC=gcc
-CFLAGS=-std=c99 -Wall -Werror -Wno-unused-function -g
+CC:=gcc
+CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function -g $(CFLAGS)
 
 all: tl
 

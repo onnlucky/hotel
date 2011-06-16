@@ -1,14 +1,22 @@
 # TODO
-tHostStep == tValue step(tTask*, tRun*); and skip materializing the tRun if can ...
-fix new run implementation, runs always need to return values ...
-rename task_yield and yielding and such ... maybe
-only materialize a run if we have to ...
+HostStep functions should only return tRun's never anything else (use ttask->value for that)
+Only materialize a run if we have to, but always for code blocks(?)
 
 implement goto
+implement blocks
 implement continuations
+implement keyworded argument passing into function
+implement default arguments for function
 
 rename body to code or block or?
-add keyworded arguments and processing for hotel functions
+
+experiment with refcounting, experiment with alloc pool per task for certain sizes ...
+* alloc ref=1
+* when ref > 1, assert that all fields are valid
+* when doing mutable things, assert that ref == 1, copy/clone otherwise
+* think about how to defer refcounting to battle "churn"
+
+optimize the code by: collecting all local names, use that as dict, and keep values inside run
 
 lookup should handle: #this, #body, #goto and some others
 

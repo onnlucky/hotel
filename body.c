@@ -55,7 +55,7 @@ void tbody_set_arg_name_defaults_(tTask* task, tBody* body, tList* name_defaults
     tList* defaults = tlist_new(task, size / 2);
     assert(size % 2 == 0);
 
-    bool have_defaults;
+    bool have_defaults = false;
     for (int i = 0; i < size; i += 2) {
         tlist_set_(names, i / 2, tlist_get(name_defaults, i));
         tValue v = tlist_get(name_defaults, i + 1);
