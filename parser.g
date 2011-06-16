@@ -147,7 +147,7 @@ singleassign = n:name    _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
  multiassign = ns:anames _"="__ e:expr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
     noassign =                  e:expr { $$ = tlist_from1(TASK, e); }
 
-  expr = op_log
+  expr = e:op_log { $$ = call_activate(e); }
 
 fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
     tbody_set_args_(TASK, tbody_as(b), L(as));
@@ -213,10 +213,10 @@ op_mul = l:op_pow _ ("*" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("mul"))
 op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
                     )*
 
- paren = "("__ e:expr __")" t:tail { $$ = call_activate(set_target(t, e)); }
-       | "("__ b:body __")" t:tail { $$ = call_activate(set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty()))); }
-       | f:fn t:tail               { $$ = call_activate(set_target(t, tACTIVE(f))); }
-       | v:value t:tail            { $$ = call_activate(set_target(t, v)); }
+ paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
+       | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }
+       | f:fn t:tail               { $$ = set_target(t, tACTIVE(f)); }
+       | v:value t:tail            { $$ = set_target(t, v); }
 
 
 
