@@ -1,6 +1,5 @@
 # TODO
-rename body to code or block or?
-rework the code, remove non used stuff, chain by including .c
+chain the c files instead if include all in vm.c?
 remove start_args ... we don't need to materialize its run all the time
 
 add more arg processing:
@@ -15,6 +14,7 @@ implement blocks
 implement continuations
 implement keyworded argument passing into function
 implement default arguments for function
+implement defer
 
 experiment with refcounting, experiment with alloc pool per task for certain sizes ...
 * alloc ref=1
@@ -22,7 +22,9 @@ experiment with refcounting, experiment with alloc pool per task for certain siz
 * when doing mutable things, assert that ref == 1, copy/clone otherwise
 * think about how to defer refcounting to battle "churn"
 
-optimize the code by: collecting all local names, use that as dict, and keep values inside run
+optimize: return should not capture run, but run->caller (or not?)
+optimize: task->value by tagging as active incase of tResult or such?
+optimize: compile code by collecting all local names, use that as dict, and keep values inside run
 
 lookup should handle: #this, #body, #goto and some others
 

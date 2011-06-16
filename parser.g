@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "tl.h"
-#include "body.h"
+#include "code.h"
 #include "debug.h"
 
 #include "platform.h"
@@ -121,7 +121,7 @@ tValue tcollect_new_(tTask* task, tList* list);
 
  start = __ b:body __ !.   { $$ = b; }
 
-  body = ts:stms           { $$ = tbody_from(TASK, ts); }
+  body = ts:stms           { $$ = tcode_from(TASK, ts); }
 
   stms = t:stm eol ts:stms { $$ = tlist_cat(TASK, L(t), L(ts)); }
        | t:stm             { $$ = L(t); }
@@ -150,7 +150,7 @@ singleassign = n:name    _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
   expr = e:op_log { $$ = call_activate(e); }
 
 fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
-    tbody_set_args_(TASK, tbody_as(b), L(as));
+    tcode_set_args_(TASK, tcode_as(b), L(as));
     $$ = b;
 }
 

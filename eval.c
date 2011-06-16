@@ -14,7 +14,7 @@ TTYPE(tRun, trun, TRun);
 // various internal structures
 typedef struct tClosure {
     tHead head;
-    tBody* body;
+    tCode* code;
     tEnv* env;
 } tClosure;
 typedef struct tThunk {
@@ -76,13 +76,13 @@ typedef struct tRunCode {
     t_resume resume;
     tRun* caller;
 
-    tBody* code;
+    tCode* code;
     tEnv* env;
 } tRunCode;
 
-tClosure* tclosure_new(tTask* task, tBody* body, tEnv* env) {
+tClosure* tclosure_new(tTask* task, tCode* code, tEnv* env) {
     tClosure* fn = task_alloc(task, TClosure, 2);
-    fn->body = body;
+    fn->code = code;
     fn->env = tenv_new(task, env);
     return fn;
 }
@@ -255,8 +255,8 @@ INTERNAL tRun* run_activate(tTask* task, tValue v, tEnv* env) {
     if (tsym_is(v)) {
         return lookup(task, env, v);
     }
-    if (tbody_is(v)) {
-        ttask_set_value(task, tclosure_new(task, tbody_as(v), env));
+    if (tcode_is(v)) {
+        ttask_set_value(task, tclosure_new(task, tcode_as(v), env));
         return null;
     }
     if (tcall_is(v)) {
@@ -310,9 +310,9 @@ INTERNAL tRun* run_args(tTask* task, tRunArgs* run) {
 
     tValue fn = tcall_get_fn(call);
     if (tclosure_is(fn)) {
-        tBody* body = tclosure_as(fn)->body;
-        names = body->argnames;
-        defaults = body->argdefaults;
+        tCode* code = tclosure_as(fn)->code;
+        names = code->argnames;
+        defaults = code->argdefaults;
         if (names) argc = max(tlist_size(names), argc);
     }
 
@@ -365,7 +365,7 @@ INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, 
     run->resume = resume_code;
     run->pc = 0;
     run->env = fn->env;
-    run->code = fn->body;
+    run->code = fn->code;
 
     // collect args into env
     // TODO first check name, then position
@@ -445,7 +445,7 @@ INTERNAL tRun* resume_args_host(tTask* task, tRun* r) {
 tRun* run_code(tTask* task, tRunCode* run) {
     int pc = run->pc;
     trace("%p -- %d", run, pc);
-    tBody* code = run->code;
+    tCode* code = run->code;
     tEnv* env = run->env;
 
     for (;pc < code->head.size - 4; pc++) {

@@ -28,7 +28,7 @@ const char* const type_to_str[] = {
 
     "TEnv",
 
-    "TBody",
+    "TCode",
     "TClosure",
     "TFun",
 

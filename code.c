@@ -1,6 +1,6 @@
 #include "trace-on.h"
 
-struct tBody {
+struct tCode {
     tHead head;
     tInt flags;
     tSym name;
@@ -8,30 +8,30 @@ struct tBody {
     tMap* argdefaults;
     tValue ops[];
 };
-TTYPE(tBody, tbody, TBody);
+TTYPE(tCode, tcode, TCode);
 
-tBody* tbody_new(tTask* task, int size) {
-    return task_alloc(task, TBody, 4 + size);
+tCode* tcode_new(tTask* task, int size) {
+    return task_alloc(task, TCode, 4 + size);
 }
-tBody* tbody_from(tTask* task, tList* ops) {
+tCode* tcode_from(tTask* task, tList* ops) {
     int size = tlist_size(ops);
-    tBody* body = tbody_new(task, size);
+    tCode* code = tcode_new(task, size);
     for (int i = 0; i < size; i++) {
-        body->ops[i] = tlist_get(ops, i);
+        code->ops[i] = tlist_get(ops, i);
     }
-    return body;
+    return code;
 }
-void tbody_set_name_(tBody* body, tSym name) {
-    body->name = name;
+void tcode_set_name_(tCode* code, tSym name) {
+    code->name = name;
 }
-void tbody_set_ops_(tBody* body, tList* ops) {
+void tcode_set_ops_(tCode* code, tList* ops) {
     int size = tlist_size(ops);
     for (int i = 0; i < size; i++) {
-        body->ops[i] = tlist_get(ops, i);
+        code->ops[i] = tlist_get(ops, i);
     }
 }
 // TODO filter out collects ...
-void tbody_set_args_(tTask* task, tBody* body, tList* args) {
+void tcode_set_args_(tTask* task, tCode* code, tList* args) {
     trace("%d", tlist_size(args));
     // args = [name, default]*
     // output: name*, {name->default}
@@ -45,11 +45,11 @@ void tbody_set_args_(tTask* task, tBody* body, tList* args) {
         tSym name = tsym_as(tlist_get(entry, 0));
         tlist_set_(names, i, name);
     }
-    body->argnames = names;
-    body->argdefaults = defaults;
+    code->argnames = names;
+    code->argdefaults = defaults;
 }
 
-void tbody_set_arg_name_defaults_(tTask* task, tBody* body, tList* name_defaults) {
+void tcode_set_arg_name_defaults_(tTask* task, tCode* code, tList* name_defaults) {
     int size = tlist_size(name_defaults);
     tList* names = tlist_new(task, size / 2);
     tList* defaults = tlist_new(task, size / 2);
@@ -62,9 +62,9 @@ void tbody_set_arg_name_defaults_(tTask* task, tBody* body, tList* name_defaults
         if (v) have_defaults = true;
         tlist_set_(names, i / 2, v);
     }
-    body->argnames = names;
+    code->argnames = names;
     if (have_defaults) {
-        body->argdefaults = defaults;
+        code->argdefaults = defaults;
     }
 }
 

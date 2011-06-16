@@ -78,7 +78,7 @@ enum {
 
     TEnv,
 
-    TBody,
+    TCode,
     TClosure,
     TFun,
 
@@ -156,7 +156,7 @@ typedef struct tWorker tWorker;
 typedef struct tTask tTask;
 typedef struct tCall tCall;
 typedef struct tSend tSend;
-typedef struct tBody tBody;
+typedef struct tCode tCode;
 #define tT tTask *task
 
 
@@ -176,11 +176,11 @@ tSym tsym_from(tT, tText* text);
 
 tText* tsym_to_text(tSym s);
 
-bool tbody_is(tValue v);
-tBody* tbody_cast(tValue v);
-tBody* tbody_as(tValue v);
+bool tcode_is(tValue v);
+tCode* tcode_cast(tValue v);
+tCode* tcode_as(tValue v);
 
-tBody* tbody_from(tT, tList* stms);
+tCode* tcode_from(tT, tList* stms);
 
 bool tcall_is(tValue v);
 tCall* tcall_cast(tValue v);
