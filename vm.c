@@ -5,11 +5,16 @@
 #include "sym.c"
 #include "list.c"
 #include "map.c"
-#include "env.c"
 
 #include "buffer.c"
-#include "body.c"
+
 #include "task.c"
+
+#include "body.c"
+#include "call.c"
+#include "env.c"
+#include "eval.c"
+
 
 #include "trace-on.h"
 
