@@ -284,7 +284,7 @@ void ttask_set_value(tTask* task, tValue v) {
     task->value = v;
 }
 
-INTERNAL tRun* step_apply(tTask* task, tCall* call);
+INTERNAL tRun* run_apply(tTask* task, tCall* call);
 
 // DESIGN calling with keywords arguments
 // there must be a list with names, and last entry must be a map ready to be cloned
@@ -299,7 +299,7 @@ void ttask_call(tTask* task, tCall* call) {
         if (!v) { assert(i >= tcall_argc(call)); break; }
         assert(!tactive_is(v));
     }
-    step_apply(task, call);
+    run_apply(task, call);
     trace("<< call");
 }
 
@@ -331,20 +331,20 @@ void* trun_alloc(tTask* task, size_t bytes, int datas, t_resume resume) {
     return run;
 }
 
-INTERNAL tRun* step_activate(tTask* task, tValue v, tEnv* env);
-INTERNAL tRun* step_activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env);
-INTERNAL tRun* step_activate_map(tTask* task, tRunActivateMap* run, tMap* call, tEnv* env);
+INTERNAL tRun* run_activate(tTask* task, tValue v, tEnv* env);
+INTERNAL tRun* run_activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env);
+INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* call, tEnv* env);
 
 INTERNAL tRun* resume_activate_call(tTask* task, tRun* r) {
     tRunActivateCall* run = (tRunActivateCall*)r;
-    return step_activate_call(task, run, run->call, run->env);
+    return run_activate_call(task, run, run->call, run->env);
 }
 INTERNAL tRun* resume_activate_map(tTask* task, tRun* r) {
     tRunActivateMap* run = (tRunActivateMap*)r;
-    return step_activate_map(task, run, run->map, run->env);
+    return run_activate_map(task, run, run->map, run->env);
 }
 
-INTERNAL tRun* step_activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env) {
+INTERNAL tRun* run_activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env) {
     int i = 0;
     if (run) i = run->count;
     else call = tcall_copy(task, call);
@@ -362,7 +362,7 @@ INTERNAL tRun* step_activate_call(tTask* task, tRunActivateCall* run, tCall* cal
         tValue v = tcall_value_iter(call, i);
         if (!v) break;
         if (tactive_is(v)) {
-            tRun* r = step_activate(task, tvalue_from_active(v), env);
+            tRun* r = run_activate(task, tvalue_from_active(v), env);
             if (r) {
                 if (!run) {
                     run = trun_alloc(task, sizeof(tRunActivateCall), 0, resume_activate_call);
@@ -383,7 +383,7 @@ INTERNAL tRun* step_activate_call(tTask* task, tRunActivateCall* run, tCall* cal
     return null;
 }
 
-INTERNAL tRun* step_activate_map(tTask* task, tRunActivateMap* run, tMap* map, tEnv* env) {
+INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* map, tEnv* env) {
     int i = 0;
     if (run) i = run->count;
     trace("%p >> map: %d - %d", run, i, tmap_size(map));
@@ -397,7 +397,7 @@ INTERNAL tRun* step_activate_map(tTask* task, tRunActivateMap* run, tMap* map, t
         tValue v = tmap_value_iter(map, i);
         if (!v) break;
         if (tactive_is(v)) {
-            tRun* r = step_activate(task, tvalue_from_active(v), env);
+            tRun* r = run_activate(task, tvalue_from_active(v), env);
             if (r) {
                 if (!run) {
                     run = trun_alloc(task, sizeof(tRunActivateMap), 0, resume_activate_map);
@@ -417,7 +417,7 @@ INTERNAL tRun* step_activate_map(tTask* task, tRunActivateMap* run, tMap* map, t
     return null;
 }
 
-INTERNAL tRun* step_activate(tTask* task, tValue v, tEnv* env) {
+INTERNAL tRun* run_activate(tTask* task, tValue v, tEnv* env) {
     trace("%s", t_str(v));
     if (tsym_is(v)) {
         v = lookup(task, env, v);
@@ -432,23 +432,23 @@ INTERNAL tRun* step_activate(tTask* task, tValue v, tEnv* env) {
         return null;
     }
     if (tcall_is(v)) {
-        return step_activate_call(task, null, tcall_as(v), env);
+        return run_activate_call(task, null, tcall_as(v), env);
     }
     if (tmap_is(v)) {
-        return step_activate_map(task, null, tmap_as(v), env);
+        return run_activate_map(task, null, tmap_as(v), env);
     }
     assert(false);
 }
 
-INTERNAL tRun* step_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn);
+INTERNAL tRun* run_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn);
 INTERNAL tRun* resume_first(tTask* task, tRun* r) {
     tRunFirst* run = (tRunFirst*)r;
-    return step_first(task, run, run->call, tcall_as(run->call->fn));
+    return run_first(task, run, run->call, tcall_as(run->call->fn));
 }
-INTERNAL tRun* step_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
+INTERNAL tRun* run_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
     trace("%p >> first: %p %p", run, call, fn);
     if (!run) {
-        tRun* r = step_apply(task, fn);
+        tRun* r = run_apply(task, fn);
         if (r) {
             run = trun_alloc(task, sizeof(tRunFirst), 0, resume_first);
             run->call = call;
@@ -461,7 +461,7 @@ INTERNAL tRun* step_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
     call = tcall_copy_fn(task, call, fn);
     trace("%p << first: %p %p", run, call, fn);
     ttask_return(task, run);
-    tRun* r = step_apply(task, call);
+    tRun* r = run_apply(task, call);
     if (run && r) {
         set_caller(r, run->caller);
         return run->caller;
@@ -471,7 +471,7 @@ INTERNAL tRun* step_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
 
 INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* names);
 // used to evaluate incoming args if there are no keyed args
-INTERNAL tRun* step_args(tTask* task, tRunArgs* run) {
+INTERNAL tRun* run_args(tTask* task, tRunArgs* run) {
     trace("%p", run);
 
     // setup needed data
@@ -511,7 +511,7 @@ INTERNAL tRun* step_args(tTask* task, tRunArgs* run) {
         if (tthunk_is(d) || d == tThunkNull) {
             v = tthunk_new(task, v);
         } else if (tcall_is(v)) {
-            tRun* r = step_apply(task, v);
+            tRun* r = run_apply(task, v);
             if (r) {
                 run->count = -1 - i;
                 run->args = args;
@@ -528,12 +528,12 @@ INTERNAL tRun* step_args(tTask* task, tRunArgs* run) {
 }
 // TODO make more useful
 INTERNAL tRun* resume_args(tTask* task, tRun* run) {
-    return step_args(task, (tRunArgs*)run);
+    return run_args(task, (tRunArgs*)run);
 }
 
-INTERNAL tRun* step_code(tTask* task, tRunCode* run);
+INTERNAL tRun* run_code(tTask* task, tRunCode* run);
 INTERNAL tRun* resume_code(tTask* task, tRun* r) {
-    return step_code(task, (tRunCode*)r);
+    return run_code(task, (tRunCode*)r);
 }
 INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* names) {
     run->resume = resume_code;
@@ -555,14 +555,14 @@ INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, 
         }
     }
     run->env = tenv_set_run(task, run->env, run);
-    return step_code(task, run);
+    return run_code(task, run);
 }
 
 static inline tValue keys_tr(tList* keys, int at) {
     if (keys) return tlist_get(keys, at); else return null;
 }
 
-INTERNAL tRun* step_args_host(tTask* task, tRunArgs* run) {
+INTERNAL tRun* run_args_host(tTask* task, tRunArgs* run) {
     trace("%p", run);
 
     // setup needed data
@@ -585,7 +585,7 @@ INTERNAL tRun* step_args_host(tTask* task, tRunArgs* run) {
     for (; i < argc; i++) {
         tValue v = tcall_get_arg(call, i);
         if (tcall_is(v)) {
-            tRun* r = step_apply(task, tcall_as(v));
+            tRun* r = run_apply(task, tcall_as(v));
             if (r) {
                 run->count = -1 - i;
                 run->args = args;
@@ -613,10 +613,10 @@ INTERNAL tRun* step_args_host(tTask* task, tRunArgs* run) {
     assert(false);
 }
 INTERNAL tRun* resume_args_host(tTask* task, tRun* r) {
-    return step_args_host(task, (tRunArgs*)r);
+    return run_args_host(task, (tRunArgs*)r);
 }
 // this is the main part of eval: running the "list" of "bytecode"
-tRun* step_code(tTask* task, tRunCode* run) {
+tRun* run_code(tTask* task, tRunCode* run) {
     int pc = run->pc;
     trace("%p -- %d", run, pc);
     tBody* code = run->code;
@@ -629,10 +629,10 @@ tRun* step_code(tTask* task, tRunCode* run) {
         // a value marked as active
         if (tactive_is(op)) {
             trace("%p op: active -- %s", run, t_str(tvalue_from_active(op)));
-            tRun* r = step_activate(task, tvalue_from_active(op), env);
+            tRun* r = run_activate(task, tvalue_from_active(op), env);
             if (!r && tcall_is(task->value)) {
                 trace("%p op: active call: %p", run, task->value);
-                r = step_apply(task, tcall_as(task->value));
+                r = run_apply(task, tcall_as(task->value));
             }
             if (r) {
                 trace("%p op: active yield: %p", run, r);
@@ -672,10 +672,10 @@ tRun* step_code(tTask* task, tRunCode* run) {
     return task->value;
 }
 
-INTERNAL tRun* step_thunk(tTask* task, tThunk* thunk) {
+INTERNAL tRun* run_thunk(tTask* task, tThunk* thunk) {
     tValue v = thunk->value;
     if (tcall_is(v)) {
-        return step_apply(task, tcall_as(v));
+        return run_apply(task, tcall_as(v));
     }
     return v;
 }
@@ -696,7 +696,7 @@ INTERNAL tRun* start_args_host(tTask* task, tCall* call) {
     return (tRun*)run;
 }
 
-INTERNAL tRun* step_apply(tTask* task, tCall* call) {
+INTERNAL tRun* run_apply(tTask* task, tCall* call) {
     tValue fn = tcall_get_fn(call);
     trace("%p: fn=%s", call, t_str(fn));
 
@@ -707,12 +707,12 @@ INTERNAL tRun* step_apply(tTask* task, tCall* call) {
     case TFun:
         return start_args_host(task, call);
     case TCall:
-        return step_first(task, null, call, tcall_as(fn));
+        return run_first(task, null, call, tcall_as(fn));
     case TThunk:
         if (tcall_argc(call) > 0) {
             return start_args(task, call);
         }
-        return step_thunk(task, tthunk_as(fn));
+        return run_thunk(task, tthunk_as(fn));
     default:
         warning("unable to run: %s", t_str(fn));
         assert(false);
