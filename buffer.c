@@ -1,4 +1,4 @@
-// ** a bytebuffer that where you can read/write from/to **
+// a bytebuffer that where you can read/write from/to
 
 #include "trace-off.h"
 

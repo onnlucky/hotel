@@ -1,4 +1,4 @@
-// ** platform and bit manipulation routines **
+// platform and bit manipulation routines
 
 #pragma once
 #define HAVE_DEBUG

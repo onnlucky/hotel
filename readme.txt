@@ -1,6 +1,7 @@
 # TODO
-chain the c files instead if include all in vm.c?
+sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
+clean up tl.h; nice up code.{h,c} and call.c
 
 add more arg processing:
 * no keys in -> no names + defaults in target
@@ -11,10 +12,15 @@ do collector and splays ...
 
 implement goto
 implement blocks
+implement tasks and message sending primitives
+implement exceptions
 implement continuations
 implement keyworded argument passing into function
 implement default arguments for function
 implement defer
+
+bring back a boot.tl library
+implement serializing tValue's to disk
 
 experiment with refcounting, experiment with alloc pool per task for certain sizes ...
 * alloc ref=1
@@ -28,7 +34,7 @@ optimize: compile code by collecting all local names, use that as dict, and keep
 
 lookup should handle: #this, #body, #goto and some others
 
-do the open/close correctly; do close a lazy as possible? if x: return x ... no need to close/copy
+do the open/close correctly; do close as lazy as possible? if x: return x ... no need to close/copy
 
 how to do gc? global+train vcc + local refcounted heap + nursery
 

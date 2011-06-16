@@ -1,3 +1,5 @@
+// hotel "bytecode"
+
 #include "trace-on.h"
 
 struct tCode {

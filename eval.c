@@ -1,3 +1,6 @@
+// the main evaluator for hotel
+// implemented much like protothreads contexts + copying for forks and full continuations
+
 #include "trace-on.h"
 
 // any hotel evaluation step can be saved and resumed using a tRun

@@ -1,4 +1,4 @@
-// ** this is how all tl values look in memory **
+// this is how all tl values look in memory
 
 uint8_t t_type(tValue v) {
     if ((intptr_t)v & 1) return TInt;

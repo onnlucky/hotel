@@ -1,3 +1,6 @@
+// the vm itself, this is the library starting point
+
+#include "tl.h"
 #include "platform.h"
 
 #include "value.c"
@@ -14,7 +17,6 @@
 #include "call.c"
 #include "env.c"
 #include "eval.c"
-
 
 #include "trace-on.h"
 

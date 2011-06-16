@@ -1,4 +1,6 @@
-// functions and calling them ...
+// hotel functions and calling them ...
+
+#include "trace-off.h"
 
 // TODO primitive vs full host function
 // TODO rework keyed calls ... not many are, flag is likely more appropriate

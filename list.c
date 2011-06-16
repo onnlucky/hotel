@@ -1,4 +1,4 @@
-// ** a list implementation **
+// a list implementation
 
 #include "trace-off.h"
 

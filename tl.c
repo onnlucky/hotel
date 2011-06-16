@@ -1,3 +1,5 @@
+// starting point of hotel
+
 #include "tl.h"
 
 #include "vm.c"

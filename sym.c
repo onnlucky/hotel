@@ -1,4 +1,4 @@
-// ** symbols and other per vm global resources **
+// symbols and other per vm global resources
 
 #include "trace-off.h"
 

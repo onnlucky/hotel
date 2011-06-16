@@ -1,4 +1,4 @@
-// ** simple text type, wraps a char array with size and tag **
+// simple text type, wraps a char array with size and tag
 
 #include "trace-off.h"
 
