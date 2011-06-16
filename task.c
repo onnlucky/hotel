@@ -284,7 +284,7 @@ void ttask_set_value(tTask* task, tValue v) {
     task->value = v;
 }
 
-tRun* step_apply(tTask* task, tCall* call);
+INTERNAL tRun* step_apply(tTask* task, tCall* call);
 
 // DESIGN calling with keywords arguments
 // there must be a list with names, and last entry must be a map ready to be cloned
@@ -299,12 +299,11 @@ void ttask_call(tTask* task, tCall* call) {
         if (!v) { assert(i >= tcall_argc(call)); break; }
         assert(!tactive_is(v));
     }
-    tValue v = step_apply(task, call);
-    if (!trun_is(v)) ttask_set_value(task, v);
+    step_apply(task, call);
     trace("<< call");
 }
 
-static tValue _return(tTask* task, tFun* fn, tMap* args) {
+INTERNAL tValue _return(tTask* task, tFun* fn, tMap* args) {
     trace("<< RETURN(%d)", tmap_size(args));
     trace("%p <<<< %p", trun_as(fn->data)->caller, task->run);
     task->run = trun_as(fn->data)->caller;
@@ -608,7 +607,8 @@ INTERNAL tRun* step_args_host(tTask* task, tRunArgs* run) {
         if (!v) v = tNull;
         assert(!tcall_is(v));
         assert(!trun_is(v));
-        return v;
+        ttask_set_value(task, v);
+        return null;
     }
     assert(false);
 }
@@ -723,10 +723,8 @@ INTERNAL tRun* step_apply(tTask* task, tCall* call) {
 void ttask_step(tTask* task) {
     tRun* run = task->run;
     trace("%p", run);
+
     assert(run->resume);
-    tValue v = run->resume(task, run);
-    assert(!task->run || trun_is(task->run));
-    if (trun_is(v)) return;
-    ttask_set_value(task, v);
+    run->resume(task, run);
 }
 
