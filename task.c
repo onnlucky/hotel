@@ -188,6 +188,14 @@ tCall* tcall_new_keys(tTask* task, int argc, tList* keys) {
     assert(tmap_is(tlist_get(keys, tlist_size(keys) - 1)));
     return call;
 }
+tCall* tcall_copy(tTask* task, tCall* o) {
+    int argc = tcall_argc(o);
+    tCall* call = tcall_new(task, argc);
+    call->keys = o->keys;
+    call->fn = o->fn;
+    for (int i = 0; i < argc; i++) call->args[i] = o->args[i];
+    return call;
+}
 tCall* tcall_copy_fn(tTask* task, tCall* o, tValue fn) {
     int argc = tcall_argc(o);
     tCall* call = tcall_new(task, argc);
@@ -297,7 +305,8 @@ void ttask_call(tTask* task, tCall* call) {
 
 static tValue _return(tTask* task, tFun* fn, tMap* args) {
     trace("<< RETURN(%d)", tmap_size(args));
-    ttask_return(task, fn->data);
+    trace("%p <<<< %p", trun_as(fn->data)->caller, task->run);
+    task->run = trun_as(fn->data)->caller;
     if (tmap_size(args) == 1) {
         return tmap_get_int(args, 0);
     }
@@ -305,6 +314,7 @@ static tValue _return(tTask* task, tFun* fn, tMap* args) {
 }
 
 tValue lookup(tTask* task, tEnv* env, tSym name) {
+    trace("%s", t_str(name));
     if (name == s_return) {
         tValue run = tenv_get_run(env); assert(run);
         return tfun_new(task, _return, run);
@@ -337,6 +347,7 @@ tValue activate_map_step(tTask* task, tRun* r) {
 tValue activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env) {
     int i = 0;
     if (run) i = run->count;
+    else call = tcall_copy(task, call);
     trace("%p >> call: %d - %d", run, i, tcall_argc(call));
 
     if (i < 0) {
@@ -366,6 +377,7 @@ tValue activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env)
             assert(v);
             call = tcall_value_iter_set_(call, i, v);
         }
+        trace("%p call: %d = %s", run, i, t_str(v));
     }
     trace("%p << call: %d", run, tcall_argc(call));
     return call;
@@ -440,6 +452,7 @@ tValue first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
     }
     call = tcall_copy_fn(task, call, fn);
     trace("%p << first: %p %p", run, call, fn);
+    ttask_return(task, run);
     tValue v = apply(task, call);
     if (run && trun_is(v)) {
         set_caller(v, run->caller);
@@ -456,9 +469,6 @@ tValue trun_args_step(tTask* task, tRunArgs* run) {
     tCall* call = run->call;
     int argc = tcall_argc(call);
 
-    tMap* args = run->args;
-    if (!args) args = tmap_new_keys(task, null, argc);
-
     tList* names = null;
     tMap* defaults = null;
 
@@ -469,6 +479,9 @@ tValue trun_args_step(tTask* task, tRunArgs* run) {
         defaults = body->argdefaults;
         if (names) argc = max(tlist_size(names), argc);
     }
+
+    tMap* args = run->args;
+    if (!args) args = tmap_new_keys(task, null, argc);
 
     // check where we left off last time
     int i = run->count;
