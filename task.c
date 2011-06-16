@@ -269,12 +269,18 @@ void set_caller(tValue run, tValue caller) {
 tValue ttask_value(tTask* task) {
     return tresult_get(task->value, 0);
 }
+void ttask_set_value(tTask* task, tValue v) {
+    trace("!! OLD: %s", t_str(task->value));
+    trace("!! SET: %s", t_str(v));
+    task->value = v;
+}
 
 tValue apply(tTask* task, tCall* call);
 
 // DESIGN calling with keywords arguments
 // there must be a list with names, and last entry must be a map ready to be cloned
 void ttask_call(tTask* task, tCall* call) {
+    trace(">> call");
     if (call->keys) {
         assert(tcall_argc(call) == tlist_size(call->keys) - 1);
         assert(tmap_is(tlist_get(call->keys, tcall_argc(call))));
@@ -285,16 +291,17 @@ void ttask_call(tTask* task, tCall* call) {
         assert(!tactive_is(v));
     }
     tValue v = apply(task, call);
-    if (!trun_is(v)) task->value = v;
+    if (!trun_is(v)) ttask_set_value(task, v);
+    trace("<< call");
 }
 
 static tValue _return(tTask* task, tFun* fn, tMap* args) {
     trace("<< RETURN(%d)", tmap_size(args));
+    ttask_return(task, fn->data);
     if (tmap_size(args) == 1) {
         return tmap_get_int(args, 0);
     }
-    task->value = tresult_new(task, args);
-    return null;
+    return tresult_new(task, args);
 }
 
 tValue lookup(tTask* task, tEnv* env, tSym name) {
@@ -334,6 +341,9 @@ tValue activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env)
 
     if (i < 0) {
         i = -i - 1;
+        tValue v = ttask_value(task);
+        trace("%p call: %d = %s", run, i, t_str(v));
+        assert(v);
         call = tcall_value_iter_set_(call, i, ttask_value(task));
         i++;
     }
@@ -352,6 +362,8 @@ tValue activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env)
                 set_caller(v, run);
                 return run;
             }
+            trace("%p call: %d = %s", run, i, t_str(v));
+            assert(v);
             call = tcall_value_iter_set_(call, i, v);
         }
     }
@@ -512,6 +524,7 @@ tValue chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* n
             run->env = tenv_set(task, run->env, name, v);
         }
     }
+    run->env = tenv_set_run(task, run->env, run);
     return trun_code_step(task, run);
 }
 
@@ -597,14 +610,14 @@ tValue trun_code_step(tTask* task, tRunCode* run) {
             }
 
             trace("%p op: active resolved: %s", run, t_str(op));
-            task->value = op;
+            ttask_set_value(task, op);
             continue;
         }
 
         // just a symbol means setting the current value under this name in env
         if (tsym_is(op)) {
             trace("%p op: sym -- %s = %s", run, t_str(op), t_str(task->value));
-            run->env = tenv_set(task, run->env, tsym_as(op), task->value);
+            env = tenv_set(task, env, tsym_as(op), task->value);
             continue;
         }
 
@@ -615,14 +628,14 @@ tValue trun_code_step(tTask* task, tRunCode* run) {
             for (int i = 0; i < names->head.size; i++) {
                 tSym name = tsym_as(names->data[i]);
                 tValue v = tresult_get(task->value, i);
-                run->env = tenv_set(task, run->env, name, v);
+                env = tenv_set(task, env, name, v);
             }
             continue;
         }
 
         // anything else means just data, and load
         trace("%p op: data: %s", run, t_str(op));
-        task->value = op;
+        ttask_set_value(task, op);
     }
     if (run) ttask_return(task, run);
     return task->value;
@@ -679,7 +692,9 @@ void ttask_step(tTask* task) {
     tRun* run = task->run;
     trace("%p", run);
     assert(run->step);
-    run->step(task, run);
+    tValue v = run->step(task, run);
     assert(!task->run || trun_is(task->run));
+    if (trun_is(v)) return;
+    ttask_set_value(task, v);
 }
 
