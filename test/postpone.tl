@@ -1,4 +1,4 @@
-bootup = ( &postpone => postpone )
+bootup = (&postpone){ postpone }
 postponed = bootup(out("hello\n"))
 postponed()
 postponed()

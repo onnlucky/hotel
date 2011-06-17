@@ -8,6 +8,8 @@
 
 #include "platform.h"
 
+#include "trace-on.h"
+
 typedef struct ParseContext {
     tTask* task;
     tText* text;
@@ -127,32 +129,52 @@ tValue tcollect_new_(tTask* task, tList* list);
        | t:stm             { $$ = L(t); }
        |                   { $$ = tlist_empty(); }
 
+#// TODO only blocknl and block vs full function ...
 bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = ts; /*tlist_prepend(TASK, L(ts), _BODY_)*/ }
        | &{ pop_indent(G) }
 stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
        | _ &{ check_indent(G) } t:stm               { $$ = tlist_from1(TASK, t); }
 
    stm = singleassign | multiassign | noassign
-#   stm = var | assign | expr
 
-#   var = "var" _ "$" n:name _"="__ e:expr { $$ = tlist_new_add4(TASK, _ASSIGN_, _CALL1(_REF(tSYM("%var")), e), _RESULT_, n); }
-#       |         "$" n:name _"="__ e:expr { $$ = _CALL2(_REF(tSYM("%set")), _REF(n), e); }
-#assign =          as:anames _"="__ e:expr { $$ = tlist_prepend2(TASK, L(as), _ASSIGN_, e); }
+#   var = "var" _ "$" n:name _"="__ e:pexpr { $$ = tlist_new_add4(TASK, _ASSIGN_, _CALL1(_REF(tSYM("%var")), e), _RESULT_, n); }
+#       |         "$" n:name _"="__ e:pexpr { $$ = _CALL2(_REF(tSYM("%set")), _REF(n), e); }
+#assign =          as:anames _"="__ e:pexpr { $$ = tlist_prepend2(TASK, L(as), _ASSIGN_, e); }
 
 anames =     n:name _","_ as:anames { $$ = tlist_prepend(TASK, L(as), n); }
        #| "*" n:name                 { $$ = tlist_from1(TASK, n); }
        |     n:name                 { $$ = tlist_from1(TASK, n); }
 
-singleassign = n:name    _"="__ e:expr { $$ = tlist_from(TASK, e, n, null); }
- multiassign = ns:anames _"="__ e:expr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
-    noassign =                  e:expr { $$ = tlist_from1(TASK, e); }
+singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); }
+ multiassign = ns:anames _"="__ e:pexpr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
+    noassign =                  e:pexpr { $$ = tlist_from1(TASK, e); }
+
+ pexpr = fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
+           fatal("primary function call + bodynl");
+           //$$ = call_activate(tcall_from_args(TASK, null, as));
+       }
+       | fn:lookup _ !"(" as:pcargs {
+           trace("primary function call");
+           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
+       }
+       | v:value _"."_ n:name _ !"(" as:pcargs _":"_ b:bodynl {
+           fatal("primary send + bodynl");
+       }
+       | v:value _"."_ n:name _ !"(" as:pcargs {
+           fatal("primary send");
+       }
+       | expr
+
+pcargs = e:expr __","__ as:pcargs   { $$ = tlist_prepend(TASK, L(as), e); }
+       | e:pexpr                    { $$ = tlist_from1(TASK, e) }
 
   expr = e:op_log { $$ = call_activate(e); }
 
-fn = "(" __ as:fargs __ "=>" __ b:body __ ")" {
-    tcode_set_args_(TASK, tcode_as(b), L(as));
-    $$ = b;
-}
+    fn = "(" __ as:fargs __ ")"_"{" __ b:body __ "}" {
+            tcode_set_args_(TASK, tcode_as(b), L(as));
+            $$ = b;
+        }
+        | "{"__ b:body __ "}" { $$ = b; }
 
 fargs = a:farg __","__ as:fargs { $$ = tlist_prepend(TASK, L(as), a); }
       | a:farg                  { $$ = tlist_from1(TASK, a); }
@@ -173,12 +195,15 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
            $$ = set_target(t, tcall_from_args(TASK, null, as));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
-           fatal("method call")
+           fatal("method call");
            //$$ = set_target(L(t), _CAT(_CALL2(_SEND_, null, n), as));
        }
        | _"."_ n:name t:tail {
-           fatal("method call")
+           fatal("method call");
            //$$ = set_target(L(t), _CALL2(_SEND_, null, n));
+       }
+       | _"["__ e:expr __"]" t:tail {
+           fatal("array get call");
        }
        | _ {
            trace("no tail");
@@ -213,14 +238,15 @@ op_mul = l:op_pow _ ("*" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("mul"))
 op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
                     )*
 
- paren = "("__ e:expr __")" t:tail { $$ = set_target(t, e); }
-       | "("__ b:body __")" t:tail { $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty())); }
-       | f:fn t:tail               { $$ = set_target(t, tACTIVE(f)); }
-       | v:value t:tail            { $$ = set_target(t, v); }
+ paren = f:fn t:tail                { $$ = set_target(t, tACTIVE(f)); }
+       | "("__ e:pexpr __")" t:tail { $$ = set_target(t, e); }
+       | "("__ b:body  __")" t:tail {
+           $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty()));
+       }
+       | v:value t:tail             { $$ = set_target(t, v); }
 
 
-
-   map = "{"__ is:items __"}"   { $$ = map_activate(tmap_from_list(TASK, L(is))); }
+   map = "["__ is:items __"]"   { $$ = map_activate(tmap_from_list(TASK, L(is))); }
  items = i:item _","__ is:items { $$ = tlist_cat(TASK, L(i), L(is)); }
        | i:item                 { $$ = i }
        |                        { $$ = tlist_empty(); }
@@ -231,14 +257,12 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow"))
        | v:expr                 { $$ = tLIST2(TASK, tNull, v); }
 
 
-# value = lit | number | text | mut | ref | sym
  value = lit | number | text | map | sym | lookup
 
    lit = "true"      { $$ = tTrue; }
        | "false"     { $$ = tFalse; }
        | "null"      { $$ = tNull; }
        | "undefined" { $$ = tUndefined; }
-#       | "return"    { $$ = _CALL1(_REF(s_return), _REF(s_caller)); }
 #       | "goto"      { $$ = _CALL1(_REF(s_goto), _REF(s_caller)); }
 
 #   mut = "$" n:name  { $$ = _CALL1(_REF(tSYM("%get")), _REF(n)); }

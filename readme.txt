@@ -12,6 +12,7 @@ do collector and splays ...
 
 implement goto
 implement blocks
+implement send
 implement tasks and message sending primitives
 implement exceptions
 implement continuations
@@ -28,6 +29,8 @@ experiment with refcounting, experiment with alloc pool per task for certain siz
 * when doing mutable things, assert that ref == 1, copy/clone otherwise
 * think about how to defer refcounting to battle "churn"
 
+think about only allowing blocknl but all "bigger" scopes must be braced
+
 optimize: return should not capture run, but run->caller (or not?)
 optimize: task->value by tagging as active incase of tResult or such?
 optimize: compile code by collecting all local names, use that as dict, and keep values inside run
@@ -42,6 +45,19 @@ add static initializers, until first vm is created allow tSYM("...") tText("..."
 
 implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
 
+
+# syntax design
+
+Must be able to not type parens all the time. So you kan skip them for the "primary" expressions and for blocks. Especially for the primary expressions, you should be able to insert a primary expression to the left of it and it should mean the same thing:
+
+all run the initial statment unchanged
+  fac 10
+  print fac 10
+  sometimes print fact 10
+
+same for:
+  if true: print "foo"
+  timed if true: print "foo"
 
 # how does the evaluator work
 

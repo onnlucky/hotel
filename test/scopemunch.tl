@@ -1,11 +1,11 @@
 x = 100
-test1 = ( => out(x, "\n"); )
+test1 = { out(x, "\n"); }
 x = 200
-test2 = ( => out(x, "\n"); )
+test2 = { out(x, "\n"); }
 x = 300
-test3 = ( => out(x, "\n"); )
+test3 = { out(x, "\n"); }
 x = 400
-test4 = ( => out(x, "\n"); )
+test4 = { out(x, "\n"); }
 
 test1();
 test2();

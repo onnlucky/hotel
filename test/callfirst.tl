@@ -1,5 +1,5 @@
-id = ( x => x )
+id = (x){ x }
 TEST = 100
-fn = ( => out(TEST, "\n") )
+fn = { out(TEST, "\n") }
 id(fn)()
 fn()
