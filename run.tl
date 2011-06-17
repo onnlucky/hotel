@@ -1,10 +1,11 @@
-if = (cond, &tb, &fb){ bool(cond, tb, fb)() }
-fib = (n){
-    if n <= 2, return(1)
-    (fib n - 1) + (fib n - 2)
+TextClass = [
+    size = (this){ _text_size(this) }
+    toText = (this){ this }
+]
+_send = (target, name){
+    method = _map_get(TextClass, name)
+    method(target)
 }
-print fib 3
+//"foobar".size
+_send("foobar", #size)
 
-print [4, 5, 6]
-//print [4, 5, 6][0]
-//print [4, 5, 6].first

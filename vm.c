@@ -74,6 +74,11 @@ static tValue _map_get(tTask* task, tFun* fn, tMap* args) {
     if (!res) return tNull;
     return res;
 }
+static tValue _text_size(tTask* task, tFun* fn, tMap* args) {
+    tText* text = ttext_cast(tmap_get_int(args, 0));
+    if (!text) return tNull;
+    return tINT(ttext_size(text));
+}
 
 void tvm_init() {
     // assert assumptions on memory layout, pointer size etc
@@ -123,7 +128,9 @@ tEnv* tvm_global_env(tVm* vm) {
     env = tenv_set(null, env, tSYM("div"), tFUN(_div, tSYM("div")));
     env = tenv_set(null, env, tSYM("mod"), tFUN(_mod, tSYM("mod")));
 
-    env = tenv_set(null, env, tSYM("map_get"), tFUN(_map_get, tSYM("map_get")));
+    env = tenv_set(null, env, tSYM("_map_get"), tFUN(_map_get, tSYM("_map_get")));
+    env = tenv_set(null, env, tSYM("_text_size"), tFUN(_text_size, tSYM("_text_size")));
+    //env = tenv_set(null, env, tSYM("_invoke"), tFUN(_invoke, tSYM("_invoke")));
     return env;
 }
 

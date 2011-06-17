@@ -125,14 +125,14 @@ tValue tcollect_new_(tTask* task, tList* list);
 
   body = ts:stms           { $$ = tcode_from(TASK, ts); }
 
-  stms = t:stm eol ts:stms { $$ = tlist_cat(TASK, L(t), L(ts)); }
+  stms = t:stm eos ts:stms { $$ = tlist_cat(TASK, L(t), L(ts)); }
        | t:stm             { $$ = L(t); }
        |                   { $$ = tlist_empty(); }
 
 #// TODO only blocknl and block vs full function ...
 bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = ts; /*tlist_prepend(TASK, L(ts), _BODY_)*/ }
        | &{ pop_indent(G) }
-stmsnl = _ &{ check_indent(G) } t:stm eol ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
+stmsnl = _ &{ check_indent(G) } t:stm eos ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
        | _ &{ check_indent(G) } t:stm               { $$ = tlist_from1(TASK, t); }
 
    stm = singleassign | multiassign | noassign
@@ -247,7 +247,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow"))
 
 
    map = "["__ is:items __"]"   { $$ = map_activate(tmap_from_list(TASK, L(is))); }
- items = i:item _","__ is:items { $$ = tlist_cat(TASK, L(i), L(is)); }
+ items = i:item eom is:items    { $$ = tlist_cat(TASK, L(i), L(is)); }
        | i:item                 { $$ = i }
        |                        { $$ = tlist_empty(); }
 
@@ -290,7 +290,8 @@ slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* "*/"
   comment = (slcomment nl | icomment)
 
-      eol = _ (nl | ";" | slcomment nl) __
+      eos = _ (nl | ";" | slcomment nl) __
+      eom = _ (nl | "," | slcomment nl) __
        nl = "\n" | "\r\n" | "\r"
        sp = [ \t]
         _ = (sp | icomment)*
