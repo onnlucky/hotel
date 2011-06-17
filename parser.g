@@ -149,7 +149,11 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); }
  multiassign = ns:anames _"="__ e:pexpr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
     noassign =                  e:pexpr { $$ = tlist_from1(TASK, e); }
 
- pexpr = fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
+ pexpr = "assert" _ !"(" < as:pcargs > {
+            as = tlist_prepend(TASK, L(as), ttext_from_copy(TASK, yytext));
+            $$ = call_activate((tValue)tcall_from_args(TASK, tACTIVE(tSYM("assert")), as));
+       }
+       | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
            fatal("primary function call + bodynl");
            //$$ = call_activate(tcall_from_args(TASK, null, as));
        }
@@ -238,7 +242,11 @@ op_mul = l:op_pow _ ("*" __ r:op_pow { l = tcall_from(TASK, tACTIVE(tSYM("mul"))
 op_pow = l:paren  _ ("^" __ r:paren  { l = tcall_from(TASK, tACTIVE(tSYM("pow")), l, r, null); }
                     )*
 
- paren = f:fn t:tail                { $$ = set_target(t, tACTIVE(f)); }
+ paren = "assert"_"("__ < as:cargs > __")" t:tail {
+            as = tlist_prepend(TASK, L(as), ttext_from_copy(TASK, yytext));
+            $$ = set_target(t, tcall_from_args(TASK, tACTIVE(tSYM("assert")), as));
+       }
+       | f:fn t:tail                { $$ = set_target(t, tACTIVE(f)); }
        | "("__ e:pexpr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body  __")" t:tail {
            $$ = set_target(t, tcall_from_args(TASK, tACTIVE(b), tlist_empty()));
