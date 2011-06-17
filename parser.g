@@ -287,12 +287,13 @@ number = < "-"? [0-9]+ >            { $$ = tINT(atoi(yytext)); }
   name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tsym_from_copy(TASK, yytext); }
 
 slcomment = "//" (!nl .)*
- icomment = "/*" (!"*/" .)* "*/"
-  comment = (slcomment nl | icomment)
+ icomment = "/*" (!"*/" .)* ("*/"|!.)
+  comment = (slcomment nle | icomment)
 
-      eos = _ (nl | ";" | slcomment nl) __
-      eom = _ (nl | "," | slcomment nl) __
+      eos = _ (nle | ";" | slcomment nle) __
+      eom = _ (nle | "," | slcomment nle) __
        nl = "\n" | "\r\n" | "\r"
+      nle = "\n" | "\r\n" | "\r" | !.
        sp = [ \t]
         _ = (sp | icomment)*
        __ = (sp | nl | comment)*
