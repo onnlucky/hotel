@@ -9,7 +9,6 @@
 
 // this is how a print function could look
 static tValue _print(tTask* task, tFun* fn, tMap* args) {
-    trace("print(%d)", tmap_size(args));
     tText* sep = tTEXT(" ");
     tValue v = tmap_get_sym(args, tSYM("sep"));
     if (v) sep = tvalue_to_text(task, v);

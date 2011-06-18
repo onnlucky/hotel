@@ -1,11 +1,8 @@
-TextClass = [
-    size = (this){ _text_size(this) }
-    toText = (this){ this }
-]
-_send = (target, name){
-    method = _map_get(TextClass, name)
-    method(target)
+loop = (n){
+    done = return;
+    bool(n <= 0,{backtrace(); done()}, {})()
+    print("N:", n);
+    goto loop n - 1
 }
-//"foobar".size
-_send("foobar", #size)
+loop 10
 

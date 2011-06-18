@@ -18,7 +18,7 @@
 #include "env.c"
 #include "eval.c"
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 static tValue _out(tTask* task, tFun* fn, tMap* args) {
     trace("out(%d)", tmap_size(args));

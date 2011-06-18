@@ -10,7 +10,6 @@ add more arg processing:
 * keys in -> names + defaults in target
 do collector and splays ...
 
-implement goto
 implement blocks
 implement send
 implement tasks and message sending primitives
@@ -58,6 +57,12 @@ all run the initial statment unchanged
 same for:
   if true: print "foo"
   timed if true: print "foo"
+
+
+# about continuations and flow control
+
+There are three fundamental control flow functions. return, goto and continuation. These always have a tRunCode as reference. Because we try to be very lazy when to materialize tRun's the host (c) stack implies the native caller flow. But non linear flow by these functions makes this a delicate situation.
+
 
 # how does the evaluator work
 

@@ -1,6 +1,6 @@
 // hotel "bytecode"
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 struct tCode {
     tHead head;
