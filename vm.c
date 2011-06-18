@@ -119,6 +119,9 @@ void tvm_delete(tVm* vm) {
 
 tEnv* tvm_global_env(tVm* vm) {
     tEnv* env = tenv_new(null, null);
+
+    env = tenv_set(null, env, tSYM("backtrace"), tFUN(_backtrace, tSYM("backtrace")));
+
     env = tenv_set(null, env, tSYM("out"), tFUN(_out, tSYM("out")));
     env = tenv_set(null, env, tSYM("bool"), tFUN(_bool, tSYM("bool")));
     env = tenv_set(null, env, tSYM("lte"), tFUN(_lte, tSYM("lte")));

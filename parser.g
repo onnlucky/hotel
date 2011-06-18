@@ -35,6 +35,14 @@ bool check_indent(void* data);
 #define YY_XTYPE ParseContext*
 #define YY_INPUT(buf, len, max, cx) { len = writesome(cx, buf, max); }
 
+void try_name(tSym name, tValue v) {
+    if (tactive_is(v)) v = tvalue_from_active(v);
+    if (tcode_is(v)) {
+        tcode_set_name_(tcode_as(v), name);
+    }
+    assert(tsym_is(name));
+}
+
 tValue map_activate(tMap* map) {
     bool active = false;
     int i = 0;
@@ -121,7 +129,7 @@ tValue tcollect_new_(tTask* task, tList* list);
 
 %}
 
- start = __ b:body __ !.   { $$ = b; }
+ start = __ b:body __ !.   { $$ = b; try_name(tSYM("main"), b); }
 
   body = ts:stms           { $$ = tcode_from(TASK, ts); }
 
@@ -145,7 +153,7 @@ anames =     n:name _","_ as:anames { $$ = tlist_prepend(TASK, L(as), n); }
        #| "*" n:name                 { $$ = tlist_from1(TASK, n); }
        |     n:name                 { $$ = tlist_from1(TASK, n); }
 
-singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); }
+singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); try_name(n, e); }
  multiassign = ns:anames _"="__ e:pexpr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
     noassign =                  e:pexpr { $$ = tlist_from1(TASK, e); }
 

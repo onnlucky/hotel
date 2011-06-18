@@ -117,6 +117,21 @@ tValue tresult_get(tValue v, int at) {
     return tNull;
 }
 
+INTERNAL tRun* resume_code(tTask* task, tRun* r);
+INTERNAL tValue _backtrace(tTask* task, tFun* fn, tMap* args) {
+    trace(" !! BACKTRACE !!");
+    tRun* r = task->run;
+    while (r) {
+        if (r->resume == resume_code) {
+            print("TRACE: %s", t_str(((tRunCode*)r)->code->name));
+        } else {
+            print("TRACE: %p", r);
+        }
+        r = r->caller;
+    }
+    return tNull;
+}
+
 // return works like a closure, on lookup we close it over the current run
 INTERNAL tValue _return(tTask* task, tFun* fn, tMap* args) {
     trace("<< RETURN(%d)", tmap_size(args));
