@@ -161,6 +161,9 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); try
             as = tlist_prepend(TASK, L(as), ttext_from_copy(TASK, yytext));
             $$ = call_activate((tValue)tcall_from_args(TASK, tACTIVE(tSYM("assert")), as));
        }
+       | fn:lookup _ ":" b:bodynl {
+           fatal("primary function call + bodynl");
+       }
        | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
            fatal("primary function call + bodynl");
            //$$ = call_activate(tcall_from_args(TASK, null, as));

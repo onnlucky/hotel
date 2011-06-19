@@ -13,11 +13,11 @@ do collector and splays ...
 implement blocks
 implement send
 implement tasks and message sending primitives
-implement exceptions
+implement exceptions and handling (add onerror to tCodeRun)
 implement continuations
 implement keyworded argument passing into function
 implement default arguments for function
-implement defer
+implement defer (add defer[] to tCodeRun)
 
 bring back a boot.tl library
 implement serializing tValue's to disk
@@ -30,7 +30,7 @@ experiment with refcounting, experiment with alloc pool per task for certain siz
 
 think about only allowing blocknl but all "bigger" scopes must be braced
 
-optimize: return should not capture run, but run->caller (or not?)
+optimize: parser pexpr and others lots of branches start out the same, let them share prefix ...
 optimize: task->value by tagging as active incase of tResult or such?
 optimize: compile code by collecting all local names, use that as dict, and keep values inside run
 
@@ -43,6 +43,8 @@ how to do gc? global+train vcc + local refcounted heap + nursery
 add static initializers, until first vm is created allow tSYM("...") tText("...") etc.
 
 implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
+
+implement lvalue assignment by giving tCollect a run that holds on to the task->value in the mean time ...
 
 
 # syntax design
