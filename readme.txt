@@ -65,6 +65,21 @@ same for:
 
 There are three fundamental control flow functions. return, goto and continuation. These always have a tRunCode as reference. Because we try to be very lazy when to materialize tRun's the host (c) stack implies the native caller flow. But non linear flow by these functions makes this a delicate situation.
 
+# macros
+
+Before any optimization, macros may run. Basically after parsing, but before optimizing/compiling, macros may run. As we see a macro definitions, we take it out of the source, compile it and have it defined for the current scope. As we see symbols in apply position, if they refer to a macro, we apply the macro, the arguments are unevaluated syntax tree elements.
+
+macro repeat = (block){
+    if args.size > 1: throw "repeat expects a single block"
+    if !hblock.type == lang.Block: throw "repeat expects a block"
+    args.block.add-first parse "again=continuation"
+}
+
+buffer = Buffer.new
+file = Path("index.html").open
+repeat:
+    len = read file, buffer
+    if len > 0: again
 
 # how does the evaluator work
 
