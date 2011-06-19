@@ -137,11 +137,10 @@ tValue tcollect_new_(tTask* task, tList* list);
        | t:stm             { $$ = L(t); }
        |                   { $$ = tlist_empty(); }
 
-#// TODO only blocknl and block vs full function ...
-bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = ts; /*tlist_prepend(TASK, L(ts), _BODY_)*/ }
+bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = tcode_from(TASK, ts); }
        | &{ pop_indent(G) }
-stmsnl = _ &{ check_indent(G) } t:stm eos ts:stmsnl { $$ = tlist_prepend(TASK, L(ts), t); }
-       | _ &{ check_indent(G) } t:stm               { $$ = tlist_from1(TASK, t); }
+stmsnl = _ &{ check_indent(G) } t:stm eos ts:stmsnl { $$ = tlist_cat(TASK, L(t), L(ts)); }
+       | _ &{ check_indent(G) } t:stm               { $$ = L(t); }
 
    stm = singleassign | multiassign | noassign
 
@@ -165,8 +164,8 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); try
            fatal("primary function call + bodynl");
        }
        | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
-           fatal("primary function call + bodynl");
-           //$$ = call_activate(tcall_from_args(TASK, null, as));
+           as = tlist_add(TASK, L(as), tACTIVE(b));
+           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
        }
        | fn:lookup _ !"(" as:pcargs {
            trace("primary function call");
