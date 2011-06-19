@@ -10,14 +10,6 @@ add more arg processing:
 * keys in -> names + defaults in target
 do collector and splays ...
 
-a rule as just a single activated symbol, should self-evaluate e.g.:
-    if true:
-        return
-or
-    if true:
-        again
-should work, regardless if return or again are build-in
-
 implement send
 implement tasks and message sending primitives
 implement exceptions and handling (add onerror to tCodeRun)
@@ -67,6 +59,13 @@ same for:
   if true: print "foo"
   timed if true: print "foo"
 
+# selfapplication
+
+If a name appears all by itself in single statement, it selfactivates ... the only other use for such a statment would be if it is at the end of an code block to return that value. In that case you can use return name instead.
+
+so:
+    print
+would actually print a newline ...
 
 # about continuations and flow control
 

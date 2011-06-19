@@ -154,7 +154,8 @@ anames =     n:name _","_ as:anames { $$ = tlist_prepend(TASK, L(as), n); }
 
 singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); try_name(n, e); }
  multiassign = ns:anames _"="__ e:pexpr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
-    noassign =                  e:pexpr { $$ = tlist_from1(TASK, e); }
+    noassign = e:selfapply  { $$ = tlist_from1(TASK, e); }
+             | e:pexpr      { $$ = tlist_from1(TASK, e); }
 
 
     fn = "(" __ as:fargs __ ")"_"{" __ b:body __ "}" {
@@ -174,6 +175,10 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
 
 
   expr = e:op_log { $$ = call_activate(e); }
+
+selfapply = n:name _ &eos {
+    $$ = call_activate((tValue)tcall_from_args(TASK, tACTIVE(n), tlist_empty()));
+}
 
  pexpr = "assert" _ !"(" < as:pcargs > {
             as = tlist_prepend(TASK, L(as), ttext_from_copy(TASK, yytext));

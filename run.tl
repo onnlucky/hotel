@@ -1,8 +1,8 @@
 if = (c, block){ bool(c, block, {})() }
 loop = (n){
     if n <= 0:
-        backtrace()
-        return()
+        backtrace
+        return
     if n <= 0:
         error()
     print("N:", n)
@@ -11,5 +11,8 @@ loop = (n){
 loop 10
 
 foo = (block){ block() }
-foo(): print("hello")
+foo(): print; print("hello"); print
+
+print
+print
 
