@@ -23,6 +23,12 @@ tCode* tcode_from(tTask* task, tList* ops) {
     }
     return code;
 }
+void tcode_set_isblock_(tCode* code, bool isblock) {
+    code->flags = tOne;
+}
+bool tcode_isblock(tCode* code) {
+    return code->flags == tOne;
+}
 void tcode_set_name_(tCode* code, tSym name) {
     code->name = name;
 }
@@ -50,7 +56,6 @@ void tcode_set_args_(tTask* task, tCode* code, tList* args) {
     code->argnames = names;
     code->argdefaults = defaults;
 }
-
 void tcode_set_arg_name_defaults_(tTask* task, tCode* code, tList* name_defaults) {
     int size = tlist_size(name_defaults);
     tList* names = tlist_new(task, size / 2);

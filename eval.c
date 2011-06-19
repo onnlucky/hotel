@@ -73,7 +73,8 @@ typedef struct tRunArgs {
     tCall* call;
     tMap* args;
 } tRunArgs;
-typedef struct tRunCode {
+typedef struct tRunCode tRunCode;
+struct tRunCode {
     tHead head;
     intptr_t pc;
     t_resume resume;
@@ -81,7 +82,8 @@ typedef struct tRunCode {
 
     tCode* code;
     tEnv* env;
-} tRunCode;
+    tRunCode* parent;
+};
 
 tClosure* tclosure_new(tTask* task, tCode* code, tEnv* env) {
     tClosure* fn = task_alloc(task, TClosure, 2);
@@ -280,11 +282,22 @@ INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* map, tE
     return null;
 }
 
+// TODO we should really not be passing runs through environments
+tRunCode* get_function_run(tValue r) {
+    assert(trun_is(r));
+    tRunCode* run = (tRunCode*)r;
+    while (run && tcode_isblock(run->code)) {
+        run = tenv_get_run(run->env->parent);
+    }
+    return run;
+}
+
 // lookups potentially need to run hotel code (not yet though)
 INTERNAL tRun* lookup(tTask* task, tEnv* env, tSym name) {
     if (name == s_return) {
         tValue run = tenv_get_run(env);
         assert(trun_is(run) && trun_as(run)->resume == resume_code);
+        run = get_function_run(run);
         ttask_set_value(task, tfun_new(task, _return, run));
         trace("%s -> %s", t_str(name), t_str(task->value));
         return null;
@@ -292,6 +305,7 @@ INTERNAL tRun* lookup(tTask* task, tEnv* env, tSym name) {
     if (name == s_goto) {
         tValue run = tenv_get_run(env);
         assert(trun_is(run) && trun_as(run)->resume == resume_code);
+        run = get_function_run(run);
         ttask_set_value(task, tfun_new(task, _goto, run));
         trace("%s -> %s", t_str(name), t_str(task->value));
         return null;

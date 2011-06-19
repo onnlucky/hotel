@@ -156,33 +156,6 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlist_from(TASK, e, n, null); try
  multiassign = ns:anames _"="__ e:pexpr { $$ = tlist_from(TASK, e, tcollect_new_(TASK, L(ns)), null); }
     noassign =                  e:pexpr { $$ = tlist_from1(TASK, e); }
 
- pexpr = "assert" _ !"(" < as:pcargs > {
-            as = tlist_prepend(TASK, L(as), ttext_from_copy(TASK, yytext));
-            $$ = call_activate((tValue)tcall_from_args(TASK, tACTIVE(tSYM("assert")), as));
-       }
-       | fn:lookup _ ":" b:bodynl {
-           fatal("primary function call + bodynl");
-       }
-       | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
-           as = tlist_add(TASK, L(as), tACTIVE(b));
-           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
-       }
-       | fn:lookup _ !"(" as:pcargs {
-           trace("primary function call");
-           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
-       }
-       | v:value _"."_ n:name _ !"(" as:pcargs _":"_ b:bodynl {
-           fatal("primary send + bodynl");
-       }
-       | v:value _"."_ n:name _ !"(" as:pcargs {
-           fatal("primary send");
-       }
-       | expr
-
-pcargs = e:expr __","__ as:pcargs   { $$ = tlist_prepend(TASK, L(as), e); }
-       | e:pexpr                    { $$ = tlist_from1(TASK, e) }
-
-  expr = e:op_log { $$ = call_activate(e); }
 
     fn = "(" __ as:fargs __ ")"_"{" __ b:body __ "}" {
             tcode_set_args_(TASK, tcode_as(b), L(as));
@@ -199,10 +172,41 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
      | "&" n:name { $$ = tlist_from2(TASK, n, tThunkNull); }
      |     n:name { $$ = tlist_from2(TASK, n, tNull); }
 
+
+  expr = e:op_log { $$ = call_activate(e); }
+
+ pexpr = "assert" _ !"(" < as:pcargs > {
+            as = tlist_prepend(TASK, L(as), ttext_from_copy(TASK, yytext));
+            $$ = call_activate((tValue)tcall_from_args(TASK, tACTIVE(tSYM("assert")), as));
+       }
+       | fn:lookup _ ":" b:bodynl {
+           tcode_set_isblock_(b, true);
+           as = tlist_from1(TASK, tACTIVE(b));
+           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
+       }
+       | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
+           tcode_set_isblock_(b, true);
+           as = tlist_add(TASK, L(as), tACTIVE(b));
+           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
+       }
+       | fn:lookup _ !"(" as:pcargs {
+           trace("primary function call");
+           $$ = call_activate((tValue)tcall_from_args(TASK, fn, as));
+       }
+       | v:value _"."_ n:name _ !"(" as:pcargs _":"_ b:bodynl {
+           fatal("primary send + bodynl");
+       }
+       | v:value _"."_ n:name _ !"(" as:pcargs {
+           fatal("primary send");
+       }
+       | expr
+
+
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
-           fatal("function call + bodynl");
-           //$$ = tlist_add(TASK, tlist_prepend2(TASK, L(as), _CALL_, null), b);
-           //$$ = tlist_prepend2(TASK, L(as), _CALL_, null);
+           trace("function call + bodynl");
+           tcode_set_isblock_(b, true);
+           as = tlist_add(TASK, L(as), tACTIVE(b));
+           $$ = tcall_from_args(TASK, null, as);
        }
        | _"("__ as:cargs __")" t:tail {
            trace("function call");
@@ -223,6 +227,9 @@ farg = "&&" n:name { $$ = tlist_from2(TASK, n, tCollectLazy); }
            trace("no tail");
            $$ = null;
        }
+
+pcargs = e:expr __","__ as:pcargs   { $$ = tlist_prepend(TASK, L(as), e); }
+       | e:pexpr                    { $$ = tlist_from1(TASK, e) }
 
  cargs = e:expr __","__ as:cargs   { $$ = tlist_prepend(TASK, L(as), e); }
        | e:expr                    { $$ = tlist_from1(TASK, e) }

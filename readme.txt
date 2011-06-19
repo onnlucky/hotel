@@ -10,7 +10,14 @@ add more arg processing:
 * keys in -> names + defaults in target
 do collector and splays ...
 
-implement blocks
+a rule as just a single activated symbol, should self-evaluate e.g.:
+    if true:
+        return
+or
+    if true:
+        again
+should work, regardless if return or again are build-in
+
 implement send
 implement tasks and message sending primitives
 implement exceptions and handling (add onerror to tCodeRun)
