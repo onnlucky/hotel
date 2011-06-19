@@ -1,7 +1,10 @@
 # TODO
+rename the 't' to 'tl' ... because 't' might get conflicts ...
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
 clean up tl.h; nice up code.{h,c} and call.c
+expose parsed code: tlBlock, tlCall, tlSend, tlOp, tlAssign, ...
+optimize after parser, inspect step: single tlAssign become just name ...
 
 add more arg processing:
 * no keys in -> no names + defaults in target
@@ -26,8 +29,7 @@ experiment with refcounting, experiment with alloc pool per task for certain siz
 * when ref > 1, assert that all fields are valid
 * when doing mutable things, assert that ref == 1, copy/clone otherwise
 * think about how to defer refcounting to battle "churn"
-
-think about only allowing blocknl but all "bigger" scopes must be braced
+x = KEEP(v); return FREE(v); return PASS(v);
 
 optimize: parser pexpr and others lots of branches start out the same, let them share prefix ...
 optimize: task->value by tagging as active incase of tResult or such?
