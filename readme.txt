@@ -1,4 +1,7 @@
 # TODO
+fix goto
+add testcase for goto and backtrace and continuation
+
 rename the 't' to 'tl' ... because 't' might get conflicts ...
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
@@ -17,7 +20,6 @@ implement send (tlSend)
 implement operations (tlOp)
 implement tasks and message sending primitives
 implement exceptions and handling (add onerror to tCodeRun)
-implement continuations
 implement keyworded argument passing into function
 implement default arguments for function
 implement defer (add defer[] to tCodeRun)
