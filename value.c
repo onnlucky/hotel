@@ -92,22 +92,29 @@ tValue task_alloc_priv(tTask* task, uint8_t type, int size, uint8_t privs) {
 tValue task_alloc_full(tTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
     assert(type > 0 && type < TLAST);
     assert(privs <= 0x0F);
-    int size = bytes + (privs + datas) * sizeof(tValue);
+    bytes = bytes + ((size_t)datas + privs) * sizeof(tValue);
+    int size = (bytes - sizeof(tHead)) / sizeof(tValue);
     assert(size < 0xFFFF);
-    tHead* head = calloc(1, size);
-    assert((((intptr_t)head) & 7) == 0);
-    head->flags = privs;
-    head->type = type;
-    head->size = size;
-    head->keep = 1;
-    return (tValue)head;
+    trace("BYTES: %zd -- %d", bytes, size);
+
+    tList* to = calloc(1, bytes);
+    assert((((intptr_t)to) & 7) == 0);
+    to->head.flags = privs;
+    to->head.type = type;
+    to->head.size = size;
+    to->head.keep = 1;
+    return to;
 }
 tValue task_clone(tTask* task, tValue v) {
     tList* from = (tList*)v;
-    int bytes = sizeof(tHead) + sizeof(tValue) * from->head.size;
+    size_t bytes = sizeof(tHead) + sizeof(tValue) * from->head.size;
+    int size = (bytes - sizeof(tHead)) / sizeof(tValue);
+    assert(size < 0xFFFF);
+    trace("BYTES: %zd -- %d -- %s", bytes, size, t_str(v));
+    assert(from->head.size == size);
     tList* to = malloc(bytes);
     memcpy(to, from, bytes);
-    assert(to->head.size == (bytes - sizeof(tHead))/sizeof(tValue));
+    assert(to->head.size == size);
     to->head.keep = 1;
     return to;
 }

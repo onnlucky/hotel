@@ -548,6 +548,7 @@ INTERNAL tRun* run_args_host(tTask* task, tRunArgs* run) {
 INTERNAL tRun* resume_args_host(tTask* task, tRun* r) {
     return run_args_host(task, (tRunArgs*)r);
 }
+
 // this is the main part of eval: running the "list" of "bytecode"
 tRun* run_code(tTask* task, tRunCode* run) {
     int pc = run->pc;
@@ -562,20 +563,19 @@ tRun* run_code(tTask* task, tRunCode* run) {
         // a value marked as active
         if (tactive_is(op)) {
             trace2("%p op: active -- %s", run, t_str(tvalue_from_active(op)));
+            // make sure we keep the current run up to date, continuations might capture it
+            if (run->head.keep > 1) run = task_clone(task, run);
+            run->env = env; run->pc = pc + 1;
             tRun* r = run_activate(task, tvalue_from_active(op), env);
             if (!r && tcall_is(task->value)) {
                 trace2("%p op: active call: %p", run, task->value);
                 r = run_apply(task, tcall_as(task->value));
             }
             if (r) {
-                if (run->pc < 0) {
-                    // if we got returned by a goto or return function ...
-                    trace2("%p op: run returned suspend: %p", run, r);
-                    return r;
-                }
                 trace2("%p op: active suspend: %p", run, r);
-                run->pc = pc + 1;
-                run->env = env;
+                // TODO we don't have to clone if task->jumping
+                if (run->head.keep > 1) run = task_clone(task, run);
+                run->env = env; run->pc = pc + 1;
                 return suspend_attach(task, r, run);
             }
             assert(!trun_is(task->value));
@@ -598,6 +598,7 @@ tRun* run_code(tTask* task, tRunCode* run) {
             for (int i = 0; i < names->head.size; i++) {
                 tSym name = tsym_as(names->data[i]);
                 tValue v = tresult_get(task->value, i);
+                trace2("%p op: collect: %s = %s", run, t_str(name), t_str(v));
                 env = tenv_set(task, env, name, v);
             }
             continue;
