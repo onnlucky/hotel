@@ -2,7 +2,7 @@
 
 #include "trace-off.h"
 
-static tSym s_cont;
+static tSym s_continuation;
 static tSym s_caller;
 static tSym s_return;
 static tSym s_goto;
@@ -133,7 +133,7 @@ static void strfree(void *str) { }
 static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
-    s_cont   = tSYM("continuation");
+    s_continuation = tSYM("continuation");
     s_caller = tSYM("caller-continuation");
     s_return = tSYM("return");
     s_goto   = tSYM("goto");

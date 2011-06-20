@@ -3,8 +3,8 @@ rename the 't' to 'tl' ... because 't' might get conflicts ...
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
 clean up tl.h; nice up code.{h,c} and call.c
-expose parsed code: tlBlock, tlCall, tlSend, tlOp, tlAssign, ...
-optimize after parser, inspect step: single tlAssign become just name ...
+expose parsed code: tlBlock, tlLookup, tlCall, tlSend, tlOp, tlAssign, ...
+only optimize after parser, inspect step: single tlAssign become just name ...
 
 add more arg processing:
 * no keys in -> no names + defaults in target
@@ -13,7 +13,8 @@ add more arg processing:
 * keys in -> names + defaults in target
 do collector and splays ...
 
-implement send
+implement send (tlSend)
+implement operations (tlOp)
 implement tasks and message sending primitives
 implement exceptions and handling (add onerror to tCodeRun)
 implement continuations

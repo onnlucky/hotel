@@ -17,9 +17,7 @@ typedef struct tHead {
     uint8_t flags;
     uint8_t type;
     uint16_t size;
-#ifdef M64
-    uint32_t pad;
-#endif
+    int32_t keep;
 } tHead;
 
 // this is how all values look in memory

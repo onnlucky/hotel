@@ -3,6 +3,18 @@
 
 #include "trace-on.h"
 
+tValue TL_KEEP(tValue v) {
+    if (!tref_is(v)) return v;
+    assert(t_head(v)->keep >= 1);
+    t_head(v)->keep++;
+    return v;
+}
+void TL_FREE(tValue v) {
+    if (!tref_is(v)) return;
+    t_head(v)->keep--;
+    if (t_head(v)->keep == 0) free(v);
+}
+
 // any hotel evaluation step can be saved and resumed using a tRun
 typedef tRun* (*t_resume)(tTask*, tRun*);
 struct tRun {
@@ -100,12 +112,23 @@ tValue tcollect_new_(tTask* task, tList* list) {
     list->head.type = TCollect;
     return list;
 }
+// TODO fix these two functions, map size is not same as int mapped values ...
 tResult* tresult_new(tTask* task, tMap* args) {
     int size = tmap_size(args);
     tResult* res = task_alloc(task, TResult, size);
     for (int i = 0; i < size; i++) {
         res->data[i] = tmap_get_int(args, i);
     }
+    return res;
+}
+tResult* tresult_new2(tTask* task, tValue first, tMap* args) {
+    int size = tmap_size(args);
+    tResult* res = task_alloc(task, TResult, size + 1);
+    res->data[0] = first;
+    for (int i = 0; i < size; i++) {
+        res->data[i + 1] = tmap_get_int(args, i);
+    }
+    print("RESULTS: %d", res->head.size);
     return res;
 }
 tValue tresult_get(tValue v, int at) {
@@ -144,25 +167,30 @@ INTERNAL tValue _backtrace(tTask* task, tFun* fn, tMap* args) {
     return tNull;
 }
 
+INTERNAL tRun* setup(tTask* task, tValue v) {
+    trace("      <<<< %p", v);
+    return task->run = trun_as(v);
+}
 INTERNAL tRun* setup_caller(tTask* task, tValue v) {
     if (!v) return null;
     tRun* caller = trun_as(v)->caller;
-    trace2("%p <<<< %p", task->run, caller);
+    trace(" << %p <<<< %p", caller, v);
     task->run = caller;
     assert_backtrace(task->run);
     return caller;
 }
-INTERNAL tRun* yield(tTask* task, tValue v) {
+INTERNAL tRun* suspend(tTask* task, tValue v) {
     tRun* run = trun_as(v);
-    trace2("%p >>>> %p", task->run, run);
+    trace("    >>>> %p", run);
     task->run = run;
     assert_backtrace(task->run);
     return run;
 }
-INTERNAL tRun* yield_to(tRun* run, tValue c) {
+INTERNAL tRun* suspend_attach(tTask* task, tRun* run, tValue c) {
+    if (task->jumping) return run;
     assert(trun_is(run));
     tRun* caller = trun_as(c);
-    trace2("%p.caller = %p", run, caller);
+    trace("> %p.caller = %p", run, caller);
     run->caller = caller;
     assert_backtrace(run);
     return caller;
@@ -170,24 +198,30 @@ INTERNAL tRun* yield_to(tRun* run, tValue c) {
 
 // return works like a closure, on lookup we close it over the current run
 INTERNAL tValue _return(tTask* task, tFun* fn, tMap* args) {
-    trace("<< RETURN(%d)", tmap_size(args));
-    trace2("%p <<<< %p", trun_as(fn->data)->caller, task->run);
+    trace("RETURN(%d)", tmap_size(args));
 
-    // mark code run as returned
-    tRunCode* run = (tRunCode*)trun_as(fn->data);
-    run->pc = -1;
-    setup_caller(task, run);
+    task->jumping = tTrue;
+    setup(task, fn->data);
 
-    if (tmap_size(args) == 1) {
-        return tmap_get_int(args, 0);
-    }
+    if (tmap_size(args) == 1) return tmap_get_int(args, 0);
     return tresult_new(task, args);
 }
+
 // goto should never be called, instead we run it as a run
 INTERNAL tValue _goto(tTask* task, tFun* fn, tMap* args) {
     warning("_goto is not supposed to be called");
     assert(false);
     abort();
+}
+
+INTERNAL tValue _continuation(tTask* task, tFun* fn, tMap* args) {
+    trace("CONTINUATION(%d)", tmap_size(args));
+
+    task->jumping = tTrue;
+    setup(task, fn->data);
+
+    if (tmap_size(args) == 0) return fn;
+    return tresult_new2(task, fn, args);
 }
 
 void* trun_alloc(tTask* task, size_t bytes, int datas, t_resume resume) {
@@ -237,7 +271,7 @@ INTERNAL tRun* run_activate_call(tTask* task, tRunActivateCall* run, tCall* call
                 }
                 run->count = -1 - i;
                 run->call = call;
-                return yield_to(r, run);
+                return suspend_attach(task, r, run);
             }
             v = ttask_value(task);
             call = tcall_value_iter_set_(call, i, v);
@@ -271,7 +305,7 @@ INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* map, tE
                 }
                 run->count = -1 - i;
                 run->map = map;
-                return yield_to(r, run);
+                return suspend_attach(task, r, run);
             }
             v = ttask_value(task);
             map = tmap_value_iter_set_(map, i, v);
@@ -294,19 +328,23 @@ tRunCode* get_function_run(tValue r) {
 
 // lookups potentially need to run hotel code (not yet though)
 INTERNAL tRun* lookup(tTask* task, tEnv* env, tSym name) {
+    // when we bind continuations, the task->run *MUST* be the current code run
     if (name == s_return) {
-        tValue run = tenv_get_run(env);
-        assert(trun_is(run) && trun_as(run)->resume == resume_code);
-        run = get_function_run(run);
-        ttask_set_value(task, tfun_new(task, _return, run));
+        assert(task->run && task->run->resume == resume_code);
+        ttask_set_value(task, tfun_new(task, _return, task->run->caller));
         trace("%s -> %s", t_str(name), t_str(task->value));
         return null;
     }
     if (name == s_goto) {
-        tValue run = tenv_get_run(env);
-        assert(trun_is(run) && trun_as(run)->resume == resume_code);
-        run = get_function_run(run);
-        ttask_set_value(task, tfun_new(task, _goto, run));
+        assert(task->run && task->run->resume == resume_code);
+        ttask_set_value(task, tfun_new(task, _goto, task->run->caller));
+        trace("%s -> %s", t_str(name), t_str(task->value));
+        return null;
+    }
+    if (name == s_continuation) {
+        // TODO freeze current run ...
+        assert(task->run && task->run->resume == resume_code);
+        ttask_set_value(task, tfun_new(task, _continuation, TL_KEEP(task->run)));
         trace("%s -> %s", t_str(name), t_str(task->value));
         return null;
     }
@@ -345,7 +383,7 @@ INTERNAL tRun* run_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
         if (r) {
             run = trun_alloc(task, sizeof(tRunFirst), 0, resume_first);
             run->call = call;
-            return yield_to(r, run);
+            return suspend_attach(task, r, run);
         }
     }
     fn = ttask_value(task);
@@ -357,7 +395,7 @@ INTERNAL tRun* run_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
     // tail call ... kindof ...
     tRun* caller = setup_caller(task, run);
     tRun* r = run_apply(task, call);
-    if (r) return yield_to(r, caller);
+    if (r) return suspend_attach(task, r, caller);
     return null;
 }
 
@@ -407,7 +445,7 @@ INTERNAL tRun* run_args(tTask* task, tRunArgs* run) {
             if (r) {
                 run->count = -1 - i;
                 run->args = args;
-                return yield_to(r, run);
+                return suspend_attach(task, r, run);
             }
             v = ttask_value(task);
         }
@@ -424,7 +462,11 @@ INTERNAL tRun* resume_args(tTask* task, tRun* run) {
 
 INTERNAL tRun* run_code(tTask* task, tRunCode* run);
 INTERNAL tRun* resume_code(tTask* task, tRun* r) {
-    return run_code(task, (tRunCode*)r);
+    tRunCode* run = (tRunCode*)r;
+    if (r->head.keep > 1) {
+        run = task_clone(task, run);
+    }
+    return run_code(task, run);
 }
 INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* names) {
     run->resume = resume_code;
@@ -480,7 +522,7 @@ INTERNAL tRun* run_args_host(tTask* task, tRunArgs* run) {
             if (r) {
                 run->count = -1 - i;
                 run->args = args;
-                return yield_to(r, run);
+                return suspend_attach(task, r, run);
             }
             v = ttask_value(task);
         }
@@ -528,13 +570,13 @@ tRun* run_code(tTask* task, tRunCode* run) {
             if (r) {
                 if (run->pc < 0) {
                     // if we got returned by a goto or return function ...
-                    trace2("%p op: run returned yield: %p", run, r);
+                    trace2("%p op: run returned suspend: %p", run, r);
                     return r;
                 }
-                trace2("%p op: active yield: %p", run, r);
+                trace2("%p op: active suspend: %p", run, r);
                 run->pc = pc + 1;
                 run->env = env;
-                return yield_to(r, run);
+                return suspend_attach(task, r, run);
             }
             assert(!trun_is(task->value));
             assert(!tcall_is(task->value));
@@ -583,7 +625,7 @@ INTERNAL tRun* start_args(tTask* task, tCall* call) {
     trace("%p", call);
     tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, resume_args);
     run->call = call;
-    return yield(task, run);
+    return suspend(task, run);
 }
 
 // TODO remove
@@ -591,7 +633,7 @@ INTERNAL tRun* start_args_host(tTask* task, tCall* call) {
     trace("%p", call);
     tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, resume_args_host);
     run->call = call;
-    return yield(task, run);
+    return suspend(task, run);
 }
 INTERNAL tRun* run_goto(tTask* task, tCall* call, tFun* fn) {
     trace("%p", call);
@@ -608,7 +650,7 @@ INTERNAL tRun* run_goto(tTask* task, tCall* call, tFun* fn) {
     tValue v = tcall_get_arg(call, 0);
     if (tcall_is(v)) {
         tRun* r = run_apply(task, tcall_as(v));
-        if (r) return yield_to(r, caller);
+        if (r) return suspend_attach(task, r, caller);
         return null;
     }
 
@@ -617,6 +659,7 @@ INTERNAL tRun* run_goto(tTask* task, tCall* call, tFun* fn) {
 }
 
 INTERNAL tRun* run_apply(tTask* task, tCall* call) {
+    assert(call);
     if (call->keys) {
         assert(tcall_argc(call) == tlist_size(call->keys) - 1);
         assert(tmap_is(tlist_get(call->keys, tcall_argc(call))));
@@ -653,6 +696,7 @@ INTERNAL tRun* run_apply(tTask* task, tCall* call) {
 
 INTERNAL void run_resume(tTask* task, tRun* run) {
     trace("RESUME");
+    task->jumping = 0;
     assert(run->resume);
     run->resume(task, run);
 }

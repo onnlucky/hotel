@@ -16,6 +16,7 @@ struct tTask {
     // lqueue_item msg_item // tasks *are* the messages
     // lqueue_list msg_queue // this tasks message queue
 
+    tValue jumping; // indicates non linear suspend ... don't attach
     tRun* run; // the current continuation aka run; much like the "pc register"
 };
 TTYPE(tTask, ttask, TTask);

@@ -79,6 +79,7 @@ tValue task_alloc(tTask* task, uint8_t type, int size) {
     assert(type > 0 && type < TLAST);
     head->type = type;
     head->size = size;
+    head->keep = 1;
     return (tValue)head;
 }
 tValue task_alloc_priv(tTask* task, uint8_t type, int size, uint8_t privs) {
@@ -95,9 +96,20 @@ tValue task_alloc_full(tTask* task, uint8_t type, size_t bytes, uint8_t privs, u
     assert(size < 0xFFFF);
     tHead* head = calloc(1, size);
     assert((((intptr_t)head) & 7) == 0);
+    head->flags = privs;
     head->type = type;
     head->size = size;
+    head->keep = 1;
     return (tValue)head;
+}
+tValue task_clone(tTask* task, tValue v) {
+    tList* from = (tList*)v;
+    int bytes = sizeof(tHead) + sizeof(tValue) * from->head.size;
+    tList* to = malloc(bytes);
+    memcpy(to, from, bytes);
+    assert(to->head.size == (bytes - sizeof(tHead))/sizeof(tValue));
+    to->head.keep = 1;
+    return to;
 }
 
 // pritive toString
