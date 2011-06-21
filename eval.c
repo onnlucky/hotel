@@ -317,9 +317,11 @@ INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* map, tE
 }
 
 // TODO we should really not be passing runs through environments
-tRunCode* get_function_run(tValue r) {
-    assert(trun_is(r));
+tRunCode* get_function_run(tRun* r) {
     tRunCode* run = (tRunCode*)r;
+    if (!run) return null;
+    assert(trun_is(run));
+    assert(run->resume == resume_code);
     while (run && tcode_isblock(run->code)) {
         run = tenv_get_run(run->env->parent);
     }
@@ -331,13 +333,15 @@ INTERNAL tRun* lookup(tTask* task, tEnv* env, tSym name) {
     // when we bind continuations, the task->run *MUST* be the current code run
     if (name == s_return) {
         assert(task->run && task->run->resume == resume_code);
-        ttask_set_value(task, tfun_new(task, _return, task->run->caller));
+        tRunCode* run = get_function_run(task->run);
+        ttask_set_value(task, tfun_new(task, _return, run->caller));
         trace("%s -> %s", t_str(name), t_str(task->value));
         return null;
     }
     if (name == s_goto) {
         assert(task->run && task->run->resume == resume_code);
-        ttask_set_value(task, tfun_new(task, _goto, task->run->caller));
+        tRunCode* run = get_function_run(task->run);
+        ttask_set_value(task, tfun_new(task, _goto, run->caller));
         trace("%s -> %s", t_str(name), t_str(task->value));
         return null;
     }
@@ -642,16 +646,18 @@ INTERNAL tRun* run_goto(tTask* task, tCall* call, tFun* fn) {
     // TODO handle multiple arguments ... but what does that mean?
     assert(tcall_argc(call) == 1);
 
-    // mark code run as returned
-    tRunCode* run = (tRunCode*)trun_as(fn->data);
-    run->pc = -1;
-
-    tRun* caller = setup_caller(task, run);
+    tRun* caller = trun_as(fn->data);
+    setup(task, caller);
 
     tValue v = tcall_get_arg(call, 0);
     if (tcall_is(v)) {
         tRun* r = run_apply(task, tcall_as(v));
-        if (r) return suspend_attach(task, r, caller);
+        if (r) {
+            assert(!task->jumping);
+            suspend_attach(task, r, caller);
+            task->jumping = tTrue;
+            return caller;
+        }
         return null;
     }
 

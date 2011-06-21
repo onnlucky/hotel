@@ -1,5 +1,4 @@
 # TODO
-fix goto
 add testcase for goto and backtrace and continuation
 
 rename the 't' to 'tl' ... because 't' might get conflicts ...
@@ -8,6 +7,7 @@ remove start_args ... we don't need to materialize its run all the time
 clean up tl.h; nice up code.{h,c} and call.c
 expose parsed code: tlBlock, tlLookup, tlCall, tlSend, tlOp, tlAssign, ...
 only optimize after parser, inspect step: single tlAssign become just name ...
+return and goto can be implemented different: store the args of the to-return code run. Then find that in the stack and return it...
 
 add more arg processing:
 * no keys in -> no names + defaults in target
