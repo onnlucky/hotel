@@ -1,15 +1,15 @@
 #pragma once
 
-bool tcode_is(tValue v);
-tCode* tcode_as(tValue v);
-tCode* tcode_cast(tValue v);
+bool tlcode_is(tlValue v);
+tlCode* tlcode_as(tlValue v);
+tlCode* tlcode_cast(tlValue v);
 
-tCode* tcode_new(tTask* task, int size);
-tCode* tcode_from(tTask* task, tList* ops);
+tlCode* tlcode_new(tlTask* task, int size);
+tlCode* tlcode_from(tlTask* task, tlList* ops);
 
-void tcode_set_isblock_(tCode* code, bool isblock);
-void tcode_set_name_(tCode* code, tSym name);
-void tcode_set_args_(tTask* task, tCode* code, tList* args);
-void tcode_set_ops_(tCode* code, tList* ops);
+void tlcode_set_isblock_(tlCode* code, bool isblock);
+void tlcode_set_name_(tlCode* code, tlSym name);
+void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args);
+void tlcode_set_ops_(tlCode* code, tlList* ops);
 
-bool tcode_isblock(tCode* code);
+bool tlcode_isblock(tlCode* code);

@@ -1,9 +1,12 @@
-cc, extra = continuation
-print "HELLO", extra
-
-done = return
-bool(extra,{print("!! DONE !!"); done(); print("!! ERROR 2 !!")},{})()
-
-cc("WORLD!")
-print("ERROR")
+if = (c, block){ bool(c, block, {})() }
+loop = (n){
+    if n <= 0:
+        backtrace
+        return
+    if n <= 0:
+        error
+    print("N:", n)
+    goto loop n - 1
+}
+loop 10
 

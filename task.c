@@ -2,45 +2,45 @@
 
 #include "trace-off.h"
 
-typedef struct tRun tRun;
-INTERNAL tValue tresult_get(tValue v, int at);
-INTERNAL tRun* run_apply(tTask* task, tCall* call);
-INTERNAL void run_resume(tTask* task, tRun* run);
+typedef struct tlRun tlRun;
+INTERNAL tlValue tlresult_get(tlValue v, int at);
+INTERNAL tlRun* run_apply(tlTask* task, tlCall* call);
+INTERNAL void run_resume(tlTask* task, tlRun* run);
 
 // this is how a code running task looks
-struct tTask {
-    tHead head;
-    tValue worker; // a worker is a host level thread, and is current owner of task
-    tValue value;  // current value, if any; much like a "accumulator register"
+struct tlTask {
+    tlHead head;
+    tlValue worker; // a worker is a host level thread, and is current owner of task
+    tlValue value;  // current value, if any; much like a "accumulator register"
 
     // lqueue_item msg_item // tasks *are* the messages
     // lqueue_list msg_queue // this tasks message queue
 
-    tValue jumping; // indicates non linear suspend ... don't attach
-    tRun* run; // the current continuation aka run; much like the "pc register"
+    tlValue jumping; // indicates non linear suspend ... don't attach
+    tlRun* run; // the current continuation aka run; much like the "pc register"
 };
-TTYPE(tTask, ttask, TTask);
+TTYPE(tlTask, tltask, TLTask);
 
-tTask* ttask_new(tVm* vm) {
-    tTask* task = task_alloc(null, TTask, 4);
+tlTask* tltask_new(tlVm* vm) {
+    tlTask* task = task_alloc(null, TLTask, 4);
     return task;
 }
 
-tValue ttask_value(tTask* task) {
-    return tresult_get(task->value, 0);
+tlValue tltask_value(tlTask* task) {
+    return tlresult_get(task->value, 0);
 }
-void ttask_set_value(tTask* task, tValue v) {
+void tltask_set_value(tlTask* task, tlValue v) {
     assert(v);
-    assert(!tactive_is(v));
-    trace("!! SET: %s", t_str(v));
+    assert(!tlactive_is(v));
+    trace("!! SET: %s", tl_str(v));
     task->value = v;
 }
 
-void ttask_step(tTask* task) {
+void tltask_step(tlTask* task) {
     run_resume(task, task->run);
 }
 
-void ttask_call(tTask* task, tCall* call) {
+void tltask_call(tlTask* task, tlCall* call) {
     trace(">> call");
     // TODO this will immediately eval some, I guess that is not what we really want ...
     run_apply(task, call);

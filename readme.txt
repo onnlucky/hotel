@@ -1,7 +1,6 @@
 # TODO
 add testcase for goto and backtrace and continuation
 
-rename the 't' to 'tl' ... because 't' might get conflicts ...
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
 clean up tl.h; nice up code.{h,c} and call.c
@@ -19,13 +18,13 @@ do collector and splays ...
 implement send (tlSend)
 implement operations (tlOp)
 implement tasks and message sending primitives
-implement exceptions and handling (add onerror to tCodeRun)
+implement exceptions and handling (add onerror to tlCodeRun)
 implement keyworded argument passing into function
 implement default arguments for function
-implement defer (add defer[] to tCodeRun)
+implement defer (add defer[] to tlCodeRun)
 
 bring back a boot.tl library
-implement serializing tValue's to disk
+implement serializing tlValue's to disk
 
 experiment with refcounting, experiment with alloc pool per task for certain sizes ...
 * alloc ref=1
@@ -44,11 +43,11 @@ do the open/close correctly; do close as lazy as possible? if x: return x ... no
 
 how to do gc? global+train vcc + local refcounted heap + nursery
 
-add static initializers, until first vm is created allow tSYM("...") tText("...") etc.
+add static initializers, until first vm is created allow tlSYM("...") tlText("...") etc.
 
 implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
 
-implement lvalue assignment by giving tCollect a run that holds on to the task->value in the mean time ...
+implement lvalue assignment by giving tlCollect a run that holds on to the task->value in the mean time ...
 
 
 # syntax design
@@ -112,20 +111,20 @@ call the evaluator. But they are by far the easiest to understand.
 In any scope, you register a tPRIM under a name, the tPRIM will need a function
 pointer. Optionally you can add more data elements.
 
-The function prototype looks as follows: `void name(tTask* task, tFun* fn, tMap* args)`. Receiving the current task, a pointer back to the tPRIM you created (from which you can retrieve the extra data elements), and a tMap containing the arguments. You return values by ttask_return(), or ttask_throw().
+The function prototype looks as follows: `void name(tlTask* task, tlFun* fn, tlMap* args)`. Receiving the current task, a pointer back to the tlPRIM you created (from which you can retrieve the extra data elements), and a tlMap containing the arguments. You return values by tltask_return(), or tltask_throw().
 
 There are some rules to adhere:
-* don't call tcall_call() or friends
-* don't modify tTask, tFun or tMap
-* hotel may run using many threads concurrently, and your functions might be called on any thread, even simultaniously, even this excact same call might run concurrently (all receiving the same tMap*).
+* don't call tlcall_call() or friends
+* don't modify tlTask, tlFun or tlMap
+* hotel may run using many threads concurrently, and your functions might be called on any thread, even simultaniously, even this excact same call might run concurrently (all receiving the same tlMap*).
 
-Return only hotel values. Anything primitive can be placed under tPointer or
+Return only hotel values. Anything primitive can be placed under tlPointer or
 others. When using your own structures, ensure to be thread safe and fully
 reentrant.
 
 Notice only true/false/null/undefined and float values are guarenteed
-primitives. Especially tNumber and tText are tricky. They might be tInt and
-tText*, but they might also be higher level values that act as these. So when
+primitives. Especially tlNumber and tlText are tricky. They might be tlInt and
+tlText*, but they might also be higher level values that act as these. So when
 calling primitives you need to know they are, and force numbers and texts to be
 normalized (call toPrimitive on them).
 
@@ -144,27 +143,27 @@ values should behave. This value is never visible at hotel level, unless you
 pass it there. The first time you are passed null (not tNull).
 
 a "simple" log function:
-  tValue _log(tTask* task, tFun* fn, tMap* args, tValue current) {
+  tValue _log(tlTask* task, tlFun* fn, tlMap* args, tlValue current) {
       int i = 0;
       if (current) {
-          i = t_int(current);
+          i = tl_int(current);
           // there was a continuation, so we called the evaluator, and it returned to us
           // the return value always lives in the value "register" of the current task
-          tValue v = ttask_value(task);
-          tText* s = ttext_cast(v);
-          printf("%s", s?ttext_data(s):"<null>");
+          tlValue v = tltask_value(task);
+          tlText* s = tltext_cast(v);
+          printf("%s", s?tltext_data(s):"<null>");
       }
       for (; true; i++) {
           // the iterator will return null when done
-          tValue v = tmap_value_iter(map, i);
+          tlValue v = tlmap_value_iter(map, i);
           if (!v) break;
 
-          // tvalue_toText will return null when it setup a call to the evaluator
-          tValue v = tvalue_toText(task, v);
-          if (!v) return tINT(i); // return our current state
+          // tlvalue_toText will return null when it setup a call to the evaluator
+          tlValue v = tlvalue_toText(task, v);
+          if (!v) return tlINT(i); // return our current state
       }
       // our function returns null
-      ttask_return(tNull);
+      tltask_return(tlNull);
       // we return null to indicate we are fully done
       return null;
   }

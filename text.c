@@ -2,71 +2,71 @@
 
 #include "trace-off.h"
 
-static tText* v_empty_text;
+static tlText* v_empty_text;
 
-static void text_init() {
-    v_empty_text = tTEXT("");
+static void tlext_init() {
+    v_empty_text = tlTEXT("");
 }
 
 // TODO short strings should be "inline" saves finalizer
-struct tText {
-    tHead head;
+struct tlText {
+    tlHead head;
     const char* ptr;
-    tInt bytes;
-    tInt size;
-    tInt hash;
+    tlInt bytes;
+    tlInt size;
+    tlInt hash;
 };
 
-tText* ttext_empty() { return v_empty_text; }
+tlText* tltext_empty() { return v_empty_text; }
 
-tText* ttext_from_static(const char* s) {
-    tText* text = task_alloc_priv(null, TText, 0, 4);
-    text->head.flags |= T_FLAG_NOFREE;
+tlText* tltext_from_static(const char* s) {
+    tlText* text = task_alloc_priv(null, TLText, 0, 4);
+    text->head.flags |= TL_FLAG_NOFREE;
     text->ptr = s;
     return text;
 }
 
-tText* ttext_from_take(tTask* task, char* s) {
-    tText* text = task_alloc_priv(task, TText, 0, 4);
+tlText* tltext_from_take(tlTask* task, char* s) {
+    tlText* text = task_alloc_priv(task, TLText, 0, 4);
     text->ptr = s;
     return text;
 }
 
-tText* ttext_from_copy(tTask* task, const char* s) {
+tlText* tltext_from_copy(tlTask* task, const char* s) {
     size_t size = strlen(s);
-    assert(size < T_MAX_INT);
+    assert(size < TL_MAX_INT);
     char *d = malloc(size + 1);
     assert(d);
     memcpy(d, s, size + 1);
 
-    tText* text = ttext_from_take(task, d);
-    text->size = tINT(size);
+    tlText* text = tltext_from_take(task, d);
+    text->size = tlINT(size);
     return text;
 }
 
-static void ttext_free(tText *text) {
-    assert(ttext_is(text));
-    if (text->head.flags & T_FLAG_NOFREE) return;
+static void tltext_free(tlText *text) {
+    assert(tltext_is(text));
+    if (text->head.flags & TL_FLAG_NOFREE) return;
     free((char*)text->ptr);
 }
 
-const char * ttext_bytes(tText *text) {
-    assert(ttext_is(text));
+const char * tltext_bytes(tlText *text) {
+    assert(tltext_is(text));
     return text->ptr;
 }
 
-int ttext_size(tText* text) {
-    assert(ttext_is(text));
+int tltext_size(tlText* text) {
+    assert(tltext_is(text));
     if (!text->bytes) {
-        text->bytes = tINT(strlen(ttext_bytes(text)));
+        text->bytes = tlINT(strlen(tltext_bytes(text)));
     }
-    return t_int(text->bytes);
+    return tl_int(text->bytes);
 }
 
-tText* tvalue_to_text(tTask* task, tValue v) {
-    if (ttext_is(v)) return v;
-    if (!tref_is(v)) return ttext_from_copy(task, t_str(v));
-    warning("to_text not implemented yet: %s", t_str(v));
-    return tTEXT("<ERROR.to-text>");
+tlText* tlvalue_to_text(tlTask* task, tlValue v) {
+    if (tltext_is(v)) return v;
+    if (!tlref_is(v)) return tltext_from_copy(task, tl_str(v));
+    warning("to_text not implemented yet: %s", tl_str(v));
+    return tlTEXT("<ERROR.to-text>");
 }
 

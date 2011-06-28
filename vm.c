@@ -20,128 +20,128 @@
 
 #include "trace-off.h"
 
-static tValue _out(tTask* task, tFun* fn, tMap* args) {
-    trace("out(%d)", tmap_size(args));
+static tlValue _out(tlTask* task, tlFun* fn, tlMap* args) {
+    trace("out(%d)", tlmap_size(args));
     for (int i = 0; i < 1000; i++) {
-        tValue v = tmap_get_int(args, i);
+        tlValue v = tlmap_get_int(args, i);
         if (!v) break;
-        printf("%s", ttext_bytes(tvalue_to_text(task, v)));
+        printf("%s", tltext_bytes(tlvalue_to_text(task, v)));
     }
     fflush(stdout);
-    return tNull;
+    return tlNull;
 }
-static tValue _bool(tTask* task, tFun* fn, tMap* args) {
-    tValue c = tmap_get_int(args, 0);
-    trace("BOOL: %s", t_bool(c)?"true":"false");
-    tValue res = tmap_get_int(args, t_bool(c)?1:2);
-    if (!res) return tNull;
+static tlValue _bool(tlTask* task, tlFun* fn, tlMap* args) {
+    tlValue c = tlmap_get_int(args, 0);
+    trace("BOOL: %s", tl_bool(c)?"true":"false");
+    tlValue res = tlmap_get_int(args, tl_bool(c)?1:2);
+    if (!res) return tlNull;
     return res;
 }
-static tValue _lte(tTask* task, tFun* fn, tMap* args) {
-    trace("%d <= %d", t_int(tmap_get_int(args, 0)), t_int(tmap_get_int(args, 1)));
-    return tBOOL(t_int(tmap_get_int(args, 0)) <= t_int(tmap_get_int(args, 1)));
+static tlValue _lte(tlTask* task, tlFun* fn, tlMap* args) {
+    trace("%d <= %d", tl_int(tlmap_get_int(args, 0)), tl_int(tlmap_get_int(args, 1)));
+    return tlBOOL(tl_int(tlmap_get_int(args, 0)) <= tl_int(tlmap_get_int(args, 1)));
 }
-static tValue _add(tTask* task, tFun* fn, tMap* args) {
-    int res = t_int(tmap_get_int(args, 0)) + t_int(tmap_get_int(args, 1));
+static tlValue _add(tlTask* task, tlFun* fn, tlMap* args) {
+    int res = tl_int(tlmap_get_int(args, 0)) + tl_int(tlmap_get_int(args, 1));
     trace("ADD: %d", res);
-    return tINT(res);
+    return tlINT(res);
 }
-static tValue _sub(tTask* task, tFun* fn, tMap* args) {
-    int res = t_int(tmap_get_int(args, 0)) - t_int(tmap_get_int(args, 1));
+static tlValue _sub(tlTask* task, tlFun* fn, tlMap* args) {
+    int res = tl_int(tlmap_get_int(args, 0)) - tl_int(tlmap_get_int(args, 1));
     trace("SUB: %d", res);
-    return tINT(res);
+    return tlINT(res);
 }
-static tValue _mul(tTask* task, tFun* fn, tMap* args) {
-    int res = t_int(tmap_get_int(args, 0)) * t_int(tmap_get_int(args, 1));
+static tlValue _mul(tlTask* task, tlFun* fn, tlMap* args) {
+    int res = tl_int(tlmap_get_int(args, 0)) * tl_int(tlmap_get_int(args, 1));
     trace("MUL: %d", res);
-    return tINT(res);
+    return tlINT(res);
 }
-static tValue _div(tTask* task, tFun* fn, tMap* args) {
-    int res = t_int(tmap_get_int(args, 0)) / t_int(tmap_get_int(args, 1));
+static tlValue _div(tlTask* task, tlFun* fn, tlMap* args) {
+    int res = tl_int(tlmap_get_int(args, 0)) / tl_int(tlmap_get_int(args, 1));
     trace("DIV: %d", res);
-    return tINT(res);
+    return tlINT(res);
 }
-static tValue _mod(tTask* task, tFun* fn, tMap* args) {
-    int res = t_int(tmap_get_int(args, 0)) % t_int(tmap_get_int(args, 1));
+static tlValue _mod(tlTask* task, tlFun* fn, tlMap* args) {
+    int res = tl_int(tlmap_get_int(args, 0)) % tl_int(tlmap_get_int(args, 1));
     trace("MOD: %d", res);
-    return tINT(res);
+    return tlINT(res);
 }
 
-static tValue _map_get(tTask* task, tFun* fn, tMap* args) {
-    tMap* map = tmap_cast(tmap_get_int(args, 0));
-    tValue key = tmap_get_int(args, 1);
-    tValue res = tmap_get(task, map, key);
-    if (!res) return tNull;
+static tlValue _map_get(tlTask* task, tlFun* fn, tlMap* args) {
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    tlValue key = tlmap_get_int(args, 1);
+    tlValue res = tlmap_get(task, map, key);
+    if (!res) return tlNull;
     return res;
 }
-static tValue _text_size(tTask* task, tFun* fn, tMap* args) {
-    tText* text = ttext_cast(tmap_get_int(args, 0));
-    if (!text) return tNull;
-    return tINT(ttext_size(text));
+static tlValue _text_size(tlTask* task, tlFun* fn, tlMap* args) {
+    tlText* text = tltext_cast(tlmap_get_int(args, 0));
+    if (!text) return tlNull;
+    return tlINT(tltext_size(text));
 }
 
-void tvm_init() {
+void tlvm_init() {
     // assert assumptions on memory layout, pointer size etc
-    assert(sizeof(tHead) <= sizeof(intptr_t));
+    assert(sizeof(tlHead) <= sizeof(intptr_t));
 
-    trace("    field size: %zd", sizeof(tValue));
-    trace(" call overhead: %zd (%zd)", sizeof(tCall), sizeof(tCall)/sizeof(tValue));
-    trace("frame overhead: %zd (%zd)", sizeof(tRun), sizeof(tRun)/sizeof(tValue));
-    trace(" task overhead: %zd (%zd)", sizeof(tTask), sizeof(tTask)/sizeof(tValue));
+    trace("    field size: %zd", sizeof(tlValue));
+    trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlValue));
+    trace("frame overhead: %zd (%zd)", sizeof(tlRun), sizeof(tlRun)/sizeof(tlValue));
+    trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlValue));
 
-    text_init();
+    tlext_init();
     sym_init();
     list_init();
     map_init();
 }
 
-void tworker_attach(tWorker* worker, tTask* task) {
+void tlworker_attach(tlWorker* worker, tlTask* task) {
     //assert(task->vm == worker->vm);
     assert(!task->worker);
     task->worker = worker;
 }
 
-void tworker_detach(tWorker* worker, tTask* task) {
+void tlworker_detach(tlWorker* worker, tlTask* task) {
     assert(task->worker == worker);
     task->worker = null;
 }
 
-void tworker_run(tWorker* worker) {
-    tTask* task = null; //TODO worker->task;
-    while (task->run) ttask_step(task);
+void tlworker_run(tlWorker* worker) {
+    tlTask* task = null; //TODO worker->task;
+    while (task->run) tltask_step(task);
 }
 
-tVm* tvm_new() {
+tlVm* tlvm_new() {
     return null;
 }
-void tvm_delete(tVm* vm) {
+void tlvm_delete(tlVm* vm) {
 }
 
-tEnv* tvm_global_env(tVm* vm) {
-    tEnv* env = tenv_new(null, null);
+tlEnv* tlvm_global_env(tlVm* vm) {
+    tlEnv* env = tlenv_new(null, null);
 
-    env = tenv_set(null, env, tSYM("backtrace"), tFUN(_backtrace, tSYM("backtrace")));
+    env = tlenv_set(null, env, tlSYM("backtrace"), tlFUN(_backtrace, tlSYM("backtrace")));
 
-    env = tenv_set(null, env, tSYM("out"), tFUN(_out, tSYM("out")));
-    env = tenv_set(null, env, tSYM("bool"), tFUN(_bool, tSYM("bool")));
-    env = tenv_set(null, env, tSYM("lte"), tFUN(_lte, tSYM("lte")));
-    env = tenv_set(null, env, tSYM("add"), tFUN(_add, tSYM("add")));
-    env = tenv_set(null, env, tSYM("sub"), tFUN(_sub, tSYM("sub")));
-    env = tenv_set(null, env, tSYM("mul"), tFUN(_mul, tSYM("mul")));
-    env = tenv_set(null, env, tSYM("div"), tFUN(_div, tSYM("div")));
-    env = tenv_set(null, env, tSYM("mod"), tFUN(_mod, tSYM("mod")));
+    env = tlenv_set(null, env, tlSYM("out"), tlFUN(_out, tlSYM("out")));
+    env = tlenv_set(null, env, tlSYM("bool"), tlFUN(_bool, tlSYM("bool")));
+    env = tlenv_set(null, env, tlSYM("lte"), tlFUN(_lte, tlSYM("lte")));
+    env = tlenv_set(null, env, tlSYM("add"), tlFUN(_add, tlSYM("add")));
+    env = tlenv_set(null, env, tlSYM("sub"), tlFUN(_sub, tlSYM("sub")));
+    env = tlenv_set(null, env, tlSYM("mul"), tlFUN(_mul, tlSYM("mul")));
+    env = tlenv_set(null, env, tlSYM("div"), tlFUN(_div, tlSYM("div")));
+    env = tlenv_set(null, env, tlSYM("mod"), tlFUN(_mod, tlSYM("mod")));
 
-    env = tenv_set(null, env, tSYM("_map_get"), tFUN(_map_get, tSYM("_map_get")));
-    env = tenv_set(null, env, tSYM("_text_size"), tFUN(_text_size, tSYM("_text_size")));
-    //env = tenv_set(null, env, tSYM("_invoke"), tFUN(_invoke, tSYM("_invoke")));
+    env = tlenv_set(null, env, tlSYM("_map_get"), tlFUN(_map_get, tlSYM("_map_get")));
+    env = tlenv_set(null, env, tlSYM("_text_size"), tlFUN(_text_size, tlSYM("_text_size")));
+    //env = tlenv_set(null, env, tlSYM("_invoke"), tlFUN(_invoke, tlSYM("_invoke")));
     return env;
 }
 
-tTask* tvm_create_task(tVm* vm) {
-    return ttask_new(vm);
+tlTask* tlvm_create_task(tlVm* vm) {
+    return tltask_new(vm);
 }
 
-tWorker* tvm_create_worker(tVm* vm) {
+tlWorker* tlvm_create_worker(tlVm* vm) {
     return null;
 }
 

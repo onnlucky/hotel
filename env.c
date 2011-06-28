@@ -4,78 +4,78 @@
 
 #include "trace-off.h"
 
-bool flag_closed_has(tValue v) { return t_head(v)->flags & T_FLAG_CLOSED; }
-void flag_closed_clear(tValue v) { t_head(v)->flags &= ~T_FLAG_CLOSED; }
-void flag_closed_set(tValue v) { t_head(v)->flags |= T_FLAG_CLOSED; }
+bool flag_closed_has(tlValue v) { return tl_head(v)->flags & TL_FLAG_CLOSED; }
+void flag_closed_clear(tlValue v) { tl_head(v)->flags &= ~TL_FLAG_CLOSED; }
+void flag_closed_set(tlValue v) { tl_head(v)->flags |= TL_FLAG_CLOSED; }
 
-struct tEnv {
-    tHead head;
+struct tlEnv {
+    tlHead head;
 
-    tEnv* parent;
-    tValue run;
-    tMap* map;
+    tlEnv* parent;
+    tlValue run;
+    tlMap* map;
 };
 
-bool tenv_is(tValue v) { return t_type(v) == TEnv; }
-tEnv* tenv_as(tValue v) { assert(tenv_is(v)); return (tEnv*)v; }
+bool tlenv_is(tlValue v) { return tl_type(v) == TLEnv; }
+tlEnv* tlenv_as(tlValue v) { assert(tlenv_is(v)); return (tlEnv*)v; }
 
-int tenv_size(tEnv* env) {
+int tlenv_size(tlEnv* env) {
     return env->head.size - 4;
 }
 
-tEnv* tenv_new(tTask* task, tEnv* parent) {
-    tEnv* env = task_alloc(task, TEnv, 3);
+tlEnv* tlenv_new(tlTask* task, tlEnv* parent) {
+    tlEnv* env = task_alloc(task, TLEnv, 3);
     env->parent = parent;
     env->map = v_map_empty;
     return env;
 }
 
-tEnv* tenv_copy(tTask* task, tEnv* env) {
-    tEnv* nenv = tenv_new(task, env->parent);
+tlEnv* tlenv_copy(tlTask* task, tlEnv* env) {
+    tlEnv* nenv = tlenv_new(task, env->parent);
     nenv->run = env->run;
     nenv->map = env->map;
     return nenv;
 }
 
-tEnv* tenv_set_run(tTask* task, tEnv* env, tValue run) {
+tlEnv* tlenv_set_run(tlTask* task, tlEnv* env, tlValue run) {
     if (!flag_closed_has(env)) {
         env->run = run;
         return env;
     }
 
-    env = tenv_copy(task, env);
+    env = tlenv_copy(task, env);
     env->run = run;
     return env;
 }
-tValue tenv_get_run(tEnv* env) { return env->run; }
+tlValue tlenv_get_run(tlEnv* env) { return env->run; }
 
-tValue tenv_get(tTask* task, tEnv* env, tSym key) {
+tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key) {
     if (!env) return null;
 
-    assert(tenv_is(env));
-    trace("%p.get %s", env, t_str(key));
+    assert(tlenv_is(env));
+    trace("%p.get %s", env, tl_str(key));
     flag_closed_set(env);
 
     if (env->map) {
-        tValue v = tmap_get_sym(env->map, key);
+        tlValue v = tlmap_get_sym(env->map, key);
         if (v) return v;
     }
-    return tenv_get(task, env->parent, key);
+    return tlenv_get(task, env->parent, key);
 }
 
-tEnv* tenv_set(tTask* task, tEnv* env, tSym key, tValue v) {
-    assert(tenv_is(env));
-    trace("%p.set %s = %s", env, t_str(key), t_str(v));
+tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v) {
+    assert(tlenv_is(env));
+    trace("%p.set %s = %s", env, tl_str(key), tl_str(v));
 
     if (flag_closed_has(env)) {
-        env = tenv_copy(task, env);
-        trace("%p.set !! %s = %s", env, t_str(key), t_str(v));
-    } else if (tmap_get_sym(env->map, key)) {
-        env = tenv_copy(task, env);
-        trace("%p.set !! %s = %s", env, t_str(key), t_str(v));
+        env = tlenv_copy(task, env);
+        trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
+    } else if (tlmap_get_sym(env->map, key)) {
+        env = tlenv_copy(task, env);
+        trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     }
 
-    env->map = tmap_set(task, env->map, key, v);
+    env->map = tlmap_set(task, env->map, key, v);
     return env;
 }
 

@@ -1,103 +1,106 @@
 // this is how all tl values look in memory
 
-uint8_t t_type(tValue v) {
-    if ((intptr_t)v & 1) return TInt;
-    if ((intptr_t)v & 2) return TSym;
+uint8_t tl_type(tlValue v) {
+    if ((intptr_t)v & 1) return TLInt;
+    if ((intptr_t)v & 2) return TLSym;
     if ((intptr_t)v < 1024) {
         switch ((intptr_t)v) {
-            case 1 << 2: return TUndefined;
-            case 2 << 2: return TNull;
-            case 3 << 2: return TBool;
-            case 4 << 2: return TBool;
-            default: return TInvalid;
+            case 1 << 2: return TLUndefined;
+            case 2 << 2: return TLNull;
+            case 3 << 2: return TLBool;
+            case 4 << 2: return TLBool;
+            default: return TLInvalid;
         }
     }
-    if (tref_is(v)) {
-        uint8_t t = t_head(v)->type;
-        assert(t > 0 || t <= TInt);
+    if (tlref_is(v)) {
+        uint8_t t = tl_head(v)->type;
+        assert(t > 0 || t <= TLInt);
         return t;
     }
-    return TInvalid;
+    return TLInvalid;
 }
 
 const char* const type_to_str[] = {
-    "TInvalid",
-    "TList", "TMap", "TObject",
-    "TNum", "TFloat",
-    "TText",
+    "invalid",
 
-    "TEnv",
+    "list", "map", "object",
+    "num", "float",
+    "text",
 
-    "TCode",
-    "TClosure",
-    "TFun",
+    "env",
 
-    "TCall",
-    "TRun",
+    "code",
+    "closure",
+    "fun",
 
-    "TEvalCall",
-    "TEvalFun",
-    "TEval",
+    "call",
+    "run",
 
-    "TThunk",
-    "TResult",
-    "TCollect",
-    "TError",
+    "evalcall",
+    "evalfun",
+    "eval",
 
-    "TVar",
-    "TTask",
-    "TLAST",
-    // these never appear in head->type since these are tagged
-    "TUndefined", "TNull", "TBool", "TSym", "TInt",
+    "thunk",
+    "result",
+    "collect",
+    "error",
+
+    "var",
+    "task",
+
+    "<ERROR-LAST>",
+
+    "undefined", "null", "bool", "sym", "int",
+
     "<ERROR>"
 };
 
-const char* t_type_str(tValue v) {
-    int type = t_type(v);
-    assert(type >= 0 && type <= TInt);
+const char* tl_type_str(tlValue v) {
+    int type = tl_type(v);
+    assert(type >= 0 && type <= TLInt);
     return type_to_str[type];
 }
 
 // creating tagged values
-tValue tBOOL(unsigned c) { if (c) return tTrue; return tFalse; }
-int t_bool(tValue v) { return !(v == null || v == tUndefined || v == tNull || v == tFalse); }
+tlValue tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
+int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
 
-tValue tINT(int i) { return (tValue)((intptr_t)i << 2 | 1); }
-int t_int(tValue v) {
-    assert(tint_is(v));
+tlValue tlINT(int i) { return (tlValue)((intptr_t)i << 2 | 1); }
+int tl_int(tlValue v) {
+    assert(tlint_is(v));
     int i = (intptr_t)v;
     if (i < 0) return (i >> 2) | 0xC0000000;
     return i >> 2;
 }
 
 // creating value objects
-tValue task_alloc(tTask* task, uint8_t type, int size) {
-    assert(type > 0 && type < TLAST);
-    tHead* head = (tHead*)calloc(1, sizeof(tHead) + sizeof(tValue) * size);
+tlValue task_alloc(tlTask* task, uint8_t type, int size) {
+    assert(type > 0 && type < TLLAST);
+    tlHead* head = (tlHead*)calloc(1, sizeof(tlHead) + sizeof(tlValue) * size);
     assert((((intptr_t)head) & 7) == 0);
     head->flags = 0;
-    assert(type > 0 && type < TLAST);
+    assert(type > 0 && type < TLLAST);
     head->type = type;
     head->size = size;
     head->keep = 1;
-    return (tValue)head;
+    return (tlValue)head;
 }
-tValue task_alloc_priv(tTask* task, uint8_t type, int size, uint8_t privs) {
+tlValue task_alloc_priv(tlTask* task, uint8_t type, int size, uint8_t privs) {
     assert(privs <= 0x0F);
-    tHead* head = task_alloc(task, type, size + privs);
+    tlHead* head = task_alloc(task, type, size + privs);
     assert((((intptr_t)head) & 7) == 0);
     head->flags = privs;
-    return (tValue)head;
+    return (tlValue)head;
 }
-tValue task_alloc_full(tTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
-    assert(type > 0 && type < TLAST);
+tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
+    assert(type > 0 && type < TLLAST);
     assert(privs <= 0x0F);
-    bytes = bytes + ((size_t)datas + privs) * sizeof(tValue);
-    int size = (bytes - sizeof(tHead)) / sizeof(tValue);
+    bytes = bytes + ((size_t)datas + privs) * sizeof(tlValue);
+    int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
     assert(size < 0xFFFF);
     trace("BYTES: %zd -- %d", bytes, size);
 
-    tList* to = calloc(1, bytes);
+    tlList* to = calloc(1, bytes);
     assert((((intptr_t)to) & 7) == 0);
     to->head.flags = privs;
     to->head.type = type;
@@ -105,14 +108,14 @@ tValue task_alloc_full(tTask* task, uint8_t type, size_t bytes, uint8_t privs, u
     to->head.keep = 1;
     return to;
 }
-tValue task_clone(tTask* task, tValue v) {
-    tList* from = (tList*)v;
-    size_t bytes = sizeof(tHead) + sizeof(tValue) * from->head.size;
-    int size = (bytes - sizeof(tHead)) / sizeof(tValue);
+tlValue task_clone(tlTask* task, tlValue v) {
+    tlList* from = (tlList*)v;
+    size_t bytes = sizeof(tlHead) + sizeof(tlValue) * from->head.size;
+    int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
     assert(size < 0xFFFF);
-    trace("BYTES: %zd -- %d -- %s", bytes, size, t_str(v));
+    trace("BYTES: %zd -- %d -- %s", bytes, size, tl_str(v));
     assert(from->head.size == size);
-    tList* to = malloc(bytes);
+    tlList* to = malloc(bytes);
     memcpy(to, from, bytes);
     assert(to->head.size == size);
     to->head.keep = 1;
@@ -126,7 +129,7 @@ static char** _str_bufs;
 static char* _str_buf;
 static int _str_buf_at = -1;
 
-const char* t_str(tValue v) {
+const char* tl_str(tlValue v) {
     if (_str_buf_at == -1) {
         trace("init buffers for output");
         _str_buf_at = 0;
@@ -136,26 +139,26 @@ const char* t_str(tValue v) {
     _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
     _str_buf = _str_bufs[_str_buf_at];
 
-    if (tactive_is(v)) v = tvalue_from_active(v);
-    switch (t_type(v)) {
-    case TText:
-        return ttext_bytes(ttext_as(v));
-    case TSym:
-        snprintf(_str_buf, _BUF_SIZE, "#%s", ttext_bytes(tsym_to_text(v)));
+    if (tlactive_is(v)) v = tlvalue_from_active(v);
+    switch (tl_type(v)) {
+    case TLText:
+        return tltext_bytes(tltext_as(v));
+    case TLSym:
+        snprintf(_str_buf, _BUF_SIZE, "#%s", tltext_bytes(tlsym_to_text(v)));
         return _str_buf;
-    case TInt:
-        snprintf(_str_buf, _BUF_SIZE, "%d", t_int(v));
+    case TLInt:
+        snprintf(_str_buf, _BUF_SIZE, "%d", tl_int(v));
         return _str_buf;
 
-    case TBool:
-        if (v == tFalse) return "false";
-        if (v == tTrue) return "true";
-    case TNull:
-        if (v == tNull) return "null";
-    case TUndefined:
-        if (v == tUndefined) return "undefined";
+    case TLBool:
+        if (v == tlFalse) return "false";
+        if (v == tlTrue) return "true";
+    case TLNull:
+        if (v == tlNull) return "null";
+    case TLUndefined:
+        if (v == tlUndefined) return "undefined";
         assert(false);
-    default: return t_type_str(v);
+    default: return tl_type_str(v);
     }
 }
 

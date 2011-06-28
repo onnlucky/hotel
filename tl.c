@@ -8,56 +8,56 @@
 #include "trace-on.h"
 
 // this is how a print function could look
-static tValue _print(tTask* task, tFun* fn, tMap* args) {
-    tText* sep = tTEXT(" ");
-    tValue v = tmap_get_sym(args, tSYM("sep"));
-    if (v) sep = tvalue_to_text(task, v);
+static tlValue _print(tlTask* task, tlFun* fn, tlMap* args) {
+    tlText* sep = tlTEXT(" ");
+    tlValue v = tlmap_get_sym(args, tlSYM("sep"));
+    if (v) sep = tlvalue_to_text(task, v);
 
     for (int i = 0; i < 1000; i++) {
-        tValue v = tmap_get_int(args, i);
+        tlValue v = tlmap_get_int(args, i);
         if (!v) break;
-        if (i > 0) printf("%s", ttext_bytes(sep));
-        printf("%s", ttext_bytes(tvalue_to_text(task, v)));
+        if (i > 0) printf("%s", tltext_bytes(sep));
+        printf("%s", tltext_bytes(tlvalue_to_text(task, v)));
     }
     printf("\n");
     fflush(stdout);
-    return tNull;
+    return tlNull;
 }
 
 // this is how to setup a vm
 int main(int argc, char** argv) {
-    tvm_init();
+    tlvm_init();
 
     if (argc < 2) fatal("no file to run");
     const char* file = argv[1];
-    tBuffer* buf = tbuffer_new_from_file(file);
+    tlBuffer* buf = tlbuffer_new_from_file(file);
     if (!buf) fatal("cannot read file: %s", file);
 
-    tbuffer_write_uint8(buf, 0);
-    tText* script = ttext_from_take(null, tbuffer_free_get(buf));
+    tlbuffer_write_uint8(buf, 0);
+    tlText* script = tltext_from_take(null, tlbuffer_free_get(buf));
     assert(script);
 
-    tVm* vm = tvm_new();
-    tTask* task = tvm_create_task(vm);
+    tlVm* vm = tlvm_new();
+    tlTask* task = tlvm_create_task(vm);
 
-    tEnv* env = tvm_global_env(vm);
-    tFun* f_print = tFUN(_print, tSYM("print"));
-    env = tenv_set(null, env, tSYM("print"), f_print);
+    tlEnv* env = tlvm_global_env(vm);
+    tlFun* f_print = tlFUN(_print, tlSYM("print"));
+    env = tlenv_set(null, env, tlSYM("print"), f_print);
 
-    tCode* code = tcode_cast(parse(script));
+    tlCode* code = tlcode_cast(parse(script));
     trace("PARSED");
     assert(code);
 
-    tClosure* fn = tclosure_new(null, code, env);
-    ttask_call(task, tcall_from(null, fn, null));
+    tlClosure* fn = tlclosure_new(null, code, env);
+    tltask_call(task, tlcall_from(null, fn, null));
 
     trace("STEPPING");
-    while (task->run) ttask_step(task);
+    while (task->run) tltask_step(task);
 
     trace("DONE");
-    tValue v = ttask_value(task);
-    if (t_bool(v)) printf("%s\n", t_str(v));
-    tvm_delete(vm);
+    tlValue v = tltask_value(task);
+    if (tl_bool(v)) printf("%s\n", tl_str(v));
+    tlvm_delete(vm);
     return 0;
 }
 

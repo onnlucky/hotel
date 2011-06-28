@@ -3,158 +3,158 @@
 
 #include "trace-on.h"
 
-tValue TL_KEEP(tValue v) {
-    if (!tref_is(v)) return v;
-    assert(t_head(v)->keep >= 1);
-    t_head(v)->keep++;
+tlValue TL_KEEP(tlValue v) {
+    if (!tlref_is(v)) return v;
+    assert(tl_head(v)->keep >= 1);
+    tl_head(v)->keep++;
     return v;
 }
-void TL_FREE(tValue v) {
-    if (!tref_is(v)) return;
-    t_head(v)->keep--;
-    if (t_head(v)->keep == 0) free(v);
+void TL_FREE(tlValue v) {
+    if (!tlref_is(v)) return;
+    tl_head(v)->keep--;
+    if (tl_head(v)->keep == 0) free(v);
 }
 
-// any hotel evaluation step can be saved and resumed using a tRun
-typedef tRun* (*t_resume)(tTask*, tRun*);
-struct tRun {
-    tHead head;
+// any hotel evaluation step can be saved and resumed using a tlRun
+typedef tlRun* (*tl_resume)(tlTask*, tlRun*);
+struct tlRun {
+    tlHead head;
     intptr_t user_data; // any host value that needs saving ...
-    t_resume resume;    // a function called when resuming this run
-    tRun* caller;       // private
-    tValue data[];
+    tl_resume resume;    // a function called when resuming this run
+    tlRun* caller;       // private
+    tlValue data[];
 };
-TTYPE(tRun, trun, TRun);
+TTYPE(tlRun, tlrun, TLRun);
 
 // various internal structures
-typedef struct tClosure {
-    tHead head;
-    tCode* code;
-    tEnv* env;
-} tClosure;
-typedef struct tThunk {
-    tHead head;
-    tValue value;
-} tThunk;
-typedef struct tResult {
-    tHead head;
-    tValue data[];
-} tResult;
-typedef struct tCollect {
-    tHead head;
-    tValue data[];
-} tCollect;
-TTYPE(tClosure, tclosure, TClosure);
-TTYPE(tThunk, tthunk, TThunk);
-TTYPE(tResult, tresult, TResult);
-TTYPE(tCollect, tcollect, TCollect);
+typedef struct tlClosure {
+    tlHead head;
+    tlCode* code;
+    tlEnv* env;
+} tlClosure;
+typedef struct tlThunk {
+    tlHead head;
+    tlValue value;
+} tlThunk;
+typedef struct tlResult {
+    tlHead head;
+    tlValue data[];
+} tlResult;
+typedef struct tlCollect {
+    tlHead head;
+    tlValue data[];
+} tlCollect;
+TTYPE(tlClosure, tlclosure, TLClosure);
+TTYPE(tlThunk, tlthunk, TLThunk);
+TTYPE(tlResult, tlresult, TLResult);
+TTYPE(tlCollect, tlcollect, TLCollect);
 
 // various types of runs, just for convenience ...
-typedef struct tRunActivateCall {
-    tHead head;
+typedef struct tlRunActivateCall {
+    tlHead head;
     intptr_t count;
-    t_resume resume;
-    tRun* caller;
+    tl_resume resume;
+    tlRun* caller;
 
-    tEnv* env;
-    tCall* call;
-} tRunActivateCall;
-typedef struct tRunActivateMap {
-    tHead head;
+    tlEnv* env;
+    tlCall* call;
+} tlRunActivateCall;
+typedef struct tlRunActivateMap {
+    tlHead head;
     intptr_t count;
-    t_resume resume;
-    tRun* caller;
+    tl_resume resume;
+    tlRun* caller;
 
-    tEnv* env;
-    tMap* map;
-} tRunActivateMap;
-typedef struct tRunFirst {
-    tHead head;
+    tlEnv* env;
+    tlMap* map;
+} tlRunActivateMap;
+typedef struct tlRunFirst {
+    tlHead head;
     intptr_t count;
-    t_resume resume;
-    tRun* caller;
+    tl_resume resume;
+    tlRun* caller;
 
-    tCall* call;
-} tRunFirst;
-typedef struct tRunArgs {
-    tHead head;
+    tlCall* call;
+} tlRunFirst;
+typedef struct tlRunArgs {
+    tlHead head;
     intptr_t count;
-    t_resume resume;
-    tRun* caller;
+    tl_resume resume;
+    tlRun* caller;
 
-    tCall* call;
-    tMap* args;
-} tRunArgs;
-typedef struct tRunCode tRunCode;
-struct tRunCode {
-    tHead head;
+    tlCall* call;
+    tlMap* args;
+} tlRunArgs;
+typedef struct tlRunCode tlRunCode;
+struct tlRunCode {
+    tlHead head;
     intptr_t pc;
-    t_resume resume;
-    tRun* caller;
+    tl_resume resume;
+    tlRun* caller;
 
-    tCode* code;
-    tEnv* env;
-    tRunCode* parent;
+    tlCode* code;
+    tlEnv* env;
+    tlRunCode* parent;
 };
 
-tClosure* tclosure_new(tTask* task, tCode* code, tEnv* env) {
-    tClosure* fn = task_alloc(task, TClosure, 2);
+tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env) {
+    tlClosure* fn = task_alloc(task, TLClosure, 2);
     fn->code = code;
-    fn->env = tenv_new(task, env);
+    fn->env = tlenv_new(task, env);
     return fn;
 }
-tThunk* tthunk_new(tTask* task, tValue v) {
-    tThunk* thunk = task_alloc(task, TThunk, 1);
+tlThunk* tlthunk_new(tlTask* task, tlValue v) {
+    tlThunk* thunk = task_alloc(task, TLThunk, 1);
     thunk->value = v;
     return thunk;
 }
-tValue tcollect_new_(tTask* task, tList* list) {
-    list->head.type = TCollect;
+tlValue tlcollect_new_(tlTask* task, tlList* list) {
+    list->head.type = TLCollect;
     return list;
 }
 // TODO fix these two functions, map size is not same as int mapped values ...
-tResult* tresult_new(tTask* task, tMap* args) {
-    int size = tmap_size(args);
-    tResult* res = task_alloc(task, TResult, size);
+tlResult* tlresult_new(tlTask* task, tlMap* args) {
+    int size = tlmap_size(args);
+    tlResult* res = task_alloc(task, TLResult, size);
     for (int i = 0; i < size; i++) {
-        res->data[i] = tmap_get_int(args, i);
+        res->data[i] = tlmap_get_int(args, i);
     }
     return res;
 }
-tResult* tresult_new2(tTask* task, tValue first, tMap* args) {
-    int size = tmap_size(args);
-    tResult* res = task_alloc(task, TResult, size + 1);
+tlResult* tlresult_new2(tlTask* task, tlValue first, tlMap* args) {
+    int size = tlmap_size(args);
+    tlResult* res = task_alloc(task, TLResult, size + 1);
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
-        res->data[i + 1] = tmap_get_int(args, i);
+        res->data[i + 1] = tlmap_get_int(args, i);
     }
     print("RESULTS: %d", res->head.size);
     return res;
 }
-tValue tresult_get(tValue v, int at) {
+tlValue tlresult_get(tlValue v, int at) {
     assert(at >= 0);
-    if (!tresult_is(v)) {
+    if (!tlresult_is(v)) {
         if (at == 0) return v;
-        return tNull;
+        return tlNull;
     }
-    tResult* result = tresult_as(v);
+    tlResult* result = tlresult_as(v);
     if (at < result->head.size) return result->data[at];
-    return tNull;
+    return tlNull;
 }
 
-void assert_backtrace(tRun* run) {
+void assert_backtrace(tlRun* run) {
     int i = 100;
     while (i-- && run) run = run->caller;
     if (run) fatal("STACK CORRUPTED");
 }
 
-INTERNAL tRun* resume_code(tTask* task, tRun* r);
-INTERNAL void print_backtrace(tRun* r) {
+INTERNAL tlRun* resume_code(tlTask* task, tlRun* r);
+INTERNAL void print_backtrace(tlRun* r) {
     print("BACKTRACE:");
     while (r) {
         if (r->resume == resume_code) {
-            tSym name = ((tRunCode*)r)->code->name;
-            if (name) print("  %s", t_str(name));
+            tlSym name = ((tlRunCode*)r)->code->name;
+            if (name) print("  %s", tl_str(name));
             else print("  <anon>");
         } else {
             print("  <native: %p>", r);
@@ -162,34 +162,34 @@ INTERNAL void print_backtrace(tRun* r) {
         r = r->caller;
     }
 }
-INTERNAL tValue _backtrace(tTask* task, tFun* fn, tMap* args) {
+INTERNAL tlValue _backtrace(tlTask* task, tlFun* fn, tlMap* args) {
     print_backtrace(task->run);
-    return tNull;
+    return tlNull;
 }
 
-INTERNAL tRun* setup(tTask* task, tValue v) {
+INTERNAL tlRun* setup(tlTask* task, tlValue v) {
     trace("      <<<< %p", v);
-    return task->run = trun_as(v);
+    return task->run = tlrun_as(v);
 }
-INTERNAL tRun* setup_caller(tTask* task, tValue v) {
+INTERNAL tlRun* setup_caller(tlTask* task, tlValue v) {
     if (!v) return null;
-    tRun* caller = trun_as(v)->caller;
+    tlRun* caller = tlrun_as(v)->caller;
     trace(" << %p <<<< %p", caller, v);
     task->run = caller;
     assert_backtrace(task->run);
     return caller;
 }
-INTERNAL tRun* suspend(tTask* task, tValue v) {
-    tRun* run = trun_as(v);
+INTERNAL tlRun* suspend(tlTask* task, tlValue v) {
+    tlRun* run = tlrun_as(v);
     trace("    >>>> %p", run);
     task->run = run;
     assert_backtrace(task->run);
     return run;
 }
-INTERNAL tRun* suspend_attach(tTask* task, tRun* run, tValue c) {
+INTERNAL tlRun* suspend_attach(tlTask* task, tlRun* run, tlValue c) {
     if (task->jumping) return run;
-    assert(trun_is(run));
-    tRun* caller = trun_as(c);
+    assert(tlrun_is(run));
+    tlRun* caller = tlrun_as(c);
     trace("> %p.caller = %p", run, caller);
     run->caller = caller;
     assert_backtrace(run);
@@ -197,282 +197,282 @@ INTERNAL tRun* suspend_attach(tTask* task, tRun* run, tValue c) {
 }
 
 // return works like a closure, on lookup we close it over the current run
-INTERNAL tValue _return(tTask* task, tFun* fn, tMap* args) {
-    trace("RETURN(%d)", tmap_size(args));
+INTERNAL tlValue _return(tlTask* task, tlFun* fn, tlMap* args) {
+    trace("RETURN(%d)", tlmap_size(args));
 
-    task->jumping = tTrue;
+    task->jumping = tlTrue;
     setup(task, fn->data);
 
-    if (tmap_size(args) == 1) return tmap_get_int(args, 0);
-    return tresult_new(task, args);
+    if (tlmap_size(args) == 1) return tlmap_get_int(args, 0);
+    return tlresult_new(task, args);
 }
 
 // goto should never be called, instead we run it as a run
-INTERNAL tValue _goto(tTask* task, tFun* fn, tMap* args) {
+INTERNAL tlValue _goto(tlTask* task, tlFun* fn, tlMap* args) {
     warning("_goto is not supposed to be called");
     assert(false);
     abort();
 }
 
-INTERNAL tValue _continuation(tTask* task, tFun* fn, tMap* args) {
-    trace("CONTINUATION(%d)", tmap_size(args));
+INTERNAL tlValue _continuation(tlTask* task, tlFun* fn, tlMap* args) {
+    trace("CONTINUATION(%d)", tlmap_size(args));
 
-    task->jumping = tTrue;
+    task->jumping = tlTrue;
     setup(task, fn->data);
 
-    if (tmap_size(args) == 0) return fn;
-    return tresult_new2(task, fn, args);
+    if (tlmap_size(args) == 0) return fn;
+    return tlresult_new2(task, fn, args);
 }
 
-void* trun_alloc(tTask* task, size_t bytes, int datas, t_resume resume) {
-    tRun* run = task_alloc_full(task, TRun, bytes, 2, datas);
+void* tlrun_alloc(tlTask* task, size_t bytes, int datas, tl_resume resume) {
+    tlRun* run = task_alloc_full(task, TLRun, bytes, 2, datas);
     run->resume = resume;
     return run;
 }
 
-INTERNAL tRun* run_apply(tTask* task, tCall* call);
-INTERNAL tRun* run_activate(tTask* task, tValue v, tEnv* env);
-INTERNAL tRun* run_activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env);
-INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* call, tEnv* env);
+INTERNAL tlRun* run_apply(tlTask* task, tlCall* call);
+INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env);
+INTERNAL tlRun* run_activate_call(tlTask* task, tlRunActivateCall* run, tlCall* call, tlEnv* env);
+INTERNAL tlRun* run_activate_map(tlTask* task, tlRunActivateMap* run, tlMap* call, tlEnv* env);
 
-INTERNAL tRun* resume_activate_call(tTask* task, tRun* r) {
-    tRunActivateCall* run = (tRunActivateCall*)r;
+INTERNAL tlRun* resume_activate_call(tlTask* task, tlRun* r) {
+    tlRunActivateCall* run = (tlRunActivateCall*)r;
     return run_activate_call(task, run, run->call, run->env);
 }
-INTERNAL tRun* resume_activate_map(tTask* task, tRun* r) {
-    tRunActivateMap* run = (tRunActivateMap*)r;
+INTERNAL tlRun* resume_activate_map(tlTask* task, tlRun* r) {
+    tlRunActivateMap* run = (tlRunActivateMap*)r;
     return run_activate_map(task, run, run->map, run->env);
 }
 
 // TODO actually need to "call" the activated map ...
-INTERNAL tRun* run_activate_call(tTask* task, tRunActivateCall* run, tCall* call, tEnv* env) {
+INTERNAL tlRun* run_activate_call(tlTask* task, tlRunActivateCall* run, tlCall* call, tlEnv* env) {
     int i = 0;
     if (run) i = run->count;
-    else call = tcall_copy(task, call);
-    trace("%p >> call: %d - %d", run, i, tcall_argc(call));
+    else call = tlcall_copy(task, call);
+    trace("%p >> call: %d - %d", run, i, tlcall_argc(call));
 
     if (i < 0) {
         i = -i - 1;
-        tValue v = ttask_value(task);
-        trace2("%p call: %d = %s", run, i, t_str(v));
+        tlValue v = tltask_value(task);
+        trace2("%p call: %d = %s", run, i, tl_str(v));
         assert(v);
-        call = tcall_value_iter_set_(call, i, ttask_value(task));
+        call = tlcall_value_iter_set_(call, i, tltask_value(task));
         i++;
     }
     for (;; i++) {
-        tValue v = tcall_value_iter(call, i);
+        tlValue v = tlcall_value_iter(call, i);
         if (!v) break;
-        if (tactive_is(v)) {
-            tRun* r = run_activate(task, tvalue_from_active(v), env);
+        if (tlactive_is(v)) {
+            tlRun* r = run_activate(task, tlvalue_from_active(v), env);
             if (r) {
                 if (!run) {
-                    run = trun_alloc(task, sizeof(tRunActivateCall), 0, resume_activate_call);
+                    run = tlrun_alloc(task, sizeof(tlRunActivateCall), 0, resume_activate_call);
                     run->env = env;
                 }
                 run->count = -1 - i;
                 run->call = call;
                 return suspend_attach(task, r, run);
             }
-            v = ttask_value(task);
-            call = tcall_value_iter_set_(call, i, v);
+            v = tltask_value(task);
+            call = tlcall_value_iter_set_(call, i, v);
         }
-        trace2("%p call: %d = %s", run, i, t_str(v));
+        trace2("%p call: %d = %s", run, i, tl_str(v));
     }
-    trace2("%p << call: %d", run, tcall_argc(call));
-    ttask_set_value(task, call);
+    trace2("%p << call: %d", run, tlcall_argc(call));
+    tltask_set_value(task, call);
     return null;
 }
 
-INTERNAL tRun* run_activate_map(tTask* task, tRunActivateMap* run, tMap* map, tEnv* env) {
+INTERNAL tlRun* run_activate_map(tlTask* task, tlRunActivateMap* run, tlMap* map, tlEnv* env) {
     int i = 0;
     if (run) i = run->count;
-    trace2("%p >> map: %d - %d", run, i, tmap_size(map));
+    trace2("%p >> map: %d - %d", run, i, tlmap_size(map));
 
     if (i < 0) {
         i = -i - 1;
-        map = tmap_value_iter_set_(map, i, ttask_value(task));
+        map = tlmap_value_iter_set_(map, i, tltask_value(task));
         i++;
     }
     for (;; i++) {
-        tValue v = tmap_value_iter(map, i);
+        tlValue v = tlmap_value_iter(map, i);
         if (!v) break;
-        if (tactive_is(v)) {
-            tRun* r = run_activate(task, tvalue_from_active(v), env);
+        if (tlactive_is(v)) {
+            tlRun* r = run_activate(task, tlvalue_from_active(v), env);
             if (r) {
                 if (!run) {
-                    run = trun_alloc(task, sizeof(tRunActivateMap), 0, resume_activate_map);
+                    run = tlrun_alloc(task, sizeof(tlRunActivateMap), 0, resume_activate_map);
                     run->env = env;
                 }
                 run->count = -1 - i;
                 run->map = map;
                 return suspend_attach(task, r, run);
             }
-            v = ttask_value(task);
-            map = tmap_value_iter_set_(map, i, v);
+            v = tltask_value(task);
+            map = tlmap_value_iter_set_(map, i, v);
         }
     }
-    trace2("%p << map: %d", run, tmap_size(map));
-    ttask_set_value(task, map);
+    trace2("%p << map: %d", run, tlmap_size(map));
+    tltask_set_value(task, map);
     return null;
 }
 
 // TODO we should really not be passing runs through environments
-tRunCode* get_function_run(tRun* r) {
-    tRunCode* run = (tRunCode*)r;
+tlRunCode* get_function_run(tlRun* r) {
+    tlRunCode* run = (tlRunCode*)r;
     if (!run) return null;
-    assert(trun_is(run));
+    assert(tlrun_is(run));
     assert(run->resume == resume_code);
-    while (run && tcode_isblock(run->code)) {
-        run = tenv_get_run(run->env->parent);
+    while (run && tlcode_isblock(run->code)) {
+        run = tlenv_get_run(run->env->parent);
     }
     return run;
 }
 
 // lookups potentially need to run hotel code (not yet though)
-INTERNAL tRun* lookup(tTask* task, tEnv* env, tSym name) {
+INTERNAL tlRun* lookup(tlTask* task, tlEnv* env, tlSym name) {
     // when we bind continuations, the task->run *MUST* be the current code run
     if (name == s_return) {
         assert(task->run && task->run->resume == resume_code);
-        tRunCode* run = get_function_run(task->run);
-        ttask_set_value(task, tfun_new(task, _return, run->caller));
-        trace("%s -> %s", t_str(name), t_str(task->value));
+        tlRunCode* run = get_function_run(task->run);
+        tltask_set_value(task, tlfun_new(task, _return, run->caller));
+        trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
     }
     if (name == s_goto) {
         assert(task->run && task->run->resume == resume_code);
-        tRunCode* run = get_function_run(task->run);
-        ttask_set_value(task, tfun_new(task, _goto, run->caller));
-        trace("%s -> %s", t_str(name), t_str(task->value));
+        tlRunCode* run = get_function_run(task->run);
+        tltask_set_value(task, tlfun_new(task, _goto, run->caller));
+        trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
     }
     if (name == s_continuation) {
         // TODO freeze current run ...
         assert(task->run && task->run->resume == resume_code);
-        ttask_set_value(task, tfun_new(task, _continuation, TL_KEEP(task->run)));
-        trace("%s -> %s", t_str(name), t_str(task->value));
+        tltask_set_value(task, tlfun_new(task, _continuation, TL_KEEP(task->run)));
+        trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
     }
-    ttask_set_value(task, tenv_get(task, env, name));
-    trace("%s -> %s", t_str(name), t_str(task->value));
+    tltask_set_value(task, tlenv_get(task, env, name));
+    trace("%s -> %s", tl_str(name), tl_str(task->value));
     return null;
 }
 
-INTERNAL tRun* run_activate(tTask* task, tValue v, tEnv* env) {
-    trace("%s", t_str(v));
-    if (tsym_is(v)) {
+INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env) {
+    trace("%s", tl_str(v));
+    if (tlsym_is(v)) {
         return lookup(task, env, v);
     }
-    if (tcode_is(v)) {
-        ttask_set_value(task, tclosure_new(task, tcode_as(v), env));
+    if (tlcode_is(v)) {
+        tltask_set_value(task, tlclosure_new(task, tlcode_as(v), env));
         return null;
     }
-    if (tcall_is(v)) {
-        return run_activate_call(task, null, tcall_as(v), env);
+    if (tlcall_is(v)) {
+        return run_activate_call(task, null, tlcall_as(v), env);
     }
-    if (tmap_is(v)) {
-        return run_activate_map(task, null, tmap_as(v), env);
+    if (tlmap_is(v)) {
+        return run_activate_map(task, null, tlmap_as(v), env);
     }
     assert(false);
 }
 
-INTERNAL tRun* run_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn);
-INTERNAL tRun* resume_first(tTask* task, tRun* r) {
-    tRunFirst* run = (tRunFirst*)r;
-    return run_first(task, run, run->call, tcall_as(run->call->fn));
+INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* fn);
+INTERNAL tlRun* resume_first(tlTask* task, tlRun* r) {
+    tlRunFirst* run = (tlRunFirst*)r;
+    return run_first(task, run, run->call, tlcall_as(run->call->fn));
 }
-INTERNAL tRun* run_first(tTask* task, tRunFirst* run, tCall* call, tCall* fn) {
+INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* fn) {
     trace("%p >> first: %p %p", run, call, fn);
     if (!run) {
-        tRun* r = run_apply(task, fn);
+        tlRun* r = run_apply(task, fn);
         if (r) {
-            run = trun_alloc(task, sizeof(tRunFirst), 0, resume_first);
+            run = tlrun_alloc(task, sizeof(tlRunFirst), 0, resume_first);
             run->call = call;
             return suspend_attach(task, r, run);
         }
     }
-    fn = ttask_value(task);
+    fn = tltask_value(task);
 
-    call = tcall_copy_fn(task, call, fn);
+    call = tlcall_copy_fn(task, call, fn);
     trace2("%p << first: %p %p", run, call, fn);
 
     // TODO this can be done differently ...
     // tail call ... kindof ...
-    tRun* caller = setup_caller(task, run);
-    tRun* r = run_apply(task, call);
+    tlRun* caller = setup_caller(task, run);
+    tlRun* r = run_apply(task, call);
     if (r) return suspend_attach(task, r, caller);
     return null;
 }
 
-INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* names);
+INTERNAL tlRun* chain_call(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args, tlList* names);
 // used to evaluate incoming args if there are no keyed args
-INTERNAL tRun* run_args(tTask* task, tRunArgs* run) {
+INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
     trace2("%p", run);
 
     // setup needed data
-    tCall* call = run->call;
-    int argc = tcall_argc(call);
+    tlCall* call = run->call;
+    int argc = tlcall_argc(call);
 
-    tList* names = null;
-    tMap* defaults = null;
+    tlList* names = null;
+    tlMap* defaults = null;
 
-    tValue fn = tcall_get_fn(call);
-    if (tclosure_is(fn)) {
-        tCode* code = tclosure_as(fn)->code;
+    tlValue fn = tlcall_get_fn(call);
+    if (tlclosure_is(fn)) {
+        tlCode* code = tlclosure_as(fn)->code;
         names = code->argnames;
         defaults = code->argdefaults;
-        if (names) argc = max(tlist_size(names), argc);
+        if (names) argc = max(tllist_size(names), argc);
     }
 
-    tMap* args = run->args;
-    if (!args) args = tmap_new_keys(task, null, argc);
+    tlMap* args = run->args;
+    if (!args) args = tlmap_new_keys(task, null, argc);
 
     // check where we left off last time
     int i = run->count;
     if (i < 0) {
         i = -i - 1;
-        tmap_set_key_(args, null, i, ttask_value(task));
+        tlmap_set_key_(args, null, i, tltask_value(task));
         i++;
     }
 
     // evaluate each argument
     for (; i < argc; i++) {
-        tSym name = null;
-        if (names) name = tlist_get(names, i);
-        tValue d = tNull;
-        if (name && defaults) d = tmap_get_sym(defaults, name);
+        tlSym name = null;
+        if (names) name = tllist_get(names, i);
+        tlValue d = tlNull;
+        if (name && defaults) d = tlmap_get_sym(defaults, name);
 
-        tValue v = tcall_get_arg(call, i);
-        if (tthunk_is(d) || d == tThunkNull) {
-            v = tthunk_new(task, v);
-        } else if (tcall_is(v)) {
-            tRun* r = run_apply(task, v);
+        tlValue v = tlcall_get_arg(call, i);
+        if (tlthunk_is(d) || d == tlThunkNull) {
+            v = tlthunk_new(task, v);
+        } else if (tlcall_is(v)) {
+            tlRun* r = run_apply(task, v);
             if (r) {
                 run->count = -1 - i;
                 run->args = args;
                 return suspend_attach(task, r, run);
             }
-            v = ttask_value(task);
+            v = tltask_value(task);
         }
-        tmap_set_key_(args, null, i, v);
+        tlmap_set_key_(args, null, i, v);
     }
 
     // chain to call
-    return chain_call(task, (tRunCode*)run, tclosure_as(fn), args, names);
+    return chain_call(task, (tlRunCode*)run, tlclosure_as(fn), args, names);
 }
 // TODO make more useful
-INTERNAL tRun* resume_args(tTask* task, tRun* run) {
-    return run_args(task, (tRunArgs*)run);
+INTERNAL tlRun* resume_args(tlTask* task, tlRun* run) {
+    return run_args(task, (tlRunArgs*)run);
 }
 
-INTERNAL tRun* run_code(tTask* task, tRunCode* run);
-INTERNAL tRun* resume_code(tTask* task, tRun* r) {
-    tRunCode* run = (tRunCode*)r;
+INTERNAL tlRun* run_code(tlTask* task, tlRunCode* run);
+INTERNAL tlRun* resume_code(tlTask* task, tlRun* r) {
+    tlRunCode* run = (tlRunCode*)r;
     if (r->head.keep > 1) {
         run = task_clone(task, run);
     }
     return run_code(task, run);
 }
-INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, tList* names) {
+INTERNAL tlRun* chain_call(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args, tlList* names) {
     run->resume = resume_code;
     run->pc = 0;
     run->env = fn->env;
@@ -482,98 +482,98 @@ INTERNAL tRun* chain_call(tTask* task, tRunCode* run, tClosure* fn, tMap* args, 
     // TODO first check name, then position
     // TODO do defaults
     if (names) {
-        int size = tlist_size(names);
+        int size = tllist_size(names);
         for (int i = 0; i < size; i++) {
-            tSym name = tsym_as(tlist_get(names, i));
-            tValue v = tmap_get_int(args, i);
-            if (!v) v = tNull;
-            trace("%p set arg: %s = %s", run, t_str(name), t_str(v));
-            run->env = tenv_set(task, run->env, name, v);
+            tlSym name = tlsym_as(tllist_get(names, i));
+            tlValue v = tlmap_get_int(args, i);
+            if (!v) v = tlNull;
+            trace("%p set arg: %s = %s", run, tl_str(name), tl_str(v));
+            run->env = tlenv_set(task, run->env, name, v);
         }
     }
-    run->env = tenv_set_run(task, run->env, run);
+    run->env = tlenv_set_run(task, run->env, run);
     return run_code(task, run);
 }
 
-static inline tValue keys_tr(tList* keys, int at) {
-    if (keys) return tlist_get(keys, at); else return null;
+static inline tlValue keys_tr(tlList* keys, int at) {
+    if (keys) return tllist_get(keys, at); else return null;
 }
 
-INTERNAL tRun* run_args_host(tTask* task, tRunArgs* run) {
+INTERNAL tlRun* run_args_host(tlTask* task, tlRunArgs* run) {
     trace("%p", run);
 
     // setup needed data
-    tCall* call = run->call;
-    tList* keys = tcall_get_keys(call);
-    int argc = tcall_argc(call);
+    tlCall* call = run->call;
+    tlList* keys = tlcall_get_keys(call);
+    int argc = tlcall_argc(call);
 
-    tMap* args = run->args;
-    if (!args) args = tmap_new_keys(task, keys, argc);
+    tlMap* args = run->args;
+    if (!args) args = tlmap_new_keys(task, keys, argc);
 
     // check where we left off last time
     int i = run->count;
     if (i < 0) {
         i = -i - 1;
-        tmap_set_key_(args, keys_tr(keys, i), i, ttask_value(task));
+        tlmap_set_key_(args, keys_tr(keys, i), i, tltask_value(task));
         i++;
     }
 
     // evaluate each argument
     for (; i < argc; i++) {
-        tValue v = tcall_get_arg(call, i);
-        if (tcall_is(v)) {
-            tRun* r = run_apply(task, tcall_as(v));
+        tlValue v = tlcall_get_arg(call, i);
+        if (tlcall_is(v)) {
+            tlRun* r = run_apply(task, tlcall_as(v));
             if (r) {
                 run->count = -1 - i;
                 run->args = args;
                 return suspend_attach(task, r, run);
             }
-            v = ttask_value(task);
+            v = tltask_value(task);
         }
-        tmap_set_key_(args, keys_tr(keys, i), i, v);
+        tlmap_set_key_(args, keys_tr(keys, i), i, v);
     }
 
     // chain to call
-    tValue v = tcall_get_fn(call);
-    if (tfun_is(v)) {
+    tlValue v = tlcall_get_fn(call);
+    if (tlfun_is(v)) {
         setup_caller(task, run);
 
-        tFun* fun = tfun_as(v);
+        tlFun* fun = tlfun_as(v);
         trace(">> NATIVE %p", fun);
-        tValue v = fun->native(task, fun, tmap_as(args));
-        if (!v) v = tNull;
-        assert(!tcall_is(v));
-        assert(!trun_is(v));
-        ttask_set_value(task, v);
+        tlValue v = fun->native(task, fun, tlmap_as(args));
+        if (!v) v = tlNull;
+        assert(!tlcall_is(v));
+        assert(!tlrun_is(v));
+        tltask_set_value(task, v);
         return null;
     }
     assert(false);
 }
-INTERNAL tRun* resume_args_host(tTask* task, tRun* r) {
-    return run_args_host(task, (tRunArgs*)r);
+INTERNAL tlRun* resume_args_host(tlTask* task, tlRun* r) {
+    return run_args_host(task, (tlRunArgs*)r);
 }
 
 // this is the main part of eval: running the "list" of "bytecode"
-tRun* run_code(tTask* task, tRunCode* run) {
+tlRun* run_code(tlTask* task, tlRunCode* run) {
     int pc = run->pc;
     trace("%p -- %d", run, pc);
-    tCode* code = run->code;
-    tEnv* env = run->env;
+    tlCode* code = run->code;
+    tlEnv* env = run->env;
 
     for (;pc < code->head.size - 4; pc++) {
-        tValue op = code->ops[pc];
-        trace2("%p pc=%d, op=%s", run, pc, t_str(op));
+        tlValue op = code->ops[pc];
+        trace2("%p pc=%d, op=%s", run, pc, tl_str(op));
 
         // a value marked as active
-        if (tactive_is(op)) {
-            trace2("%p op: active -- %s", run, t_str(tvalue_from_active(op)));
+        if (tlactive_is(op)) {
+            trace2("%p op: active -- %s", run, tl_str(tlvalue_from_active(op)));
             // make sure we keep the current run up to date, continuations might capture it
             if (run->head.keep > 1) run = task_clone(task, run);
             run->env = env; run->pc = pc + 1;
-            tRun* r = run_activate(task, tvalue_from_active(op), env);
-            if (!r && tcall_is(task->value)) {
+            tlRun* r = run_activate(task, tlvalue_from_active(op), env);
+            if (!r && tlcall_is(task->value)) {
                 trace2("%p op: active call: %p", run, task->value);
-                r = run_apply(task, tcall_as(task->value));
+                r = run_apply(task, tlcall_as(task->value));
             }
             if (r) {
                 trace2("%p op: active suspend: %p", run, r);
@@ -582,126 +582,126 @@ tRun* run_code(tTask* task, tRunCode* run) {
                 run->env = env; run->pc = pc + 1;
                 return suspend_attach(task, r, run);
             }
-            assert(!trun_is(task->value));
-            assert(!tcall_is(task->value));
-            trace2("%p op: active resolved: %s", run, t_str(task->value));
+            assert(!tlrun_is(task->value));
+            assert(!tlcall_is(task->value));
+            trace2("%p op: active resolved: %s", run, tl_str(task->value));
             continue;
         }
 
         // just a symbol means setting the current value under this name in env
-        if (tsym_is(op)) {
-            trace2("%p op: sym -- %s = %s", run, t_str(op), t_str(task->value));
-            env = tenv_set(task, env, tsym_as(op), task->value);
+        if (tlsym_is(op)) {
+            trace2("%p op: sym -- %s = %s", run, tl_str(op), tl_str(task->value));
+            env = tlenv_set(task, env, tlsym_as(op), task->value);
             continue;
         }
 
         // a "collect" object means processing a multi return value
-        if (tcollect_is(op)) {
-            tCollect* names = tcollect_as(op);
-            trace2("%p op: collect -- %d -- %s", run, names->head.size, t_str(task->value));
+        if (tlcollect_is(op)) {
+            tlCollect* names = tlcollect_as(op);
+            trace2("%p op: collect -- %d -- %s", run, names->head.size, tl_str(task->value));
             for (int i = 0; i < names->head.size; i++) {
-                tSym name = tsym_as(names->data[i]);
-                tValue v = tresult_get(task->value, i);
-                trace2("%p op: collect: %s = %s", run, t_str(name), t_str(v));
-                env = tenv_set(task, env, name, v);
+                tlSym name = tlsym_as(names->data[i]);
+                tlValue v = tlresult_get(task->value, i);
+                trace2("%p op: collect: %s = %s", run, tl_str(name), tl_str(v));
+                env = tlenv_set(task, env, name, v);
             }
             continue;
         }
 
         // anything else means just data, and load
-        trace2("%p op: data: %s", run, t_str(op));
-        ttask_set_value(task, op);
+        trace2("%p op: data: %s", run, tl_str(op));
+        tltask_set_value(task, op);
     }
     setup_caller(task, run);
     return null;
 }
 
-INTERNAL tRun* run_thunk(tTask* task, tThunk* thunk) {
+INTERNAL tlRun* run_thunk(tlTask* task, tlThunk* thunk) {
     trace("%p", thunk);
-    tValue v = thunk->value;
-    if (tcall_is(v)) {
-        return run_apply(task, tcall_as(v));
+    tlValue v = thunk->value;
+    if (tlcall_is(v)) {
+        return run_apply(task, tlcall_as(v));
     }
     return v;
 }
 
 // TODO remove
-INTERNAL tRun* start_args(tTask* task, tCall* call) {
+INTERNAL tlRun* start_args(tlTask* task, tlCall* call) {
     trace("%p", call);
-    tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, resume_args);
+    tlRunArgs* run = tlrun_alloc(task, sizeof(tlRunArgs), 0, resume_args);
     run->call = call;
     return suspend(task, run);
 }
 
 // TODO remove
-INTERNAL tRun* start_args_host(tTask* task, tCall* call) {
+INTERNAL tlRun* start_args_host(tlTask* task, tlCall* call) {
     trace("%p", call);
-    tRunArgs* run = trun_alloc(task, sizeof(tRunArgs), 0, resume_args_host);
+    tlRunArgs* run = tlrun_alloc(task, sizeof(tlRunArgs), 0, resume_args_host);
     run->call = call;
     return suspend(task, run);
 }
-INTERNAL tRun* run_goto(tTask* task, tCall* call, tFun* fn) {
+INTERNAL tlRun* run_goto(tlTask* task, tlCall* call, tlFun* fn) {
     trace("%p", call);
 
     // TODO handle multiple arguments ... but what does that mean?
-    assert(tcall_argc(call) == 1);
+    assert(tlcall_argc(call) == 1);
 
-    tRun* caller = trun_as(fn->data);
+    tlRun* caller = tlrun_as(fn->data);
     setup(task, caller);
 
-    tValue v = tcall_get_arg(call, 0);
-    if (tcall_is(v)) {
-        tRun* r = run_apply(task, tcall_as(v));
+    tlValue v = tlcall_get_arg(call, 0);
+    if (tlcall_is(v)) {
+        tlRun* r = run_apply(task, tlcall_as(v));
         if (r) {
             assert(!task->jumping);
             suspend_attach(task, r, caller);
-            task->jumping = tTrue;
+            task->jumping = tlTrue;
             return caller;
         }
         return null;
     }
 
-    ttask_set_value(task, v);
+    tltask_set_value(task, v);
     return null;
 }
 
-INTERNAL tRun* run_apply(tTask* task, tCall* call) {
+INTERNAL tlRun* run_apply(tlTask* task, tlCall* call) {
     assert(call);
     if (call->keys) {
-        assert(tcall_argc(call) == tlist_size(call->keys) - 1);
-        assert(tmap_is(tlist_get(call->keys, tcall_argc(call))));
+        assert(tlcall_argc(call) == tllist_size(call->keys) - 1);
+        assert(tlmap_is(tllist_get(call->keys, tlcall_argc(call))));
     }
     for (int i = 0;; i++) {
-        tValue v = tcall_value_iter(call, i);
-        if (!v) { assert(i >= tcall_argc(call)); break; }
-        assert(!tactive_is(v));
+        tlValue v = tlcall_value_iter(call, i);
+        if (!v) { assert(i >= tlcall_argc(call)); break; }
+        assert(!tlactive_is(v));
     }
 
-    tValue fn = tcall_get_fn(call);
-    trace("%p: fn=%s", call, t_str(fn));
+    tlValue fn = tlcall_get_fn(call);
+    trace("%p: fn=%s", call, tl_str(fn));
 
-    switch(t_head(fn)->type) {
-    case TClosure:
+    switch(tl_head(fn)->type) {
+    case TLClosure:
         // TODO if zero args, or no key args ... optimize
         return start_args(task, call);
-    case TFun:
-        if (tfun_as(fn)->native == _goto) return run_goto(task, call, tfun_as(fn));
+    case TLFun:
+        if (tlfun_as(fn)->native == _goto) return run_goto(task, call, tlfun_as(fn));
         return start_args_host(task, call);
-    case TCall:
-        return run_first(task, null, call, tcall_as(fn));
-    case TThunk:
-        if (tcall_argc(call) > 0) {
+    case TLCall:
+        return run_first(task, null, call, tlcall_as(fn));
+    case TLThunk:
+        if (tlcall_argc(call) > 0) {
             return start_args(task, call);
         }
-        return run_thunk(task, tthunk_as(fn));
+        return run_thunk(task, tlthunk_as(fn));
     default:
-        warning("unable to run: %s", t_str(fn));
+        warning("unable to run: %s", tl_str(fn));
         assert(false);
     }
     return null;
 }
 
-INTERNAL void run_resume(tTask* task, tRun* run) {
+INTERNAL void run_resume(tlTask* task, tlRun* run) {
     trace("RESUME");
     task->jumping = 0;
     assert(run->resume);

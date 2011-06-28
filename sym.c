@@ -2,91 +2,91 @@
 
 #include "trace-off.h"
 
-static tSym s_continuation;
-static tSym s_caller;
-static tSym s_return;
-static tSym s_goto;
-static tSym s_this;
-static tSym s_args;
+static tlSym s_continuation;
+static tlSym s_caller;
+static tlSym s_return;
+static tlSym s_goto;
+static tlSym s_this;
+static tlSym s_args;
 
 static LHashMap *symbols = 0;
 
-static tSym _SYM_FROM_TEXT(tText* v) { return (tSym)((intptr_t)v | 2); }
-static tText* _TEXT_FROM_SYM(tSym v) { return (tText*)((intptr_t)v & ~7); }
+static tlSym _SYM_FROM_TEXT(tlText* v) { return (tlSym)((intptr_t)v | 2); }
+static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
 
-bool tactive_is(tValue v) { return (tsym_is(v) || tref_is(v)) && (((intptr_t)v) & 7) >= 4; }
-tValue tvalue_from_active(tValue a) {
-    assert(tactive_is(a));
-    assert(tref_is(a) || tsym_is(a));
-    tValue v = (tValue)((intptr_t)a & ~4);
-    assert(!tactive_is(v));
-    assert(tref_is(v) || tsym_is(v));
+bool tlactive_is(tlValue v) { return (tlsym_is(v) || tlref_is(v)) && (((intptr_t)v) & 7) >= 4; }
+tlValue tlvalue_from_active(tlValue a) {
+    assert(tlactive_is(a));
+    assert(tlref_is(a) || tlsym_is(a));
+    tlValue v = (tlValue)((intptr_t)a & ~4);
+    assert(!tlactive_is(v));
+    assert(tlref_is(v) || tlsym_is(v));
     return v;
 }
-tValue tactive_from_value(tValue v) {
-    assert(tref_is(v) || tsym_is(v));
-    assert(!tactive_is(v));
-    tValue a = (tValue)((intptr_t)v | 4);
-    assert(tactive_is(a));
-    assert(tref_is(a) || tsym_is(a));
+tlValue tlactive_from_value(tlValue v) {
+    assert(tlref_is(v) || tlsym_is(v));
+    assert(!tlactive_is(v));
+    tlValue a = (tlValue)((intptr_t)v | 4);
+    assert(tlactive_is(a));
+    assert(tlref_is(a) || tlsym_is(a));
     return a;
 }
-tValue tACTIVE(tValue v) {
-    return tactive_from_value(v);
+tlValue tlACTIVE(tlValue v) {
+    return tlactive_from_value(v);
 }
 
-tText* tsym_to_text(tSym sym) {
-    assert(tsym_is(sym));
+tlText* tlsym_to_text(tlSym sym) {
+    assert(tlsym_is(sym));
     return _TEXT_FROM_SYM(sym);
 }
 
-tSym tsym_from_static(const char* s) {
+tlSym tlsym_from_static(const char* s) {
     assert(s);
     assert(symbols);
     trace("#%s", s);
 
-    tSym cur = (tSym)lhashmap_get(symbols, s);
+    tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tsym_from(null, tTEXT(s));
+    return tlsym_from(null, tlTEXT(s));
 }
 
-tSym tsym_from_copy(tTask* task, const char* s) {
+tlSym tlsym_from_copy(tlTask* task, const char* s) {
     assert(s);
     assert(symbols);
     trace("#%s", s);
-    tSym cur = (tSym)lhashmap_get(symbols, s);
+    tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tsym_from(task, ttext_from_copy(task, s));
+    return tlsym_from(task, tltext_from_copy(task, s));
 }
 
-tSym tsym_from(tTask* task, tText* text) {
-    assert(ttext_is(text));
+tlSym tlsym_from(tlTask* task, tlText* text) {
+    assert(tltext_is(text));
     assert(symbols);
-    trace("#%s", t_str(text));
+    trace("#%s", tl_str(text));
 
-    tSym sym = _SYM_FROM_TEXT(text);
-    tSym cur = (tSym)lhashmap_putif(symbols, (char*)ttext_bytes(text), sym, 0);
+    tlSym sym = _SYM_FROM_TEXT(text);
+    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tltext_bytes(text), sym, 0);
 
     if (cur) return cur;
     return sym;
 }
 
 #if 0
-void tl_register_const(const char* name, Value v) {
+void tll_register_const(const char* name, Value v) {
     assert(globals);
     lhashmap_putif(globals, (void *)ensure_sym(name), v, LHASHMAP_IGNORE);
 }
 
-static void tl_register_pfuns(const pfunentry *const pfun) {
+static void tll_register_pfuns(const pfunentry *const pfun) {
     for (int i = 0; pfun[i].name; i++) {
         Sym name = SYM(pfun[i].name);
         lhashmap_putif(globals, (void *)pfun[i].name, native_new(pfun[i].fn, name), LHASHMAP_IGNORE);
     }
 }
 
-static Value tl_global(Sym sym) {
+static Value tll_global(Sym sym) {
     assert(isSym(sym));
     assert(_TEXT_FROM_SYM(sym)->data);
     assert(globals);
@@ -133,12 +133,12 @@ static void strfree(void *str) { }
 static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
-    s_continuation = tSYM("continuation");
-    s_caller = tSYM("caller-continuation");
-    s_return = tSYM("return");
-    s_goto   = tSYM("goto");
-    s_this   = tSYM("this");
-    s_args   = tSYM("args");
+    s_continuation = tlSYM("continuation");
+    s_caller = tlSYM("caller-continuation");
+    s_return = tlSYM("return");
+    s_goto   = tlSYM("goto");
+    s_this   = tlSYM("this");
+    s_args   = tlSYM("args");
 
     //globals = lhashmap_new(strequals, strhash, strfree);
 
@@ -146,7 +146,7 @@ static void sym_init() {
     //for (int i = 0; i < TYPE_LAST; i++) {
     //    char *buf;
     //    asprintf(&buf, "%%T%s", TypeName[i]);
-    //    tl_register_const(buf, tINT(i));
+    //    tll_register_const(buf, tlINT(i));
     //}
 }
 
