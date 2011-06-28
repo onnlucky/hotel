@@ -128,7 +128,6 @@ tlResult* tlresult_new2(tlTask* task, tlValue first, tlMap* args) {
     for (int i = 0; i < size; i++) {
         res->data[i + 1] = tlmap_get_int(args, i);
     }
-    print("RESULTS: %d", res->head.size);
     return res;
 }
 tlValue tlresult_get(tlValue v, int at) {
