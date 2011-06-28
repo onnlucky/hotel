@@ -1,10 +1,14 @@
 # TODO
 add testcase for goto and backtrace and continuation
 
+rework call (tlCall)
+implement send (tlSend)
+implement operations (tlOp)
+expose parsed code: tlBlock, tlLookup, tlCall, tlSend, tlOp, tlAssign, ...
+
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
 clean up tl.h; nice up code.{h,c} and call.c
-expose parsed code: tlBlock, tlLookup, tlCall, tlSend, tlOp, tlAssign, ...
 only optimize after parser, inspect step: single tlAssign become just name ...
 return and goto can be implemented different: store the args of the to-return code run. Then find that in the stack and return it...
 
@@ -15,8 +19,6 @@ add more arg processing:
 * keys in -> names + defaults in target
 do collector and splays ...
 
-implement send (tlSend)
-implement operations (tlOp)
 implement tasks and message sending primitives
 implement exceptions and handling (add onerror to tlCodeRun)
 implement keyworded argument passing into function

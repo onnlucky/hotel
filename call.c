@@ -3,20 +3,12 @@
 #include "trace-off.h"
 
 // TODO primitive vs full host function
-// TODO rework keyed calls ... not many are, flag is likely more appropriate
 struct tlFun {
     tlHead head;
     tl_native native;
     tlValue data;
 };
-struct tlCall {
-    tlHead head;
-    tlList* keys;
-    tlValue fn;
-    tlValue args[];
-};
 TTYPE(tlFun, tlfun, TLFun);
-TTYPE(tlCall, tlcall, TLCall);
 
 tlFun* tlfun_new(tlTask* task, tl_native native, tlValue data) {
     tlFun* fun = task_alloc_priv(task, TLFun, 1, 1);
@@ -24,13 +16,21 @@ tlFun* tlfun_new(tlTask* task, tl_native native, tlValue data) {
     fun->data = data;
     return fun;
 }
-
 tlFun* tlFUN(tl_native native, tlValue data) {
     tlFun* fun = task_alloc_priv(null, TLFun, 1, 1);
     fun->native = native;
     fun->data = data;
     return fun;
 }
+
+// TODO rework keyed calls ... not many are, flag is likely more appropriate
+struct tlCall {
+    tlHead head;
+    tlList* keys;
+    tlValue fn;
+    tlValue args[];
+};
+TTYPE(tlCall, tlcall, TLCall);
 
 // DESIGN calling with keywords arguments
 // there must be a list with names, and last entry must be a map ready to be cloned
