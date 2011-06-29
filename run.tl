@@ -1,12 +1,9 @@
-if = (c, block){ bool(c, block, {})() }
-loop = (n){
-    if n <= 0:
-        backtrace
-        return
-    if n <= 0:
-        error
-    print("N:", n)
-    goto loop n - 1
+Text = [
+    length = (this){ _text_size(this) }
+]
+send = (oop, name){
+    _map_get(Text, name)(oop)
+    //send_apply(msg, map_get(Text, name))
 }
-loop 10
+"hello".length
 

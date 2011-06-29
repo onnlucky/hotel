@@ -33,7 +33,7 @@ const char* const type_to_str[] = {
     "closure",
     "fun",
 
-    "call",
+    "call", "send", "op"
     "run",
 
     "evalcall",

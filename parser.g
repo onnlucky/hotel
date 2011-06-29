@@ -58,7 +58,7 @@ tlValue map_activate(tlMap* map) {
 }
 tlValue tlcall_value_iter(tlCall* call, int i);
 tlCall* tlcall_value_iter_set_(tlCall* call, int i, tlValue v);
-tlValue call_activate(tlValue* in) {
+tlValue call_activate(tlValue in) {
     if (tlcall_is(in)) {
         tlCall* call = tlcall_as(in);
         for (int i = 0;; i++) {
@@ -69,34 +69,42 @@ tlValue call_activate(tlValue* in) {
         }
         return tlACTIVE(call);
     }
+    if (tlsend_is(in)) {
+        tlSend* send = tlsend_as(in);
+        for (int i = 0;; i++) {
+            tlValue v = tlsend_value_iter(send, i);
+            if (!v) break;
+            tlValue v2 = call_activate(v);
+            if (v != v2) tlsend_value_iter_set_(send, i, v2);
+        }
+        return tlACTIVE(send);
+    }
     return in;
 }
-tlValue set_target(tlValue on, tlValue tareget) {
-    if (!on) return tareget;
+tlValue set_target(tlValue on, tlValue target) {
+    if (!on) return target;
     if (tlcall_is(on)) {
         tlCall* call = tlcall_as(on);
         tlValue fn = tlcall_get_fn(call);
         if (!fn) {
-            tlcall_set_fn_(call, tareget);
+            tlcall_set_fn_(call, target);
             return on;
         } else {
-            set_target(fn, tareget);
+            set_target(fn, target);
             return on;
         }
     }
-#if 0
     if (tlsend_is(on)) {
         tlSend* send = tlsend_as(on);
         tlValue oop = tlsend_get_oop(send);
         if (!oop) {
-            tlsend_set_oop_(send, tareget);
+            tlsend_set_oop_(send, target);
             return on;
         } else {
-            set_target(oop, tareget);
+            set_target(oop, target);
             return on;
         }
     }
-#endif
     assert(false);
     return null;
 }
@@ -177,32 +185,42 @@ farg = "&&" n:name { $$ = tllist_from2(TASK, n, tlCollectLazy); }
   expr = e:op_log { $$ = call_activate(e); }
 
 selfapply = n:name _ &eos {
-    $$ = call_activate((tlValue)tlcall_from_args(TASK, tlACTIVE(n), tllist_empty()));
+    $$ = call_activate(tlcall_from_args(TASK, tlACTIVE(n), tllist_empty()));
 }
 
  pexpr = "assert" _ !"(" < as:pcargs > {
             as = tllist_prepend(TASK, L(as), tltext_from_copy(TASK, yytext));
-            $$ = call_activate((tlValue)tlcall_from_args(TASK, tlACTIVE(tlSYM("assert")), as));
+            $$ = call_activate(tlcall_from_args(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | fn:lookup _ ":" b:bodynl {
            tlcode_set_isblock_(b, true);
            as = tllist_from1(TASK, tlACTIVE(b));
-           $$ = call_activate((tlValue)tlcall_from_args(TASK, fn, as));
+           $$ = call_activate(tlcall_from_args(TASK, fn, as));
        }
        | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
            tlcode_set_isblock_(b, true);
            as = tllist_add(TASK, L(as), tlACTIVE(b));
-           $$ = call_activate((tlValue)tlcall_from_args(TASK, fn, as));
+           $$ = call_activate(tlcall_from_args(TASK, fn, as));
        }
        | fn:lookup _ !"(" as:pcargs {
            trace("primary function call");
-           $$ = call_activate((tlValue)tlcall_from_args(TASK, fn, as));
+           $$ = call_activate(tlcall_from_args(TASK, fn, as));
        }
        | v:value _"."_ n:name _ !"(" as:pcargs _":"_ b:bodynl {
            fatal("primary send + bodynl");
        }
        | v:value _"."_ n:name _ !"(" as:pcargs {
-           fatal("primary send");
+           trace("primary send");
+           $$ = call_activate(tlsend_from_args(TASK, v, n, as));
+       }
+       | expr
+
+# // TODO fix below and add [] and such ...
+       | v:value _"."_ n:name _ !"(" {
+           // TODO here we want to "tail" more primary sends ...
+           trace("primary send");
+           //$$ = set_target(t, tlsend_from_args(TASK, null, n, tllist_empty()));
+           $$ = tlsend_from_args(TASK, v, n, tllist_empty());
        }
        | expr
 
@@ -218,15 +236,16 @@ selfapply = n:name _ &eos {
            $$ = set_target(t, tlcall_from_args(TASK, null, as));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
-           fatal("method call");
-           //$$ = set_target(L(t), _CAT(_CALL2(_SEND_, null, n), as));
+           trace("method call()");
+           $$ = set_target(t, tlsend_from_args(TASK, null, n, as));
        }
        | _"."_ n:name t:tail {
-           fatal("method call");
-           //$$ = set_target(L(t), _CALL2(_SEND_, null, n));
+           trace("method call");
+           $$ = set_target(t, tlsend_from_args(TASK, null, n, tllist_empty()));
        }
        | _"["__ e:expr __"]" t:tail {
-           fatal("array get call");
+           trace("array get call");
+           $$ = set_target(t, tlsend_from_args(TASK, null, tlSYM("get"), as));
        }
        | _ {
            trace("no tail");

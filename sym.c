@@ -8,6 +8,7 @@ static tlSym s_return;
 static tlSym s_goto;
 static tlSym s_this;
 static tlSym s_args;
+static tlSym s_send;
 
 static LHashMap *symbols = 0;
 
@@ -139,6 +140,7 @@ static void sym_init() {
     s_goto   = tlSYM("goto");
     s_this   = tlSYM("this");
     s_args   = tlSYM("args");
+    s_send   = tlSYM("send");
 
     //globals = lhashmap_new(strequals, strhash, strfree);
 

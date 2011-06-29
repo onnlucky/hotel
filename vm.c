@@ -79,6 +79,16 @@ static tlValue _text_size(tlTask* task, tlFun* fn, tlMap* args) {
     if (!text) return tlNull;
     return tlINT(tltext_size(text));
 }
+static tlValue _send_oop(tlTask* task, tlFun* fn, tlMap* args) {
+    tlSend* send = tlsend_cast(tlmap_get_int(args, 0));
+    if (!send) return tlNull;
+    return send->oop;
+}
+static tlValue _send_name(tlTask* task, tlFun* fn, tlMap* args) {
+    tlSend* send = tlsend_cast(tlmap_get_int(args, 0));
+    if (!send) return tlNull;
+    return send->name;
+}
 
 void tlvm_init() {
     // assert assumptions on memory layout, pointer size etc
@@ -133,6 +143,8 @@ tlEnv* tlvm_global_env(tlVm* vm) {
 
     env = tlenv_set(null, env, tlSYM("_map_get"), tlFUN(_map_get, tlSYM("_map_get")));
     env = tlenv_set(null, env, tlSYM("_text_size"), tlFUN(_text_size, tlSYM("_text_size")));
+    env = tlenv_set(null, env, tlSYM("_send_oop"), tlFUN(_send_oop, tlSYM("_send_oop")));
+    env = tlenv_set(null, env, tlSYM("_send_name"), tlFUN(_send_name, tlSYM("_send_name")));
     //env = tlenv_set(null, env, tlSYM("_invoke"), tlFUN(_invoke, tlSYM("_invoke")));
     return env;
 }

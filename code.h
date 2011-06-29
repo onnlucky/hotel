@@ -13,3 +13,8 @@ void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args);
 void tlcode_set_ops_(tlCode* code, tlList* ops);
 
 bool tlcode_isblock(tlCode* code);
+
+tlSend* tlsend_from_args(tlTask*, tlValue, tlSym, tlList* args);
+tlValue tlsend_value_iter(tlSend* send, int at);
+void tlsend_value_iter_set_(tlSend* send, int at, tlValue v);
+

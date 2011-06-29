@@ -1,6 +1,5 @@
 # TODO
-add testcase for goto and backtrace and continuation
-
+tlmap is broken ... mixing s_send with malloced Text ... see run.tl
 rework call (tlCall)
 implement send (tlSend)
 implement operations (tlOp)

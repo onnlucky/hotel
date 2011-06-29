@@ -80,7 +80,8 @@ enum {
     TLClosure,
     TLFun,
 
-    TLCall,
+    TLCall, TLSend, TLOp,
+
     TLRun,
 
     TLEvalCall,

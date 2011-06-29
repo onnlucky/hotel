@@ -28,7 +28,7 @@ void tlmap_dump(tlMap* map) {
             tlValue key = tllist_get(keys, i);
             if (key) {
                 tlValue v = map->data[_OFFSET(map) + i];
-                print("%s: %s", tl_str(key), tl_str(v));
+                print("%s: %s (%p = %p)", tl_str(key), tl_str(v), key, v);
             }
         }
     } else {
@@ -304,7 +304,7 @@ void tlmap_set_sym_(tlMap* map, tlSym key, tlValue v) {
 tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
     if (tlint_is(key)) return tlmap_get_int(map, tl_int(key));
     if (tlsym_is(key)) return tlmap_get_sym(map, tlsym_as(key));
-    fatal("not implemented");
+    fatal("not implemented: get using: %s", tl_str(key));
     return tlNull;
 }
 
