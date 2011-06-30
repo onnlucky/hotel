@@ -1,7 +1,7 @@
 # TODO
-tlmap is broken ... mixing s_send with malloced Text ... see run.tl
+how to handle test/scope.tl ?? should close environment
 rework call (tlCall)
-implement send (tlSend)
+implement send (tlSend, or not and make parser do invoke(oop, msg, [args])
 implement operations (tlOp)
 expose parsed code: tlBlock, tlLookup, tlCall, tlSend, tlOp, tlAssign, ...
 
