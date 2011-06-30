@@ -92,7 +92,7 @@ static tlValue _send_name(tlTask* task, tlFun* fn, tlMap* args) {
 
 void tlvm_init() {
     // assert assumptions on memory layout, pointer size etc
-    assert(sizeof(tlHead) <= sizeof(intptr_t));
+    //assert(sizeof(tlHead) <= sizeof(intptr_t));
 
     trace("    field size: %zd", sizeof(tlValue));
     trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlValue));
