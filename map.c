@@ -101,6 +101,7 @@ tlMap* tlmap_from1(tlTask* task, tlValue key, tlValue v) {
 
 tlMap* tlmap_from_pairs(tlTask* task, tlList* pairs) {
     int size = tllist_size(pairs);
+    trace("%d", size);
     tlList* keys = tllist_new(task, size);
     for (int i = 0; i < size; i++) {
         tlList* pair = tllist_as(tllist_get(pairs, i));

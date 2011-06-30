@@ -189,18 +189,35 @@ static void list_init() {
 
 // ** set **
 
-int set_indexof(tlList* set, tlValue key) {
+void set_assert(tlList* set) {
+    int size = tllist_size(set);
+    intptr_t v1 = 0; intptr_t v2 = 0;
+    for (int i = 0; i < size; i++) {
+        v1 = (intptr_t)set->data[i];
+        assert(v1 < v2 || !v2);
+        if (v1) v2 = v1;
+    }
+}
+
+
+int set_indexof2(tlList* set, tlValue key) {
+    //set_assert(set);
     int size = tllist_size(set);
     if (key == null || size == 0) return -1;
 
     int min = 0, max = size - 1;
     do {
         int mid = (min + max) / 2;
-        if (set->data[mid] < key) min = mid + 1; else max = mid;
+        if (set->data[mid] > key) min = mid + 1; else max = mid;
     } while (min < max);
     if (min != max) return -1;
-    if (set->data[min] != key) return -1;
     return min;
+}
+
+int set_indexof(tlList* set, tlValue key) {
+    int at = set_indexof2(set, key);
+    if (set->data[at] != key) return -1;
+    return at;
 }
 
 tlList* set_add(tlTask* task, tlList* set, tlValue key, int* at) {
@@ -213,41 +230,24 @@ tlList* set_add(tlTask* task, tlList* set, tlValue key, int* at) {
     tlList* nset = tllist_new(task, size + 1);
 
     int i = 0;
-    for (; i < size && set->data[i] < key; i++) nset->data[i] = set->data[i];
+    for (; i < size && set->data[i] > key; i++) nset->data[i] = set->data[i];
     *at = i;
     nset->data[i] = key;
     for (; i < size; i++) nset->data[i + 1] = set->data[i];
 
+    //set_assert(nset);
     return nset;
 }
 
 int set_add_(tlList* set, tlValue key) {
     int size = tllist_size(set);
-    assert(!set->data[size - 1]);
-
-    if (!set->data[0]) {
-        set->data[0] = key;
-        return 0;
-    }
-
-    int at = set_indexof(set, key);
-    if (at == -1) {
-        int i = size - 2;
-        for (; i >= 0; i--) {
-            if (set->data[i]) {
-                set->data[i + 1] = key;
-                return i + 1;
-            }
-        }
-        assert(false);
-    }
-
+    int at = set_indexof2(set, key);
+    assert(at >= 0 && at < size);
     if (set->data[at] == key) return at;
-
-    for (int i = size - 2; i >= at; i--) {
-        set->data[i + 1] = set->data[i];
-    }
+    assert(!set->data[size - 1]);
+    for (int i = size - 2; i >= at; i--) set->data[i + 1] = set->data[i];
     set->data[at] = key;
+    //set_assert(set);
     return at;
 }
 
