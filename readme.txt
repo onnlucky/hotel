@@ -3,7 +3,7 @@ how to handle test/scope.tl ?? should close environment
 rework call (tlCall)
 implement send (tlSend, or not and make parser do invoke(oop, msg, [args])
 implement operations (tlOp)
-expose parsed code: tlBlock, tlLookup, tlCall, tlSend, tlOp, tlAssign, ...
+expose parsed code: tlBlock, tlCall, tlAssign, tlLookup
 
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time

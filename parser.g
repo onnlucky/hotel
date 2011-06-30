@@ -135,6 +135,8 @@ static char* unescape(const char* s) {
 
 tlValue tlcollect_new_(tlTask* task, tlList* list);
 
+#define YY_STACK_SIZE 1024
+
 %}
 
  start = __ b:body __ !.   { $$ = b; try_name(tlSYM("main"), b); }
