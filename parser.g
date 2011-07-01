@@ -135,6 +135,7 @@ static char* unescape(const char* s) {
 
 tlValue tlcollect_new_(tlTask* task, tlList* list);
 
+//#define YY_DEBUG
 #define YY_STACK_SIZE 1024
 
 %}
@@ -143,8 +144,8 @@ tlValue tlcollect_new_(tlTask* task, tlList* list);
 
   body = ts:stms           { $$ = tlcode_from(TASK, ts); }
 
-  stms = t:stm eos ts:stms { $$ = tllist_cat(TASK, L(t), L(ts)); }
-       | t:stm             { $$ = L(t); }
+  stms = t:stm (eos t2:stm { t = tllist_cat(TASK, L(t), L(t2)); }
+               |eos)*      { $$ = t }
        |                   { $$ = tllist_empty(); }
 
 bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = tlcode_from(TASK, ts); }
@@ -254,13 +255,17 @@ selfapply = n:name _ &eos {
            $$ = null;
        }
 
-pcargs = e:expr __","__ as:pcargs   { $$ = tllist_prepend(TASK, L(as), e); }
-       | e:pexpr                    { $$ = tllist_from1(TASK, e) }
+pcargs = l:expr __","__          { l = tllist_from1(TASK, l); }
+                (r:expr __","__  { l = tllist_add(TASK, L(l), r); }
+                )*
+                r:pexpr          { l = tllist_add(TASK, L(l), r); }
+                                 { $$ = l; }
+       | e:pexpr                 { $$ = tllist_from1(TASK, e) }
 
- cargs = e:expr __","__ as:cargs   { $$ = tllist_prepend(TASK, L(as), e); }
-       | e:expr                    { $$ = tllist_from1(TASK, e) }
-       |                           { $$ = tllist_empty(); }
-
+ cargs = l:expr                 { l = tllist_from1(TASK, l); }
+                (__","__ r:expr { l = tllist_add(TASK, L(l), r); }
+                )*              { $$ = l; }
+       |                        { $$ = tllist_empty(); }
 
 op_log = l:op_not _ ("or"  __ r:op_not { l = tlcall_from(TASK, tlACTIVE(tlSYM("or")), l, r, null); }
                   _ |"and" __ r:op_not { l = tlcall_from(TASK, tlACTIVE(tlSYM("and")), l, r, null); }
@@ -341,8 +346,8 @@ slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* ("*/"|!.)
   comment = (slcomment nle | icomment)
 
-      eos = _ (nle | ";" | slcomment nle) __
-      eom = _ (nle | "," | slcomment nle) __
+      eos = _ (nl | ";" | slcomment nle) __
+      eom = _ (nl | "," | slcomment nle) __
        nl = "\n" | "\r\n" | "\r"
       nle = "\n" | "\r\n" | "\r" | !.
        sp = [ \t]
