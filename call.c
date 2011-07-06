@@ -5,18 +5,18 @@
 // TODO primitive vs full host function
 struct tlFun {
     tlHead head;
-    tl_native native;
+    tlHostFunction native;
     tlValue data;
 };
 TTYPE(tlFun, tlfun, TLFun);
 
-tlFun* tlfun_new(tlTask* task, tl_native native, tlValue data) {
+tlFun* tlfun_new(tlTask* task, tlHostFunction native, tlValue data) {
     tlFun* fun = task_alloc_priv(task, TLFun, 1, 1);
     fun->native = native;
     fun->data = data;
     return fun;
 }
-tlFun* tlFUN(tl_native native, tlValue data) {
+tlFun* tlFUN(tlHostFunction native, tlValue data) {
     tlFun* fun = task_alloc_priv(null, TLFun, 1, 1);
     fun->native = native;
     fun->data = data;

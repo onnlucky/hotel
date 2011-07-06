@@ -1,5 +1,9 @@
 // this is how all tl values look in memory
 
+bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
+void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
+void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
+
 uint8_t tl_type(tlValue v) {
     if ((intptr_t)v & 1) return TLInt;
     if ((intptr_t)v & 2) return TLSym;
@@ -72,6 +76,26 @@ int tl_int(tlValue v) {
     if (i < 0) return (i >> 2) | 0xC0000000;
     return i >> 2;
 }
+
+static tlValue _value_type(tlTask* task, tlFun* fn, tlMap* args) {
+    tlValue v = tlmap_get_int(args, 0);
+    return tlINT(tl_type(v));
+}
+
+static const tlHostFunctions __value_functions[] = {
+    { "_value_type", _value_type },
+    { 0, 0 }
+};
+
+static void value_init() {
+    for (int i = 0; i < TL_TYPE_LAST; i++) {
+        char *buf;
+        asprintf(&buf, "_%s", type_to_str[i]);
+        tl_register_const(buf, tlINT(i));
+    }
+    tl_register_functions(__value_functions);
+}
+
 
 // creating value objects
 tlValue task_alloc(tlTask* task, uint8_t type, int size) {

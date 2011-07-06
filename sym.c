@@ -11,6 +11,7 @@ static tlSym s_args;
 static tlSym s_send;
 
 static LHashMap *symbols = 0;
+static LHashMap *globals = 0;
 
 static tlSym _SYM_FROM_TEXT(tlText* v) { return (tlSym)((intptr_t)v | 2); }
 static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
@@ -74,26 +75,24 @@ tlSym tlsym_from(tlTask* task, tlText* text) {
     return sym;
 }
 
-#if 0
-void tll_register_const(const char* name, Value v) {
+void tl_register_const(const char* name, tlValue v) {
     assert(globals);
-    lhashmap_putif(globals, (void *)ensure_sym(name), v, LHASHMAP_IGNORE);
+    tlSYM(name);
+    lhashmap_putif(globals, (void *)name, v, LHASHMAP_IGNORE);
 }
 
-static void tll_register_pfuns(const pfunentry *const pfun) {
-    for (int i = 0; pfun[i].name; i++) {
-        Sym name = SYM(pfun[i].name);
-        lhashmap_putif(globals, (void *)pfun[i].name, native_new(pfun[i].fn, name), LHASHMAP_IGNORE);
+static void tl_register_functions(const tlHostFunctions* fns) {
+    for (int i = 0; fns[i].name; i++) {
+        tlSym name = tlSYM(fns[i].name);
+        lhashmap_putif(globals, (void*)fns[i].name, tlFUN(fns[i].fn, name), LHASHMAP_IGNORE);
     }
 }
 
-static Value tll_global(Sym sym) {
-    assert(isSym(sym));
-    assert(_TEXT_FROM_SYM(sym)->data);
+static tlValue tl_global(tlSym sym) {
+    assert(tlsym_is(sym));
     assert(globals);
-    return lhashmap_get(globals, _TEXT_FROM_SYM(sym)->data);
+    return lhashmap_get(globals, tltext_bytes(_TEXT_FROM_SYM(sym)));
 }
-#endif
 
 #define mmix(h,k) { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; }
 static unsigned int murmurhash2a(const void * key, int len) {
@@ -142,13 +141,6 @@ static void sym_init() {
     s_args   = tlSYM("args");
     s_send   = tlSYM("send");
 
-    //globals = lhashmap_new(strequals, strhash, strfree);
-
-
-    //for (int i = 0; i < TYPE_LAST; i++) {
-    //    char *buf;
-    //    asprintf(&buf, "%%T%s", TypeName[i]);
-    //    tll_register_const(buf, tlINT(i));
-    //}
+    globals = lhashmap_new(strequals, strhash, strfree);
 }
 

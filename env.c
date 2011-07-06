@@ -50,7 +50,10 @@ tlEnv* tlenv_set_run(tlTask* task, tlEnv* env, tlValue run) {
 tlValue tlenv_get_run(tlEnv* env) { return env->run; }
 
 tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key) {
-    if (!env) return null;
+    if (!env) {
+        return tl_global(key);
+        return null;
+    }
 
     assert(tlenv_is(env));
     trace("%p.get %s", env, tl_str(key));

@@ -33,8 +33,7 @@ static inline int _private(tlValue v) { return ((tlList*)v)->head.flags & 0x0F; 
 static const uint8_t TL_FLAG_NOFREE = 0x10;
 static const uint8_t TL_FLAG_HASKEYS = 0x10;
 static const uint8_t TL_FLAG_HASLIST = 0x20;
-static const uint8_t TL_FLAG_INCALL = 0x10;
-static const uint8_t TL_FLAG_INARGS = 0x20;
+static const uint8_t TL_FLAG_ISOBJECT = 0x40;
 
 static const uint8_t TL_FLAG_CLOSED = 0x40;
 
@@ -100,6 +99,8 @@ enum {
 
     // these never appear in head->type since these are tagged
     TLUndefined, TLNull, TLBool, TLSym, TLInt,
+
+    TL_TYPE_LAST
 };
 
 // a list is also a map, but a map may be a sparse list or map other type of values to keys
@@ -280,12 +281,17 @@ tlRES tltask_return_a(tlT, tlValue* vs, int len);
 
 // ** callbacks **
 typedef struct tlFun tlFun;
-typedef tlValue(*tl_native)(tlTask*, tlFun*, tlMap*);
+typedef tlValue(*tlHostFunction)(tlTask*, tlFun*, tlMap*);
+
+typedef struct { const char* name; tlHostFunction fn; } tlHostFunctions;
+static void tl_register_functions(const tlHostFunctions* fns);
+
+void tl_register_const(const char* name, tlValue v);
 
 // for general functions
-tlFun* tlFUN(tl_native, tlValue data);
+tlFun* tlFUN(tlHostFunction, tlValue data);
 // for primitive functions that never invoke the evaluator again
-tlFun* tlFUN_PRIM(tl_native, tlValue data);
+tlFun* tlFUN_PRIM(tlHostFunction, tlValue data);
 
 tlValue parse(tlText* text);
 tlValue compile(tlText* text);

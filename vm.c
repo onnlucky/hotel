@@ -30,6 +30,7 @@ static tlValue _out(tlTask* task, tlFun* fn, tlMap* args) {
     fflush(stdout);
     return tlNull;
 }
+
 static tlValue _bool(tlTask* task, tlFun* fn, tlMap* args) {
     tlValue c = tlmap_get_int(args, 0);
     trace("BOOL: %s", tl_bool(c)?"true":"false");
@@ -41,6 +42,11 @@ static tlValue _lte(tlTask* task, tlFun* fn, tlMap* args) {
     trace("%d <= %d", tl_int(tlmap_get_int(args, 0)), tl_int(tlmap_get_int(args, 1)));
     return tlBOOL(tl_int(tlmap_get_int(args, 0)) <= tl_int(tlmap_get_int(args, 1)));
 }
+static tlValue _not(tlTask* task, tlFun* fn, tlMap* args) {
+    trace("NOT: %s", t_str(tlmap_get_int(args, 0)));
+    return tlBOOL(!tl_bool(tlmap_get_int(args, 0)));
+}
+
 static tlValue _add(tlTask* task, tlFun* fn, tlMap* args) {
     int res = tl_int(tlmap_get_int(args, 0)) + tl_int(tlmap_get_int(args, 1));
     trace("ADD: %d", res);
@@ -67,19 +73,6 @@ static tlValue _mod(tlTask* task, tlFun* fn, tlMap* args) {
     return tlINT(res);
 }
 
-static tlValue _map_get(tlTask* task, tlFun* fn, tlMap* args) {
-    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
-    tlValue key = tlmap_get_int(args, 1);
-    tlValue res = tlmap_get(task, map, key);
-    if (!res) return tlNull;
-    return res;
-}
-static tlValue _text_size(tlTask* task, tlFun* fn, tlMap* args) {
-    tlText* text = tltext_cast(tlmap_get_int(args, 0));
-    if (!text) return tlNull;
-    return tlINT(tltext_size(text));
-}
-
 void tlvm_init() {
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
@@ -89,8 +82,9 @@ void tlvm_init() {
     trace("frame overhead: %zd (%zd)", sizeof(tlRun), sizeof(tlRun)/sizeof(tlValue));
     trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlValue));
 
-    tlext_init();
     sym_init();
+    value_init();
+    text_init();
     list_init();
     map_init();
 }
@@ -125,15 +119,12 @@ tlEnv* tlvm_global_env(tlVm* vm) {
     env = tlenv_set(null, env, tlSYM("out"), tlFUN(_out, tlSYM("out")));
     env = tlenv_set(null, env, tlSYM("bool"), tlFUN(_bool, tlSYM("bool")));
     env = tlenv_set(null, env, tlSYM("lte"), tlFUN(_lte, tlSYM("lte")));
+    env = tlenv_set(null, env, tlSYM("not"), tlFUN(_not, tlSYM("not")));
     env = tlenv_set(null, env, tlSYM("add"), tlFUN(_add, tlSYM("add")));
     env = tlenv_set(null, env, tlSYM("sub"), tlFUN(_sub, tlSYM("sub")));
     env = tlenv_set(null, env, tlSYM("mul"), tlFUN(_mul, tlSYM("mul")));
     env = tlenv_set(null, env, tlSYM("div"), tlFUN(_div, tlSYM("div")));
     env = tlenv_set(null, env, tlSYM("mod"), tlFUN(_mod, tlSYM("mod")));
-
-    env = tlenv_set(null, env, tlSYM("_map_get"), tlFUN(_map_get, tlSYM("_map_get")));
-    env = tlenv_set(null, env, tlSYM("_text_size"), tlFUN(_text_size, tlSYM("_text_size")));
-    //env = tlenv_set(null, env, tlSYM("_method_invoke"), tlFUN(_method_invoke, tlSYM("_method_invoke")));
     return env;
 }
 

@@ -4,10 +4,6 @@
 
 static tlText* v_empty_text;
 
-static void tlext_init() {
-    v_empty_text = tlTEXT("");
-}
-
 // TODO short strings should be "inline" saves finalizer
 struct tlText {
     tlHead head;
@@ -68,5 +64,21 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     if (!tlref_is(v)) return tltext_from_copy(task, tl_str(v));
     warning("to_text not implemented yet: %s", tl_str(v));
     return tlTEXT("<ERROR.to-text>");
+}
+
+static tlValue _text_size(tlTask* task, tlFun* fn, tlMap* args) {
+    tlText* text = tltext_cast(tlmap_get_int(args, 0));
+    if (!text) return tlNull;
+    return tlINT(tltext_size(text));
+}
+
+static const tlHostFunctions __text_functions[] = {
+    { "_text_size", _text_size },
+    { 0, 0 }
+};
+
+static void text_init() {
+    v_empty_text = tlTEXT("");
+    tl_register_functions(__text_functions);
 }
 

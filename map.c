@@ -4,10 +4,6 @@
 
 static tlMap* v_map_empty;
 
-static void map_init() {
-    v_map_empty = tlmap_as(v_list_empty);
-}
-
 #define HASKEYS(m) ((m->head.flags & TL_FLAG_HASKEYS) > 0)
 #define HASLIST(m) ((m->head.flags & TL_FLAG_HASLIST) > 0)
 #define _KEYS(m) m->data[0]
@@ -343,5 +339,38 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
         nmap->data[_OFFSET(nmap) + i] = map->data[_OFFSET(map) + i - 1];
     }
     return nmap;
+}
+
+static tlValue _map_is(tlTask* task, tlFun* fn, tlMap* args) {
+    return tlBOOL(tlmap_is(tlmap_get_int(args, 0)));
+}
+
+static tlValue _object_is(tlTask* task, tlFun* fn, tlMap* args) {
+    tlValue map = tlmap_get_int(args, 0);
+    if (!map) return tlFalse;
+    if (!tlmap_is(map)) return tlFalse;
+    if (!tlflag_isset(map, TL_FLAG_ISOBJECT)) return tlFalse;
+    return tlTrue;
+}
+
+static tlValue _map_get(tlTask* task, tlFun* fn, tlMap* args) {
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    if (!map) return tlNull;
+    tlValue key = tlmap_get_int(args, 1);
+    tlValue res = tlmap_get(task, map, key);
+    if (!res) return tlNull;
+    return res;
+}
+
+static const tlHostFunctions __map_functions[] = {
+    { "_map_is", _object_is },
+    { "_object_is", _object_is },
+    { "_map_get", _map_get },
+    { 0, 0 }
+};
+
+static void map_init() {
+    v_map_empty = tlmap_as(v_list_empty);
+    tl_register_functions(__map_functions);
 }
 
