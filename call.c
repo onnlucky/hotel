@@ -118,62 +118,17 @@ tlCall* tlcall_from_args(tlTask* task, tlValue fn, tlList* args) {
     }
     return call;
 }
-
-
-// ** send **
-
-struct tlSend {
-    tlHead head;
-    tlValue oop;
-    tlSym name;
-    tlValue args[];
-};
-TTYPE(tlSend, tlsend, TLSend);
-
-tlSend* tlsend_new(tlTask* task, int argc) {
-    return task_alloc(task, TLSend, argc + 2);
-}
-tlSend* tlsend_from_args(tlTask* task, tlValue oop, tlSym name, tlList* args) {
-    int size = tllist_size(args);
-    tlSend* send = tlsend_new(task, size);
-    send->oop = oop;
-    send->name = name;
-    assert(name);
-    for (int i = 0; i < size; i++) {
-        send->args[i] = tllist_get(args, i);
-        assert(send->args[i]);
-    }
-    return send;
-}
-tlCall* tlsend_to_call(tlTask* task, tlSend* send, tlSym name) {
-    assert(tlsym_is(name));
-    int argc = send->head.size;
-    tlCall* call = tlcall_new(task, argc);
-    call->fn = tlACTIVE(name);
-    call->args[0] = send->oop;
-    call->args[1] = send->name;
-    argc -= 2;
-    for (int i = 0; i < argc; i++) {
-        call->args[i + 2] = send->args[i];
+tlCall* tlcall_send_from_args(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
+    assert(fn);
+    assert(tlsym_is(msg));
+    int size = tllist_size(args) + 2;
+    tlCall* call = tlcall_new(task, size);
+    tlcall_set_fn_(call, fn);
+    tlcall_set_arg_(call, 0, oop);
+    tlcall_set_arg_(call, 1, msg);
+    for (int i = 2; i < size; i++) {
+        tlcall_set_arg_(call, i, tllist_get(args, i - 2));
     }
     return call;
-}
-
-tlValue tlsend_get_oop(tlSend* send) {
-    assert(tlsend_is(send));
-    return send->oop;
-}
-tlValue tlsend_get_name(tlSend* send) {
-    assert(tlsend_is(send));
-    return send->name;
-}
-void tlsend_set_oop_(tlSend* send, tlValue oop) {
-    assert(tlsend_is(send) && !send->oop);
-    send->oop = oop;
-}
-tlValue tlsend_value_iter(tlSend* send, int at) {
-    return null;
-}
-void tlsend_value_iter_set_(tlSend* send, int at, tlValue v) {
 }
 

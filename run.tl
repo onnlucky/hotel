@@ -11,23 +11,23 @@ xor = (left,  right){ bool(left, bool(right, false, true), bool(right, true, fal
 Text = [
     length = (this){ _text_size(this) }
 ]
-_message_send2 = (oop, class, name, args){
+_object_send2 = (object, class, name, args){
     field = _map_get(class, name)
-    if isDefined(field), (
-        if isCallable(field), goto(_invoke(field, oop, args))
+    if field != undefined, (
+        if _callable_is(field), goto(_object_invoke(field, object, args))
         return field
     )
-    class = _map_get(class, #type)
-    if class, goto(_message_send2(oop, class, name, args))
+    class = _map_get(class, #class)
+    if class, goto(_message_send2(object, class, name, args))
     return null
 }
 
-_message_send = (oop, name, args){
-    if isObject(oop), goto(_message_send2(oop, oop, name, args))
+_object_send = (object, name, args){
+    if _object_is(object), goto(_object_send2(object, object, name, args))
 
-    class = _list_get(primitives, asPrimitive(oop))
+    class = _list_get(primitives, _value_type(object))
     field = _map_get(class, name)
-    if isCallable(field), goto(_invoke(field, oop, args))
+    if _callable_is(field), goto(_object_invoke(field, object, args))
     return field
 }
 

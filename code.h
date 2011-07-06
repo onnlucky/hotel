@@ -14,7 +14,11 @@ void tlcode_set_ops_(tlCode* code, tlList* ops);
 
 bool tlcode_isblock(tlCode* code);
 
-tlSend* tlsend_from_args(tlTask*, tlValue, tlSym, tlList* args);
-tlValue tlsend_value_iter(tlSend* send, int at);
-void tlsend_value_iter_set_(tlSend* send, int at, tlValue v);
+tlCall* tlcall_send_from_args(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args);
+tlValue tlcall_get_arg(tlCall* call, int at);
+void tlcall_set_arg_(tlCall* call, int at, tlValue v);
+
+//tlSend* tlsend_from_args(tlTask*, tlValue, tlSym, tlList* args);
+//tlValue tlsend_value_iter(tlSend* send, int at);
+//void tlsend_value_iter_set_(tlSend* send, int at, tlValue v);
 

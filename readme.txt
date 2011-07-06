@@ -1,8 +1,7 @@
 # TODO
 how to handle test/scope.tl ?? should close environment
 rework call (tlCall)
-implement send (tlSend, or not and make parser do invoke(oop, msg, [args])
-implement operations (tlOp)
+implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup
 
 sprinkle more INTERNAL around and such

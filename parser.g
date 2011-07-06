@@ -10,6 +10,8 @@
 
 #include "trace-off.h"
 
+static tlValue sa_object_send;
+
 typedef struct ParseContext {
     tlTask* task;
     tlText* text;
@@ -69,16 +71,6 @@ tlValue call_activate(tlValue in) {
         }
         return tlACTIVE(call);
     }
-    if (tlsend_is(in)) {
-        tlSend* send = tlsend_as(in);
-        for (int i = 0;; i++) {
-            tlValue v = tlsend_value_iter(send, i);
-            if (!v) break;
-            tlValue v2 = call_activate(v);
-            if (v != v2) tlsend_value_iter_set_(send, i, v2);
-        }
-        return tlACTIVE(send);
-    }
     return in;
 }
 tlValue set_target(tlValue on, tlValue target) {
@@ -86,22 +78,23 @@ tlValue set_target(tlValue on, tlValue target) {
     if (tlcall_is(on)) {
         tlCall* call = tlcall_as(on);
         tlValue fn = tlcall_get_fn(call);
+
+        if (fn == sa_object_send) {
+            tlValue oop = tlcall_get_arg(call, 0);
+            if (!oop) {
+                tlcall_set_arg_(call, 0, target);
+                return on;
+            } else {
+                set_target(oop, target);
+                return on;
+            }
+        }
+
         if (!fn) {
             tlcall_set_fn_(call, target);
             return on;
         } else {
             set_target(fn, target);
-            return on;
-        }
-    }
-    if (tlsend_is(on)) {
-        tlSend* send = tlsend_as(on);
-        tlValue oop = tlsend_get_oop(send);
-        if (!oop) {
-            tlsend_set_oop_(send, target);
-            return on;
-        } else {
-            set_target(oop, target);
             return on;
         }
     }
@@ -214,7 +207,7 @@ selfapply = n:name _ &eos {
        }
        | v:value _"."_ n:name _ !"(" as:pcargs {
            trace("primary send");
-           $$ = call_activate(tlsend_from_args(TASK, v, n, as));
+           $$ = call_activate(tlcall_send_from_args(TASK, sa_object_send, v, n, as));
        }
        | expr
 
@@ -223,7 +216,7 @@ selfapply = n:name _ &eos {
            // TODO here we want to "tail" more primary sends ...
            trace("primary send");
            //$$ = set_target(t, tlsend_from_args(TASK, null, n, tllist_empty()));
-           $$ = tlsend_from_args(TASK, v, n, tllist_empty());
+           $$ = tlcall_send_from_args(TASK, sa_object_send, v, n, tllist_empty());
        }
        | expr
 
@@ -240,15 +233,15 @@ selfapply = n:name _ &eos {
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
            trace("method call()");
-           $$ = set_target(t, tlsend_from_args(TASK, null, n, as));
+           $$ = set_target(t, tlcall_send_from_args(TASK, sa_object_send, null, n, as));
        }
        | _"."_ n:name t:tail {
            trace("method call");
-           $$ = set_target(t, tlsend_from_args(TASK, null, n, tllist_empty()));
+           $$ = set_target(t, tlcall_send_from_args(TASK, sa_object_send, null, n, tllist_empty()));
        }
        | _"["__ e:expr __"]" t:tail {
            trace("array get call");
-           $$ = set_target(t, tlsend_from_args(TASK, null, tlSYM("get"), as));
+           $$ = set_target(t, tlcall_send_from_args(TASK, sa_object_send, null, tlSYM("get"), as));
        }
        | _ {
            trace("no tail");
@@ -394,6 +387,8 @@ bool check_indent(void* data) {
 
 tlValue parse(tlText* text) {
     trace("\n----PARSING----\n%s----", tl_str(text));
+
+    if (!sa_object_send) sa_object_send = tlACTIVE(tlSYM("_object_send"));
 
     ParseContext data;
     data.at = 0;

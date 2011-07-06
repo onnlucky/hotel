@@ -365,9 +365,6 @@ INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env) {
         tltask_set_value(task, tlclosure_new(task, tlcode_as(v), env));
         return null;
     }
-    if (tlsend_is(v)) {
-        v = tlsend_to_call(task, tlsend_as(v), s_send);
-    }
     if (tlcall_is(v)) {
         return run_activate_call(task, null, tlcall_as(v), env);
     }

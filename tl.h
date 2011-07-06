@@ -80,7 +80,7 @@ enum {
     TLClosure,
     TLFun,
 
-    TLCall, TLSend, TLOp,
+    TLCall,
 
     TLRun,
 
@@ -154,7 +154,6 @@ typedef struct tlVm tlVm;
 typedef struct tlWorker tlWorker;
 typedef struct tlTask tlTask;
 typedef struct tlCall tlCall;
-typedef struct tlSend tlSend;
 typedef struct tlCode tlCode;
 #define tlT tlTask *task
 
@@ -189,13 +188,6 @@ tlCall* tlcall_from(tlTask* task, ...);
 tlCall* tlcall_from_args(tlT, tlValue fn, tlList* args);
 tlValue tlcall_get_fn(tlCall* call);
 void tlcall_set_fn_(tlCall* call, tlValue v);
-
-bool tlsend_is(tlValue v);
-tlSend* tlsend_cast(tlValue v);
-tlSend* tlsend_as(tlValue v);
-
-tlValue tlsend_get_oop(tlSend* call);
-void tlsend_set_oop_(tlSend* call, tlValue v);
 
 
 // ** list **
