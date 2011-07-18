@@ -273,9 +273,16 @@ void tlmap_set_int_(tlMap* map, int key, tlValue v) {
         if (at >= 0) {
             trace("keys set: %d = %s", key, tl_str(v));
             map->data[_OFFSET(map) + at] = v;
+            return;
         }
+        assert(false);
+    } else {
+        assert(!HASLIST(map));
+        assert(key >= 0 && key < map->head.size);
+        trace("int set: %d = %s", key, tl_str(v));
+        map->data[key] = v;
+        return;
     }
-    // TODO just a list...
     assert(false);
 }
 

@@ -419,41 +419,68 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         tlCode* code = tlclosure_as(fn)->code;
         names = code->argnames;
         defaults = code->argdefaults;
-        if (names) argc = max(tllist_size(names), argc);
     }
 
     tlMap* args = run->args;
-    if (!args) args = tlmap_new_keys(task, null, argc);
+    if (!args) args = tlmap_new_keys(task, tlcall_get_names(call), argc);
 
     // check where we left off last time
-    int i = run->count;
-    if (i < 0) {
-        i = -i - 1;
-        tlmap_set_key_(args, null, i, tltask_value(task));
-        i++;
+    int at = run->count & 0xFFFF;
+    int first = (run->count & 0x7FFF0000) >> 16;
+    if (run->count & 0x80000000) {
+        tlSym name = null; //tlcall_name(call, at);
+        if (name) {
+            tlmap_set_sym_(args, name, tltask_value(task));
+        } else {
+            tlmap_set_int_(args, first, tltask_value(task));
+            first++;
+        }
+        tlmap_set_key_(args, null, at, tltask_value(task));
+        at++;
     }
 
     // evaluate each argument
-    for (; i < argc; i++) {
-        tlSym name = null;
-        if (names) name = tllist_get(names, i);
+    for (; at < argc; at++) {
+        tlValue v = tlcall_get_arg(call, at);
+        tlSym name = tlcall_get_name(call, at);
         tlValue d = tlNull;
-        if (name && defaults) d = tlmap_get_sym(defaults, name);
+        if (name) {
+            if (defaults) d = tlmap_get_sym(defaults, name);
+        } else {
+            while (true) {
+                if (!names) break;
+                tlSym fnname = tllist_get(names, first);
+                if (!fnname) break;
+                if (!tlcall_has_name(call, fnname)) {
+                    if (defaults) d = tlmap_get_sym(defaults, fnname);
+                    break;
+                }
+                first++;
+            }
+        }
 
-        tlValue v = tlcall_get_arg(call, i);
         if (tlthunk_is(d) || d == tlThunkNull) {
             v = tlthunk_new(task, v);
         } else if (tlcall_is(v)) {
             tlRun* r = run_apply(task, v);
             if (r) {
-                run->count = -1 - i;
+                assert(at < 0xFFFF && first < 0x7FFFF);
+                run->count = 0x80000000 | first << 16 | at;
                 run->args = args;
                 return suspend_attach(task, r, run);
             }
             v = tltask_value(task);
         }
-        tlmap_set_key_(args, null, i, v);
+        if (name) {
+            trace("ARGS: %s = %s", tl_str(name), tl_str(v));
+            tlmap_set_sym_(args, name, v);
+        } else {
+            trace("ARGS: %d = %s", first, tl_str(v));
+            tlmap_set_int_(args, first, v);
+            first++;
+        }
     }
+    trace("ARGS DONE");
 
     // chain to call
     return chain_call(task, (tlRunCode*)run, tlclosure_as(fn), args, names);
@@ -477,14 +504,25 @@ INTERNAL tlRun* chain_call(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* a
     run->env = fn->env;
     run->code = fn->code;
 
-    // collect args into env
-    // TODO first check name, then position
-    // TODO do defaults
+    tlList* defaults = fn->code->argdefaults;
+
     if (names) {
+        int first = 0;
         int size = tllist_size(names);
         for (int i = 0; i < size; i++) {
             tlSym name = tlsym_as(tllist_get(names, i));
-            tlValue v = tlmap_get_int(args, i);
+            tlValue v = tlmap_get_sym(args, name);
+            if (!v) {
+                v = tlmap_get_int(args, first); first++;
+            }
+            if (!v && defaults) {
+                v = tlmap_get_sym(defaults, name);
+                if (tlthunk_is(v) || v == tlThunkNull) {
+                    v = tlthunk_new(task, tlNull);
+                } else if (tlcall_is(v)) {
+                    fatal("not implemented yet: defaults with call and too few args");
+                }
+            }
             if (!v) v = tlNull;
             trace("%p set arg: %s = %s", run, tl_str(name), tl_str(v));
             run->env = tlenv_set(task, run->env, name, v);
@@ -617,12 +655,13 @@ tlRun* run_code(tlTask* task, tlRunCode* run) {
 }
 
 INTERNAL tlRun* run_thunk(tlTask* task, tlThunk* thunk) {
-    trace("%p", thunk);
     tlValue v = thunk->value;
+    trace("%p -> %s", thunk, tl_str(v));
     if (tlcall_is(v)) {
         return run_apply(task, tlcall_as(v));
     }
-    return v;
+    tltask_set_value(task, v);
+    return null;
 }
 
 // TODO remove

@@ -101,6 +101,15 @@ tlValue tlcall_get_arg(tlCall* call, int at) {
     if (at < 0 || at >= tlcall_argc(call)) return 0;
     return call->args[at];
 }
+tlValue tlcall_get_name(tlCall* call, int at) {
+    return null;
+}
+tlMap* tlcall_get_names(tlCall* call) {
+    return null;
+}
+bool tlcall_has_name(tlCall* call, tlSym name) {
+    return false;
+}
 
 void tlcall_set_fn_(tlCall* call, tlValue fn) {
     call->fn = fn;
