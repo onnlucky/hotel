@@ -535,13 +535,14 @@ INTERNAL tlRun* run_args_host(tlTask* task, tlRunArgs* run) {
     // chain to call
     tlValue v = tlcall_get_fn(call);
     if (tlfun_is(v)) {
-        setup_caller(task, run);
+        tlRun* caller = setup_caller(task, run);
 
         tlFun* fun = tlfun_as(v);
         trace(">> NATIVE %p", fun);
         tlValue v = fun->native(task, fun, tlmap_as(args));
         if (!v) v = tlNull;
         assert(!tlcall_is(v));
+        if (tlrun_is(v)) return suspend_attach(task, v, caller);
         assert(!tlrun_is(v));
         tltask_set_value(task, v);
         return null;
@@ -705,5 +706,53 @@ INTERNAL void run_resume(tlTask* task, tlRun* run) {
     task->jumping = 0;
     assert(run->resume);
     run->resume(task, run);
+}
+
+
+// ** integration **
+
+static tlValue _callable_is(tlTask* task, tlFun* fn, tlMap* args) {
+    tlValue v = tlmap_get_int(args, 0);
+    if (!tlref_is(v)) return tlFalse;
+
+    switch(tl_head(fn)->type) {
+        case TLClosure:
+        case TLFun:
+        case TLCall:
+        case TLThunk:
+            return tlTrue;
+    }
+    return tlFalse;
+}
+
+static tlValue _method_invoke(tlTask* task, tlFun* fn, tlMap* args) {
+    tlClosure* method = tlclosure_cast(tlmap_get_int(args, 0));
+    tlValue* oop = tlmap_get_int(args, 1);
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 2));
+    if (!method) return tlNull;
+
+    tlRunCode* run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);
+    run->pc = 0;
+    run->env = method->env;
+    run->code = method->code;
+
+    run->env = tlenv_set(task, run->env, s_this, oop);
+
+    // TODO do arguments and such from the map and defaults and such
+    if (map) {
+    }
+
+    run->env = tlenv_set_run(task, run->env, run);
+    return suspend(task, run);
+}
+
+static const tlHostFunctions __eval_functions[] = {
+    { "_callable_is", _callable_is },
+    { "_method_invoke", _method_invoke },
+    { 0, 0 }
+};
+
+static void eval_init() {
+    tl_register_functions(__eval_functions);
 }
 

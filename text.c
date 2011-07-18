@@ -71,9 +71,18 @@ static tlValue _text_size(tlTask* task, tlFun* fn, tlMap* args) {
     if (!text) return tlNull;
     return tlINT(tltext_size(text));
 }
+static tlValue _text_slice(tlTask* task, tlFun* fn, tlMap* args) {
+    tlText* text = tltext_cast(tlmap_get_int(args, 0));
+    if (!text) return tlNull;
+    //int begin = tl_int_or(tlmap_get_int(args, 1), 0);
+    //int end = tl_int_or(tlmap_get_int(args, 2), tltext_size(text));
+    return text;
+    //return tltext_slice(text, begin, end);
+}
 
 static const tlHostFunctions __text_functions[] = {
     { "_text_size", _text_size },
+    { "_text_slice", _text_slice },
     { 0, 0 }
 };
 

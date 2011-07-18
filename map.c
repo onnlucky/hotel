@@ -361,11 +361,17 @@ static tlValue _map_get(tlTask* task, tlFun* fn, tlMap* args) {
     if (!res) return tlNull;
     return res;
 }
+static tlValue _map_slice(tlTask* task, tlFun* fn, tlMap* args) {
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    if (!map) return v_map_empty;
+    return v_map_empty;
+}
 
 static const tlHostFunctions __map_functions[] = {
     { "_map_is", _object_is },
     { "_object_is", _object_is },
     { "_map_get", _map_get },
+    { "_map_slice", _map_slice },
     { 0, 0 }
 };
 

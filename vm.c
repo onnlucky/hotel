@@ -87,6 +87,7 @@ void tlvm_init() {
     text_init();
     list_init();
     map_init();
+    eval_init();
 }
 
 void tlworker_attach(tlWorker* worker, tlTask* task) {

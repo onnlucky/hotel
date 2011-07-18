@@ -9,7 +9,8 @@ and = (left, &right){ bool(left, right, {left})() }
 xor = (left,  right){ bool(left, bool(right, false, true), bool(right, true, false)) }
 
 Text = [
-    length = (this){ _text_size(this) }
+    length = { _text_size(this) }
+    slice = (begin, end){ _text_slice(this, begin, end) }
 ]
 
 _host_classes = [
@@ -19,7 +20,7 @@ _host_classes = [
 _object_send2 = (object, class, name, args){
     field = _map_get(class, name)
     if field != undefined, (
-        if _callable_is(field), goto(_object_invoke(field, object, args))
+        if _callable_is(field), goto(_method_invoke(field, object, args))
         return field
     )
     class = _map_get(class, #class)
@@ -27,19 +28,17 @@ _object_send2 = (object, class, name, args){
     return null
 }
 
-print _text
-print _value_type("HELLO")
-print _value_type(1234)
-
-_object_send = (object, name, args){
+args = {}
+_object_send = (object, name){
+    args = _map_slice(args, 2)
     if _object_is(object), goto(_object_send2(object, object, name, args))
 
     class = _map_get(_host_classes, _value_type(object))
     field = _map_get(class, name)
-    field(object)
-    //if _callable_is(field), goto(_object_invoke(field, object, args))
-    //field
+    if _callable_is(field), goto(_method_invoke(field, object, args))
+    return field
 }
 
-"hello".length
-
+print "hello".length
+print ">> DONE <<"
+//print "hello".slice(1, 3)

@@ -147,6 +147,7 @@ tlValue tlACTIVE(tlValue v);
 
 int tl_bool(tlValue v);
 int tl_int(tlValue v);
+int tl_int_or(tlValue v, int d);
 const char* tl_str(tlValue v);
 
 

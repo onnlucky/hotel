@@ -76,6 +76,10 @@ int tl_int(tlValue v) {
     if (i < 0) return (i >> 2) | 0xC0000000;
     return i >> 2;
 }
+int tl_int_or(tlValue v, int d) {
+    if (!tlint_is(v)) return d;
+    return tl_int(v);
+}
 
 static tlValue _value_type(tlTask* task, tlFun* fn, tlMap* args) {
     tlValue v = tlmap_get_int(args, 0);
