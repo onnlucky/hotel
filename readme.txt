@@ -1,4 +1,9 @@
 # TODO
+add every function having args in their env
+implement map_slice and text_slice ...
+host functions must be allowed to take optional tlRun* run ... as continuation
+_method_invoke should add names and defaults ... and handle incoming map ... refactor that
+
 how to handle test/scope.tl ?? should close environment
 rework call (tlCall)
 implement operations (call(_op_invoke, #op, lhs, rhs)
