@@ -260,6 +260,19 @@ pcargs = l:expr __","__          { l = tllist_from1(TASK, l); }
                 )*              { $$ = l; }
        |                        { $$ = tllist_empty(); }
 
+#//   map = "["__ is:items __"]"   { $$ = map_activate(tlmap_from_list(TASK, L(is))); }
+#// items = i:item eom is:items    { $$ = tllist_cat(TASK, L(i), L(is)); }
+ pcarg = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
+       | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
+       | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
+       | v:pexpr                { $$ = tlLIST2(TASK, tlNull, v); }
+
+  carg = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
+       | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
+       | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
+       | v:expr                 { $$ = tlLIST2(TASK, tlNull, v); }
+
+
 op_log = l:op_not _ ("or"  __ r:op_not { l = tlcall_from(TASK, tlACTIVE(tlSYM("or")), l, r, null); }
                   _ |"and" __ r:op_not { l = tlcall_from(TASK, tlACTIVE(tlSYM("and")), l, r, null); }
                   _ |"xor" __ r:op_not { l = tlcall_from(TASK, tlACTIVE(tlSYM("xor")), l, r, null); }
