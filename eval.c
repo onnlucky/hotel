@@ -430,9 +430,10 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
     }
 
     // check where we left off last time
-    int at = run->count & 0xFFFF;
-    int first = (run->count & 0x7FFF0000) >> 16;
-    //print("AT: %d, FIRST: %d", at, first);
+    int at = run->count       &     0xFFFF;
+    int named = (run->count   &   0xFF0000) >> 16;
+    int skipped = (run->count & 0x7F000000) >> 24;
+    //print("AT: %d, NAMED: %d, SKIPPED: %d", at, named, skipped);
 
     if (run->count & 0x80000000) {
         tlValue v = tltask_value(task);
@@ -440,10 +441,10 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         if (name) {
             trace("(run) ARGS: %s = %s", tl_str(name), tl_str(v));
             tlmap_set_sym_(args, name, v);
+            named++;
         } else {
-            trace("(run) ARGS: %d = %s", first, tl_str(v));
-            tlmap_set_int_(args, first, v);
-            first++;
+            trace("(run) ARGS: %d = %s", at - named, tl_str(v));
+            tlmap_set_int_(args, at - named, v);
         }
         at++;
     }
@@ -458,13 +459,13 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         } else {
             while (true) {
                 if (!names) break;
-                tlSym fnname = tllist_get(names, first);
+                tlSym fnname = tllist_get(names, at - named + skipped);
                 if (!fnname) break;
                 if (!tlcall_has_name(call, fnname)) {
                     if (defaults) d = tlmap_get_sym(defaults, fnname);
                     break;
                 }
-                first++;
+                skipped++;
             }
         }
 
@@ -473,8 +474,8 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         } else if (tlcall_is(v)) {
             tlRun* r = run_apply(task, v);
             if (r) {
-                assert(at < 0xFFFF && first < 0x7FFFF);
-                run->count = 0x80000000 | first << 16 | at;
+                assert(at < 0xFFFF && named < 0xFF && skipped < 0x7F);
+                run->count = 0x80000000 | skipped << 24 | named << 16 | at;
                 run->args = args;
                 return suspend_attach(task, r, run);
             }
@@ -483,10 +484,10 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         if (name) {
             trace("ARGS: %s = %s", tl_str(name), tl_str(v));
             tlmap_set_sym_(args, name, v);
+            named++;
         } else {
-            trace("ARGS: %d = %s", first, tl_str(v));
-            tlmap_set_int_(args, first, v);
-            first++;
+            trace("ARGS: %d = %s", at - named, tl_str(v));
+            tlmap_set_int_(args, at - named, v);
         }
     }
     trace("ARGS DONE");
