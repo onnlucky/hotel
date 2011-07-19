@@ -195,6 +195,18 @@ tlList* tllist_cat(tlTask* task, tlList* left, tlList* right) {
     return nlist;
 }
 
+tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
+    int size = begin - end;
+    if (size < 0) size = 0;
+    if (size > list->head.size) size = list->head.size;
+    tlList* nlist = tllist_new(task, size);
+
+    for (int i = 0; i < size; i++) {
+        nlist->data[i] = list->data[begin + i];
+    }
+    return nlist;
+}
+
 static void list_init() {
     v_list_empty = task_alloc(null, TLList, 0);
 }

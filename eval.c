@@ -544,6 +544,10 @@ INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, 
             run->env = tlenv_set(task, run->env, name, v);
         }
     }
+    run->env = tlenv_set(task, run->env, s_arguments, args);
+    tlValue oop = tlmap_get_sym(args, s_this);
+    if (oop) run->env = tlenv_set(task, run->env, s_this, oop);
+    // TODO this can and should be removed
     run->env = tlenv_set_run(task, run->env, run);
     return run_code(task, run);
 }

@@ -321,6 +321,7 @@ tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
     return tlNull;
 }
 
+// TODO fix this if incoming map has no keys ...
 tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
     trace("set map: %s = %s", tl_str(key), tl_str(v));
     //if (tlint_is(key)) return tlmap_set_int(task, map, tlint_as(key), v);
@@ -357,10 +358,14 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
     return nmap;
 }
 
+static tlValue _map_dump(tlTask* task, tlFun* fn, tlMap* args) {
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    tlmap_dump(map);
+    return tlNull;
+}
 static tlValue _map_is(tlTask* task, tlFun* fn, tlMap* args) {
     return tlBOOL(tlmap_is(tlmap_get_int(args, 0)));
 }
-
 static tlValue _object_is(tlTask* task, tlFun* fn, tlMap* args) {
     tlValue map = tlmap_get_int(args, 0);
     if (!map) return tlFalse;
@@ -369,6 +374,11 @@ static tlValue _object_is(tlTask* task, tlFun* fn, tlMap* args) {
     return tlTrue;
 }
 
+static tlValue _map_size(tlTask* task, tlFun* fn, tlMap* args) {
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    if (!map) return 0;
+    return tlINT(tlmap_size(map));
+}
 static tlValue _map_get(tlTask* task, tlFun* fn, tlMap* args) {
     tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
     if (!map) return tlNull;
@@ -377,16 +387,56 @@ static tlValue _map_get(tlTask* task, tlFun* fn, tlMap* args) {
     if (!res) return tlNull;
     return res;
 }
+static tlValue _map_set(tlTask* task, tlFun* fn, tlMap* args) {
+    tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    tlValue key = tlmap_get_int(args, 1);
+    if (!key) return tlNull;
+    tlValue val = tlmap_get_int(args, 2);
+    if (!val) val = tlNull;
+    tlmap_dump(map);
+    tlMap* nmap = tlmap_set(task, map, key, val);
+    tlmap_dump(nmap);
+    fatal("HELLO");
+    return nmap;
+}
 static tlValue _map_slice(tlTask* task, tlFun* fn, tlMap* args) {
     tlMap* map = tlmap_cast(tlmap_get_int(args, 0));
+    int begin = tl_int_or(tlmap_get_int(args, 1), 0);
+    int end = tl_int_or(tlmap_get_int(args, 2), 60000);
+    print("BEGIN: %d, END: %d", begin, end);
+
     if (!map) return v_map_empty;
-    return v_map_empty;
+    tlmap_dump(map);
+
+    if (!HASKEYS(map)) {
+        assert(!HASLIST(map));
+        int size = end - begin;
+        if (size > map->head.size - begin) size = map->head.size - begin;
+        if (size < 0) size = 0;
+        tlMap* nmap = tlmap_new(task, size);
+        for (int i = 0; i < size; i++) {
+            assert(nmap->head.size > i);
+            assert(map->head.size > begin + i);
+            nmap->data[i] = map->data[begin + i];
+        }
+        tlmap_dump(nmap);
+        return nmap;
+    }
+
+    if (!HASLIST(map)) return map;
+    tlMap* nmap = task_clone(task, map);
+    _LIST(nmap) = tllist_slice(task, _LIST(nmap), begin, end);
+    tlmap_dump(nmap);
+    return nmap;
 }
 
 static const tlHostFunctions __map_functions[] = {
-    { "_map_is", _object_is },
+    { "_map_dump",  _map_dump },
+    { "_map_is",    _object_is },
     { "_object_is", _object_is },
-    { "_map_get", _map_get },
+    { "_map_size",  _map_size },
+    { "_map_get",   _map_get },
+    { "_map_set",   _map_set },
     { "_map_slice", _map_slice },
     { 0, 0 }
 };
