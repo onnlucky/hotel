@@ -24,7 +24,7 @@ void tlmap_dump(tlMap* map) {
             tlValue key = tllist_get(keys, i);
             if (key) {
                 tlValue v = map->data[_OFFSET(map) + i];
-                print("%s: %s (%p = %p)", tl_str(key), tl_str(v), key, v);
+                print("%s: %s", tl_str(key), tl_str(v));
             }
         }
     } else {
@@ -64,10 +64,19 @@ tlMap* tlmap_copy(tlTask* task, tlMap* o) {
 }
 
 tlMap* tlmap_new_keys(tlTask* task, tlList* keys, int size) {
+    assert(size >= 0);
     trace("new map keys: %s %d", tl_str(keys), size);
-    tlMap* map;
-    if (keys) map = tlmap_copy_empty(task, tllist_get(keys, size));
-    else map = tlmap_new(task, size);
+
+    if (!keys) return tlmap_new(task, size);
+
+    tlMap* map = task_alloc(task, TLMap, tllist_size(keys) + (size?2:1));
+    map->head.flags |= TL_FLAG_HASKEYS;
+    _KEYS(map) = keys;
+
+    if (size) {
+        map->head.flags |= TL_FLAG_HASLIST;
+        _LIST(map) = tllist_new(task, size);
+    }
     return map;
 }
 void tlmap_set_key_(tlMap* map, tlValue key, int at, tlValue v) {

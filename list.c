@@ -103,6 +103,19 @@ tlList* tllist_add(tlTask* task, tlList* list, tlValue v) {
     return nlist;
 }
 
+tlList* tllist_add2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
+    assert(tllist_is(list));
+
+    int osize = tllist_size(list);
+    trace("[%d] :: %s :: %s", osize, tl_str(v1), tl_str(v2));
+
+    tlList* nlist = tllist_copy(task, list, osize + 2);
+    tllist_set_(nlist, osize, v1);
+    tllist_set_(nlist, osize + 1, v2);
+    return nlist;
+}
+
+
 tlList* tllist_prepend(tlTask* task, tlList* list, tlValue v) {
     int size = tllist_size(list);
     trace("%s :: [%d]", tl_str(v), size);

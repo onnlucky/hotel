@@ -377,7 +377,7 @@ INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env) {
 INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* fn);
 INTERNAL tlRun* resume_first(tlTask* task, tlRun* r) {
     tlRunFirst* run = (tlRunFirst*)r;
-    return run_first(task, run, run->call, tlcall_as(run->call->fn));
+    return run_first(task, run, run->call, tlcall_as(tlcall_get_fn(run->call)));
 }
 INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* fn) {
     trace("%p >> first: %p %p", run, call, fn);
@@ -402,8 +402,9 @@ INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* f
     return null;
 }
 
-INTERNAL tlRun* chain_call(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args, tlList* names);
-// used to evaluate incoming args if there are no keyed args
+INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args);
+INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlMap* args);
+
 INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
     trace2("%p", run);
 
@@ -419,23 +420,31 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         tlCode* code = tlclosure_as(fn)->code;
         names = code->argnames;
         defaults = code->argdefaults;
+    } else {
+        assert(tlfun_is(fn) || tlthunk_is(fn));
     }
 
     tlMap* args = run->args;
-    if (!args) args = tlmap_new_keys(task, tlcall_get_names(call), argc);
+    if (!args) {
+        args = tlmap_new_keys(task, tlcall_get_names(call), argc - tlcall_get_names_size(call));
+    }
 
     // check where we left off last time
     int at = run->count & 0xFFFF;
     int first = (run->count & 0x7FFF0000) >> 16;
+    //print("AT: %d, FIRST: %d", at, first);
+
     if (run->count & 0x80000000) {
-        tlSym name = null; //tlcall_name(call, at);
+        tlValue v = tltask_value(task);
+        tlSym name = tlcall_get_name(call, at);
         if (name) {
-            tlmap_set_sym_(args, name, tltask_value(task));
+            trace("(run) ARGS: %s = %s", tl_str(name), tl_str(v));
+            tlmap_set_sym_(args, name, v);
         } else {
-            tlmap_set_int_(args, first, tltask_value(task));
+            trace("(run) ARGS: %d = %s", first, tl_str(v));
+            tlmap_set_int_(args, first, v);
             first++;
         }
-        tlmap_set_key_(args, null, at, tltask_value(task));
         at++;
     }
 
@@ -482,9 +491,13 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
     }
     trace("ARGS DONE");
 
-    // chain to call
-    return chain_call(task, (tlRunCode*)run, tlclosure_as(fn), args, names);
+    switch(tl_head(fn)->type) {
+        case TLClosure: return chain_args_closure(task, (tlRunCode*)run, tlclosure_as(fn), args);
+        case TLFun: return chain_args_fun(task, (tlRun*)run, tlfun_as(fn), args);
+    }
+    fatal("not implemented: chain args to run %s", tl_str(fn));
 }
+
 // TODO make more useful
 INTERNAL tlRun* resume_args(tlTask* task, tlRun* run) {
     return run_args(task, (tlRunArgs*)run);
@@ -498,12 +511,14 @@ INTERNAL tlRun* resume_code(tlTask* task, tlRun* r) {
     }
     return run_code(task, run);
 }
-INTERNAL tlRun* chain_call(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args, tlList* names) {
+
+INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args) {
     run->resume = resume_code;
     run->pc = 0;
     run->env = fn->env;
     run->code = fn->code;
 
+    tlList* names = fn->code->argnames;
     tlList* defaults = fn->code->argdefaults;
 
     if (names) {
@@ -532,63 +547,20 @@ INTERNAL tlRun* chain_call(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* a
     return run_code(task, run);
 }
 
-static inline tlValue keys_tr(tlList* keys, int at) {
-    if (keys) return tllist_get(keys, at); else return null;
-}
-
-INTERNAL tlRun* run_args_host(tlTask* task, tlRunArgs* run) {
+INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlMap* args) {
     trace("%p", run);
 
-    // setup needed data
-    tlCall* call = run->call;
-    tlList* keys = tlcall_get_keys(call);
-    int argc = tlcall_argc(call);
+    tlRun* caller = setup_caller(task, run);
+    trace(">> NATIVE %p", fn);
 
-    tlMap* args = run->args;
-    if (!args) args = tlmap_new_keys(task, keys, argc);
+    tlValue v = fn->native(task, fn, args);
+    if (!v) v = tlNull;
+    if (tlrun_is(v)) return suspend_attach(task, v, caller);
 
-    // check where we left off last time
-    int i = run->count;
-    if (i < 0) {
-        i = -i - 1;
-        tlmap_set_key_(args, keys_tr(keys, i), i, tltask_value(task));
-        i++;
-    }
-
-    // evaluate each argument
-    for (; i < argc; i++) {
-        tlValue v = tlcall_get_arg(call, i);
-        if (tlcall_is(v)) {
-            tlRun* r = run_apply(task, tlcall_as(v));
-            if (r) {
-                run->count = -1 - i;
-                run->args = args;
-                return suspend_attach(task, r, run);
-            }
-            v = tltask_value(task);
-        }
-        tlmap_set_key_(args, keys_tr(keys, i), i, v);
-    }
-
-    // chain to call
-    tlValue v = tlcall_get_fn(call);
-    if (tlfun_is(v)) {
-        tlRun* caller = setup_caller(task, run);
-
-        tlFun* fun = tlfun_as(v);
-        trace(">> NATIVE %p", fun);
-        tlValue v = fun->native(task, fun, tlmap_as(args));
-        if (!v) v = tlNull;
-        assert(!tlcall_is(v));
-        if (tlrun_is(v)) return suspend_attach(task, v, caller);
-        assert(!tlrun_is(v));
-        tltask_set_value(task, v);
-        return null;
-    }
-    assert(false);
-}
-INTERNAL tlRun* resume_args_host(tlTask* task, tlRun* r) {
-    return run_args_host(task, (tlRunArgs*)r);
+    assert(!tlcall_is(v));
+    assert(!tlrun_is(v));
+    tltask_set_value(task, v);
+    return null;
 }
 
 // this is the main part of eval: running the "list" of "bytecode"
@@ -672,13 +644,6 @@ INTERNAL tlRun* start_args(tlTask* task, tlCall* call) {
     return suspend(task, run);
 }
 
-// TODO remove
-INTERNAL tlRun* start_args_host(tlTask* task, tlCall* call) {
-    trace("%p", call);
-    tlRunArgs* run = tlrun_alloc(task, sizeof(tlRunArgs), 0, resume_args_host);
-    run->call = call;
-    return suspend(task, run);
-}
 INTERNAL tlRun* run_goto(tlTask* task, tlCall* call, tlFun* fn) {
     trace("%p", call);
 
@@ -706,10 +671,7 @@ INTERNAL tlRun* run_goto(tlTask* task, tlCall* call, tlFun* fn) {
 
 INTERNAL tlRun* run_apply(tlTask* task, tlCall* call) {
     assert(call);
-    if (call->keys) {
-        assert(tlcall_argc(call) == tllist_size(call->keys) - 1);
-        assert(tlmap_is(tllist_get(call->keys, tlcall_argc(call))));
-    }
+
     for (int i = 0;; i++) {
         tlValue v = tlcall_value_iter(call, i);
         if (!v) { assert(i >= tlcall_argc(call)); break; }
@@ -719,17 +681,17 @@ INTERNAL tlRun* run_apply(tlTask* task, tlCall* call) {
     tlValue fn = tlcall_get_fn(call);
     trace("%p: fn=%s", call, tl_str(fn));
 
+    // TODO if zero args, or no key args ... optimize
     switch(tl_head(fn)->type) {
-    case TLClosure:
-        // TODO if zero args, or no key args ... optimize
-        return start_args(task, call);
     case TLFun:
         if (tlfun_as(fn)->native == _goto) return run_goto(task, call, tlfun_as(fn));
-        return start_args_host(task, call);
+    case TLClosure:
+        return start_args(task, call);
     case TLCall:
         return run_first(task, null, call, tlcall_as(fn));
     case TLThunk:
         if (tlcall_argc(call) > 0) {
+            fatal("this will not work yet");
             return start_args(task, call);
         }
         return run_thunk(task, tlthunk_as(fn));

@@ -208,7 +208,9 @@ tlList* tllist_from_a(tlT, tlValue* vs, int len);
 #define tlLIST2 tllist_from2
 
 tlList* tllist_add(tlT, tlList* list, tlValue v);
+tlList* tllist_add2(tlT, tlList* list, tlValue v1, tlValue v2);
 tlList* tllist_prepend(tlT, tlList* list, tlValue v);
+tlList* tllist_prepend2(tlT, tlList* list, tlValue v1, tlValue v2);
 tlList* tllist_set(tlT, tlList* list, int at, tlValue v);
 tlList* tllist_cat(tlT, tlList* lhs, tlList* rhs);
 tlList* tllist_slice(tlT, tlList* list, int first, int last);

@@ -13,12 +13,22 @@ static tlValue _print(tlTask* task, tlFun* fn, tlMap* args) {
     tlValue v = tlmap_get_sym(args, tlSYM("sep"));
     if (v) sep = tlvalue_to_text(task, v);
 
+    tlText* begin = null;
+    v = tlmap_get_sym(args, tlSYM("begin"));
+    if (v) begin = tlvalue_to_text(task, v);
+
+    tlText* end = null;
+    v = tlmap_get_sym(args, tlSYM("end"));
+    if (v) end = tlvalue_to_text(task, v);
+
+    if (begin) printf("%s", tltext_bytes(begin));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlmap_get_int(args, i);
         if (!v) break;
         if (i > 0) printf("%s", tltext_bytes(sep));
         printf("%s", tltext_bytes(tlvalue_to_text(task, v)));
     }
+    if (end) printf("%s", tltext_bytes(end));
     printf("\n");
     fflush(stdout);
     return tlNull;
