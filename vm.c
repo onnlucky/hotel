@@ -7,23 +7,25 @@
 #include "text.c"
 #include "sym.c"
 #include "list.c"
+#include "set.c"
 #include "map.c"
+#include "args.c"
+#include "call.c"
 
 #include "buffer.c"
 
 #include "task.c"
 
 #include "code.c"
-#include "call.c"
 #include "env.c"
 #include "eval.c"
 
 #include "trace-off.h"
 
-static tlValue _out(tlTask* task, tlFun* fn, tlMap* args) {
-    trace("out(%d)", tlmap_size(args));
+static tlValue _out(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("out(%d)", tlargs_size(args));
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlmap_get_int(args, i);
+        tlValue v = tlargs_get(args, i);
         if (!v) break;
         printf("%s", tltext_bytes(tlvalue_to_text(task, v)));
     }
@@ -31,44 +33,44 @@ static tlValue _out(tlTask* task, tlFun* fn, tlMap* args) {
     return tlNull;
 }
 
-static tlValue _bool(tlTask* task, tlFun* fn, tlMap* args) {
-    tlValue c = tlmap_get_int(args, 0);
+static tlValue _bool(tlTask* task, tlArgs* args, tlRun* run) {
+    tlValue c = tlargs_get(args, 0);
     trace("BOOL: %s", tl_bool(c)?"true":"false");
-    tlValue res = tlmap_get_int(args, tl_bool(c)?1:2);
+    tlValue res = tlargs_get(args, tl_bool(c)?1:2);
     if (!res) return tlNull;
     return res;
 }
-static tlValue _lte(tlTask* task, tlFun* fn, tlMap* args) {
-    trace("%d <= %d", tl_int(tlmap_get_int(args, 0)), tl_int(tlmap_get_int(args, 1)));
-    return tlBOOL(tl_int(tlmap_get_int(args, 0)) <= tl_int(tlmap_get_int(args, 1)));
+static tlValue _lte(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("%d <= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
+    return tlBOOL(tl_int(tlargs_get(args, 0)) <= tl_int(tlargs_get(args, 1)));
 }
-static tlValue _not(tlTask* task, tlFun* fn, tlMap* args) {
-    trace("NOT: %s", t_str(tlmap_get_int(args, 0)));
-    return tlBOOL(!tl_bool(tlmap_get_int(args, 0)));
+static tlValue _not(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("NOT: %s", t_str(tlargs_get(args, 0)));
+    return tlBOOL(!tl_bool(tlargs_get(args, 0)));
 }
 
-static tlValue _add(tlTask* task, tlFun* fn, tlMap* args) {
-    int res = tl_int(tlmap_get_int(args, 0)) + tl_int(tlmap_get_int(args, 1));
+static tlValue _add(tlTask* task, tlArgs* args, tlRun* run) {
+    int res = tl_int(tlargs_get(args, 0)) + tl_int(tlargs_get(args, 1));
     trace("ADD: %d", res);
     return tlINT(res);
 }
-static tlValue _sub(tlTask* task, tlFun* fn, tlMap* args) {
-    int res = tl_int(tlmap_get_int(args, 0)) - tl_int(tlmap_get_int(args, 1));
+static tlValue _sub(tlTask* task, tlArgs* args, tlRun* run) {
+    int res = tl_int(tlargs_get(args, 0)) - tl_int(tlargs_get(args, 1));
     trace("SUB: %d", res);
     return tlINT(res);
 }
-static tlValue _mul(tlTask* task, tlFun* fn, tlMap* args) {
-    int res = tl_int(tlmap_get_int(args, 0)) * tl_int(tlmap_get_int(args, 1));
+static tlValue _mul(tlTask* task, tlArgs* args, tlRun* run) {
+    int res = tl_int(tlargs_get(args, 0)) * tl_int(tlargs_get(args, 1));
     trace("MUL: %d", res);
     return tlINT(res);
 }
-static tlValue _div(tlTask* task, tlFun* fn, tlMap* args) {
-    int res = tl_int(tlmap_get_int(args, 0)) / tl_int(tlmap_get_int(args, 1));
+static tlValue _div(tlTask* task, tlArgs* args, tlRun* run) {
+    int res = tl_int(tlargs_get(args, 0)) / tl_int(tlargs_get(args, 1));
     trace("DIV: %d", res);
     return tlINT(res);
 }
-static tlValue _mod(tlTask* task, tlFun* fn, tlMap* args) {
-    int res = tl_int(tlmap_get_int(args, 0)) % tl_int(tlmap_get_int(args, 1));
+static tlValue _mod(tlTask* task, tlArgs* args, tlRun* run) {
+    int res = tl_int(tlargs_get(args, 0)) % tl_int(tlargs_get(args, 1));
     trace("MOD: %d", res);
     return tlINT(res);
 }
@@ -86,7 +88,11 @@ void tlvm_init() {
     value_init();
     text_init();
     list_init();
+    set_init();
     map_init();
+    args_init();
+    //call_init();
+
     eval_init();
 }
 

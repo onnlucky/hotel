@@ -2,7 +2,6 @@
 
 #include "trace-off.h"
 
-typedef struct tlRun tlRun;
 INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlRun* run_apply(tlTask* task, tlCall* call);
 INTERNAL void run_resume(tlTask* task, tlRun* run);

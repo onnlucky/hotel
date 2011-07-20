@@ -91,19 +91,19 @@ tlValue tlcall_get_name(tlCall* call, int at) {
     if (name == tlNull) return null;
     return name;
 }
-tlList* tlcall_get_names(tlCall* call) {
+tlSet* tlcall_get_names(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     return call->data[call->head.size - 1];
 }
 int tlcall_get_names_size(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return 0;
-    tlList* nameset = call->data[call->head.size - 1];
-    return tllist_size(nameset);
+    tlSet* nameset = call->data[call->head.size - 1];
+    return tlset_size(nameset);
 }
 bool tlcall_has_name(tlCall* call, tlSym name) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return false;
-    tlList* nameset = call->data[call->head.size - 1];
-    return set_indexof(nameset, name) >= 0;
+    tlSet* nameset = call->data[call->head.size - 1];
+    return tlset_indexof(nameset, name) >= 0;
 }
 void tlcall_set_fn_(tlCall* call, tlValue fn) {
     call->data[0] = fn;
@@ -117,7 +117,7 @@ tlCall* tlcall_from_args(tlTask* task, tlValue fn, tlList* args) {
     int namecount = 0;
 
     tlList* names = null;
-    tlList* nameset = null;
+    tlSet* nameset = null;
     for (int i = 0; i < size; i += 2) {
         tlValue name = tllist_get(args, i);
         if (!name || name == tlNull) continue;
@@ -127,12 +127,12 @@ tlCall* tlcall_from_args(tlTask* task, tlValue fn, tlList* args) {
     if (namecount > 0) {
         trace("args with keys: %d", namecount);
         names = tllist_new(task, size);
-        nameset = tllist_new(task, namecount);
+        nameset = tlset_new(task, namecount);
         for (int i = 0; i < size; i += 2) {
             tlValue name = tllist_get(args, i);
             tllist_set_(names, i / 2, name);
             if (!name || name == tlNull) continue;
-            set_add_(nameset, name);
+            tlset_add_(nameset, name);
         }
     }
 

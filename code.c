@@ -59,7 +59,7 @@ void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args) {
 void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defaults) {
     int size = tllist_size(name_defaults);
     tlList* names = tllist_new(task, size / 2);
-    tlList* defaults = tllist_new(task, size / 2);
+    //tlList* defaults = tllist_new(task, size / 2);
     assert(size % 2 == 0);
 
     bool have_defaults = false;
@@ -71,7 +71,7 @@ void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defa
     }
     code->argnames = names;
     if (have_defaults) {
-        code->argdefaults = defaults;
+        //code->argdefaults = defaults;
     }
 }
 

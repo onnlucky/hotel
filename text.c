@@ -66,13 +66,13 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     return tlTEXT("<ERROR.to-text>");
 }
 
-static tlValue _text_size(tlTask* task, tlFun* fn, tlMap* args) {
-    tlText* text = tltext_cast(tlmap_get_int(args, 0));
+static tlValue _text_size(tlTask* task, tlArgs* args, tlRun* run) {
+    tlText* text = tltext_cast(tlargs_get(args, 0));
     if (!text) return tlNull;
     return tlINT(tltext_size(text));
 }
-static tlValue _text_slice(tlTask* task, tlFun* fn, tlMap* args) {
-    tlText* text = tltext_cast(tlmap_get_int(args, 0));
+static tlValue _text_slice(tlTask* task, tlArgs* args, tlRun* run) {
+    tlText* text = tltext_cast(tlargs_get(args, 0));
     if (!text) return tlNull;
     //int begin = tl_int_or(tlmap_get_int(args, 1), 0);
     //int end = tl_int_or(tlmap_get_int(args, 2), tltext_size(text));

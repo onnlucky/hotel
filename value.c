@@ -27,22 +27,18 @@ uint8_t tl_type(tlValue v) {
 const char* const type_to_str[] = {
     "invalid",
 
-    "list", "map", "object",
+    "list", "set", "map", "object",
     "num", "float",
     "text",
+
+    "arguments", "call",
 
     "env",
 
     "code",
     "closure",
     "fun",
-
-    "call",
     "run",
-
-    "evalcall",
-    "evalfun",
-    "eval",
 
     "thunk",
     "result",
@@ -81,8 +77,8 @@ int tl_int_or(tlValue v, int d) {
     return tl_int(v);
 }
 
-static tlValue _value_type(tlTask* task, tlFun* fn, tlMap* args) {
-    tlValue v = tlmap_get_int(args, 0);
+static tlValue _value_type(tlTask* task, tlArgs* args, tlRun* run) {
+    tlValue v = tlargs_get(args, 0);
     return tlINT(tl_type(v));
 }
 

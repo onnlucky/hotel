@@ -306,15 +306,15 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-   map = "["__ is:items __"]"   { $$ = map_activate(tlmap_from_list(TASK, L(is))); }
- items = i:item eom is:items    { $$ = tllist_cat(TASK, L(i), L(is)); }
-       | i:item                 { $$ = i }
+   map = "["__ is:items __"]"   { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
+ items = i:item eom is:items    { $$ = tllist_prepend(TASK, L(is), i); }
+       | i:item                 { $$ = tllist_from1(TASK, i) }
        |                        { $$ = tllist_empty(); }
 
   item = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
        | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
        | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
-       | v:expr                 { $$ = tlLIST2(TASK, tlNull, v); }
+       #//| v:expr                 { $$ = tlLIST2(TASK, tlNull, v); }
 
 
  value = lit | number | text | map | sym | lookup

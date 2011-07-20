@@ -83,7 +83,7 @@ typedef struct tlRunArgs {
     tlRun* caller;
 
     tlCall* call;
-    tlMap* args;
+    tlArgs* args;
 } tlRunArgs;
 typedef struct tlRunCode tlRunCode;
 struct tlRunCode {
@@ -113,20 +113,20 @@ tlValue tlcollect_new_(tlTask* task, tlList* list) {
     return list;
 }
 // TODO fix these two functions, map size is not same as int mapped values ...
-tlResult* tlresult_new(tlTask* task, tlMap* args) {
-    int size = tlmap_size(args);
+tlResult* tlresult_new(tlTask* task, tlArgs* args) {
+    int size = tlargs_size(args);
     tlResult* res = task_alloc(task, TLResult, size);
     for (int i = 0; i < size; i++) {
-        res->data[i] = tlmap_get_int(args, i);
+        res->data[i] = tlargs_get(args, i);
     }
     return res;
 }
-tlResult* tlresult_new2(tlTask* task, tlValue first, tlMap* args) {
-    int size = tlmap_size(args);
+tlResult* tlresult_new2(tlTask* task, tlValue first, tlArgs* args) {
+    int size = tlargs_size(args);
     tlResult* res = task_alloc(task, TLResult, size + 1);
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
-        res->data[i + 1] = tlmap_get_int(args, i);
+        res->data[i + 1] = tlargs_get(args, i);
     }
     return res;
 }
@@ -161,7 +161,7 @@ INTERNAL void print_backtrace(tlRun* r) {
         r = r->caller;
     }
 }
-INTERNAL tlValue _backtrace(tlTask* task, tlFun* fn, tlMap* args) {
+INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args, tlRun* run) {
     print_backtrace(task->run);
     return tlNull;
 }
@@ -196,31 +196,29 @@ INTERNAL tlRun* suspend_attach(tlTask* task, tlRun* run, tlValue c) {
 }
 
 // return works like a closure, on lookup we close it over the current run
-INTERNAL tlValue _return(tlTask* task, tlFun* fn, tlMap* args) {
-    trace("RETURN(%d)", tlmap_size(args));
+INTERNAL tlValue _return(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("RETURN(%d)", tlargs_size(args));
 
     task->jumping = tlTrue;
-    setup(task, fn->data);
+    setup(task, tlfun_as(args->fn)->data);
 
-    if (tlmap_size(args) == 1) return tlmap_get_int(args, 0);
+    if (tlargs_size(args) == 1) return tlargs_get(args, 0);
     return tlresult_new(task, args);
 }
 
 // goto should never be called, instead we run it as a run
-INTERNAL tlValue _goto(tlTask* task, tlFun* fn, tlMap* args) {
-    warning("_goto is not supposed to be called");
-    assert(false);
-    abort();
+INTERNAL tlValue _goto(tlTask* task, tlArgs* args, tlRun* run) {
+    fatal("_goto is not supposed to be called");
 }
 
-INTERNAL tlValue _continuation(tlTask* task, tlFun* fn, tlMap* args) {
-    trace("CONTINUATION(%d)", tlmap_size(args));
+INTERNAL tlValue _continuation(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("CONTINUATION(%d)", tlargs_size(args));
 
     task->jumping = tlTrue;
-    setup(task, fn->data);
+    setup(task, tlfun_as(args->fn)->data);
 
-    if (tlmap_size(args) == 0) return fn;
-    return tlresult_new2(task, fn, args);
+    if (tlargs_size(args) == 0) return args->fn;
+    return tlresult_new2(task, args->fn, args);
 }
 
 void* tlrun_alloc(tlTask* task, size_t bytes, int datas, tl_resume resume) {
@@ -289,7 +287,7 @@ INTERNAL tlRun* run_activate_map(tlTask* task, tlRunActivateMap* run, tlMap* map
 
     if (i < 0) {
         i = -i - 1;
-        map = tlmap_value_iter_set_(map, i, tltask_value(task));
+        tlmap_value_iter_set_(map, i, tltask_value(task));
         i++;
     }
     for (;; i++) {
@@ -307,7 +305,7 @@ INTERNAL tlRun* run_activate_map(tlTask* task, tlRunActivateMap* run, tlMap* map
                 return suspend_attach(task, r, run);
             }
             v = tltask_value(task);
-            map = tlmap_value_iter_set_(map, i, v);
+            tlmap_value_iter_set_(map, i, v);
         }
     }
     trace2("%p << map: %d", run, tlmap_size(map));
@@ -402,8 +400,8 @@ INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* f
     return null;
 }
 
-INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args);
-INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlMap* args);
+INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlArgs* args);
+INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlArgs* args);
 
 INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
     trace2("%p", run);
@@ -424,9 +422,10 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         assert(tlfun_is(fn) || tlthunk_is(fn));
     }
 
-    tlMap* args = run->args;
+    tlArgs* args = run->args;
     if (!args) {
-        args = tlmap_new_keys(task, tlcall_get_names(call), argc - tlcall_get_names_size(call));
+        args = tlargs_new(task, argc, tlcall_get_names(call));
+        tlargs_fn_set_(args, fn);
     }
 
     // check where we left off last time
@@ -440,11 +439,11 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         tlSym name = tlcall_get_name(call, at);
         if (name) {
             trace("(run) ARGS: %s = %s", tl_str(name), tl_str(v));
-            tlmap_set_sym_(args, name, v);
+            tlargs_map_set_(args, name, v);
             named++;
         } else {
             trace("(run) ARGS: %d = %s", at - named, tl_str(v));
-            tlmap_set_int_(args, at - named, v);
+            tlargs_set_(args, at - named, v);
         }
         at++;
     }
@@ -483,11 +482,11 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
         }
         if (name) {
             trace("ARGS: %s = %s", tl_str(name), tl_str(v));
-            tlmap_set_sym_(args, name, v);
+            tlargs_map_set_(args, name, v);
             named++;
         } else {
             trace("ARGS: %d = %s", at - named, tl_str(v));
-            tlmap_set_int_(args, at - named, v);
+            tlargs_set_(args, at - named, v);
         }
     }
     trace("ARGS DONE");
@@ -513,23 +512,23 @@ INTERNAL tlRun* resume_code(tlTask* task, tlRun* r) {
     return run_code(task, run);
 }
 
-INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlMap* args) {
+INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlArgs* args) {
     run->resume = resume_code;
     run->pc = 0;
     run->env = fn->env;
     run->code = fn->code;
 
     tlList* names = fn->code->argnames;
-    tlList* defaults = fn->code->argdefaults;
+    tlMap* defaults = fn->code->argdefaults;
 
     if (names) {
         int first = 0;
         int size = tllist_size(names);
         for (int i = 0; i < size; i++) {
             tlSym name = tlsym_as(tllist_get(names, i));
-            tlValue v = tlmap_get_sym(args, name);
+            tlValue v = tlargs_map_get(args, name);
             if (!v) {
-                v = tlmap_get_int(args, first); first++;
+                v = tlargs_get(args, first); first++;
             }
             if (!v && defaults) {
                 v = tlmap_get_sym(defaults, name);
@@ -545,20 +544,20 @@ INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, 
         }
     }
     run->env = tlenv_set(task, run->env, s_arguments, args);
-    tlValue oop = tlmap_get_sym(args, s_this);
+    tlValue oop = tlargs_map_get(args, s_this);
     if (oop) run->env = tlenv_set(task, run->env, s_this, oop);
     // TODO this can and should be removed
     run->env = tlenv_set_run(task, run->env, run);
     return run_code(task, run);
 }
 
-INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlMap* args) {
+INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlArgs* args) {
     trace("%p", run);
 
     tlRun* caller = setup_caller(task, run);
     trace(">> NATIVE %p", fn);
 
-    tlValue v = fn->native(task, fn, args);
+    tlValue v = fn->native(task, args, null);
     if (!v) v = tlNull;
     if (tlrun_is(v)) return suspend_attach(task, v, caller);
 
@@ -717,11 +716,11 @@ INTERNAL void run_resume(tlTask* task, tlRun* run) {
 
 // ** integration **
 
-static tlValue _callable_is(tlTask* task, tlFun* fn, tlMap* args) {
-    tlValue v = tlmap_get_int(args, 0);
+static tlValue _callable_is(tlTask* task, tlArgs* args, tlRun* run) {
+    tlValue v = tlargs_get(args, 0);
     if (!tlref_is(v)) return tlFalse;
 
-    switch(tl_head(fn)->type) {
+    switch(tl_head(v)->type) {
         case TLClosure:
         case TLFun:
         case TLCall:
@@ -731,10 +730,10 @@ static tlValue _callable_is(tlTask* task, tlFun* fn, tlMap* args) {
     return tlFalse;
 }
 
-static tlValue _method_invoke(tlTask* task, tlFun* fn, tlMap* args) {
-    tlClosure* method = tlclosure_cast(tlmap_get_int(args, 0));
-    tlValue* oop = tlmap_get_int(args, 1);
-    tlMap* map = tlmap_cast(tlmap_get_int(args, 2));
+static tlValue _method_invoke(tlTask* task, tlArgs* args, tlRun* r) {
+    tlClosure* method = tlclosure_cast(tlargs_get(args, 0));
+    tlValue* oop = tlargs_get(args, 1);
+    tlMap* map = tlmap_cast(tlargs_get(args, 2));
     if (!method) return tlNull;
 
     tlRunCode* run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);

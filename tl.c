@@ -8,22 +8,22 @@
 #include "trace-on.h"
 
 // this is how a print function could look
-static tlValue _print(tlTask* task, tlFun* fn, tlMap* args) {
+static tlValue _print(tlTask* task, tlArgs* args, tlRun* run) {
     tlText* sep = tlTEXT(" ");
-    tlValue v = tlmap_get_sym(args, tlSYM("sep"));
+    tlValue v = tlargs_map_get(args, tlSYM("sep"));
     if (v) sep = tlvalue_to_text(task, v);
 
     tlText* begin = null;
-    v = tlmap_get_sym(args, tlSYM("begin"));
+    v = tlargs_map_get(args, tlSYM("begin"));
     if (v) begin = tlvalue_to_text(task, v);
 
     tlText* end = null;
-    v = tlmap_get_sym(args, tlSYM("end"));
+    v = tlargs_map_get(args, tlSYM("end"));
     if (v) end = tlvalue_to_text(task, v);
 
     if (begin) printf("%s", tltext_bytes(begin));
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlmap_get_int(args, i);
+        tlValue v = tlargs_get(args, i);
         if (!v) break;
         if (i > 0) printf("%s", tltext_bytes(sep));
         printf("%s", tltext_bytes(tlvalue_to_text(task, v)));

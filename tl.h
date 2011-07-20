@@ -68,24 +68,19 @@ static const tlValue tlCollectEager = (tlHead*)(52 << 2);
 enum {
     TLInvalid = 0,
 
-    TLList, TLMap, TLObject,
+    TLList, TLSet, TLMap, TLObject,
 
     TLNum, TLFloat,
     TLText,
+
+    TLArgs, TLCall,
 
     TLEnv,
 
     TLCode,
     TLClosure,
     TLFun,
-
-    TLCall,
-
     TLRun,
-
-    TLEvalCall,
-    TLEvalFun,
-    TLEval,
 
     TLThunk,
     TLResult,
@@ -103,9 +98,11 @@ enum {
     TL_TYPE_LAST
 };
 
-// a list is also a map, but a map may be a sparse list or map other type of values to keys
-typedef struct tlList tlMap;
+typedef struct tlSet tlSet;
+typedef struct tlMap tlMap;
 typedef struct tlText tlText;
+typedef struct tlArgs tlArgs;
+typedef struct tlCall tlCall;
 
 static inline int tlref_is(tlValue v) { return ((intptr_t)v & 3) == 0 && (intptr_t)v > 1024; }
 static inline tlHead* tl_head(tlValue v) { assert(tlref_is(v)); return (tlHead*)v; }
@@ -155,7 +152,7 @@ const char* tl_str(tlValue v);
 typedef struct tlVm tlVm;
 typedef struct tlWorker tlWorker;
 typedef struct tlTask tlTask;
-typedef struct tlCall tlCall;
+typedef struct tlRun tlRun;
 typedef struct tlCode tlCode;
 #define tlT tlTask *task
 
@@ -181,6 +178,15 @@ tlCode* tlcode_cast(tlValue v);
 tlCode* tlcode_as(tlValue v);
 
 tlCode* tlcode_from(tlT, tlList* stms);
+
+bool tlargs_is(tlValue v);
+tlArgs* tlargs_cast(tlValue v);
+tlArgs* tlargs_as(tlValue v);
+
+int tlargs_size(tlArgs* args);
+tlValue tlargs_get(tlArgs* args, int at);
+int tlargs_map_size(tlArgs* args);
+tlValue tlargs_map_get(tlArgs* args, tlSym name);
 
 bool tlcall_is(tlValue v);
 tlCall* tlcall_cast(tlValue v);
@@ -225,12 +231,13 @@ tlValue tlmap_get_int(tlMap* map, int key);
 tlValue tlmap_get_sym(tlMap* map, tlSym key);
 tlValue tlmap_value_iter(tlMap* map, int i);
 
-tlMap* tlmap_new(tlT, int size);
+tlMap* tlmap_new(tlT, tlSet* keys);
 tlMap* tlmap_copy(tlT, tlMap* map);
 tlMap* tlmap_from1(tlT, tlValue key, tlValue v);
 tlMap* tlmap_from(tlT, ... /*tlValue, tlValue*/);
 tlMap* tlmap_from_a(tlT, tlValue* vs, int len /*multiple of 2*/);
 tlMap* tlmap_from_list(tlT, tlList* ls);
+tlMap* tlmap_from_pairs(tlT, tlList* ls);
 #define tlMAP tlmap_from1
 
 tlValue tlmap_get(tlT, tlMap* map, tlValue key);
@@ -284,7 +291,7 @@ tlRES tltask_return_a(tlT, tlValue* vs, int len);
 
 // ** callbacks **
 typedef struct tlFun tlFun;
-typedef tlValue(*tlHostFunction)(tlTask*, tlFun*, tlMap*);
+typedef tlValue(*tlHostFunction)(tlTask*, tlArgs*, tlRun*);
 
 typedef struct { const char* name; tlHostFunction fn; } tlHostFunctions;
 static void tl_register_functions(const tlHostFunctions* fns);
@@ -293,8 +300,6 @@ void tl_register_const(const char* name, tlValue v);
 
 // for general functions
 tlFun* tlFUN(tlHostFunction, tlValue data);
-// for primitive functions that never invoke the evaluator again
-tlFun* tlFUN_PRIM(tlHostFunction, tlValue data);
 
 tlValue parse(tlText* text);
 tlValue compile(tlText* text);

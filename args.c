@@ -1,0 +1,61 @@
+struct tlArgs {
+    tlHead head;
+    tlValue* fn;
+    tlMap* map;
+    tlList* list;
+};
+TTYPE(tlArgs, tlargs, TLArgs);
+
+static tlArgs* v_args_empty;
+
+tlArgs* tlargs_new(tlTask* task, int size, tlSet* names) {
+    if (!names) names = v_set_empty;
+    tlArgs* args = task_alloc(task, TLArgs, 2);
+    args->list = tllist_new(task, size - tlset_size(names));
+    args->map = tlmap_new(task, names);
+    return args;
+}
+
+int tlargs_size(tlArgs* args) {
+    assert(tlargs_is(args));
+    return args->head.size;
+}
+tlValue tlargs_fn(tlArgs* args) {
+    assert(tlargs_is(args));
+    return args->fn;
+}
+tlList* tlargs_list(tlArgs* args) {
+    assert(tlargs_is(args));
+    return args->list;
+}
+tlMap* tlargs_map(tlArgs* args) {
+    assert(tlargs_is(args));
+    return args->map;
+}
+tlValue tlargs_get(tlArgs* args, int at) {
+    assert(tlargs_is(args));
+    return tllist_get(args->list, at);
+}
+tlValue tlargs_map_get(tlArgs* args, tlSym name) {
+    assert(tlargs_is(args));
+    return tlmap_get_sym(args->map, name);
+}
+
+void tlargs_fn_set_(tlArgs* args, tlValue fn) {
+    assert(tlargs_is(args));
+    assert(!args->fn);
+    args->fn = fn;
+}
+void tlargs_set_(tlArgs* args, int at, tlValue v) {
+    assert(tlargs_is(args));
+    tllist_set_(args->list, at, v);
+}
+void tlargs_map_set_(tlArgs* args, tlSym name, tlValue v) {
+    assert(tlargs_is(args));
+    tlmap_set_sym_(args->map, name, v);
+}
+
+void args_init() {
+    v_args_empty = tlargs_new(null, 0, v_set_empty);
+}
+
