@@ -142,9 +142,9 @@ tlValue tlcollect_new_(tlTask* task, tlList* list);
        |                   { $$ = tllist_empty(); }
 
 bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = tlcode_from(TASK, ts); }
-       | &{ pop_indent(G) }
-stmsnl = _ &{ check_indent(G) } t:stm eos ts:stmsnl { $$ = tllist_cat(TASK, L(t), L(ts)); }
-       | _ &{ check_indent(G) } t:stm               { $$ = L(t); }
+       |    &{ pop_indent(G) }
+stmsnl =  _ &{ check_indent(G) } t:stm eos ts:stmsnl { $$ = tllist_cat(TASK, L(t), L(ts)); }
+       |  _ &{ check_indent(G) } t:stm               { $$ = L(t); }
 
    stm = singleassign | multiassign | noassign
 
@@ -162,11 +162,11 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tllist_from(TASK, e, n, null); tr
              | e:pexpr      { $$ = tllist_from1(TASK, e); }
 
 
-    fn = "(" __ as:fargs __ ")"_"{" __ b:body __ "}" {
+    fn = "(" __ as:fargs __ ")"_"->"_"{" __ b:body __ "}" {
             tlcode_set_args_(TASK, tlcode_as(b), L(as));
             $$ = b;
         }
-        | "{"__ b:body __ "}" { $$ = b; }
+        | "->"_"{"__ b:body __ "}" { $$ = b; }
 
 fargs = a:farg __","__ as:fargs { $$ = tllist_prepend(TASK, L(as), a); }
       | a:farg                  { $$ = tllist_from1(TASK, a); }
@@ -306,7 +306,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-   map = "["__ is:items __"]"   { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
+   map = "{"__ is:items __"}"   { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
  items = i:item eom is:items    { $$ = tllist_prepend(TASK, L(is), i); }
        | i:item                 { $$ = tllist_from1(TASK, i) }
        |                        { $$ = tllist_empty(); }
@@ -314,10 +314,14 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
   item = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
        | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
        | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
-       #//| v:expr                 { $$ = tlLIST2(TASK, tlNull, v); }
 
+#// TODO list_activate ...
+  list = "["__ is:litems __"]"   { $$ = is; }
+litems = v:expr eom is:litems   { $$ = tllist_prepend(TASK, L(is), v); }
+       | v:expr                 { $$ = tllist_from1(TASK, v); }
+       |                        { $$ = tllist_empty(); }
 
- value = lit | number | text | map | sym | lookup
+ value = lit | number | text | map | list | sym | lookup
 
    lit = "true"      { $$ = tlTrue; }
        | "false"     { $$ = tlFalse; }

@@ -1,5 +1,5 @@
-if = (c, block){ bool(c, block, {})() }
-loop = (n){
+if = (c, block)->{ bool(c, block, ->{})() }
+loop = (n)->{
     if n <= 0:
         return
     if n <= 0:

@@ -1,12 +1,12 @@
 Text = {
-     size: { %text_size(this) }
-    empty: { %text_size(this) == 0 }
-    slice: (s, e){ %text_slice(this, s, e) }
+     size: ->{ _text_size(this) }
+    empty: ->{ _text_size(this) == 0 }
+    slice: (s, e)->{ _text_slice(this, s, e) }
 }
 
-%send = (oop, msg, *as){
+%send = (oop, msg)->{
     field = %map_get(Text, msg)
-    goto(%invoke(oop, field, as))
+    goto(_method_invoke(field, oop, args))
 }
 
 out("hello".size, "\n")

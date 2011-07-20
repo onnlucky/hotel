@@ -1,1 +1,1 @@
-%list_get([(m=>out(m, "\n"))], 0)("hello")
+_list_get([(m=>out(m, "\n"))], 0)("hello")
