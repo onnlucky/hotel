@@ -3,7 +3,7 @@
 #include "trace-off.h"
 
 static tlSym s_continuation;
-static tlSym s_arguments;
+static tlSym s_args;
 
 static tlSym s_text;
 static tlSym s_block;
@@ -138,7 +138,7 @@ static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
     s_continuation = tlSYM("continuation");
-    s_arguments    = tlSYM("arguments");
+    s_args   = tlSYM("args");
     s_return = tlSYM("return");
     s_goto   = tlSYM("goto");
     s_text   = tlSYM("text");

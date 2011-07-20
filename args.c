@@ -18,7 +18,7 @@ tlArgs* tlargs_new(tlTask* task, int size, tlSet* names) {
 
 int tlargs_size(tlArgs* args) {
     assert(tlargs_is(args));
-    return args->head.size;
+    return tllist_size(args->list);
 }
 tlValue tlargs_fn(tlArgs* args) {
     assert(tlargs_is(args));
@@ -55,7 +55,19 @@ void tlargs_map_set_(tlArgs* args, tlSym name, tlValue v) {
     tlmap_set_sym_(args->map, name, v);
 }
 
+static tlValue _args_size(tlTask* task, tlArgs* args, tlRun* run) {
+    tlArgs* as = tlargs_cast(tlargs_get(args, 0));
+    if (!as) return tlNull;
+    return tlINT(tlargs_size(as));
+}
+
+static const tlHostFunctions __args_functions[] = {
+    { "_args_size", _args_size },
+    { 0, 0 }
+};
+
 void args_init() {
     v_args_empty = tlargs_new(null, 0, v_set_empty);
+    tl_register_functions(__args_functions);
 }
 
