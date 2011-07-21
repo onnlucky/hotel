@@ -7,7 +7,7 @@ static tlText* v_empty_text;
 // TODO short strings should be "inline" saves finalizer
 struct tlText {
     tlHead head;
-    const char* ptr;
+    const char* data;
     tlInt bytes;
     tlInt size;
     tlInt hash;
@@ -18,13 +18,13 @@ tlText* tltext_empty() { return v_empty_text; }
 tlText* tltext_from_static(const char* s) {
     tlText* text = task_alloc_priv(null, TLText, 0, 4);
     text->head.flags |= TL_FLAG_NOFREE;
-    text->ptr = s;
+    text->data = s;
     return text;
 }
 
 tlText* tltext_from_take(tlTask* task, char* s) {
     tlText* text = task_alloc_priv(task, TLText, 0, 4);
-    text->ptr = s;
+    text->data = s;
     return text;
 }
 
@@ -43,12 +43,12 @@ tlText* tltext_from_copy(tlTask* task, const char* s) {
 static void tltext_free(tlText *text) {
     assert(tltext_is(text));
     if (text->head.flags & TL_FLAG_NOFREE) return;
-    free((char*)text->ptr);
+    free((char*)text->data);
 }
 
 const char * tltext_bytes(tlText *text) {
     assert(tltext_is(text));
-    return text->ptr;
+    return text->data;
 }
 
 int tltext_size(tlText* text) {
@@ -57,6 +57,15 @@ int tltext_size(tlText* text) {
         text->bytes = tlINT(strlen(tltext_bytes(text)));
     }
     return tl_int(text->bytes);
+}
+
+tlText* tltext_sub(tlTask* task, tlText* from, int first, int size) {
+    char* data = malloc(size + 1);
+    if (!data) return null;
+    memcpy(data, from->data + first, size);
+    data[size] = 0;
+
+    return tltext_from_take(task, data);
 }
 
 tlText* tlvalue_to_text(tlTask* task, tlValue v) {
@@ -74,10 +83,19 @@ static tlValue _text_size(tlTask* task, tlArgs* args, tlRun* run) {
 static tlValue _text_slice(tlTask* task, tlArgs* args, tlRun* run) {
     tlText* text = tltext_cast(tlargs_get(args, 0));
     if (!text) return tlNull;
-    //int begin = tl_int_or(tlmap_get_int(args, 1), 0);
-    //int end = tl_int_or(tlmap_get_int(args, 2), tltext_size(text));
-    return text;
-    //return tltext_slice(text, begin, end);
+    int size = tltext_size(text);
+    int first = tl_int_or(tlargs_get(args, 1), 0);
+    int last = tl_int_or(tlargs_get(args, 2), size);
+
+    trace("%d %d (%s)%d", first, last, text->data, size);
+
+    if (first < 0) first = size + first;
+    if (first < 0) return v_empty_text;
+    if (first >= size) return v_empty_text;
+    if (last <= 0) last = size + last;
+    if (last < first) return v_empty_text;
+
+    return tltext_sub(task, text, first, last - first);
 }
 
 static const tlHostFunctions __text_functions[] = {

@@ -33,7 +33,6 @@ void tlmap_dump(tlMap* map) {
 
 tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
     assert(tlmap_is(map));
-    tlmap_dump(map);
     int at = tlset_indexof(map->keys, key);
     if (at < 0) return null;
     return map->data[at];

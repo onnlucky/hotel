@@ -76,7 +76,7 @@ typedef struct tlRunFirst {
 
     tlCall* call;
 } tlRunFirst;
-typedef struct tlRunArgs {
+typedef struct tlRunCall {
     tlHead head;
     intptr_t count;
     tl_resume resume;
@@ -84,7 +84,7 @@ typedef struct tlRunArgs {
 
     tlCall* call;
     tlArgs* args;
-} tlRunArgs;
+} tlRunCall;
 typedef struct tlRunCode tlRunCode;
 struct tlRunCode {
     tlHead head;
@@ -400,10 +400,18 @@ INTERNAL tlRun* run_first(tlTask* task, tlRunFirst* run, tlCall* call, tlCall* f
     return null;
 }
 
-INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlArgs* args);
-INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlArgs* args);
-
-INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
+INTERNAL tlRun* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tlRun* run);
+INTERNAL tlRun* chain_args_fun(tlTask* task, tlFun* fn, tlArgs* args, tlRun* run);
+INTERNAL tlRun* start_args(tlTask* task, tlArgs* args, tlRun* run) {
+    tlValue fn = tlargs_fn(args);
+    assert(tlref_is(fn));
+    switch(tl_head(fn)->type) {
+        case TLClosure: return chain_args_closure(task, tlclosure_as(fn), args, run);
+        case TLFun: return chain_args_fun(task, tlfun_as(fn), args, run);
+    }
+    fatal("not implemented: chain args to run %s", tl_str(fn));
+}
+INTERNAL tlRun* run_call(tlTask* task, tlRunCall* run) {
     trace2("%p", run);
 
     // setup needed data
@@ -491,16 +499,13 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
     }
     trace("ARGS DONE");
 
-    switch(tl_head(fn)->type) {
-        case TLClosure: return chain_args_closure(task, (tlRunCode*)run, tlclosure_as(fn), args);
-        case TLFun: return chain_args_fun(task, (tlRun*)run, tlfun_as(fn), args);
-    }
-    fatal("not implemented: chain args to run %s", tl_str(fn));
+    return start_args(task, args, (tlRun*)run);
 }
 
+
 // TODO make more useful
-INTERNAL tlRun* resume_args(tlTask* task, tlRun* run) {
-    return run_args(task, (tlRunArgs*)run);
+INTERNAL tlRun* resume_call(tlTask* task, tlRun* run) {
+    return run_call(task, (tlRunCall*)run);
 }
 
 INTERNAL tlRun* run_code(tlTask* task, tlRunCode* run);
@@ -512,7 +517,9 @@ INTERNAL tlRun* resume_code(tlTask* task, tlRun* r) {
     return run_code(task, run);
 }
 
-INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, tlArgs* args) {
+INTERNAL tlRun* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tlRun* oldrun) {
+    tlRunCode* run = (tlRunCode*)oldrun;
+    if (!run) run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);
     run->resume = resume_code;
     run->pc = 0;
     run->env = fn->env;
@@ -551,7 +558,7 @@ INTERNAL tlRun* chain_args_closure(tlTask* task, tlRunCode* run, tlClosure* fn, 
     return run_code(task, run);
 }
 
-INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlArgs* args) {
+INTERNAL tlRun* chain_args_fun(tlTask* task, tlFun* fn, tlArgs* args, tlRun* run) {
     trace("%p", run);
 
     tlRun* caller = setup_caller(task, run);
@@ -641,9 +648,9 @@ INTERNAL tlRun* run_thunk(tlTask* task, tlThunk* thunk) {
 }
 
 // TODO remove
-INTERNAL tlRun* start_args(tlTask* task, tlCall* call) {
+INTERNAL tlRun* start_call(tlTask* task, tlCall* call) {
     trace("%p", call);
-    tlRunArgs* run = tlrun_alloc(task, sizeof(tlRunArgs), 0, resume_args);
+    tlRunCall* run = tlrun_alloc(task, sizeof(tlRunCall), 0, resume_call);
     run->call = call;
     return suspend(task, run);
 }
@@ -690,13 +697,12 @@ INTERNAL tlRun* run_apply(tlTask* task, tlCall* call) {
     case TLFun:
         if (tlfun_as(fn)->native == _goto) return run_goto(task, call, tlfun_as(fn));
     case TLClosure:
-        return start_args(task, call);
+        return start_call(task, call);
     case TLCall:
         return run_first(task, null, call, tlcall_as(fn));
     case TLThunk:
         if (tlcall_argc(call) > 0) {
-            fatal("this will not work yet");
-            return start_args(task, call);
+            return start_call(task, call);
         }
         return run_thunk(task, tlthunk_as(fn));
     default:
@@ -749,9 +755,7 @@ static tlValue _method_invoke(tlTask* task, tlArgs* args, tlRun* r) {
     }
     tlArgs* nargs = tlargs_new(task, list, map);
     tlargs_fn_set_(nargs, fn);
-    fatal("not implemented yet");
-    //return run_args(task, nargs);
-    return tlNull;
+    return start_args(task, nargs, null);
 }
 
 static const tlHostFunctions __eval_functions[] = {

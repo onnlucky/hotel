@@ -41,5 +41,5 @@ _object_send = (object, name)->{
 
 print "hello".length 1, 2, 3, 4, 5
 print ">> DONE <<"
-//print "hello".slice(1, 3)
+print "hello world!".slice(1, -1)
 
