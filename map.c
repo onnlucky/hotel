@@ -497,7 +497,7 @@ static tlValue _map_get(tlTask* task, tlArgs* args, tlRun* run) {
     tlValue key = tlargs_get(args, 1);
     if (!key || key == tlNull) return tlNull;
     tlValue res = tlmap_get(task, map, key);
-    if (!res) return tlNull;
+    if (!res) return tlUndefined;
     return res;
 }
 static tlValue _map_set(tlTask* task, tlArgs* args, tlRun* run) {

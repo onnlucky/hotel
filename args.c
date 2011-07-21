@@ -68,9 +68,15 @@ static tlValue _args_size(tlTask* task, tlArgs* args, tlRun* run) {
     if (!as) return tlNull;
     return tlINT(tlargs_size(as));
 }
+static tlValue _args_names(tlTask* task, tlArgs* args, tlRun* run) {
+    tlArgs* as = tlargs_cast(tlargs_get(args, 0));
+    if (!as) return tlNull;
+    return tlargs_map(as);
+}
 
 static const tlHostFunctions __args_functions[] = {
     { "_args_size", _args_size },
+    { "_args_names", _args_names },
     { 0, 0 }
 };
 
