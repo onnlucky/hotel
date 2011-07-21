@@ -40,6 +40,18 @@ static tlValue _bool(tlTask* task, tlArgs* args, tlRun* run) {
     if (!res) return tlNull;
     return res;
 }
+static tlValue _eq(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("%p == %p", tlargs_get(args, 0), tlargs_get(args, 1));
+    return tlBOOL(tlargs_get(args, 0) == tlargs_get(args, 1));
+}
+static tlValue _neq(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("%p != %p", tlargs_get(args, 0), tlargs_get(args, 1));
+    return tlBOOL(tlargs_get(args, 0) != tlargs_get(args, 1));
+}
+static tlValue _gte(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("%d >= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
+    return tlBOOL(tl_int(tlargs_get(args, 0)) >= tl_int(tlargs_get(args, 1)));
+}
 static tlValue _lte(tlTask* task, tlArgs* args, tlRun* run) {
     trace("%d <= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
     return tlBOOL(tl_int(tlargs_get(args, 0)) <= tl_int(tlargs_get(args, 1)));
@@ -125,6 +137,9 @@ tlEnv* tlvm_global_env(tlVm* vm) {
 
     env = tlenv_set(null, env, tlSYM("out"), tlFUN(_out, tlSYM("out")));
     env = tlenv_set(null, env, tlSYM("bool"), tlFUN(_bool, tlSYM("bool")));
+    env = tlenv_set(null, env, tlSYM("eq"),  tlFUN(_eq,  tlSYM("eq")));
+    env = tlenv_set(null, env, tlSYM("neq"), tlFUN(_neq, tlSYM("neq")));
+    env = tlenv_set(null, env, tlSYM("gte"), tlFUN(_gte, tlSYM("gte")));
     env = tlenv_set(null, env, tlSYM("lte"), tlFUN(_lte, tlSYM("lte")));
     env = tlenv_set(null, env, tlSYM("not"), tlFUN(_not, tlSYM("not")));
     env = tlenv_set(null, env, tlSYM("add"), tlFUN(_add, tlSYM("add")));
