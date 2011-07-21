@@ -10,7 +10,7 @@ static tlArgs* v_args_empty;
 
 tlArgs* tlargs_new(tlTask* task, int size, tlSet* names) {
     if (!names) names = v_set_empty;
-    tlArgs* args = task_alloc(task, TLArgs, 2);
+    tlArgs* args = task_alloc(task, TLArgs, 3);
     args->list = tllist_new(task, size - tlset_size(names));
     args->map = tlmap_new(task, names);
     return args;
