@@ -13,14 +13,15 @@ Text = {
     slice = (begin, end)->{ _text_slice(this, begin, end) }
 }
 
+// TODO implemenet list_activate ...
 _host_classes = [
-    0, 1, 2, 3, 4, 5, Text, 7
+    0, 1, 2, 3, 4, 5, 6, 7, 8, Text, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
 ]
 
 _object_send2 = (object, class, name, args)->{
     field = _map_get(class, name)
     if field != undefined, (
-        if _callable_is(field), goto(field(this=object, args))
+        if _callable_is(field), goto(_method_invoke(field, args))
         return field
     )
     class = _map_get(class, #class)
@@ -29,13 +30,12 @@ _object_send2 = (object, class, name, args)->{
 }
 
 _object_send = (object, name)->{
-    print arguments, object
-    args = arguments;
     if _object_is(object), goto(_object_send2(object, object, name, args))
 
-    class = _map_get(_host_classes, _value_type(object))
+    class = Text //_list_get(_host_classes, _value_type(object))
     field = _map_get(class, name)
-    if _callable_is(field), goto(_callable_call(field, _map_set(args, #this, object)))
+    print("class:", class, "field:", field)
+    if _callable_is(field), goto(_method_invoke(field, args))
     return field
 }
 

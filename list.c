@@ -207,7 +207,46 @@ tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
     return nlist;
 }
 
+static tlValue _list_is(tlTask* task, tlArgs* args, tlRun* run) {
+    if (tllist_cast(tlargs_get(args, 0))) return tlTrue;
+    return tlFalse;
+}
+static tlValue _list_size(tlTask* task, tlArgs* args, tlRun* run) {
+    tlList* list = tllist_cast(tlargs_get(args, 0));
+    if (!list) return tlNull;
+    return tlINT(tllist_size(list));
+}
+static tlValue _list_get(tlTask* task, tlArgs* args, tlRun* run) {
+    tlList* list = tllist_cast(tlargs_get(args, 0));
+    if (!list) return tlNull;
+    int at = tl_int_or(tlargs_get(args, 1), -1);
+    if (at < 0) return tlNull;
+    tlValue res = tllist_get(list, at);
+    if (!res) return tlNull;
+    return res;
+}
+static tlValue _list_set(tlTask* task, tlArgs* args, tlRun* run) {
+    tlList* list = tllist_cast(tlargs_get(args, 0));
+    if (!list) return tlNull;
+    int at = tl_int_or(tlargs_get(args, 1), -1);
+    if (at < 0) return tlNull;
+    tlValue val = tlargs_get(args, 2);
+    if (!val) val = tlNull;
+    fatal("not implemented yet");
+    tlList* nlist = tlNull; //tllist_set(task, list, at, val);
+    return nlist;
+}
+
+static const tlHostFunctions __list_functions[] = {
+    { "_list_is",    _list_is },
+    { "_list_size",  _list_size },
+    { "_list_get",   _list_get },
+    { "_list_set",   _list_set },
+    { 0, 0 }
+};
+
 static void list_init() {
     v_list_empty = task_alloc(null, TLList, 0);
+    tl_register_functions(__list_functions);
 }
 

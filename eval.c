@@ -424,7 +424,7 @@ INTERNAL tlRun* run_args(tlTask* task, tlRunArgs* run) {
 
     tlArgs* args = run->args;
     if (!args) {
-        args = tlargs_new(task, argc, tlcall_get_names(call));
+        args = tlargs_new_names(task, argc, tlcall_get_names(call));
         tlargs_fn_set_(args, fn);
     }
 
@@ -555,7 +555,7 @@ INTERNAL tlRun* chain_args_fun(tlTask* task, tlRun* run, tlFun* fn, tlArgs* args
     trace("%p", run);
 
     tlRun* caller = setup_caller(task, run);
-    trace(">> NATIVE %p", fn);
+    trace(">> NATIVE %p %s", fn, tl_str(fn->data));
 
     tlValue v = fn->native(task, args, null);
     if (!v) v = tlNull;
@@ -731,24 +731,27 @@ static tlValue _callable_is(tlTask* task, tlArgs* args, tlRun* run) {
 }
 
 static tlValue _method_invoke(tlTask* task, tlArgs* args, tlRun* r) {
-    tlClosure* method = tlclosure_cast(tlargs_get(args, 0));
-    tlValue* oop = tlargs_get(args, 1);
-    tlMap* map = tlmap_cast(tlargs_get(args, 2));
-    if (!method) return tlNull;
+    tlValue fn = tlargs_get(args, 0);
+    assert(fn);
+    tlArgs* oldargs = tlargs_as(tlargs_get(args, 1));
+    assert(oldargs);
+    tlValue oop = tlargs_get(oldargs, 0);
+    assert(oop);
+    assert(tlargs_get(oldargs, 1)); // msg
 
-    tlRunCode* run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);
-    run->pc = 0;
-    run->env = method->env;
-    run->code = method->code;
+    tlMap* map = tlargs_map(oldargs);
+    map = tlmap_set(task, map, s_this, oop);
+    int size = tlargs_size(oldargs) - 2;
 
-    run->env = tlenv_set(task, run->env, s_this, oop);
-
-    // TODO do arguments and such from the map and defaults and such
-    if (map) {
+    tlList* list = tllist_new(task, size);
+    for (int i = 0; i < size; i++) {
+        tllist_set_(list, i, tlargs_get(oldargs, i + 2));
     }
-
-    run->env = tlenv_set_run(task, run->env, run);
-    return suspend(task, run);
+    tlArgs* nargs = tlargs_new(task, list, map);
+    tlargs_fn_set_(nargs, fn);
+    fatal("not implemented yet");
+    //return run_args(task, nargs);
+    return tlNull;
 }
 
 static const tlHostFunctions __eval_functions[] = {

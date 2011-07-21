@@ -26,20 +26,22 @@ uint8_t tl_type(tlValue v) {
 
 const char* const type_to_str[] = {
     "invalid",
+    "undefined", "null", "bool", "sym", "int",
 
-    "list", "set", "map", "object",
+    "<ERROR-TAGGED>",
+
     "num", "float",
     "text",
 
-    "arguments", "call",
+    "list", "set", "map",
+    "args", "call",
 
     "env",
-
-    "code",
     "closure",
     "fun",
     "run",
 
+    "code",
     "thunk",
     "result",
     "collect",
@@ -49,15 +51,12 @@ const char* const type_to_str[] = {
     "task",
 
     "<ERROR-LAST>",
-
-    "undefined", "null", "bool", "sym", "int",
-
-    "<ERROR>"
+    0, 0, 0, 0, 0, 0, 0, 0
 };
 
 const char* tl_type_str(tlValue v) {
     int type = tl_type(v);
-    assert(type >= 0 && type <= TLInt);
+    assert(type >= 0 && type < TL_TYPE_LAST);
     return type_to_str[type];
 }
 
@@ -99,11 +98,10 @@ static void value_init() {
 
 // creating value objects
 tlValue task_alloc(tlTask* task, uint8_t type, int size) {
-    assert(type > 0 && type < TLLAST);
+    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
     tlHead* head = (tlHead*)calloc(1, sizeof(tlHead) + sizeof(tlValue) * size);
     assert((((intptr_t)head) & 7) == 0);
     head->flags = 0;
-    assert(type > 0 && type < TLLAST);
     head->type = type;
     head->size = size;
     head->keep = 1;
@@ -117,7 +115,7 @@ tlValue task_alloc_priv(tlTask* task, uint8_t type, int size, uint8_t privs) {
     return (tlValue)head;
 }
 tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
-    assert(type > 0 && type < TLLAST);
+    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
     assert(privs <= 0x0F);
     bytes = bytes + ((size_t)datas + privs) * sizeof(tlValue);
     int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);

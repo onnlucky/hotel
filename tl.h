@@ -68,20 +68,23 @@ static const tlValue tlCollectEager = (tlHead*)(52 << 2);
 enum {
     TLInvalid = 0,
 
-    TLList, TLSet, TLMap, TLObject,
+    // these never appear in head->type since these are tagged
+    TLUndefined, TLNull, TLBool, TLSym, TLInt,
+
+    TL_TYPE_TAGGED,
 
     TLNum, TLFloat,
     TLText,
 
+    TLList, TLSet, TLMap,
     TLArgs, TLCall,
 
     TLEnv,
-
-    TLCode,
     TLClosure,
     TLFun,
     TLRun,
 
+    TLCode,
     TLThunk,
     TLResult,
     TLCollect,
@@ -89,11 +92,6 @@ enum {
 
     TLVar,
     TLTask,
-
-    TLLAST,
-
-    // these never appear in head->type since these are tagged
-    TLUndefined, TLNull, TLBool, TLSym, TLInt,
 
     TL_TYPE_LAST
 };
@@ -122,7 +120,7 @@ static inline int tllist_is(tlValue v) { return tlref_is(v) && tl_head(v)->type 
 static inline tlList* tllist_as(tlValue v) { assert(tllist_is(v)); return (tlList*)v; }
 static inline tlList* tllist_cast(tlValue v) { return tllist_is(v)?tllist_as(v):0; }
 
-static inline int tlmap_is(tlValue v) { return tlref_is(v) && tl_head(v)->type <= TLObject; }
+static inline int tlmap_is(tlValue v) { return tlref_is(v) && tl_head(v)->type == TLMap; }
 static inline tlMap* tlmap_as(tlValue v) { assert(tlmap_is(v)); return (tlMap*)v; }
 static inline tlMap* tlmap_cast(tlValue v) { return tlmap_is(v)?tlmap_as(v):0; }
 
