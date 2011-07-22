@@ -1,11 +1,5 @@
 # TODO
-add every function having args in their env
-implement map_slice and text_slice ...
-host functions must be allowed to take optional tlRun* run ... as continuation
-_method_invoke should add names and defaults ... and handle incoming map ... refactor that
-
 how to handle test/scope.tl ?? should close environment
-rework call (tlCall)
 implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup
 
@@ -15,17 +9,12 @@ clean up tl.h; nice up code.{h,c} and call.c
 only optimize after parser, inspect step: single tlAssign become just name ...
 return and goto can be implemented different: store the args of the to-return code run. Then find that in the stack and return it...
 
-add more arg processing:
-* no keys in -> no names + defaults in target
-* no keys in -> names + defaults in target
-* keys in -> no names in target
-* keys in -> names + defaults in target
+add default arguments using print = (sep=" ", end="\n")->{...} etc ...
 do collector and splays ...
+implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
 
 implement tasks and message sending primitives
 implement exceptions and handling (add onerror to tlCodeRun)
-implement keyworded argument passing into function
-implement default arguments for function
 implement defer (add defer[] to tlCodeRun)
 
 bring back a boot.tl library
@@ -42,15 +31,11 @@ optimize: parser pexpr and others lots of branches start out the same, let them 
 optimize: task->value by tagging as active incase of tResult or such?
 optimize: compile code by collecting all local names, use that as dict, and keep values inside run
 
-lookup should handle: #this, #body, #goto and some others
-
 do the open/close correctly; do close as lazy as possible? if x: return x ... no need to close/copy
 
 how to do gc? global+train vcc + local refcounted heap + nursery
 
 add static initializers, until first vm is created allow tlSYM("...") tlText("...") etc.
-
-implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
 
 implement lvalue assignment by giving tlCollect a run that holds on to the task->value in the mean time ...
 
@@ -75,6 +60,14 @@ If a name appears all by itself in single statement, it selfactivates ... the on
 so:
     print
 would actually print a newline ...
+
+implications, any bare statment is executed, so returning last value only works by typing:
+  return value
+not
+  value
+the latter will translate to
+  value()
+and fail
 
 # about continuations and flow control
 
