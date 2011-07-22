@@ -10,4 +10,3 @@ print = (a1)->{
 print("hello", 1, 2, 3, newline=true, foobar=false, something=199 + 188)
 print(newline=false)
 print()
-print
