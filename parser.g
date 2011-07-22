@@ -46,18 +46,50 @@ void try_name(tlSym name, tlValue v) {
 }
 
 tlValue map_activate(tlMap* map) {
-    bool active = false;
     int i = 0;
-    do {
+    int argc = 0;
+    for (int i = 0;; i++) {
         tlValue v = tlmap_value_iter(map, i);
         if (!v) break;
-        if (tlactive_is(v)) { active = true; break; }
-        if (tlcall_is(v)) { active = true; break; }
-        i++;
-    } while (true);
-    if (active) return tlACTIVE(map);
-    return map;
+        if (tlactive_is(v) || tlcall_is(v)) argc++;
+    }
+    if (!argc) return map;
+    tlCall* call = tlcall_new(null, argc + 1, null);
+    tlcall_set_fn_(call, tlACTIVE(tlSYM("_map_clone")));
+    tlcall_set_arg_(call, 0, map);
+    argc = 1;
+    for (int i = 0;; i++) {
+        tlValue v = tlmap_value_iter(map, i);
+        if (!v) break;
+        if (tlactive_is(v) || tlcall_is(v)) {
+            tlmap_value_iter_set_(map, i, null);
+            tlcall_set_arg_(call, argc++, v);
+        }
+    }
+    return call;
 }
+tlValue list_activate(tlList* list) {
+    int size = tllist_size(list);
+    int argc = 0;
+    for (int i = 0; i < size; i++) {
+        tlValue v = tllist_get(list, i);
+        if (tlactive_is(v) || tlcall_is(v)) argc++;
+    }
+    if (!argc) return list;
+    tlCall* call = tlcall_new(null, argc + 1, null);
+    tlcall_set_fn_(call, tlACTIVE(tlSYM("_list_clone")));
+    tlcall_set_arg_(call, 0, list);
+    argc = 1;
+    for (int i = 0; i < size; i++) {
+        tlValue v = tllist_get(list, i);
+        if (tlactive_is(v) || tlcall_is(v)) {
+            tllist_set_(list, i, null);
+            tlcall_set_arg_(call, argc++, v);
+        }
+    }
+    return call;
+}
+
 tlValue tlcall_value_iter(tlCall* call, int i);
 tlCall* tlcall_value_iter_set_(tlCall* call, int i, tlValue v);
 tlValue call_activate(tlValue in) {
@@ -316,7 +348,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
 
 #// TODO list_activate ...
-  list = "["__ is:litems __"]"   { $$ = is; }
+  list = "["__ is:litems __"]"   { $$ = list_activate(L(is)); }
 litems = v:expr eom is:litems   { $$ = tllist_prepend(TASK, L(is), v); }
        | v:expr                 { $$ = tllist_from1(TASK, v); }
        |                        { $$ = tllist_empty(); }

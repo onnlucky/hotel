@@ -59,15 +59,6 @@ typedef struct tlRunActivateCall {
     tlEnv* env;
     tlCall* call;
 } tlRunActivateCall;
-typedef struct tlRunActivateMap {
-    tlHead head;
-    intptr_t count;
-    tl_resume resume;
-    tlRun* caller;
-
-    tlEnv* env;
-    tlMap* map;
-} tlRunActivateMap;
 typedef struct tlRunFirst {
     tlHead head;
     intptr_t count;
@@ -230,18 +221,12 @@ void* tlrun_alloc(tlTask* task, size_t bytes, int datas, tl_resume resume) {
 INTERNAL tlRun* run_apply(tlTask* task, tlCall* call);
 INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlRun* run_activate_call(tlTask* task, tlRunActivateCall* run, tlCall* call, tlEnv* env);
-INTERNAL tlRun* run_activate_map(tlTask* task, tlRunActivateMap* run, tlMap* call, tlEnv* env);
 
 INTERNAL tlRun* resume_activate_call(tlTask* task, tlRun* r) {
     tlRunActivateCall* run = (tlRunActivateCall*)r;
     return run_activate_call(task, run, run->call, run->env);
 }
-INTERNAL tlRun* resume_activate_map(tlTask* task, tlRun* r) {
-    tlRunActivateMap* run = (tlRunActivateMap*)r;
-    return run_activate_map(task, run, run->map, run->env);
-}
 
-// TODO actually need to "call" the activated map ...
 INTERNAL tlRun* run_activate_call(tlTask* task, tlRunActivateCall* run, tlCall* call, tlEnv* env) {
     int i = 0;
     if (run) i = run->count;
@@ -277,39 +262,6 @@ INTERNAL tlRun* run_activate_call(tlTask* task, tlRunActivateCall* run, tlCall* 
     }
     trace2("%p << call: %d", run, tlcall_argc(call));
     tltask_set_value(task, call);
-    return null;
-}
-
-INTERNAL tlRun* run_activate_map(tlTask* task, tlRunActivateMap* run, tlMap* map, tlEnv* env) {
-    int i = 0;
-    if (run) i = run->count;
-    trace2("%p >> map: %d - %d", run, i, tlmap_size(map));
-
-    if (i < 0) {
-        i = -i - 1;
-        tlmap_value_iter_set_(map, i, tltask_value(task));
-        i++;
-    }
-    for (;; i++) {
-        tlValue v = tlmap_value_iter(map, i);
-        if (!v) break;
-        if (tlactive_is(v)) {
-            tlRun* r = run_activate(task, tlvalue_from_active(v), env);
-            if (r) {
-                if (!run) {
-                    run = tlrun_alloc(task, sizeof(tlRunActivateMap), 0, resume_activate_map);
-                    run->env = env;
-                }
-                run->count = -1 - i;
-                run->map = map;
-                return suspend_attach(task, r, run);
-            }
-            v = tltask_value(task);
-            tlmap_value_iter_set_(map, i, v);
-        }
-    }
-    trace2("%p << map: %d", run, tlmap_size(map));
-    tltask_set_value(task, map);
     return null;
 }
 
@@ -365,9 +317,6 @@ INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env) {
     }
     if (tlcall_is(v)) {
         return run_activate_call(task, null, tlcall_as(v), env);
-    }
-    if (tlmap_is(v)) {
-        return run_activate_map(task, null, tlmap_as(v), env);
     }
     assert(false);
 }

@@ -87,7 +87,7 @@ void tllist_set_(tlList* list, int at, tlValue v) {
     trace("%d <- %s", at, tl_str(v));
 
     assert(at >= 0 && at < tllist_size(list));
-    assert(list->data[at] == null || list->data[at] == tlNull);
+    assert(list->data[at] == null || list->data[at] == tlNull || v == null);
 
     list->data[at] = v;
 }
@@ -207,6 +207,17 @@ tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
     return nlist;
 }
 
+// called when list literals contain lookups or expressions to evaluate
+static tlValue _list_clone(tlTask* task, tlArgs* args, tlRun* run) {
+    tlList* list = tllist_cast(tlargs_get(args, 0));
+    int size = tllist_size(list);
+    list = task_clone(task, list);
+    int argc = 1;
+    for (int i = 0; i < size; i++) {
+        if (!list->data[i]) list->data[i] = tlargs_get(args, argc++);
+    }
+    return list;
+}
 static tlValue _list_is(tlTask* task, tlArgs* args, tlRun* run) {
     if (tllist_cast(tlargs_get(args, 0))) return tlTrue;
     return tlFalse;
@@ -238,6 +249,7 @@ static tlValue _list_set(tlTask* task, tlArgs* args, tlRun* run) {
 }
 
 static const tlHostFunctions __list_functions[] = {
+    { "_list_clone", _list_clone },
     { "_list_is",    _list_is },
     { "_list_size",  _list_size },
     { "_list_get",   _list_get },

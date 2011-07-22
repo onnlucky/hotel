@@ -199,7 +199,7 @@ void tlcall_set_fn_(tlCall* call, tlValue v);
 // ** list **
 int tllist_size(tlList* list);
 int tllist_is_empty(tlList* list);
-tlValue tllist_at(tlList* list);
+tlValue tllist_get(tlList* list, int at);
 
 tlList* tllist_empty();
 tlList* tllist_new(tlT, int size);
@@ -228,6 +228,7 @@ int tlmap_is_empty(tlMap* map);
 tlValue tlmap_get_int(tlMap* map, int key);
 tlValue tlmap_get_sym(tlMap* map, tlSym key);
 tlValue tlmap_value_iter(tlMap* map, int i);
+void tlmap_value_iter_set_(tlMap* map, int i, tlValue v);
 
 tlMap* tlmap_new(tlT, tlSet* keys);
 tlMap* tlmap_copy(tlT, tlMap* map);
