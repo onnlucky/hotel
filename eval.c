@@ -340,9 +340,11 @@ INTERNAL tlRun* lookup(tlTask* task, tlEnv* env, tlSym name) {
 INTERNAL tlRun* run_activate(tlTask* task, tlValue v, tlEnv* env) {
     trace("%s", tl_str(v));
     if (tlsym_is(v)) {
+        tlenv_close_captures(env);
         return lookup(task, env, v);
     }
     if (tlcode_is(v)) {
+        tlenv_captured(env); // half closes the environment
         tltask_set_value(task, tlclosure_new(task, tlcode_as(v), env));
         return null;
     }
@@ -502,7 +504,7 @@ INTERNAL tlRun* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tl
     if (!run) run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);
     run->resume = resume_code;
     run->pc = 0;
-    run->env = fn->env;
+    run->env = tlenv_new(task, fn->env);
     run->code = fn->code;
 
     tlList* names = fn->code->argnames;
@@ -591,8 +593,12 @@ tlRun* run_code(tlTask* task, tlRunCode* run) {
 
         // just a symbol means setting the current value under this name in env
         if (tlsym_is(op)) {
-            trace2("%p op: sym -- %s = %s", run, tl_str(op), tl_str(task->value));
-            env = tlenv_set(task, env, tlsym_as(op), task->value);
+            tlValue v = tltask_value(task);
+            trace2("%p op: sym -- %s = %s", run, tl_str(op), tl_str(v));
+            if (!tlclosure_is(v)) tlenv_close_captures(env);
+            env = tlenv_set(task, env, tlsym_as(op), v);
+            // this is good enough: every lookup will also close the environment
+            // and the only way we got a closure is by lookup or binding ...
             continue;
         }
 

@@ -4,10 +4,6 @@
 
 #include "trace-off.h"
 
-bool flag_closed_has(tlValue v) { return tl_head(v)->flags & TL_FLAG_CLOSED; }
-void flag_closed_clear(tlValue v) { tl_head(v)->flags &= ~TL_FLAG_CLOSED; }
-void flag_closed_set(tlValue v) { tl_head(v)->flags |= TL_FLAG_CLOSED; }
-
 struct tlEnv {
     tlHead head;
 
@@ -22,6 +18,7 @@ int tlenv_size(tlEnv* env) {
 }
 
 tlEnv* tlenv_new(tlTask* task, tlEnv* parent) {
+    trace("env new; parent: %p", parent);
     tlEnv* env = task_alloc(task, TLEnv, 3);
     env->parent = parent;
     env->map = v_map_empty;
@@ -29,14 +26,16 @@ tlEnv* tlenv_new(tlTask* task, tlEnv* parent) {
 }
 
 tlEnv* tlenv_copy(tlTask* task, tlEnv* env) {
+    trace("env copy: %p, parent: %p", env, env->parent);
     tlEnv* nenv = tlenv_new(task, env->parent);
     nenv->run = env->run;
     nenv->map = env->map;
     return nenv;
 }
 
+// TODO remove this for something better ...
 tlEnv* tlenv_set_run(tlTask* task, tlEnv* env, tlValue run) {
-    if (!flag_closed_has(env)) {
+    if (!tlflag_isset(env, TL_FLAG_CLOSED)) {
         env->run = run;
         return env;
     }
@@ -47,6 +46,14 @@ tlEnv* tlenv_set_run(tlTask* task, tlEnv* env, tlValue run) {
 }
 tlValue tlenv_get_run(tlEnv* env) { return env->run; }
 
+void tlenv_close_captures(tlEnv* env) {
+    if (tlflag_isset(env, TL_FLAG_CAPTURED)) {
+        tlflag_set(env, TL_FLAG_CLOSED);
+    }
+}
+void tlenv_captured(tlEnv* env) {
+    tlflag_set(env, TL_FLAG_CAPTURED);
+}
 tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key) {
     if (!env) {
         return tl_global(key);
@@ -55,7 +62,6 @@ tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key) {
 
     assert(tlenv_is(env));
     trace("%p.get %s", env, tl_str(key));
-    flag_closed_set(env);
 
     if (env->map) {
         tlValue v = tlmap_get_sym(env->map, key);
@@ -68,7 +74,7 @@ tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v) {
     assert(tlenv_is(env));
     trace("%p.set %s = %s", env, tl_str(key), tl_str(v));
 
-    if (flag_closed_has(env)) {
+    if (tlflag_isset(env, TL_FLAG_CLOSED)) {
         env = tlenv_copy(task, env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     } else if (tlmap_get_sym(env->map, key)) {

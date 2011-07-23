@@ -35,6 +35,7 @@ static const uint8_t TL_FLAG_HASKEYS = 0x10;
 static const uint8_t TL_FLAG_HASLIST = 0x20;
 static const uint8_t TL_FLAG_ISOBJECT = 0x40;
 
+static const uint8_t TL_FLAG_CAPTURED = 0x30;
 static const uint8_t TL_FLAG_CLOSED = 0x40;
 
 // static predefined value
