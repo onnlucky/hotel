@@ -133,8 +133,6 @@ void tlvm_delete(tlVm* vm) {
 tlEnv* tlvm_global_env(tlVm* vm) {
     tlEnv* env = tlenv_new(null, null);
 
-    env = tlenv_set(null, env, tlSYM("backtrace"), tlFUN(_backtrace, tlSYM("backtrace")));
-
     env = tlenv_set(null, env, tlSYM("out"), tlFUN(_out, tlSYM("out")));
     env = tlenv_set(null, env, tlSYM("bool"), tlFUN(_bool, tlSYM("bool")));
     env = tlenv_set(null, env, tlSYM("eq"),  tlFUN(_eq,  tlSYM("eq")));

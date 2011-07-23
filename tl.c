@@ -34,6 +34,20 @@ static tlValue _print(tlTask* task, tlArgs* args, tlRun* run) {
     return tlNull;
 }
 
+static tlValue _assert(tlTask* task, tlArgs* args, tlRun* run) {
+    tlText* text = tltext_cast(tlargs_map_get(args, tlSYM("text")));
+    if (!text) text = tltext_empty();
+    for (int i = 0; i < 1000; i++) {
+        tlValue v = tlargs_get(args, i);
+        if (!v) break;
+        if (!tl_bool(v)) {
+            //text = tltask_cat(task, tlTEXT("Assertion Failed: "), text);
+            return tltask_throw(task, text);
+        }
+    }
+    return tlNull;
+}
+
 // this is how to setup a vm
 int main(int argc, char** argv) {
     tlvm_init();
@@ -53,6 +67,9 @@ int main(int argc, char** argv) {
     tlEnv* env = tlvm_global_env(vm);
     tlFun* f_print = tlFUN(_print, tlSYM("print"));
     env = tlenv_set(null, env, tlSYM("print"), f_print);
+
+    tlFun* f_assert = tlFUN(_assert, tlSYM("assert"));
+    env = tlenv_set(null, env, tlSYM("assert"), f_assert);
 
     tlCode* code = tlcode_cast(parse(script));
     trace("PARSED");

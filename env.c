@@ -15,9 +15,7 @@ struct tlEnv {
     tlValue run;
     tlMap* map;
 };
-
-bool tlenv_is(tlValue v) { return tl_type(v) == TLEnv; }
-tlEnv* tlenv_as(tlValue v) { assert(tlenv_is(v)); return (tlEnv*)v; }
+TTYPE(tlEnv, tlenv, TLEnv);
 
 int tlenv_size(tlEnv* env) {
     return env->head.size - 4;

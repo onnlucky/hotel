@@ -86,6 +86,7 @@ struct tlRunCode {
     tlCode* code;
     tlEnv* env;
     tlRunCode* parent;
+    tlClosure* handler;
 };
 
 tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env) {
@@ -138,23 +139,49 @@ void assert_backtrace(tlRun* run) {
     if (run) fatal("STACK CORRUPTED");
 }
 
-INTERNAL tlRun* resume_code(tlTask* task, tlRun* r);
-INTERNAL void print_backtrace(tlRun* r) {
+INTERNAL tlRun* resume_code(tlTask* task, tlRun* run);
+bool tlrun_iscode(tlRun* run) { return run && run->resume == resume_code; }
+tlRunCode* tlrun_ascode(tlRun* run) { assert(tlrun_iscode(run)); return (tlRunCode*)run; }
+
+INTERNAL void print_backtrace(tlRun* run) {
     print("BACKTRACE:");
-    while (r) {
-        if (r->resume == resume_code) {
-            tlSym name = ((tlRunCode*)r)->code->name;
+    while (run) {
+        if (tlrun_iscode(run)) {
+            tlSym name = tlrun_ascode(run)->code->name;
             if (name) print("  %s", tl_str(name));
             else print("  <anon>");
         } else {
-            print("  <native: %p>", r);
+            print("  <native: %p>", run);
         }
-        r = r->caller;
+        run = run->caller;
     }
 }
-INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args, tlRun* run) {
-    print_backtrace(task->run);
-    return tlNull;
+
+INTERNAL tlRun* tltask_throw(tlTask* task, tlValue exception) {
+    trace("throwing: %s", tl_str(exception));
+    task->jumping = tlTrue;
+    task->exception = exception;
+    tlRun* run = task->run;
+    task->run = null;
+    while (run) {
+        if (tlrun_iscode(run)) {
+            tlClosure* handler = tlrun_ascode(run)->handler;
+            if (handler) {
+                tlCall* call = tlcall_new(task, 1, null);
+                tlcall_set_fn_(call, handler);
+                tlcall_set_arg_(call, 0, exception);
+                // TODO attach current task somehow
+                tlRun* run2 = run_apply(task, call);
+                assert(run2 && run2->caller == null);
+                run2->caller = run->caller;
+                return run2;
+            }
+        }
+        // TODO this is *not* correct, should be lexical, not caller ...
+        run = run->caller;
+    }
+    fatal("uncaught exception");
+    return null;
 }
 
 INTERNAL tlRun* setup(tlTask* task, tlValue v) {
@@ -301,7 +328,11 @@ INTERNAL tlRun* lookup(tlTask* task, tlEnv* env, tlSym name) {
         trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
     }
-    tltask_set_value(task, tlenv_get(task, env, name));
+    tlValue v = tlenv_get(task, env, name);
+    if (!v) {
+        return tltask_throw(task, tlTEXT("not found"));
+    }
+    tltask_set_value(task, v);
     trace("%s -> %s", tl_str(name), tl_str(task->value));
     return null;
 }
@@ -668,9 +699,19 @@ INTERNAL void run_resume(tlTask* task, tlRun* run) {
     run->resume(task, run);
 }
 
-
 // ** integration **
 
+static tlValue _backtrace(tlTask* task, tlArgs* args, tlRun* run) {
+    print_backtrace(task->run);
+    return tlNull;
+}
+static tlValue _catch(tlTask* task, tlArgs* args, tlRun* run) {
+    tlValue block = tlargs_map_get(args, s_block);
+    assert(tlclosure_is(block));
+    assert(task->run->resume == resume_code);
+    ((tlRunCode*)task->run)->handler = block;
+    return tlNull;
+}
 static tlValue _callable_is(tlTask* task, tlArgs* args, tlRun* run) {
     tlValue v = tlargs_get(args, 0);
     if (!tlref_is(v)) return tlFalse;
@@ -684,7 +725,6 @@ static tlValue _callable_is(tlTask* task, tlArgs* args, tlRun* run) {
     }
     return tlFalse;
 }
-
 static tlValue _method_invoke(tlTask* task, tlArgs* args, tlRun* r) {
     tlValue fn = tlargs_get(args, 0);
     assert(fn);
@@ -708,6 +748,8 @@ static tlValue _method_invoke(tlTask* task, tlArgs* args, tlRun* r) {
 }
 
 static const tlHostFunctions __eval_functions[] = {
+    { "_backtrace", _backtrace },
+    { "_catch", _catch },
     { "_callable_is", _callable_is },
     { "_method_invoke", _method_invoke },
     { 0, 0 }

@@ -11,6 +11,7 @@ struct tlTask {
     tlHead head;
     tlValue worker; // a worker is a host level thread, and is current owner of task
     tlValue value;  // current value, if any; much like a "accumulator register"
+    tlValue exception; // current exception, if any
 
     // lqueue_item msg_item // tasks *are* the messages
     // lqueue_list msg_queue // this tasks message queue
