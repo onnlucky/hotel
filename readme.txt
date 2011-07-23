@@ -1,7 +1,9 @@
 # TODO
-how to handle test/scope.tl ?? should close environment
+implement more object and operator stuff
 implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup
+
+add a syntax for blocks like `catch: e -> print exception` and `arr.each(e -> print e)`
 
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
