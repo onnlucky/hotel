@@ -1,23 +1,23 @@
 # TODO
-implement more object and operator stuff
+fix return/goto when target has returned already ... what to do anyhow?
 implement operations (call(_op_invoke, #op, lhs, rhs)
-expose parsed code: tlBlock, tlCall, tlAssign, tlLookup
+
+expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?
+only optimize after parser, inspect step: single tlAssign become just name ...
 
 add a syntax for blocks like `catch: e -> print exception` and `arr.each(e -> print e)`
 
 sprinkle more INTERNAL around and such
 remove start_args ... we don't need to materialize its run all the time
 clean up tl.h; nice up code.{h,c} and call.c
-only optimize after parser, inspect step: single tlAssign become just name ...
-return and goto can be implemented different: store the args of the to-return code run. Then find that in the stack and return it...
 
 add default arguments using print = (sep=" ", end="\n")->{...} etc ...
-do collector and splays ...
+implement collector: x, *rest = multiple_return()
 implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
+implement lvalue assignment: mutable.field = fn()
 
 implement tasks and message sending primitives
-implement exceptions and handling (add onerror to tlCodeRun)
-implement defer (add defer[] to tlCodeRun)
+implement defer (add defer[] to tlCodeRun) or something ...
 
 bring back a boot.tl library
 implement serializing tlValue's to disk
@@ -29,17 +29,19 @@ experiment with refcounting, experiment with alloc pool per task for certain siz
 * think about how to defer refcounting to battle "churn"
 x = KEEP(v); return FREE(v); return PASS(v);
 
+optimize: parser should add all local names to code->envnames and env should use this ...
 optimize: parser pexpr and others lots of branches start out the same, let them share prefix ...
 optimize: task->value by tagging as active incase of tResult or such?
 optimize: compile code by collecting all local names, use that as dict, and keep values inside run
 
 do the open/close correctly; do close as lazy as possible? if x: return x ... no need to close/copy
 
-how to do gc? global+train vcc + local refcounted heap + nursery
+GC:
+* first, boehm will suffice
+* local refcounted/mutable heap with tracing collector
+* global heap = immutable, non-cyclic, or it can be, tasks can be mutable global dict
 
 add static initializers, until first vm is created allow tlSYM("...") tlText("...") etc.
-
-implement lvalue assignment by giving tlCollect a run that holds on to the task->value in the mean time ...
 
 
 # syntax design
