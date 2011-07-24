@@ -1,10 +1,9 @@
-foo = ->{ print "hello" }
-_task_new(foo)
-print "DONE"
+buf = _buffer_new()
+_task_send(buf, #write, "hello world")
+print _task_send(buf, #text)
 
 /*
-buf = _buffer_new()
-file = _file_open("/etc/passwd")
+file = null //_file_open("/etc/passwd")
 len = _task_send(file, #read, buf)
 print len
 print _task_send(buf, #text)

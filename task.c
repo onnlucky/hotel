@@ -146,7 +146,11 @@ static tlValue _task_new(tlTask* task, tlArgs* args, tlRun* run) {
 static tlValue _task_yield(tlTask* task, tlArgs* args, tlRun* run) {
     trace("%s", tl_str(task));
     task->state = TL_STATE_WAIT;
-    tltask_ready(task->worker->vm, task);
+    // TODO fix this maybe?
+    tlWorker* worker = task->worker;
+    task->worker = null;
+    tltask_ready(worker->vm, task);
+    task->worker = worker;
     return tlNull;
 }
 
