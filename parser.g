@@ -333,6 +333,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | f:fn t:tail                { $$ = set_target(t, tlACTIVE(f)); }
        | "("__ e:pexpr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body  __")" t:tail {
+           tlcode_set_isblock_(b, true);
            $$ = set_target(t, tlcall_from_args(TASK, tlACTIVE(b), tllist_empty()));
        }
        | v:value t:tail             { $$ = set_target(t, v); }

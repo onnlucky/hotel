@@ -9,12 +9,16 @@ and = (left, &right)->{ bool(left, right, ->{left})() }
 xor = (left,  right)->{ bool(left, bool(right, false, true), bool(right, true, false)) }
 
 Text = {
-    length = ->{ _text_size(this) }
+    size = ->{ _text_size(this) }
     slice = (begin, end)->{ _text_slice(this, begin, end) }
+}
+Map = {
+    size = ->{ _map_size(this) }
+    get = (k)->{ _map_get(this, k) }
 }
 
 _host_classes = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, Text, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20
+    0, 1, 2, 3, 4, 5, 6, 7, 8, Text, 10, 11, Map, 13, 14, 15, 16, 17, 18, 19, 20
 ]
 
 _object_send2 = (object, class, name, args)->{
@@ -24,7 +28,7 @@ _object_send2 = (object, class, name, args)->{
         return field
     )
     class = _map_get(class, #class)
-    if class, goto(_message_send2(object, class, name, args))
+    if class, goto(_object_send2(object, class, name, args))
     return null
 }
 
@@ -38,7 +42,9 @@ _object_send = (object, name)->{
     return field
 }
 
-print "hello".length 1, 2, 3, 4, 5
-print ">> DONE <<"
-print "hello world!".slice(1, -1)
+foobar = _object_from({ message = 100 })
+
+//print "hello".length 1, 2, 3, 4, 5
+//print "hello world!".slice(1, -1)
+print foobar.message
 

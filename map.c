@@ -497,6 +497,14 @@ static tlValue _object_is(tlTask* task, tlArgs* args, tlRun* run) {
     if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return tlTrue;
     return tlFalse;
 }
+static tlValue _object_from(tlTask* task, tlArgs* args, tlRun* run) {
+    tlValue map = tlmap_cast(tlargs_get(args, 0));
+    if (!map) return tlNull;
+    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return map;
+    map = task_clone(task, map);
+    tlflag_set(map, TL_FLAG_ISOBJECT);
+    return map;
+}
 static tlValue _map_size(tlTask* task, tlArgs* args, tlRun* run) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
     if (!map) return 0;
@@ -525,8 +533,9 @@ static tlValue _map_set(tlTask* task, tlArgs* args, tlRun* run) {
 static const tlHostFunctions __map_functions[] = {
     { "_map_clone", _map_clone },
     { "_map_dump",  _map_dump },
-    { "_map_is",    _object_is },
+    { "_map_is",    _map_is },
     { "_object_is", _object_is },
+    { "_object_from", _object_from },
     { "_map_size",  _map_size },
     { "_map_get",   _map_get },
     { "_map_set",   _map_set },

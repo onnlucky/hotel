@@ -1,8 +1,8 @@
 // this is how all tl values look in memory
 
-bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
-void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
-void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
+INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
+INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
+INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
 uint8_t tl_type(tlValue v) {
     if ((intptr_t)v & 1) return TLInt;
