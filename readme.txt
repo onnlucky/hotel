@@ -1,7 +1,10 @@
 # TODO
+test/reason about functions that like to schedule stuff and what to return ...
 fix return/goto when target has returned already ... what to do anyhow?
 fix task_alloc, rename to value_alloc, use sizeof(impl) not field count
 throw exceptions a little bit better, at least cat texts with message ...
+clean up task.c arrange things around tlResult and such ...
+
 
 implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?

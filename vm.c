@@ -134,12 +134,14 @@ void tlworker_run(tlWorker* worker) {
     tlVm* vm = worker->vm;
     while (true) {
         tlTask* task = tltask_from_entry(lqueue_get(&vm->run_q));
-        if (!task) return;
+        if (!task) break;
+        trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
         assert(task->work);
         tlworker_attach(worker, task);
         task->work(task);
         tlworker_detach(worker, task);
     }
+    trace(">>>> WORKER DONE <<<<");
 }
 
 tlWorker* tlworker_new(tlVm* vm) {

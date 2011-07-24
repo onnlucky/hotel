@@ -18,6 +18,12 @@ struct tlWorker {
 };
 TTYPE(tlWorker, tlworker, TLWorker);
 
+// TODO move this around a bit
+typedef struct tlResult tlResult;
+tlResult* tlresult_new(tlTask* task, tlArgs* args);
+tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
+void tlresult_set_(tlResult* res, int at, tlValue v);
+
 typedef void (*tl_workfn)(tlTask*);
 
 typedef enum {
@@ -123,6 +129,10 @@ void tltask_ready(tlVm* vm, tlTask* task) {
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
 }
+
+
+// ** host **
+
 static tlValue _task_new(tlTask* task, tlArgs* args, tlRun* run) {
     tlValue fn = tlargs_get(args, 0);
     assert(task && task->worker && task->worker->vm);
@@ -133,8 +143,73 @@ static tlValue _task_new(tlTask* task, tlArgs* args, tlRun* run) {
     return ntask;
 }
 
+static tlValue _task_yield(tlTask* task, tlArgs* args, tlRun* run) {
+    trace("%s", tl_str(task));
+    task->state = TL_STATE_WAIT;
+    tltask_ready(task->worker->vm, task);
+    return tlNull;
+}
+
+static tlValue _task_send(tlTask* task, tlArgs* args, tlRun* run) {
+    tlTask* to = tltask_cast(tlargs_get(args, 0));
+    assert(to && to != task);
+    assert(to->state != TL_STATE_DONE);
+    tlTask* root = to->blocked_on;
+    while (root) {
+        if (root == task) fatal("cyclic message");
+        root = root->blocked_on;
+    }
+
+    task->state = TL_STATE_WAIT;
+    task->blocked_on = to;
+
+    tlResult* msg = tlresult_new(to, args);
+    tlresult_set_(msg, 0, task);
+
+    // direct send
+    if (to->state == TL_STATE_WAIT && !to->blocked_on) {
+        trace("direct send");
+        to->value = msg;
+        tltask_ready(task->worker->vm, to);
+        return null;
+    }
+
+    // indirect send
+    trace("indirect send; appending to queue");
+    task->value = msg;
+    lqueue_put(&to->msg_q, &task->entry);
+    return null;
+}
+
+static tlValue _task_receive(tlTask* task, tlArgs* args, tlRun* run) {
+    tlTask* from = tltask_from_entry(lqueue_get(&task->msg_q));
+    trace("receive: %p %s <- %p %s", task, tl_str(task), from, tl_str(from));
+    if (from) {
+        return from->value;
+    }
+    task->state = TL_STATE_WAIT;
+    return null;
+}
+
+static tlValue _task_reply(tlTask* task, tlArgs* args, tlRun* run) {
+    tlTask* to = tltask_cast(tlargs_get(args, 0));
+    assert(to && to != task);
+    assert(to->blocked_on == task);
+
+    trace("reply: %p %s -> %p %s", task, tl_str(task), to, tl_str(to));
+    tlResult* msg = tlresult_new_skip(to, args);
+    to->value = msg;
+    to->blocked_on = null;
+    tltask_ready(task->worker->vm, to);
+    return tlNull;
+}
+
 static const tlHostFunctions __task_functions[] = {
     { "_task_new", _task_new },
+    { "_task_yield", _task_yield },
+    { "_task_send", _task_send },
+    { "_task_receive", _task_receive },
+    { "_task_reply", _task_reply },
     { 0, 0 }
 };
 

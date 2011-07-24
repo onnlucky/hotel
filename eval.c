@@ -36,10 +36,10 @@ typedef struct tlThunk {
     tlHead head;
     tlValue value;
 } tlThunk;
-typedef struct tlResult {
+struct tlResult {
     tlHead head;
     tlValue data[];
-} tlResult;
+};
 typedef struct tlCollect {
     tlHead head;
     tlValue data[];
@@ -103,7 +103,6 @@ tlValue tlcollect_new_(tlTask* task, tlList* list) {
     list->head.type = TLCollect;
     return list;
 }
-// TODO fix these two functions, map size is not same as int mapped values ...
 tlResult* tlresult_new(tlTask* task, tlArgs* args) {
     int size = tlargs_size(args);
     tlResult* res = task_alloc(task, TLResult, size);
@@ -120,6 +119,18 @@ tlResult* tlresult_new2(tlTask* task, tlValue first, tlArgs* args) {
         res->data[i + 1] = tlargs_get(args, i);
     }
     return res;
+}
+tlResult* tlresult_new_skip(tlTask* task, tlArgs* args) {
+    int size = tlargs_size(args);
+    tlResult* res = task_alloc(task, TLResult, size - 1);
+    for (int i = 1; i < size; i++) {
+        res->data[i - 1] = tlargs_get(args, i);
+    }
+    return res;
+}
+void tlresult_set_(tlResult* res, int at, tlValue v) {
+    assert(at >= 0 && at < res->head.size);
+    res->data[at] = v;
 }
 tlValue tlresult_get(tlValue v, int at) {
     assert(at >= 0);
@@ -554,6 +565,10 @@ INTERNAL tlRun* chain_args_fun(tlTask* task, tlFun* fn, tlArgs* args, tlRun* run
     trace(">> NATIVE %p %s", fn, tl_str(fn->data));
 
     tlValue v = fn->native(task, args, null);
+    if (!v) {
+        assert(task->state != TL_STATE_RUN);
+        return null;
+    }
     if (!v) v = tlNull;
     if (tlrun_is(v)) return suspend_attach(task, v, caller);
 
