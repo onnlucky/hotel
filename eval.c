@@ -85,7 +85,6 @@ struct tlRunCode {
 
     tlCode* code;
     tlEnv* env;
-    tlRunCode* parent;
     tlClosure* handler;
 };
 
@@ -218,7 +217,22 @@ INTERNAL tlValue _return(tlTask* task, tlArgs* args, tlRun* run) {
     trace("RETURN(%d)", tlargs_size(args));
 
     task->jumping = tlTrue;
-    setup(task, tlfun_as(args->fn)->data);
+
+    tlFun* fn = tlfun_as(args->fn);
+    tlArgs* as = tlargs_as(fn->data);
+    run = task->run;
+    tlRun* caller = null;
+    while (run) {
+        if (tlrun_iscode(run)) {
+            if (tlrun_ascode(run)->env->args == as) {
+                caller = run->caller;
+                break;
+            }
+        }
+        run = run->caller;
+    }
+
+    setup(task, caller);
 
     if (tlargs_size(args) == 1) return tlargs_get(args, 0);
     return tlresult_new(task, args);
@@ -292,32 +306,20 @@ INTERNAL tlRun* run_activate_call(tlTask* task, tlRunActivateCall* run, tlCall* 
     return null;
 }
 
-// TODO we should really not be passing runs through environments
-tlRunCode* get_function_run(tlRun* r) {
-    tlRunCode* run = (tlRunCode*)r;
-    if (!run) return null;
-    assert(tlrun_is(run));
-    assert(run->resume == resume_code);
-    while (run && tlcode_isblock(run->code)) {
-        run = tlenv_get_run(run->env->parent);
-    }
-    return run;
-}
-
 // lookups potentially need to run hotel code (not yet though)
 INTERNAL tlRun* lookup(tlTask* task, tlEnv* env, tlSym name) {
     // when we bind continuations, the task->run *MUST* be the current code run
     if (name == s_return) {
         assert(task->run && task->run->resume == resume_code);
-        tlRunCode* run = get_function_run(task->run);
-        tltask_set_value(task, tlfun_new(task, _return, run->caller));
+        tlArgs* args = tlenv_get_args(env);
+        tltask_set_value(task, tlfun_new(task, _return, args));
         trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
     }
     if (name == s_goto) {
         assert(task->run && task->run->resume == resume_code);
-        tlRunCode* run = get_function_run(task->run);
-        tltask_set_value(task, tlfun_new(task, _goto, run->caller));
+        tlArgs* args = tlenv_get_args(env);
+        tltask_set_value(task, tlfun_new(task, _goto, args));
         trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
     }
@@ -500,12 +502,14 @@ INTERNAL tlRun* resume_code(tlTask* task, tlRun* r) {
 }
 
 INTERNAL tlRun* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tlRun* oldrun) {
-    tlRunCode* run = (tlRunCode*)oldrun;
-    if (!run) run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);
+    tlRunCode* run = tlrun_alloc(task, sizeof(tlRunCode), 0, resume_code);
     run->resume = resume_code;
     run->pc = 0;
     run->env = tlenv_new(task, fn->env);
     run->code = fn->code;
+    if (oldrun) run->caller = oldrun->caller;
+    task->run = (tlRun*)run;
+    free(oldrun);
 
     tlList* names = fn->code->argnames;
     tlMap* defaults = fn->code->argdefaults;
@@ -532,11 +536,14 @@ INTERNAL tlRun* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tl
             run->env = tlenv_set(task, run->env, name, v);
         }
     }
-    run->env = tlenv_set(task, run->env, s_args, args);
+    if (!tlcode_isblock(fn->code)) {
+        run->env = tlenv_set_args(task, run->env, args);
+        // TODO remove this ...
+        run->env = tlenv_set(task, run->env, s_args, args);
+    }
+    // the *only* dynamically scoped name
     tlValue oop = tlargs_map_get(args, s_this);
     if (oop) run->env = tlenv_set(task, run->env, s_this, oop);
-    // TODO this can and should be removed
-    run->env = tlenv_set_run(task, run->env, run);
     return run_code(task, run);
 }
 
@@ -647,7 +654,19 @@ INTERNAL tlRun* run_goto(tlTask* task, tlCall* call, tlFun* fn) {
     // TODO handle multiple arguments ... but what does that mean?
     assert(tlcall_argc(call) == 1);
 
-    tlRun* caller = tlrun_as(fn->data);
+    tlArgs* args = tlargs_as(fn->data);
+    tlRun* run = task->run;
+    tlRun* caller = null;
+    while (run) {
+        if (tlrun_iscode(run)) {
+            if (tlrun_ascode(run)->env->args == args) {
+                caller = run->caller;
+                break;
+            }
+        }
+        run = run->caller;
+    }
+
     setup(task, caller);
 
     tlValue v = tlcall_get_arg(call, 0);

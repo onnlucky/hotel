@@ -8,7 +8,7 @@ struct tlEnv {
     tlHead head;
 
     tlEnv* parent;
-    tlValue run;
+    tlArgs* args;
     tlMap* map;
 };
 TTYPE(tlEnv, tlenv, TLEnv);
@@ -28,23 +28,25 @@ tlEnv* tlenv_new(tlTask* task, tlEnv* parent) {
 tlEnv* tlenv_copy(tlTask* task, tlEnv* env) {
     trace("env copy: %p, parent: %p", env, env->parent);
     tlEnv* nenv = tlenv_new(task, env->parent);
-    nenv->run = env->run;
+    nenv->args = env->args;
     nenv->map = env->map;
     return nenv;
 }
 
-// TODO remove this for something better ...
-tlEnv* tlenv_set_run(tlTask* task, tlEnv* env, tlValue run) {
+tlEnv* tlenv_set_args(tlTask* task, tlEnv* env, tlArgs* args) {
     if (!tlflag_isset(env, TL_FLAG_CLOSED)) {
-        env->run = run;
+        env->args = args;
         return env;
     }
-
     env = tlenv_copy(task, env);
-    env->run = run;
+    env->args = args;
     return env;
 }
-tlValue tlenv_get_run(tlEnv* env) { return env->run; }
+tlArgs* tlenv_get_args(tlEnv* env) {
+    if (!env) return null;
+    if (env->args) return env->args;
+    return tlenv_get_args(env->parent);
+}
 
 void tlenv_close_captures(tlEnv* env) {
     if (tlflag_isset(env, TL_FLAG_CAPTURED)) {

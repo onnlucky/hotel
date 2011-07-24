@@ -29,7 +29,7 @@ _object_send2 = (object, class, name, args)->{
     )
     class = _map_get(class, #class)
     if class, goto(_object_send2(object, class, name, args))
-    return null
+    return undefined
 }
 
 _object_send = (object, name)->{
@@ -44,7 +44,8 @@ _object_send = (object, name)->{
 
 foobar = _object_from({ message = 100 })
 
-//print "hello".length 1, 2, 3, 4, 5
-//print "hello world!".slice(1, -1)
+print "hello".length 1, 2, 3, 4, 5
+print "hello world!".slice(1, -1)
 print foobar.message
+print foobar.foobar
 
