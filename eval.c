@@ -159,7 +159,6 @@ INTERNAL void print_backtrace(tlRun* run) {
 INTERNAL tlRun* tltask_throw(tlTask* task, tlValue exception) {
     trace("throwing: %s", tl_str(exception));
     task->jumping = tlTrue;
-    task->exception = exception;
     tlRun* run = task->run;
     task->run = null;
     while (run) {
@@ -176,9 +175,10 @@ INTERNAL tlRun* tltask_throw(tlTask* task, tlValue exception) {
                 return run2;
             }
         }
-        // TODO this is *not* correct, should be lexical, not caller ...
         run = run->caller;
     }
+    // TODO should not go fatal ... instead, stop this task
+    task->exception = exception;
     fatal("uncaught exception");
     return null;
 }

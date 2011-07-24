@@ -47,10 +47,12 @@ const char* const type_to_str[] = {
     "collect",
     "error",
 
-    "var",
     "task",
+    "worker",
+    "vm",
 
     "<ERROR-LAST>",
+
     0, 0, 0, 0, 0, 0, 0, 0
 };
 

@@ -62,8 +62,10 @@ int main(int argc, char** argv) {
     assert(script);
 
     tlVm* vm = tlvm_new();
-    tlTask* task = tlvm_create_task(vm);
+    tlWorker* worker = tlworker_new(vm);
+    tlTask* task = tltask_new(vm);
 
+    tlworker_attach(worker, task);
     tlEnv* env = tlvm_global_env(vm);
     tlFun* f_print = tlFUN(_print, tlSYM("print"));
     env = tlenv_set(null, env, tlSYM("print"), f_print);
@@ -75,13 +77,22 @@ int main(int argc, char** argv) {
     trace("PARSED");
     assert(code);
 
-    tlClosure* fn = tlclosure_new(null, code, env);
-    tltask_call(task, tlcall_from(null, fn, null));
+    tlClosure* fn = tlclosure_new(task, code, env);
+    tltask_call(task, tlcall_from(task, fn, null));
+    tlworker_detach(worker, task);
 
-    trace("STEPPING");
-    while (task->run) tltask_step(task);
+    tltask_ready(vm, task);
 
+    trace("RUNNING");
+    tlworker_run(worker);
     trace("DONE");
+
+    tlValue ex = tltask_exception(task);
+    if (ex) {
+        printf("%s\n", tl_str(ex));
+        return 1;
+    }
+
     tlValue v = tltask_value(task);
     if (tl_bool(v)) printf("%s\n", tl_str(v));
     tlvm_delete(vm);

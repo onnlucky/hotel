@@ -1,3 +1,25 @@
+foo = ->{ print "hello" }
+_task_new(foo)
+print "DONE"
+
+/*
+buf = _buffer_new()
+file = _file_open("/etc/passwd")
+len = _task_send(file, #read, buf)
+print len
+print _task_send(buf, #text)
+
+/*
+collect_block = (block)->{ return block }
+test = ->{
+    collect_block:
+        return "ERROR 1"
+        print "ERROR 2"
+}
+test()()
+print "OK"
+
+/*
 fatal = ->{ FATAL }
 if = (cond, &tb, &fb)->{ goto(bool(cond, tb, fb)()) }
 while = (&cond, body)->{

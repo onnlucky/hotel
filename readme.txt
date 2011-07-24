@@ -1,7 +1,9 @@
 # TODO
 fix return/goto when target has returned already ... what to do anyhow?
-implement operations (call(_op_invoke, #op, lhs, rhs)
+fix task_alloc, rename to value_alloc, use sizeof(impl) not field count
+throw exceptions a little bit better, at least cat texts with message ...
 
+implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?
 only optimize after parser, inspect step: single tlAssign become just name ...
 

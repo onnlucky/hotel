@@ -91,8 +91,9 @@ enum {
     TLCollect,
     TLError,
 
-    TLVar,
     TLTask,
+    TLWorker,
+    TLVm,
 
     TL_TYPE_LAST
 };
@@ -281,7 +282,7 @@ tlWorker* tltask_get_worker(tlT);
 tlValue tltask_value(tlT);
 tlValue tltask_exception(tlT);
 
-void tltask_ready(tlT);
+void tltask_ready(tlVm* vm, tlTask* task);
 void tltask_call(tlT, tlCall* args);
 
 typedef int tlRES;

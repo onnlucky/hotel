@@ -106,29 +106,56 @@ void tlvm_init() {
     //call_init();
 
     eval_init();
+    task_init();
 }
 
+// when outside of vm, be your own worker, and attach it to tasks
 void tlworker_attach(tlWorker* worker, tlTask* task) {
-    //assert(task->vm == worker->vm);
+    assert(tlworker_is(worker));
+    assert(tltask_is(task));
+    assert(worker->vm);
     assert(!task->worker);
+
     task->worker = worker;
 }
 
 void tlworker_detach(tlWorker* worker, tlTask* task) {
+    assert(tlworker_is(worker));
+    assert(tltask_is(task));
     assert(task->worker == worker);
+
     task->worker = null;
 }
 
+// when outside of vm, make it all run by calling this function
 void tlworker_run(tlWorker* worker) {
-    tlTask* task = null; //TODO worker->task;
-    while (task->run) tltask_step(task);
+    assert(tlworker_is(worker));
+    assert(tlvm_is(worker->vm));
+    tlVm* vm = worker->vm;
+    while (true) {
+        tlTask* task = tltask_from_entry(lqueue_get(&vm->run_q));
+        if (!task) return;
+        assert(task->work);
+        tlworker_attach(worker, task);
+        task->work(task);
+        tlworker_detach(worker, task);
+    }
 }
 
+tlWorker* tlworker_new(tlVm* vm) {
+    tlWorker* worker = calloc(1, sizeof(tlWorker));
+    worker->head.type = TLWorker;
+    worker->vm = vm;
+    return worker;
+}
+void tlworker_delete(tlWorker* worker) { free(worker); }
+
 tlVm* tlvm_new() {
-    return null;
+    tlVm* vm = calloc(1, sizeof(tlVm));
+    vm->head.type = TLVm;
+    return vm;
 }
-void tlvm_delete(tlVm* vm) {
-}
+void tlvm_delete(tlVm* vm) { free(vm); }
 
 tlEnv* tlvm_global_env(tlVm* vm) {
     tlEnv* env = tlenv_new(null, null);
@@ -148,11 +175,4 @@ tlEnv* tlvm_global_env(tlVm* vm) {
     return env;
 }
 
-tlTask* tlvm_create_task(tlVm* vm) {
-    return tltask_new(vm);
-}
-
-tlWorker* tlvm_create_worker(tlVm* vm) {
-    return null;
-}
 
