@@ -22,71 +22,81 @@
 
 #include "trace-off.h"
 
-static tlValue _out(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _out(tlTask* task, tlArgs* args) {
     trace("out(%d)", tlargs_size(args));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlargs_get(args, i);
         if (!v) break;
-        printf("%s", tltext_bytes(tlvalue_to_text(task, v)));
+        printf("%s", tltext_data(tlvalue_to_text(task, v)));
     }
     fflush(stdout);
-    return tlNull;
+    TL_RETURN(tlNull);
 }
 
-static tlValue _bool(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _bool(tlTask* task, tlArgs* args) {
     tlValue c = tlargs_get(args, 0);
-    trace("BOOL: %s", tl_bool(c)?"true":"false");
+    trace("bool(%s)", tl_bool(c)?"true":"false");
     tlValue res = tlargs_get(args, tl_bool(c)?1:2);
-    if (!res) return tlNull;
-    return res;
+    TL_RETURN(res);
 }
-static tlValue _eq(tlTask* task, tlArgs* args, tlRun* run) {
-    trace("%p == %p", tlargs_get(args, 0), tlargs_get(args, 1));
-    return tlBOOL(tlargs_get(args, 0) == tlargs_get(args, 1));
+static tlRun* _not(tlTask* task, tlArgs* args) {
+    trace("!%s", t_str(tlargs_get(args, 0)));
+    TL_RETURN(tlBOOL(!tl_bool(tlargs_get(args, 0))));
 }
-static tlValue _neq(tlTask* task, tlArgs* args, tlRun* run) {
-    trace("%p != %p", tlargs_get(args, 0), tlargs_get(args, 1));
-    return tlBOOL(tlargs_get(args, 0) != tlargs_get(args, 1));
+static tlRun* _eq(tlTask* task, tlArgs* args) {
+    trace("%p === %p", tlargs_get(args, 0), tlargs_get(args, 1));
+    TL_RETURN(tlBOOL(tlargs_get(args, 0) == tlargs_get(args, 1)));
 }
-static tlValue _gte(tlTask* task, tlArgs* args, tlRun* run) {
-    trace("%d >= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
-    return tlBOOL(tl_int(tlargs_get(args, 0)) >= tl_int(tlargs_get(args, 1)));
-}
-static tlValue _lte(tlTask* task, tlArgs* args, tlRun* run) {
-    trace("%d <= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
-    return tlBOOL(tl_int(tlargs_get(args, 0)) <= tl_int(tlargs_get(args, 1)));
-}
-static tlValue _not(tlTask* task, tlArgs* args, tlRun* run) {
-    trace("NOT: %s", t_str(tlargs_get(args, 0)));
-    return tlBOOL(!tl_bool(tlargs_get(args, 0)));
+static tlRun* _neq(tlTask* task, tlArgs* args) {
+    trace("%p !== %p", tlargs_get(args, 0), tlargs_get(args, 1));
+    TL_RETURN(tlBOOL(tlargs_get(args, 0) != tlargs_get(args, 1)));
 }
 
-static tlValue _add(tlTask* task, tlArgs* args, tlRun* run) {
+// TODO only for ints ...
+static tlRun* _lt(tlTask* task, tlArgs* args) {
+    trace("%d < %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
+    TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) < tl_int(tlargs_get(args, 1))));
+}
+static tlRun* _lte(tlTask* task, tlArgs* args) {
+    trace("%d <= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
+    TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) <= tl_int(tlargs_get(args, 1))));
+}
+static tlRun* _gt(tlTask* task, tlArgs* args) {
+    trace("%d > %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
+    TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) > tl_int(tlargs_get(args, 1))));
+}
+static tlRun* _gte(tlTask* task, tlArgs* args) {
+    trace("%d >= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
+    TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) >= tl_int(tlargs_get(args, 1))));
+}
+
+static tlRun* _add(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) + tl_int(tlargs_get(args, 1));
     trace("ADD: %d", res);
-    return tlINT(res);
+    TL_RETURN(tlINT(res));
 }
-static tlValue _sub(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _sub(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) - tl_int(tlargs_get(args, 1));
     trace("SUB: %d", res);
-    return tlINT(res);
+    TL_RETURN(tlINT(res));
 }
-static tlValue _mul(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _mul(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) * tl_int(tlargs_get(args, 1));
     trace("MUL: %d", res);
-    return tlINT(res);
+    TL_RETURN(tlINT(res));
 }
-static tlValue _div(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _div(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) / tl_int(tlargs_get(args, 1));
     trace("DIV: %d", res);
-    return tlINT(res);
+    TL_RETURN(tlINT(res));
 }
-static tlValue _mod(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _mod(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) % tl_int(tlargs_get(args, 1));
     trace("MOD: %d", res);
-    return tlINT(res);
+    TL_RETURN(tlINT(res));
 }
 
+static void vm_init();
 void tlvm_init() {
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
@@ -107,6 +117,7 @@ void tlvm_init() {
 
     eval_init();
     task_init();
+    vm_init();
 }
 
 // when outside of vm, be your own worker, and attach it to tasks
@@ -162,8 +173,7 @@ void tlvm_delete(tlVm* vm) { free(vm); }
 tlEnv* tlvm_global_env(tlVm* vm) {
     tlEnv* env = tlenv_new(null, null);
 
-    env = tlenv_set(null, env, tlSYM("out"), tlFUN(_out, tlSYM("out")));
-    env = tlenv_set(null, env, tlSYM("bool"), tlFUN(_bool, tlSYM("bool")));
+    /*
     env = tlenv_set(null, env, tlSYM("eq"),  tlFUN(_eq,  tlSYM("eq")));
     env = tlenv_set(null, env, tlSYM("neq"), tlFUN(_neq, tlSYM("neq")));
     env = tlenv_set(null, env, tlSYM("gte"), tlFUN(_gte, tlSYM("gte")));
@@ -174,7 +184,33 @@ tlEnv* tlvm_global_env(tlVm* vm) {
     env = tlenv_set(null, env, tlSYM("mul"), tlFUN(_mul, tlSYM("mul")));
     env = tlenv_set(null, env, tlSYM("div"), tlFUN(_div, tlSYM("div")));
     env = tlenv_set(null, env, tlSYM("mod"), tlFUN(_mod, tlSYM("mod")));
+    */
     return env;
 }
 
+static const tlHostCbs __vm_hostcbs[] = {
+    { "out",  _out },
+    { "bool", _bool },
+    { "not",  _not },
+
+    { "eq",   _eq },
+    { "neq",  _neq },
+
+    { "lt",   _lt },
+    { "lte",  _lte },
+    { "gt",   _gt },
+    { "gte",  _gte },
+
+    { "add",  _add },
+    { "sub",  _sub },
+    { "mul",  _mul },
+    { "div",  _div },
+    { "mod",  _mod },
+
+    { 0, 0 },
+};
+
+static void vm_init() {
+    tl_register_hostcbs(__vm_hostcbs);
+}
 

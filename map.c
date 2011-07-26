@@ -472,65 +472,66 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
 #endif
 
 // called when map literals contain lookups or expressions to evaluate
-static tlValue _map_clone(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _map_clone(tlTask* task, tlArgs* args) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
+    if (!map) TL_THROW("Expected a map");
     int size = tlmap_size(map);
     map = task_clone(task, map);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!map->data[i]) map->data[i] = tlargs_get(args, argc++);
     }
-    return map;
+    TL_RETURN(map);
 }
-static tlValue _map_dump(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _map_dump(tlTask* task, tlArgs* args) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
-    if (!map) return tlNull;
+    if (!map) TL_THROW("Expected a map");
     tlmap_dump(map);
-    return tlNull;
+    TL_RETURN(tlNull);
 }
-static tlValue _map_is(tlTask* task, tlArgs* args, tlRun* run) {
-    return tlBOOL(tlmap_is(tlargs_get(args, 0)));
+static tlRun* _map_is(tlTask* task, tlArgs* args) {
+    TL_RETURN(tlBOOL(tlmap_is(tlargs_get(args, 0))));
 }
-static tlValue _object_is(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _object_is(tlTask* task, tlArgs* args) {
     tlValue map = tlmap_cast(tlargs_get(args, 0));
-    if (!map) return tlFalse;
-    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return tlTrue;
-    return tlFalse;
+    if (!map) TL_RETURN(tlFalse);
+    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(tlTrue);
+    TL_RETURN(tlFalse);
 }
-static tlValue _object_from(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _object_from(tlTask* task, tlArgs* args) {
     tlValue map = tlmap_cast(tlargs_get(args, 0));
-    if (!map) return tlNull;
-    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return map;
+    if (!map) TL_THROW("Expected a map");
+    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(map);
     map = task_clone(task, map);
     tlflag_set(map, TL_FLAG_ISOBJECT);
-    return map;
+    TL_RETURN(map);
 }
-static tlValue _map_size(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _map_size(tlTask* task, tlArgs* args) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
-    if (!map) return 0;
-    return tlINT(tlmap_size(map));
+    if (!map) TL_THROW("Expected a map");
+    TL_RETURN(tlINT(tlmap_size(map)));
 }
-static tlValue _map_get(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _map_get(tlTask* task, tlArgs* args) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
-    if (!map) return tlNull;
+    if (!map) TL_THROW("Expected a map");
     tlValue key = tlargs_get(args, 1);
-    if (!key || key == tlNull) return tlNull;
+    if (!key) TL_THROW("Excpected a key");
     tlValue res = tlmap_get(task, map, key);
-    if (!res) return tlUndefined;
-    return res;
+    if (!res) TL_RETURN(tlUndefined);
+    TL_RETURN(res);
 }
-static tlValue _map_set(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _map_set(tlTask* task, tlArgs* args) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
-    if (!map) return tlNull;
+    if (!map) TL_THROW("Expected a map");
     tlValue key = tlargs_get(args, 1);
-    if (!key) return tlNull;
+    if (!key) TL_THROW("Expected a key");
     tlValue val = tlargs_get(args, 2);
-    if (!val) val = tlNull;
+    if (!val || val == tlUndefined) val = tlNull;
     tlMap* nmap = tlmap_set(task, map, key, val);
-    return nmap;
+    TL_RETURN(nmap);
 }
 
-static const tlHostFunctions __map_functions[] = {
+static const tlHostCbs __map_hostcbs[] = {
     { "_map_clone", _map_clone },
     { "_map_dump",  _map_dump },
     { "_map_is",    _map_is },
@@ -544,6 +545,6 @@ static const tlHostFunctions __map_functions[] = {
 
 static void map_init() {
     v_map_empty = tlmap_new(null, null);
-    tl_register_functions(__map_functions);
+    tl_register_hostcbs(__map_hostcbs);
 }
 

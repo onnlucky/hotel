@@ -78,12 +78,12 @@ int tl_int_or(tlValue v, int d) {
     return tl_int(v);
 }
 
-static tlValue _value_type(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _value_type(tlTask* task, tlArgs* args) {
     tlValue v = tlargs_get(args, 0);
-    return tlINT(tl_type(v));
+    return tltask_return(task, tlINT(tl_type(v)));
 }
 
-static const tlHostFunctions __value_functions[] = {
+static const tlHostCbs __value_cbs[] = {
     { "_value_type", _value_type },
     { 0, 0 }
 };
@@ -92,9 +92,9 @@ static void value_init() {
     for (int i = 0; i < TL_TYPE_LAST; i++) {
         char *buf;
         asprintf(&buf, "_%s", type_to_str[i]);
-        tl_register_const(buf, tlINT(i));
+        tl_register_global(buf, tlINT(i));
     }
-    tl_register_functions(__value_functions);
+    tl_register_hostcbs(__value_cbs);
 }
 
 
@@ -124,7 +124,7 @@ tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs,
     assert(size < 0xFFFF);
     trace("BYTES: %zd -- %d", bytes, size);
 
-    tlList* to = calloc(1, bytes);
+    tlData* to = calloc(1, bytes);
     assert((((intptr_t)to) & 7) == 0);
     to->head.flags = privs;
     to->head.type = type;
@@ -133,13 +133,13 @@ tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs,
     return to;
 }
 tlValue task_clone(tlTask* task, tlValue v) {
-    tlList* from = (tlList*)v;
+    tlData* from = tldata_as(v);
     size_t bytes = sizeof(tlHead) + sizeof(tlValue) * from->head.size;
     int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
     assert(size < 0xFFFF);
     trace("BYTES: %zd -- %d -- %s", bytes, size, tl_str(v));
     assert(from->head.size == size);
-    tlList* to = malloc(bytes);
+    tlData* to = malloc(bytes);
     memcpy(to, from, bytes);
     assert(to->head.size == size);
     to->head.keep = 1;
@@ -166,9 +166,9 @@ const char* tl_str(tlValue v) {
     if (tlactive_is(v)) v = tlvalue_from_active(v);
     switch (tl_type(v)) {
     case TLText:
-        return tltext_bytes(tltext_as(v));
+        return tltext_data(tltext_as(v));
     case TLSym:
-        snprintf(_str_buf, _BUF_SIZE, "#%s", tltext_bytes(tlsym_to_text(v)));
+        snprintf(_str_buf, _BUF_SIZE, "#%s", tltext_data(tltext_from_sym(v)));
         return _str_buf;
     case TLInt:
         snprintf(_str_buf, _BUF_SIZE, "%d", tl_int(v));

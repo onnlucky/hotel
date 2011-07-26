@@ -20,28 +20,29 @@ static LHashMap *globals = 0;
 static tlSym _SYM_FROM_TEXT(tlText* v) { return (tlSym)((intptr_t)v | 2); }
 static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
 
-bool tlactive_is(tlValue v) { return (tlsym_is(v) || tlref_is(v)) && (((intptr_t)v) & 7) >= 4; }
+bool tlactive_is(tlValue v) { return !tlint_is(v) && (((intptr_t)v) & 7) >= 4; }
 tlValue tlvalue_from_active(tlValue a) {
     assert(tlactive_is(a));
-    assert(tlref_is(a) || tlsym_is(a));
+    //assert(tlref_is(a) || tlsym_is(a));
     tlValue v = (tlValue)((intptr_t)a & ~4);
     assert(!tlactive_is(v));
     assert(tlref_is(v) || tlsym_is(v));
     return v;
 }
 tlValue tlactive_from_value(tlValue v) {
+    print("%s", tl_str(v));
     assert(tlref_is(v) || tlsym_is(v));
     assert(!tlactive_is(v));
     tlValue a = (tlValue)((intptr_t)v | 4);
+    //assert(tlref_is(a) || tlsym_is(a));
     assert(tlactive_is(a));
-    assert(tlref_is(a) || tlsym_is(a));
     return a;
 }
 tlValue tlACTIVE(tlValue v) {
     return tlactive_from_value(v);
 }
 
-tlText* tlsym_to_text(tlSym sym) {
+tlText* tltext_from_sym(tlSym sym) {
     assert(tlsym_is(sym));
     return _TEXT_FROM_SYM(sym);
 }
@@ -54,7 +55,7 @@ tlSym tlsym_from_static(const char* s) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlsym_from(null, tlTEXT(s));
+    return tlsym_from_text(null, tlTEXT(s));
 }
 
 tlSym tlsym_from_copy(tlTask* task, const char* s) {
@@ -64,38 +65,40 @@ tlSym tlsym_from_copy(tlTask* task, const char* s) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlsym_from(task, tltext_from_copy(task, s));
+    return tlsym_from_text(task, tltext_from_copy(task, s));
 }
 
-tlSym tlsym_from(tlTask* task, tlText* text) {
+tlSym tlsym_from_text(tlTask* task, tlText* text) {
     assert(tltext_is(text));
     assert(symbols);
     trace("#%s", tl_str(text));
 
     tlSym sym = _SYM_FROM_TEXT(text);
-    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tltext_bytes(text), sym, 0);
+    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tltext_data(text), sym, 0);
 
     if (cur) return cur;
     return sym;
 }
 
-void tl_register_const(const char* name, tlValue v) {
+void tl_register_global(const char* name, tlValue v) {
     assert(globals);
     tlSYM(name);
     lhashmap_putif(globals, (void *)name, v, LHASHMAP_IGNORE);
 }
 
-static void tl_register_functions(const tlHostFunctions* fns) {
-    for (int i = 0; fns[i].name; i++) {
-        tlSym name = tlSYM(fns[i].name);
-        lhashmap_putif(globals, (void*)fns[i].name, tlFUN(fns[i].fn, name), LHASHMAP_IGNORE);
+void tl_register_hostcbs(const tlHostCbs* cbs) {
+    for (int i = 0; cbs[i].name; i++) {
+        tlSym name = tlSYM(cbs[i].name);
+        tlHostFn* fn = tlhostfn_new(null, cbs[i].cb, 1);
+        tlhostfn_set_(fn, 0, name);
+        lhashmap_putif(globals, (void*)cbs[i].name, fn, LHASHMAP_IGNORE);
     }
 }
 
 static tlValue tl_global(tlSym sym) {
     assert(tlsym_is(sym));
     assert(globals);
-    return lhashmap_get(globals, tltext_bytes(_TEXT_FROM_SYM(sym)));
+    return lhashmap_get(globals, tltext_data(_TEXT_FROM_SYM(sym)));
 }
 
 #define mmix(h,k) { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; }

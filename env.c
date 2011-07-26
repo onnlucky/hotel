@@ -11,7 +11,6 @@ struct tlEnv {
     tlArgs* args;
     tlMap* map;
 };
-TTYPE(tlEnv, tlenv, TLEnv);
 
 int tlenv_size(tlEnv* env) {
     return env->head.size - 4;

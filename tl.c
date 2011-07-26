@@ -8,7 +8,7 @@
 #include "trace-on.h"
 
 // this is how a print function could look
-static tlValue _print(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _print(tlTask* task, tlArgs* args) {
     tlText* sep = tlTEXT(" ");
     tlValue v = tlargs_map_get(args, tlSYM("sep"));
     if (v) sep = tlvalue_to_text(task, v);
@@ -21,20 +21,20 @@ static tlValue _print(tlTask* task, tlArgs* args, tlRun* run) {
     v = tlargs_map_get(args, tlSYM("end"));
     if (v) end = tlvalue_to_text(task, v);
 
-    if (begin) printf("%s", tltext_bytes(begin));
+    if (begin) printf("%s", tltext_data(begin));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlargs_get(args, i);
         if (!v) break;
-        if (i > 0) printf("%s", tltext_bytes(sep));
-        printf("%s", tltext_bytes(tlvalue_to_text(task, v)));
+        if (i > 0) printf("%s", tltext_data(sep));
+        printf("%s", tltext_data(tlvalue_to_text(task, v)));
     }
-    if (end) printf("%s", tltext_bytes(end));
+    if (end) printf("%s", tltext_data(end));
     printf("\n");
     fflush(stdout);
-    return tlNull;
+    TL_RETURN(tlNull);
 }
 
-static tlValue _assert(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _assert(tlTask* task, tlArgs* args) {
     tlText* text = tltext_cast(tlargs_map_get(args, tlSYM("text")));
     if (!text) text = tltext_empty();
     for (int i = 0; i < 1000; i++) {
@@ -42,10 +42,10 @@ static tlValue _assert(tlTask* task, tlArgs* args, tlRun* run) {
         if (!v) break;
         if (!tl_bool(v)) {
             //text = tltask_cat(task, tlTEXT("Assertion Failed: "), text);
-            return tltask_throw(task, text);
+            TL_THROW("Assertion Failed");
         }
     }
-    return tlNull;
+    TL_RETURN(tlNull);
 }
 
 // this is how to setup a vm
@@ -63,25 +63,25 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlvm_new();
     tlWorker* worker = tlworker_new(vm);
-    tlTask* task = tltask_new(vm);
+    tlTask* task = tltask_new(worker);
 
-    tlworker_attach(worker, task);
     tlEnv* env = tlvm_global_env(vm);
-    tlFun* f_print = tlFUN(_print, tlSYM("print"));
+    tlHostFn* f_print = tlhostfn_new(task, _print, 1);
+    tlhostfn_set_(f_print, 0, tlSYM("print"));
+    //assert(tlSYM("print") == tlhostfn_get(f_print, 0));
     env = tlenv_set(null, env, tlSYM("print"), f_print);
 
-    tlFun* f_assert = tlFUN(_assert, tlSYM("assert"));
+    tlHostFn* f_assert = tlhostfn_new(task, _assert, 1);
+    tlhostfn_set_(f_assert, 0, tlSYM("assert"));
     env = tlenv_set(null, env, tlSYM("assert"), f_assert);
 
-    tlCode* code = tlcode_cast(parse(script));
+    tlCode* code = tlcode_cast(tl_parse(task, script));
     trace("PARSED");
     assert(code);
 
     tlClosure* fn = tlclosure_new(task, code, env);
     tltask_call(task, tlcall_from(task, fn, null));
-    tlworker_detach(worker, task);
-
-    tltask_ready(vm, task);
+    tltask_ready_detach(task);
 
     trace("RUNNING");
     tlworker_run(worker);

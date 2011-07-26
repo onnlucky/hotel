@@ -10,7 +10,6 @@ struct tlCode {
     tlMap* argdefaults;
     tlValue ops[];
 };
-TTYPE(tlCode, tlcode, TLCode);
 
 tlCode* tlcode_new(tlTask* task, int size) {
     return task_alloc(task, TLCode, 4 + size);

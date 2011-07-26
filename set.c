@@ -4,7 +4,6 @@ struct tlSet {
     tlHead head;
     tlValue data[];
 };
-TTYPE(tlSet, tlset, TLSet);
 
 static tlSet* v_set_empty;
 

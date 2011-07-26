@@ -24,7 +24,7 @@ static inline int writesome(ParseContext* cx, char* buf, int len) {
     int towrite = tltext_size(cx->text) - cx->at;
     if (towrite <= 0) return 0;
     if (towrite < len) len = towrite;
-    memcpy(buf, tltext_bytes(cx->text) + cx->at, len);
+    memcpy(buf, tltext_data(cx->text) + cx->at, len);
     cx->at += len;
     return len;
 }
@@ -55,15 +55,15 @@ tlValue map_activate(tlMap* map) {
     }
     if (!argc) return map;
     tlCall* call = tlcall_new(null, argc + 1, null);
-    tlcall_set_fn_(call, tlACTIVE(tlSYM("_map_clone")));
-    tlcall_set_arg_(call, 0, map);
+    tlcall_fn_set_(call, tlACTIVE(tlSYM("_map_clone")));
+    tlcall_arg_set_(call, 0, map);
     argc = 1;
     for (int i = 0;; i++) {
         tlValue v = tlmap_value_iter(map, i);
         if (!v) break;
         if (tlactive_is(v) || tlcall_is(v)) {
             tlmap_value_iter_set_(map, i, null);
-            tlcall_set_arg_(call, argc++, v);
+            tlcall_arg_set_(call, argc++, v);
         }
     }
     return call;
@@ -77,14 +77,14 @@ tlValue list_activate(tlList* list) {
     }
     if (!argc) return list;
     tlCall* call = tlcall_new(null, argc + 1, null);
-    tlcall_set_fn_(call, tlACTIVE(tlSYM("_list_clone")));
-    tlcall_set_arg_(call, 0, list);
+    tlcall_fn_set_(call, tlACTIVE(tlSYM("_list_clone")));
+    tlcall_arg_set_(call, 0, list);
     argc = 1;
     for (int i = 0; i < size; i++) {
         tlValue v = tllist_get(list, i);
         if (tlactive_is(v) || tlcall_is(v)) {
             tllist_set_(list, i, null);
-            tlcall_set_arg_(call, argc++, v);
+            tlcall_arg_set_(call, argc++, v);
         }
     }
     return call;
@@ -109,12 +109,12 @@ tlValue set_target(tlValue on, tlValue target) {
     if (!on) return target;
     if (tlcall_is(on)) {
         tlCall* call = tlcall_as(on);
-        tlValue fn = tlcall_get_fn(call);
+        tlValue fn = tlcall_fn(call);
 
         if (fn == sa_object_send) {
-            tlValue oop = tlcall_get_arg(call, 0);
+            tlValue oop = tlcall_arg(call, 0);
             if (!oop) {
-                tlcall_set_arg_(call, 0, target);
+                tlcall_arg_set_(call, 0, target);
                 return on;
             } else {
                 set_target(oop, target);
@@ -123,7 +123,7 @@ tlValue set_target(tlValue on, tlValue target) {
         }
 
         if (!fn) {
-            tlcall_set_fn_(call, target);
+            tlcall_fn_set_(call, target);
             return on;
         } else {
             set_target(fn, target);
@@ -213,33 +213,33 @@ farg = "&&" n:name { $$ = tllist_from2(TASK, n, tlCollectLazy); }
   expr = e:op_log { $$ = call_activate(e); }
 
 selfapply = n:name _ &eos {
-    $$ = call_activate(tlcall_from_args(TASK, tlACTIVE(n), tllist_empty()));
+    $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(n), tllist_empty()));
 }
 
  pexpr = "assert" _ !"(" < as:pcargs > {
-            as = tllist_add2(TASK, L(as), tlSYM("text"), tltext_from_copy(TASK, yytext));
-            $$ = call_activate(tlcall_from_args(TASK, tlACTIVE(tlSYM("assert")), as));
+            as = tllist_append2(TASK, L(as), tlSYM("text"), tltext_from_copy(TASK, yytext));
+            $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | fn:lookup _ ":" b:bodynl {
            tlcode_set_isblock_(b, true);
            as = tllist_from2(TASK, tlSYM("block"), tlACTIVE(b));
-           $$ = call_activate(tlcall_from_args(TASK, fn, as));
+           $$ = call_activate(tlcall_from_list(TASK, fn, as));
        }
        | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
            tlcode_set_isblock_(b, true);
-           as = tllist_add2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
-           $$ = call_activate(tlcall_from_args(TASK, fn, as));
+           as = tllist_append2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
+           $$ = call_activate(tlcall_from_list(TASK, fn, as));
        }
        | fn:lookup _ !"(" as:pcargs {
            trace("primary function call");
-           $$ = call_activate(tlcall_from_args(TASK, fn, as));
+           $$ = call_activate(tlcall_from_list(TASK, fn, as));
        }
        | v:value _"."_ n:name _ !"(" as:pcargs _":"_ b:bodynl {
            fatal("primary send + bodynl");
        }
        | v:value _"."_ n:name _ !"(" as:pcargs {
            trace("primary send");
-           $$ = call_activate(tlcall_send_from_args(TASK, sa_object_send, v, n, as));
+           $$ = call_activate(tlcall_send_from_list(TASK, sa_object_send, v, n, as));
        }
        | expr
 
@@ -247,8 +247,8 @@ selfapply = n:name _ &eos {
        | v:value _"."_ n:name _ !"(" {
            // TODO here we want to "tail" more primary sends ...
            trace("primary send");
-           //$$ = set_target(t, tlsend_from_args(TASK, null, n, tllist_empty()));
-           $$ = tlcall_send_from_args(TASK, sa_object_send, v, n, tllist_empty());
+           //$$ = set_target(t, tlsend_from_list(TASK, null, n, tllist_empty()));
+           $$ = tlcall_send_from_list(TASK, sa_object_send, v, n, tllist_empty());
        }
        | expr
 
@@ -256,24 +256,24 @@ selfapply = n:name _ &eos {
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
            trace("function call + bodynl");
            tlcode_set_isblock_(b, true);
-           as = tllist_add2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
-           $$ = tlcall_from_args(TASK, null, as);
+           as = tllist_append2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
+           $$ = tlcall_from_list(TASK, null, as);
        }
        | _"("__ as:cargs __")" t:tail {
            trace("function call");
-           $$ = set_target(t, tlcall_from_args(TASK, null, as));
+           $$ = set_target(t, tlcall_from_list(TASK, null, as));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
            trace("method call()");
-           $$ = set_target(t, tlcall_send_from_args(TASK, sa_object_send, null, n, as));
+           $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, as));
        }
        | _"."_ n:name t:tail {
            trace("method call");
-           $$ = set_target(t, tlcall_send_from_args(TASK, sa_object_send, null, n, tllist_empty()));
+           $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, tllist_empty()));
        }
        | _"["__ e:expr __"]" t:tail {
            trace("array get call");
-           $$ = set_target(t, tlcall_send_from_args(TASK, sa_object_send, null, tlSYM("get"), as));
+           $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, tlSYM("get"), as));
        }
        | _ {
            trace("no tail");
@@ -292,15 +292,15 @@ pcargs = l:carg __","__
                 )*              { $$ = l; }
        |                        { $$ = tllist_empty(); }
 
- pcarg = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
-       | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
-       | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
-       | v:pexpr                { $$ = tlLIST2(TASK, tlNull, v); }
+ pcarg = "+"_ n:name            { $$ = tllist_from2(TASK, n, tlTrue); }
+       | "-"_ n:name            { $$ = tllist_from2(TASK, n, tlFalse); }
+       | n:name _"="__ v:expr   { $$ = tllist_from2(TASK, n, v); }
+       | v:pexpr                { $$ = tllist_from2(TASK, tlNull, v); }
 
-  carg = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
-       | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
-       | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
-       | v:expr                 { $$ = tlLIST2(TASK, tlNull, v); }
+  carg = "+"_ n:name            { $$ = tllist_from2(TASK, n, tlTrue); }
+       | "-"_ n:name            { $$ = tllist_from2(TASK, n, tlFalse); }
+       | n:name _"="__ v:expr   { $$ = tllist_from2(TASK, n, v); }
+       | v:expr                 { $$ = tllist_from2(TASK, tlNull, v); }
 
 
 op_log = l:op_not _ ("or"  __ r:op_not { l = tlcall_from(TASK, tlACTIVE(tlSYM("or")), l, r, null); }
@@ -328,13 +328,13 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
 
  paren = "assert"_"("__ < as:cargs > __")" t:tail {
             as = tllist_prepend2(TASK, L(as), tlSYM("text"), tltext_from_copy(TASK, yytext));
-            $$ = set_target(t, tlcall_from_args(TASK, tlACTIVE(tlSYM("assert")), as));
+            $$ = set_target(t, tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | f:fn t:tail                { $$ = set_target(t, tlACTIVE(f)); }
        | "("__ e:pexpr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body  __")" t:tail {
            tlcode_set_isblock_(b, true);
-           $$ = set_target(t, tlcall_from_args(TASK, tlACTIVE(b), tllist_empty()));
+           $$ = set_target(t, tlcall_from_list(TASK, tlACTIVE(b), tllist_empty()));
        }
        | v:value t:tail             { $$ = set_target(t, v); }
 
@@ -344,9 +344,9 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | i:item                 { $$ = tllist_from1(TASK, i) }
        |                        { $$ = tllist_empty(); }
 
-  item = "+"_ n:name            { $$ = tlLIST2(TASK, n, tlTrue); }
-       | "-"_ n:name            { $$ = tlLIST2(TASK, n, tlFalse); }
-       | n:name _"="__ v:expr   { $$ = tlLIST2(TASK, n, v); }
+  item = "+"_ n:name            { $$ = tllist_from2(TASK, n, tlTrue); }
+       | "-"_ n:name            { $$ = tllist_from2(TASK, n, tlFalse); }
+       | n:name _"="__ v:expr   { $$ = tllist_from2(TASK, n, v); }
 
 #// TODO list_activate ...
   list = "["__ is:litems __"]"   { $$ = list_activate(L(is)); }
@@ -371,7 +371,7 @@ number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
 
   text = '"' '"'          { $$ = tltext_empty(); }
        | '"'  t:stext '"' { $$ = t }
-       | '"' ts:ctext '"' { $$ = tlcall_from_args(TASK, tlACTIVE(tlSYM("text_cat")), L(ts)); }
+       | '"' ts:ctext '"' { $$ = tlcall_from_list(TASK, tlACTIVE(tlSYM("text_cat")), L(ts)); }
 
  stext = < (!"$" !"\"" .)+ > { $$ = tltext_from_take(TASK, unescape(yytext)); }
  ptext = "$("_ e:expr _")"   { $$ = e }
@@ -433,7 +433,7 @@ bool check_indent(void* data) {
     return peek_indent(G) == find_indent(G);
 }
 
-tlValue parse(tlText* text) {
+tlValue tl_parse(tlTask* task, tlText* text) {
     trace("\n----PARSING----\n%s----", tl_str(text));
 
     if (!sa_object_send) sa_object_send = tlACTIVE(tlSYM("_object_send"));

@@ -17,7 +17,7 @@ tlText* tltext_empty() { return v_empty_text; }
 
 tlText* tltext_from_static(const char* s) {
     tlText* text = task_alloc_priv(null, TLText, 0, 4);
-    text->head.flags |= TL_FLAG_NOFREE;
+    //text->head.flags |= TL_FLAG_NOFREE;
     text->data = s;
     return text;
 }
@@ -42,11 +42,11 @@ tlText* tltext_from_copy(tlTask* task, const char* s) {
 
 static void tltext_free(tlText *text) {
     assert(tltext_is(text));
-    if (text->head.flags & TL_FLAG_NOFREE) return;
-    free((char*)text->data);
+    //if (text->head.flags & TL_FLAG_NOFREE) return;
+    //free((char*)text->data);
 }
 
-const char * tltext_bytes(tlText *text) {
+const char * tltext_data(tlText *text) {
     assert(tltext_is(text));
     return text->data;
 }
@@ -54,7 +54,7 @@ const char * tltext_bytes(tlText *text) {
 int tltext_size(tlText* text) {
     assert(tltext_is(text));
     if (!text->bytes) {
-        text->bytes = tlINT(strlen(tltext_bytes(text)));
+        text->bytes = tlINT(strlen(tltext_data(text)));
     }
     return tl_int(text->bytes);
 }
@@ -75,14 +75,14 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     return tlTEXT("<ERROR.to-text>");
 }
 
-static tlValue _text_size(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _text_size(tlTask* task, tlArgs* args) {
     tlText* text = tltext_cast(tlargs_get(args, 0));
-    if (!text) return tlNull;
-    return tlINT(tltext_size(text));
+    if (!text) TL_THROW("Expected a Text object");
+    TL_RETURN(tlINT(tltext_size(text)));
 }
-static tlValue _text_slice(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _text_slice(tlTask* task, tlArgs* args) {
     tlText* text = tltext_cast(tlargs_get(args, 0));
-    if (!text) return tlNull;
+    if (!text) TL_THROW("Expected a Text object");
     int size = tltext_size(text);
     int first = tl_int_or(tlargs_get(args, 1), 0);
     int last = tl_int_or(tlargs_get(args, 2), size);
@@ -90,15 +90,15 @@ static tlValue _text_slice(tlTask* task, tlArgs* args, tlRun* run) {
     trace("%d %d (%s)%d", first, last, text->data, size);
 
     if (first < 0) first = size + first;
-    if (first < 0) return v_empty_text;
-    if (first >= size) return v_empty_text;
+    if (first < 0) TL_RETURN(v_empty_text);
+    if (first >= size) TL_RETURN(v_empty_text);
     if (last <= 0) last = size + last;
-    if (last < first) return v_empty_text;
+    if (last < first) TL_RETURN(v_empty_text);
 
-    return tltext_sub(task, text, first, last - first);
+    TL_RETURN(tltext_sub(task, text, first, last - first));
 }
 
-static const tlHostFunctions __text_functions[] = {
+static const tlHostCbs __text_cbs[] = {
     { "_text_size", _text_size },
     { "_text_slice", _text_slice },
     { 0, 0 }
@@ -106,6 +106,6 @@ static const tlHostFunctions __text_functions[] = {
 
 static void text_init() {
     v_empty_text = tlTEXT("");
-    tl_register_functions(__text_functions);
+    tl_register_hostcbs(__text_cbs);
 }
 

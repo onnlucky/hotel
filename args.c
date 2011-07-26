@@ -4,7 +4,6 @@ struct tlArgs {
     tlMap* map;
     tlList* list;
 };
-TTYPE(tlArgs, tlargs, TLArgs);
 
 static tlArgs* v_args_empty;
 
@@ -63,18 +62,18 @@ void tlargs_map_set_(tlArgs* args, tlSym name, tlValue v) {
     tlmap_set_sym_(args->map, name, v);
 }
 
-static tlValue _args_size(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _args_size(tlTask* task, tlArgs* args) {
     tlArgs* as = tlargs_cast(tlargs_get(args, 0));
-    if (!as) return tlNull;
-    return tlINT(tlargs_size(as));
+    if (!as) TL_THROW("Expected a args object");
+    TL_RETURN(tlINT(tlargs_size(as)));
 }
-static tlValue _args_names(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _args_names(tlTask* task, tlArgs* args) {
     tlArgs* as = tlargs_cast(tlargs_get(args, 0));
-    if (!as) return tlNull;
-    return tlargs_map(as);
+    if (!as) TL_THROW("Expected a args object");
+    TL_RETURN(tlargs_map(as));
 }
 
-static const tlHostFunctions __args_functions[] = {
+static const tlHostCbs __args_hostcbs[] = {
     { "_args_size", _args_size },
     { "_args_names", _args_names },
     { 0, 0 }
@@ -82,6 +81,6 @@ static const tlHostFunctions __args_functions[] = {
 
 void args_init() {
     v_args_empty = tlargs_new(null, null, null);
-    tl_register_functions(__args_functions);
+    tl_register_hostcbs(__args_hostcbs);
 }
 

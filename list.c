@@ -2,6 +2,11 @@
 
 #include "trace-off.h"
 
+struct tlList {
+    tlHead head;
+    tlValue data[];
+};
+
 static tlList* v_list_empty;
 
 tlList* tllist_empty() { return v_list_empty; }
@@ -92,7 +97,7 @@ void tllist_set_(tlList* list, int at, tlValue v) {
     list->data[at] = v;
 }
 
-tlList* tllist_add(tlTask* task, tlList* list, tlValue v) {
+tlList* tllist_append(tlTask* task, tlList* list, tlValue v) {
     assert(tllist_is(list));
 
     int osize = tllist_size(list);
@@ -103,7 +108,7 @@ tlList* tllist_add(tlTask* task, tlList* list, tlValue v) {
     return nlist;
 }
 
-tlList* tllist_add2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
+tlList* tllist_append2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
     assert(tllist_is(list));
 
     int osize = tllist_size(list);
@@ -208,47 +213,48 @@ tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
 }
 
 // called when list literals contain lookups or expressions to evaluate
-static tlValue _list_clone(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _list_clone(tlTask* task, tlArgs* args) {
     tlList* list = tllist_cast(tlargs_get(args, 0));
+    if (!list) TL_THROW("Expected a list");
     int size = tllist_size(list);
     list = task_clone(task, list);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!list->data[i]) list->data[i] = tlargs_get(args, argc++);
     }
-    return list;
+    TL_RETURN(list);
 }
-static tlValue _list_is(tlTask* task, tlArgs* args, tlRun* run) {
-    if (tllist_cast(tlargs_get(args, 0))) return tlTrue;
-    return tlFalse;
+static tlRun* _list_is(tlTask* task, tlArgs* args) {
+    if (tllist_cast(tlargs_get(args, 0))) TL_RETURN(tlTrue);
+    TL_RETURN(tlFalse);
 }
-static tlValue _list_size(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _list_size(tlTask* task, tlArgs* args) {
     tlList* list = tllist_cast(tlargs_get(args, 0));
-    if (!list) return tlNull;
-    return tlINT(tllist_size(list));
+    if (!list) TL_THROW("Expected a list");
+    TL_RETURN(tlINT(tllist_size(list)));
 }
-static tlValue _list_get(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _list_get(tlTask* task, tlArgs* args) {
     tlList* list = tllist_cast(tlargs_get(args, 0));
-    if (!list) return tlNull;
+    if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlargs_get(args, 1), -1);
-    if (at < 0) return tlNull;
+    if (at < 0) TL_THROW("Expected a number >= 0");
     tlValue res = tllist_get(list, at);
-    if (!res) return tlNull;
-    return res;
+    if (!res) TL_RETURN(tlNull);
+    TL_RETURN(res);
 }
-static tlValue _list_set(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _list_set(tlTask* task, tlArgs* args) {
     tlList* list = tllist_cast(tlargs_get(args, 0));
-    if (!list) return tlNull;
+    if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlargs_get(args, 1), -1);
-    if (at < 0) return tlNull;
+    if (at < 0) TL_THROW("Expected a number >= 0");
     tlValue val = tlargs_get(args, 2);
-    if (!val) val = tlNull;
+    if (!val || val == tlUndefined) val = tlNull;
     fatal("not implemented yet");
     tlList* nlist = tlNull; //tllist_set(task, list, at, val);
-    return nlist;
+    TL_RETURN(nlist);
 }
 
-static const tlHostFunctions __list_functions[] = {
+static const tlHostCbs __list_hostcbs[] = {
     { "_list_clone", _list_clone },
     { "_list_is",    _list_is },
     { "_list_size",  _list_size },
@@ -259,6 +265,6 @@ static const tlHostFunctions __list_functions[] = {
 
 static void list_init() {
     v_list_empty = task_alloc(null, TLList, 0);
-    tl_register_functions(__list_functions);
+    tl_register_hostcbs(__list_hostcbs);
 }
 

@@ -161,9 +161,3 @@ static inline char* strndup(const char* s, size_t n) {
     return ret;
 }
 #endif
-
-#define TTYPE(P, N, T) \
-    bool N##_is(tlValue v) { return tlref_is(v) && tl_head(v)->type == T; } \
-    P* N##_as(tlValue v) { assert(N##_is(v) || !v); return (P*)v; } \
-    P* N##_cast(tlValue v) { return N##_is(v)?(P*)v:null; }
-

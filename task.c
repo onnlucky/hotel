@@ -10,16 +10,12 @@ struct tlVm {
     tlHead head;
     lqueue run_q;
 };
-TTYPE(tlVm, tlvm, TLVm);
 
 struct tlWorker {
     tlHead head;
     tlVm* vm;
 };
-TTYPE(tlWorker, tlworker, TLWorker);
 
-// TODO move this around a bit
-typedef struct tlResult tlResult;
 tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
 void tlresult_set_(tlResult* res, int at, tlValue v);
@@ -52,7 +48,6 @@ struct tlTask {
     tlValue exception;  // current exception, if any
     tlValue jumping;    // indicates non linear suspend ... don't attach
 };
-TTYPE(tlTask, tltask, TLTask);
 
 // this is how a host task looks
 struct tlHostTask {
@@ -81,10 +76,11 @@ INTERNAL void code_workfn(tlTask* task) {
     }
 }
 
-tlTask* tltask_new(tlVm* vm) {
+tlTask* tltask_new(tlWorker* worker) {
     tlTask* task = calloc(1, sizeof(tlTask));
     task->head.type = TLTask;
     task->work = code_workfn;
+    task->worker = worker;
     assert(task->state == TL_STATE_INIT);
     trace("new task: %p", task);
     return task;
@@ -97,6 +93,15 @@ void tltask_call(tlTask* task, tlCall* call) {
     // TODO this will immediately eval some, I guess that is not what we really want ...
     run_apply(task, call);
     trace("<< call");
+}
+
+tlRun* tltask_return(tlTask* task, tlValue v) {
+    fatal("not implemented yet");
+    return null;
+}
+tlRun* tltask_throw_str(tlTask* task, const char* str) {
+    fatal("not implemented yet");
+    return null;
 }
 
 tlValue tltask_exception(tlTask* task) {
@@ -120,10 +125,12 @@ void tltask_set_value(tlTask* task, tlValue v) {
     task->value = v;
 }
 
-void tltask_ready(tlVm* vm, tlTask* task) {
+void tltask_ready_detach(tlTask* task) {
     trace("ready: %p", task);
     assert(tltask_is(task));
-    assert(!task->worker);
+    assert(task->worker);
+    tlVm* vm = task->worker->vm;
+    task->worker = null;
 
     assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_INIT);
     task->state = TL_STATE_READY;
@@ -133,28 +140,26 @@ void tltask_ready(tlVm* vm, tlTask* task) {
 
 // ** host **
 
-static tlValue _task_new(tlTask* task, tlArgs* args, tlRun* run) {
+// TODO pass rest of args to function
+static tlRun* _task_new(tlTask* task, tlArgs* args) {
     tlValue fn = tlargs_get(args, 0);
     assert(task && task->worker && task->worker->vm);
-    tlTask* ntask = tltask_new(task->worker->vm);
+
+    tlTask* ntask = tltask_new(task->worker);
     tltask_call(ntask, tlcall_from(ntask, fn, null));
-    tltask_ready(task->worker->vm, ntask);
-    //if (ntask->work) ntask->work(ntask);
-    return ntask;
+    tltask_ready_detach(ntask);
+
+    TL_RETURN(ntask);
 }
 
-static tlValue _task_yield(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _task_yield(tlTask* task, tlArgs* args) {
     trace("%s", tl_str(task));
     task->state = TL_STATE_WAIT;
-    // TODO fix this maybe?
-    tlWorker* worker = task->worker;
-    task->worker = null;
-    tltask_ready(worker->vm, task);
-    task->worker = worker;
+    tltask_ready_detach(task);
     return tlNull;
 }
 
-static tlValue _task_send(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _task_send(tlTask* task, tlArgs* args) {
     tlTask* to = tltask_cast(tlargs_get(args, 0));
     assert(to && to != task);
     assert(to->state != TL_STATE_DONE);
@@ -174,7 +179,7 @@ static tlValue _task_send(tlTask* task, tlArgs* args, tlRun* run) {
     if (to->state == TL_STATE_WAIT && !to->blocked_on) {
         trace("direct send");
         to->value = msg;
-        tltask_ready(task->worker->vm, to);
+        tltask_ready_detach(to);
         return null;
     }
 
@@ -185,7 +190,7 @@ static tlValue _task_send(tlTask* task, tlArgs* args, tlRun* run) {
     return null;
 }
 
-static tlValue _task_receive(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _task_receive(tlTask* task, tlArgs* args) {
     tlTask* from = tltask_from_entry(lqueue_get(&task->msg_q));
     trace("receive: %p %s <- %p %s", task, tl_str(task), from, tl_str(from));
     if (from) {
@@ -195,7 +200,7 @@ static tlValue _task_receive(tlTask* task, tlArgs* args, tlRun* run) {
     return null;
 }
 
-static tlValue _task_reply(tlTask* task, tlArgs* args, tlRun* run) {
+static tlRun* _task_reply(tlTask* task, tlArgs* args) {
     tlTask* to = tltask_cast(tlargs_get(args, 0));
     assert(to && to != task);
     assert(to->blocked_on == task);
@@ -204,11 +209,11 @@ static tlValue _task_reply(tlTask* task, tlArgs* args, tlRun* run) {
     tlResult* msg = tlresult_new_skip(to, args);
     to->value = msg;
     to->blocked_on = null;
-    tltask_ready(task->worker->vm, to);
+    tltask_ready_detach(to);
     return tlNull;
 }
 
-static const tlHostFunctions __task_functions[] = {
+static const tlHostCbs __task_hostcbs[] = {
     { "_task_new", _task_new },
     { "_task_yield", _task_yield },
     { "_task_send", _task_send },
@@ -218,6 +223,6 @@ static const tlHostFunctions __task_functions[] = {
 };
 
 static void task_init() {
-    tl_register_functions(__task_functions);
+    tl_register_hostcbs(__task_hostcbs);
 }
 

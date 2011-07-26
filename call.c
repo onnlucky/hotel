@@ -2,32 +2,31 @@
 
 #include "trace-off.h"
 
-// TODO primitive vs full host function
-struct tlFun {
+struct tlHostFn {
     tlHead head;
-    tlHostFunction native;
-    tlValue data;
+    tlHostCb hostcb;
+    tlValue data[];
 };
-TTYPE(tlFun, tlfun, TLFun);
-
-tlFun* tlfun_new(tlTask* task, tlHostFunction native, tlValue data) {
-    tlFun* fun = task_alloc_priv(task, TLFun, 1, 1);
-    fun->native = native;
-    fun->data = data;
-    return fun;
-}
-tlFun* tlFUN(tlHostFunction native, tlValue data) {
-    tlFun* fun = task_alloc_priv(null, TLFun, 1, 1);
-    fun->native = native;
-    fun->data = data;
-    return fun;
-}
-
 struct tlCall {
     tlHead head;
     tlValue data[];
 };
-TTYPE(tlCall, tlcall, TLCall);
+
+tlHostFn* tlhostfn_new(tlTask* task, tlHostCb hostcb, int size) {
+    tlHostFn* fun = task_alloc_priv(task, TLHostFn, size, 1);
+    fun->hostcb = hostcb;
+    return fun;
+}
+tlValue tlhostfn_get(tlHostFn* fn, int at) {
+    assert(at >= 0);
+    if (at < fn->head.size - 1) return null;
+    return fn->data[at];
+}
+void tlhostfn_set_(tlHostFn* fn, int at, tlValue v) {
+    assert(tlhostfn_is(fn));
+    assert(at >= 0 && at < fn->head.size - 1);
+    fn->data[at] = v;
+}
 
 tlCall* tlcall_new(tlTask* task, int argc, bool keys) {
     tlCall* call = task_alloc(task, TLCall, argc + (keys?3:1));
@@ -38,6 +37,7 @@ int tlcall_argc(tlCall* call) {
     if (tlflag_isset(call, TL_FLAG_HASKEYS)) return call->head.size - 3;
     return call->head.size - 1;
 }
+
 tlValue tlcall_get(tlCall* call, int at) {
     assert(at >= 0);
     if (at < 0 || at > tlcall_argc(call)) return null;
@@ -77,42 +77,42 @@ tlCall* tlcall_copy_fn(tlTask* task, tlCall* o, tlValue fn) {
     call->data[0] = fn;
     return call;
 }
-tlValue tlcall_get_fn(tlCall* call) {
+tlValue tlcall_fn(tlCall* call) {
     return call->data[0];
 }
-tlValue tlcall_get_arg(tlCall* call, int at) {
+tlValue tlcall_arg(tlCall* call, int at) {
     if (at < 0 || at >= tlcall_argc(call)) return null;
     return call->data[at + 1];
 }
-tlValue tlcall_get_name(tlCall* call, int at) {
+tlValue tlcall_arg_name(tlCall* call, int at) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     tlList* names = call->data[call->head.size - 2];
     tlValue name = tllist_get(names, at);
     if (name == tlNull) return null;
     return name;
 }
-tlSet* tlcall_get_names(tlCall* call) {
+tlSet* tlcall_names(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     return call->data[call->head.size - 1];
 }
-int tlcall_get_names_size(tlCall* call) {
+int tlcall_names_size(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return 0;
     tlSet* nameset = call->data[call->head.size - 1];
     return tlset_size(nameset);
 }
-bool tlcall_has_name(tlCall* call, tlSym name) {
+bool tlcall_names_contains(tlCall* call, tlSym name) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return false;
     tlSet* nameset = call->data[call->head.size - 1];
     return tlset_indexof(nameset, name) >= 0;
 }
-void tlcall_set_fn_(tlCall* call, tlValue fn) {
+void tlcall_fn_set_(tlCall* call, tlValue fn) {
     call->data[0] = fn;
 }
-void tlcall_set_arg_(tlCall* call, int at, tlValue v) {
+void tlcall_arg_set_(tlCall* call, int at, tlValue v) {
     assert(at >= 0 && at < tlcall_argc(call));
     call->data[at + 1] = v;
 }
-tlCall* tlcall_from_args(tlTask* task, tlValue fn, tlList* args) {
+tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
     int size = tllist_size(args);
     int namecount = 0;
 
@@ -137,9 +137,9 @@ tlCall* tlcall_from_args(tlTask* task, tlValue fn, tlList* args) {
     }
 
     tlCall* call = tlcall_new(task, size/2, namecount > 0);
-    tlcall_set_fn_(call, fn);
+    tlcall_fn_set_(call, fn);
     for (int i = 1; i < size; i += 2) {
-        tlcall_set_arg_(call, i / 2, tllist_get(args, i));
+        tlcall_arg_set_(call, i / 2, tllist_get(args, i));
     }
     if (namecount) {
         assert(names && nameset);
@@ -151,7 +151,7 @@ tlCall* tlcall_from_args(tlTask* task, tlValue fn, tlList* args) {
 }
 
 // TODO share code here ... almost same as above
-tlCall* tlcall_send_from_args(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
+tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
     assert(fn);
     assert(tlsym_is(msg));
     int size = tllist_size(args);
@@ -178,11 +178,11 @@ tlCall* tlcall_send_from_args(tlTask* task, tlValue fn, tlValue oop, tlValue msg
     }
 
     tlCall* call = tlcall_new(task, size/2 + 2, namecount > 0);
-    tlcall_set_fn_(call, fn);
-    tlcall_set_arg_(call, 0, oop);
-    tlcall_set_arg_(call, 1, msg);
+    tlcall_fn_set_(call, fn);
+    tlcall_arg_set_(call, 0, oop);
+    tlcall_arg_set_(call, 1, msg);
     for (int i = 1; i < size; i += 2) {
-        tlcall_set_arg_(call, 2 + i / 2, tllist_get(args, i));
+        tlcall_arg_set_(call, 2 + i / 2, tllist_get(args, i));
     }
     if (namecount) {
         assert(names && nameset);
