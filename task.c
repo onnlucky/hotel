@@ -97,19 +97,38 @@ void tltask_call(tlTask* task, tlCall* call) {
     trace("<< call");
 }
 
-tlRun* tltask_return(tlTask* task, tlValue v) {
+void tltask_value_set_(tlTask* task, tlValue v) {
     assert(v);
-    assert(!tlresult_is(v));
-    assert(!tlrun_is(v));
-    assert(!tlcall_is(v));
     assert(!tlactive_is(v));
+    assert(!tlrun_is(v));
+    assert(!task->exception);
 
+    trace("!! SET: %s", tl_str(v));
     task->value = v;
+}
+void tltask_exception_set_(tlTask* task, tlValue v) {
+    assert(v);
+    assert(!tlactive_is(v));
+    assert(!tlcall_is(v));
+    assert(!tlrun_is(v));
+
+    trace("!! SET EXCEPTION: %s", tl_str(v));
+    task->value = null;
+    task->exception = v;
+}
+
+tlRun* tltask_return(tlTask* task, tlValue v) {
+    assert(!tlresult_is(v));
+    assert(!tlcall_is(v));
+    assert(!tlrun_is(v));
+    tltask_value_set_(task, v);
     return null;
 }
+
+INTERNAL tlRun* run_throw(tlTask* task, tlValue exception);
 tlRun* tltask_throw_str(tlTask* task, const char* str) {
-    fatal("not implemented yet");
-    return null;
+    tlText* text = tltext_from_static(str);
+    return run_throw(task, text);
 }
 
 tlValue tltask_exception(tlTask* task) {
@@ -117,20 +136,6 @@ tlValue tltask_exception(tlTask* task) {
 }
 tlValue tltask_value(tlTask* task) {
     return tlresult_get(task->value, 0);
-}
-void tltask_set_exception(tlTask* task, tlValue v) {
-    assert(v);
-    assert(!tlactive_is(v));
-    trace("!! SET EXCEPTION: %s", tl_str(v));
-    task->value = null;
-    task->exception = v;
-}
-void tltask_set_value(tlTask* task, tlValue v) {
-    assert(v);
-    assert(!tlactive_is(v));
-    trace("!! SET: %s", tl_str(v));
-    assert(!task->exception);
-    task->value = v;
 }
 
 void tltask_ready_detach(tlTask* task) {

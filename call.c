@@ -18,8 +18,9 @@ tlHostFn* tlhostfn_new(tlTask* task, tlHostCb hostcb, int size) {
     return fun;
 }
 tlValue tlhostfn_get(tlHostFn* fn, int at) {
+    assert(tlhostfn_is(fn));
     assert(at >= 0);
-    if (at < fn->head.size - 1) return null;
+    if (at >= fn->head.size - 1) return null;
     return fn->data[at];
 }
 void tlhostfn_set_(tlHostFn* fn, int at, tlValue v) {

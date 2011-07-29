@@ -126,7 +126,7 @@ enum {
 };
 typedef uint8_t tlType;
 
-static inline bool tlref_is(tlValue v) { return ((intptr_t)v & 7) == 0; }
+static inline bool tlref_is(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
 static inline tlHead* tl_head(tlValue v) { assert(tlref_is(v)); return (tlHead*)v; }
 
 static inline bool tldata_is(tlValue v) { return tlref_is(v); }

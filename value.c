@@ -5,14 +5,16 @@ INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~fla
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
 uint8_t tl_type(tlValue v) {
-    if ((intptr_t)v & 1) return TLInt;
-    if ((intptr_t)v & 2) return TLSym;
-    if ((intptr_t)v < 1024) {
-        switch ((intptr_t)v) {
-            case 1 << 2: return TLUndefined;
-            case 2 << 2: return TLNull;
-            case 3 << 2: return TLBool;
-            case 4 << 2: return TLBool;
+    intptr_t i = (intptr_t)v;
+    if (!v) return TLInvalid;
+    if (tlint_is(v)) return TLInt;
+    if (tlsym_is(v)) return TLSym;
+    if (i < 1024) {
+        switch (i) {
+            case (1 << 3)|2: return TLUndefined;
+            case (2 << 3)|2: return TLNull;
+            case (3 << 3)|2: return TLBool;
+            case (4 << 3)|2: return TLBool;
             default: return TLInvalid;
         }
     }
