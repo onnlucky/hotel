@@ -70,10 +70,10 @@ tlCall* tlcall_from(tlTask* task, ...) {
     return call;
 }
 tlCall* tlcall_copy(tlTask* task, tlCall* o) {
-    return task_clone(task, o);
+    return TL_CLONE(o);
 }
 tlCall* tlcall_copy_fn(tlTask* task, tlCall* o, tlValue fn) {
-    tlCall* call = task_clone(task, o);
+    tlCall* call = TL_CLONE(o);
     call->data[0] = fn;
     return call;
 }

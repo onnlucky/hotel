@@ -44,7 +44,7 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
     int at = 0;
     at = tlset_indexof(map->keys, key);
     if (at >= 0) {
-        tlMap* nmap = task_clone(task, map);
+        tlMap* nmap = TL_CLONE(map);
         nmap->data[at] = v;
         return nmap;
     }
@@ -476,7 +476,7 @@ static tlRun* _map_clone(tlTask* task, tlArgs* args) {
     tlMap* map = tlmap_cast(tlargs_get(args, 0));
     if (!map) TL_THROW("Expected a map");
     int size = tlmap_size(map);
-    map = task_clone(task, map);
+    map = TL_CLONE(map);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!map->data[i]) map->data[i] = tlargs_get(args, argc++);
@@ -502,7 +502,7 @@ static tlRun* _object_from(tlTask* task, tlArgs* args) {
     tlValue map = tlmap_cast(tlargs_get(args, 0));
     if (!map) TL_THROW("Expected a map");
     if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(map);
-    map = task_clone(task, map);
+    map = TL_CLONE(map);
     tlflag_set(map, TL_FLAG_ISOBJECT);
     TL_RETURN(map);
 }

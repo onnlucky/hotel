@@ -98,7 +98,13 @@ void tltask_call(tlTask* task, tlCall* call) {
 }
 
 tlRun* tltask_return(tlTask* task, tlValue v) {
-    fatal("not implemented yet");
+    assert(v);
+    assert(!tlresult_is(v));
+    assert(!tlrun_is(v));
+    assert(!tlcall_is(v));
+    assert(!tlactive_is(v));
+
+    task->value = v;
     return null;
 }
 tlRun* tltask_throw_str(tlTask* task, const char* str) {

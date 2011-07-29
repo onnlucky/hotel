@@ -30,7 +30,6 @@ tlValue tlvalue_from_active(tlValue a) {
     return v;
 }
 tlValue tlactive_from_value(tlValue v) {
-    print("%s", tl_str(v));
     assert(tlref_is(v) || tlsym_is(v));
     assert(!tlactive_is(v));
     tlValue a = (tlValue)((intptr_t)v | 4);

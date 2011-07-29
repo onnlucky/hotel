@@ -132,7 +132,23 @@ tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs,
     to->head.keep = 1;
     return to;
 }
-tlValue task_clone(tlTask* task, tlValue v) {
+tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
+    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
+    assert(bytes % sizeof(tlValue) == 0);
+    assert(fields >= 0);
+    int size = fields + bytes/sizeof(tlValue) - 1;
+    assert(size >= 0 && size < 0xFFFF);
+
+    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue) * fields);
+    assert((((intptr_t)head) & 7) == 0);
+
+    head->flags = 0;
+    head->type = type;
+    head->size = size;
+    head->keep = 1;
+    return (tlValue)head;
+}
+tlValue tltask_clone(tlTask* task, tlValue v) {
     tlData* from = tldata_as(v);
     size_t bytes = sizeof(tlHead) + sizeof(tlValue) * from->head.size;
     int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
@@ -144,12 +160,6 @@ tlValue task_clone(tlTask* task, tlValue v) {
     assert(to->head.size == size);
     to->head.keep = 1;
     return to;
-}
-
-// TODO implement
-tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
-    fatal("not implemented");
-    return null;
 }
 
 // pritive toString

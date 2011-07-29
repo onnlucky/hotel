@@ -217,7 +217,7 @@ static tlRun* _list_clone(tlTask* task, tlArgs* args) {
     tlList* list = tllist_cast(tlargs_get(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tllist_size(list);
-    list = task_clone(task, list);
+    list = TL_CLONE(list);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!list->data[i]) list->data[i] = tlargs_get(args, argc++);

@@ -507,7 +507,7 @@ INTERNAL tlRun* run_code(tlTask* task, tlRunCode* run);
 INTERNAL tlRun* resume_code(tlTask* task, tlRun* r) {
     tlRunCode* run = (tlRunCode*)r;
     if (r->head.keep > 1) {
-        run = task_clone(task, run);
+        run = TL_CLONE(run);
     }
     return run_code(task, run);
 }
@@ -584,7 +584,7 @@ tlRun* run_code(tlTask* task, tlRunCode* run) {
         if (tlactive_is(op)) {
             trace2("%p op: active -- %s", run, tl_str(tlvalue_from_active(op)));
             // make sure we keep the current run up to date, continuations might capture it
-            if (run->head.keep > 1) run = task_clone(task, run);
+            if (run->head.keep > 1) run = TL_CLONE(run);
             run->env = env; run->pc = pc + 1;
             tlRun* r = run_activate(task, tlvalue_from_active(op), env);
             if (!r && tlcall_is(task->value)) {
@@ -594,7 +594,7 @@ tlRun* run_code(tlTask* task, tlRunCode* run) {
             if (r) {
                 trace2("%p op: active suspend: %p", run, r);
                 // TODO we don't have to clone if task->jumping
-                if (run->head.keep > 1) run = task_clone(task, run);
+                if (run->head.keep > 1) run = TL_CLONE(run);
                 run->env = env; run->pc = pc + 1;
                 return suspend_attach(task, r, run);
             }

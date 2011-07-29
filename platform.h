@@ -148,7 +148,7 @@
 
 // don't ask, don't tell
 char* strdup(const char*);
-#ifndef PLATFORM_LINUX
+#if defined(__DARWIN_C_LEVEL) && __DARWIN_C_LEVEL <= 200809L
 static inline size_t strnlen(const char* s, size_t n) {
     char *p = memchr(s, 0, n);
     return (p?p-s:n);
@@ -161,3 +161,4 @@ static inline char* strndup(const char* s, size_t n) {
     return ret;
 }
 #endif
+

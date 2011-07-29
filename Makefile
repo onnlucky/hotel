@@ -1,10 +1,11 @@
-CC:=gcc
+CC:=clang
 CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function -g $(CFLAGS)
+#TOOL=valgrind -q --track-origins=yes
 
 all: tl
 
 run: tl
-	valgrind -q --track-origins=yes ./tl run.tl
+	$(TOOL) ./tl run.tl
 
 test: tl
 	cd test && ./run.sh
