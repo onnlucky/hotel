@@ -14,7 +14,7 @@ tlList* tllist_empty() { return v_list_empty; }
 tlList* tllist_new(tlTask* task, int size) {
     if (size == 0) return v_list_empty;
     assert(size > 0 && size < TL_MAX_DATA_SIZE);
-    return task_alloc(task, TLList, size);
+    return TL_ALLOC(List, size);
 }
 
 tlList* tllist_from1(tlTask* task, tlValue v1) {

@@ -1,3 +1,6 @@
+print "hello", "world"
+
+/*
 buf = _buffer_new()
 _task_send(buf, #write, "hello world")
 print _task_send(buf, #text)

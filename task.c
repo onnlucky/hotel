@@ -27,6 +27,7 @@ typedef enum {
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
     TL_STATE_RUN,       // running
     TL_STATE_WAIT,      // waiting on a task, blocked_on is usually set
+
     TL_STATE_DONE,      // task is done, others can read its value
 } tlTaskState;
 
@@ -37,14 +38,15 @@ struct tlTask {
     tlWorker* worker;   // a worker is a host level thread, and is current owner of task
     tl_workfn work;     // a tlWorker will run this function; it should not run too long
 
+    tlTask* blocked_on; // which task we are waiting for
     lqentry entry;      // tasks are messages
     lqueue msg_q;       // this tasks message queue
     lqueue wait_q;      // waiters
-    tlTask* blocked_on; // which task we are waiting for
 
     // this is code task specific
-    tlRun* run;         // the current continuation aka run; much like the "pc register"
-    tlValue value;      // current value, if any; much like a "accumulator register"
+    tlTask* parent;     // task which created us
+    tlRun* run;         // the current continuation aka run; much like a "program counter" register
+    tlValue value;      // current value, if any; much like a "accumulator" register
     tlValue exception;  // current exception, if any
     tlValue jumping;    // indicates non linear suspend ... don't attach
 };

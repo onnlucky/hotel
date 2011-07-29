@@ -146,6 +146,12 @@ tlValue task_clone(tlTask* task, tlValue v) {
     return to;
 }
 
+// TODO implement
+tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
+    fatal("not implemented");
+    return null;
+}
+
 // pritive toString
 #define _BUF_COUNT 8
 #define _BUF_SIZE 128

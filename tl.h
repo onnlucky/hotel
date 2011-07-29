@@ -321,14 +321,19 @@ void tlworker_delete(tlWorker* worker);
 void tlworker_run(tlWorker* worker);
 
 void tlworker_attach(tlWorker* worker, tlTask* task);
-void tlworker_detach(tlWorker* worker, tlTask* task);
+// these all detach from the task
+void tlworker_task_detach(tlTask* task);
+void tlworker_task_ready(tlTask* task);
+void tlworker_task_waitfor(tlTask* task, tlTask* other);
 
 // ** task management **
-tlTask* tltask_new(tlWorker* worker);
+tlTask* tltask_new(tlWorker* worker); // starts attached
 tlTask* tltask_set_background_(tlTask* task, bool bg);
 tlWorker* tltask_worker(tlTask* task);
 tlVm* tltask_vm(tlTask* task);
 
+void tltask_call(tlTask* task, tlCall* args);
+bool tltask_isdone(tlTask* task);
 tlValue tltask_value(tlTask* task);
 tlValue tltask_exception(tlTask* task);
 
@@ -338,11 +343,7 @@ tlRun* tltask_throw(tlTask* task, tlValue v);
 tlRun* tltask_throw_str(tlTask* task, const char* msg);
 #define TL_RETURN(v) return tltask_return(task, v)
 #define TL_THROW(str) return tltask_throw_str(task, str)
-
-// ** scheduling and calling **
-void tltask_call(tlTask* task, tlCall* args);
-void tltask_ready_detach(tlTask* task);
-void tltask_wait_detach(tlTask* task, tlTask* other);
+#define TL_THROW_VALUE(v) return tltask_throw(task, v)
 
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);
@@ -355,6 +356,8 @@ tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields);
 tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields,
                            int privs, tlFreeCb freecb);
 tlValue tltask_clone(tlTask* task, tlValue v);
+#define TL_ALLOC(_T_, _FC_) tltask_alloc(task, TL##_T_, sizeof(tl##_T_), _FC_)
+#define TL_CLONE(_V_) tltask_clone(task, _V_)
 
 // ** extending **
 
