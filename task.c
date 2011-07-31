@@ -20,6 +20,8 @@ tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
 void tlresult_set_(tlResult* res, int at, tlValue v);
 
+void tlworker_detach(tlWorker* worker, tlTask* task);
+
 typedef void (*tl_workfn)(tlTask*);
 
 typedef enum {
@@ -74,7 +76,10 @@ INTERNAL void code_workfn(tlTask* task) {
     task->state = TL_STATE_RUN;
     while (task->state == TL_STATE_RUN) {
         run_resume(task, task->run);
-        if (!task->run) task->state = TL_STATE_DONE;
+        if (!task->run) {
+            task->state = TL_STATE_DONE;
+            tlworker_detach(task->worker, task);
+        }
     }
 }
 
@@ -143,10 +148,10 @@ void tltask_ready_detach(tlTask* task) {
     assert(tltask_is(task));
     assert(task->worker);
     tlVm* vm = task->worker->vm;
-    task->worker = null;
 
     assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_INIT);
     task->state = TL_STATE_READY;
+    tlworker_detach(task->worker, task);
     lqueue_put(&vm->run_q, &task->entry);
 }
 
@@ -169,7 +174,7 @@ static tlRun* _task_yield(tlTask* task, tlArgs* args) {
     trace("%s", tl_str(task));
     task->state = TL_STATE_WAIT;
     tltask_ready_detach(task);
-    return tlNull;
+    TL_RETURN(tlNull);
 }
 
 static tlRun* _task_send(tlTask* task, tlArgs* args) {
@@ -189,17 +194,23 @@ static tlRun* _task_send(tlTask* task, tlArgs* args) {
     tlresult_set_(msg, 0, task);
 
     // direct send
-    if (to->state == TL_STATE_WAIT && !to->blocked_on) {
-        trace("direct send");
-        to->value = msg;
-        tltask_ready_detach(to);
-        return null;
-    }
+    //if (tlworker_try_attach(to)) {
+        if (to->state == TL_STATE_WAIT && !to->blocked_on) {
+            tlworker_attach(task->worker, to);
+            trace("direct send");
+            to->value = msg;
+            tltask_ready_detach(to);
+            tlworker_detach(task->worker, task);
+            return null;
+        }
+    //}
 
     // indirect send
     trace("indirect send; appending to queue");
     task->value = msg;
+    tlworker_detach(task->worker, task);
     lqueue_put(&to->msg_q, &task->entry);
+    // try to ready ...
     return null;
 }
 
@@ -207,9 +218,11 @@ static tlRun* _task_receive(tlTask* task, tlArgs* args) {
     tlTask* from = tltask_from_entry(lqueue_get(&task->msg_q));
     trace("receive: %p %s <- %p %s", task, tl_str(task), from, tl_str(from));
     if (from) {
-        return from->value;
+        tltask_value_set_(task, from->value);
+        return null;
     }
     task->state = TL_STATE_WAIT;
+    tlworker_detach(task->worker, task);
     return null;
 }
 
@@ -218,12 +231,14 @@ static tlRun* _task_reply(tlTask* task, tlArgs* args) {
     assert(to && to != task);
     assert(to->blocked_on == task);
 
+    tlworker_attach(task->worker, to);
     trace("reply: %p %s -> %p %s", task, tl_str(task), to, tl_str(to));
+
     tlResult* msg = tlresult_new_skip(to, args);
     to->value = msg;
     to->blocked_on = null;
     tltask_ready_detach(to);
-    return tlNull;
+    TL_RETURN(tlNull);
 }
 
 static const tlHostCbs __task_hostcbs[] = {

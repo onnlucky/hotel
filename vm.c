@@ -140,7 +140,6 @@ void tlworker_detach(tlWorker* worker, tlTask* task) {
     assert(tlworker_is(worker));
     assert(tltask_is(task));
     assert(task->worker == worker);
-
     task->worker = null;
 }
 
@@ -156,7 +155,7 @@ void tlworker_run(tlWorker* worker) {
         assert(task->work);
         tlworker_attach(worker, task);
         task->work(task);
-        tlworker_detach(worker, task);
+        assert(!task->worker);
     }
     trace(">>>> WORKER DONE <<<<");
 }

@@ -1,10 +1,15 @@
 # TODO
-test/reason about functions that like to schedule stuff and what to return ...
-fix return/goto when target has returned already ... what to do anyhow?
+
+ensure task attach/detach is correct, and ready/done etc don't have races ...
+
 fix task_alloc, rename to value_alloc, use sizeof(impl) not field count
 throw exceptions a little bit better, at least cat texts with message ...
 clean up task.c arrange things around tlResult and such ...
+clean up tl.h; nice up code.{h,c} and call.c
 
+fix return/goto when target has returned already ... what to do anyhow?
+
+think about task local mutable things ... fork needs to split into readonly or stay local?
 
 implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?
@@ -13,15 +18,14 @@ only optimize after parser, inspect step: single tlAssign become just name ...
 add a syntax for blocks like `catch: e -> print exception` and `arr.each(e -> print e)`
 
 sprinkle more INTERNAL around and such
+think about c-stack eval until we need to reify the runs
 remove start_args ... we don't need to materialize its run all the time
-clean up tl.h; nice up code.{h,c} and call.c
 
 add default arguments using print = (sep=" ", end="\n")->{...} etc ...
 implement collector: x, *rest = multiple_return()
 implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
 implement lvalue assignment: mutable.field = fn()
 
-implement tasks and message sending primitives
 implement defer (add defer[] to tlCodeRun) or something ...
 
 bring back a boot.tl library
