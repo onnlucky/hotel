@@ -1,15 +1,12 @@
-print "hello", "world"
-
-/*
 buf = _buffer_new()
-_task_send(buf, #write, "hello world")
-print _task_send(buf, #text)
+print _buffer_write(buf, "hello world!")
+print _buffer_read(buf)
 
-/*
-file = null //_file_open("/etc/passwd")
+file = _file_open("/etc/passwd")
 len = _task_send(file, #read, buf)
-print len
-print _task_send(buf, #text)
+
+//print len
+//print _task_send(buf, #text)
 
 /*
 collect_block = (block)->{ return block }

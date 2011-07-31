@@ -31,6 +31,7 @@ typedef enum {
     TL_STATE_WAIT,      // waiting on a task, blocked_on is usually set
 
     TL_STATE_DONE,      // task is done, others can read its value
+    TL_STATE_ERROR,     // task is done, value is actually an error
 } tlTaskState;
 
 // this is how a code running task looks
@@ -46,7 +47,6 @@ struct tlTask {
     lqueue wait_q;      // waiters
 
     // this is code task specific
-    tlTask* parent;     // task which created us
     tlRun* run;         // the current continuation aka run; much like a "program counter" register
     tlValue value;      // current value, if any; much like a "accumulator" register
     tlValue exception;  // current exception, if any
@@ -60,10 +60,10 @@ struct tlHostTask {
     tlTaskState state;  // state it is currently in
     tl_workfn work;     // a tlWorker will run this function; it should not run too long
 
+    tlTask* blocked_on; // which task we are waiting for
     lqentry entry;      // tasks are messages
     lqueue msg_q;       // this tasks message queue
     lqueue wait_q;      // waiters
-    tlTask* blocked_on; // which task we are waiting for
 };
 
 INTERNAL tlTask* tltask_from_entry(lqentry* entry) {
@@ -131,8 +131,8 @@ tlRun* tltask_return(tlTask* task, tlValue v) {
 }
 
 INTERNAL tlRun* run_throw(tlTask* task, tlValue exception);
-tlRun* tltask_throw_str(tlTask* task, const char* str) {
-    tlText* text = tltext_from_static(str);
+tlRun* tltask_throw_take(tlTask* task, char* str) {
+    tlText* text = tltext_from_take(task, str);
     return run_throw(task, text);
 }
 

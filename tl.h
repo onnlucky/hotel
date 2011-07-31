@@ -340,9 +340,9 @@ tlValue tltask_exception(tlTask* task);
 tlRun* tltask_return(tlTask* task, tlValue v);
 tlRun* tltask_return_many(tlTask* task, tlValue vs[], int len);
 tlRun* tltask_throw(tlTask* task, tlValue v);
-tlRun* tltask_throw_str(tlTask* task, const char* msg);
+tlRun* tltask_throw_take(tlTask* task, char* str);
 #define TL_RETURN(v) return tltask_return(task, v)
-#define TL_THROW(str) return tltask_throw_str(task, str)
+#define TL_THROW(f, x...) do { char* _s; asprintf(&_s, f, ##x); return tltask_throw_take(task, _s); } while (0)
 #define TL_THROW_VALUE(v) return tltask_throw(task, v)
 
 // ** callbacks **

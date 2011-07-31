@@ -12,13 +12,13 @@
 #include "args.c"
 #include "call.c"
 
-#include "buffer.c"
-
 #include "task.c"
-
 #include "code.c"
 #include "env.c"
 #include "eval.c"
+
+#include "tagged.c"
+#include "buffer.c"
 
 #include "trace-off.h"
 
@@ -124,6 +124,8 @@ void tlvm_init() {
     eval_init();
     task_init();
     vm_init();
+
+    buffer_init();
 }
 
 // when outside of vm, be your own worker, and attach it to tasks

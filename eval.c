@@ -345,9 +345,7 @@ INTERNAL tlRun* lookup(tlTask* task, tlEnv* env, tlSym name) {
         return null;
     }
     tlValue v = tlenv_get(task, env, name);
-    if (!v) {
-        return run_throw(task, tlTEXT("not found"));
-    }
+    if (!v) TL_THROW("undefined '%s'", tl_str(name));
     tltask_value_set_(task, v);
     trace("%s -> %s", tl_str(name), tl_str(task->value));
     return null;

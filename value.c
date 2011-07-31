@@ -150,6 +150,10 @@ tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
     head->keep = 1;
     return (tlValue)head;
 }
+tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields, int privs, tlFreeCb freecb) {
+    tlHead* head = (tlHead*)tltask_alloc(task, type, bytes, fields + privs);
+    return (tlValue)head;
+}
 tlValue tltask_clone(tlTask* task, tlValue v) {
     tlData* from = tldata_as(v);
     size_t bytes = sizeof(tlHead) + sizeof(tlValue) * from->head.size;
