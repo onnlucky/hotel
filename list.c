@@ -12,9 +12,13 @@ static tlList* v_list_empty;
 tlList* tllist_empty() { return v_list_empty; }
 
 tlList* tllist_new(tlTask* task, int size) {
+    trace("%d", size);
     if (size == 0) return v_list_empty;
     assert(size > 0 && size < TL_MAX_DATA_SIZE);
-    return TL_ALLOC(List, size);
+    tlList* list = TL_ALLOC(List, size);
+    assert(list->head.size == size);
+    assert(tllist_size(list) == size);
+    return list;
 }
 
 tlList* tllist_from1(tlTask* task, tlValue v1) {

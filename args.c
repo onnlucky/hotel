@@ -1,6 +1,8 @@
 struct tlArgs {
     tlHead head;
-    tlValue* fn;
+    tlValue fn;
+    tlValue target;
+    tlValue msg;
     tlMap* map;
     tlList* list;
 };
@@ -9,7 +11,7 @@ static tlArgs* v_args_empty;
 
 tlArgs* tlargs_new_names(tlTask* task, int size, tlSet* names) {
     if (!names) names = v_set_empty;
-    tlArgs* args = task_alloc(task, TLArgs, 3);
+    tlArgs* args = task_alloc(task, TLArgs, 5);
     args->list = tllist_new(task, size - tlset_size(names));
     args->map = tlmap_new(task, names);
     return args;
@@ -17,11 +19,13 @@ tlArgs* tlargs_new_names(tlTask* task, int size, tlSet* names) {
 tlArgs* tlargs_new(tlTask* task, tlList* list, tlMap* map) {
     if (!list) list = v_list_empty;
     if (!map) map = v_map_empty;
-    tlArgs* args = task_alloc(task, TLArgs, 3);
+    tlArgs* args = task_alloc(task, TLArgs, 5);
     args->list = list;
     args->map = map;
     return args;
 }
+
+tlValue tlArgsTarget(tlArgs* args) { return args->target; }
 
 int tlargs_size(tlArgs* args) {
     assert(tlargs_is(args));

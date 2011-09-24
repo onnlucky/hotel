@@ -573,9 +573,9 @@ INTERNAL tlRun* chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlRun* 
 // this is the main part of eval: running the "list" of "bytecode"
 tlRun* run_code(tlTask* task, tlRunCode* run) {
     int pc = run->pc;
-    trace("%p -- %d", run, pc);
     tlCode* code = run->code;
     tlEnv* env = run->env;
+    trace("%p -- %d [%d]", run, pc, code->head.size);
 
     for (;pc < code->head.size - 4; pc++) {
         tlValue op = code->ops[pc];
@@ -779,11 +779,39 @@ static tlRun* _method_invoke(tlTask* task, tlArgs* args) {
     return start_args(task, nargs, null);
 }
 
+static tlRun* _object_send(tlTask* task, tlArgs* args) {
+    tlValue target = tlargs_get(args, 0);
+    tlValue msg = tlargs_get(args, 1);
+
+    print("%s", tl_str(target));
+    print("%s", tl_str(msg));
+
+    tlArgs* nargs = tlargs_new(task, null, null);
+    nargs->target = target;
+    nargs->msg = msg;
+    nargs->list = tllist_slice(task, args->list, 2, tllist_size(args->list));
+    nargs->map = args->map;
+
+    tlClass* klass = tlClassGet(target);
+    assert(klass);
+    if (klass->send) klass->send(task, args);
+    if (klass->map) {
+        tlValue field = tlmap_get(task, klass->map, msg);
+        if (!field) TL_RETURN(tlUndefined);
+        print("%s", tl_str(field));
+        nargs->fn = field;
+        return start_args(task, nargs, null);
+        //TL_RETURN(field);
+    }
+    abort();
+}
+
 static const tlHostCbs __eval_hostcbs[] = {
     { "_backtrace", _backtrace },
     { "_catch", _catch },
     { "_callable_is", _callable_is },
     { "_method_invoke", _method_invoke },
+    { "_object_send", _object_send },
     { 0, 0 }
 };
 

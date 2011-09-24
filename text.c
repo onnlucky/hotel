@@ -2,6 +2,8 @@
 
 #include "trace-off.h"
 
+static tlClass tlTextClass;
+
 static tlText* v_empty_text;
 
 // TODO short strings should be "inline" saves finalizer
@@ -17,6 +19,7 @@ tlText* tltext_empty() { return v_empty_text; }
 
 tlText* tltext_from_static(const char* s) {
     tlText* text = task_alloc_priv(null, TLText, 0, 4);
+    text->head.klass = &tlTextClass;
     //text->head.flags |= TL_FLAG_NOFREE;
     text->data = s;
     return text;
@@ -24,6 +27,7 @@ tlText* tltext_from_static(const char* s) {
 
 tlText* tltext_from_take(tlTask* task, char* s) {
     tlText* text = task_alloc_priv(task, TLText, 0, 4);
+    text->head.klass = &tlTextClass;
     text->data = s;
     return text;
 }
@@ -36,6 +40,7 @@ tlText* tltext_from_copy(tlTask* task, const char* s) {
     memcpy(d, s, size + 1);
 
     tlText* text = tltext_from_take(task, d);
+    text->head.klass = &tlTextClass;
     text->size = tlINT(size);
     return text;
 }
@@ -76,7 +81,7 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
 }
 
 static tlRun* _text_size(tlTask* task, tlArgs* args) {
-    tlText* text = tltext_cast(tlargs_get(args, 0));
+    tlText* text = tltext_cast(tlArgsTarget(args));
     if (!text) TL_THROW("Expected a Text object");
     TL_RETURN(tlINT(tltext_size(text)));
 }
@@ -98,6 +103,12 @@ static tlRun* _text_slice(tlTask* task, tlArgs* args) {
     TL_RETURN(tltext_sub(task, text, first, last - first));
 }
 
+static tlClass tlTextClass = {
+    .name = "text",
+    .map = null,
+    .send = null
+};
+
 static const tlHostCbs __text_cbs[] = {
     { "_text_size", _text_size },
     { "_text_slice", _text_slice },
@@ -105,7 +116,14 @@ static const tlHostCbs __text_cbs[] = {
 };
 
 static void text_init() {
+    tlMap* map = tlmap_empty();
+    tlHostFn* f_size = tlhostfn_new(null, _text_size, 1);
+    tlhostfn_set_(f_size, 0, tlSYM("size"));
+    map = tlmap_set(null, map, tlSYM("size"), f_size);
+
+    tlTextClass.map = map;
+
     v_empty_text = tlTEXT("");
-    tl_register_hostcbs(__text_cbs);
+    //tl_register_hostcbs(__text_cbs);
 }
 

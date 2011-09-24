@@ -10,6 +10,8 @@ struct tlMap {
     tlValue data[];
 };
 
+tlMap* tlmap_empty() { return v_map_empty; }
+
 tlMap* tlmap_new(tlTask* task, tlSet* keys) {
     if (!keys) keys = v_set_empty;
     tlMap* map = task_alloc(task, TLMap, tlset_size(keys) + 1);

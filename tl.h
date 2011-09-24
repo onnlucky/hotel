@@ -11,6 +11,9 @@ typedef void* tlValue;
 typedef tlValue tlSym;
 typedef tlValue tlInt;
 
+// TOOD rename to tlType ...
+typedef struct tlClass tlClass;
+
 // common head of all ref values; values appear in memory at 8 byte alignments
 // thus pointers to values have 3 lowest bits set to 000
 typedef struct tlHead {
@@ -18,6 +21,7 @@ typedef struct tlHead {
     uint8_t type;
     uint16_t size;
     int32_t keep;
+    tlClass* klass;
 } tlHead;
 
 // this is how all values look in memory
@@ -198,6 +202,14 @@ static inline tlValue tlvalue_from_active(tlValue v) {
 }
 #endif
 
+typedef tlRun*(*tlSendFn)(tlTask* task, tlArgs* args);
+
+struct tlClass {
+    const char* name;
+    tlMap* map;
+    tlSendFn send;
+};
+
 // simple primitive functions
 tlValue tlBOOL(unsigned c);
 tlInt tlINT(int i);
@@ -274,6 +286,7 @@ void tlmap_value_iter_set_(tlMap* map, int i, tlValue v);
 void tlmap_set_int_(tlMap* map, int key, tlValue v);
 void tlmap_set_sym_(tlMap* map, tlSym key, tlValue v);
 
+tlMap* tlmap_empty();
 tlMap* tlmap_new(tlTask* task, tlSet* keys);
 tlMap* tlmap_copy(tlTask* task, tlMap* map);
 tlMap* tlmap_from1(tlTask* task, tlValue key, tlValue v);
@@ -289,6 +302,9 @@ tlMap* tlmap_join(tlTask* task, tlMap* lhs, tlMap* rhs);
 
 // ** code **
 tlCode* tlcode_from(tlTask* task, tlList* stms);
+
+tlValue tlArgsTarget(tlArgs* args);
+tlSym tlArgsMsg(tlArgs* args);
 
 tlValue tlargs_fn(tlArgs* args);
 int tlargs_size(tlArgs* args);

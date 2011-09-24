@@ -4,6 +4,12 @@ INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags 
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
+static tlClass* tlClassGet(tlValue v) {
+    if (tlref_is(v)) {
+        return tl_head(v)->klass;
+    }
+    return null;
+}
 uint8_t tl_type(tlValue v) {
     intptr_t i = (intptr_t)v;
     if (!v) return TLInvalid;
@@ -138,7 +144,7 @@ tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
     assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
     assert(bytes % sizeof(tlValue) == 0);
     assert(fields >= 0);
-    int size = fields + bytes/sizeof(tlValue) - 1;
+    int size = fields + bytes/sizeof(tlValue) - sizeof(tlHead)/sizeof(intptr_t);
     assert(size >= 0 && size < 0xFFFF);
 
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue) * fields);

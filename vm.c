@@ -99,7 +99,7 @@ static tlRun* _mod(tlTask* task, tlArgs* args) {
 static void vm_init();
 void tlvm_init() {
     // assert assumptions on memory layout, pointer size etc
-    assert(sizeof(tlHead) <= sizeof(intptr_t));
+    //assert(sizeof(tlHead) <= sizeof(intptr_t));
     assert(!tlsym_is(tlFalse));
     assert(!tlsym_is(tlTrue));
     assert(tl_type(tlTrue) == TLBool);
@@ -113,11 +113,13 @@ void tlvm_init() {
     trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlValue));
 
     sym_init();
-    value_init();
-    text_init();
+
     list_init();
     set_init();
     map_init();
+
+    value_init();
+    text_init();
     args_init();
     //call_init();
 
