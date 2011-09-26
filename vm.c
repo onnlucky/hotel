@@ -12,6 +12,8 @@
 #include "args.c"
 #include "call.c"
 
+#include "object.c"
+
 #include "task.c"
 #include "code.c"
 #include "env.c"

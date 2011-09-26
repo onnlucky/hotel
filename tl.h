@@ -105,6 +105,8 @@ enum {
     TLList, TLSet, TLMap,
     TLCall, TLArgs, TLMsg,
 
+    TLObject,
+
     TLEnv,
     TLClosure,
     TLThunk,
@@ -158,6 +160,8 @@ TL_TYPE(call, Call);
 TL_TYPE(args, Args);
 TL_TYPE(msg, Msg);
 
+TL_TYPE(object, Object);
+
 TL_TYPE(env, Env);
 TL_TYPE(closure, Closure);
 TL_TYPE(thunk, Thunk);
@@ -189,6 +193,8 @@ static inline tlInt tlint_cast(tlValue v) { return tlint_is(v)?tlint_as(v):0; }
 static inline bool tlsym_is(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
 static inline tlSym tlsym_as(tlValue v) { assert(tlsym_is(v)); return (tlSym)v; }
 static inline tlSym tlsym_cast(tlValue v) { return tlsym_is(v)?tlsym_as(v):0; }
+
+bool tlcallable_is(tlValue v);
 
 #if 1
 bool tlactive_is(tlValue v);

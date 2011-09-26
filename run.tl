@@ -1,1 +1,3 @@
-"hello".size
+print "hello".size
+_new_object().hello
+

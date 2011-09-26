@@ -1,10 +1,11 @@
 # TODO
 
-instead of working off tlTask, work off tlWorker ...
-rework native callbacks with: (tlWorker* wr, tlArgs* args)
 implement tlObject which is a thread/actor/mutable object
 ensure there is alway a current/active/running object which does all the message sending
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
+
+instead of working off tlTask, work off tlWorker ...
+rework native callbacks with: (tlWorker* wr, tlArgs* args)
 
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs

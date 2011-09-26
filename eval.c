@@ -744,6 +744,14 @@ static tlRun* _catch(tlTask* task, tlArgs* args) {
     ((tlRunCode*)task->run)->handler = block;
     TL_RETURN(tlNull);
 }
+bool tlcallable_is(tlValue v) {
+    if (!tlref_is(v)) return false;
+
+    switch(tl_head(v)->type) {
+        case TLClosure: case TLHostFn: return true;
+    }
+    return false;
+}
 static tlRun* _callable_is(tlTask* task, tlArgs* args) {
     tlValue v = tlargs_get(args, 0);
     if (!tlref_is(v)) return tlFalse;
@@ -794,16 +802,18 @@ static tlRun* _object_send(tlTask* task, tlArgs* args) {
 
     tlClass* klass = tlClassGet(target);
     assert(klass);
-    if (klass->send) klass->send(task, args);
+    if (klass->send) return klass->send(task, nargs);
     if (klass->map) {
         tlValue field = tlmap_get(task, klass->map, msg);
+        print("1 %s", tl_str(field));
         if (!field) TL_RETURN(tlUndefined);
-        print("%s", tl_str(field));
+        print("2 %s", tl_str(field));
+        if (!tlcallable_is(field)) TL_RETURN(field);
+        print("3 %s", tl_str(field));
         nargs->fn = field;
         return start_args(task, nargs, null);
-        //TL_RETURN(field);
     }
-    abort();
+    fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));
 }
 
 static const tlHostCbs __eval_hostcbs[] = {
@@ -812,6 +822,7 @@ static const tlHostCbs __eval_hostcbs[] = {
     { "_callable_is", _callable_is },
     { "_method_invoke", _method_invoke },
     { "_object_send", _object_send },
+    { "_new_object", _new_object },
     { 0, 0 }
 };
 

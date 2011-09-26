@@ -1,82 +1,49 @@
+// object type, a hotel object is a thread/actore/mutable object all in one
 
-typedef struct tlType {
-    const tlText* name;
-    const tlMap* klass;
-    tlSendHandler send;
-} tlType;
+#include "trace-off.h"
 
-
-struct tlText {
-    tlType type;
-    const char* data;
-    int bytes;
-    int size;
-    int hash;
-};
-
-static tlType tlTextType = {
-    .name = "text";
-    .klass = null;
-    .send = null;
-};
-
-static tlText* tlTextNewStatic(const char* s) {
-    tlText* text = calloc(1, sizeof(tlText));
-    text->head.all = 0;
-    text->head.refcount = tlREFCOUNT_ETERNAL;
-    text->type = tlTextType;
-    text->data = s;
-    text->bytes = strlen(s);
-    text->size = utf8_charcount(s);
-    text->hash = hash(s);
-    return text;
-}
-#define tlTEXT tlTextNewStatic;
-
-static tlRun* _TextSize(tlWorker* worker, tlArgs* args) {
-    tlText* text = tlTextCast(args->target);
-    tlASSERT(text);
-    tlRETURN(tlINT(text->size));
-}
-
-static tlTextInit {
-    tlMap* map = tlMapNewWithSize(1);
-    tlMapAdd_(map, tlTEXT("size"), tlFN(_TextSize));
-    tlTextType.klass = map;
-}
+static tlClass tlObjectClass;
 
 struct tlObject {
-    tlType type;
-    tlWorker* owner;
-    llqueue* queue;
+    tlHead head;
+    tlTask* owner;
     tlMap* map;
 };
 
-static tlRun* _ObjectSend(tlWorker* worker, tlArgs* args) {
-    tlObject* self = tlObjectCast(args->target);
-    tlASSERT(self);
-    tlObject* sender = worker->running;
+tlObject* tlObjectNew(tlTask* task) {
+    tlObject* oop = TL_ALLOC(Object, 0);
+    oop->map = tlmap_empty();
+    oop->head.klass = &tlObjectClass;
+    return oop;
+}
+tlRun* _new_object(tlTask* task, tlArgs* args) {
+    TL_RETURN(tlObjectNew(task));
 }
 
-static tlType tlObjectType = {
-    .name = "object";
-    .klass = null;
-    .send = _ObjectSend;
-};
+tlRun* _ObjectSend(tlTask* task, tlArgs* args) {
+    tlObject* oop = tlobject_cast(args->target);
+    tlSym* msg = tlsym_cast(args->msg);
+    assert(oop);
+    assert(msg);
 
-static tlRun* _dispatch(tlWorker* worker, tlArgs* args) {
-    tlASSERT(args->target);
-    tlType* type = tlTypeFromValue(args->target);
-    tlASSERT(type);
-    if (type->send) return type->send(worker, args);
-    if (type->map) {
-        tlValue v = tlMapGet(type->map, tlArgsGet(args, 0));
-        if (!v) tlRETURN(tlUndefined);
-        tlType fntype = tlTypeFromValue(args->target);
-        assert(fntype);
-        if (fntype->call) return fntype->call(worker, args);
-        tlRETURN(v);
+    if (oop->owner) {
+        fatal("already have a owner, implement");
+    } else {
+        tlValue field = tlmap_get(task, oop->map, msg);
+        print("OBJECT SEND %p: %s -> %s", oop, tl_str(msg), tl_str(field));
+        if (!field) TL_RETURN(tlUndefined);
+        if (!tlcallable_is(field)) TL_RETURN(field);
+        fatal("don't know how to run code");
+        print("%s", tl_str(field));
+        args->fn = field;
+        //return start_args(task, args, null);
     }
-    tlRETURN(tlUndefined);
+    abort();
 }
+
+static tlClass tlObjectClass = {
+    .name = "object",
+    .map = null,
+    .send = _ObjectSend
+};
 
