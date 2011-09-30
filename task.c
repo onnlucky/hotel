@@ -16,6 +16,15 @@ struct tlWorker {
     tlVm* vm;
 };
 
+// any hotel "operation" can be paused and resumed using a tlPause object
+// a Pause is basically the equivalent of a continuation and/or a stack frame
+// notice, most operations will only materialize a pause if the need to
+struct tlPause {
+    tlHead head;
+    tlPause* caller;     // the pause below/after us
+    tlResumeCb resumecb; // a function called when resuming
+};
+
 tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
 void tlresult_set_(tlResult* res, int at, tlValue v);

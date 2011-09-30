@@ -11,8 +11,7 @@ struct tlObject {
     tlMap* map;
 };
 typedef struct tlPauseSend {
-    tlHead head;
-    tlResumeCb resume;
+    tlPause pause;
     tlObject* sender;
     tlArgs* args;
 } tlPauseSend;

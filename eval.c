@@ -15,15 +15,6 @@ void TL_FREE(tlValue v) {
     if (tl_head(v)->keep == 0) free(v);
 }
 
-// any hotel evaluation step can be saved and resumed using a tlPause
-struct tlPause {
-    tlHead head;
-    intptr_t user_data;  // any host value that needs saving ...
-    tlResumeCb resumecb; // a function called when resuming this pause
-    tlPause* caller;       // private
-    tlValue data[];
-};
-
 // various internal structures
 struct tlClosure {
     tlHead head;
@@ -45,42 +36,29 @@ struct tlCollect {
 
 // various types of runs, just for convenience ...
 typedef struct tlPauseActivateCall {
-    tlHead head;
+    tlPause pause;
     intptr_t count;
-    tlResumeCb resumecb;
-    tlPause* caller;
-
     tlEnv* env;
     tlCall* call;
 } tlPauseActivateCall;
 typedef struct tlPauseFirst {
-    tlHead head;
+    tlPause pause;
     intptr_t count;
-    tlResumeCb resumecb;
-    tlPause* caller;
-
     tlCall* call;
 } tlPauseFirst;
 typedef struct tlPauseCall {
-    tlHead head;
+    tlPause pause;
     intptr_t count;
-    tlResumeCb resumecb;
-    tlPause* caller;
-
     tlCall* call;
     tlArgs* args;
 } tlPauseCall;
-typedef struct tlPauseCode tlPauseCode;
-struct tlPauseCode {
-    tlHead head;
+typedef struct tlPauseCode {
+    tlPause pause;
     intptr_t pc;
-    tlResumeCb resumecb;
-    tlPause* caller;
-
     tlCode* code;
     tlEnv* env;
     tlClosure* handler;
-};
+} tlPauseCode;
 
 tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env) {
     tlClosure* fn = task_alloc(task, TLClosure, 2);
@@ -515,11 +493,11 @@ INTERNAL tlPause* resume_code(tlTask* task, tlPause* r) {
 
 INTERNAL tlPause* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tlPause* oldrun) {
     tlPauseCode* pause = tlpause_alloc(task, sizeof(tlPauseCode), 0, resume_code);
-    pause->resumecb = resume_code;
+    pause->pause.resumecb = resume_code;
     pause->pc = 0;
     pause->env = tlenv_new(task, fn->env);
     pause->code = fn->code;
-    if (oldrun) pause->caller = oldrun->caller;
+    if (oldrun) pause->pause.caller = oldrun->caller;
     task->pause = (tlPause*)pause;
     free(oldrun);
 
@@ -585,7 +563,7 @@ tlPause* run_code(tlTask* task, tlPauseCode* pause) {
         if (tlactive_is(op)) {
             trace2("%p op: active -- %s", pause, tl_str(tlvalue_from_active(op)));
             // make sure we keep the current pause up to date, continuations might capture it
-            if (pause->head.keep > 1) pause = TL_CLONE(pause);
+            if (pause->pause.head.keep > 1) pause = TL_CLONE(pause);
             pause->env = env; pause->pc = pc + 1;
             tlPause* r = run_activate(task, tlvalue_from_active(op), env);
             if (!r && tlcall_is(task->value)) {
@@ -595,7 +573,7 @@ tlPause* run_code(tlTask* task, tlPauseCode* pause) {
             if (r) {
                 trace2("%p op: active suspend: %p", pause, r);
                 // TODO we don't have to clone if task->jumping
-                if (pause->head.keep > 1) pause = TL_CLONE(pause);
+                if (pause->pause.head.keep > 1) pause = TL_CLONE(pause);
                 pause->env = env; pause->pc = pc + 1;
                 return suspend_attach(task, r, pause);
             }
