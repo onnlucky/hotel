@@ -8,7 +8,7 @@
 #include "trace-on.h"
 
 // this is how a print function could look
-static tlRun* _print(tlTask* task, tlArgs* args) {
+static tlPause* _print(tlTask* task, tlArgs* args) {
     tlText* sep = tlTEXT(" ");
     tlValue v = tlargs_map_get(args, tlSYM("sep"));
     if (v) sep = tlvalue_to_text(task, v);
@@ -34,7 +34,7 @@ static tlRun* _print(tlTask* task, tlArgs* args) {
     TL_RETURN(tlNull);
 }
 
-static tlRun* _assert(tlTask* task, tlArgs* args) {
+static tlPause* _assert(tlTask* task, tlArgs* args) {
     tlText* text = tltext_cast(tlargs_map_get(args, tlSYM("text")));
     if (!text) text = tltext_empty();
     for (int i = 0; i < 1000; i++) {

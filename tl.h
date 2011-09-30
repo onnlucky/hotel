@@ -119,7 +119,7 @@ enum {
     TLResult,
     TLError,
 
-    TLRun,
+    TLPause,
     TLTask,
     TLWorker,
     TLVm,
@@ -174,7 +174,7 @@ TL_TYPE(collect, Collect);
 TL_TYPE(result, Result);
 TL_TYPE(error, Error);
 
-TL_TYPE(run, Run);
+TL_TYPE(pause, Pause);
 TL_TYPE(task, Task);
 TL_TYPE(worker, Worker);
 TL_TYPE(vm, Vm);
@@ -208,7 +208,7 @@ static inline tlValue tlvalue_from_active(tlValue v) {
 }
 #endif
 
-typedef tlRun*(*tlSendFn)(tlTask* task, tlArgs* args);
+typedef tlPause*(*tlSendFn)(tlTask* task, tlArgs* args);
 
 struct tlClass {
     const char* name;
@@ -359,10 +359,10 @@ bool tltask_isdone(tlTask* task);
 tlValue tltask_value(tlTask* task);
 tlValue tltask_exception(tlTask* task);
 
-tlRun* tltask_return(tlTask* task, tlValue v);
-tlRun* tltask_return_many(tlTask* task, tlValue vs[], int len);
-tlRun* tltask_throw(tlTask* task, tlValue v);
-tlRun* tltask_throw_take(tlTask* task, char* str);
+tlPause* tltask_return(tlTask* task, tlValue v);
+tlPause* tltask_return_many(tlTask* task, tlValue vs[], int len);
+tlPause* tltask_throw(tlTask* task, tlValue v);
+tlPause* tltask_throw_take(tlTask* task, char* str);
 #define TL_RETURN(v) return tltask_return(task, v)
 #define TL_THROW(f, x...) do { char* _s; asprintf(&_s, f, ##x); return tltask_throw_take(task, _s); } while (0)
 #define TL_THROW_VALUE(v) return tltask_throw(task, v)
@@ -370,8 +370,8 @@ tlRun* tltask_throw_take(tlTask* task, char* str);
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);
 typedef void(*tlWorkCb)(tlTask*);
-typedef tlRun*(*tlResumeCb)(tlTask*, tlRun*);
-typedef tlRun*(*tlHostCb)(tlTask*, tlArgs*);
+typedef tlPause*(*tlResumeCb)(tlTask*, tlPause*);
+typedef tlPause*(*tlHostCb)(tlTask*, tlArgs*);
 
 // ** memory **
 tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields);

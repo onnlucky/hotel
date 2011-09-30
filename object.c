@@ -6,39 +6,78 @@ static tlClass tlObjectClass;
 
 struct tlObject {
     tlHead head;
+    lqueue msg_q;
     tlTask* owner;
     tlMap* map;
 };
+typedef struct tlPauseSend {
+    tlHead head;
+    tlResumeCb resume;
+    tlObject* sender;
+    tlArgs* args;
+} tlPauseSend;
+
+void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb resume) {
+    return null;
+}
+tlPause* tlTaskPause(tlTask* task, void*);
+tlPause* tlTaskAttachPause(tlTask* task, void*);
 
 tlObject* tlObjectNew(tlTask* task) {
-    tlObject* oop = TL_ALLOC(Object, 0);
-    oop->map = tlmap_empty();
-    oop->head.klass = &tlObjectClass;
-    return oop;
+    tlObject* self = TL_ALLOC(Object, 0);
+    self->map = tlmap_empty();
+    self->head.klass = &tlObjectClass;
+    return self;
 }
-tlRun* _new_object(tlTask* task, tlArgs* args) {
+tlPause* _new_object(tlTask* task, tlArgs* args) {
     TL_RETURN(tlObjectNew(task));
 }
 
-tlRun* _ObjectSend(tlTask* task, tlArgs* args) {
-    tlObject* oop = tlobject_cast(args->target);
+tlPause* _ResumeSend(tlTask* task, tlPause* run);
+tlPause* _ObjectSend(tlTask* task, tlArgs* args) {
+    tlObject* sender = task->object;
+    tlObject* self = tlobject_cast(args->target);
     tlSym* msg = tlsym_cast(args->msg);
-    assert(oop);
+    assert(self);
     assert(msg);
 
-    if (oop->owner) {
-        fatal("already have a owner, implement");
+    if (self->owner) {
+        fatal("not implemented");
+        /*
+        tlPauseSend* pause = tlPauseAlloc(task, sizeof(tlPauseSend), 0, _ResumeSend);
+        pause->sender = sender;
+        pause->args = args;
+        // TODO put in msg queue after tlTaskPause is done ... but that is impossible now
+        lqueue_put(&self->msg_q, &task->entry);
+        return tlTaskPause(task, pause);
+        */
     } else {
-        tlValue field = tlmap_get(task, oop->map, msg);
-        print("OBJECT SEND %p: %s -> %s", oop, tl_str(msg), tl_str(field));
-        if (!field) TL_RETURN(tlUndefined);
-        if (!tlcallable_is(field)) TL_RETURN(field);
-        fatal("don't know how to run code");
-        print("%s", tl_str(field));
+        self->owner = task;
+
+        tlValue field = tlmap_get(task, self->map, msg);
+        print("OBJECT SEND %p: %s -> %s", self, tl_str(msg), tl_str(field));
+        if (!field) {
+            self->owner = null;
+            TL_RETURN(tlUndefined);
+        }
+        if (!tlcallable_is(field)) {
+            self->owner = null;
+            TL_RETURN(field);
+        }
+        task->object = self;
         args->fn = field;
-        //return start_args(task, args, null);
+        fatal("not implemented");
+        /*
+        tlPause* paused = null; //start_arg(task, args);
+        if (paused) {
+            tlPauseSend* pause = tlPauseAlloc(task, sizeof(tlPauseSend), 0, _ResumeSend);
+            return tlTaskAttachPause(task, pause);
+        }
+        */
+        task->object = sender;
+        self->owner = null;
     }
-    abort();
+    return null;
 }
 
 static tlClass tlObjectClass = {

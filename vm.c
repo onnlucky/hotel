@@ -12,9 +12,9 @@
 #include "args.c"
 #include "call.c"
 
+#include "task.c"
 #include "object.c"
 
-#include "task.c"
 #include "code.c"
 #include "env.c"
 #include "eval.c"
@@ -24,7 +24,7 @@
 
 #include "trace-off.h"
 
-static tlRun* _out(tlTask* task, tlArgs* args) {
+static tlPause* _out(tlTask* task, tlArgs* args) {
     trace("out(%d)", tlargs_size(args));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlargs_get(args, i);
@@ -35,64 +35,64 @@ static tlRun* _out(tlTask* task, tlArgs* args) {
     TL_RETURN(tlNull);
 }
 
-static tlRun* _bool(tlTask* task, tlArgs* args) {
+static tlPause* _bool(tlTask* task, tlArgs* args) {
     tlValue c = tlargs_get(args, 0);
     trace("bool(%s)", tl_bool(c)?"true":"false");
     tlValue res = tlargs_get(args, tl_bool(c)?1:2);
     TL_RETURN(res);
 }
-static tlRun* _not(tlTask* task, tlArgs* args) {
+static tlPause* _not(tlTask* task, tlArgs* args) {
     trace("!%s", t_str(tlargs_get(args, 0)));
     TL_RETURN(tlBOOL(!tl_bool(tlargs_get(args, 0))));
 }
-static tlRun* _eq(tlTask* task, tlArgs* args) {
+static tlPause* _eq(tlTask* task, tlArgs* args) {
     trace("%p === %p", tlargs_get(args, 0), tlargs_get(args, 1));
     TL_RETURN(tlBOOL(tlargs_get(args, 0) == tlargs_get(args, 1)));
 }
-static tlRun* _neq(tlTask* task, tlArgs* args) {
+static tlPause* _neq(tlTask* task, tlArgs* args) {
     trace("%p !== %p", tlargs_get(args, 0), tlargs_get(args, 1));
     TL_RETURN(tlBOOL(tlargs_get(args, 0) != tlargs_get(args, 1)));
 }
 
 // TODO only for ints ...
-static tlRun* _lt(tlTask* task, tlArgs* args) {
+static tlPause* _lt(tlTask* task, tlArgs* args) {
     trace("%d < %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
     TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) < tl_int(tlargs_get(args, 1))));
 }
-static tlRun* _lte(tlTask* task, tlArgs* args) {
+static tlPause* _lte(tlTask* task, tlArgs* args) {
     trace("%d <= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
     TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) <= tl_int(tlargs_get(args, 1))));
 }
-static tlRun* _gt(tlTask* task, tlArgs* args) {
+static tlPause* _gt(tlTask* task, tlArgs* args) {
     trace("%d > %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
     TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) > tl_int(tlargs_get(args, 1))));
 }
-static tlRun* _gte(tlTask* task, tlArgs* args) {
+static tlPause* _gte(tlTask* task, tlArgs* args) {
     trace("%d >= %d", tl_int(tlargs_get(args, 0)), tl_int(tlargs_get(args, 1)));
     TL_RETURN(tlBOOL(tl_int(tlargs_get(args, 0)) >= tl_int(tlargs_get(args, 1))));
 }
 
-static tlRun* _add(tlTask* task, tlArgs* args) {
+static tlPause* _add(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) + tl_int(tlargs_get(args, 1));
     trace("ADD: %d", res);
     TL_RETURN(tlINT(res));
 }
-static tlRun* _sub(tlTask* task, tlArgs* args) {
+static tlPause* _sub(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) - tl_int(tlargs_get(args, 1));
     trace("SUB: %d", res);
     TL_RETURN(tlINT(res));
 }
-static tlRun* _mul(tlTask* task, tlArgs* args) {
+static tlPause* _mul(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) * tl_int(tlargs_get(args, 1));
     trace("MUL: %d", res);
     TL_RETURN(tlINT(res));
 }
-static tlRun* _div(tlTask* task, tlArgs* args) {
+static tlPause* _div(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) / tl_int(tlargs_get(args, 1));
     trace("DIV: %d", res);
     TL_RETURN(tlINT(res));
 }
-static tlRun* _mod(tlTask* task, tlArgs* args) {
+static tlPause* _mod(tlTask* task, tlArgs* args) {
     int res = tl_int(tlargs_get(args, 0)) % tl_int(tlargs_get(args, 1));
     trace("MOD: %d", res);
     TL_RETURN(tlINT(res));
@@ -111,7 +111,7 @@ void tlvm_init() {
 
     trace("    field size: %zd", sizeof(tlValue));
     trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlValue));
-    trace("frame overhead: %zd (%zd)", sizeof(tlRun), sizeof(tlRun)/sizeof(tlValue));
+    trace("frame overhead: %zd (%zd)", sizeof(tlPause), sizeof(tlPause)/sizeof(tlValue));
     trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlValue));
 
     sym_init();
@@ -158,9 +158,8 @@ void tlworker_run(tlWorker* worker) {
         tlTask* task = tltask_from_entry(lqueue_get(&vm->run_q));
         if (!task) break;
         trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
-        assert(task->work);
         tlworker_attach(worker, task);
-        task->work(task);
+        code_workfn(task);
         assert(!task->worker);
     }
     trace(">>>> WORKER DONE <<<<");

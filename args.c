@@ -66,12 +66,12 @@ void tlargs_map_set_(tlArgs* args, tlSym name, tlValue v) {
     tlmap_set_sym_(args->map, name, v);
 }
 
-static tlRun* _args_size(tlTask* task, tlArgs* args) {
+static tlPause* _args_size(tlTask* task, tlArgs* args) {
     tlArgs* as = tlargs_cast(tlargs_get(args, 0));
     if (!as) TL_THROW("Expected a args object");
     TL_RETURN(tlINT(tlargs_size(as)));
 }
-static tlRun* _args_names(tlTask* task, tlArgs* args) {
+static tlPause* _args_names(tlTask* task, tlArgs* args) {
     tlArgs* as = tlargs_cast(tlargs_get(args, 0));
     if (!as) TL_THROW("Expected a args object");
     TL_RETURN(tlargs_map(as));

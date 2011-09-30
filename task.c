@@ -3,8 +3,8 @@
 #include "trace-on.h"
 
 INTERNAL tlValue tlresult_get(tlValue v, int at);
-INTERNAL tlRun* run_apply(tlTask* task, tlCall* call);
-INTERNAL void run_resume(tlTask* task, tlRun* run);
+INTERNAL tlPause* run_apply(tlTask* task, tlCall* call);
+INTERNAL void run_resume(tlTask* task, tlPause* run);
 
 struct tlVm {
     tlHead head;
@@ -37,33 +37,17 @@ typedef enum {
 // this is how a code running task looks
 struct tlTask {
     tlHead head;
-    tlTaskState state;  // state it is currently in
-    tlWorker* worker;   // a worker is a host level thread, and is current owner of task
-    tl_workfn work;     // a tlWorker will run this function; it should not run too long
+    tlWorker* worker;  // current worker that is working on this task
+    lqentry entry;     // how it gets linked into a queues
 
-    tlTask* blocked_on; // which task we are waiting for
-    lqentry entry;      // tasks are messages
-    lqueue msg_q;       // this tasks message queue
-    lqueue wait_q;      // waiters
+    tlValue value;     // current value
+    tlValue exception; // current exception
+    tlObject* object;  // current mutable object (== current thread or actor)
+    tlPause* pause;    // current pause (== current continuation)
 
-    // this is code task specific
-    tlRun* run;         // the current continuation aka run; much like a "program counter" register
-    tlValue value;      // current value, if any; much like a "accumulator" register
-    tlValue exception;  // current exception, if any
+    // TODO remove these in favor a some flags
     tlValue jumping;    // indicates non linear suspend ... don't attach
-};
-
-// this is how a host task looks
-struct tlHostTask {
-    tlHead head;
-    tlValue worker;     // a worker is a host level thread, and is current owner of task
-    tlTaskState state;  // state it is currently in
-    tl_workfn work;     // a tlWorker will run this function; it should not run too long
-
-    tlTask* blocked_on; // which task we are waiting for
-    lqentry entry;      // tasks are messages
-    lqueue msg_q;       // this tasks message queue
-    lqueue wait_q;      // waiters
+    tlTaskState state; // state it is currently in
 };
 
 INTERNAL tlTask* tltask_from_entry(lqentry* entry) {
@@ -75,8 +59,8 @@ INTERNAL void code_workfn(tlTask* task) {
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
     while (task->state == TL_STATE_RUN) {
-        run_resume(task, task->run);
-        if (!task->run) {
+        run_resume(task, task->pause);
+        if (!task->pause) {
             task->state = TL_STATE_DONE;
             tlworker_detach(task->worker, task);
         }
@@ -86,7 +70,6 @@ INTERNAL void code_workfn(tlTask* task) {
 tlTask* tltask_new(tlWorker* worker) {
     tlTask* task = calloc(1, sizeof(tlTask));
     task->head.type = TLTask;
-    task->work = code_workfn;
     task->worker = worker;
     assert(task->state == TL_STATE_INIT);
     trace("new task: %p", task);
@@ -95,7 +78,6 @@ tlTask* tltask_new(tlWorker* worker) {
 
 void tltask_call(tlTask* task, tlCall* call) {
     assert(tltask_is(task));
-    assert(task->work == code_workfn);
     trace(">> call");
     // TODO this will immediately eval some, I guess that is not what we really want ...
     run_apply(task, call);
@@ -105,7 +87,7 @@ void tltask_call(tlTask* task, tlCall* call) {
 void tltask_value_set_(tlTask* task, tlValue v) {
     assert(v);
     assert(!tlactive_is(v));
-    assert(!tlrun_is(v));
+    assert(!tlpause_is(v));
     assert(!task->exception);
 
     trace("!! SET: %s", tl_str(v));
@@ -115,23 +97,23 @@ void tltask_exception_set_(tlTask* task, tlValue v) {
     assert(v);
     assert(!tlactive_is(v));
     assert(!tlcall_is(v));
-    assert(!tlrun_is(v));
+    assert(!tlpause_is(v));
 
     trace("!! SET EXCEPTION: %s", tl_str(v));
     task->value = null;
     task->exception = v;
 }
 
-tlRun* tltask_return(tlTask* task, tlValue v) {
+tlPause* tltask_return(tlTask* task, tlValue v) {
     assert(!tlresult_is(v));
     assert(!tlcall_is(v));
-    assert(!tlrun_is(v));
+    assert(!tlpause_is(v));
     tltask_value_set_(task, v);
     return null;
 }
 
-INTERNAL tlRun* run_throw(tlTask* task, tlValue exception);
-tlRun* tltask_throw_take(tlTask* task, char* str) {
+INTERNAL tlPause* run_throw(tlTask* task, tlValue exception);
+tlPause* tltask_throw_take(tlTask* task, char* str) {
     tlText* text = tltext_from_take(task, str);
     return run_throw(task, text);
 }
@@ -159,7 +141,7 @@ void tltask_ready_detach(tlTask* task) {
 // ** host **
 
 // TODO pass rest of args to function
-static tlRun* _task_new(tlTask* task, tlArgs* args) {
+static tlPause* _task_new(tlTask* task, tlArgs* args) {
     tlValue fn = tlargs_get(args, 0);
     assert(task && task->worker && task->worker->vm);
 
@@ -170,14 +152,16 @@ static tlRun* _task_new(tlTask* task, tlArgs* args) {
     TL_RETURN(ntask);
 }
 
-static tlRun* _task_yield(tlTask* task, tlArgs* args) {
+static tlPause* _task_yield(tlTask* task, tlArgs* args) {
     trace("%s", tl_str(task));
     task->state = TL_STATE_WAIT;
     tltask_ready_detach(task);
     TL_RETURN(tlNull);
 }
 
-static tlRun* _task_send(tlTask* task, tlArgs* args) {
+static tlPause* _task_send(tlTask* task, tlArgs* args) {
+    return null;
+    /*
     tlTask* to = tltask_cast(tlargs_get(args, 0));
     assert(to && to != task);
     assert(to->state != TL_STATE_DONE);
@@ -212,9 +196,12 @@ static tlRun* _task_send(tlTask* task, tlArgs* args) {
     lqueue_put(&to->msg_q, &task->entry);
     // try to ready ...
     return null;
+    */
 }
 
-static tlRun* _task_receive(tlTask* task, tlArgs* args) {
+static tlPause* _task_receive(tlTask* task, tlArgs* args) {
+    return null;
+    /*
     tlTask* from = tltask_from_entry(lqueue_get(&task->msg_q));
     trace("receive: %p %s <- %p %s", task, tl_str(task), from, tl_str(from));
     if (from) {
@@ -224,9 +211,12 @@ static tlRun* _task_receive(tlTask* task, tlArgs* args) {
     task->state = TL_STATE_WAIT;
     tlworker_detach(task->worker, task);
     return null;
+    */
 }
 
-static tlRun* _task_reply(tlTask* task, tlArgs* args) {
+static tlPause* _task_reply(tlTask* task, tlArgs* args) {
+    return null;
+    /*
     tlTask* to = tltask_cast(tlargs_get(args, 0));
     assert(to && to != task);
     assert(to->blocked_on == task);
@@ -239,6 +229,7 @@ static tlRun* _task_reply(tlTask* task, tlArgs* args) {
     to->blocked_on = null;
     tltask_ready_detach(to);
     TL_RETURN(tlNull);
+    */
 }
 
 static const tlHostCbs __task_hostcbs[] = {

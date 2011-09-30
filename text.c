@@ -80,12 +80,12 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     return tlTEXT("<ERROR.to-text>");
 }
 
-static tlRun* _text_size(tlTask* task, tlArgs* args) {
+static tlPause* _text_size(tlTask* task, tlArgs* args) {
     tlText* text = tltext_cast(tlArgsTarget(args));
     if (!text) TL_THROW("Expected a Text object");
     TL_RETURN(tlINT(tltext_size(text)));
 }
-static tlRun* _text_slice(tlTask* task, tlArgs* args) {
+static tlPause* _text_slice(tlTask* task, tlArgs* args) {
     tlText* text = tltext_cast(tlargs_get(args, 0));
     if (!text) TL_THROW("Expected a Text object");
     int size = tltext_size(text);
