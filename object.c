@@ -10,17 +10,14 @@ struct tlObject {
     tlTask* owner;
     tlMap* map;
 };
-typedef struct tlPauseSend {
+typedef struct tlPauseBefore {
+    tlPause pause;
+    tlArgs* args;
+} tlPauseBefore;
+typedef struct tlPauseAfter {
     tlPause pause;
     tlObject* sender;
-    tlArgs* args;
-} tlPauseSend;
-
-void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb resume) {
-    return null;
-}
-tlPause* tlTaskPause(tlTask* task, void*);
-tlPause* tlTaskAttachPause(tlTask* task, void*);
+} tlPauseAfter;
 
 tlObject* tlObjectNew(tlTask* task) {
     tlObject* self = TL_ALLOC(Object, 0);
@@ -32,50 +29,60 @@ tlPause* _new_object(tlTask* task, tlArgs* args) {
     TL_RETURN(tlObjectNew(task));
 }
 
-tlPause* _ResumeSend(tlTask* task, tlPause* run);
+tlPause* _ObjectSend2(tlTask* task, tlArgs* args);
+
+tlPause* _ResumeBefore(tlTask* task, tlPause* _pause) {
+    tlPauseBefore* pause = (tlPauseBefore*)_pause;
+    return _ObjectSend2(task, pause->args);
+}
+tlPause* _ResumeAfter(tlTask* task, tlPause* _pause) {
+    tlPauseAfter* pause = (tlPauseAfter*)_pause;
+    task->sender = pause->sender;
+    return null;
+}
+
 tlPause* _ObjectSend(tlTask* task, tlArgs* args) {
-    tlObject* sender = task->object;
     tlObject* self = tlobject_cast(args->target);
-    tlSym* msg = tlsym_cast(args->msg);
+    assert(self);
+
+    if (self->owner) {
+        tlPauseBefore* pause = tlPauseAlloc(task, sizeof(tlPauseBefore), 0, _ResumeBefore);
+        pause->args = args;
+        // TODO put in msg queue after tlTaskPause is done ... but that is impossible now
+        // TODO after putting ourself in the queue, we must try run the object
+        lqueue_put(&self->msg_q, &task->entry);
+        return tlTaskPause(task, pause);
+    } else {
+        return _ObjectSend2(task, args);
+    }
+}
+tlPause* _ObjectSend2(tlTask* task, tlArgs* args) {
+    tlObject* sender = task->sender;
+    tlObject* self = tlobject_cast(args->target);
+    tlSym msg = tlsym_cast(args->msg);
     assert(self);
     assert(msg);
 
-    if (self->owner) {
-        fatal("not implemented");
-        /*
-        tlPauseSend* pause = tlPauseAlloc(task, sizeof(tlPauseSend), 0, _ResumeSend);
-        pause->sender = sender;
-        pause->args = args;
-        // TODO put in msg queue after tlTaskPause is done ... but that is impossible now
-        lqueue_put(&self->msg_q, &task->entry);
-        return tlTaskPause(task, pause);
-        */
-    } else {
-        self->owner = task;
-
-        tlValue field = tlmap_get(task, self->map, msg);
-        print("OBJECT SEND %p: %s -> %s", self, tl_str(msg), tl_str(field));
-        if (!field) {
-            self->owner = null;
-            TL_RETURN(tlUndefined);
-        }
-        if (!tlcallable_is(field)) {
-            self->owner = null;
-            TL_RETURN(field);
-        }
-        task->object = self;
-        args->fn = field;
-        fatal("not implemented");
-        /*
-        tlPause* paused = null; //start_arg(task, args);
-        if (paused) {
-            tlPauseSend* pause = tlPauseAlloc(task, sizeof(tlPauseSend), 0, _ResumeSend);
-            return tlTaskAttachPause(task, pause);
-        }
-        */
-        task->object = sender;
+    tlValue field = tlmap_get(task, self->map, msg);
+    print("OBJECT SEND %p: %s -> %s", self, tl_str(msg), tl_str(field));
+    if (!field) {
         self->owner = null;
+        TL_RETURN(tlUndefined);
     }
+    if (!tlcallable_is(field)) {
+        self->owner = null;
+        TL_RETURN(field);
+    }
+    task->sender = self;
+    args->fn = field;
+    tlPause* p = tlTaskEvalArgs(task, args);
+    if (p) {
+        tlPauseAfter* pause = tlPauseAlloc(task, sizeof(tlPauseAfter), 0, _ResumeAfter);
+        pause->sender = sender;
+        return tlTaskPauseAttach(task, p, pause);
+    }
+    task->sender = sender;
+    self->owner = null;
     return null;
 }
 

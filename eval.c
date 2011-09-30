@@ -115,12 +115,6 @@ tlValue tlresult_get(tlValue v, int at) {
     return tlNull;
 }
 
-void assert_backtrace(tlPause* pause) {
-    int i = 100;
-    while (i-- && pause) pause = pause->caller;
-    if (pause) fatal("STACK CORRUPTED");
-}
-
 INTERNAL tlPause* resume_code(tlTask* task, tlPause* pause);
 bool tlpause_iscode(tlPause* pause) { return pause && pause->resumecb == resume_code; }
 tlPauseCode* tlpause_ascode(tlPause* pause) { assert(tlpause_iscode(pause)); return (tlPauseCode*)pause; }
@@ -167,35 +161,6 @@ INTERNAL tlPause* run_throw(tlTask* task, tlValue exception) {
     return null;
 }
 
-INTERNAL tlPause* setup(tlTask* task, tlValue v) {
-    trace("      <<<< %p", v);
-    return task->pause = tlpause_as(v);
-}
-INTERNAL tlPause* setup_caller(tlTask* task, tlValue v) {
-    if (!v) return null;
-    tlPause* caller = tlpause_as(v)->caller;
-    trace(" << %p <<<< %p", caller, v);
-    task->pause = caller;
-    assert_backtrace(task->pause);
-    return caller;
-}
-INTERNAL tlPause* suspend(tlTask* task, tlValue v) {
-    tlPause* pause = tlpause_as(v);
-    trace("    >>>> %p", pause);
-    task->pause = pause;
-    assert_backtrace(task->pause);
-    return pause;
-}
-INTERNAL tlPause* suspend_attach(tlTask* task, tlPause* pause, tlValue c) {
-    if (task->jumping) return pause;
-    assert(tlpause_is(pause));
-    tlPause* caller = tlpause_as(c);
-    trace("> %p.caller = %p", pause, caller);
-    pause->caller = caller;
-    assert_backtrace(pause);
-    return caller;
-}
-
 // return works like a closure, on lookup we close it over the current pause
 INTERNAL tlPause* _return(tlTask* task, tlArgs* args) {
     trace("RETURN(%d)", tlargs_size(args));
@@ -216,7 +181,7 @@ INTERNAL tlPause* _return(tlTask* task, tlArgs* args) {
         pause = pause->caller;
     }
 
-    setup(task, caller);
+    tlTaskPause(task, caller);
 
     if (tlargs_size(args) == 1) TL_RETURN(tlargs_get(args, 0));
     tltask_value_set_(task, tlresult_new(task, args));
@@ -232,7 +197,7 @@ INTERNAL tlPause* _continuation(tlTask* task, tlArgs* args) {
     trace("CONTINUATION(%d)", tlargs_size(args));
 
     task->jumping = tlTrue;
-    setup(task, tlhostfn_as(args->fn)->data[0]);
+    tlTaskPause(task, tlhostfn_as(args->fn)->data[0]);
 
     if (tlargs_size(args) == 0) TL_RETURN(args->fn);
     tltask_value_set_(task, tlresult_new2(task, args->fn, args));
@@ -243,6 +208,9 @@ void* tlpause_alloc(tlTask* task, size_t bytes, int datas, tlResumeCb resumecb) 
     tlPause* pause = task_alloc_full(task, TLPause, bytes, 2, datas);
     pause->resumecb = resumecb;
     return pause;
+}
+void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb) {
+    return tlpause_alloc(task, bytes, fields, cb);
 }
 
 INTERNAL tlPause* run_apply(tlTask* task, tlCall* call);
@@ -280,7 +248,7 @@ INTERNAL tlPause* run_activate_call(tlTask* task, tlPauseActivateCall* pause, tl
                 }
                 pause->count = -1 - i;
                 pause->call = call;
-                return suspend_attach(task, r, pause);
+                return tlTaskPauseAttach(task, r, pause);
             }
             v = tltask_value(task);
             call = tlcall_value_iter_set_(call, i, v);
@@ -358,7 +326,7 @@ INTERNAL tlPause* run_first(tlTask* task, tlPauseFirst* pause, tlCall* call, tlC
         if (r) {
             pause = tlpause_alloc(task, sizeof(tlPauseFirst), 0, resume_first);
             pause->call = call;
-            return suspend_attach(task, r, pause);
+            return tlTaskPauseAttach(task, r, pause);
         }
     }
     fn = tltask_value(task);
@@ -368,9 +336,9 @@ INTERNAL tlPause* run_first(tlTask* task, tlPauseFirst* pause, tlCall* call, tlC
 
     // TODO this can be done differently ...
     // tail call ... kindof ...
-    tlPause* caller = setup_caller(task, pause);
+    tlPause* caller = tlTaskPauseCaller(task, pause);
     tlPause* r = run_apply(task, call);
-    if (r) return suspend_attach(task, r, caller);
+    if (r) return tlTaskPauseAttach(task, r, caller);
     return null;
 }
 
@@ -458,7 +426,7 @@ INTERNAL tlPause* run_call(tlTask* task, tlPauseCall* pause) {
                 assert(at < 0xFFFF && named < 0xFF && skipped < 0x7F);
                 pause->count = 0x80000000 | skipped << 24 | named << 16 | at;
                 pause->args = args;
-                return suspend_attach(task, r, pause);
+                return tlTaskPauseAttach(task, r, pause);
             }
             v = tltask_value(task);
         }
@@ -540,11 +508,11 @@ INTERNAL tlPause* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, 
 INTERNAL tlPause* chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlPause* pause) {
     trace("%p", pause);
 
-    tlPause* caller = setup_caller(task, pause);
+    tlPause* caller = tlTaskPauseCaller(task, pause);
     trace(">> NATIVE %p %s", fn, tl_str(tlhostfn_get(fn, 0)));
 
     tlPause* r = fn->hostcb(task, args);
-    if (r) return suspend_attach(task, r, caller);
+    if (r) return tlTaskPauseAttach(task, r, caller);
     return null;
 }
 
@@ -575,7 +543,7 @@ tlPause* run_code(tlTask* task, tlPauseCode* pause) {
                 // TODO we don't have to clone if task->jumping
                 if (pause->pause.head.keep > 1) pause = TL_CLONE(pause);
                 pause->env = env; pause->pc = pc + 1;
-                return suspend_attach(task, r, pause);
+                return tlTaskPauseAttach(task, r, pause);
             }
             assert(!tlpause_is(task->value));
             assert(!tlcall_is(task->value));
@@ -611,7 +579,7 @@ tlPause* run_code(tlTask* task, tlPauseCode* pause) {
         trace2("%p op: data: %s", pause, tl_str(op));
         tltask_value_set_(task, op);
     }
-    setup_caller(task, pause);
+    tlTaskPauseCaller(task, pause);
     return null;
 }
 
@@ -630,7 +598,7 @@ INTERNAL tlPause* start_call(tlTask* task, tlCall* call) {
     trace("%p", call);
     tlPauseCall* pause = tlpause_alloc(task, sizeof(tlPauseCall), 0, resume_call);
     pause->call = call;
-    return suspend(task, pause);
+    return tlTaskPause(task, pause);
 }
 
 INTERNAL tlPause* run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
@@ -652,14 +620,14 @@ INTERNAL tlPause* run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
         pause = pause->caller;
     }
 
-    setup(task, caller);
+    tlTaskPause(task, caller);
 
     tlValue v = tlcall_arg(call, 0);
     if (tlcall_is(v)) {
         tlPause* r = run_apply(task, tlcall_as(v));
         if (r) {
             assert(!task->jumping);
-            suspend_attach(task, r, caller);
+            tlTaskPauseAttach(task, r, caller);
             task->jumping = tlTrue;
             return caller;
         }
@@ -707,6 +675,13 @@ INTERNAL void run_resume(tlTask* task, tlPause* pause) {
     task->jumping = 0;
     assert(pause->resumecb);
     pause->resumecb(task, pause);
+}
+
+tlPause* tlTaskEvalArgs(tlTask* task, tlArgs* args) {
+    return start_args(task, args, null);
+}
+tlPause* tlTaskEvalCall(tlTask* task, tlCall* call) {
+    return run_apply(task, call);
 }
 
 // ** integration **

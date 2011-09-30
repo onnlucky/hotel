@@ -6,6 +6,10 @@ INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlPause* run_apply(tlTask* task, tlCall* call);
 INTERNAL void run_resume(tlTask* task, tlPause* run);
 
+tlResult* tlresult_new(tlTask* task, tlArgs* args);
+tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
+void tlresult_set_(tlResult* res, int at, tlValue v);
+
 struct tlVm {
     tlHead head;
     lqueue run_q;
@@ -17,21 +21,16 @@ struct tlWorker {
 };
 
 // any hotel "operation" can be paused and resumed using a tlPause object
-// a Pause is basically the equivalent of a continuation and/or a stack frame
-// notice, most operations will only materialize a pause if the need to
+// a Pause is basically the equivalent of a continuation or a stack frame
+// notice, most operations will only materialize a pause if they need to
 struct tlPause {
     tlHead head;
     tlPause* caller;     // the pause below/after us
     tlResumeCb resumecb; // a function called when resuming
 };
-
-tlResult* tlresult_new(tlTask* task, tlArgs* args);
-tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
-void tlresult_set_(tlResult* res, int at, tlValue v);
+void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb);
 
 void tlworker_detach(tlWorker* worker, tlTask* task);
-
-typedef void (*tl_workfn)(tlTask*);
 
 typedef enum {
     TL_STATE_INIT = 0,  // only first time
@@ -43,7 +42,6 @@ typedef enum {
     TL_STATE_ERROR,     // task is done, value is actually an error
 } tlTaskState;
 
-// this is how a code running task looks
 struct tlTask {
     tlHead head;
     tlWorker* worker;  // current worker that is working on this task
@@ -51,8 +49,8 @@ struct tlTask {
 
     tlValue value;     // current value
     tlValue exception; // current exception
-    tlObject* object;  // current mutable object (== current thread or actor)
-    tlPause* pause;    // current pause (== current continuation)
+    tlObject* sender;  // current mutable object (== current thread or actor)
+    tlPause* pause;    // current pause (== current continuation or top of stack)
 
     // TODO remove these in favor a some flags
     tlValue jumping;    // indicates non linear suspend ... don't attach
@@ -64,6 +62,47 @@ INTERNAL tlTask* tltask_from_entry(lqentry* entry) {
     return (tlTask*)(((char *)entry) - ((intptr_t) &((tlTask*)0)->entry));
 }
 
+void assert_backtrace(tlPause* pause) {
+    int i = 100;
+    while (i-- && pause) pause = pause->caller;
+    if (pause) fatal("STACK CORRUPTED");
+}
+
+INTERNAL tlPause* tlTaskSetPause(tlTask* task, tlValue v) {
+    trace("      <<<< %p", v);
+    task->pause = tlpause_as(v);
+    assert_backtrace(task->pause);
+    return task->pause;
+}
+INTERNAL tlPause* tlTaskPauseCaller(tlTask* task, tlValue v) {
+    if (!v) return null;
+    tlPause* caller = tlpause_as(v)->caller;
+    trace(" << %p <<<< %p", caller, v);
+    task->pause = caller;
+    assert_backtrace(task->pause);
+    return caller;
+}
+INTERNAL tlPause* tlTaskPause(tlTask* task, tlValue v) {
+    tlPause* pause = tlpause_as(v);
+    trace("    >>>> %p", pause);
+    task->pause = pause;
+    assert_backtrace(task->pause);
+    return pause;
+}
+INTERNAL tlPause* tlTaskPauseAttach(tlTask* task, tlPause* pause, tlValue c) {
+    if (task->jumping) return pause;
+    assert(tlpause_is(pause));
+    tlPause* caller = tlpause_as(c);
+    trace("> %p.caller = %p", pause, caller);
+    pause->caller = caller;
+    assert_backtrace(pause);
+    return caller;
+}
+
+
+
+
+// TODO rework this back into eval.c
 INTERNAL void code_workfn(tlTask* task) {
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;

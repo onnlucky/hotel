@@ -354,7 +354,9 @@ tlTask* tltask_set_background_(tlTask* task, bool bg);
 tlWorker* tltask_worker(tlTask* task);
 tlVm* tltask_vm(tlTask* task);
 
-void tltask_call(tlTask* task, tlCall* args);
+tlPause* tlTaskEvalArgs(tlTask* task, tlArgs* args);
+tlPause* tlTaskEvalCall(tlTask* task, tlCall* call);
+
 bool tltask_isdone(tlTask* task);
 tlValue tltask_value(tlTask* task);
 tlValue tltask_exception(tlTask* task);
