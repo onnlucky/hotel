@@ -201,13 +201,18 @@ static tlPause* _task_new(tlTask* task, tlArgs* args) {
 }
 
 static tlPause* _task_yield(tlTask* task, tlArgs* args) {
+    fatal("to be removed");
+    return null;
+    /*
     trace("%s", tl_str(task));
     task->state = TL_STATE_WAIT;
     tltask_ready_detach(task);
     TL_RETURN(tlNull);
+    */
 }
 
 static tlPause* _task_send(tlTask* task, tlArgs* args) {
+    fatal("to be removed");
     return null;
     /*
     tlTask* to = tltask_cast(tlargs_get(args, 0));
@@ -248,6 +253,7 @@ static tlPause* _task_send(tlTask* task, tlArgs* args) {
 }
 
 static tlPause* _task_receive(tlTask* task, tlArgs* args) {
+    fatal("to be removed");
     return null;
     /*
     tlTask* from = tltask_from_entry(lqueue_get(&task->msg_q));
@@ -263,6 +269,7 @@ static tlPause* _task_receive(tlTask* task, tlArgs* args) {
 }
 
 static tlPause* _task_reply(tlTask* task, tlArgs* args) {
+    fatal("to be removed");
     return null;
     /*
     tlTask* to = tltask_cast(tlargs_get(args, 0));

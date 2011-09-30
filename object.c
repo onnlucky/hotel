@@ -1,6 +1,6 @@
 // object type, a hotel object is a thread/actore/mutable object all in one
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tlClass tlObjectClass;
 
@@ -26,18 +26,24 @@ tlObject* tlObjectNew(tlTask* task) {
     return self;
 }
 tlPause* _new_object(tlTask* task, tlArgs* args) {
-    TL_RETURN(tlObjectNew(task));
+    tlMap* map = tlmap_cast(tlargs_get(args, 0));
+    tlObject* oop = tlObjectNew(task);
+    oop->map = map;
+    TL_RETURN(oop);
 }
 
 tlPause* _ObjectSend2(tlTask* task, tlArgs* args);
 
 tlPause* _ResumeBefore(tlTask* task, tlPause* _pause) {
+    trace("");
     tlPauseBefore* pause = (tlPauseBefore*)_pause;
     return _ObjectSend2(task, pause->args);
 }
 tlPause* _ResumeAfter(tlTask* task, tlPause* _pause) {
+    trace("");
     tlPauseAfter* pause = (tlPauseAfter*)_pause;
     task->sender = pause->sender;
+    task->pause = _pause->caller;
     return null;
 }
 
