@@ -13,6 +13,7 @@
 #include "call.c"
 
 #include "task.c"
+#include "actor.c"
 #include "object.c"
 
 #include "code.c"

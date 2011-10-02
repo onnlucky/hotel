@@ -211,7 +211,12 @@ const char* tl_str(tlValue v) {
     case TLUndefined:
         if (v == tlUndefined) return "undefined";
         assert(false);
-    default: return tl_type_str(v);
+    default:
+        if (tl_head(v)->klass) {
+            snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", tl_head(v)->klass->name, v);
+            return _str_buf;
+        }
+        return tl_type_str(v);
     }
 }
 

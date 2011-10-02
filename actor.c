@@ -1,0 +1,117 @@
+// actor is the "base" class for all mutable things, objects, files, buffers and more
+
+#include "trace-on.h"
+
+static tlClass tlActorClass;
+
+typedef struct tlActor {
+    tlHead head;
+    tlTask* owner;
+    lqueue msg_q;
+} tlActor;
+
+typedef struct tlPauseInQueue {
+    tlPause pause;
+    tlArgs* args;
+} tlPauseInQueue;
+
+typedef struct tlPauseAct {
+    tlPause pause;
+    tlActor* actor;
+} tlPauseAct;
+
+INTERNAL tlPause* tlActorReceive(tlTask* task, tlArgs* args);
+INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args);
+
+INTERNAL tlActor* tlActorCast(tlValue v) {
+    assert(tlref_is(v));
+    assert(tl_head(v)->klass->send == tlActorReceive);
+    return (tlActor*)v;
+}
+
+INTERNAL void tlActorInit(tlActor* actor) {
+    trace("");
+    actor->head.klass = &tlActorClass;
+}
+
+INTERNAL void _ActorScheduleNext(tlTask* task, tlActor* actor) {
+    assert(actor->owner == task);
+
+    // dequeue the first task in line
+    tlTask* ntask = tltask_from_entry(lqueue_get(&actor->msg_q));
+
+    // make it the owner and schedule it; null is perfectly good as owner
+    actor->owner = ntask;
+    if (ntask) tlVmScheduleTask(tlTaskGetVm(task), ntask);
+}
+
+INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
+    tlActor* actor = tlActorCast(data);
+
+    // queue the task at the end
+    lqueue_put(&actor->msg_q, &task->entry);
+
+    // try to own the actor, incase another worker released it inbetween ...
+    // notice the task we put in is a place holder
+    if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) return;
+    _ActorScheduleNext(task, actor);
+}
+
+INTERNAL tlPause* _ResumeInQueue(tlTask* task, tlPause* _pause) {
+    trace("");
+    tlPauseInQueue* pause = (tlPauseInQueue*)_pause;
+    return _ActorReceive2(task, pause->args);
+}
+
+INTERNAL tlPause* _ResumeAct(tlTask* task, tlPause* _pause) {
+    trace("");
+    tlPauseAct* pause = (tlPauseAct*)_pause;
+    _ActorScheduleNext(task, pause->actor);
+    task->pause = _pause->caller;
+    return null;
+}
+
+tlPause* tlActorReceive(tlTask* task, tlArgs* args) {
+    tlActor* actor = tlActorCast(args->target);
+    assert(actor);
+
+    if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
+        // pause current task
+        tlPauseInQueue* pause = tlPauseAlloc(task, sizeof(tlPauseInQueue), 0, _ResumeInQueue);
+        pause->args = args;
+        // after the pause, enqueue the task in the msg queue
+        tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
+        return tlTaskPause(task, pause);
+    } else {
+        return _ActorReceive2(task, args);
+    }
+}
+
+INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
+    trace("");
+    tlActor* actor = tlActorCast(args->target);
+    tlSym msg = tlsym_cast(args->msg);
+    assert(actor);
+    assert(msg);
+    assert(actor->owner == task);
+
+    print("ACTOR RECEIVE %p: %s (%d)", actor, tl_str(msg), tlargs_size(args));
+    assert(actor->head.klass->act);
+    tlPause* p = actor->head.klass->act(task, args);
+    if (p) {
+        tlPauseAct* pause = tlPauseAlloc(task, sizeof(tlPauseAct), 0, _ResumeAct);
+        pause->actor = actor;
+        return tlTaskPauseAttach(task, p, pause);
+    }
+    _ActorScheduleNext(task, actor);
+    return null;
+}
+
+// TODO remove? because it is not a concrete type
+static tlClass tlActorClass = {
+    .name = "actor",
+    .map = null,
+    .send = tlActorReceive,
+    .act = null,
+};
+

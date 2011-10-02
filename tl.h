@@ -209,11 +209,13 @@ static inline tlValue tlvalue_from_active(tlValue v) {
 #endif
 
 typedef tlPause*(*tlSendFn)(tlTask* task, tlArgs* args);
+typedef tlPause*(*tlActFn)(tlTask* task, tlArgs* args);
 
 struct tlClass {
     const char* name;
     tlMap* map;
     tlSendFn send;
+    tlActFn act;
 };
 
 // simple primitive functions

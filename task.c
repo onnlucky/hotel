@@ -2,6 +2,17 @@
 
 #include "trace-on.h"
 
+INTERNAL void* tl_atomic_get(void** slot) {
+    return *slot;
+}
+INTERNAL void* tl_atomic_set(void** slot, void* v) {
+    return *slot = v;
+}
+INTERNAL void* tl_atomic_set_if(void** slot, void* v, void* current) {
+    if (*slot == current) return *slot = v;
+    return *slot;
+}
+
 INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlPause* run_apply(tlTask* task, tlCall* call);
 INTERNAL void run_resume(tlTask* task, tlPause* run);
@@ -15,9 +26,15 @@ struct tlVm {
     lqueue run_q;
 };
 
+typedef void(*tlWorkerDeferCb)(tlTask* task, void* data);
 struct tlWorker {
     tlHead head;
     tlVm* vm;
+
+    tlTask* current;
+
+    tlWorkerDeferCb defer_cb;
+    void* defer_data;
 };
 
 // any hotel "operation" can be paused and resumed using a tlPause object
@@ -56,6 +73,22 @@ struct tlTask {
     tlValue jumping;    // indicates non linear suspend ... don't attach
     tlTaskState state; // state it is currently in
 };
+
+tlVm* tlTaskGetVm(tlTask* task) {
+    assert(task->worker);
+    assert(task->worker->vm);
+    return task->worker->vm;
+}
+
+void tlVmScheduleTask(tlVm* vm, tlTask* task) {
+    lqueue_put(&vm->run_q, &task->entry);
+}
+
+void tlWorkerAfterTaskPause(tlWorker* worker, tlWorkerDeferCb cb, void* data) {
+    assert(!worker->defer_cb);
+    worker->defer_cb = cb;
+    worker->defer_data = data;
+}
 
 INTERNAL tlTask* tltask_from_entry(lqentry* entry) {
     if (!entry) return null;

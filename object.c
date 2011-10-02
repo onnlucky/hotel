@@ -10,10 +10,12 @@ struct tlObject {
     tlTask* owner;
     tlMap* map;
 };
+
 typedef struct tlPauseBefore {
     tlPause pause;
     tlArgs* args;
 } tlPauseBefore;
+
 typedef struct tlPauseAfter {
     tlPause pause;
     tlObject* sender;
