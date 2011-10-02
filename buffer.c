@@ -143,49 +143,4 @@ static tlBuffer* tlbuffer_new_from_file(const char* file) {
     return buf;
 }
 
-static tlPause* _buffer_new(tlTask* task, tlArgs* args) {
-    tlTagged* tagged = tltagged_new(task, _buffer_new, 0, 1, null);
-    tltagged_priv_set_(tagged, 0, tlbuffer_new());
-    TL_RETURN(tagged);
-}
-static tlPause* _buffer_read(tlTask* task, tlArgs* args) {
-    tlTagged* tagged = tltagged_cast(tlargs_get(args, 0));
-    if (!tltagged_isvalid(tagged, task, _buffer_new)) TL_THROW("expected a buffer");
-    tlBuffer* buf = tltagged_priv(tagged, 0);
-    assert(buf);
-    char* data = malloc(canread(buf) + 1);
-    int last = tlbuffer_read(buf, data, canread(buf));
-    data[last] = 0;
-    TL_RETURN(tltext_from_take(task, data));
-}
-static tlPause* _buffer_write(tlTask* task, tlArgs* args) {
-    tlTagged* tagged = tltagged_cast(tlargs_get(args, 0));
-    if (!tltagged_isvalid(tagged, task, _buffer_new)) TL_THROW("expected a buffer");
-    tlBuffer* buf = tltagged_priv(tagged, 0);
-    assert(buf);
-    tlText* text = tltext_cast(tlargs_get(args, 1));
-    if (!text) TL_THROW("expected a Text");
-    TL_RETURN(tlINT(tlbuffer_write(buf, tltext_data(text), tltext_size(text))));
-}
-
-static tlPause* _file_open(tlTask* task, tlArgs* args) {
-    tlText* name = tltext_cast(tlargs_get(args, 0));
-    if (!name) TL_THROW("expected a filename");
-
-    //tlTask* file = tltask_new(task, _file_cmd, 0, 1);
-    //tltask_priv_set_(file, 0, fd);
-    TL_RETURN(tlNull);
-}
-
-static const tlHostCbs __buffer_hostcbs[] = {
-    { "_buffer_new",   _buffer_new },
-    { "_buffer_read",  _buffer_read },
-    { "_buffer_write", _buffer_write },
-    { "_file_open", _file_open },
-    { 0, 0 }
-};
-
-static void buffer_init() {
-    tl_register_hostcbs(__buffer_hostcbs);
-}
 

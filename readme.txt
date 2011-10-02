@@ -1,7 +1,6 @@
 # TODO
 
-implement tlObject which is a thread/actor/mutable object
-ensure there is alway a current/active/running object which does all the message sending
+rework all types as the tlClass things ... stop using anything else
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 
 add send as code primitive: target, msg, args, instead of _object_send

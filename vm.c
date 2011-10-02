@@ -23,6 +23,8 @@
 #include "tagged.c"
 #include "buffer.c"
 
+#include "io.c"
+
 #include "trace-off.h"
 
 static tlPause* _out(tlTask* task, tlArgs* args) {
@@ -130,7 +132,7 @@ void tlvm_init() {
     task_init();
     vm_init();
 
-    buffer_init();
+    io_init();
 }
 
 // when outside of vm, be your own worker, and attach it to tasks
@@ -217,6 +219,8 @@ static const tlHostCbs __vm_hostcbs[] = {
     { "mul",  _mul },
     { "div",  _div },
     { "mod",  _mod },
+
+    { "_Buffer_new", _Buffer_new },
 
     { 0, 0 },
 };
