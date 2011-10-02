@@ -205,7 +205,7 @@ tlList* tllist_cat(tlTask* task, tlList* left, tlList* right) {
 }
 
 tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
-    int size = begin - end;
+    int size = end - begin;
     if (size < 0) size = 0;
     if (size > list->head.size) size = list->head.size;
     tlList* nlist = tllist_new(task, size);
