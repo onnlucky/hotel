@@ -744,8 +744,7 @@ static tlPause* _object_send(tlTask* task, tlArgs* args) {
     tlValue target = tlargs_get(args, 0);
     tlValue msg = tlargs_get(args, 1);
 
-    print("%s", tl_str(target));
-    print("%s", tl_str(msg));
+    trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlargs_size(args) - 2);
 
     tlArgs* nargs = tlargs_new(task, null, null);
     nargs->target = target;
@@ -758,11 +757,8 @@ static tlPause* _object_send(tlTask* task, tlArgs* args) {
     if (klass->send) return klass->send(task, nargs);
     if (klass->map) {
         tlValue field = tlmap_get(task, klass->map, msg);
-        print("1 %s", tl_str(field));
         if (!field) TL_RETURN(tlUndefined);
-        print("2 %s", tl_str(field));
         if (!tlcallable_is(field)) TL_RETURN(field);
-        print("3 %s", tl_str(field));
         nargs->fn = field;
         return start_args(task, nargs, null);
     }
