@@ -146,6 +146,12 @@ static inline bool tl##SMALL##_is(tlValue v) { \
 static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
     assert(tl##SMALL##_is(v) || !v); return (tl##CAPS*)v; } \
 static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
+    return tl##SMALL##_is(v)?(tl##CAPS*)v:null; } \
+static inline bool tl##CAPS##Is(tlValue v) { \
+    return tlref_is(v) && tl_head(v)->type == TL##CAPS; } \
+static inline tl##CAPS* tl##CAPS##As(tlValue v) { \
+    assert(tl##CAPS##Is(v) || !v); return (tl##CAPS*)v; } \
+static inline tl##CAPS* tl##CAPS##Cast(tlValue v) { \
     return tl##SMALL##_is(v)?(tl##CAPS*)v:null; }
 
 TL_TYPE(num, Num);
@@ -317,6 +323,7 @@ tlSym tlArgsMsg(tlArgs* args);
 tlValue tlargs_fn(tlArgs* args);
 int tlargs_size(tlArgs* args);
 tlValue tlargs_get(tlArgs* args, int at);
+tlValue tlArgsAt(tlArgs* args, int at);
 int tlargs_named_size(tlArgs* args);
 tlValue tlargs_named_get(tlArgs* args, tlSym name);
 
@@ -387,6 +394,7 @@ tlValue tltask_clone(tlTask* task, tlValue v);
 
 // ** extending **
 
+tlHostFn* tlFUN(tlHostCb cb, const char* n);
 tlHostFn* tlhostfn_new(tlTask* task, tlHostCb cb, int fields);
 void tlhostfn_set_(tlHostFn* fun, int at, tlValue v);
 
@@ -394,7 +402,10 @@ typedef struct { const char* name; tlHostCb cb; } tlHostCbs;
 void tl_register_global(const char* name, tlValue v);
 void tl_register_hostcbs(const tlHostCbs* cbs);
 
+tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...);
+
 // ** running **
 tlValue tl_parse(tlTask* task, tlText* text);
 
 #endif // _tl_h_
+

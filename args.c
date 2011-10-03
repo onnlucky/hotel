@@ -66,6 +66,10 @@ void tlargs_map_set_(tlArgs* args, tlSym name, tlValue v) {
     tlmap_set_sym_(args->map, name, v);
 }
 
+tlValue tlArgsAt(tlArgs* args, int at) {
+    return tlargs_get(args, at);
+}
+
 static tlPause* _args_size(tlTask* task, tlArgs* args) {
     tlArgs* as = tlargs_cast(tlargs_get(args, 0));
     if (!as) TL_THROW("Expected a args object");

@@ -1,3 +1,10 @@
+text = "Hello world!! I am so exited!!"
+find = "world"
+at = text.search find
+print at, find.size
+print text.slice(at, at + find.size)
+
+/*
 buf = _Buffer_new()
 buf.write "hello"
 print buf.read

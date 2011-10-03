@@ -17,16 +17,13 @@ clean up tl.h; nice up code.{h,c} and call.c
 
 fix return/goto when target has returned already ... what to do anyhow?
 
-think about task local mutable things ... fork needs to split into readonly or stay local?
-
-implement operations (call(_op_invoke, #op, lhs, rhs)
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?
 only optimize after parser, inspect step: single tlAssign become just name ...
 
 add a syntax for blocks like `catch: e -> print exception` and `arr.each(e -> print e)`
 
 sprinkle more INTERNAL around and such
-think about c-stack eval until we need to reify the runs
+think about c-stack eval until we need to pause, limit its depth somehow
 remove start_args ... we don't need to materialize its run all the time
 
 add default arguments using print = (sep=" ", end="\n")->{...} etc ...
@@ -98,16 +95,16 @@ There are three fundamental control flow functions. return, goto and continuatio
 
 Before any optimization, macros may run. Basically after parsing, but before optimizing/compiling, macros may run. As we see a macro definitions, we take it out of the source, compile it and have it defined for the current scope. As we see symbols in apply position, if they refer to a macro, we apply the macro, the arguments are unevaluated syntax tree elements.
 
-macro repeat = (block){
-    if args.size > 1: throw "repeat expects a single block"
-    if !hblock.type == lang.Block: throw "repeat expects a block"
+macro repeat = () {
+    if args.size > 0: throw "repeat expects a single block"
+    if !args.block: throw "repeat expects a block"
     args.block.add-first parse "again=continuation"
 }
 
 buffer = Buffer.new
 file = Path("index.html").open
 repeat:
-    len = read file, buffer
+    len = file.read buffer
     if len > 0: again
 
 # how does the evaluator work
@@ -119,8 +116,7 @@ Basically the only thing the "bytecode" does is call functions, bind functions a
 When you wish to extend hotel with c level function, you have four options:
 1. implement primitive functions
 2. implement functions that can re-enter the evaluator before being done
-3. implement a task in c
-4. implement a remote task
+3. implement an actor
 
 ## primitive functions
 

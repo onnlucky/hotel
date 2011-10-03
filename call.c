@@ -28,6 +28,11 @@ void tlhostfn_set_(tlHostFn* fn, int at, tlValue v) {
     assert(at >= 0 && at < fn->head.size - 1);
     fn->data[at] = v;
 }
+tlHostFn* tlFUN(tlHostCb cb, const char* n) {
+    tlHostFn* fn = tlhostfn_new(null, cb, 1);
+    tlhostfn_set_(fn, 0, tlSYM(n));
+    return fn;
+}
 
 tlCall* tlcall_new(tlTask* task, int argc, bool keys) {
     tlCall* call = task_alloc(task, TLCall, argc + (keys?3:1));

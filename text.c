@@ -1,6 +1,6 @@
 // simple text type, wraps a char array with size and tag
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tlClass tlTextClass;
 
@@ -55,6 +55,10 @@ const char * tltext_data(tlText *text) {
     assert(tltext_is(text));
     return text->data;
 }
+const char * tlTextData(tlText *text) {
+    assert(tlTextIs(text));
+    return text->data;
+}
 
 int tltext_size(tlText* text) {
     assert(tltext_is(text));
@@ -63,8 +67,10 @@ int tltext_size(tlText* text) {
     }
     return tl_int(text->bytes);
 }
+int tlTextSize(tlText* text) { return tltext_size(text); }
 
 tlText* tltext_sub(tlTask* task, tlText* from, int first, int size) {
+    if (tlTextSize(from) == size) return from;
     char* data = malloc(size + 1);
     if (!data) return null;
     memcpy(data, from->data + first, size);
@@ -80,17 +86,28 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     return tlTEXT("<ERROR.to-text>");
 }
 
-static tlPause* _text_size(tlTask* task, tlArgs* args) {
-    tlText* text = tltext_cast(tlArgsTarget(args));
-    if (!text) TL_THROW("Expected a Text object");
+INTERNAL tlPause* _TextSize(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
     TL_RETURN(tlINT(tltext_size(text)));
 }
-static tlPause* _text_slice(tlTask* task, tlArgs* args) {
-    tlText* text = tltext_cast(tlargs_get(args, 0));
-    if (!text) TL_THROW("Expected a Text object");
+
+INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    tlText* find = tlTextCast(tlArgsAt(args, 0));
+    if (!find) TL_THROW("expected a Text");
+    const char* p = strstr(tlTextData(text), tlTextData(find));
+    if (!p) TL_RETURN(tlNull);
+    TL_RETURN(tlINT(p - tlTextData(text)));
+}
+
+INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
     int size = tltext_size(text);
-    int first = tl_int_or(tlargs_get(args, 1), 0);
-    int last = tl_int_or(tlargs_get(args, 2), size);
+    int first = tl_int_or(tlargs_get(args, 0), 0);
+    int last = tl_int_or(tlargs_get(args, 1), size);
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 
@@ -99,6 +116,8 @@ static tlPause* _text_slice(tlTask* task, tlArgs* args) {
     if (first >= size) TL_RETURN(v_empty_text);
     if (last <= 0) last = size + last;
     if (last < first) TL_RETURN(v_empty_text);
+
+    trace("%d %d (%s)%d", first, last, text->data, size);
 
     TL_RETURN(tltext_sub(task, text, first, last - first));
 }
@@ -109,21 +128,13 @@ static tlClass tlTextClass = {
     .send = null
 };
 
-static const tlHostCbs __text_cbs[] = {
-    { "_text_size", _text_size },
-    { "_text_slice", _text_slice },
-    { 0, 0 }
-};
-
 static void text_init() {
-    tlMap* map = tlmap_empty();
-    tlHostFn* f_size = tlhostfn_new(null, _text_size, 1);
-    tlhostfn_set_(f_size, 0, tlSYM("size"));
-    map = tlmap_set(null, map, tlSYM("size"), f_size);
-
-    tlTextClass.map = map;
-
+    tlTextClass.map = tlClassMapFrom(
+            "size", _TextSize,
+            "search", _TextSearch,
+            "slice", _TextSlice,
+            null
+    );
     v_empty_text = tlTEXT("");
-    //tl_register_hostcbs(__text_cbs);
 }
 

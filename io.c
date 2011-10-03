@@ -35,7 +35,6 @@ INTERNAL tlPause* _buffer_read(tlTask* task, tlArgs* args) {
     char* data = malloc(canread(buf) + 1);
     int last = tlbuffer_read(buf, data, canread(buf));
     data[last] = 0;
-    print("JUST READ: %s", data);
     TL_RETURN(tltext_from_take(task, data));
 }
 
@@ -47,7 +46,6 @@ INTERNAL tlPause* _buffer_write(tlTask* task, tlArgs* args) {
 
     tlText* text = tltext_cast(tlargs_get(args, 0));
     if (!text) TL_THROW("expected a Text");
-    print("GOING TO WRITE: %s", tltext_data(text));
     TL_RETURN(tlINT(tlbuffer_write(buf, tltext_data(text), tltext_size(text))));
 }
 
@@ -63,9 +61,41 @@ tlPause* _Buffer_new(tlTask* task, tlArgs* args) {
     TL_RETURN(tlBufferNew());
 }
 
+/*
+INTERNAL tlPause* _io_open(tlTask* task, tlArgs* args) {
+    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    if (!name) TL_THROW("expected a Text as file name");
+    bool err = false;
+    int flags = tlIntCast(tlArgsAt(args, 1), &err);
+    if (err) TL_THROW("expected a Int as flags");
+    int perms = tlIntCast(tlArgsAt(args, 2), &err);
+    if (err) TL_THROW("expected a Int as perm");
+
+    int fd = open(tlTextData(name), flags, perms);
+    if (fd < 0) TL_THROW("error opening file: %s", tlTextData(name));
+    return TL_RETURN(tlINT(fd));
+}
+
+INTERNAL tlPause* _io_read2(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferCast(tlArgsAt(args, 0));
+    assert(file->owner == task);
+    assert(buf->owner == task);
+
+    int len = tlBufferReadFd(buf, fd);
+    tlActorRelease(task, buf);
+    TL_RETURN(len);
+}
+
+INTERNAL tlPause* _io_read(tlTask* task, tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    if (!buf) TL_THROW("expected a Buffer");
+    return tlActorGet(task, buf, _io_read2);
+}
+*/
+
 static tlClass tlBufferClass = {
     .name = "Buffer",
-    .map = null,
     .send = tlActorReceive,
     .act = _BufferAct,
 };
