@@ -230,9 +230,8 @@ tlInt tlINT(int i);
 tlValue tlACTIVE(tlValue v);
 
 // tlTEXT and tlSYM can only be used after tlvm_new()
-#define tlTEXT tltext_from_static
+#define tlTEXT tlTextFromStatic
 #define tlSYM tlsym_from_static
-tlText* tltext_from_static(const char* s);
 tlSym tlsym_from_static(const char* s);
 
 int tl_bool(tlValue v);
@@ -249,13 +248,16 @@ const char* tl_str(tlValue v);
 // Notice hotel level text, list, etc. values are not necesairy primitive tlTexts or tlLists etc.
 
 // ** text **
-int tltext_size(tlText* text);
-const char* tltext_data(tlText* text);
+int tlTextSize(tlText* text);
+const char* tlTextData(tlText* text);
 
-tlText* tltext_empty();
-tlText* tltext_from_copy(tlTask* task, const char* s);
-tlText* tltext_from_take(tlTask* task, char* s);
-tlText* tlvalue_to_text(tlTask* task, tlValue v);
+tlText* tlTextEmpty();
+tlText* tlTextFromStatic(const char* s);
+
+tlText* tlTextNewCopy(tlTask* task, const char* s);
+tlText* tlTextNewTake(tlTask* task, char* s);
+
+tlText* tlValueToText(tlTask* task, tlValue v);
 
 tlSym tlsym_from_copy(tlTask* task, const char* s);
 tlSym tlsym_from_take(tlTask* task, char* s);

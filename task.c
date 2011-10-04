@@ -195,7 +195,7 @@ tlPause* tltask_return(tlTask* task, tlValue v) {
 
 INTERNAL tlPause* run_throw(tlTask* task, tlValue exception);
 tlPause* tltask_throw_take(tlTask* task, char* str) {
-    tlText* text = tltext_from_take(task, str);
+    tlText* text = tlTextNewTake(task, str);
     return run_throw(task, text);
 }
 

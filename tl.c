@@ -21,22 +21,22 @@ static tlPause* _print(tlTask* task, tlArgs* args) {
     v = tlargs_map_get(args, tlSYM("end"));
     if (v) end = tlvalue_to_text(task, v);
 
-    if (begin) printf("%s", tltext_data(begin));
+    if (begin) printf("%s", tlTextData(begin));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlargs_get(args, i);
         if (!v) break;
-        if (i > 0) printf("%s", tltext_data(sep));
-        printf("%s", tltext_data(tlvalue_to_text(task, v)));
+        if (i > 0) printf("%s", tlTextData(sep));
+        printf("%s", tlTextData(tlvalue_to_text(task, v)));
     }
-    if (end) printf("%s", tltext_data(end));
+    if (end) printf("%s", tlTextData(end));
     printf("\n");
     fflush(stdout);
     TL_RETURN(tlNull);
 }
 
 static tlPause* _assert(tlTask* task, tlArgs* args) {
-    tlText* text = tltext_cast(tlargs_map_get(args, tlSYM("text")));
-    if (!text) text = tltext_empty();
+    tlText* text = tlTextCast(tlargs_map_get(args, tlSYM("text")));
+    if (!text) text = tlTextEmpty();
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlargs_get(args, i);
         if (!v) break;
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     if (!buf) fatal("cannot read file: %s", file);
 
     tlbuffer_write_uint8(buf, 0);
-    tlText* script = tltext_from_take(null, tlbuffer_free_get(buf));
+    tlText* script = tlTextNewTake(null, tlbuffer_free_get(buf));
     assert(script);
 
     tlVm* vm = tlvm_new();

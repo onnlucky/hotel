@@ -195,9 +195,9 @@ const char* tl_str(tlValue v) {
     if (tlactive_is(v)) v = tlvalue_from_active(v);
     switch (tl_type(v)) {
     case TLText:
-        return tltext_data(tltext_as(v));
+        return tlTextData(tlTextAs(v));
     case TLSym:
-        snprintf(_str_buf, _BUF_SIZE, "#%s", tltext_data(tltext_from_sym(v)));
+        snprintf(_str_buf, _BUF_SIZE, "#%s", tlTextData(tltext_from_sym(v)));
         return _str_buf;
     case TLInt:
         snprintf(_str_buf, _BUF_SIZE, "%d", tl_int(v));

@@ -32,7 +32,7 @@ static tlPause* _out(tlTask* task, tlArgs* args) {
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlargs_get(args, i);
         if (!v) break;
-        printf("%s", tltext_data(tlvalue_to_text(task, v)));
+        printf("%s", tlTextData(tlvalue_to_text(task, v)));
     }
     fflush(stdout);
     TL_RETURN(tlNull);

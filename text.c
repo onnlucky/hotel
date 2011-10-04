@@ -4,7 +4,7 @@
 
 static tlClass tlTextClass;
 
-static tlText* v_empty_text;
+static tlText* _tl_emptyText;
 
 // TODO short strings should be "inline" saves finalizer
 struct tlText {
@@ -15,73 +15,61 @@ struct tlText {
     tlInt hash;
 };
 
-tlText* tltext_empty() { return v_empty_text; }
+tlText* tlTextEmpty() { return _tl_emptyText; }
 
-tlText* tltext_from_static(const char* s) {
-    tlText* text = task_alloc_priv(null, TLText, 0, 4);
+tlText* tlTextFromStatic(const char* s) {
+    tlText* text = calloc(1, sizeof(tlText));
     text->head.klass = &tlTextClass;
-    //text->head.flags |= TL_FLAG_NOFREE;
     text->data = s;
     return text;
 }
 
-tlText* tltext_from_take(tlTask* task, char* s) {
+tlText* tlTextNewTake(tlTask* task, char* s) {
     tlText* text = task_alloc_priv(task, TLText, 0, 4);
     text->head.klass = &tlTextClass;
     text->data = s;
     return text;
 }
 
-tlText* tltext_from_copy(tlTask* task, const char* s) {
+tlText* tlTextNewCopy(tlTask* task, const char* s) {
     size_t size = strlen(s);
     assert(size < TL_MAX_INT);
     char *d = malloc(size + 1);
     assert(d);
     memcpy(d, s, size + 1);
 
-    tlText* text = tltext_from_take(task, d);
+    tlText* text = tlTextNewTake(task, d);
     text->head.klass = &tlTextClass;
     text->size = tlINT(size);
     return text;
 }
 
-static void tltext_free(tlText *text) {
-    assert(tltext_is(text));
-    //if (text->head.flags & TL_FLAG_NOFREE) return;
-    //free((char*)text->data);
-}
-
-const char * tltext_data(tlText *text) {
-    assert(tltext_is(text));
-    return text->data;
-}
 const char * tlTextData(tlText *text) {
     assert(tlTextIs(text));
     return text->data;
 }
 
-int tltext_size(tlText* text) {
-    assert(tltext_is(text));
+int tlTextSize(tlText* text) {
+    assert(tlTextIs(text));
     if (!text->bytes) {
-        text->bytes = tlINT(strlen(tltext_data(text)));
+        text->bytes = tlINT(strlen(tlTextData(text)));
     }
     return tl_int(text->bytes);
 }
-int tlTextSize(tlText* text) { return tltext_size(text); }
 
-tlText* tltext_sub(tlTask* task, tlText* from, int first, int size) {
+tlText* tlTextSub(tlTask* task, tlText* from, int first, int size) {
     if (tlTextSize(from) == size) return from;
     char* data = malloc(size + 1);
     if (!data) return null;
     memcpy(data, from->data + first, size);
     data[size] = 0;
 
-    return tltext_from_take(task, data);
+    return tlTextNewTake(task, data);
 }
 
 tlText* tlvalue_to_text(tlTask* task, tlValue v) {
-    if (tltext_is(v)) return v;
-    if (!tlref_is(v)) return tltext_from_copy(task, tl_str(v));
+    if (tlTextIs(v)) return v;
+    if (!tlref_is(v)) return tlTextNewCopy(task, tl_str(v));
     warning("to_text not implemented yet: %s", tl_str(v));
     return tlTEXT("<ERROR.to-text>");
 }
@@ -89,7 +77,7 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
 INTERNAL tlPause* _TextSize(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    TL_RETURN(tlINT(tltext_size(text)));
+    TL_RETURN(tlINT(tlTextSize(text)));
 }
 
 INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
@@ -105,21 +93,21 @@ INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
 INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    int size = tltext_size(text);
+    int size = tlTextSize(text);
     int first = tl_int_or(tlargs_get(args, 0), 0);
     int last = tl_int_or(tlargs_get(args, 1), size);
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 
     if (first < 0) first = size + first;
-    if (first < 0) TL_RETURN(v_empty_text);
-    if (first >= size) TL_RETURN(v_empty_text);
+    if (first < 0) TL_RETURN(tlTextEmpty());
+    if (first >= size) TL_RETURN(tlTextEmpty());
     if (last <= 0) last = size + last;
-    if (last < first) TL_RETURN(v_empty_text);
+    if (last < first) TL_RETURN(tlTextEmpty());
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 
-    TL_RETURN(tltext_sub(task, text, first, last - first));
+    TL_RETURN(tlTextSub(task, text, first, last - first));
 }
 
 static tlClass tlTextClass = {
@@ -135,6 +123,6 @@ static void text_init() {
             "slice", _TextSlice,
             null
     );
-    v_empty_text = tlTEXT("");
+    _tl_emptyText = tlTEXT("");
 }
 

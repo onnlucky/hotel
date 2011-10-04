@@ -21,10 +21,10 @@ typedef struct ParseContext {
 } ParseContext;
 
 static inline int writesome(ParseContext* cx, char* buf, int len) {
-    int towrite = tltext_size(cx->text) - cx->at;
+    int towrite = tlTextSize(cx->text) - cx->at;
     if (towrite <= 0) return 0;
     if (towrite < len) len = towrite;
-    memcpy(buf, tltext_data(cx->text) + cx->at, len);
+    memcpy(buf, tlTextData(cx->text) + cx->at, len);
     cx->at += len;
     return len;
 }
@@ -217,7 +217,7 @@ selfapply = n:name _ &eos {
 }
 
  pexpr = "assert" _ !"(" < as:pcargs > {
-            as = tllist_append2(TASK, L(as), tlSYM("text"), tltext_from_copy(TASK, yytext));
+            as = tllist_append2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
             $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | fn:lookup _ ":" b:bodynl {
@@ -327,7 +327,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
                     )*
 
  paren = "assert"_"("__ < as:cargs > __")" t:tail {
-            as = tllist_prepend2(TASK, L(as), tlSYM("text"), tltext_from_copy(TASK, yytext));
+            as = tllist_prepend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
             $$ = set_target(t, tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | f:fn t:tail                { $$ = set_target(t, tlACTIVE(f)); }
@@ -369,11 +369,11 @@ litems = v:expr eom is:litems   { $$ = tllist_prepend(TASK, L(is), v); }
    sym = "#" n:name                 { $$ = n }
 number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
 
-  text = '"' '"'          { $$ = tltext_empty(); }
+  text = '"' '"'          { $$ = tlTextEmpty(); }
        | '"'  t:stext '"' { $$ = t }
        | '"' ts:ctext '"' { $$ = tlcall_from_list(TASK, tlACTIVE(tlSYM("text_cat")), L(ts)); }
 
- stext = < (!"$" !"\"" .)+ > { $$ = tltext_from_take(TASK, unescape(yytext)); }
+ stext = < (!"$" !"\"" .)+ > { $$ = tlTextNewTake(TASK, unescape(yytext)); }
  ptext = "$("_ e:expr _")"   { $$ = e }
        | "$" l:lookup        { $$ = l }
  ctext = t:ptext ts:ctext    { $$ = tllist_prepend(TASK, ts, t); }

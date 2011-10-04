@@ -35,7 +35,7 @@ INTERNAL tlPause* _buffer_read(tlTask* task, tlArgs* args) {
     char* data = malloc(canread(buf) + 1);
     int last = tlbuffer_read(buf, data, canread(buf));
     data[last] = 0;
-    TL_RETURN(tltext_from_take(task, data));
+    TL_RETURN(tlTextNewTake(task, data));
 }
 
 INTERNAL tlPause* _buffer_write(tlTask* task, tlArgs* args) {
@@ -46,7 +46,7 @@ INTERNAL tlPause* _buffer_write(tlTask* task, tlArgs* args) {
 
     tlText* text = tltext_cast(tlargs_get(args, 0));
     if (!text) TL_THROW("expected a Text");
-    TL_RETURN(tlINT(tlbuffer_write(buf, tltext_data(text), tltext_size(text))));
+    TL_RETURN(tlINT(tlbuffer_write(buf, tlTextData(text), tlTextSize(text))));
 }
 
 INTERNAL tlPause* _BufferAct(tlTask* task, tlArgs* args) {

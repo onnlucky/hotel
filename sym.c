@@ -64,7 +64,7 @@ tlSym tlsym_from_copy(tlTask* task, const char* s) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlsym_from_text(task, tltext_from_copy(task, s));
+    return tlsym_from_text(task, tlTextNewCopy(task, s));
 }
 
 tlSym tlsym_from_text(tlTask* task, tlText* text) {
@@ -73,7 +73,7 @@ tlSym tlsym_from_text(tlTask* task, tlText* text) {
     trace("#%s", tl_str(text));
 
     tlSym sym = _SYM_FROM_TEXT(text);
-    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tltext_data(text), sym, 0);
+    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tlTextData(text), sym, 0);
 
     if (cur) return cur;
     return sym;
@@ -97,7 +97,7 @@ void tl_register_hostcbs(const tlHostCbs* cbs) {
 static tlValue tl_global(tlSym sym) {
     assert(tlsym_is(sym));
     assert(globals);
-    return lhashmap_get(globals, tltext_data(_TEXT_FROM_SYM(sym)));
+    return lhashmap_get(globals, tlTextData(_TEXT_FROM_SYM(sym)));
 }
 
 #define mmix(h,k) { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; }
