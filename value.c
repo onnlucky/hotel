@@ -200,6 +200,15 @@ const char* tl_str(tlValue v) {
     _str_buf = _str_bufs[_str_buf_at];
 
     if (tlactive_is(v)) v = tlvalue_from_active(v);
+
+    tlClass* klass = tlClassGet(v);
+    if (klass) {
+        if (klass == tlTextClass) return tlTextData(tlTextAs(v));
+
+        snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", klass->name, v);
+        return _str_buf;
+    }
+
     switch (tl_type(v)) {
     case TLText:
         return tlTextData(tlTextAs(v));
@@ -209,7 +218,6 @@ const char* tl_str(tlValue v) {
     case TLInt:
         snprintf(_str_buf, _BUF_SIZE, "%d", tl_int(v));
         return _str_buf;
-
     case TLBool:
         if (v == tlFalse) return "false";
         if (v == tlTrue) return "true";
@@ -219,10 +227,6 @@ const char* tl_str(tlValue v) {
         if (v == tlUndefined) return "undefined";
         assert(false);
     default:
-        if (tl_head(v)->klass) {
-            snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", tl_head(v)->klass->name, v);
-            return _str_buf;
-        }
         return tl_type_str(v);
     }
 }
