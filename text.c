@@ -1,8 +1,8 @@
 // simple text type, wraps a char array with size and tag
 
-#include "trace-on.h"
+#include "trace-off.h"
 
-static tlClass tlTextClass;
+static tlClass* tlTextClass;
 
 static tlText* _tl_emptyText;
 
@@ -18,28 +18,28 @@ struct tlText {
 tlText* tlTextEmpty() { return _tl_emptyText; }
 
 tlText* tlTextFromStatic(const char* s) {
-    tlText* text = calloc(1, sizeof(tlText));
-    text->head.klass = &tlTextClass;
+    trace("%s", s);
+    tlText* text = tlAlloc(null, sizeof(tlText), tlTextClass);
     text->data = s;
     return text;
 }
 
 tlText* tlTextNewTake(tlTask* task, char* s) {
-    tlText* text = task_alloc_priv(task, TLText, 0, 4);
-    text->head.klass = &tlTextClass;
+    trace("%s", s);
+    tlText* text = tlAlloc(task, sizeof(tlText), tlTextClass);
     text->data = s;
     return text;
 }
 
 tlText* tlTextNewCopy(tlTask* task, const char* s) {
+    trace("%s", s);
     size_t size = strlen(s);
     assert(size < TL_MAX_INT);
-    char *d = malloc(size + 1);
-    assert(d);
-    memcpy(d, s, size + 1);
+    char *data = malloc(size + 1);
+    if (!data) return null;
+    memcpy(data, s, size + 1);
 
-    tlText* text = tlTextNewTake(task, d);
-    text->head.klass = &tlTextClass;
+    tlText* text = tlTextNewTake(task, data);
     text->size = tlINT(size);
     return text;
 }
@@ -67,6 +67,7 @@ tlText* tlTextSub(tlTask* task, tlText* from, int first, int size) {
     return tlTextNewTake(task, data);
 }
 
+// TODO remove from here, move to eval, return a tlPause ...
 tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     if (tlTextIs(v)) return v;
     if (!tlref_is(v)) return tlTextNewCopy(task, tl_str(v));
@@ -75,12 +76,14 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
 }
 
 INTERNAL tlPause* _TextSize(tlTask* task, tlArgs* args) {
+    trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     TL_RETURN(tlINT(tlTextSize(text)));
 }
 
 INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
+    trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     tlText* find = tlTextCast(tlArgsAt(args, 0));
@@ -91,6 +94,7 @@ INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
+    trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     int size = tlTextSize(text);
@@ -110,14 +114,15 @@ INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextSub(task, text, first, last - first));
 }
 
-static tlClass tlTextClass = {
+static tlClass _tlTextClass = {
     .name = "text",
     .map = null,
     .send = null
 };
+static tlClass* tlTextClass = &_tlTextClass;
 
 static void text_init() {
-    tlTextClass.map = tlClassMapFrom(
+    _tlTextClass.map = tlClassMapFrom(
             "size", _TextSize,
             "search", _TextSearch,
             "slice", _TextSlice,

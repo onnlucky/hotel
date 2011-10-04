@@ -147,16 +147,23 @@ static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
     assert(tl##SMALL##_is(v) || !v); return (tl##CAPS*)v; } \
 static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
     return tl##SMALL##_is(v)?(tl##CAPS*)v:null; } \
+
+static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
+tlClass* tlClassGet(tlValue v);
+
+#define TL_REF_TYPE(CAPS) \
+typedef struct tl##CAPS tl##CAPS; \
+static tlClass* tl##CAPS##Class; \
 static inline bool tl##CAPS##Is(tlValue v) { \
-    return tlref_is(v) && tl_head(v)->type == TL##CAPS; } \
+    return tlClassGet(v) == tl##CAPS##Class; } \
 static inline tl##CAPS* tl##CAPS##As(tlValue v) { \
     assert(tl##CAPS##Is(v) || !v); return (tl##CAPS*)v; } \
 static inline tl##CAPS* tl##CAPS##Cast(tlValue v) { \
-    return tl##SMALL##_is(v)?(tl##CAPS*)v:null; }
+    return tl##CAPS##Is(v)?(tl##CAPS*)v:null; }
 
 TL_TYPE(num, Num);
 TL_TYPE(float, Float);
-TL_TYPE(text, Text);
+TL_REF_TYPE(Text);
 
 TL_TYPE(list, List);
 TL_TYPE(set, Set);
@@ -264,8 +271,8 @@ tlSym tlsym_from_take(tlTask* task, char* s);
 tlSym tlsym_from_text(tlTask* task, tlText* text);
 tlText* tltext_from_sym(tlSym s);
 
-tlText* tltext_cat(tlTask* task, tlText* lhs, tlText* rhs);
-tlText* tltext_sub(tlTask* task, tlText* from, int first, int size);
+tlText* tlTextCat(tlTask* task, tlText* lhs, tlText* rhs);
+tlText* tlTextSub(tlTask* task, tlText* from, int first, int size);
 
 // ** list **
 int tllist_size(tlList* list);
@@ -387,6 +394,9 @@ typedef tlPause*(*tlResumeCb)(tlTask*, tlPause*);
 typedef tlPause*(*tlHostCb)(tlTask*, tlArgs*);
 
 // ** memory **
+
+void* tlAlloc(tlTask* task, size_t bytes, tlClass* klass);
+
 tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields);
 tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields,
                            int privs, tlFreeCb freecb);

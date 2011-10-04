@@ -4,7 +4,7 @@ INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags 
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
-static tlClass* tlClassGet(tlValue v) {
+tlClass* tlClassGet(tlValue v) {
     if (tlref_is(v)) {
         return tl_head(v)->klass;
     }
@@ -108,6 +108,13 @@ static void value_init() {
 
 
 // creating value objects
+void* tlAlloc(tlTask* task, size_t bytes, tlClass* klass) {
+    tlHead* head = (tlHead*)calloc(1, bytes);
+    head->klass = klass;
+    head->keep = 1;
+    return (void*)head;
+}
+
 tlValue task_alloc(tlTask* task, uint8_t type, int size) {
     assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
     tlHead* head = (tlHead*)calloc(1, sizeof(tlHead) + sizeof(tlValue) * size);

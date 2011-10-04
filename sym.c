@@ -68,7 +68,7 @@ tlSym tlsym_from_copy(tlTask* task, const char* s) {
 }
 
 tlSym tlsym_from_text(tlTask* task, tlText* text) {
-    assert(tltext_is(text));
+    assert(tlTextIs(text));
     assert(symbols);
     trace("#%s", tl_str(text));
 
