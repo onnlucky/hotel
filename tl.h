@@ -139,6 +139,27 @@ static inline bool tldata_is(tlValue v) { return tlref_is(v); }
 static inline tlData* tldata_as(tlValue v) { assert(tldata_is(v) || !v); return (tlData*)v; }
 static inline tlData* tldata_cast(tlValue v) { return tldata_is(v)?(tlData*)v:null; }
 
+static inline bool tlspecial_is(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
+
+// TODO maybe have a char class, so split into int and char using the second bit ...
+static inline bool tlint_is(tlValue v) { return ((intptr_t)v & 1) == 1; }
+static inline tlInt tlint_as(tlValue v) { assert(tlint_is(v)); return v; }
+static inline tlInt tlint_cast(tlValue v) { return tlint_is(v)?tlint_as(v):0; }
+
+static inline bool tlsym_is(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
+static inline tlSym tlsym_as(tlValue v) { assert(tlsym_is(v)); return (tlSym)v; }
+static inline tlSym tlsym_cast(tlValue v) { return tlsym_is(v)?tlsym_as(v):0; }
+
+static inline bool tlIntIs(tlValue v) { return ((intptr_t)v & 1) == 1; }
+static inline tlInt tlIntAs(tlValue v) { assert(tlIntIs(v)); return v; }
+static inline tlInt tlIntCast(tlValue v) { return tlIntIs(v)?tlIntAs(v):0; }
+
+static inline bool tlSymIs(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
+static inline tlSym tlSymAs(tlValue v) { assert(tlSymIs(v)); return (tlSym)v; }
+static inline tlSym tlSymCast(tlValue v) { return tlSymIs(v)?tlSymAs(v):0; }
+
+static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
+
 #define TL_TYPE(SMALL, CAPS) \
 typedef struct tl##CAPS tl##CAPS; \
 static inline bool tl##SMALL##_is(tlValue v) { \
@@ -148,8 +169,17 @@ static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
 static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
     return tl##SMALL##_is(v)?(tl##CAPS*)v:null; } \
 
-static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
-tlClass* tlClassGet(tlValue v);
+static tlClass* tlIntClass = null;
+static tlClass* tlSymClass = null;
+
+const char* tl_str(tlValue v);
+static inline tlClass* tlClassGet(tlValue v) {
+    if (tlRefIs(v)) { return ((tlHead*)v)->klass; }
+    if (tlIntIs(v)) return tlIntClass;
+    if (tlSymIs(v)) return tlSymClass;
+    //fatal("impossible: %p - %s", v, tl_str(v));
+    return null;
+}
 
 #define TL_REF_TYPE(CAPS) \
 typedef struct tl##CAPS tl##CAPS; \
@@ -197,16 +227,6 @@ TL_TYPE(hostfn, HostFn);
 
 #undef TL_TYPE
 
-static inline bool tlspecial_is(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
-
-static inline bool tlint_is(tlValue v) { return ((intptr_t)v & 1) == 1; }
-static inline tlInt tlint_as(tlValue v) { assert(tlint_is(v)); return v; }
-static inline tlInt tlint_cast(tlValue v) { return tlint_is(v)?tlint_as(v):0; }
-
-static inline bool tlsym_is(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
-static inline tlSym tlsym_as(tlValue v) { assert(tlsym_is(v)); return (tlSym)v; }
-static inline tlSym tlsym_cast(tlValue v) { return tlsym_is(v)?tlsym_as(v):0; }
-
 bool tlcallable_is(tlValue v);
 
 #if 1
@@ -223,12 +243,14 @@ static inline tlValue tlvalue_from_active(tlValue v) {
 
 typedef tlPause*(*tlSendFn)(tlTask* task, tlArgs* args);
 typedef tlPause*(*tlActFn)(tlTask* task, tlArgs* args);
+typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 
 struct tlClass {
     const char* name;
     tlMap* map;
     tlSendFn send;
     tlActFn act;
+    tlToTextFn toText;
 };
 
 // simple primitive functions

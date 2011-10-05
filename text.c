@@ -114,11 +114,15 @@ INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextSub(task, text, first, last - first));
 }
 
+const char* _TextToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<text@%p: '%s'>", v, tlTextData(tlTextAs(v))); return buf;
+}
+
 static tlClass _tlTextClass = {
     .name = "text",
-    .map = null,
-    .send = null
+    .toText = _TextToText,
 };
+
 static tlClass* tlTextClass = &_tlTextClass;
 
 static void text_init() {

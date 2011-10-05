@@ -4,12 +4,6 @@ INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags 
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
-tlClass* tlClassGet(tlValue v) {
-    if (tlref_is(v)) {
-        return tl_head(v)->klass;
-    }
-    return null;
-}
 uint8_t tl_type(tlValue v) {
     intptr_t i = (intptr_t)v;
     if (!v) return TLInvalid;
@@ -96,16 +90,6 @@ static const tlHostCbs __value_cbs[] = {
     { "_value_type", _value_type },
     { 0, 0 }
 };
-
-static void value_init() {
-    for (int i = 0; i < TL_TYPE_LAST; i++) {
-        char *buf;
-        asprintf(&buf, "_%s", type_to_str[i]);
-        tl_register_global(buf, tlINT(i));
-    }
-    tl_register_hostcbs(__value_cbs);
-}
-
 
 // creating value objects
 void* tlAlloc(tlTask* task, size_t bytes, tlClass* klass) {
@@ -203,8 +187,8 @@ const char* tl_str(tlValue v) {
 
     tlClass* klass = tlClassGet(v);
     if (klass) {
-        if (klass == tlTextClass) return tlTextData(tlTextAs(v));
-
+        tlToTextFn fn = klass->toText;
+        if (fn) return fn(v, _str_buf, _BUF_SIZE);
         snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", klass->name, v);
         return _str_buf;
     }
@@ -229,5 +213,25 @@ const char* tl_str(tlValue v) {
     default:
         return tl_type_str(v);
     }
+}
+
+const char* _IntToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<int: %d>", tl_int(v)); return buf;
+}
+
+static tlClass _tlIntClass = {
+    .name = "int",
+    .toText = _IntToText,
+};
+
+static void value_init() {
+    for (int i = 0; i < TL_TYPE_LAST; i++) {
+        char *buf;
+        asprintf(&buf, "_%s", type_to_str[i]);
+        tl_register_global(buf, tlINT(i));
+    }
+    tl_register_hostcbs(__value_cbs);
+
+    tlIntClass = &_tlIntClass;
 }
 
