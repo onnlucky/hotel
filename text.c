@@ -115,7 +115,7 @@ INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
 }
 
 const char* _TextToText(tlValue v, char* buf, int size) {
-    snprintf(buf, size, "<text@%p: '%s'>", v, tlTextData(tlTextAs(v))); return buf;
+    snprintf(buf, size, "%s", tlTextData(tlTextAs(v))); return buf;
 }
 
 static tlClass _tlTextClass = {

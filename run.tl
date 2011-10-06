@@ -1,41 +1,11 @@
-text = "Hello world!! I am so exited!!"
-find = "world"
-at = text.search find
-print at, find.size
-print text.slice(at, at + find.size)
+list = _new_object({
+    _set_= (v)->{ _this_set(#value, v) }
+    _get_=    ->{ _this_get(#value) }
+})
 
-/*
-buf = _Buffer_new()
-buf.write "hello"
-print buf.read
-
-/*
-print "hello".size
-oop = _new_object({ hello= ->{print "here"; "greetins!"} })
-print oop.hello.size
-/*
-oop._set_ #foo, 42
-//task = _new_task(->{ print "here"; "the return" })
-//task.value
-
-latch = {
-    started = 0
-    waiters = [].mutable
-    start = ->{
-        @started++
-        return if @running > 5
-        @waiters += Task.suspend
-    }
-    done = ->{
-        @started--
-        waiters.first.resume
-    }
-}
-
-wait =-> {
-    receiver = Task.new { Task.receive }
-    args.each f: f.signal receiver
-    receiver.value.value
-}
-wait(future1, future2, future3)
+list._set_ 10
+list._set_ 20
+list._set_ 30
+list._set_ 40
+print list._get_
 

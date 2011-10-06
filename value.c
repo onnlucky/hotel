@@ -216,7 +216,7 @@ const char* tl_str(tlValue v) {
 }
 
 const char* _IntToText(tlValue v, char* buf, int size) {
-    snprintf(buf, size, "<int: %d>", tl_int(v)); return buf;
+    snprintf(buf, size, "%d", tl_int(v)); return buf;
 }
 
 static tlClass _tlIntClass = {

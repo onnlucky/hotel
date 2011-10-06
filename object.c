@@ -100,3 +100,33 @@ static tlClass tlObjectClass = {
     .send = _ObjectSend
 };
 
+tlPause* _this_set(tlTask* task, tlArgs* args) {
+    assert(task->sender);
+    tlSym field = tlSymCast(tlArgsAt(args, 0));
+    assert(field);
+    tlValue v = tlArgsAt(args, 1);
+    assert(v);
+
+    task->sender->map = tlmap_set(task, task->sender->map, field, v);
+    TL_RETURN(v);
+}
+
+tlPause* _this_get(tlTask* task, tlArgs* args) {
+    assert(task->sender);
+    tlSym field = tlSymCast(tlArgsAt(args, 0));
+    assert(field);
+
+    tlValue v = tlmap_get(task, task->sender->map, field);
+    TL_RETURN(v);
+}
+
+static const tlHostCbs __object_hostcbs[] = {
+    { "_this_set", _this_set },
+    { "_this_get", _this_get },
+    { 0, 0 }
+};
+
+static void object_init() {
+    tl_register_hostcbs(__object_hostcbs);
+}
+

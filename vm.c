@@ -130,6 +130,7 @@ void tlvm_init() {
 
     eval_init();
     task_init();
+    object_init();
     vm_init();
 
     io_init();
