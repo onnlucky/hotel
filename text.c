@@ -2,7 +2,8 @@
 
 #include "trace-off.h"
 
-static tlClass* tlTextClass;
+static tlClass _tlTextClass;
+tlClass* tlTextClass = &_tlTextClass;
 
 static tlText* _tl_emptyText;
 
@@ -122,8 +123,6 @@ static tlClass _tlTextClass = {
     .name = "text",
     .toText = _TextToText,
 };
-
-static tlClass* tlTextClass = &_tlTextClass;
 
 static void text_init() {
     _tlTextClass.map = tlClassMapFrom(

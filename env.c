@@ -20,7 +20,7 @@ tlEnv* tlenv_new(tlTask* task, tlEnv* parent) {
     trace("env new; parent: %p", parent);
     tlEnv* env = task_alloc(task, TLEnv, 3);
     env->parent = parent;
-    env->map = v_map_empty;
+    env->map = _tl_emptyMap;
     return env;
 }
 

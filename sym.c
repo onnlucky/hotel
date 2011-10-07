@@ -20,6 +20,9 @@ static LHashMap *globals = 0;
 static tlSym _SYM_FROM_TEXT(tlText* v) { return (tlSym)((intptr_t)v | 2); }
 static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
 
+static tlClass _tlSymClass;
+tlClass* tlSymClass = &_tlSymClass;
+
 bool tlactive_is(tlValue v) { return !tlint_is(v) && (((intptr_t)v) & 7) >= 4; }
 tlValue tlvalue_from_active(tlValue a) {
     assert(tlactive_is(a));

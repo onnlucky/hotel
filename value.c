@@ -1,5 +1,8 @@
 // this is how all tl values look in memory
 
+static tlClass _tlIntClass;
+tlClass* tlIntClass = &_tlIntClass;
+
 INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
@@ -94,6 +97,13 @@ static const tlHostCbs __value_cbs[] = {
 // creating value objects
 void* tlAlloc(tlTask* task, size_t bytes, tlClass* klass) {
     tlHead* head = (tlHead*)calloc(1, bytes);
+    head->klass = klass;
+    head->keep = 1;
+    return (void*)head;
+}
+void* tlAllocWithFields(tlTask* task, size_t bytes, tlClass* klass, int fieldc) {
+    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
+    head->size = fieldc;
     head->klass = klass;
     head->keep = 1;
     return (void*)head;
@@ -215,7 +225,7 @@ const char* tl_str(tlValue v) {
     }
 }
 
-const char* _IntToText(tlValue v, char* buf, int size) {
+static const char* _IntToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "%d", tl_int(v)); return buf;
 }
 

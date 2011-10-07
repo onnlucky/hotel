@@ -18,7 +18,7 @@ tlArgs* tlargs_new_names(tlTask* task, int size, tlSet* names) {
 }
 tlArgs* tlargs_new(tlTask* task, tlList* list, tlMap* map) {
     if (!list) list = v_list_empty;
-    if (!map) map = v_map_empty;
+    if (!map) map = _tl_emptyMap;
     tlArgs* args = task_alloc(task, TLArgs, 5);
     args->list = list;
     args->map = map;

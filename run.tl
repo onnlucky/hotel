@@ -1,3 +1,17 @@
+{ x = 10 }.get #x
+
+/*
+SquareClass = {
+    area = ->{ this.x * this.y }
+}
+Square = {
+    class = SquareClass
+    x = 10
+    y = 10
+}
+Square.area
+
+/*
 list = _new_object({
     _set_= (v)->{ _this_set(#value, v) }
     _get_=    ->{ _this_get(#value) }

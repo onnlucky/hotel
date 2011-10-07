@@ -169,8 +169,8 @@ static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
 static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
     return tl##SMALL##_is(v)?(tl##CAPS*)v:null; } \
 
-static tlClass* tlIntClass = null;
-static tlClass* tlSymClass = null;
+extern tlClass* tlIntClass;
+extern tlClass* tlSymClass;
 
 const char* tl_str(tlValue v);
 static inline tlClass* tlClassGet(tlValue v) {
@@ -183,7 +183,7 @@ static inline tlClass* tlClassGet(tlValue v) {
 
 #define TL_REF_TYPE(CAPS) \
 typedef struct tl##CAPS tl##CAPS; \
-static tlClass* tl##CAPS##Class; \
+extern tlClass* tl##CAPS##Class; \
 static inline bool tl##CAPS##Is(tlValue v) { \
     return tlClassGet(v) == tl##CAPS##Class; } \
 static inline tl##CAPS* tl##CAPS##As(tlValue v) { \
@@ -197,7 +197,7 @@ TL_REF_TYPE(Text);
 
 TL_TYPE(list, List);
 TL_TYPE(set, Set);
-TL_TYPE(map, Map);
+TL_REF_TYPE(Map);
 
 TL_TYPE(call, Call);
 TL_TYPE(args, Args);
