@@ -1,5 +1,6 @@
 foo = { y = 20 }
-{ x = 10 }.toObject.x
+print foo
+{ x = 10, class = foo }.toObject.y
 
 /*
 SquareClass = {

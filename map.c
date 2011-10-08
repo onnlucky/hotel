@@ -38,6 +38,7 @@ tlSet* tlmap_keyset(tlMap* map) {
 void tlmap_dump(tlMap* map) {
     print("---- MAP DUMP @ %p ----", map);
     for (int i = 0; i < tlmap_size(map); i++) {
+        print("%d %p: %p", i, map->data[i], map->keys->data[i]);
         print("%d %s: %s", i, tl_str(map->data[i]), tl_str(map->keys->data[i]));
     }
     print("----");
@@ -46,7 +47,6 @@ void tlmap_dump(tlMap* map) {
 tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
     assert(tlMapOrObjectIs(map));
     int at = tlset_indexof(map->keys, key);
-    print("HERE 3: at = %d", at);
     if (at < 0) return null;
     assert(at < tlmap_size(map));
     return map->data[at];
@@ -172,6 +172,7 @@ static tlPause* _map_clone(tlTask* task, tlArgs* args) {
     for (int i = 0; i < size; i++) {
         if (!map->data[i]) map->data[i] = tlargs_get(args, argc++);
     }
+    print("MAP CLONE DUMP:"); tlmap_dump(map);
     TL_RETURN(map);
 }
 static tlPause* _map_dump(tlTask* task, tlArgs* args) {
@@ -224,8 +225,12 @@ static tlPause* _MapSet(tlTask* task, tlArgs* args) {
 static tlPause* _MapToObject(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
+    print("MAP TO OBJECT: %d", tlmap_size(map));
+    tlmap_dump(map);
+    print("END OF DUMP");
     tlMap* nmap = tlmap_new(task, map->keys);
     for (int i = 0; i < tlmap_size(map); i++) nmap->data[i] = map->data[i];
+    tlmap_dump(nmap);
     nmap->head.klass = tlValueObjectClass;
     TL_RETURN(nmap);
 }
@@ -258,6 +263,7 @@ static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
                 return tlTaskEvalArgs(task, args);
             }
         } while (true);
+        print("RETURNING UNDEF");
         TL_RETURN(tlUndefined);
     }
     if (!tlcallable_is(field)) TL_RETURN(field);
