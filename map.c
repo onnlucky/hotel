@@ -3,7 +3,13 @@
 #include "trace-off.h"
 
 static tlClass _tlMapClass;
+static tlClass _tlValueObjectClass;
 tlClass* tlMapClass = &_tlMapClass;
+tlClass* tlValueObjectClass = &_tlValueObjectClass;
+
+tlMap* tlMapFromObjectAs(tlValue v) { assert(tlValueObjectIs(v)); return (tlMap*)v; }
+tlMap* tlMapFromObjectCast(tlValue v) { return tlValueObjectIs(v)?(tlMap*)v:null; }
+bool tlMapOrObjectIs(tlValue v) { return tlMapIs(v) || tlValueObjectIs(v); }
 
 static tlMap* _tl_emptyMap;
 
@@ -23,7 +29,7 @@ tlMap* tlmap_new(tlTask* task, tlSet* keys) {
     return map;
 }
 int tlmap_size(tlMap* map) {
-    assert(tlMapIs(map));
+    assert(tlMapOrObjectIs(map));
     return map->head.size;
 }
 tlSet* tlmap_keyset(tlMap* map) {
@@ -38,9 +44,11 @@ void tlmap_dump(tlMap* map) {
 }
 
 tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
-    assert(tlMapIs(map));
+    assert(tlMapOrObjectIs(map));
     int at = tlset_indexof(map->keys, key);
+    print("HERE 3: at = %d", at);
     if (at < 0) return null;
+    assert(at < tlmap_size(map));
     return map->data[at];
 }
 tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
@@ -72,7 +80,7 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
 }
 
 tlValue tlmap_get_sym(tlMap* map, tlSym key) {
-    assert(tlMapIs(map));
+    assert(tlMapOrObjectIs(map));
     int at = tlset_indexof(map->keys, key);
     if (at < 0) return null;
     assert(at < tlmap_size(map));
@@ -80,7 +88,7 @@ tlValue tlmap_get_sym(tlMap* map, tlSym key) {
     return map->data[at];
 }
 void tlmap_set_sym_(tlMap* map, tlSym key, tlValue v) {
-    assert(tlMapIs(map));
+    assert(tlMapOrObjectIs(map));
     int at = tlset_indexof(map->keys, key);
     assert(at >= 0 && at < tlmap_size(map));
     trace("keys set_: %s = %s", tl_str(key), tl_str(map->data[at]));
@@ -213,28 +221,54 @@ static tlPause* _MapSet(tlTask* task, tlArgs* args) {
     tlMap* nmap = tlmap_set(task, map, key, val);
     TL_RETURN(nmap);
 }
-
-/*
-static const tlHostCbs __map_hostcbs[] = {
-    { "_map_clone", _map_clone },
-    { "_map_dump",  _map_dump },
-    { "_map_is",    _map_is },
-    { "_object_is", _object_is },
-    { "_object_from", _object_from },
-    { "_map_size",  _map_size },
-    { "_map_get",   _map_get },
-    { "_map_set",   _map_set },
-    { 0, 0 }
-};
-*/
+static tlPause* _MapToObject(tlTask* task, tlArgs* args) {
+    tlMap* map = tlMapCast(tlArgsTarget(args));
+    if (!map) TL_THROW("Expected a map");
+    tlMap* nmap = tlmap_new(task, map->keys);
+    for (int i = 0; i < tlmap_size(map); i++) nmap->data[i] = map->data[i];
+    nmap->head.klass = tlValueObjectClass;
+    TL_RETURN(nmap);
+}
 
 const char* _MapToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Map@%p %d>", v, tlmap_size(tlMapAs(v))); return buf;
 }
-
 static tlClass _tlMapClass = {
     .name = "text",
     .toText = _MapToText,
+};
+
+const char* _ValueToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<ValueObject@%p %d>", v, tlmap_size(tlMapFromObjectAs(v))); return buf;
+}
+static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
+    tlMap* map = tlMapFromObjectCast(tlArgsTarget(args));
+    tlSym msg = tlArgsMsg(args);
+
+    tlValue field = tlmap_get(task, map, msg);
+    print("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
+    if (!field) {
+        do {
+            tlMap* klass = tlmap_get(task, map, s_class);
+            print("CLASS: %s", tl_str(klass));
+            if (!klass) break;
+            field = tlmap_get(task, klass, msg);
+            if (field) {
+                if (!tlcallable_is(field)) TL_RETURN(field);
+                return tlTaskEvalArgs(task, args);
+            }
+        } while (true);
+        TL_RETURN(tlUndefined);
+    }
+    if (!tlcallable_is(field)) TL_RETURN(field);
+
+    //args->fn = field;
+    return tlTaskEvalArgs(task, args);
+}
+static tlClass _tlValueObjectClass = {
+    .name = "ValueObject",
+    .toText = _ValueToText,
+    .send = _ValueReceive,
 };
 
 static void map_init() {
@@ -242,6 +276,7 @@ static void map_init() {
             "size", _MapSize,
             "get", _MapGet,
             "set", _MapSet,
+            "toObject", _MapToObject,
             null
     );
     _tl_emptyMap = tlmap_new(null, null);

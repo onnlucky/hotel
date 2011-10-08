@@ -772,6 +772,7 @@ static const tlHostCbs __eval_hostcbs[] = {
     { "_method_invoke", _method_invoke },
     { "_object_send", _object_send },
     { "_new_object", _new_object },
+    { "_map_clone", _map_clone },
     { 0, 0 }
 };
 

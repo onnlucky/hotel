@@ -193,11 +193,13 @@ static inline tl##CAPS* tl##CAPS##Cast(tlValue v) { \
 
 TL_TYPE(num, Num);
 TL_TYPE(float, Float);
-TL_REF_TYPE(Text);
 
 TL_TYPE(list, List);
 TL_TYPE(set, Set);
+
+TL_REF_TYPE(Text);
 TL_REF_TYPE(Map);
+TL_REF_TYPE(ValueObject);
 
 TL_TYPE(call, Call);
 TL_TYPE(args, Args);

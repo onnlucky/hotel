@@ -2,7 +2,7 @@ struct tlArgs {
     tlHead head;
     tlValue fn;
     tlValue target;
-    tlValue msg;
+    tlSym msg;
     tlMap* map;
     tlList* list;
 };
@@ -26,6 +26,7 @@ tlArgs* tlargs_new(tlTask* task, tlList* list, tlMap* map) {
 }
 
 tlValue tlArgsTarget(tlArgs* args) { return args->target; }
+tlValue tlArgsMsg(tlArgs* args) { return args->msg; }
 
 int tlargs_size(tlArgs* args) {
     assert(tlargs_is(args));

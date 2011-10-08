@@ -14,6 +14,8 @@ static tlSym s_this;
 static tlSym s_send;
 static tlSym s_op;
 
+static tlSym s_class;
+
 static LHashMap *symbols = 0;
 static LHashMap *globals = 0;
 
@@ -139,6 +141,14 @@ static int strequals(void *left, void *right) {
 }
 static void strfree(void *str) { }
 
+const char* _SymToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<Symbol@%p #%s>", v, tlTextData(_TEXT_FROM_SYM(v))); return buf;
+}
+static tlClass _tlSymClass = {
+    .name = "Symbol",
+    .toText = _SymToText,
+};
+
 static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
@@ -151,6 +161,7 @@ static void sym_init() {
     s_this   = tlSYM("this");
     s_send   = tlSYM("send");
     s_op     = tlSYM("op");
+    s_class  = tlSYM("class");
 
     globals = lhashmap_new(strequals, strhash, strfree);
 }

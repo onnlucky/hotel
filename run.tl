@@ -1,4 +1,5 @@
-{ x = 10 }.get #x
+foo = { y = 20 }
+{ x = 10 }.toObject.x
 
 /*
 SquareClass = {
