@@ -65,7 +65,7 @@ static tlPause* _io_sleep(tlTask* task, tlArgs* args) {
     return null;
 }
 
-#if 0
+
 // ** file descriptors **
 
 static int nonblock(int fd) {
@@ -75,84 +75,106 @@ static int nonblock(int fd) {
     return 0;
 }
 
-typedef struct FileWrap {
-    Wrap wrap;
-    ev_io file;
-} FileWrap;
+INTERNAL tlPause* _FileAct(tlTask* task, tlArgs* args);
 
-static FileWrap * filewrap_from(ev_io *file) {
-    return (FileWrap *) (((char *)file) - ((unsigned long) &((FileWrap *)0)->file));
+TL_REF_TYPE(File);
+struct tlFile {
+    tlActor actor;
+    tlBuffer* readBuffer;
+    tlBuffer* writeBuffer;
+    ev_io ev;
+};
+static tlClass _tlFileClass = {
+    .name = "File",
+    .send = tlActorReceive,
+};
+tlClass* tlFileClass = &_tlFileClass;
+
+static tlFile* tlFileFrom(ev_io *file) {
+    return tlFileAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
 }
 
-static Value io_file(Task *task, int fd) {
-    FileWrap *wrap = malloc(sizeof(FileWrap));
-    init_head((Value)wrap, TWrap, 0);
-    wrap->wrap.task = task;
-    wrap->wrap.tag = s_file;
-    ev_io_init(&wrap->file, null, fd, 0);
-    return wrap;
+static tlFile* tlFileNew(tlTask* task, int fd) {
+    tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
+    ev_io_init(&file->ev, null, fd, 0);
+    return file;
 }
 
-static Value _io_close(CONTEXT) {
-    FileWrap *wrap = _ARG1; TYPECHECK(wrap, TWrap); WRAPCHECK(wrap, task, s_file);
-    assert(wrap->wrap.task == task);
-    assert(wrap->wrap.tag == s_file);
+static tlPause* _FileClose(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
 
-    ev_io *file = &wrap->file;
-    trace("close: %p %d", file, file->fd);
-    ev_io_stop(file);
+    ev_io *ev = &file->ev;
+    trace("close: %p %d", ev, ev->fd);
+    ev_io_stop(ev);
 
-    int r = close(file->fd);
-    if (r < 0) vm_throw(task, "close: failed:", strerror(errno), null);
-    else vm_return(task, Null);
-
-    wrap->wrap.task = null;
-    return Ignore;
+    int r = close(ev->fd);
+    if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
+    TL_RETURN(tlNull);
 }
 
-static void read_cb(ev_io *file, int revents) {
-    trace("read_cb: %p %d", file, file->fd);
-    FileWrap *wrap = filewrap_from(file);
-    Task *task = asTask(wrap->wrap.task);
-    Buffer *buf = (Buffer *)file->data;
-    assert(isTask(wrap->wrap.task));
-    assert(wrap->wrap.tag == s_file);
+static void _file_init() {
+    _tlFileClass.map = tlClassMapFrom(
+            "close", _FileClose,
+            null
+    );
+}
 
-    int len = read(file->fd, writebuf(buf), canwrite(buf));
+static void read_cb(ev_io *ev, int revents) {
+    trace("read_cb: %p %d", ev, ev->fd);
+    tlFile *file = tlFileFrom(ev);
+    tlTask* task = file->actor.owner;
+    tl_buf* buf = (tl_buf*)ev->data;
+    assert(task);
+    assert(buf);
+
+    int len = read(ev->fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ev_io_start(file); trace("read: EAGAIN || EWOULDBLOCK"); return;
+            ev_io_start(ev); trace("read: EAGAIN || EWOULDBLOCK"); return;
         }
-        vm_throw(task, "read: failed:", strerror(errno), null);
+        TL_THROW_SET("read: failed: %s", strerror(errno));
     } else {
         didwrite(buf, len);
-        vm_return(task, INT(len));
+        TL_RETURN_SET(tlINT(len));
     }
-    ev_io_stop(file);
-    if (task->state == P_WAIT) task_ready_system(task);
+    ev_io_stop(ev);
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
-static Value _io_read(CONTEXT) {
-    FileWrap *wrap = _ARG1; WRAPCHECK(wrap, task, s_file);
-    Buffer *buf = unwrap(_ARG2, task, s_buffer); WRAPCHECK(_ARG2, task, s_buffer);
-    //int ms = int_from_or(_ARG3, 0);
+static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data);
 
-    if (canwrite(buf) <= 0) return vm_throw(task, "read: failed: buffer full", null);
+static tlPause* _FileRead(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
 
-    ev_io *file = &wrap->file;
-    trace("read: %p, %d", file, file->fd);
-    file->cb = read_cb;
-    file->data = buf;
-
-    int revents = ev_clear_pending(file);
-    if (revents & EV_READ) { read_cb(file, revents); return Ignore; }
-
-    file->events = EV_READ;
-    ev_io_start(file);
-    task_wait_system(task);
-    return Ignore;
+    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    file->readBuffer = buffer;
+    return tlActorAquire(task, tlActorAs(buffer), _FileRead2, file);
 }
 
+static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
+    tlFile* file = tlFileAs(data);
+    tlBuffer* buffer = tlBufferAs(actor);
+
+    if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
+
+    ev_io *ev = &file->ev;
+    trace("read: %p, %d", ev, ev->fd);
+    ev->cb = read_cb;
+    ev->data = buffer->buf;
+
+    int revents = ev_clear_pending(ev);
+    if (revents & EV_READ) { read_cb(ev, revents); return null; }
+
+    ev->events = EV_READ;
+    ev_io_start(ev);
+    tlTaskWaitSystem(task);
+    // TODO must return something to indicate pausing ...
+    return null;
+}
+
+#if 0
 static void write_cb(ev_io *file, int revents) {
     trace("read_cb: %p %d", file, file->fd);
     FileWrap *wrap = filewrap_from(file);
@@ -507,6 +529,8 @@ static const tlHostCbs __evio_hostcbs[] = {
 };
 
 void evio_init() {
+    _file_init();
+
     ev_default_loop(0);
 
     tl_register_hostcbs(__evio_hostcbs);

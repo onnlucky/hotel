@@ -410,6 +410,10 @@ tlPause* tltask_throw_take(tlTask* task, char* str);
 #define TL_THROW(f, x...) do { char* _s; asprintf(&_s, f, ##x); return tltask_throw_take(task, _s); } while (0)
 #define TL_THROW_VALUE(v) return tltask_throw(task, v)
 
+#define TL_RETURN_SET(v) tltask_return(task, v)
+#define TL_THROW_SET(f, x...) do { char* _s; asprintf(&_s, f, ##x); tltask_throw_take(task, _s); } while (0)
+#define TL_THROW_VALUE_SET(v) return tltask_throw(task, v)
+
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);
 typedef void(*tlWorkCb)(tlTask*);

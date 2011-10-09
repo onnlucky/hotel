@@ -4,8 +4,8 @@
 
 #define SIZE (10*1024)
 
-typedef struct tlBuffer tlBuffer;
-struct tlBuffer {
+typedef struct tl_buf tl_buf;
+struct tl_buf {
     char *data;
     int size;
     int readpos;
@@ -14,8 +14,8 @@ struct tlBuffer {
 
 #define check(buf) assert(buf->readpos <= buf->writepos && buf->writepos <= buf->size)
 
-tlBuffer* tlbuffer_new() {
-    tlBuffer* buf = calloc(1, sizeof(tlBuffer));
+tl_buf* tlbuf_new() {
+    tl_buf* buf = calloc(1, sizeof(tl_buf));
     buf->data = malloc(SIZE);
     buf->size = SIZE;
 
@@ -24,24 +24,24 @@ tlBuffer* tlbuffer_new() {
     return buf;
 }
 
-void tlbuffer_free(tlBuffer* buf) {
+void tlbuf_free(tl_buf* buf) {
     check(buf);
     free(buf->data);
     free(buf);
 }
 
-char* tlbuffer_free_get(tlBuffer* buf) {
+char* tlbuf_free_get(tl_buf* buf) {
     check(buf);
     char* data = buf->data;
     free(buf);
     return data;
 }
 
-int tlbuffer_size(tlBuffer* buf) {
+int tlbuf_size(tl_buf* buf) {
     return buf->size;
 }
 
-int tlbuffer_grow(tlBuffer* buf) {
+int tlbuf_grow(tl_buf* buf) {
     buf->size += SIZE;
     trace("new size: %d", buf->size);
     buf->data = realloc(buf->data, buf->size);
@@ -56,15 +56,15 @@ int tlbuffer_grow(tlBuffer* buf) {
 #define canread(buf) (buf->writepos - buf->readpos)
 #define canwrite(buf) (buf->size - buf->writepos)
 
-void tlbuffer_reread(tlBuffer* buf) { buf->readpos = 0; check(buf); }
-void tlbuffer_clear(tlBuffer* buf) { buf->readpos = 0; buf->writepos = 0; check(buf); }
-int tlbuffer_canread(const tlBuffer* buf) { return canread(buf); }
-int tlbuffer_canwrite(const tlBuffer* buf) { return canwrite(buf); }
-int tlbuffer_readpos(const tlBuffer* buf) { return buf->readpos; }
-int tlbuffer_writepos(const tlBuffer* buf) { return buf->writepos; }
-const char * tlbuffer_readbuf(tlBuffer* buf) { return readbuf(buf); }
+void tlbuf_reread(tl_buf* buf) { buf->readpos = 0; check(buf); }
+void tlbuf_clear(tl_buf* buf) { buf->readpos = 0; buf->writepos = 0; check(buf); }
+int tlbuf_canread(const tl_buf* buf) { return canread(buf); }
+int tlbuf_canwrite(const tl_buf* buf) { return canwrite(buf); }
+int tlbuf_readpos(const tl_buf* buf) { return buf->readpos; }
+int tlbuf_writepos(const tl_buf* buf) { return buf->writepos; }
+const char * tlbuf_readbuf(tl_buf* buf) { return readbuf(buf); }
 
-void tlbuffer_compact(tlBuffer* buf) {
+void tlbuf_compact(tl_buf* buf) {
     int len = canread(buf);
     trace("len: %d", len);
     if (len > 0) {
@@ -74,7 +74,7 @@ void tlbuffer_compact(tlBuffer* buf) {
     buf->writepos = len;
     check(buf);
 }
-int tlbuffer_read(tlBuffer* buf, char* to, int count) {
+int tlbuf_read(tl_buf* buf, char* to, int count) {
     int len = canread(buf);
     if (len > count) len = count;
     memcpy(to, readbuf(buf), len);
@@ -82,7 +82,7 @@ int tlbuffer_read(tlBuffer* buf, char* to, int count) {
     check(buf);
     return len;
 }
-int tlbuffer_write(tlBuffer* buf, const char* from, int count) {
+int tlbuf_write(tl_buf* buf, const char* from, int count) {
     int len = canwrite(buf);
     if (len > count) len = count;
     memcpy(writebuf(buf), from, len);
@@ -90,40 +90,40 @@ int tlbuffer_write(tlBuffer* buf, const char* from, int count) {
     check(buf);
     return len;
 }
-int tlbuffer_write_uint8(tlBuffer* buf, const char b) {
-    return tlbuffer_write(buf, &b, 1);
+int tlbuf_write_uint8(tl_buf* buf, const char b) {
+    return tlbuf_write(buf, &b, 1);
 }
-int tlbuffer_read_skip(tlBuffer* buf, int count) {
+int tlbuf_read_skip(tl_buf* buf, int count) {
     int len = canread(buf);
     if (len > count) len = count;
     buf->readpos += len;
     check(buf);
     return len;
 }
-uint8_t tlbuffer_read_uint8(tlBuffer* buf) {
+uint8_t tlbuf_read_uint8(tl_buf* buf) {
     uint8_t r = *((uint8_t*)(buf->data + buf->readpos));
     buf->readpos += 1;
     return r;
 }
-uint32_t tlbuffer_read_uint24(tlBuffer* buf) {
+uint32_t tlbuf_read_uint24(tl_buf* buf) {
     uint32_t r = 0;
     for (int i = 0; i < 3; i++) {
-        r = (r << 8) | tlbuffer_read_uint8(buf);
+        r = (r << 8) | tlbuf_read_uint8(buf);
     }
     return r;
 }
-uint32_t tlbuffer_read_uint32(tlBuffer* buf) {
+uint32_t tlbuf_read_uint32(tl_buf* buf) {
     uint32_t r = 0;
     for (int i = 0; i < 4; i++) {
-        r = (r << 8) | tlbuffer_read_uint8(buf);
+        r = (r << 8) | tlbuf_read_uint8(buf);
     }
     return r;
 }
 
 // TODO check file size and check if we read all in end
-static tlBuffer* tlbuffer_new_from_file(const char* file) {
+static tl_buf* tlbuf_new_from_file(const char* file) {
     trace("file: %s", file);
-    tlBuffer* buf = tlbuffer_new();
+    tl_buf* buf = tlbuf_new();
 
     int fd = open(file, O_RDONLY, 0);
     if (fd < 0) {
@@ -134,7 +134,7 @@ static tlBuffer* tlbuffer_new_from_file(const char* file) {
     int len;
     while ((len = read(fd, writebuf(buf), canwrite(buf))) > 0) {
         didwrite(buf, len);
-        if (canwrite(buf) < 1024) tlbuffer_grow(buf);
+        if (canwrite(buf) < 1024) tlbuf_grow(buf);
         assert(canwrite(buf) >= 1024);
     }
     check(buf);

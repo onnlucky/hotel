@@ -54,11 +54,11 @@ int main(int argc, char** argv) {
 
     if (argc < 2) fatal("no file to run");
     const char* file = argv[1];
-    tlBuffer* buf = tlbuffer_new_from_file(file);
+    tl_buf* buf = tlbuf_new_from_file(file);
     if (!buf) fatal("cannot read file: %s", file);
 
-    tlbuffer_write_uint8(buf, 0);
-    tlText* script = tlTextNewTake(null, tlbuffer_free_get(buf));
+    tlbuf_write_uint8(buf, 0);
+    tlText* script = tlTextNewTake(null, tlbuf_free_get(buf));
     assert(script);
 
     tlVm* vm = tlvm_new();

@@ -23,10 +23,11 @@ typedef struct tlPauseAct {
 INTERNAL tlPause* tlActorReceive(tlTask* task, tlArgs* args);
 INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args);
 
-INTERNAL tlActor* tlActorCast(tlValue v) {
-    assert(tlref_is(v));
-    assert(tl_head(v)->klass->send == tlActorReceive);
-    return (tlActor*)v;
+INTERNAL bool tlActorIs(tlValue v) {
+    return tlClassGet(v)->send == tlActorReceive;
+}
+INTERNAL tlActor* tlActorAs(tlValue v) {
+    assert(tlActorIs(v)); return (tlActor*)v;
 }
 
 INTERNAL void tlActorInit(tlActor* actor) {
@@ -46,7 +47,7 @@ INTERNAL void _ActorScheduleNext(tlTask* task, tlActor* actor) {
 }
 
 INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
-    tlActor* actor = tlActorCast(data);
+    tlActor* actor = tlActorAs(data);
 
     // queue the task at the end
     lqueue_put(&actor->msg_q, &task->entry);
@@ -72,7 +73,7 @@ INTERNAL tlPause* _ResumeAct(tlTask* task, tlPause* _pause) {
 }
 
 tlPause* tlActorReceive(tlTask* task, tlArgs* args) {
-    tlActor* actor = tlActorCast(args->target);
+    tlActor* actor = tlActorAs(args->target);
     assert(actor);
 
     if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
@@ -89,15 +90,21 @@ tlPause* tlActorReceive(tlTask* task, tlArgs* args) {
 
 INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
     trace("");
-    tlActor* actor = tlActorCast(args->target);
+    tlActor* actor = tlActorAs(args->target);
     tlSym msg = tlsym_cast(args->msg);
     assert(actor);
     assert(msg);
     assert(actor->owner == task);
 
     print("ACTOR RECEIVE %p: %s (%d)", actor, tl_str(msg), tlargs_size(args));
-    assert(actor->head.klass->act);
-    tlPause* p = actor->head.klass->act(task, args);
+    tlPause* p = null;
+    if (actor->head.klass->act) {
+        p = actor->head.klass->act(task, args);
+    } else {
+        assert(actor->head.klass->map);
+        tlValue v = tlmap_get(task, actor->head.klass->map, msg);
+        p = tlTaskEvalArgsFn(task, args, v);
+    }
     if (p) {
         tlPauseAct* pause = tlPauseAlloc(task, sizeof(tlPauseAct), 0, _ResumeAct);
         pause->actor = actor;
@@ -105,6 +112,15 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
     }
     _ActorScheduleNext(task, actor);
     return null;
+}
+
+typedef tlPause*(*tlActorAquireCb)(tlTask* task, tlActor* actor, void* data);
+tlPause* tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* data) {
+    fatal("NOT IMPLEMENTED YET");
+    return null;
+}
+void tlActorRelease(tlTask* task, tlActor* actor) {
+    fatal("NOT IMPLEMENTED YET");
 }
 
 // TODO remove? because it is not a concrete type

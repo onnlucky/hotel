@@ -1,3 +1,6 @@
-sleep 2000
-print "hello world!"
+buf = _Buffer_new()
+buf.write "hello"
+buf.write " "
+buf.write "world"
+buf.read
 
