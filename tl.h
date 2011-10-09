@@ -3,8 +3,6 @@
 #define _tl_h_
 #pragma once
 
-#include <stdint.h>
-#include <assert.h>
 #include "platform.h"
 
 typedef void* tlValue;
@@ -419,7 +417,9 @@ typedef tlPause*(*tlHostCb)(tlTask*, tlArgs*);
 
 // ** memory **
 
-void* tlAlloc(tlTask* task, size_t bytes, tlClass* klass);
+void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);
+void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc);
+void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc);
 
 tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields);
 tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields,

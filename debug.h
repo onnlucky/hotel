@@ -4,6 +4,7 @@
 #define _debug_h_
 #pragma once
 
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

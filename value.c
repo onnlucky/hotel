@@ -95,17 +95,28 @@ static const tlHostCbs __value_cbs[] = {
 };
 
 // creating value objects
-void* tlAlloc(tlTask* task, size_t bytes, tlClass* klass) {
+void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes) {
+    trace("ALLOC: %p %zd", v, bytes);
     tlHead* head = (tlHead*)calloc(1, bytes);
     head->klass = klass;
     head->keep = 1;
     return (void*)head;
 }
-void* tlAllocWithFields(tlTask* task, size_t bytes, tlClass* klass, int fieldc) {
+void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc) {
+    trace("ALLOC: %p %zd %d", v, bytes, fieldc);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
     head->size = fieldc;
     head->klass = klass;
     head->keep = 1;
+    return (void*)head;
+}
+void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc) {
+    trace("CLONE: %p %zd %d", v, bytes, fieldc);
+    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
+    head->size = fieldc;
+    head->klass = tlClassGet(v);
+    head->keep = 1;
+    memcpy((void*)head + sizeof(tlHead), v + sizeof(tlHead), bytes + fieldc*sizeof(tlValue) - sizeof(tlHead));
     return (void*)head;
 }
 
@@ -144,7 +155,7 @@ tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs,
 }
 tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
     assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
-    assert(bytes % sizeof(tlValue) == 0);
+    //assert(bytes % sizeof(tlValue) == 0);
     assert(fields >= 0);
     int size = fields + bytes/sizeof(tlValue) - sizeof(tlHead)/sizeof(intptr_t);
     assert(size >= 0 && size < 0xFFFF);

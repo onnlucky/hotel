@@ -20,14 +20,14 @@ tlText* tlTextEmpty() { return _tl_emptyText; }
 
 tlText* tlTextFromStatic(const char* s) {
     trace("%s", s);
-    tlText* text = tlAlloc(null, sizeof(tlText), tlTextClass);
+    tlText* text = tlAlloc(null, tlTextClass, sizeof(tlText));
     text->data = s;
     return text;
 }
 
 tlText* tlTextNewTake(tlTask* task, char* s) {
     trace("%s", s);
-    tlText* text = tlAlloc(task, sizeof(tlText), tlTextClass);
+    tlText* text = tlAlloc(task, tlTextClass, sizeof(tlText));
     text->data = s;
     return text;
 }

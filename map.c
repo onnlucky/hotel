@@ -23,7 +23,7 @@ tlMap* tlmap_empty() { return _tl_emptyMap; }
 
 tlMap* tlmap_new(tlTask* task, tlSet* keys) {
     if (!keys) keys = v_set_empty;
-    tlMap* map = tlAllocWithFields(task, sizeof(tlMap), tlMapClass, tlset_size(keys));
+    tlMap* map = tlAllocWithFields(task, tlMapClass, sizeof(tlMap), tlset_size(keys));
     map->keys = keys;
     assert(tlmap_size(map) == tlset_size(keys));
     return map;
@@ -167,12 +167,14 @@ static tlPause* _map_clone(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlargs_get(args, 0));
     if (!map) TL_THROW("Expected a map");
     int size = tlmap_size(map);
-    map = TL_CLONE(map);
+    map = tlAllocClone(task, map, sizeof(tlMap), size);
     int argc = 1;
     for (int i = 0; i < size; i++) {
-        if (!map->data[i]) map->data[i] = tlargs_get(args, argc++);
+        if (!map->data[i] || map->data[i] == tlUndefined) {
+            map->data[i] = tlargs_get(args, argc++);
+        }
     }
-    print("MAP CLONE DUMP:"); tlmap_dump(map);
+    assert(argc == tlargs_size(args));
     TL_RETURN(map);
 }
 static tlPause* _map_dump(tlTask* task, tlArgs* args) {
@@ -225,12 +227,8 @@ static tlPause* _MapSet(tlTask* task, tlArgs* args) {
 static tlPause* _MapToObject(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    print("MAP TO OBJECT: %d", tlmap_size(map));
-    tlmap_dump(map);
-    print("END OF DUMP");
     tlMap* nmap = tlmap_new(task, map->keys);
     for (int i = 0; i < tlmap_size(map); i++) nmap->data[i] = map->data[i];
-    tlmap_dump(nmap);
     nmap->head.klass = tlValueObjectClass;
     TL_RETURN(nmap);
 }
@@ -251,11 +249,11 @@ static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
     tlSym msg = tlArgsMsg(args);
 
     tlValue field = tlmap_get(task, map, msg);
-    print("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
+    trace("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
     if (!field) {
         do {
             tlMap* klass = tlmap_get(task, map, s_class);
-            print("CLASS: %s", tl_str(klass));
+            trace("CLASS: %s", tl_str(klass));
             if (!klass) break;
             field = tlmap_get(task, klass, msg);
             if (field) {
@@ -263,11 +261,12 @@ static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
                 return tlTaskEvalArgs(task, args);
             }
         } while (true);
-        print("RETURNING UNDEF");
         TL_RETURN(tlUndefined);
     }
     if (!tlcallable_is(field)) TL_RETURN(field);
 
+    fatal("FIX");
+    // TODO fix this here ... have eval take the fn ...
     //args->fn = field;
     return tlTaskEvalArgs(task, args);
 }
