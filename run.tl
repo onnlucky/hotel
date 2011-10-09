@@ -1,6 +1,5 @@
-buf = _Buffer_new()
-buf.write "hello"
-buf.write " "
-buf.write "world"
+file = _File_open("/etc/passwd", _File_RDONLY)
+buf = _Buffer_new();
+file.read buf
 buf.read
 

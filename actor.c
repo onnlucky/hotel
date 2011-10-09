@@ -102,7 +102,9 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
         p = actor->head.klass->act(task, args);
     } else {
         assert(actor->head.klass->map);
+        tlmap_dump(actor->head.klass->map);
         tlValue v = tlmap_get(task, actor->head.klass->map, msg);
+        print("ACTORE DISPATCH: %p: %s (%s)", v, tl_str(v), tl_str(msg));
         p = tlTaskEvalArgsFn(task, args, v);
     }
     if (p) {
@@ -115,12 +117,38 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
 }
 
 typedef tlPause*(*tlActorAquireCb)(tlTask* task, tlActor* actor, void* data);
+
+typedef struct tlPauseAquire {
+    tlPause pause;
+    tlActor* actor;
+    tlActorAquireCb cb;
+    void* data;
+} tlPauseAquire;
+
+INTERNAL tlPause* _ResumeAquire(tlTask* task, tlPause* _pause) {
+    trace("");
+    tlPauseAquire* pause = (tlPauseAquire*)_pause;
+    return pause->cb(task, pause->actor, pause->data);
+}
+
 tlPause* tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* data) {
-    fatal("NOT IMPLEMENTED YET");
-    return null;
+    assert(actor);
+
+    if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
+        // pause current task
+        tlPauseAquire* pause = tlPauseAlloc(task, sizeof(tlPauseAquire), 0, _ResumeAquire);
+        pause->actor = actor;
+        pause->cb = cb;
+        pause->data = data;
+        // after the pause, enqueue the task in the msg queue
+        tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
+        return tlTaskPause(task, pause);
+    } else {
+        return cb(task, actor, data);
+    }
 }
 void tlActorRelease(tlTask* task, tlActor* actor) {
-    fatal("NOT IMPLEMENTED YET");
+    _ActorScheduleNext(task, actor);
 }
 
 // TODO remove? because it is not a concrete type

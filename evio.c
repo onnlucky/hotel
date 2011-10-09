@@ -100,6 +100,19 @@ static tlFile* tlFileNew(tlTask* task, int fd) {
     return file;
 }
 
+static tlPause* _io_file_open(tlTask* task, tlArgs* args) {
+    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    if (!name) TL_THROW("expected a file name");
+    trace("open: %s", tl_str(name));
+    int flags = tl_int_or(tlArgsAt(args, 1), -1);
+    if (flags < 0) TL_THROW("expected flags");
+    int perms = 0666;
+
+    int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
+    if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
+    TL_RETURN(tlFileNew(task, fd));
+}
+
 static tlPause* _FileClose(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
@@ -111,13 +124,6 @@ static tlPause* _FileClose(tlTask* task, tlArgs* args) {
     int r = close(ev->fd);
     if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
     TL_RETURN(tlNull);
-}
-
-static void _file_init() {
-    _tlFileClass.map = tlClassMapFrom(
-            "close", _FileClose,
-            null
-    );
 }
 
 static void read_cb(ev_io *ev, int revents) {
@@ -149,6 +155,8 @@ static tlPause* _FileRead(tlTask* task, tlArgs* args) {
     if (!file) TL_THROW("expected a File");
 
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    if (!buffer) TL_THROW("expected a Buffer");
+
     file->readBuffer = buffer;
     return tlActorAquire(task, tlActorAs(buffer), _FileRead2, file);
 }
@@ -172,6 +180,14 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     tlTaskWaitSystem(task);
     // TODO must return something to indicate pausing ...
     return null;
+}
+
+static void _file_init() {
+    _tlFileClass.map = tlClassMapFrom(
+            "close", _FileClose,
+            "read", _FileRead,
+            null
+    );
 }
 
 #if 0
@@ -525,6 +541,7 @@ static const pfunentry __io_pfuns[] = {
 
 static const tlHostCbs __evio_hostcbs[] = {
     { "sleep", _io_sleep },
+    { "_File_open", _io_file_open },
     { 0, 0 }
 };
 
@@ -534,13 +551,13 @@ void evio_init() {
     ev_default_loop(0);
 
     tl_register_hostcbs(__evio_hostcbs);
+    tl_register_global("_File_RDONLY",   tlINT(O_RDONLY));
 
     s_file  = tlSYM("io_file");
     s_dir   = tlSYM("io_dir");
     s_child = tlSYM("io_child");
 
     /*
-    tl_register_const("O_RDONLY",   tlINT(O_RDONLY));
     tl_register_const("O_WRONLY",   tlINT(O_WRONLY));
     tl_register_const("O_RDWR",     tlINT(O_RDWR));
     tl_register_const("O_APPEND",   tlINT(O_APPEND));
