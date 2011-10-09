@@ -4,6 +4,9 @@ add methods vs functions, methods try to bind a this dynamically ... helps with 
 example: function = { }
          method = @{ }
 
+fix evio.c sleep should return a tlPause ... or it won't always work
+do more on evio.c, merge with io.c
+
 rework all types as the tlClass things ... stop using anything else
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 

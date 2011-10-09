@@ -24,6 +24,7 @@
 #include "buffer.c"
 
 #include "io.c"
+#include "evio.c"
 
 #include "trace-off.h"
 
@@ -134,6 +135,7 @@ void tlvm_init() {
     vm_init();
 
     io_init();
+    evio_init();
 }
 
 // when outside of vm, be your own worker, and attach it to tasks
@@ -169,6 +171,14 @@ void tlworker_run(tlWorker* worker) {
     trace(">>>> WORKER DONE <<<<");
 }
 
+void tlworker_run_io(tlWorker* worker) {
+    while (true) {
+        tlworker_run(worker);
+        if (!tlIoHasWaiting(worker->vm)) break;
+        tlIoWait(worker->vm);
+    }
+}
+
 tlWorker* tlworker_new(tlVm* vm) {
     tlWorker* worker = calloc(1, sizeof(tlWorker));
     worker->head.type = TLWorker;
@@ -180,6 +190,7 @@ void tlworker_delete(tlWorker* worker) { free(worker); }
 tlVm* tlvm_new() {
     tlVm* vm = calloc(1, sizeof(tlVm));
     vm->head.type = TLVm;
+    vm->waiter = tlworker_new(vm);
     return vm;
 }
 void tlvm_delete(tlVm* vm) { free(vm); }

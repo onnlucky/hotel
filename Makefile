@@ -23,7 +23,7 @@ lqueue.o: llib/lqueue.h llib/lqueue.c
 	$(CC) $(CFLAGS) -c llib/lqueue.c -o lqueue.o
 
 tl: lqueue.o lhashmap.o parser.o *.c *.h
-	$(CC) $(CFLAGS) tl.c lqueue.o lhashmap.o parser.o -o tl
+	$(CC) $(CFLAGS) tl.c lqueue.o lhashmap.o parser.o -o tl -lm
 
 clean:
 	rm -rf tl parser.c *.o *.so tl.dSYM

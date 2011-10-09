@@ -24,13 +24,17 @@ void tlresult_set_(tlResult* res, int at, tlValue v);
 struct tlVm {
     tlHead head;
     lqueue run_q;
+
+    // the waiter does not actually "work", it helps tasks keep reference back to the vm
+    tlWorker* waiter;
+    int waiting;
 };
 
 typedef void(*tlWorkerDeferCb)(tlTask* task, void* data);
 struct tlWorker {
     tlHead head;
-    tlVm* vm;
 
+    tlVm* vm;
     tlTask* current;
 
     tlWorkerDeferCb defer_cb;
@@ -75,8 +79,10 @@ struct tlTask {
 };
 
 tlVm* tlTaskGetVm(tlTask* task) {
+    assert(tltask_is(task));
     assert(task->worker);
     assert(task->worker->vm);
+    assert(tlvm_is(task->worker->vm));
     return task->worker->vm;
 }
 
@@ -204,6 +210,22 @@ tlValue tltask_exception(tlTask* task) {
 }
 tlValue tltask_value(tlTask* task) {
     return tlresult_get(task->value, 0);
+}
+
+void tlTaskWaitSystem(tlTask* task) {
+    assert(tltask_is(task));
+    tlVm* vm = tlTaskGetVm(task);
+    task->state = TL_STATE_WAIT;
+    task->worker = vm->waiter;
+    vm->waiting++;
+}
+
+void tlTaskReady(tlTask* task) {
+    tlVm* vm = tlTaskGetVm(task);
+    vm->waiting--;
+    task->worker = null;
+    task->state = TL_STATE_READY;
+    lqueue_put(&vm->run_q, &task->entry);
 }
 
 void tltask_ready_detach(tlTask* task) {

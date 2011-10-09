@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
     tltask_ready_detach(task);
 
     trace("RUNNING");
-    tlworker_run(worker);
+    tlworker_run_io(worker);
     trace("DONE");
 
     tlValue ex = tltask_exception(task);
