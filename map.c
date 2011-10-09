@@ -258,17 +258,13 @@ static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
             field = tlmap_get(task, klass, msg);
             if (field) {
                 if (!tlcallable_is(field)) TL_RETURN(field);
-                return tlTaskEvalArgs(task, args);
+                return tlTaskEvalArgsFn(task, args, field);
             }
         } while (true);
         TL_RETURN(tlUndefined);
     }
     if (!tlcallable_is(field)) TL_RETURN(field);
-
-    fatal("FIX");
-    // TODO fix this here ... have eval take the fn ...
-    //args->fn = field;
-    return tlTaskEvalArgs(task, args);
+    return tlTaskEvalArgsFn(task, args, field);
 }
 static tlClass _tlValueObjectClass = {
     .name = "ValueObject",

@@ -1,5 +1,9 @@
 # TODO
 
+add methods vs functions, methods try to bind a this dynamically ... helps with actors too
+example: function = { }
+         method = @{ }
+
 rework all types as the tlClass things ... stop using anything else
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 

@@ -395,6 +395,7 @@ tlWorker* tltask_worker(tlTask* task);
 tlVm* tltask_vm(tlTask* task);
 
 tlPause* tlTaskEvalArgs(tlTask* task, tlArgs* args);
+tlPause* tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 tlPause* tlTaskEvalCall(tlTask* task, tlCall* call);
 
 bool tltask_isdone(tlTask* task);

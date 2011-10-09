@@ -1,6 +1,5 @@
-foo = { y = 20 }
-print foo
-{ x = 10, class = foo }.toObject.y
+foo = { y = 20, do = ->{ print "doing" } }
+{ x = 10, class=foo }.toObject.do
 
 /*
 SquareClass = {

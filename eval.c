@@ -680,6 +680,11 @@ INTERNAL void run_resume(tlTask* task, tlPause* pause) {
 tlPause* tlTaskEvalArgs(tlTask* task, tlArgs* args) {
     return start_args(task, args, null);
 }
+tlPause* tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
+    assert(tlcallable_is(fn));
+    args->fn = fn;
+    return start_args(task, args, null);
+}
 tlPause* tlTaskEvalCall(tlTask* task, tlCall* call) {
     return run_apply(task, call);
 }
