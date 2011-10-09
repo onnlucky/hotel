@@ -40,6 +40,7 @@ INTERNAL void _ActorScheduleNext(tlTask* task, tlActor* actor) {
 
     // dequeue the first task in line
     tlTask* ntask = tltask_from_entry(lqueue_get(&actor->msg_q));
+    trace("%p", ntask);
 
     // make it the owner and schedule it; null is perfectly good as owner
     actor->owner = ntask;
@@ -132,6 +133,7 @@ INTERNAL tlPause* _ResumeAquire(tlTask* task, tlPause* _pause) {
 }
 
 tlPause* tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* data) {
+    trace("%p", actor);
     assert(actor);
 
     if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
@@ -148,6 +150,7 @@ tlPause* tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* d
     }
 }
 void tlActorRelease(tlTask* task, tlActor* actor) {
+    trace("%p", actor);
     _ActorScheduleNext(task, actor);
 }
 

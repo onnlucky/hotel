@@ -61,8 +61,7 @@ static tlPause* _io_sleep(tlTask* task, tlArgs* args) {
     ev_timer_start(timer);
 
     tlTaskWaitSystem(task);
-    // TODO must return something to indicate pausing ...
-    return null;
+    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
 
@@ -131,8 +130,8 @@ static void read_cb(ev_io *ev, int revents) {
     tlFile *file = tlFileFrom(ev);
     tlTask* task = file->actor.owner;
     tl_buf* buf = (tl_buf*)ev->data;
-    assert(task);
-    assert(buf);
+
+    if (!file->actor.owner) fatal("HEY WHAT IS UP 3");
 
     int len = read(ev->fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
@@ -153,6 +152,7 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data);
 static tlPause* _FileRead(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
+    if (!file->actor.owner) fatal("HEY WHAT IS UP");
 
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
     if (!buffer) TL_THROW("expected a Buffer");
@@ -164,6 +164,8 @@ static tlPause* _FileRead(tlTask* task, tlArgs* args) {
 static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     tlFile* file = tlFileAs(data);
     tlBuffer* buffer = tlBufferAs(actor);
+    if (!file->actor.owner) fatal("HEY WHAT IS UP 2");
+    if (!buffer->actor.owner) fatal("HEY WHAT IS UP 3");
 
     if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
 
@@ -178,8 +180,7 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     ev->events = EV_READ;
     ev_io_start(ev);
     tlTaskWaitSystem(task);
-    // TODO must return something to indicate pausing ...
-    return null;
+    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
 static void _file_init() {
