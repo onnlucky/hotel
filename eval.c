@@ -512,7 +512,8 @@ INTERNAL tlPause* chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlPau
     trace(">> NATIVE %p %s", fn, tl_str(tlhostfn_get(fn, 0)));
 
     tlPause* r = fn->hostcb(task, args);
-    if (r) return tlTaskPauseAttach(task, r, caller);
+    if (r && caller) return tlTaskPauseAttach(task, r, caller);
+    if (r) return r;
     return null;
 }
 

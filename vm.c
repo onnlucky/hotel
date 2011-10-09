@@ -166,7 +166,6 @@ void tlworker_run(tlWorker* worker) {
         trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
         tlworker_attach(worker, task);
         code_workfn(task);
-        assert(!task->worker);
     }
     trace(">>>> WORKER DONE <<<<");
 }

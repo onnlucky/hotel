@@ -1,6 +1,7 @@
 CC:=clang
 CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function -g $(CFLAGS)
 TOOL=valgrind -q --track-origins=yes
+TOOL=
 
 all: tl
 
@@ -22,8 +23,11 @@ lhashmap.o: llib/lhashmap.h llib/lhashmap.c
 lqueue.o: llib/lqueue.h llib/lqueue.c
 	$(CC) $(CFLAGS) -c llib/lqueue.c -o lqueue.o
 
-tl: lqueue.o lhashmap.o parser.o *.c *.h
-	$(CC) $(CFLAGS) tl.c lqueue.o lhashmap.o parser.o -o tl -lm
+ev.o: ev/ev.c
+	$(CC) $(CFLAGS) -c ev/ev.c -o ev.o
+
+tl: lqueue.o lhashmap.o parser.o ev.o *.c *.h
+	$(CC) $(CFLAGS) tl.c lqueue.o lhashmap.o parser.o ev.o -o tl -lm
 
 clean:
 	rm -rf tl parser.c *.o *.so tl.dSYM

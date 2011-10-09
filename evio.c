@@ -6,7 +6,7 @@
 
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
-#include "ev/ev.c"
+#include "ev/ev.h"
 
 #include "trace-on.h"
 
@@ -126,7 +126,7 @@ static tlPause* _FileClose(tlTask* task, tlArgs* args) {
 }
 
 static void read_cb(ev_io *ev, int revents) {
-    trace("read_cb: %p %d", ev, ev->fd);
+    trace("!! read_cb: %p %d", ev, ev->fd);
     tlFile *file = tlFileFrom(ev);
     tlTask* task = file->actor.owner;
     tl_buf* buf = (tl_buf*)ev->data;
@@ -180,6 +180,8 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     ev->events = EV_READ;
     ev_io_start(ev);
     tlTaskWaitSystem(task);
+
+    print("!! read2: waiting");
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 

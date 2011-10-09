@@ -1,5 +1,6 @@
 file = _File_open("/etc/passwd", _File_RDONLY)
 buf = _Buffer_new();
-file.read buf
-buf.read
+len = file.read buf
+print "read:", len
+print buf.read
 

@@ -105,9 +105,10 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
         assert(actor->head.klass->map);
         tlmap_dump(actor->head.klass->map);
         tlValue v = tlmap_get(task, actor->head.klass->map, msg);
-        print("ACTORE DISPATCH: %p: %s (%s)", v, tl_str(v), tl_str(msg));
+        print("ACTOR DISPATCH: %p: %s (%s)", v, tl_str(v), tl_str(msg));
         p = tlTaskEvalArgsFn(task, args, v);
     }
+    print("ACTOR ACTED: %p", p);
     if (p) {
         tlPauseAct* pause = tlPauseAlloc(task, sizeof(tlPauseAct), 0, _ResumeAct);
         pause->actor = actor;
@@ -149,6 +150,7 @@ tlPause* tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* d
         return cb(task, actor, data);
     }
 }
+
 void tlActorRelease(tlTask* task, tlActor* actor) {
     trace("%p", actor);
     _ActorScheduleNext(task, actor);

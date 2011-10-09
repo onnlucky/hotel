@@ -1,3 +1,5 @@
+#define EV_STANDALONE 1
+#define EV_MULTIPLICITY 0
 /*
  * libev event processing core, watcher management
  *
