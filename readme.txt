@@ -13,6 +13,8 @@ rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tl
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs
 
+we do the "get field and dispatch" a lot in a lot of places ... dry it up
+
   ----
 
 ensure task attach/detach is correct, and ready/done etc don't have races ...

@@ -1,7 +1,7 @@
-buf = %buffer_new()
-file = %io_file_open("./test/noboot/readfile.tl", O_RDONLY)
-
-len = %io_read(file, buf)
-%io_close(file)
+file = _File_open("readfile.tl", _File_RDONLY)
+buf = _Buffer_new()
+len = file.read buf
+file.close
 out("len: ", len, "\n")
-%buffer_read_text(buf)
+out(buf.read)
+

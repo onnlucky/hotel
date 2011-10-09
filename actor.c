@@ -97,18 +97,17 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
     assert(msg);
     assert(actor->owner == task);
 
-    print("ACTOR RECEIVE %p: %s (%d)", actor, tl_str(msg), tlargs_size(args));
+    trace("actor receive %p: %s (%d)", actor, tl_str(msg), tlargs_size(args));
     tlPause* p = null;
     if (actor->head.klass->act) {
         p = actor->head.klass->act(task, args);
     } else {
         assert(actor->head.klass->map);
-        tlmap_dump(actor->head.klass->map);
         tlValue v = tlmap_get(task, actor->head.klass->map, msg);
-        print("ACTOR DISPATCH: %p: %s (%s)", v, tl_str(v), tl_str(msg));
+        // TODO really? maybe check if value first
         p = tlTaskEvalArgsFn(task, args, v);
     }
-    print("ACTOR ACTED: %p", p);
+    trace("actor acted: %p", p);
     if (p) {
         tlPauseAct* pause = tlPauseAlloc(task, sizeof(tlPauseAct), 0, _ResumeAct);
         pause->actor = actor;

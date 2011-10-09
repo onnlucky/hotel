@@ -26,7 +26,7 @@ INTERNAL tlPause* _BufferRead(tlTask* task, tlArgs* args) {
     tl_buf* buf = buffer->buf;
     assert(buf);
 
-    print("canread: %d", canread(buf));
+    trace("canread: %d", canread(buf));
     char* data = malloc(canread(buf) + 1);
     int last = tlbuf_read(buf, data, canread(buf));
     data[last] = 0;
