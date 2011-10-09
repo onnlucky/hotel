@@ -3,16 +3,13 @@
 // TODO use O_CLOEXEC if available; set FD_CLOEXEC otherwise
 // TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
 // TODO thread safety when we want to run multiple workers and a ev loop thread ... how?
+// TODO a loop per vm? and make this more like a "plugin"?
 
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
 #include "ev/ev.h"
 
 #include "trace-on.h"
-
-static tlSym s_file;
-static tlSym s_dir;
-static tlSym s_child;
 
 //static tlMap *_stat_tlmap;
 static tlSym _s_dev;
@@ -79,8 +76,8 @@ INTERNAL tlPause* _FileAct(tlTask* task, tlArgs* args);
 TL_REF_TYPE(File);
 struct tlFile {
     tlActor actor;
-    tlBuffer* readBuffer;
-    tlBuffer* writeBuffer;
+    // TODO this way we cannot do read and write at the same time, but we could
+    // by adding readBuffer, writeBuffer ...
     ev_io ev;
 };
 static tlClass _tlFileClass = {
@@ -126,12 +123,11 @@ static tlPause* _FileClose(tlTask* task, tlArgs* args) {
 }
 
 static void read_cb(ev_io *ev, int revents) {
-    trace("!! read_cb: %p %d", ev, ev->fd);
-    tlFile *file = tlFileFrom(ev);
+    trace("read_cb: %p %d", ev, ev->fd);
+    tlFile* file = tlFileFrom(ev);
     tlTask* task = file->actor.owner;
     tl_buf* buf = (tl_buf*)ev->data;
-
-    if (!file->actor.owner) fatal("HEY WHAT IS UP 3");
+    assert(task);
 
     int len = read(ev->fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
@@ -147,29 +143,16 @@ static void read_cb(ev_io *ev, int revents) {
     if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
-static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data);
-
-static tlPause* _FileRead(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
-    if (!file->actor.owner) fatal("HEY WHAT IS UP");
-
-    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
-    if (!buffer) TL_THROW("expected a Buffer");
-
-    file->readBuffer = buffer;
-    return tlActorAquire(task, tlActorAs(buffer), _FileRead2, file);
-}
-
 static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     tlFile* file = tlFileAs(data);
     tlBuffer* buffer = tlBufferAs(actor);
-    if (!file->actor.owner) fatal("HEY WHAT IS UP 2");
-    if (!buffer->actor.owner) fatal("HEY WHAT IS UP 3");
+    assert(file->actor.owner == task);
+    assert(buffer->actor.owner == task);
 
+    // release buffer or let Aquire do a pause with release?
     if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
 
-    ev_io *ev = &file->ev;
+    ev_io* ev = &file->ev;
     trace("read: %p, %d", ev, ev->fd);
     ev->cb = read_cb;
     ev->data = buffer->buf;
@@ -185,58 +168,82 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
+static tlPause* _FileRead(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
+
+    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    if (!buffer) TL_THROW("expected a Buffer");
+
+    return tlActorAquire(task, tlActorAs(buffer), _FileRead2, file);
+}
+
+static void write_cb(ev_io *ev, int revents) {
+    trace("read_cb: %p %d", ev, ev->fd);
+    tlFile* file = tlFileFrom(ev);
+    tlTask* task = file->actor.owner;
+    tl_buf* buf = (tl_buf*)ev->data;
+    assert(task);
+
+    int len = write(ev->fd, readbuf(buf), canread(buf));
+    if (len < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            ev_io_start(ev); trace("write: EAGAIN || EWOULDBLOCK"); return;
+        }
+        TL_THROW_SET("write: failed: %s", strerror(errno));
+    } else {
+        didread(buf, len);
+        TL_RETURN_SET(tlINT(len));
+    }
+    ev_io_stop(ev);
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+}
+
+static tlPause* _FileWrite2(tlTask* task, tlActor* actor, void* data) {
+    tlFile* file = tlFileAs(data);
+    tlBuffer* buffer = tlBufferAs(actor);
+    assert(file->actor.owner == task);
+    assert(buffer->actor.owner == task);
+
+    // TODO release
+    if (canread(buffer->buf) <= 0) TL_THROW("write: failed: buffer empty");
+
+    ev_io* ev = &file->ev;
+    trace("write: %p, %d", ev, ev->fd);
+    ev->cb = write_cb;
+    ev->data = buffer->buf;
+
+    int revents = ev_clear_pending(ev);
+    if (revents & EV_WRITE) { read_cb(ev, revents); return null; }
+
+    ev->events = EV_WRITE;
+    ev_io_start(ev);
+    tlTaskWaitSystem(task);
+
+    trace("write: waiting");
+    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
+}
+
+static tlPause* _FileWrite(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
+
+    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    if (!buffer) TL_THROW("expected a Buffer");
+
+    return tlActorAquire(task, tlActorAs(buffer), _FileWrite2, file);
+}
+
 static void _file_init() {
     _tlFileClass.map = tlClassMapFrom(
             "close", _FileClose,
             "read", _FileRead,
+            "write", _FileWrite,
             null
     );
 }
 
 #if 0
-static void write_cb(ev_io *file, int revents) {
-    trace("read_cb: %p %d", file, file->fd);
-    FileWrap *wrap = filewrap_from(file);
-    Task *task = asTask(wrap->wrap.task);
-    Buffer *buf = (Buffer *)file->data;
-    assert(isTask(wrap->wrap.task));
-    assert(wrap->wrap.tag == s_file);
-
-    int len = write(file->fd, readbuf(buf), canread(buf));
-    if (len < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ev_io_start(file); trace("write: EAGAIN || EWOULDBLOCK"); return;
-        }
-        vm_throw(task, "write: failed:", strerror(errno), null);
-    } else {
-        didread(buf, len);
-        vm_return(task, INT(len));
-    }
-    ev_io_stop(file);
-    if (task->state == P_WAIT) task_ready_system(task);
-}
-
-static Value _io_write(CONTEXT) {
-    FileWrap *wrap = _ARG1; TYPECHECK(wrap, TWrap); WRAPCHECK(wrap, task, s_file);
-    Buffer *buf = unwrap(_ARG2, task, s_buffer); WRAPCHECK(_ARG2, task, s_buffer);
-    //int ms = int_from_or(_ARG3, 0);
-
-    if (canread(buf) <= 0) return vm_throw(task, "write: failed: buffer empty", null);
-
-    ev_io *file = &wrap->file;
-    trace("write: %p, %d", file, file->fd);
-    file->cb = write_cb;
-    file->data = buf;
-
-    int revents = ev_clear_pending(file);
-    if (revents & EV_WRITE) { read_cb(file, revents); return Ignore; }
-
-    file->events = EV_WRITE;
-    ev_io_start(file);
-    task_wait_system(task);
-    return Ignore;
-}
-
 // TODO fix perms by passing them in
 static Value _io_file_open(CONTEXT) {
     ARG1(Text, name);
@@ -555,22 +562,11 @@ void evio_init() {
 
     tl_register_hostcbs(__evio_hostcbs);
     tl_register_global("_File_RDONLY",   tlINT(O_RDONLY));
-
-    s_file  = tlSYM("io_file");
-    s_dir   = tlSYM("io_dir");
-    s_child = tlSYM("io_child");
-
-    /*
-    tl_register_const("O_WRONLY",   tlINT(O_WRONLY));
-    tl_register_const("O_RDWR",     tlINT(O_RDWR));
-    tl_register_const("O_APPEND",   tlINT(O_APPEND));
-    tl_register_const("O_TRUNC",    tlINT(O_TRUNC));
-    tl_register_const("O_CREAT",    tlINT(O_CREAT));
-    tl_register_const("O_CANREAD",  tlINT(EV_READ));
-    tl_register_const("O_CANWRITE", tlINT(EV_WRITE));
-
-    tl_register_pfuns(__io_pfuns);
-    */
+    tl_register_global("_File_WRONLY",   tlINT(O_WRONLY));
+    tl_register_global("_File_RDWR",     tlINT(O_RDWR));
+    tl_register_global("_File_APPEND",   tlINT(O_APPEND));
+    tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
+    tl_register_global("_File_CREAT",    tlINT(O_CREAT));
 
     _s_dev = tlSYM("dev");
     _s_ino = tlSYM("ino");
