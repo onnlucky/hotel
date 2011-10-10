@@ -20,10 +20,8 @@
 #include "env.c"
 #include "eval.c"
 
-#include "tagged.c"
+#include "buf.c"
 #include "buffer.c"
-
-#include "io.c"
 #include "evio.c"
 
 #include "trace-off.h"

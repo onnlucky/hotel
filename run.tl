@@ -1,4 +1,19 @@
-server = _Socket_listen(8080)
+/*
+stat = _Path_stat("tl")
+print stat.ino
+print stat.mtime
+*/
+
+dir = _Dir_open(".")
+print dir.read
+print dir.read
+print dir.read
+print dir.read
+print dir.read
+print dir.read
+
+/*
+server = _ServerSocket_listen(8080)
 client = server.accept
 
 buf = _Buffer_new()

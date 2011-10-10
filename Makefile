@@ -1,5 +1,5 @@
 CC:=clang
-CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function -g $(CFLAGS)
+CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g $(CFLAGS)
 TOOL=valgrind -q --track-origins=yes
 TOOL=
 
