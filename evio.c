@@ -278,6 +278,19 @@ static tlPause* _File_open(tlTask* task, tlArgs* args) {
     TL_RETURN(tlFileNew(task, fd));
 }
 
+// ** sockets **
+
+// TOOD this is a blocking call
+static tlPause* _Socket_resolve(tlTask* task, tlArgs* args) {
+    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    if (!name) TL_THROW("expected a Text");
+
+    struct hostent *hp = gethostbyname(tlTextData(name));
+    if (!hp) TL_RETURN(tlNull);
+    if (!hp->h_addr_list[0]) TL_RETURN(tlNull);
+    TL_RETURN(tlTextNewTake(task, inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0]))));
+}
+
 static tlPause* _Socket_connect(tlTask* task, tlArgs* args) {
     tlText* address = tlTextCast(tlArgsAt(args, 0));
     if (!address) TL_THROW("expected a ip address");
@@ -379,6 +392,8 @@ static tlPause* _SocketAccept(tlTask* task, tlArgs* args) {
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
+// ** paths **
+
 static tlPause* _Path_stat(tlTask* task, tlArgs* args) {
     tlText* name = tlTextCast(tlArgsAt(args, 0));
     if (!name) TL_THROW("expected a name");
@@ -402,8 +417,6 @@ static tlPause* _Path_stat(tlTask* task, tlArgs* args) {
     tlmap_set_sym_(res, _s_mtime, tlINT(buf.st_mtime));
     TL_RETURN(res);
 }
-
-// ** DIR **
 
 TL_REF_TYPE(Dir);
 struct tlDir {
@@ -450,6 +463,7 @@ static tlPause* _DirRead(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextNewCopy(task, dp.d_name));
 }
 
+// ** child processes **
 #if 0
 // exec ... replaces current process, stopping hotel effectively
 // TODO do we want to close file descriptors?
@@ -544,22 +558,13 @@ static Value _io_child_exec(CONTEXT) {
     _exit(1);
 }
 
-// TOOD this is a blocking call
-static Value _io_resolve(CONTEXT) {
-    ARG1(Text, name);
-
-    struct hostent *hp = gethostbyname(string_from(name));
-    if (!hp) return Null;
-    if (!hp->h_addr_list[0]) return Null;
-    return TEXT(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])));
-}
-
 #endif
 
 static const tlHostCbs __evio_hostcbs[] = {
     { "sleep", _io_sleep },
     { "_File_open", _File_open },
     { "_Socket_connect", _Socket_connect },
+    { "_Socket_resolve", _Socket_resolve },
     { "_ServerSocket_listen", _ServerSocket_listen },
     { "_Path_stat", _Path_stat },
     { "_Dir_open", _Dir_open },

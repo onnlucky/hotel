@@ -1,3 +1,6 @@
+print _Socket_resolve("www.google.com")
+return
+
 /*
 stat = _Path_stat("tl")
 print stat.ino
