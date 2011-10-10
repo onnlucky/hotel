@@ -74,20 +74,54 @@ static int nonblock(int fd) {
 INTERNAL tlPause* _FileAct(tlTask* task, tlArgs* args);
 
 TL_REF_TYPE(File);
+TL_REF_TYPE(Socket);
+TL_REF_TYPE(ServerSocket);
+
+// TODO should be able to read and write at same time ...
 struct tlFile {
     tlActor actor;
-    // TODO this way we cannot do read and write at the same time, but we could
-    // by adding readBuffer, writeBuffer ...
+    ev_io ev;
+};
+// TODO add peer address ...
+struct tlSocket {
+    tlActor actor;
+    ev_io ev;
+};
+struct tlServerSocket {
+    tlActor actor;
     ev_io ev;
 };
 static tlClass _tlFileClass = {
     .name = "File",
     .send = tlActorReceive,
 };
+static tlClass _tlSocketClass = {
+    .name = "Socket",
+    .send = tlActorReceive,
+};
+static tlClass _tlServerSocketClass = {
+    .name = "ServerSocket",
+    .send = tlActorReceive,
+};
 tlClass* tlFileClass = &_tlFileClass;
+tlClass* tlSocketClass = &_tlSocketClass;
+tlClass* tlServerSocketClass = &_tlServerSocketClass;
+
+static tlFile* tlFileOrSocketAs(tlValue v) {
+    assert(tlFileIs(v)||tlSocketIs(v)||tlServerSocketIs(v)); return (tlFile*)v;
+}
+static tlFile* tlFileOrSocketCast(tlValue v) {
+    return (tlFileIs(v)||tlSocketIs(v)||tlServerSocketIs(v))?(tlFile*)v:null;
+}
 
 static tlFile* tlFileFrom(ev_io *file) {
-    return tlFileAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
+    return tlFileOrSocketAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
+}
+static tlSocket* tlSocketFrom(ev_io *file) {
+    return tlSocketAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
+}
+static tlServerSocket* tlServerSocketFrom(ev_io *file) {
+    return tlServerSocketAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
 }
 
 static tlFile* tlFileNew(tlTask* task, int fd) {
@@ -95,22 +129,19 @@ static tlFile* tlFileNew(tlTask* task, int fd) {
     ev_io_init(&file->ev, null, fd, 0);
     return file;
 }
-
-static tlPause* _io_file_open(tlTask* task, tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsAt(args, 0));
-    if (!name) TL_THROW("expected a file name");
-    trace("open: %s", tl_str(name));
-    int flags = tl_int_or(tlArgsAt(args, 1), -1);
-    if (flags < 0) TL_THROW("expected flags");
-    int perms = 0666;
-
-    int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
-    if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
-    TL_RETURN(tlFileNew(task, fd));
+static tlSocket* tlSocketNew(tlTask* task, int fd) {
+    tlSocket *sock = tlAlloc(task, tlSocketClass, sizeof(tlSocket));
+    ev_io_init(&sock->ev, null, fd, 0);
+    return sock;
+}
+static tlServerSocket* tlServerSocketNew(tlTask* task, int fd) {
+    tlServerSocket *sock = tlAlloc(task, tlServerSocketClass, sizeof(tlServerSocket));
+    ev_io_init(&sock->ev, null, fd, 0);
+    return sock;
 }
 
 static tlPause* _FileClose(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 
     ev_io *ev = &file->ev;
@@ -144,7 +175,7 @@ static void read_cb(ev_io *ev, int revents) {
 }
 
 static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
-    tlFile* file = tlFileAs(data);
+    tlFile* file = tlFileOrSocketAs(data);
     tlBuffer* buffer = tlBufferAs(actor);
     assert(file->actor.owner == task);
     assert(buffer->actor.owner == task);
@@ -169,7 +200,7 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
 }
 
 static tlPause* _FileRead(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
@@ -200,7 +231,7 @@ static void write_cb(ev_io *ev, int revents) {
 }
 
 static tlPause* _FileWrite2(tlTask* task, tlActor* actor, void* data) {
-    tlFile* file = tlFileAs(data);
+    tlFile* file = tlFileOrSocketAs(data);
     tlBuffer* buffer = tlBufferAs(actor);
     assert(file->actor.owner == task);
     assert(buffer->actor.owner == task);
@@ -225,7 +256,7 @@ static tlPause* _FileWrite2(tlTask* task, tlActor* actor, void* data) {
 }
 
 static tlPause* _FileWrite(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
@@ -234,132 +265,121 @@ static tlPause* _FileWrite(tlTask* task, tlArgs* args) {
     return tlActorAquire(task, tlActorAs(buffer), _FileWrite2, file);
 }
 
-static void _file_init() {
-    _tlFileClass.map = tlClassMapFrom(
-            "close", _FileClose,
-            "read", _FileRead,
-            "write", _FileWrite,
-            null
-    );
-}
-
-#if 0
-// TODO fix perms by passing them in
-static Value _io_file_open(CONTEXT) {
-    ARG1(Text, name);
-    ARG2(Int, vflags);
-    trace("open: %s", string_from(name));
-    int flags = int_from(vflags);
+static tlPause* _File_open(tlTask* task, tlArgs* args) {
+    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    if (!name) TL_THROW("expected a file name");
+    trace("open: %s", tl_str(name));
+    int flags = tl_int_or(tlArgsAt(args, 1), -1);
+    if (flags < 0) TL_THROW("expected flags");
     int perms = 0666;
 
-    int fd = open(text_to_char(name), flags | O_NONBLOCK, perms);
-    if (fd < 0) return vm_throw(task, "file_open: failed: ", strerror(errno), " file: '", string_from(name), "'", null);
-    return io_file(task, fd);
+    int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
+    if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
+    TL_RETURN(tlFileNew(task, fd));
 }
 
-static Value _io_tcp_open(CONTEXT) {
-    ARG1(Text, ip_text);
-    ARG2(Int, vport); int port = int_from(vport);
-    trace("tcp_open: %s:%d", string_from(ip_text), port);
+static tlPause* _Socket_connect(tlTask* task, tlArgs* args) {
+    tlText* address = tlTextCast(tlArgsAt(args, 0));
+    if (!address) TL_THROW("expected a ip address");
+    int port = tl_int_or(tlArgsAt(args, 1), -1);
+    if (port < 0) TL_THROW("expected a port");
+
+    trace("tcp_open: %s:%d", tl_str(address), port);
 
     struct in_addr ip;
-    if (!inet_aton(text_to_char(ip_text), &ip)) {
-        return vm_throw(task, "tcp_open: invalid ip: ", string_from(ip_text), null);
-    }
+    if (!inet_aton(tlTextData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
 
-    struct sockaddr_in address;
-    bzero(&address, sizeof(address));
-    address.sin_family = AF_INET;
-    bcopy(&ip, &address.sin_addr.s_addr, sizeof(ip));
-    address.sin_port = htons(port);
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    sockaddr.sin_family = AF_INET;
+    bcopy(&ip, &sockaddr.sin_addr.s_addr, sizeof(ip));
+    sockaddr.sin_port = htons(port);
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) return vm_throw(task, "tcp_open: failed: ", strerror(errno), null);
+    if (fd < 0) TL_THROW("tcp_connect: failed: %s", strerror(errno));
 
-    if (nonblock(fd) < 0) vm_throw(task, "tcp_open: nonblock failed: ", strerror(errno), null);
+    if (nonblock(fd) < 0) TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
 
-    int r = connect(fd, (struct sockaddr *)&address, sizeof(address));
-    if (r < 0 && errno != EINPROGRESS) {
-        return vm_throw(task, "tcp_open: connect failed: ", strerror(errno), null);
-    }
-    if (errno == EINPROGRESS) trace("tcp_open: EINPROGRESS");
+    int r = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
 
-    return io_file(task, fd);
+    if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
+    TL_RETURN(tlSocketNew(task, fd));
 }
 
-// TODO make backlog configurable, as SO_REUSEADDR and such
-static Value _io_tcp_listen(CONTEXT) {
-    ARG1(Int, vport); int port = int_from(vport);
+// TODO make backlog configurable
+static tlPause* _Socket_listen(tlTask* task, tlArgs* args) {
+    int port = tl_int_or(tlArgsAt(args, 0), -1);
     trace("tcp_listen: 0.0.0.0:%d", port);
 
-    struct sockaddr_in address;
-    bzero(&address, sizeof(address));
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_addr.s_addr = INADDR_ANY;
+    sockaddr.sin_port = htons(port);
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) return vm_throw(task, "tcp_listen: failed: ", strerror(errno), null);
+    if (fd < 0) TL_THROW("tcp_listen: failed: %s", strerror(errno));
 
-    if (nonblock(fd) < 0) return vm_throw(task, "tcp_listen: nonblock failed: ", strerror(errno), null);
+    if (nonblock(fd) < 0) TL_THROW("tcp_listen: nonblock failed: %s", strerror(errno));
 
     int flags = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags)) < 0) {
-        return vm_throw(task, "tcp_listen: so_reuseaddr failed: ", strerror(errno), null);
+        TL_THROW("tcp_listen: so_reuseaddr failed: %s", strerror(errno));
     }
 
-    int r = bind(fd, (struct sockaddr *)&address, sizeof(address));
-    if (r < 0) return vm_throw(task, "tcp_listen: bind failed: ", strerror(errno), null);
+    int r = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
 
     listen(fd, 128); // backlog, configurable?
-    return io_file(task, fd);
+    TL_RETURN(tlServerSocketNew(task, fd));
 }
 
 // TODO return multiple, socket and peer address
-static void accept_cb(ev_io *file, int revents) {
-    trace("accept_cb: %p %d", file, file->fd);
-    FileWrap *wrap = filewrap_from(file);
-    Task *task = asTask(wrap->wrap.task);
-    assert(isTask(wrap->wrap.task));
-    assert(wrap->wrap.tag == s_file);
+static void accept_cb(ev_io* ev, int revents) {
+    trace("accept_cb: %p %d", ev, ev->fd);
+    tlFile* file = tlFileFrom(ev);
+    tlTask* task = file->actor.owner;
+    assert(task);
 
-    struct sockaddr_in address;
-    bzero(&address, sizeof(address));
-    socklen_t len = sizeof(address);
-    int clientfd = accept(file->fd, (struct sockaddr *)&address, &len);
-    if (clientfd < 0) {
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    socklen_t len = sizeof(sockaddr);
+    int fd = accept(ev->fd, (struct sockaddr *)&sockaddr, &len);
+    if (fd < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ev_io_start(file); trace("tcp_accept: EAGAIN || EWOULDBLOCK"); return;
+            ev_io_start(ev); trace("tcp_accept: EAGAIN || EWOULDBLOCK"); return;
         }
-        vm_throw(task, "tcp_accept: failed: ", strerror(errno), null);
+        TL_THROW_SET("tcp_accept: failed: %s", strerror(errno));
     } else {
-        if (nonblock(clientfd) < 0) {
-            vm_throw(task, "tcp_accept: nonblock failed: ", strerror(errno), null);
+        if (nonblock(fd) < 0) {
+            TL_THROW_SET("tcp_accept: nonblock failed: %s", strerror(errno));
         } else {
-            vm_return(task, io_file(task, clientfd));
+            TL_RETURN_SET(tlSocketNew(task, fd));
         }
     }
-    ev_io_stop(file);
-    if (task->state == P_WAIT) task_ready_system(task);
+    ev_io_stop(ev);
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
-static Value _io_tcp_accept(CONTEXT) {
-    FileWrap *wrap = _ARG1; TYPECHECK(wrap, TWrap); WRAPCHECK(wrap, task, s_file);
-    //int ms = int_from_or(_ARG2, 0);
+static tlPause* _SocketAccept(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
 
-    ev_io *file = &wrap->file;
-    trace("tcp_accept: %p, %d", file, file->fd);
-    file->cb = accept_cb;
+    ev_io *ev = &file->ev;
+    trace("tcp_accept: %p, %d", ev, ev->fd);
+    ev->cb = accept_cb;
 
-    int revents = ev_clear_pending(file);
-    if (revents & EV_READ) { read_cb(file, revents); return Ignore; }
+    int revents = ev_clear_pending(ev);
+    if (revents & EV_READ) { read_cb(ev, revents); return null; }
 
-    file->events = EV_READ;
-    ev_io_start(file);
-    task_wait_system(task);
-    return Ignore;
+    ev->events = EV_READ;
+    ev_io_start(ev);
+    tlTaskWaitSystem(task);
+    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
+#if 0
 static Value _io_stat(CONTEXT) {
     ARG1(Text, file);
     struct stat buf;
@@ -516,49 +536,34 @@ static Value _io_resolve(CONTEXT) {
     return TEXT(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])));
 }
 
-static const pfunentry __io_pfuns[] = {
-    { "\%io_sleep", _io_sleep },
-
-    { "\%io_read",  _io_read },
-    { "\%io_write", _io_write },
-    { "\%io_close", _io_close },
-
-    { "\%io_file_open",  _io_file_open },
-    { "\%io_tcp_open",   _io_tcp_open },
-    { "\%io_tcp_listen", _io_tcp_listen },
-    { "\%io_tcp_accept", _io_tcp_accept },
-    /*
-    { "\%io_udp_open",   _io_udp_open },
-    { "\%io_udp_listen", _io_udp_listen },
-    { "\%io_udp_accept", _io_udp_accept },
-    */
-
-    { "\%io_stat",     _io_stat },
-    { "\%io_opendir",  _io_opendir },
-    { "\%io_closedir", _io_closedir },
-    { "\%io_readdir",  _io_readdir },
-
-    { "\%io_resolve", _io_resolve },
-
-    { "\%io_exec",       _io_exec },
-    { "\%io_child_exec", _io_child_exec },
-    { "\%io_child_wait", _io_child_wait },
-
-    { 0, 0 }
-};
-
 #endif
 
 static const tlHostCbs __evio_hostcbs[] = {
     { "sleep", _io_sleep },
-    { "_File_open", _io_file_open },
+    { "_File_open", _File_open },
+    { "_Socket_connect", _Socket_connect },
+    { "_Socket_listen", _Socket_listen },
     { 0, 0 }
 };
 
 void evio_init() {
-    _file_init();
-
-    ev_default_loop(0);
+    _tlFileClass.map = tlClassMapFrom(
+            "close", _FileClose,
+            "read", _FileRead,
+            "write", _FileWrite,
+            null
+    );
+    _tlSocketClass.map = tlClassMapFrom(
+            "close", _FileClose,
+            "read", _FileRead,
+            "write", _FileWrite,
+            null
+    );
+    _tlServerSocketClass.map = tlClassMapFrom(
+            "close", _FileClose,
+            "accept", _SocketAccept,
+            null
+    );
 
     tl_register_hostcbs(__evio_hostcbs);
     tl_register_global("_File_RDONLY",   tlINT(O_RDONLY));
@@ -567,6 +572,8 @@ void evio_init() {
     tl_register_global("_File_APPEND",   tlINT(O_APPEND));
     tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
     tl_register_global("_File_CREAT",    tlINT(O_CREAT));
+
+    ev_default_loop(0);
 
     _s_dev = tlSYM("dev");
     _s_ino = tlSYM("ino");
