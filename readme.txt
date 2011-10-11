@@ -17,6 +17,8 @@ we do the "get field and dispatch" a lot in a lot of places ... dry it up
 think about evio doing read/write simultaniously ... two actors?
 writing to sockets should accept strings too ... place buffer inbetween? actor inside/outside?
 
+TL_REF_TYPE() should take a tlDir not a Dir and put tl in front, is user api ...
+
   ----
 
 ensure task attach/detach is correct, and ready/done etc don't have races ...

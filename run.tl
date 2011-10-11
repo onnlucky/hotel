@@ -1,11 +1,17 @@
+child = _Child_run("hello", "world")
+child.wait
+buf = _Buffer_new()
+child.out.read(buf)
+print buf.read
+
+/*
 print _Socket_resolve("www.google.com")
 return
 
-/*
 stat = _Path_stat("tl")
 print stat.ino
 print stat.mtime
-*/
+return
 
 dir = _Dir_open(".")
 print dir.read
@@ -14,6 +20,7 @@ print dir.read
 print dir.read
 print dir.read
 print dir.read
+return
 
 /*
 server = _ServerSocket_listen(8080)

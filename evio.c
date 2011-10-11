@@ -70,6 +70,10 @@ static int nonblock(int fd) {
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
     return 0;
 }
+static int nosigpipe(int fd) {
+    if (fcntl(fd, F_SETNOSIGPIPE, 1) < 0) return -1;
+    return 0;
+}
 
 INTERNAL tlPause* _FileAct(tlTask* task, tlArgs* args);
 
@@ -114,17 +118,18 @@ static tlFile* tlFileOrSocketCast(tlValue v) {
     return (tlFileIs(v)||tlSocketIs(v)||tlServerSocketIs(v))?(tlFile*)v:null;
 }
 
-static tlFile* tlFileFrom(ev_io *file) {
-    return tlFileOrSocketAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
+static tlFile* tlFileFrom(ev_io *ev) {
+    return tlFileOrSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
 }
-static tlSocket* tlSocketFrom(ev_io *file) {
-    return tlSocketAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
+static tlSocket* tlSocketFrom(ev_io *ev) {
+    return tlSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
 }
-static tlServerSocket* tlServerSocketFrom(ev_io *file) {
-    return tlServerSocketAs(((char*)file) - ((unsigned long)&((tlFile*)0)->ev));
+static tlServerSocket* tlServerSocketFrom(ev_io *ev) {
+    return tlServerSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
 }
 
 static tlFile* tlFileNew(tlTask* task, int fd) {
+    print("fd: %d", fd);
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
     ev_io_init(&file->ev, null, fd, 0);
     return file;
@@ -463,102 +468,159 @@ static tlPause* _DirRead(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextNewCopy(task, dp.d_name));
 }
 
+
 // ** child processes **
-#if 0
+
+TL_REF_TYPE(Child);
+struct tlChild {
+    tlActor actor;
+    ev_child ev;
+    lqueue wait_q;
+    tlValue in;
+    tlValue out;
+    tlValue err;
+};
+tlClass _tlChildClass = {
+    .name = "Child",
+    .send = tlActorReceive,
+};
+tlClass* tlChildClass = &_tlChildClass;
+
+static tlChild* tlChildFrom(ev_io *ev) {
+    return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
+}
+
 // exec ... replaces current process, stopping hotel effectively
 // TODO do we want to close file descriptors?
 // TODO do we want to reset signal handlers?
-static Value _io_exec(CONTEXT) {
-    char **argv = malloc(sizeof(char *) * (args_size(args) + 1));
-    for (int i = 0; i < args_size(args); i++) {
-        argv[i] = (char *)text_to_char(args_get(args, i));
+static tlPause* _Child_exec(tlTask* task, tlArgs* args) {
+    char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        tlText* text = tlTextCast(tlArgsAt(args, i));
+        if (!text) {
+            free(argv);
+            TL_THROW("expected a Text");
+        }
+        argv[i] = (char*)tlTextData(text);
     }
+    argv[tlArgsSize(args)] = 0;
+
     execvp(argv[0], argv);
-    return vm_throw(task, "exec: failed: ", strerror(errno), null);
+
+    // if we get here, something went wrong
+    free(argv);
+    TL_THROW("Process.exec: failed: %s", strerror(errno));
 }
 
-static void child_cb(ev_child *child, int revents) {
-    trace("child_cb: %p", child);
-    ev_child_stop(child);
-    if (child->data) {
-        Task *task = asTask(child->data);
-        vm_return(task, INT(child->rstatus));
-        if (task->state == P_WAIT) task_ready_system(task);
-    }
+static void child_cb(ev_child *ev, int revents) {
+    trace("child_cb: %p", ev);
+    ev_child_stop(ev);
+    tlTask* task = tltask_as(ev->data);
+    if (!task) return;
+
+    TL_RETURN_SET(tlINT(ev->rstatus));
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
-static Value io_child(Task *task, int pid) {
-    ev_child *child = malloc(sizeof(ev_child));
-    ev_child_init(child, child_cb, pid, 0);
-    ev_child_start(child);
-    return WRAP(child, task, s_child);
+static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
+    tlChild* child = tlAlloc(task, tlChildClass, sizeof(tlChild));
+    ev_child_init(&child->ev, child_cb, pid, 0);
+    ev_child_start(&child->ev);
+    child->in = tlINT(in);
+    child->out = tlINT(out);
+    child->err = tlINT(err);
+    return child;
 }
 
-static Value _io_child_wait(CONTEXT) {
-    ARG1(Wrap, childw);
-    ev_child *child = unwrap(childw, task, s_child);
+static tlPause* _ChildWait(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    trace("child_wait: %d", child->ev.pid);
 
-    trace("child_wait: %d", child->pid);
     if (!ev_is_active(child)) { // already exited
-        return vm_return(task, INT(child->rstatus));
+        TL_RETURN(tlINT(child->ev.rstatus));
     }
 
-    child->data = task;
-    task_wait_system(task);
-    return Ignore;
+    // TODO "park" the task; by disowning the current actor ... how?
+    tlTaskWaitSystem(task);
+    lqueue_put(&child->wait_q, &task->entry);
+    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
-static Value _io_child_status(CONTEXT) {
-    ARG1(Wrap, childw);
-    ev_child *child = unwrap(childw, task, s_child);
+static tlPause* _ChildIn(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    if (tlIntIs(child->in)) child->in = tlFileNew(task, tl_int(child->in));
+    TL_RETURN(child->in);
+}
+static tlPause* _ChildOut(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    if (tlIntIs(child->out)) child->out = tlFileNew(task, tl_int(child->out));
+    TL_RETURN(child->out);
+}
+static tlPause* _ChildErr(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    if (tlIntIs(child->err)) child->err = tlFileNew(task, tl_int(child->err));
+    TL_RETURN(child->err);
+}
 
-    trace("child_status: %d, status: %d", child->pid, child->rstatus);
-    return INT(child->rstatus);
+static tlPause* _ChildStatus(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    trace("child_status: %d, status: %d", child->ev.pid, child->ev.rstatus);
+    TL_RETURN(tlINT(child->ev.rstatus));
 }
 
 // TODO do we want to reset signal handlers in child too?
 // TODO we should also set nonblocking to pipes right?
-static Value _io_child_exec(CONTEXT) {
-    char **argv = malloc(sizeof(char *) * (args_size(args) + 1));
-    for (int i = 0; i < args_size(args); i++)
-        argv[i] = (char *)text_to_char(args_get(args, i));
-    argv[args_size(args)] = 0;
+static tlPause* _Child_run(tlTask* task, tlArgs* args) {
+    char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        tlText* text = tlTextCast(tlArgsAt(args, i));
+        if (!text) {
+            free(argv);
+            TL_THROW("expected a Text");
+        }
+        argv[i] = (char*)tlTextData(text);
+    }
+    argv[tlArgsSize(args)] = 0;
 
     int _in[2];
     int _out[2];
     int _err[2];
     if (pipe(_in) || pipe(_out) || pipe(_err)) {
-        return vm_throw(task, "child exec: failed: ", strerror(errno), null);
-        return Null;
+        TL_THROW_SET("child exec: failed: %s", strerror(errno));
+        close(_in[0]); close(_in[1]); close(_out[0]); close(_out[1]); close(_err[0]); close(_err[1]);
+        free(argv);
+        return null;
     }
 
     int pid = fork();
     if (pid) {
         // parent
         if (close(_in[0]) || close(_out[1]) || close(_err[1])) {
-            return vm_throw(task, "child exec: failed: ", strerror(errno), null);
+            TL_THROW_SET("child exec: failed: %s", strerror(errno));
+            close(_in[0]); close(_in[1]); close(_out[0]); close(_out[1]); close(_err[0]); close(_err[1]);
+            free(argv);
+            return null;
         }
-        List *list = new(task, List, 4);
-        list_set_(list, 0, io_child(task, pid));
-        list_set_(list, 1, io_file(task, _in[1]));
-        list_set_(list, 2, io_file(task, _out[0]));
-        list_set_(list, 3, io_file(task, _err[0]));
-        return vm_return_many(task, (Value)list);
+        tlChild* child = tlChildNew(task, pid, _in[1], _out[0], _err[0]);
+        TL_RETURN(child);
     }
 
     // child
     dup2(_in[0], 0);
     dup2(_out[1], 1);
     dup2(_err[1], 2);
-    //int max = getdtablesize();
-    //if (max < 0) max = 50000;
-    //for (int i = 3; i < max; i++) close(i); // by lack of anything better ...
+    int max = getdtablesize();
+    if (max < 0) max = 50000;
+    for (int i = 3; i < max; i++) close(i); // by lack of anything better ...
     execvp(argv[0], argv);
-    warning("child exec: failed: %s", strerror(errno));
-    _exit(1);
+    warning("tl run failed: %s", strerror(errno));
+    _exit(255);
 }
-
-#endif
 
 static const tlHostCbs __evio_hostcbs[] = {
     { "sleep", _io_sleep },
@@ -568,6 +630,8 @@ static const tlHostCbs __evio_hostcbs[] = {
     { "_ServerSocket_listen", _ServerSocket_listen },
     { "_Path_stat", _Path_stat },
     { "_Dir_open", _Dir_open },
+    { "_Child_exec", _Child_exec },
+    { "_Child_run", _Child_run },
     { 0, 0 }
 };
 
@@ -591,6 +655,13 @@ void evio_init() {
     );
     _tlDirClass.map = tlClassMapFrom(
         "read", _DirRead,
+        null
+    );
+    _tlChildClass.map = tlClassMapFrom(
+        "wait", _ChildWait,
+        "in", _ChildIn,
+        "out", _ChildOut,
+        "err", _ChildErr,
         null
     );
 

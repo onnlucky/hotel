@@ -32,6 +32,8 @@ int tlargs_size(tlArgs* args) {
     assert(tlargs_is(args));
     return tllist_size(args->list);
 }
+int tlArgsSize(tlArgs* args) { return tlargs_size(args); }
+
 tlValue tlargs_fn(tlArgs* args) {
     assert(tlargs_is(args));
     return args->fn;
