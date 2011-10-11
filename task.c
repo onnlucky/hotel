@@ -107,6 +107,7 @@ void assert_backtrace(tlPause* pause) {
     if (pause) fatal("STACK CORRUPTED");
 }
 
+// TODO could replace this by checking return from each function ... tasks/eval knows what to do
 INTERNAL tlPause* tlTaskSetPause(tlTask* task, tlValue v) {
     trace("      <<<< %p", v);
     task->pause = tlpause_as(v);

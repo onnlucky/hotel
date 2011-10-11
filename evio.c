@@ -475,7 +475,7 @@ TL_REF_TYPE(Child);
 struct tlChild {
     tlActor actor;
     ev_child ev;
-    lqueue wait_q;
+    lqueue wait_q; // notice we don't need need the concurrent list here, but tasks can enter these
     tlValue in;
     tlValue out;
     tlValue err;
@@ -486,7 +486,7 @@ tlClass _tlChildClass = {
 };
 tlClass* tlChildClass = &_tlChildClass;
 
-static tlChild* tlChildFrom(ev_io *ev) {
+static tlChild* tlChildFrom(ev_child *ev) {
     return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
 }
 
@@ -513,13 +513,16 @@ static tlPause* _Child_exec(tlTask* task, tlArgs* args) {
 }
 
 static void child_cb(ev_child *ev, int revents) {
-    trace("child_cb: %p", ev);
+    tlChild* child = tlChildFrom(ev);
+    trace("!! !! !!child_cb: %p", ev);
     ev_child_stop(ev);
-    tlTask* task = tltask_as(ev->data);
-    if (!task) return;
 
-    TL_RETURN_SET(tlINT(ev->rstatus));
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    while (true) {
+        tlTask* task = tltask_from_entry(lqueue_get(&child->wait_q));
+        if (!task) return;
+        TL_RETURN_SET(tlINT(WEXITSTATUS(child->ev.rstatus)));
+        tlTaskReady(task);
+    }
 }
 
 static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
@@ -537,14 +540,17 @@ static tlPause* _ChildWait(tlTask* task, tlArgs* args) {
     if (!child) TL_THROW("expected a Child");
     trace("child_wait: %d", child->ev.pid);
 
-    if (!ev_is_active(child)) { // already exited
-        TL_RETURN(tlINT(child->ev.rstatus));
+    if (!ev_is_active(&child->ev)) { // already exited
+        assert(kill(child->ev.pid, 0) == -1);
+        TL_RETURN(tlINT(WEXITSTATUS(child->ev.rstatus)));
     }
 
     // TODO "park" the task; by disowning the current actor ... how?
+    trace("!! parking");
     tlTaskWaitSystem(task);
     lqueue_put(&child->wait_q, &task->entry);
-    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
+    tlPause* pause = tlPauseAlloc(task, sizeof(tlPause), 0, null);
+    return tlTaskPause(task, pause);
 }
 
 static tlPause* _ChildIn(tlTask* task, tlArgs* args) {
@@ -570,7 +576,7 @@ static tlPause* _ChildStatus(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     trace("child_status: %d, status: %d", child->ev.pid, child->ev.rstatus);
-    TL_RETURN(tlINT(child->ev.rstatus));
+    TL_RETURN(tlINT(WEXITSTATUS(child->ev.rstatus)));
 }
 
 // TODO do we want to reset signal handlers in child too?

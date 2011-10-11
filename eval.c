@@ -674,6 +674,12 @@ INTERNAL tlPause* run_apply(tlTask* task, tlCall* call) {
 INTERNAL void run_resume(tlTask* task, tlPause* pause) {
     trace("RESUME");
     task->jumping = 0;
+
+    // dummy "pauses" have no resume callback
+    while (!pause->resumecb) {
+        pause = pause->caller;
+        if (!pause) return;
+    }
     assert(pause->resumecb);
     pause->resumecb(task, pause);
 }

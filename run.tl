@@ -1,5 +1,9 @@
-child = _Child_run("hello", "world")
-child.wait
+child = _Child_run("false", "2")
+print("WAITING")
+print "WAIT:", child.wait
+print("DONE")
+
+/*
 buf = _Buffer_new()
 child.out.read(buf)
 print buf.read
