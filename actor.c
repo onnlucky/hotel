@@ -104,8 +104,12 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
     } else {
         assert(actor->head.klass->map);
         tlValue v = tlmap_get(task, actor->head.klass->map, msg);
-        // TODO really? maybe check if value first
-        p = tlTaskEvalArgsFn(task, args, v);
+        if (!tlcallable_is(v)) {
+            if (!v) v = tlNull;
+            TL_RETURN_SET(v);
+        } else {
+            p = tlTaskEvalArgsFn(task, args, v);
+        }
     }
     trace("actor acted: %p", p);
     if (p) {
