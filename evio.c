@@ -129,9 +129,9 @@ static tlServerSocket* tlServerSocketFrom(ev_io *ev) {
 }
 
 static tlFile* tlFileNew(tlTask* task, int fd) {
-    print("fd: %d", fd);
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
     ev_io_init(&file->ev, null, fd, 0);
+    trace("open: %p %d", file, fd);
     return file;
 }
 static tlSocket* tlSocketNew(tlTask* task, int fd) {
@@ -150,7 +150,7 @@ static tlPause* _FileClose(tlTask* task, tlArgs* args) {
     if (!file) TL_THROW("expected a File");
 
     ev_io *ev = &file->ev;
-    trace("close: %p %d", ev, ev->fd);
+    trace("close: %p %d", file, ev->fd);
     ev_io_stop(ev);
 
     int r = close(ev->fd);
@@ -159,11 +159,11 @@ static tlPause* _FileClose(tlTask* task, tlArgs* args) {
 }
 
 static void read_cb(ev_io *ev, int revents) {
-    trace("read_cb: %p %d", ev, ev->fd);
     tlFile* file = tlFileFrom(ev);
     tlTask* task = file->actor.owner;
     tl_buf* buf = (tl_buf*)ev->data;
     assert(task);
+    trace("read_cb: %p %d", file, ev->fd);
 
     int len = read(ev->fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
@@ -189,7 +189,7 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
     if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
 
     ev_io* ev = &file->ev;
-    trace("read: %p, %d", ev, ev->fd);
+    trace("read: %p %d", file, ev->fd);
     ev->cb = read_cb;
     ev->data = buffer->buf;
 
@@ -215,11 +215,11 @@ static tlPause* _FileRead(tlTask* task, tlArgs* args) {
 }
 
 static void write_cb(ev_io *ev, int revents) {
-    trace("read_cb: %p %d", ev, ev->fd);
     tlFile* file = tlFileFrom(ev);
     tlTask* task = file->actor.owner;
     tl_buf* buf = (tl_buf*)ev->data;
     assert(task);
+    trace("read_cb: %p %d", file, ev->fd);
 
     int len = write(ev->fd, readbuf(buf), canread(buf));
     if (len < 0) {
@@ -245,7 +245,7 @@ static tlPause* _FileWrite2(tlTask* task, tlActor* actor, void* data) {
     if (canread(buffer->buf) <= 0) TL_THROW("write: failed: buffer empty");
 
     ev_io* ev = &file->ev;
-    trace("write: %p, %d", ev, ev->fd);
+    trace("write: %p %d", file, ev->fd);
     ev->cb = write_cb;
     ev->data = buffer->buf;
 
@@ -355,10 +355,10 @@ static tlPause* _ServerSocket_listen(tlTask* task, tlArgs* args) {
 
 // TODO return multiple, socket and peer address
 static void accept_cb(ev_io* ev, int revents) {
-    trace("accept_cb: %p %d", ev, ev->fd);
     tlFile* file = tlFileFrom(ev);
     tlTask* task = file->actor.owner;
     assert(task);
+    trace("accept_cb: %p %d", file, ev->fd);
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -385,7 +385,7 @@ static tlPause* _SocketAccept(tlTask* task, tlArgs* args) {
     if (!file) TL_THROW("expected a File");
 
     ev_io *ev = &file->ev;
-    trace("tcp_accept: %p, %d", ev, ev->fd);
+    trace("tcp_accept: %p %d", file, ev->fd);
     ev->cb = accept_cb;
 
     int revents = ev_clear_pending(ev);

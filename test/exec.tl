@@ -1,14 +1,13 @@
-output = out
+child = _Child_run("echo", "hello", "world")
+child.in.close
+child.err.close
 
-pid, in, out, err = %io_child_exec("echo", "hello world")
-%io_close(in)
-%io_close(err)
+status = child.wait
+out("echo status: ", status, "\n")
 
-status = %io_child_wait(pid)
-output("echo status: ", status, "\n")
+buf = _Buffer_new()
+child.out.read(buf)
 
-buf = %buffer_new()
-%io_read(out, buf)
-%io_close(out)
-output("echo stdout: ", %buffer_read_text(buf), "\n")
-output("DONE\n")
+out("echo stdout: ", buf.read, "\n")
+out("DONE\n")
+
