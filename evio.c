@@ -665,6 +665,7 @@ void evio_init() {
     );
     _tlChildClass.map = tlClassMapFrom(
         "wait", _ChildWait,
+        "status", _ChildStatus,
         "in", _ChildIn,
         "out", _ChildOut,
         "err", _ChildErr,

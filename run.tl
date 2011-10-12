@@ -1,7 +1,9 @@
 child = _Child_run("false", "2")
-print("WAITING")
-print "WAIT:", child.wait
-print("DONE")
+child.wait
+buf = _Buffer_new()
+child.out.read buf
+print buf.read
+print child.status
 
 /*
 buf = _Buffer_new()
