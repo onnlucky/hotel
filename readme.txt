@@ -1,23 +1,19 @@
 # TODO
 
-add methods vs functions, methods try to bind a this dynamically ... helps with actors too
-example: function = { }
-         method = @{ }
-
-do more on evio.c, merge with io.c; rename buffer.c, renamve io.c and evio.c ... LOL
-
+TL_REF_TYPE() should take a tlDir not a Dir and put tl in front, is user api ...
 rework all types as the tlClass things ... stop using anything else
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
+we do the "get field and dispatch" a lot in a lot of places ... dry it up
 
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs
 
-we do the "get field and dispatch" a lot in a lot of places ... dry it up
-
 think about evio doing read/write simultaniously ... two actors?
 writing to sockets should accept strings too ... place buffer inbetween? actor inside/outside?
 
-TL_REF_TYPE() should take a tlDir not a Dir and put tl in front, is user api ...
+add methods vs functions, methods try to bind a this dynamically ... helps with actors too
+example: function = { }
+         method = @{ }
 
   ----
 
