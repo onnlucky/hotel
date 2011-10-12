@@ -213,14 +213,19 @@ farg = "&&" n:name { $$ = tllist_from2(TASK, n, tlCollectLazy); }
 
   expr = e:op_log { $$ = call_activate(e); }
 
-selfapply = n:name _ &eos {
+selfapply = n:name _ &eosfull {
     $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(n), tllist_empty()));
 }
 
- pexpr = "assert" _ !"(" < as:pcargs > {
+ pexpr = "assert" _!"(" < as:pcargs > &eosfull {
             as = tllist_append2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
             $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
+       | v:value t:ptail &eosfull {
+           $$ = call_activate(set_target(t, v));
+       }
+       | expr
+
        | fn:lookup _ ":" b:bodynl {
            tlcode_set_isblock_(b, true);
            as = tllist_from2(TASK, tlSYM("block"), tlACTIVE(b));
@@ -253,6 +258,38 @@ selfapply = n:name _ &eos {
        }
        | expr
 
+# // TODO add [] and oop.method: and oop.method arg1: ... etc
+ ptail = _!"(" as:pcargs _":"_ b:bodynl {
+           trace("primary args + body");
+           tlcode_set_isblock_(b, true);
+           as = tllist_append2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
+           $$ = tlcall_from_list(TASK, null, as);
+       }
+       | _":"_ b:bodynl {
+           trace("primary body");
+           tlcode_set_isblock_(b, true);
+           $$ = tlcall_from_list(TASK, null, tllist_from2(TASK, tlSYM("block"), tlACTIVE(b)));
+       }
+       | _!"(" as:pcargs {
+           trace("primary args");
+           $$ = tlcall_from_list(TASK, null, as);
+       }
+       | _"."_ n:name _"("__ as:cargs __")" t:ptail {
+           trace("primary method + args()");
+           $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, as));
+       }
+       | _"."_ n:name _ as:pcargs {
+           trace("primary method + args");
+           $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
+       }
+       | _"."_ n:name t:ptail {
+           trace("primary method");
+           $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, tllist_empty()));
+       }
+       | _ {
+           trace("no tail");
+           $$ = null;
+       }
 
   tail = _"("__ as:cargs __")"_":"_ b:bodynl {
            trace("function call + bodynl");
@@ -389,6 +426,7 @@ slcomment = "//" (!nl .)*
   comment = (slcomment nle | icomment)
 
       eos = _ (nl | ";" | slcomment nle) __
+  eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.)
       eom = _ (nl | "," | slcomment nle) __
        nl = "\n" | "\r\n" | "\r"
       nle = "\n" | "\r\n" | "\r" | !.
