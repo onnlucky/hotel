@@ -77,9 +77,9 @@ static int nosigpipe(int fd) {
 
 INTERNAL tlPause* _FileAct(tlTask* task, tlArgs* args);
 
-TL_REF_TYPE(File);
-TL_REF_TYPE(Socket);
-TL_REF_TYPE(ServerSocket);
+TL_REF_TYPE(tlFile);
+TL_REF_TYPE(tlSocket);
+TL_REF_TYPE(tlServerSocket);
 
 // TODO should be able to read and write at same time ...
 struct tlFile {
@@ -423,7 +423,7 @@ static tlPause* _Path_stat(tlTask* task, tlArgs* args) {
     TL_RETURN(res);
 }
 
-TL_REF_TYPE(Dir);
+TL_REF_TYPE(tlDir);
 struct tlDir {
     tlActor actor;
     DIR* p;
@@ -471,7 +471,7 @@ static tlPause* _DirRead(tlTask* task, tlArgs* args) {
 
 // ** child processes **
 
-TL_REF_TYPE(Child);
+TL_REF_TYPE(tlChild);
 struct tlChild {
     tlActor actor;
     ev_child ev;

@@ -1,6 +1,6 @@
 // an actor based buffer for io
 
-TL_REF_TYPE(Buffer);
+TL_REF_TYPE(tlBuffer);
 struct tlBuffer {
     tlActor actor;
     tl_buf* buf;

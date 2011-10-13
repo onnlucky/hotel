@@ -1,6 +1,5 @@
 # TODO
 
-TL_REF_TYPE() should take a tlDir not a Dir and put tl in front, is user api ...
 rework all types as the tlClass things ... stop using anything else
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 we do the "get field and dispatch" a lot in a lot of places ... dry it up

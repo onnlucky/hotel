@@ -179,15 +179,15 @@ static inline tlClass* tlClassGet(tlValue v) {
     return null;
 }
 
-#define TL_REF_TYPE(CAPS) \
-typedef struct tl##CAPS tl##CAPS; \
-extern tlClass* tl##CAPS##Class; \
-static inline bool tl##CAPS##Is(tlValue v) { \
-    return tlClassGet(v) == tl##CAPS##Class; } \
-static inline tl##CAPS* tl##CAPS##As(tlValue v) { \
-    assert(tl##CAPS##Is(v) || !v); return (tl##CAPS*)v; } \
-static inline tl##CAPS* tl##CAPS##Cast(tlValue v) { \
-    return tl##CAPS##Is(v)?(tl##CAPS*)v:null; }
+#define TL_REF_TYPE(_T) \
+typedef struct _T _T; \
+extern tlClass* _T##Class; \
+static inline bool _T##Is(tlValue v) { \
+    return tlClassGet(v) == _T##Class; } \
+static inline _T* _T##As(tlValue v) { \
+    assert(_T##Is(v) || !v); return (_T*)v; } \
+static inline _T* _T##Cast(tlValue v) { \
+    return _T##Is(v)?(_T*)v:null; }
 
 TL_TYPE(num, Num);
 TL_TYPE(float, Float);
@@ -195,9 +195,9 @@ TL_TYPE(float, Float);
 TL_TYPE(list, List);
 TL_TYPE(set, Set);
 
-TL_REF_TYPE(Text);
-TL_REF_TYPE(Map);
-TL_REF_TYPE(ValueObject);
+TL_REF_TYPE(tlText);
+TL_REF_TYPE(tlMap);
+TL_REF_TYPE(tlValueObject);
 
 TL_TYPE(call, Call);
 TL_TYPE(args, Args);
