@@ -76,27 +76,27 @@ tlValue tlcollect_new_(tlTask* task, tlList* list) {
     return list;
 }
 tlResult* tlresult_new(tlTask* task, tlArgs* args) {
-    int size = tlargs_size(args);
+    int size = tlArgsSize(args);
     tlResult* res = task_alloc(task, TLResult, size);
     for (int i = 0; i < size; i++) {
-        res->data[i] = tlargs_get(args, i);
+        res->data[i] = tlArgsAt(args, i);
     }
     return res;
 }
 tlResult* tlresult_new2(tlTask* task, tlValue first, tlArgs* args) {
-    int size = tlargs_size(args);
+    int size = tlArgsSize(args);
     tlResult* res = task_alloc(task, TLResult, size + 1);
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
-        res->data[i + 1] = tlargs_get(args, i);
+        res->data[i + 1] = tlArgsAt(args, i);
     }
     return res;
 }
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args) {
-    int size = tlargs_size(args);
+    int size = tlArgsSize(args);
     tlResult* res = task_alloc(task, TLResult, size - 1);
     for (int i = 1; i < size; i++) {
-        res->data[i - 1] = tlargs_get(args, i);
+        res->data[i - 1] = tlArgsAt(args, i);
     }
     return res;
 }
@@ -163,12 +163,12 @@ INTERNAL tlPause* run_throw(tlTask* task, tlValue exception) {
 
 // return works like a closure, on lookup we close it over the current pause
 INTERNAL tlPause* _return(tlTask* task, tlArgs* args) {
-    trace("RETURN(%d)", tlargs_size(args));
+    trace("RETURN(%d)", tlArgsSize(args));
 
     task->jumping = tlTrue;
 
     tlHostFn* fn = tlhostfn_as(args->fn);
-    tlArgs* as = tlargs_as(tlhostfn_get(fn, 0));
+    tlArgs* as = tlArgsAs(tlhostfn_get(fn, 0));
     tlPause* pause = task->pause;
     tlPause* caller = null;
     while (pause) {
@@ -183,7 +183,7 @@ INTERNAL tlPause* _return(tlTask* task, tlArgs* args) {
 
     tlTaskPause(task, caller);
 
-    if (tlargs_size(args) == 1) TL_RETURN(tlargs_get(args, 0));
+    if (tlArgsSize(args) == 1) TL_RETURN(tlArgsAt(args, 0));
     tltask_value_set_(task, tlresult_new(task, args));
     return null;
 }
@@ -194,12 +194,12 @@ INTERNAL tlPause* _goto(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlPause* _continuation(tlTask* task, tlArgs* args) {
-    trace("CONTINUATION(%d)", tlargs_size(args));
+    trace("CONTINUATION(%d)", tlArgsSize(args));
 
     task->jumping = tlTrue;
     tlTaskPause(task, tlhostfn_as(args->fn)->data[0]);
 
-    if (tlargs_size(args) == 0) TL_RETURN(args->fn);
+    if (tlArgsSize(args) == 0) TL_RETURN(args->fn);
     tltask_value_set_(task, tlresult_new2(task, args->fn, args));
     return null;
 }
@@ -345,7 +345,7 @@ INTERNAL tlPause* run_first(tlTask* task, tlPauseFirst* pause, tlCall* call, tlC
 INTERNAL tlPause* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tlPause* pause);
 INTERNAL tlPause* chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlPause* pause);
 INTERNAL tlPause* start_args(tlTask* task, tlArgs* args, tlPause* pause) {
-    tlValue fn = tlargs_fn(args);
+    tlValue fn = tlArgsFn(args);
     assert(tlref_is(fn));
     switch(tl_head(fn)->type) {
         case TLClosure: return chain_args_closure(task, tlclosure_as(fn), args, pause);
@@ -374,8 +374,8 @@ INTERNAL tlPause* run_call(tlTask* task, tlPauseCall* pause) {
 
     tlArgs* args = pause->args;
     if (!args) {
-        args = tlargs_new_names(task, argc, tlcall_names(call));
-        tlargs_fn_set_(args, fn);
+        args = tlArgsNewNames(task, argc, tlcall_names(call));
+        tlArgsSetFn_(args, fn);
     }
 
     // check where we left off last time
@@ -389,11 +389,11 @@ INTERNAL tlPause* run_call(tlTask* task, tlPauseCall* pause) {
         tlSym name = tlcall_arg_name(call, at);
         if (name) {
             trace("(pause) ARGS: %s = %s", tl_str(name), tl_str(v));
-            tlargs_map_set_(args, name, v);
+            tlArgsMapSet_(args, name, v);
             named++;
         } else {
             trace("(pause) ARGS: %d = %s", at - named, tl_str(v));
-            tlargs_set_(args, at - named, v);
+            tlArgsSetAt_(args, at - named, v);
         }
         at++;
     }
@@ -432,11 +432,11 @@ INTERNAL tlPause* run_call(tlTask* task, tlPauseCall* pause) {
         }
         if (name) {
             trace("ARGS: %s = %s", tl_str(name), tl_str(v));
-            tlargs_map_set_(args, name, v);
+            tlArgsMapSet_(args, name, v);
             named++;
         } else {
             trace("ARGS: %d = %s", at - named, tl_str(v));
-            tlargs_set_(args, at - named, v);
+            tlArgsSetAt_(args, at - named, v);
         }
     }
     trace("ARGS DONE");
@@ -477,9 +477,9 @@ INTERNAL tlPause* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, 
         int size = tllist_size(names);
         for (int i = 0; i < size; i++) {
             tlSym name = tlsym_as(tllist_get(names, i));
-            tlValue v = tlargs_map_get(args, name);
+            tlValue v = tlArgsMapGet(args, name);
             if (!v) {
-                v = tlargs_get(args, first); first++;
+                v = tlArgsAt(args, first); first++;
             }
             if (!v && defaults) {
                 v = tlmap_get_sym(defaults, name);
@@ -500,7 +500,7 @@ INTERNAL tlPause* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, 
         pause->env = tlenv_set(task, pause->env, s_args, args);
     }
     // the *only* dynamically scoped name
-    tlValue oop = tlargs_map_get(args, s_this);
+    tlValue oop = tlArgsMapGet(args, s_this);
     if (oop) pause->env = tlenv_set(task, pause->env, s_this, oop);
     return run_code(task, pause);
 }
@@ -608,7 +608,7 @@ INTERNAL tlPause* run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
     // TODO handle multiple arguments ... but what does that mean?
     assert(tlcall_argc(call) == 1);
 
-    tlArgs* args = tlargs_as(tlhostfn_get(fn, 0));
+    tlArgs* args = tlArgsAs(tlhostfn_get(fn, 0));
     tlPause* pause = task->pause;
     tlPause* caller = null;
     while (pause) {
@@ -703,7 +703,7 @@ static tlPause* _backtrace(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 static tlPause* _catch(tlTask* task, tlArgs* args) {
-    tlValue block = tlargs_map_get(args, s_block);
+    tlValue block = tlArgsMapGet(args, s_block);
     assert(tlclosure_is(block));
     assert(task->pause->resumecb == resume_code);
     ((tlPauseCode*)task->pause)->handler = block;
@@ -718,7 +718,7 @@ bool tlcallable_is(tlValue v) {
     return false;
 }
 static tlPause* _callable_is(tlTask* task, tlArgs* args) {
-    tlValue v = tlargs_get(args, 0);
+    tlValue v = tlArgsAt(args, 0);
     if (!tlref_is(v)) return tlFalse;
 
     switch(tl_head(v)->type) {
@@ -731,34 +731,34 @@ static tlPause* _callable_is(tlTask* task, tlArgs* args) {
     TL_RETURN(tlFalse);
 }
 static tlPause* _method_invoke(tlTask* task, tlArgs* args) {
-    tlValue fn = tlargs_get(args, 0);
+    tlValue fn = tlArgsAt(args, 0);
     assert(fn);
-    tlArgs* oldargs = tlargs_as(tlargs_get(args, 1));
+    tlArgs* oldargs = tlArgsAs(tlArgsAt(args, 1));
     assert(oldargs);
-    tlValue oop = tlargs_get(oldargs, 0);
+    tlValue oop = tlArgsAt(oldargs, 0);
     assert(oop);
-    assert(tlargs_get(oldargs, 1)); // msg
+    assert(tlArgsAt(oldargs, 1)); // msg
 
-    tlMap* map = tlargs_map(oldargs);
+    tlMap* map = tlArgsMap(oldargs);
     map = tlmap_set(task, map, s_this, oop);
-    int size = tlargs_size(oldargs) - 2;
+    int size = tlArgsSize(oldargs) - 2;
 
     tlList* list = tllist_new(task, size);
     for (int i = 0; i < size; i++) {
-        tllist_set_(list, i, tlargs_get(oldargs, i + 2));
+        tllist_set_(list, i, tlArgsAt(oldargs, i + 2));
     }
-    tlArgs* nargs = tlargs_new(task, list, map);
-    tlargs_fn_set_(nargs, fn);
+    tlArgs* nargs = tlArgsNew(task, list, map);
+    tlArgsSetFn_(nargs, fn);
     return start_args(task, nargs, null);
 }
 
 static tlPause* _object_send(tlTask* task, tlArgs* args) {
-    tlValue target = tlargs_get(args, 0);
-    tlValue msg = tlargs_get(args, 1);
+    tlValue target = tlArgsAt(args, 0);
+    tlValue msg = tlArgsAt(args, 1);
 
-    trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlargs_size(args) - 2);
+    trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
 
-    tlArgs* nargs = tlargs_new(task, null, null);
+    tlArgs* nargs = tlArgsNew(task, null, null);
     nargs->target = target;
     nargs->msg = msg;
     nargs->list = tllist_slice(task, args->list, 2, tllist_size(args->list));

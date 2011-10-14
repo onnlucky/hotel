@@ -218,40 +218,40 @@ tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
 
 // called when list literals contain lookups or expressions to evaluate
 static tlPause* _list_clone(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlargs_get(args, 0));
+    tlList* list = tllist_cast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tllist_size(list);
     list = TL_CLONE(list);
     int argc = 1;
     for (int i = 0; i < size; i++) {
-        if (!list->data[i]) list->data[i] = tlargs_get(args, argc++);
+        if (!list->data[i]) list->data[i] = tlArgsAt(args, argc++);
     }
     TL_RETURN(list);
 }
 static tlPause* _list_is(tlTask* task, tlArgs* args) {
-    if (tllist_cast(tlargs_get(args, 0))) TL_RETURN(tlTrue);
+    if (tllist_cast(tlArgsAt(args, 0))) TL_RETURN(tlTrue);
     TL_RETURN(tlFalse);
 }
 static tlPause* _list_size(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlargs_get(args, 0));
+    tlList* list = tllist_cast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
     TL_RETURN(tlINT(tllist_size(list)));
 }
 static tlPause* _list_get(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlargs_get(args, 0));
+    tlList* list = tllist_cast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlargs_get(args, 1), -1);
+    int at = tl_int_or(tlArgsAt(args, 1), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
     tlValue res = tllist_get(list, at);
     if (!res) TL_RETURN(tlNull);
     TL_RETURN(res);
 }
 static tlPause* _list_set(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlargs_get(args, 0));
+    tlList* list = tllist_cast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlargs_get(args, 1), -1);
+    int at = tl_int_or(tlArgsAt(args, 1), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
-    tlValue val = tlargs_get(args, 2);
+    tlValue val = tlArgsAt(args, 2);
     if (!val || val == tlUndefined) val = tlNull;
     fatal("not implemented yet");
     tlList* nlist = tlNull; //tllist_set(task, list, at, val);

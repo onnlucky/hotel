@@ -246,7 +246,7 @@ void tltask_ready_detach(tlTask* task) {
 
 // TODO pass rest of args to function
 static tlPause* _task_new(tlTask* task, tlArgs* args) {
-    tlValue fn = tlargs_get(args, 0);
+    tlValue fn = tlArgsAt(args, 0);
     assert(task && task->worker && task->worker->vm);
 
     tlTask* ntask = tltask_new(task->worker);
@@ -271,7 +271,7 @@ static tlPause* _task_send(tlTask* task, tlArgs* args) {
     fatal("to be removed");
     return null;
     /*
-    tlTask* to = tltask_cast(tlargs_get(args, 0));
+    tlTask* to = tltask_cast(ArgsAt(args, 0));
     assert(to && to != task);
     assert(to->state != TL_STATE_DONE);
     tlTask* root = to->blocked_on;
@@ -328,7 +328,7 @@ static tlPause* _task_reply(tlTask* task, tlArgs* args) {
     fatal("to be removed");
     return null;
     /*
-    tlTask* to = tltask_cast(tlargs_get(args, 0));
+    tlTask* to = tltask_cast(ArgsAt(args, 0));
     assert(to && to != task);
     assert(to->blocked_on == task);
 

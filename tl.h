@@ -197,10 +197,10 @@ TL_TYPE(set, Set);
 
 TL_REF_TYPE(tlText);
 TL_REF_TYPE(tlMap);
+TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlValueObject);
 
 TL_TYPE(call, Call);
-TL_TYPE(args, Args);
 TL_TYPE(msg, Msg);
 
 TL_TYPE(object, Object);
@@ -351,12 +351,11 @@ tlCode* tlcode_from(tlTask* task, tlList* stms);
 tlValue tlArgsTarget(tlArgs* args);
 tlSym tlArgsMsg(tlArgs* args);
 
-tlValue tlargs_fn(tlArgs* args);
-int tlargs_size(tlArgs* args);
-tlValue tlargs_get(tlArgs* args, int at);
+tlValue tlArgsFn(tlArgs* args);
+int tlArgsSize(tlArgs* args);
 tlValue tlArgsAt(tlArgs* args, int at);
-int tlargs_named_size(tlArgs* args);
-tlValue tlargs_named_get(tlArgs* args, tlSym name);
+int tlArgsMapSize(tlArgs* args);
+tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 
 tlCall* tlcall_from(tlTask* task, ...);
 tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args);

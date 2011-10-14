@@ -36,7 +36,7 @@ INTERNAL tlPause* _BufferWrite(tlTask* task, tlArgs* args) {
     tl_buf* buf = buffer->buf;
     assert(buf);
 
-    tlText* text = tlTextCast(tlargs_get(args, 0));
+    tlText* text = tlTextCast(tlArgsAt(args, 0));
     if (!text) TL_THROW("expected a Text");
     TL_RETURN(tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text))));
 }

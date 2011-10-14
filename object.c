@@ -28,7 +28,7 @@ tlObject* tlObjectNew(tlTask* task) {
     return self;
 }
 tlPause* _new_object(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapCast(tlargs_get(args, 0));
+    tlMap* map = tlMapCast(tlArgsAt(args, 0));
     tlObject* oop = tlObjectNew(task);
     oop->map = map;
     TL_RETURN(oop);

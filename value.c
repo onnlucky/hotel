@@ -85,7 +85,7 @@ int tl_int_or(tlValue v, int d) {
 }
 
 static tlPause* _value_type(tlTask* task, tlArgs* args) {
-    tlValue v = tlargs_get(args, 0);
+    tlValue v = tlArgsAt(args, 0);
     return tltask_return(task, tlINT(tl_type(v)));
 }
 

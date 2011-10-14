@@ -10,20 +10,20 @@
 // this is how a print function could look
 static tlPause* _print(tlTask* task, tlArgs* args) {
     tlText* sep = tlTEXT(" ");
-    tlValue v = tlargs_map_get(args, tlSYM("sep"));
+    tlValue v = tlArgsMapGet(args, tlSYM("sep"));
     if (v) sep = tlvalue_to_text(task, v);
 
     tlText* begin = null;
-    v = tlargs_map_get(args, tlSYM("begin"));
+    v = tlArgsMapGet(args, tlSYM("begin"));
     if (v) begin = tlvalue_to_text(task, v);
 
     tlText* end = null;
-    v = tlargs_map_get(args, tlSYM("end"));
+    v = tlArgsMapGet(args, tlSYM("end"));
     if (v) end = tlvalue_to_text(task, v);
 
     if (begin) printf("%s", tlTextData(begin));
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlargs_get(args, i);
+        tlValue v = tlArgsAt(args, i);
         if (!v) break;
         if (i > 0) printf("%s", tlTextData(sep));
         printf("%s", tlTextData(tlvalue_to_text(task, v)));
@@ -35,10 +35,10 @@ static tlPause* _print(tlTask* task, tlArgs* args) {
 }
 
 static tlPause* _assert(tlTask* task, tlArgs* args) {
-    tlText* text = tlTextCast(tlargs_map_get(args, tlSYM("text")));
+    tlText* text = tlTextCast(tlArgsMapGet(args, tlSYM("text")));
     if (!text) text = tlTextEmpty();
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlargs_get(args, i);
+        tlValue v = tlArgsAt(args, i);
         if (!v) break;
         if (!tl_bool(v)) {
             //text = tltask_cat(task, tlTEXT("Assertion Failed: "), text);

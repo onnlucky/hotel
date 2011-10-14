@@ -97,7 +97,7 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
     assert(msg);
     assert(actor->owner == task);
 
-    trace("actor receive %p: %s (%d)", actor, tl_str(msg), tlargs_size(args));
+    trace("actor receive %p: %s (%d)", actor, tl_str(msg), tlArgsSize(args));
     tlPause* p = null;
     if (actor->head.klass->act) {
         p = actor->head.klass->act(task, args);

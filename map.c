@@ -164,36 +164,36 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
 
 // called when map literals contain lookups or expressions to evaluate
 static tlPause* _map_clone(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapCast(tlargs_get(args, 0));
+    tlMap* map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
     int size = tlmap_size(map);
     map = tlAllocClone(task, map, sizeof(tlMap), size);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!map->data[i] || map->data[i] == tlUndefined) {
-            map->data[i] = tlargs_get(args, argc++);
+            map->data[i] = tlArgsAt(args, argc++);
         }
     }
-    assert(argc == tlargs_size(args));
+    assert(argc == tlArgsSize(args));
     TL_RETURN(map);
 }
 static tlPause* _map_dump(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapCast(tlargs_get(args, 0));
+    tlMap* map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
     tlmap_dump(map);
     TL_RETURN(tlNull);
 }
 static tlPause* _map_is(tlTask* task, tlArgs* args) {
-    TL_RETURN(tlBOOL(tlMapIs(tlargs_get(args, 0))));
+    TL_RETURN(tlBOOL(tlMapIs(tlArgsAt(args, 0))));
 }
 static tlPause* _object_is(tlTask* task, tlArgs* args) {
-    tlValue map = tlMapCast(tlargs_get(args, 0));
+    tlValue map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_RETURN(tlFalse);
     if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(tlTrue);
     TL_RETURN(tlFalse);
 }
 static tlPause* _object_from(tlTask* task, tlArgs* args) {
-    tlValue map = tlMapCast(tlargs_get(args, 0));
+    tlValue map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
     if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(map);
     map = TL_CLONE(map);

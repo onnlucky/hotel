@@ -1,5 +1,5 @@
 testargs = (first, second)->{
-    out(first, second, _args_size(args) - 2, "\n")
+    out(first, second, args.size - 2, "\n")
 }
 testargs("three", " size: ", #foo, #bar, #baz)
 testargs("zero", " size: ")

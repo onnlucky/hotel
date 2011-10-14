@@ -99,8 +99,8 @@ INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     int size = tlTextSize(text);
-    int first = tl_int_or(tlargs_get(args, 0), 0);
-    int last = tl_int_or(tlargs_get(args, 1), size);
+    int first = tl_int_or(tlArgsAt(args, 0), 0);
+    int last = tl_int_or(tlArgsAt(args, 1), size);
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 

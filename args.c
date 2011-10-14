@@ -1,3 +1,10 @@
+// args, passed to all functions, contains the evaluated values (call is the unevaluated args)
+
+#include "trace-off.h"
+
+static tlClass _tlArgsClass;
+tlClass* tlArgsClass = &_tlArgsClass;
+
 struct tlArgs {
     tlHead head;
     tlValue fn;
@@ -9,17 +16,18 @@ struct tlArgs {
 
 static tlArgs* v_args_empty;
 
-tlArgs* tlargs_new_names(tlTask* task, int size, tlSet* names) {
+tlArgs* tlArgsNewNames(tlTask* task, int size, tlSet* names) {
     if (!names) names = v_set_empty;
-    tlArgs* args = task_alloc(task, TLArgs, 5);
+    tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
     args->list = tllist_new(task, size - tlset_size(names));
     args->map = tlmap_new(task, names);
     return args;
 }
-tlArgs* tlargs_new(tlTask* task, tlList* list, tlMap* map) {
+
+tlArgs* tlArgsNew(tlTask* task, tlList* list, tlMap* map) {
     if (!list) list = v_list_empty;
     if (!map) map = _tl_emptyMap;
-    tlArgs* args = task_alloc(task, TLArgs, 5);
+    tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
     args->list = list;
     args->map = map;
     return args;
@@ -28,70 +36,82 @@ tlArgs* tlargs_new(tlTask* task, tlList* list, tlMap* map) {
 tlValue tlArgsTarget(tlArgs* args) { return args->target; }
 tlValue tlArgsMsg(tlArgs* args) { return args->msg; }
 
-int tlargs_size(tlArgs* args) {
-    assert(tlargs_is(args));
+int tlArgsSize(tlArgs* args) {
+    assert(tlArgsIs(args));
     return tllist_size(args->list);
 }
-int tlArgsSize(tlArgs* args) { return tlargs_size(args); }
-
-tlValue tlargs_fn(tlArgs* args) {
-    assert(tlargs_is(args));
+int tlArgsMapSize(tlArgs* args) {
+    assert(tlArgsIs(args));
+    return tlmap_size(args->map);
+}
+tlValue tlArgsFn(tlArgs* args) {
+    assert(tlArgsIs(args));
     return args->fn;
 }
-tlList* tlargs_list(tlArgs* args) {
-    assert(tlargs_is(args));
+tlList* tlArgsList(tlArgs* args) {
+    assert(tlArgsIs(args));
     return args->list;
 }
-tlMap* tlargs_map(tlArgs* args) {
-    assert(tlargs_is(args));
+tlMap* tlArgsMap(tlArgs* args) {
+    assert(tlArgsIs(args));
     return args->map;
 }
-tlValue tlargs_get(tlArgs* args, int at) {
-    assert(tlargs_is(args));
+tlValue tlArgsAt(tlArgs* args, int at) {
+    assert(tlArgsIs(args));
     return tllist_get(args->list, at);
 }
-tlValue tlargs_map_get(tlArgs* args, tlSym name) {
-    assert(tlargs_is(args));
+tlValue tlArgsMapGet(tlArgs* args, tlSym name) {
+    assert(tlArgsIs(args));
     return tlmap_get_sym(args->map, name);
 }
 
-void tlargs_fn_set_(tlArgs* args, tlValue fn) {
-    assert(tlargs_is(args));
+void tlArgsSetFn_(tlArgs* args, tlValue fn) {
+    assert(tlArgsIs(args));
     assert(!args->fn);
     args->fn = fn;
 }
-void tlargs_set_(tlArgs* args, int at, tlValue v) {
-    assert(tlargs_is(args));
+void tlArgsSetAt_(tlArgs* args, int at, tlValue v) {
+    assert(tlArgsIs(args));
     tllist_set_(args->list, at, v);
 }
-void tlargs_map_set_(tlArgs* args, tlSym name, tlValue v) {
-    assert(tlargs_is(args));
+void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
+    assert(tlArgsIs(args));
     tlmap_set_sym_(args->map, name, v);
 }
 
-tlValue tlArgsAt(tlArgs* args, int at) {
-    return tlargs_get(args, at);
+static tlPause* _ArgsSize(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    if (!as) TL_THROW("Expected a args object");
+    TL_RETURN(tlINT(tlArgsSize(as)));
+}
+static tlPause* _ArgsMap(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    if (!as) TL_THROW("Expected a args object");
+    TL_RETURN(tlArgsMap(as));
+}
+static tlPause* _ArgsNames(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    if (!as) TL_THROW("Expected a args object");
+    TL_RETURN(tlArgsMap(as));
 }
 
-static tlPause* _args_size(tlTask* task, tlArgs* args) {
-    tlArgs* as = tlargs_cast(tlargs_get(args, 0));
-    if (!as) TL_THROW("Expected a args object");
-    TL_RETURN(tlINT(tlargs_size(as)));
-}
-static tlPause* _args_names(tlTask* task, tlArgs* args) {
-    tlArgs* as = tlargs_cast(tlargs_get(args, 0));
-    if (!as) TL_THROW("Expected a args object");
-    TL_RETURN(tlargs_map(as));
+const char* _ArgsToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
+    return buf;
 }
 
-static const tlHostCbs __args_hostcbs[] = {
-    { "_args_size", _args_size },
-    { "_args_names", _args_names },
-    { 0, 0 }
+static tlClass _tlArgsClass = {
+    .name = "Args",
+    .toText = _ArgsToText,
 };
 
-void args_init() {
-    v_args_empty = tlargs_new(null, null, null);
-    tl_register_hostcbs(__args_hostcbs);
+static void args_init() {
+    _tlArgsClass.map = tlClassMapFrom(
+            "size", _ArgsSize,
+            "map", _ArgsMap,
+            "names", _ArgsNames,
+            null
+    );
+    v_args_empty = tlArgsNew(null, null, null);
 }
 
