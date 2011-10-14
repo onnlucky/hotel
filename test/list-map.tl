@@ -2,10 +2,10 @@ x = [1, 2, 3]
 out(_list_get(x, 2), " == 3\n")
 
 y = { foo = 1, bar = 2, baz = 3 }
-out(_map_get(y, #baz), " == 3\n")
-out(_map_get(y, #bar), " == 2\n")
-out(_map_get(y, #foo), " == 1\n")
-out(_map_get(y, #not), " == undefined\n")
+out(y.get(#baz), " == 3\n")
+out(y.get(#bar), " == 2\n")
+out(y.get(#foo), " == 1\n")
+out(y.get(#not), " == undefined\n")
 
 //z = %set_new(#foo, 1, 2, 3, #baz)
 //out(%set_has(z, #foo))

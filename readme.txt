@@ -1,5 +1,6 @@
 # TODO
 
+rework list to tlClass ...
 rework all types as the tlClass things ... stop using anything else
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 we do the "get field and dispatch" a lot in a lot of places ... dry it up
