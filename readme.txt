@@ -1,7 +1,8 @@
 # TODO
 
-rework list to tlClass ...
+tlArgsAt -> tlArgsGet ... like a list tlListGet
 rework all types as the tlClass things ... stop using anything else
+remove old task_alloc and such
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 we do the "get field and dispatch" a lot in a lot of places ... dry it up
 
@@ -19,8 +20,6 @@ example: function = { }
 
 ensure task attach/detach is correct, and ready/done etc don't have races ...
 
-fix task_alloc, rename to value_alloc, use sizeof(impl) not field count
-throw exceptions a little bit better, at least cat texts with message ...
 clean up task.c arrange things around tlResult and such ...
 clean up tl.h; nice up code.{h,c} and call.c
 
@@ -28,6 +27,7 @@ fix return/goto when target has returned already ... what to do anyhow?
 
 expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?
 only optimize after parser, inspect step: single tlAssign become just name ...
+give parser its own objects/classes instead of using tllists so much?
 
 add a syntax for blocks like `catch: e -> print exception` and `arr.each(e -> print e)`
 
