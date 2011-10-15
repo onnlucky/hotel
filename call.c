@@ -93,7 +93,7 @@ tlValue tlcall_arg(tlCall* call, int at) {
 tlValue tlcall_arg_name(tlCall* call, int at) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     tlList* names = call->data[call->head.size - 2];
-    tlValue name = tllist_get(names, at);
+    tlValue name = tlListGet(names, at);
     if (name == tlNull) return null;
     return name;
 }
@@ -119,24 +119,24 @@ void tlcall_arg_set_(tlCall* call, int at, tlValue v) {
     call->data[at + 1] = v;
 }
 tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
-    int size = tllist_size(args);
+    int size = tlListSize(args);
     int namecount = 0;
 
     tlList* names = null;
     tlSet* nameset = null;
     for (int i = 0; i < size; i += 2) {
-        tlValue name = tllist_get(args, i);
+        tlValue name = tlListGet(args, i);
         if (!name || name == tlNull) continue;
-        assert(tlsym_is(tllist_get(args, i)));
+        assert(tlsym_is(tlListGet(args, i)));
         namecount++;
     }
     if (namecount > 0) {
         trace("args with keys: %d", namecount);
-        names = tllist_new(task, size);
+        names = tlListNew(task, size);
         nameset = tlset_new(task, namecount);
         for (int i = 0; i < size; i += 2) {
-            tlValue name = tllist_get(args, i);
-            tllist_set_(names, i / 2, name);
+            tlValue name = tlListGet(args, i);
+            tlListSet_(names, i / 2, name);
             if (!name || name == tlNull) continue;
             tlset_add_(nameset, name);
         }
@@ -145,7 +145,7 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
     tlCall* call = tlcall_new(task, size/2, namecount > 0);
     tlcall_fn_set_(call, fn);
     for (int i = 1; i < size; i += 2) {
-        tlcall_arg_set_(call, i / 2, tllist_get(args, i));
+        tlcall_arg_set_(call, i / 2, tlListGet(args, i));
     }
     if (namecount) {
         assert(names && nameset);
@@ -160,24 +160,24 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
 tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
     assert(fn);
     assert(tlsym_is(msg));
-    int size = tllist_size(args);
+    int size = tlListSize(args);
     int namecount = 0;
 
     tlList* names = null;
     tlSet* nameset = null;
     for (int i = 0; i < size; i += 2) {
-        tlValue name = tllist_get(args, i);
+        tlValue name = tlListGet(args, i);
         if (!name || name == tlNull) continue;
-        assert(tlsym_is(tllist_get(args, i)));
+        assert(tlsym_is(tlListGet(args, i)));
         namecount++;
     }
     if (namecount > 0) {
         trace("args with keys: %d", namecount);
-        names = tllist_new(task, size);
+        names = tlListNew(task, size);
         nameset = tlset_new(task, namecount);
         for (int i = 0; i < size; i += 2) {
-            tlValue name = tllist_get(args, i);
-            tllist_set_(names, i / 2, name);
+            tlValue name = tlListGet(args, i);
+            tlListSet_(names, i / 2, name);
             if (!name || name == tlNull) continue;
             tlset_add_(nameset, name);
         }
@@ -188,7 +188,7 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
     tlcall_arg_set_(call, 0, oop);
     tlcall_arg_set_(call, 1, msg);
     for (int i = 1; i < size; i += 2) {
-        tlcall_arg_set_(call, 2 + i / 2, tllist_get(args, i));
+        tlcall_arg_set_(call, 2 + i / 2, tlListGet(args, i));
     }
     if (namecount) {
         assert(names && nameset);

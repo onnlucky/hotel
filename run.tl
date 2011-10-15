@@ -18,7 +18,7 @@ test = [
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "x", "y", "z"
 ]
 
-out(test.size), "\n")
+out(test.size, "\n")
 out(test.get(test.size - 1), "\n")
 out(test.get(9), "\n")
 out(test.get(19), "\n")

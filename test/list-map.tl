@@ -1,5 +1,5 @@
 x = [1, 2, 3]
-out(_list_get(x, 2), " == 3\n")
+out(x.get(2), " == 3\n")
 
 y = { foo = 1, bar = 2, baz = 3 }
 out(y.get(#baz), " == 3\n")
@@ -18,7 +18,7 @@ test = [
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "x", "y", "z"
 ]
 
-out(_list_size(test), "\n")
-out(_list_get(test, _list_size(test) - 1), "\n")
-out(_list_get(test, 9), "\n")
-out(_list_get(test, 19), "\n")
+out(test.size, "\n")
+out(test.get(test.size - 1), "\n")
+out(test.get(9), "\n")
+out(test.get(19), "\n")

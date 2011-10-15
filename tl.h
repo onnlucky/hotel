@@ -191,11 +191,10 @@ static inline _T* _T##Cast(tlValue v) { \
 
 TL_TYPE(num, Num);
 TL_TYPE(float, Float);
-
-TL_TYPE(list, List);
 TL_TYPE(set, Set);
 
 TL_REF_TYPE(tlText);
+TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
 TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlValueObject);
@@ -297,28 +296,28 @@ tlText* tlTextCat(tlTask* task, tlText* lhs, tlText* rhs);
 tlText* tlTextSub(tlTask* task, tlText* from, int first, int size);
 
 // ** list **
-int tllist_size(tlList* list);
-int tllist_isempty(tlList* list);
-tlValue tllist_get(tlList* list, int at);
+int tlListSize(tlList* list);
+int tlListIsEmpty(tlList* list);
+tlValue tlListGet(tlList* list, int at);
 
-tlList* tllist_empty();
-tlList* tllist_new(tlTask* task, int size);
-tlList* tllist_copy(tlTask* task, tlList* from, int newsize);
-tlList* tllist_from1(tlTask* task, tlValue v);
-tlList* tllist_from2(tlTask* task, tlValue v1, tlValue v2);
-tlList* tllist_from(tlTask* task, ... /*tlValue*/);
-tlList* tllist_from_many(tlTask* task, tlValue vs[], int len);
+tlList* tlListEmpty();
+tlList* tlListNew(tlTask* task, int size);
+tlList* tlListNewCopy(tlTask* task, tlList* from, int newsize);
+tlList* tlListNewFrom1(tlTask* task, tlValue v);
+tlList* tlListNewFrom2(tlTask* task, tlValue v1, tlValue v2);
+tlList* tlListNewFrom(tlTask* task, ... /*tlValue*/);
+tlList* tlListNewFromMany(tlTask* task, tlValue vs[], int len);
 
-tlList* tllist_append(tlTask* task, tlList* list, tlValue v);
-tlList* tllist_append2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
-tlList* tllist_prepend(tlTask* task, tlList* list, tlValue v);
-tlList* tllist_prepend2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
-tlList* tllist_set(tlTask* task, tlList* list, int at, tlValue v);
-tlList* tllist_cat(tlTask*, tlList* lhs, tlList* rhs);
-tlList* tllist_sub(tlTask* task, tlList* list, int first, int size);
-tlList* tllist_splice(tlTask* task, tlList* list, int first, int size);
+tlList* tlListAppend(tlTask* task, tlList* list, tlValue v);
+tlList* tlListAppend2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
+tlList* tlListPrepend(tlTask* task, tlList* list, tlValue v);
+tlList* tlListPrepend2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
+tlList* tlListSet(tlTask* task, tlList* list, int at, tlValue v);
+tlList* tlListCat(tlTask*, tlList* lhs, tlList* rhs);
+tlList* tlListSub(tlTask* task, tlList* list, int first, int size);
+tlList* tlListSplice(tlTask* task, tlList* list, int first, int size);
 
-void tllist_set_(tlList* list, int at, tlValue v);
+void tlListSet_(tlList* list, int at, tlValue v);
 
 // ** map **
 int tlmap_size(tlMap* map);

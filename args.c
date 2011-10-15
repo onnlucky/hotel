@@ -19,13 +19,13 @@ static tlArgs* v_args_empty;
 tlArgs* tlArgsNewNames(tlTask* task, int size, tlSet* names) {
     if (!names) names = v_set_empty;
     tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
-    args->list = tllist_new(task, size - tlset_size(names));
+    args->list = tlListNew(task, size - tlset_size(names));
     args->map = tlmap_new(task, names);
     return args;
 }
 
 tlArgs* tlArgsNew(tlTask* task, tlList* list, tlMap* map) {
-    if (!list) list = v_list_empty;
+    if (!list) list = _tl_emptyList;
     if (!map) map = _tl_emptyMap;
     tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
     args->list = list;
@@ -38,7 +38,7 @@ tlValue tlArgsMsg(tlArgs* args) { return args->msg; }
 
 int tlArgsSize(tlArgs* args) {
     assert(tlArgsIs(args));
-    return tllist_size(args->list);
+    return tlListSize(args->list);
 }
 int tlArgsMapSize(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -58,7 +58,7 @@ tlMap* tlArgsMap(tlArgs* args) {
 }
 tlValue tlArgsAt(tlArgs* args, int at) {
     assert(tlArgsIs(args));
-    return tllist_get(args->list, at);
+    return tlListGet(args->list, at);
 }
 tlValue tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
@@ -72,7 +72,7 @@ void tlArgsSetFn_(tlArgs* args, tlValue fn) {
 }
 void tlArgsSetAt_(tlArgs* args, int at, tlValue v) {
     assert(tlArgsIs(args));
-    tllist_set_(args->list, at, v);
+    tlListSet_(args->list, at, v);
 }
 void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
     assert(tlArgsIs(args));

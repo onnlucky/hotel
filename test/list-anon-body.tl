@@ -1,1 +1,1 @@
-_list_get([(m)->{out(m, "\n")}], 0)("hello")
+[(m)->{out(m, "\n")}].get(0)("hello")

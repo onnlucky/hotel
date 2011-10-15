@@ -408,7 +408,7 @@ INTERNAL tlPause* run_call(tlTask* task, tlPauseCall* pause) {
         } else {
             while (true) {
                 if (!names) break;
-                tlSym fnname = tllist_get(names, at - named + skipped);
+                tlSym fnname = tlListGet(names, at - named + skipped);
                 if (!fnname) break;
                 if (!tlcall_names_contains(call, fnname)) {
                     if (defaults) d = tlmap_get_sym(defaults, fnname);
@@ -474,9 +474,9 @@ INTERNAL tlPause* chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, 
 
     if (names) {
         int first = 0;
-        int size = tllist_size(names);
+        int size = tlListSize(names);
         for (int i = 0; i < size; i++) {
-            tlSym name = tlsym_as(tllist_get(names, i));
+            tlSym name = tlsym_as(tlListGet(names, i));
             tlValue v = tlArgsMapGet(args, name);
             if (!v) {
                 v = tlArgsAt(args, first); first++;
@@ -743,9 +743,9 @@ static tlPause* _method_invoke(tlTask* task, tlArgs* args) {
     map = tlmap_set(task, map, s_this, oop);
     int size = tlArgsSize(oldargs) - 2;
 
-    tlList* list = tllist_new(task, size);
+    tlList* list = tlListNew(task, size);
     for (int i = 0; i < size; i++) {
-        tllist_set_(list, i, tlArgsAt(oldargs, i + 2));
+        tlListSet_(list, i, tlArgsAt(oldargs, i + 2));
     }
     tlArgs* nargs = tlArgsNew(task, list, map);
     tlArgsSetFn_(nargs, fn);
@@ -761,7 +761,7 @@ static tlPause* _object_send(tlTask* task, tlArgs* args) {
     tlArgs* nargs = tlArgsNew(task, null, null);
     nargs->target = target;
     nargs->msg = msg;
-    nargs->list = tllist_slice(task, args->list, 2, tllist_size(args->list));
+    nargs->list = tlListSlice(task, args->list, 2, tlListSize(args->list));
     nargs->map = args->map;
 
     tlClass* klass = tlClassGet(target);
@@ -785,6 +785,7 @@ static const tlHostCbs __eval_hostcbs[] = {
     { "_object_send", _object_send },
     { "_new_object", _new_object },
     { "_map_clone", _map_clone },
+    { "_list_clone", _list_clone },
     { 0, 0 }
 };
 

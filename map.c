@@ -96,21 +96,21 @@ void tlmap_set_sym_(tlMap* map, tlSym key, tlValue v) {
 }
 
 tlMap* tlmap_from_pairs(tlTask* task, tlList* pairs) {
-    int size = tllist_size(pairs);
+    int size = tlListSize(pairs);
     trace("%d", size);
 
     tlSet* keys = tlset_new(task, size);
     for (int i = 0; i < size; i++) {
-        tlList* pair = tllist_as(tllist_get(pairs, i));
-        tlSym name = tlsym_as(tllist_get(pair, 0));
+        tlList* pair = tlListAs(tlListGet(pairs, i));
+        tlSym name = tlsym_as(tlListGet(pair, 0));
         tlset_add_(keys, name);
     }
 
     tlMap* map = tlmap_new(task, keys);
     for (int i = 0; i < size; i++) {
-        tlList* pair = tllist_as(tllist_get(pairs, i));
-        tlSym name = tlsym_as(tllist_get(pair, 0));
-        tlValue v = tllist_get(pair, 1);
+        tlList* pair = tlListAs(tlListGet(pairs, i));
+        tlSym name = tlsym_as(tlListGet(pair, 0));
+        tlValue v = tlListGet(pair, 1);
         tlmap_set_sym_(map, name, v);
     }
     return map;

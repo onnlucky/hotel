@@ -2,40 +2,43 @@
 
 #include "trace-off.h"
 
+static tlClass _tlListClass;
+tlClass* tlListClass = &_tlListClass;
+
 struct tlList {
     tlHead head;
     tlValue data[];
 };
 
-static tlList* v_list_empty;
+static tlList* _tl_emptyList;
 
-tlList* tllist_empty() { return v_list_empty; }
+tlList* tlListEmpty() { return _tl_emptyList; }
 
-tlList* tllist_new(tlTask* task, int size) {
+tlList* tlListNew(tlTask* task, int size) {
     trace("%d", size);
-    if (size == 0) return v_list_empty;
+    if (size == 0) return _tl_emptyList;
     assert(size > 0 && size < TL_MAX_DATA_SIZE);
-    tlList* list = TL_ALLOC(List, size);
+    tlList* list = tlAllocWithFields(task, tlListClass, sizeof(tlList), size);
     assert(list->head.size == size);
-    assert(tllist_size(list) == size);
+    assert(tlListSize(list) == size);
     return list;
 }
 
-tlList* tllist_from1(tlTask* task, tlValue v1) {
-    tlList* list = tllist_new(task, 1);
-    tllist_set_(list, 0, v1);
+tlList* tlListNewFrom1(tlTask* task, tlValue v1) {
+    tlList* list = tlListNew(task, 1);
+    tlListSet_(list, 0, v1);
     return list;
 }
 
-tlList* tllist_from2(tlTask* task, tlValue v1, tlValue v2) {
-    tlList* list = tllist_new(task, 2);
-    assert(tllist_size(list) == 2);
-    tllist_set_(list, 0, v1);
-    tllist_set_(list, 1, v2);
+tlList* tlListNewFrom2(tlTask* task, tlValue v1, tlValue v2) {
+    tlList* list = tlListNew(task, 2);
+    assert(tlListSize(list) == 2);
+    tlListSet_(list, 0, v1);
+    tlListSet_(list, 1, v2);
     return list;
 }
 
-tlList* tllist_from(tlTask* task, ...) {
+tlList* tlListNewFrom(tlTask* task, ...) {
     va_list ap;
     int size = 0;
 
@@ -43,114 +46,114 @@ tlList* tllist_from(tlTask* task, ...) {
     for (tlValue v = va_arg(ap, tlValue); v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
 
-    tlList* list = tllist_new(task, size);
+    tlList* list = tlListNew(task, size);
 
     va_start(ap, task);
-    for (int i = 0; i < size; i++) tllist_set_(list, i, va_arg(ap, tlValue));
+    for (int i = 0; i < size; i++) tlListSet_(list, i, va_arg(ap, tlValue));
     va_end(ap);
 
     return list;
 }
 
-tlList* tllist_from_a(tlTask* task, tlValue* as, int size) {
-    tlList* list = tllist_new(task, size);
-    for (int i = 0; i < size; i++) tllist_set_(list, i, as[i]);
+tlList* tlListFrom_a(tlTask* task, tlValue* as, int size) {
+    tlList* list = tlListNew(task, size);
+    for (int i = 0; i < size; i++) tlListSet_(list, i, as[i]);
     return list;
 }
 
-int tllist_size(tlList* list) {
-    assert(tllist_is(list));
+int tlListSize(tlList* list) {
+    assert(tlListIs(list));
     return tl_head(list)->size;
 }
 
-tlValue tllist_get(tlList* list, int at) {
-    assert(tllist_is(list));
+tlValue tlListGet(tlList* list, int at) {
+    assert(tlListIs(list));
 
-    if (at < 0 || at >= tllist_size(list)) {
-        trace("%d, %d = undefined", tllist_size(list), at);
+    if (at < 0 || at >= tlListSize(list)) {
+        trace("%d, %d = undefined", tlListSize(list), at);
         return null;
     }
-    trace("%d, %d = %s", tllist_size(list), at, tl_str(list->data[at]));
+    trace("%d, %d = %s", tlListSize(list), at, tl_str(list->data[at]));
     return list->data[at];
 }
 
-tlList* tllist_copy(tlTask* task, tlList* list, int size) {
-    assert(tllist_is(list));
+tlList* tlListCopy(tlTask* task, tlList* list, int size) {
+    assert(tlListIs(list));
     assert(size >= 0 || size == -1);
     trace("%d", size);
 
-    int osize = tllist_size(list);
+    int osize = tlListSize(list);
     if (size == -1) size = osize;
 
-    if (size == 0) return v_list_empty;
+    if (size == 0) return _tl_emptyList;
 
-    tlList* nlist = tllist_new(task, size);
+    tlList* nlist = tlListNew(task, size);
 
     if (osize > size) osize = size;
     memcpy(nlist->data, list->data, sizeof(tlValue) * osize);
     return nlist;
 }
 
-void tllist_set_(tlList* list, int at, tlValue v) {
-    assert(tllist_is(list));
+void tlListSet_(tlList* list, int at, tlValue v) {
+    assert(tlListIs(list));
     trace("%d <- %s", at, tl_str(v));
 
-    assert(at >= 0 && at < tllist_size(list));
+    assert(at >= 0 && at < tlListSize(list));
     assert(list->data[at] == null || list->data[at] == tlNull || v == null);
 
     list->data[at] = v;
 }
 
-tlList* tllist_append(tlTask* task, tlList* list, tlValue v) {
-    assert(tllist_is(list));
+tlList* tlListAppend(tlTask* task, tlList* list, tlValue v) {
+    assert(tlListIs(list));
 
-    int osize = tllist_size(list);
+    int osize = tlListSize(list);
     trace("[%d] :: %s", osize, tl_str(v));
 
-    tlList* nlist = tllist_copy(task, list, osize + 1);
-    tllist_set_(nlist, osize, v);
+    tlList* nlist = tlListCopy(task, list, osize + 1);
+    tlListSet_(nlist, osize, v);
     return nlist;
 }
 
-tlList* tllist_append2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
-    assert(tllist_is(list));
+tlList* tlListAppend2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
+    assert(tlListIs(list));
 
-    int osize = tllist_size(list);
+    int osize = tlListSize(list);
     trace("[%d] :: %s :: %s", osize, tl_str(v1), tl_str(v2));
 
-    tlList* nlist = tllist_copy(task, list, osize + 2);
-    tllist_set_(nlist, osize, v1);
-    tllist_set_(nlist, osize + 1, v2);
+    tlList* nlist = tlListCopy(task, list, osize + 2);
+    tlListSet_(nlist, osize, v1);
+    tlListSet_(nlist, osize + 1, v2);
     return nlist;
 }
 
 
-tlList* tllist_prepend(tlTask* task, tlList* list, tlValue v) {
-    int size = tllist_size(list);
+tlList* tlListPrepend(tlTask* task, tlList* list, tlValue v) {
+    int size = tlListSize(list);
     trace("%s :: [%d]", tl_str(v), size);
 
-    tlList *nlist = tllist_new(task, size + 1);
+    tlList *nlist = tlListNew(task, size + 1);
     memcpy(nlist->data + 1, list->data, sizeof(tlValue) * size);
     nlist->data[0] = v;
     return nlist;
 }
 
-tlList* tllist_prepend2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
-    int size = tllist_size(list);
+tlList* tlListPrepend2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
+    int size = tlListSize(list);
     trace("%s :: %s :: [%d]", tl_str(v1), tl_str(v2), size);
 
-    tlList *nlist = tllist_new(task, size + 2);
+    tlList *nlist = tlListNew(task, size + 2);
     memcpy(nlist->data + 2, list->data, sizeof(tlValue) * size);
     nlist->data[0] = v1;
     nlist->data[1] = v2;
     return nlist;
 }
 
-tlList* tllist_prepend4(tlTask* task, tlList* list, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
-    int size = tllist_size(list);
+tlList* tlListPrepend4(tlTask* task, tlList* list, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
+    int size = tlListSize(list);
     trace("%s :: %s :: ... :: [%d]", tl_str(v1), tl_str(v2), size);
 
-    tlList *nlist = tllist_new(task, size + 4);
+    tlList *nlist = tlListNew(task, size + 4);
     memcpy(nlist->data + 2, list->data, sizeof(tlValue) * size);
     nlist->data[0] = v1;
     nlist->data[1] = v2;
@@ -159,56 +162,56 @@ tlList* tllist_prepend4(tlTask* task, tlList* list, tlValue v1, tlValue v2, tlVa
     return nlist;
 }
 
-tlList* tllist_new_add(tlTask* task, tlValue v) {
+tlList* tlListNew_add(tlTask* task, tlValue v) {
     trace("[] :: %s", tl_str(v));
-    tlList* list = tllist_new(task, 1);
-    tllist_set_(list, 0, v);
+    tlList* list = tlListNew(task, 1);
+    tlListSet_(list, 0, v);
     return list;
 }
 
-tlList* tllist_new_add2(tlTask* task, tlValue v1, tlValue v2) {
+tlList* tlListNew_add2(tlTask* task, tlValue v1, tlValue v2) {
     trace("[] :: %s :: %s", tl_str(v1), tl_str(v2));
-    tlList* list = tllist_new(task, 2);
-    tllist_set_(list, 0, v1);
-    tllist_set_(list, 1, v2);
+    tlList* list = tlListNew(task, 2);
+    tlListSet_(list, 0, v1);
+    tlListSet_(list, 1, v2);
     return list;
 }
 
-tlList* tllist_new_add3(tlTask* task, tlValue v1, tlValue v2, tlValue v3) {
+tlList* tlListNew_add3(tlTask* task, tlValue v1, tlValue v2, tlValue v3) {
     trace("[] :: %s :: %s ...", tl_str(v1), tl_str(v2));
-    tlList* list = tllist_new(task, 3);
-    tllist_set_(list, 0, v1);
-    tllist_set_(list, 1, v2);
-    tllist_set_(list, 2, v3);
+    tlList* list = tlListNew(task, 3);
+    tlListSet_(list, 0, v1);
+    tlListSet_(list, 1, v2);
+    tlListSet_(list, 2, v3);
     return list;
 }
 
-tlList* tllist_new_add4(tlTask* task, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
+tlList* tlListNew_add4(tlTask* task, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
     trace("[] :: %s :: %s ...", tl_str(v1), tl_str(v2));
-    tlList* list = tllist_new(task, 4);
-    tllist_set_(list, 0, v1);
-    tllist_set_(list, 1, v2);
-    tllist_set_(list, 2, v3);
-    tllist_set_(list, 3, v4);
+    tlList* list = tlListNew(task, 4);
+    tlListSet_(list, 0, v1);
+    tlListSet_(list, 1, v2);
+    tlListSet_(list, 2, v3);
+    tlListSet_(list, 3, v4);
     return list;
 }
 
-tlList* tllist_cat(tlTask* task, tlList* left, tlList* right) {
-    int lsize = tllist_size(left);
-    int rsize = tllist_size(right);
+tlList* tlListCat(tlTask* task, tlList* left, tlList* right) {
+    int lsize = tlListSize(left);
+    int rsize = tlListSize(right);
     if (lsize == 0) return right;
     if (rsize == 0) return left;
 
-    tlList *nlist = tllist_copy(task, left, lsize + rsize);
+    tlList *nlist = tlListCopy(task, left, lsize + rsize);
     memcpy(nlist->data + lsize, right->data, sizeof(tlValue) * rsize);
     return nlist;
 }
 
-tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
+tlList* tlListSlice(tlTask* task, tlList* list, int begin, int end) {
     int size = end - begin;
     if (size < 0) size = 0;
     if (size > list->head.size) size = list->head.size;
-    tlList* nlist = tllist_new(task, size);
+    tlList* nlist = tlListNew(task, size);
 
     for (int i = 0; i < size; i++) {
         nlist->data[i] = list->data[begin + i];
@@ -218,9 +221,9 @@ tlList* tllist_slice(tlTask* task, tlList* list, int begin, int end) {
 
 // called when list literals contain lookups or expressions to evaluate
 static tlPause* _list_clone(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlArgsAt(args, 0));
+    tlList* list = tlListCast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
-    int size = tllist_size(list);
+    int size = tlListSize(list);
     list = TL_CLONE(list);
     int argc = 1;
     for (int i = 0; i < size; i++) {
@@ -228,47 +231,43 @@ static tlPause* _list_clone(tlTask* task, tlArgs* args) {
     }
     TL_RETURN(list);
 }
-static tlPause* _list_is(tlTask* task, tlArgs* args) {
-    if (tllist_cast(tlArgsAt(args, 0))) TL_RETURN(tlTrue);
-    TL_RETURN(tlFalse);
-}
-static tlPause* _list_size(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlArgsAt(args, 0));
+static tlPause* _ListSize(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    TL_RETURN(tlINT(tllist_size(list)));
+    TL_RETURN(tlINT(tlListSize(list)));
 }
-static tlPause* _list_get(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlArgsAt(args, 0));
+static tlPause* _ListGet(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsAt(args, 1), -1);
+    int at = tl_int_or(tlArgsAt(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
-    tlValue res = tllist_get(list, at);
+    tlValue res = tlListGet(list, at);
     if (!res) TL_RETURN(tlNull);
     TL_RETURN(res);
 }
-static tlPause* _list_set(tlTask* task, tlArgs* args) {
-    tlList* list = tllist_cast(tlArgsAt(args, 0));
+static tlPause* _ListSet(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsAt(args, 1), -1);
+    int at = tl_int_or(tlArgsAt(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
-    tlValue val = tlArgsAt(args, 2);
+    tlValue val = tlArgsAt(args, 1);
     if (!val || val == tlUndefined) val = tlNull;
     fatal("not implemented yet");
-    tlList* nlist = tlNull; //tllist_set(task, list, at, val);
+    tlList* nlist = tlNull; //tlListSet(task, list, at, val);
     TL_RETURN(nlist);
 }
 
-static const tlHostCbs __list_hostcbs[] = {
-    { "_list_clone", _list_clone },
-    { "_list_is",    _list_is },
-    { "_list_size",  _list_size },
-    { "_list_get",   _list_get },
-    { "_list_set",   _list_set },
-    { 0, 0 }
-};
+// TODO eval: { "_list_clone", _list_clone },
 
 static void list_init() {
-    v_list_empty = task_alloc(null, TLList, 0);
-    tl_register_hostcbs(__list_hostcbs);
+    _tlListClass.map = tlClassMapFrom(
+            "size", _ListSize,
+            "get", _ListGet,
+            "set", _ListSet,
+            //"search", _ListSearch,
+            //"slice", _ListSlice,
+            null
+    );
+    _tl_emptyList = tlAlloc(null, tlListClass, sizeof(tlList));
 }
 
