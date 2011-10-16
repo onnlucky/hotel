@@ -2,38 +2,43 @@
 
 #include "trace-off.h"
 
+static tlClass _tlHostFnClass;
+tlClass* tlHostFnClass = &_tlHostFnClass;
+
 struct tlHostFn {
     tlHead head;
     tlHostCb hostcb;
     tlValue data[];
 };
+
+tlHostFn* tlHostFnNew(tlTask* task, tlHostCb hostcb, int size) {
+    tlHostFn* fn = tlAllocWithFields(task, tlHostFnClass, sizeof(tlHostFn), size);
+    // TODO just for now ... fix by adding a .apply to tlClass ...
+    tl_head(fn)->type = TLHostFn;
+    fn->hostcb = hostcb;
+    return fn;
+}
+tlValue tlHostFnGet(tlHostFn* fn, int at) {
+    assert(tlHostFnIs(fn));
+    assert(at >= 0);
+    if (at >= fn->head.size) return null;
+    return fn->data[at];
+}
+void tlHostFnSet_(tlHostFn* fn, int at, tlValue v) {
+    assert(tlHostFnIs(fn));
+    assert(at >= 0 && at < fn->head.size);
+    fn->data[at] = v;
+}
+tlHostFn* tlFUN(tlHostCb cb, const char* n) {
+    tlHostFn* fn = tlHostFnNew(null, cb, 1);
+    tlHostFnSet_(fn, 0, tlSYM(n));
+    return fn;
+}
+
 struct tlCall {
     tlHead head;
     tlValue data[];
 };
-
-tlHostFn* tlhostfn_new(tlTask* task, tlHostCb hostcb, int size) {
-    tlHostFn* fun = task_alloc_priv(task, TLHostFn, size, 1);
-    fun->hostcb = hostcb;
-    return fun;
-}
-tlValue tlhostfn_get(tlHostFn* fn, int at) {
-    assert(tlhostfn_is(fn));
-    assert(at >= 0);
-    if (at >= fn->head.size - 1) return null;
-    return fn->data[at];
-}
-void tlhostfn_set_(tlHostFn* fn, int at, tlValue v) {
-    assert(tlhostfn_is(fn));
-    assert(at >= 0 && at < fn->head.size - 1);
-    fn->data[at] = v;
-}
-tlHostFn* tlFUN(tlHostCb cb, const char* n) {
-    tlHostFn* fn = tlhostfn_new(null, cb, 1);
-    tlhostfn_set_(fn, 0, tlSYM(n));
-    return fn;
-}
-
 tlCall* tlcall_new(tlTask* task, int argc, bool keys) {
     tlCall* call = task_alloc(task, TLCall, argc + (keys?3:1));
     if (keys) tlflag_set(call, TL_FLAG_HASKEYS);
@@ -197,5 +202,21 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
         call->data[call->head.size - 1] = nameset;
     }
     return call;
+}
+
+const char* _HostFnToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<HostFn@%p>", v); return buf;
+}
+
+static tlClass _tlHostFnClass = {
+    .name = "HostFn",
+    .toText = _HostFnToText,
+};
+
+static void call_init() {
+    _tlHostFnClass.map = tlClassMapFrom(
+            null,
+            null
+    );
 }
 

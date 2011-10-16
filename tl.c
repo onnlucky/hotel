@@ -66,13 +66,13 @@ int main(int argc, char** argv) {
     tlTask* task = tltask_new(worker);
 
     tlEnv* env = tlvm_global_env(vm);
-    tlHostFn* f_print = tlhostfn_new(task, _print, 1);
-    tlhostfn_set_(f_print, 0, tlSYM("print"));
-    //assert(tlSYM("print") == tlhostfn_get(f_print, 0));
+    tlHostFn* f_print = tlHostFnNew(task, _print, 1);
+    tlHostFnSet_(f_print, 0, tlSYM("print"));
+    //assert(tlSYM("print") == tlHostFnGet(f_print, 0));
     env = tlenv_set(null, env, tlSYM("print"), f_print);
 
-    tlHostFn* f_assert = tlhostfn_new(task, _assert, 1);
-    tlhostfn_set_(f_assert, 0, tlSYM("assert"));
+    tlHostFn* f_assert = tlHostFnNew(task, _assert, 1);
+    tlHostFnSet_(f_assert, 0, tlSYM("assert"));
     env = tlenv_set(null, env, tlSYM("assert"), f_assert);
 
     tlCode* code = tlcode_cast(tl_parse(task, script));

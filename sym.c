@@ -93,8 +93,8 @@ void tl_register_global(const char* name, tlValue v) {
 void tl_register_hostcbs(const tlHostCbs* cbs) {
     for (int i = 0; cbs[i].name; i++) {
         tlSym name = tlSYM(cbs[i].name);
-        tlHostFn* fn = tlhostfn_new(null, cbs[i].cb, 1);
-        tlhostfn_set_(fn, 0, name);
+        tlHostFn* fn = tlHostFnNew(null, cbs[i].cb, 1);
+        tlHostFnSet_(fn, 0, name);
         lhashmap_putif(globals, (void*)cbs[i].name, fn, LHASHMAP_IGNORE);
     }
 }

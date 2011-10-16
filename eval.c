@@ -167,8 +167,8 @@ INTERNAL tlPause* _return(tlTask* task, tlArgs* args) {
 
     task->jumping = tlTrue;
 
-    tlHostFn* fn = tlhostfn_as(args->fn);
-    tlArgs* as = tlArgsAs(tlhostfn_get(fn, 0));
+    tlHostFn* fn = tlHostFnAs(args->fn);
+    tlArgs* as = tlArgsAs(tlHostFnGet(fn, 0));
     tlPause* pause = task->pause;
     tlPause* caller = null;
     while (pause) {
@@ -197,7 +197,7 @@ INTERNAL tlPause* _continuation(tlTask* task, tlArgs* args) {
     trace("CONTINUATION(%d)", tlArgsSize(args));
 
     task->jumping = tlTrue;
-    tlTaskPause(task, tlhostfn_as(args->fn)->data[0]);
+    tlTaskPause(task, tlHostFnAs(args->fn)->data[0]);
 
     if (tlArgsSize(args) == 0) TL_RETURN(args->fn);
     tltask_value_set_(task, tlresult_new2(task, args->fn, args));
@@ -266,8 +266,8 @@ INTERNAL tlPause* lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
         assert(task->pause && task->pause->resumecb == resume_code);
         tlArgs* args = tlenv_get_args(env);
-        tlHostFn* fn = tlhostfn_new(task, _return, 1);
-        tlhostfn_set_(fn, 0, args);
+        tlHostFn* fn = tlHostFnNew(task, _return, 1);
+        tlHostFnSet_(fn, 0, args);
         tltask_value_set_(task, fn);
         trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
@@ -275,8 +275,8 @@ INTERNAL tlPause* lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_goto) {
         assert(task->pause && task->pause->resumecb == resume_code);
         tlArgs* args = tlenv_get_args(env);
-        tlHostFn* fn = tlhostfn_new(task, _goto, 1);
-        tlhostfn_set_(fn, 0, args);
+        tlHostFn* fn = tlHostFnNew(task, _goto, 1);
+        tlHostFnSet_(fn, 0, args);
         tltask_value_set_(task, fn);
         trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
@@ -284,8 +284,8 @@ INTERNAL tlPause* lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_continuation) {
         // TODO freeze current pause ...
         assert(task->pause && task->pause->resumecb == resume_code);
-        tlHostFn* fn = tlhostfn_new(task, _continuation, 1);
-        tlhostfn_set_(fn, 0, TL_KEEP(task->pause));
+        tlHostFn* fn = tlHostFnNew(task, _continuation, 1);
+        tlHostFnSet_(fn, 0, TL_KEEP(task->pause));
         tltask_value_set_(task, fn);
         trace("%s -> %s", tl_str(name), tl_str(task->value));
         return null;
@@ -349,7 +349,7 @@ INTERNAL tlPause* start_args(tlTask* task, tlArgs* args, tlPause* pause) {
     assert(tlref_is(fn));
     switch(tl_head(fn)->type) {
         case TLClosure: return chain_args_closure(task, tlclosure_as(fn), args, pause);
-        case TLHostFn: return chain_args_fun(task, tlhostfn_as(fn), args, pause);
+        case TLHostFn: return chain_args_fun(task, tlHostFnAs(fn), args, pause);
     }
     fatal("not implemented: chain args to pause %s", tl_str(fn));
 }
@@ -369,7 +369,7 @@ INTERNAL tlPause* run_call(tlTask* task, tlPauseCall* pause) {
         names = code->argnames;
         defaults = code->argdefaults;
     } else {
-        assert(tlhostfn_is(fn) || tlthunk_is(fn));
+        assert(tlHostFnIs(fn) || tlthunk_is(fn));
     }
 
     tlArgs* args = pause->args;
@@ -509,7 +509,7 @@ INTERNAL tlPause* chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlPau
     trace("%p", pause);
 
     tlPause* caller = tlTaskPauseCaller(task, pause);
-    trace(">> NATIVE %p %s", fn, tl_str(tlhostfn_get(fn, 0)));
+    trace(">> NATIVE %p %s", fn, tl_str(tlHostFnGet(fn, 0)));
 
     tlPause* r = fn->hostcb(task, args);
     if (r && caller) return tlTaskPauseAttach(task, r, caller);
@@ -608,7 +608,7 @@ INTERNAL tlPause* run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
     // TODO handle multiple arguments ... but what does that mean?
     assert(tlcall_argc(call) == 1);
 
-    tlArgs* args = tlArgsAs(tlhostfn_get(fn, 0));
+    tlArgs* args = tlArgsAs(tlHostFnGet(fn, 0));
     tlPause* pause = task->pause;
     tlPause* caller = null;
     while (pause) {
@@ -654,7 +654,7 @@ INTERNAL tlPause* run_apply(tlTask* task, tlCall* call) {
     // TODO if zero args, or no key args ... optimize
     switch(tl_head(fn)->type) {
     case TLHostFn:
-        if (tlhostfn_as(fn)->hostcb == _goto) return run_goto(task, call, tlhostfn_as(fn));
+        if (tlHostFnAs(fn)->hostcb == _goto) return run_goto(task, call, tlHostFnAs(fn));
     case TLClosure:
         return start_call(task, call);
     case TLCall:

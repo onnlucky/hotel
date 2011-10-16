@@ -222,7 +222,8 @@ TL_TYPE(worker, Worker);
 TL_TYPE(vm, Vm);
 
 TL_TYPE(tagged, Tagged);
-TL_TYPE(hostfn, HostFn);
+
+TL_REF_TYPE(tlHostFn);
 
 #undef TL_TYPE
 
@@ -434,8 +435,8 @@ tlValue tltask_clone(tlTask* task, tlValue v);
 // ** extending **
 
 tlHostFn* tlFUN(tlHostCb cb, const char* n);
-tlHostFn* tlhostfn_new(tlTask* task, tlHostCb cb, int fields);
-void tlhostfn_set_(tlHostFn* fun, int at, tlValue v);
+tlHostFn* tlHostFnNew(tlTask* task, tlHostCb cb, int fields);
+void tlHostFnSet_(tlHostFn* fun, int at, tlValue v);
 
 typedef struct { const char* name; tlHostCb cb; } tlHostCbs;
 void tl_register_global(const char* name, tlValue v);
