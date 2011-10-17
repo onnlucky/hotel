@@ -29,6 +29,18 @@
 #include <signal.h>
 #include <execinfo.h>
 
+#if defined(LIBGC) && LIBGC == 1
+#include <gc.h>
+#define malloc(n) GC_MALLOC(n)
+#define calloc(m,n) GC_MALLOC((m)*(n))
+#define free(p) GC_FREE(p)
+#define realloc(p,n) GC_REALLOC((p),(n))
+#undef strdup
+#define strdup(s) GC_STRDUP((s))
+#else
+#define GC_INIT()
+#endif
+
 //#include "../config.h"
 #include "llib/lhashmap.h"
 #include "llib/lqueue.h"
@@ -147,7 +159,7 @@
 #endif
 
 // don't ask, don't tell
-char* strdup(const char*);
+//char* strdup(const char*);
 #if defined(__DARWIN_C_LEVEL) && __DARWIN_C_LEVEL <= 200809L
 static inline size_t strnlen(const char* s, size_t n) {
     char *p = memchr(s, 0, n);

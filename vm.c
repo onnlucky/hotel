@@ -102,6 +102,7 @@ static tlPause* _mod(tlTask* task, tlArgs* args) {
 
 static void vm_init();
 void tlvm_init() {
+    GC_INIT();
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
     assert(!tlsym_is(tlFalse));
