@@ -240,5 +240,7 @@ static const tlHostCbs __vm_hostcbs[] = {
 
 static void vm_init() {
     tl_register_hostcbs(__vm_hostcbs);
+    tlMap* system = tlObjectFrom(null, "version", tlTEXT(TL_VERSION), null);
+    tl_register_global("system", system);
 }
 

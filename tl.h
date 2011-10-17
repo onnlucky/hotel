@@ -406,11 +406,11 @@ tlPause* tltask_return_many(tlTask* task, tlValue vs[], int len);
 tlPause* tltask_throw(tlTask* task, tlValue v);
 tlPause* tltask_throw_take(tlTask* task, char* str);
 #define TL_RETURN(v) return tltask_return(task, v)
-#define TL_THROW(f, x...) do { char* _s; asprintf(&_s, f, ##x); return tltask_throw_take(task, _s); } while (0)
+#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tltask_throw_take(task, strdup(_s)); } while (0)
 #define TL_THROW_VALUE(v) return tltask_throw(task, v)
 
 #define TL_RETURN_SET(v) tltask_return(task, v)
-#define TL_THROW_SET(f, x...) do { char* _s; asprintf(&_s, f, ##x); tltask_throw_take(task, _s); } while (0)
+#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tltask_throw_take(task, strdup(_s)); } while (0)
 #define TL_THROW_VALUE_SET(v) return tltask_throw(task, v)
 
 // ** callbacks **

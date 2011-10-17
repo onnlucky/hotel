@@ -127,6 +127,40 @@ void tlmap_value_iter_set_(tlMap* map, int i, tlValue v) {
     map->data[i] = v;
 }
 
+tlMap* tlObjectFrom(tlTask* task, ...) {
+    va_list ap;
+    int size = 1;
+
+    va_start(ap, task);
+    while (true) {
+        const char* n = va_arg(ap, const char*); if (!n) break;
+        tlValue v = va_arg(ap, tlValue); assert(v);
+        size++;
+    }
+    va_end(ap);
+
+    tlSet* keys = tlset_new(task, size);
+    va_start(ap, task);
+    while (true) {
+        const char* n = va_arg(ap, const char*); if (!n) break;
+        va_arg(ap, tlValue);
+        tlset_add_(keys, tlSYM(n));
+    }
+    va_end(ap);
+
+    tlMap* map = tlmap_new(task, keys);
+    va_start(ap, task);
+    while (true) {
+        const char* n = va_arg(ap, const char*); if (!n) break;
+        tlValue v = va_arg(ap, tlValue); assert(v);
+        tlmap_set_sym_(map, tlSYM(n), v);
+    }
+    va_end(ap);
+
+    map->head.klass = tlValueObjectClass;
+    return map;
+}
+
 tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
     va_list ap;
     int size = 1;

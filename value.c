@@ -89,11 +89,6 @@ static tlPause* _value_type(tlTask* task, tlArgs* args) {
     return tltask_return(task, tlINT(tl_type(v)));
 }
 
-static const tlHostCbs __value_cbs[] = {
-    { "_value_type", _value_type },
-    { 0, 0 }
-};
-
 // creating value objects
 void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes) {
     trace("ALLOC: %p %zd", v, bytes);
@@ -249,13 +244,6 @@ static tlClass _tlIntClass = {
 };
 
 static void value_init() {
-    for (int i = 0; i < TL_TYPE_LAST; i++) {
-        char *buf;
-        asprintf(&buf, "_%s", type_to_str[i]);
-        tl_register_global(buf, tlINT(i));
-    }
-    tl_register_hostcbs(__value_cbs);
-
     tlIntClass = &_tlIntClass;
 }
 
