@@ -37,7 +37,7 @@
 #include "atomic_ops.h"
 #include "lqueue.h"
 
-static int cas(void *addr, const void *nval, const void *oval) {
+static int lqueue_cas(void *addr, const void *nval, const void *oval) {
     return AO_compare_and_swap(addr, (AO_t)oval, (AO_t)nval);
 }
 
@@ -63,7 +63,7 @@ void lqueue_put(lqueue *q, lqentry *e) {
     retry:;
         lqentry *h = load(q->head);
         if (h == 0) {                  // if the queue is empty
-            if (cas(&q->head, e, 0)) { // try to update the head
+            if (lqueue_cas(&q->head, e, 0)) { // try to update the head
                 q->tail = e;           // update the tail hint
                 return;
             }
@@ -79,7 +79,7 @@ void lqueue_put(lqueue *q, lqentry *e) {
             if (t == owner(q)) goto retry;  //continue; invalid tail hint
         }
 
-        if (cas(&t->next, e, owner(q))) {   // try to update the last node
+        if (lqueue_cas(&t->next, e, owner(q))) {   // try to update the last node
             q->tail = e;                    // update the tail hint
             return;
         }
@@ -93,12 +93,12 @@ lqentry * lqueue_get(lqueue *q) {
 
         // there are actually items in the queue
         lqentry *n = h->next;
-        if (cas(&h->next, 0, n)) {           // take ownership of head node
+        if (lqueue_cas(&h->next, 0, n)) {           // take ownership of head node
             if (n == owner(q)) {             // if it is a single element queue
-                assert(cas(&q->head, 0, h)); // update head to zero; we have ownership so it must succeed
+                assert(lqueue_cas(&q->head, 0, h)); // update head to zero; we have ownership so it must succeed
                 q->tail = 0;                 // update tail to zero too
             } else {
-                assert(cas(&q->head, n, h)); // advance head to next; we have ownership so it must succeed
+                assert(lqueue_cas(&q->head, n, h)); // advance head to next; we have ownership so it must succeed
             }
             return h;
         }

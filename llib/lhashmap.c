@@ -57,19 +57,11 @@
 #include "atomic_ops.h"
 #include "lhashmap.h"
 
-#define HAVE_DEBUG
-#define HAVE_STRACE
-
-#include "debug.h"
-
-#undef STRACE
-#define STRACE 0
-
 // threading primitives
 static void yield() { sched_yield(); }
 static void read_barrier() { AO_nop_read(); }
 static void write_barrier() { AO_nop_write(); }
-static int cas(void *addr, const void *nval, const void *oval) {
+static int lhashmap_cas(void *addr, const void *nval, const void *oval) {
     return AO_compare_and_swap(addr, (AO_t)oval, (AO_t)nval);
 }
 
@@ -114,7 +106,6 @@ struct LHashMap {
 #define REPROBE_LIMIT 17
 #define BLOCK_SIZE (1024 * 8)
 
-#define null 0                        // indicates value is deleted
 void *LHASHMAP_IGNORE = "__IGNORE__";  // marker to indicate old map value is to be ignored
 static void *SIZED    = "__SIZED__";   // marker to indicate map is or has resized
 static void *DELETED  = "__DELETED__"; // marker to indicate key is to be deleted (when resizing)
@@ -227,7 +218,7 @@ static void free_kvs(LHashMap *map, header *kvs) {
 /// free a @map, be careful not to free a map still in use
 /// Also note the values will not be free'd, they never belong to the hashmap in the first place.
 void lhashmap_free(LHashMap *map) {
-    strace("freeing hashmap: %p", map);
+    //strace("freeing hashmap: %p", map);
     free_kvs(map, getkvs(map));
     free(map);
 }
@@ -298,12 +289,12 @@ static int _copy_block(LHashMap *map, header *okvs, header *nkvs) {
         while (1) {
             void *k = getkey(e);
             if (k) {
-                // found a key to move, mark it as SIZED, and copy it to new map, or delete it if it maps to null
+                // found a key to move, mark it as SIZED, and copy it to new map, or delete it if it maps to 0
                 void *old = getval(e);
-                if (cas(&e->_val, SIZED, old)) {
-                    if (DELETED == _putif(map, 1, nkvs, k, gethash(e), old, null)) {
+                if (lhashmap_cas(&e->_val, SIZED, old)) {
+                    if (DELETED == _putif(map, 1, nkvs, k, gethash(e), old, 0)) {
                         // deleted key; we no longer need this key; some threads might still want to compare it, so first mark the slot as sized
-                        if (!cas(&e->_key, SIZED, k)) fatal("marking deleted key");
+                        if (!lhashmap_cas(&e->_key, SIZED, k)) fatal("marking deleted key");
                         // aha; we would like this to be perfectly safe, but it really isn't ... it is 99.9999% safe ...
                         // if the free also unmaps the page the key resides in, another thread still doing a key compare will segfault
                         // other than that it hardly matters, since results of such racy equals_func don't matter
@@ -311,13 +302,13 @@ static int _copy_block(LHashMap *map, header *okvs, header *nkvs) {
                     }
                     break;
                 } else {
-                    strace("we lost race for: %d; retry", i);
+                    //strace("we lost race for: %d; retry", i);
                 }
             } else {
-                if (cas(&e->_key, SIZED, null)) {
+                if (lhashmap_cas(&e->_key, SIZED, 0)) {
                     break;
                 } else {
-                    strace("we lost race for empty slot: %d; retry", i);
+                    //strace("we lost race for empty slot: %d; retry", i);
                 }
             }
         }
@@ -334,7 +325,7 @@ void * _resize(LHashMap *map, header *okvs);
 void _help_resize(LHashMap *map, header *okvs) {
     if (map->_kvs != okvs) return;
 
-    strace("help resize: %p, %p", map->_kvs, okvs);
+    //strace("help resize: %p, %p", map->_kvs, okvs);
     header *nkvs = (header *)map->_nkvs;
     while (nkvs == 0 || nkvs == kvs_promise) {
         if (map->_kvs != okvs) return;
@@ -348,19 +339,19 @@ void _help_resize(LHashMap *map, header *okvs) {
     while (map->_kvs == okvs && _zero_block(nkvs));
     while (map->_kvs == okvs && _copy_block(map, okvs, nkvs));
     while (map->_kvs == okvs) yield(); // yield until a new map is promoted to current
-    strace("done: %p, %p", map->_kvs, okvs);
+    //strace("done: %p, %p", map->_kvs, okvs);
 }
 
 // when we need to resize
 void * _resize(LHashMap *map, header *okvs) {
     assert(map);
-    strace("maybe resize: %p, %p, %p", map->_kvs, okvs, map->_nkvs);
-    if (map->_nkvs != null) return SIZED; // somebody else already produced a new map
+    //strace("maybe resize: %p, %p, %p", map->_kvs, okvs, map->_nkvs);
+    if (map->_nkvs != 0) return SIZED; // somebody else already produced a new map
     if (map->_kvs != okvs) return SIZED;  // somebody else alreay promoted a new map
 
-    if (cas(&map->_nkvs, kvs_promise, null)) {
+    if (lhashmap_cas(&map->_nkvs, kvs_promise, 0)) {
         if (map->_kvs != okvs) {
-            if (!cas(&map->_nkvs, null, kvs_promise)) fatal("unpublising late promise");
+            if (!lhashmap_cas(&map->_nkvs, 0, kvs_promise)) fatal("unpublising late promise");
             return SIZED; // we are so late: we didn't actually win the race; the winner already moved on
         }
 
@@ -369,13 +360,13 @@ void * _resize(LHashMap *map, header *okvs) {
         unsigned int len = okvs->len;
 
         // calculate how large we want next map to be
-        header *nkvs = null;
+        header *nkvs = 0;
         if (map->changes > (len / 4) && size / (float)len < 0.3f) {
             // if there have been plenty mutations, and our full ration is pretty bad, just copy to remove garbage
-            strace("resizing to remove garbage: %d", len);
+            //strace("resizing to remove garbage: %d", len);
             nkvs = header_new(len);
         } else {
-            strace("resizing: %d (%d <= %d && %.2f >= 0.3)", len * 2, map->changes, (len / 4), size / (float)len);
+            //strace("resizing: %d (%d <= %d && %.2f >= 0.3)", len * 2, map->changes, (len / 4), size / (float)len);
             nkvs = header_new(len * 2);
         }
         assert(nkvs); assert(nkvs->len);
@@ -397,10 +388,10 @@ void * _resize(LHashMap *map, header *okvs) {
 
         // this is the required order: otherwise another thread might attempt to resize (when compensating for late promise)
         // notice we compensate that we can now observe nkvs == kvs (in _putif)
-        if (!cas(&map->_kvs, nkvs, okvs))  fatal("publishing new map");
-        if (!cas(&map->_nkvs, null, nkvs)) fatal("unpublising resize in progress");
+        if (!lhashmap_cas(&map->_kvs, nkvs, okvs))  fatal("publishing new map");
+        if (!lhashmap_cas(&map->_nkvs, 0, nkvs)) fatal("unpublising resize in progress");
         map->changes = 0;
-        strace("done resizing: %p[%lu].size: %d", nkvs, nkvs->len, lhashmap_size(map));
+        //strace("done resizing: %p[%lu].size: %d", nkvs, nkvs->len, lhashmap_size(map));
         return SIZED; // always indicate we need to retry after resize
     }
 
@@ -439,7 +430,7 @@ static void * _putif(LHashMap *map, int resizing, header *kvs, void *key, const 
     int mustfreekey = 0; // used to mark if passed in key must be freed; if we return SIZED, we want to reuse the key...
 
     assert(key); assert(hash);
-    strace("%p %p :: [%s] = %s old: %s", map, kvs, (const char *)key, (const char *)val, (const char *)oldval);
+    //strace("%p %p :: [%s] = %s old: %s", map, kvs, (const char *)key, (const char *)val, (const char *)oldval);
 
 
     // first we try to find the slot to update, or claim a new one
@@ -449,23 +440,23 @@ static void * _putif(LHashMap *map, int resizing, header *kvs, void *key, const 
         e = _load(kvs, idx);
         void *k = getkey(e);
 
-        if (k == null) { // we found an unclaimed slot; try to claim it
-            if (val == null && (oldval == LHASHMAP_IGNORE || oldval == null)) {
+        if (k == 0) { // we found an unclaimed slot; try to claim it
+            if (val == 0 && (oldval == LHASHMAP_IGNORE || oldval == 0)) {
                 // this means we are deleting a mapping that doesn't exit; so we don't have to do anything
                 if (resizing) return DELETED; // when resizing, signal the key must be free'd
-                // just make sure it is still really null before returning null
-                if (cas(&e->_key, null, null)) {
+                // just make sure it is still really 0 before returning 0
+                if (lhashmap_cas(&e->_key, 0, 0)) {
                     map->free_func(key);      // we no longer need the given key
-                    return null;
+                    return 0;
                 }
             }
 
             write_barrier();     // needed to ensure others can read our key fully
-            if (cas(&e->_key, key, null)) {
+            if (lhashmap_cas(&e->_key, key, 0)) {
                 e->_hash = hash; // so we claimed the slot, write the key
                 break;           // and go on to writing the value
             }
-            // we couldn't claim the empty slot, ensure we reread the no longer null key
+            // we couldn't claim the empty slot, ensure we reread the no longer 0 key
             // TODO if cas returned the new pointer, we didn't have to do this extra memory read
             k = getkey(e);
         }
@@ -490,7 +481,7 @@ static void * _putif(LHashMap *map, int resizing, header *kvs, void *key, const 
     // second we try to update the slots value
     void *v = getval(e);               // first read the old value
     if (v == SIZED) return SIZED;
-    if (!resizing && v != null) {
+    if (!resizing && v != 0) {
         // we quickly check if resize is in progress, to prevent wasting effort on old map
         header *nkvs = (header *)map->_nkvs;
         if (nkvs != 0 && nkvs != kvs) return SIZED;
@@ -504,10 +495,10 @@ static void * _putif(LHashMap *map, int resizing, header *kvs, void *key, const 
             return v; // return the current value
         }
 
-        if (cas(&e->_val, val, v)) {
+        if (lhashmap_cas(&e->_val, val, v)) {
             // we won the race to update the value; update map->size as needed
-            if (!resizing && v == null && val != null) _size_update(map, 1);
-            if (!resizing && v != null && val == null) _size_update(map, -1);
+            if (!resizing && v == 0 && val != 0) _size_update(map, 1);
+            if (!resizing && v != 0 && val == 0) _size_update(map, -1);
             if (!resizing) map->changes++;
 
             if (mustfreekey) map->free_func(key); // we no longer need the given key

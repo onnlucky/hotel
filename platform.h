@@ -1,7 +1,8 @@
 // platform and bit manipulation routines
 
 #pragma once
-#define HAVE_DEBUG
+
+#include "config.h"
 
 // default includes
 #define _GNU_SOURCE
@@ -29,7 +30,7 @@
 #include <signal.h>
 #include <execinfo.h>
 
-#if defined(LIBGC) && LIBGC == 1
+#ifdef HAVE_BOEHMGC
 #include <gc.h>
 #define malloc(n) GC_MALLOC(n)
 #define calloc(m,n) GC_MALLOC((m)*(n))
@@ -41,7 +42,6 @@
 #define GC_INIT()
 #endif
 
-//#include "../config.h"
 #include "llib/lhashmap.h"
 #include "llib/lqueue.h"
 

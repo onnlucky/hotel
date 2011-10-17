@@ -3,6 +3,9 @@
 #include "tl.h"
 #include "platform.h"
 
+#include "llib/lhashmap.c"
+#include "llib/lqueue.c"
+
 #include "value.c"
 #include "text.c"
 #include "sym.c"

@@ -1,8 +1,10 @@
 CC:=clang
 CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g $(CFLAGS)
 TOOL=valgrind -q --track-origins=yes
-ifdef LIBGC
-	CFLAGS+= -DLIBGC=1
+
+# bit of a hack?
+BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
+ifneq ($(BOEHM),)
 	LDFLAGS+= -lgc
 endif
 
@@ -20,17 +22,11 @@ parser.c: parser.g tl.h Makefile
 parser.o: parser.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c parser.c -o parser.o
 
-lhashmap.o: llib/lhashmap.h llib/lhashmap.c
-	$(CC) $(CFLAGS) -c llib/lhashmap.c -o lhashmap.o
-
-lqueue.o: llib/lqueue.h llib/lqueue.c
-	$(CC) $(CFLAGS) -c llib/lqueue.c -o lqueue.o
-
 ev.o: ev/ev.c
 	$(CC) $(CFLAGS) -c ev/ev.c -o ev.o
 
-tl: lqueue.o lhashmap.o parser.o ev.o *.c *.h
-	$(CC) $(CFLAGS) tl.c lqueue.o lhashmap.o parser.o ev.o -o tl -lm $(LDFLAGS)
+tl: parser.o ev.o *.c *.h
+	$(CC) $(CFLAGS) tl.c parser.o ev.o -o tl -lm $(LDFLAGS)
 
 clean:
 	rm -rf tl parser.c *.o *.so tl.dSYM
