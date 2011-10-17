@@ -59,7 +59,7 @@ void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defa
     int size = tlListSize(name_defaults);
     tlList* names = tlListNew(task, size / 2);
     //tlList* defaults = tllist_new(task, size / 2);
-    //assert(size % 2 == 0);
+    assert(size % 2 == 0);
 
     bool have_defaults = false;
     for (int i = 0; i < size; i += 2) {

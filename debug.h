@@ -33,7 +33,7 @@
 #ifdef HAVE_ASSERTS
 
 #ifndef assert
-#define assert(t) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: "#t"\n", __FILE__, __LINE__, __FUNCTION__); abort(); }
+#define assert(t) if (! (t) ) { fprintf(stderr, "%s:%u %s() - assertion failed: '%s'\n", __FILE__, __LINE__, __FUNCTION__, #t); abort(); }
 #endif
 
 #else // no HAVE_ASSERTS
