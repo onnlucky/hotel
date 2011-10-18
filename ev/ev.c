@@ -1,6 +1,6 @@
+#include "../platform.h"
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
-#define _POSIX_SOURCE
 /*
  * libev event processing core, watcher management
  *
