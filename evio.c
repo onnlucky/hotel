@@ -70,10 +70,12 @@ static int nonblock(int fd) {
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
     return 0;
 }
+/*
 static int nosigpipe(int fd) {
     if (fcntl(fd, F_SETNOSIGPIPE, 1) < 0) return -1;
     return 0;
 }
+*/
 
 INTERNAL tlPause* _FileAct(tlTask* task, tlArgs* args);
 

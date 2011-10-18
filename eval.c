@@ -157,7 +157,7 @@ INTERNAL tlPause* run_throw(tlTask* task, tlValue exception) {
     }
     // TODO don't do fatal, instead stop this task ...
     tltask_exception_set_(task, exception);
-    fatal("uncaught exception");
+    fatal("uncaught exception: %s", tl_str(exception));
     return null;
 }
 
