@@ -69,11 +69,11 @@ struct tlTask {
     lqentry entry;     // how it gets linked into a queues
 
     tlValue value;     // current value
-    tlValue exception; // current exception
     tlObject* sender;  // current mutable object (== current thread or actor)
     tlPause* pause;    // current pause (== current continuation or top of stack)
 
     // TODO remove these in favor a some flags
+    tlValue exception; // current exception
     tlValue jumping;    // indicates non linear suspend ... don't attach
     tlTaskState state; // state it is currently in
 };
@@ -213,7 +213,8 @@ tlValue tltask_value(tlTask* task) {
     return tlresult_get(task->value, 0);
 }
 
-void tlTaskWaitSystem(tlTask* task) {
+void tlTaskWait(tlTask* task) {
+    assert(task->state == TL_STATE_READY || task->state == TL_STATE_RUN);
     assert(tltask_is(task));
     tlVm* vm = tlTaskGetVm(task);
     task->state = TL_STATE_WAIT;
@@ -221,9 +222,18 @@ void tlTaskWaitSystem(tlTask* task) {
     vm->waiting++;
 }
 
-void tlTaskReady(tlTask* task) {
+void tlTaskReadyWait(tlTask* task) {
+    assert(task->state == TL_STATE_WAIT);
     tlVm* vm = tlTaskGetVm(task);
     vm->waiting--;
+    task->worker = null;
+    task->state = TL_STATE_READY;
+    lqueue_put(&vm->run_q, &task->entry);
+}
+
+void tlTaskReadyInit(tlTask* task) {
+    assert(task->state == TL_STATE_INIT);
+    tlVm* vm = tlTaskGetVm(task);
     task->worker = null;
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
@@ -243,6 +253,24 @@ void tltask_ready_detach(tlTask* task) {
 
 
 // ** host **
+
+static tlPause* _Task_new(tlTask* task, tlArgs* args) {
+    tlValue fn = tlArgsAt(args, 0);
+    assert(task && task->worker && task->worker->vm);
+
+    tlTask* ntask = tltask_new(task->worker);
+    tlTaskEvalCall(ntask, tlcall_from(ntask, fn, null));
+    tlTaskReadyInit(ntask);
+
+    TL_RETURN(ntask);
+}
+
+static tlPause* _TaskYield(tlTask* task, tlArgs* args) {
+    tlTaskWait(task);
+    tlTaskReadyWait(task);
+    TL_RETURN_SET(tlNull);
+    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
+}
 
 // TODO pass rest of args to function
 static tlPause* _task_new(tlTask* task, tlArgs* args) {
@@ -349,6 +377,8 @@ static const tlHostCbs __task_hostcbs[] = {
     { "_task_send", _task_send },
     { "_task_receive", _task_receive },
     { "_task_reply", _task_reply },
+    { "_Task_new", _Task_new },
+    { "yield", _TaskYield },
     { 0, 0 }
 };
 

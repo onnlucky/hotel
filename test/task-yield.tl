@@ -1,4 +1,3 @@
-foo = ->{ print "hello" }
-_task_new(foo)
-_task_yield()
+_Task_new ->{ print "hello" }
+yield
 print "DONE"

@@ -43,7 +43,7 @@ int test_ev(char **args, int argc) {
 static void timer_cb(ev_timer *timer, int revents) {
     trace("timer_cb: %p", timer);
     tlTask* task = tltask_as(timer->data);
-    tlTaskReady(task);
+    tlTaskReadyWait(task);
     free(timer);
 }
 
@@ -57,7 +57,7 @@ static tlPause* _io_sleep(tlTask* task, tlArgs* args) {
     ev_timer_init(timer, timer_cb, ms, 0);
     ev_timer_start(timer);
 
-    tlTaskWaitSystem(task);
+    tlTaskWait(task);
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
@@ -178,7 +178,7 @@ static void read_cb(ev_io *ev, int revents) {
         TL_RETURN_SET(tlINT(len));
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
 }
 
 static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
@@ -200,7 +200,7 @@ static tlPause* _FileRead2(tlTask* task, tlActor* actor, void* data) {
 
     ev->events = EV_READ;
     ev_io_start(ev);
-    tlTaskWaitSystem(task);
+    tlTaskWait(task);
 
     trace("read: waiting");
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
@@ -234,7 +234,7 @@ static void write_cb(ev_io *ev, int revents) {
         TL_RETURN_SET(tlINT(len));
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
 }
 
 static tlPause* _FileWrite2(tlTask* task, tlActor* actor, void* data) {
@@ -256,7 +256,7 @@ static tlPause* _FileWrite2(tlTask* task, tlActor* actor, void* data) {
 
     ev->events = EV_WRITE;
     ev_io_start(ev);
-    tlTaskWaitSystem(task);
+    tlTaskWait(task);
 
     trace("write: waiting");
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
@@ -379,7 +379,7 @@ static void accept_cb(ev_io* ev, int revents) {
         }
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
 }
 
 static tlPause* _SocketAccept(tlTask* task, tlArgs* args) {
@@ -395,7 +395,7 @@ static tlPause* _SocketAccept(tlTask* task, tlArgs* args) {
 
     ev->events = EV_READ;
     ev_io_start(ev);
-    tlTaskWaitSystem(task);
+    tlTaskWait(task);
     return tlPauseAlloc(task, sizeof(tlPause), 0, null);
 }
 
@@ -523,7 +523,7 @@ static void child_cb(ev_child *ev, int revents) {
         tlTask* task = tltask_from_entry(lqueue_get(&child->wait_q));
         if (!task) return;
         TL_RETURN_SET(tlINT(WEXITSTATUS(child->ev.rstatus)));
-        tlTaskReady(task);
+        tlTaskReadyWait(task);
     }
 }
 
@@ -549,7 +549,7 @@ static tlPause* _ChildWait(tlTask* task, tlArgs* args) {
 
     // TODO "park" the task; by disowning the current actor ... how?
     trace("!! parking");
-    tlTaskWaitSystem(task);
+    tlTaskWait(task);
     lqueue_put(&child->wait_q, &task->entry);
     tlPause* pause = tlPauseAlloc(task, sizeof(tlPause), 0, null);
     return tlTaskPause(task, pause);
