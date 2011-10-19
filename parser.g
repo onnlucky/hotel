@@ -278,9 +278,21 @@ selfapply = n:name _ &eosfull {
            trace("primary method + args()");
            $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, as));
        }
+       | _"."_ n:name _ as:pcargs _":"_ b:bodynl {
+           trace("primary method + args + body");
+           tlcode_set_isblock_(b, true);
+           as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
+           $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
+       }
        | _"."_ n:name _ as:pcargs {
            trace("primary method + args");
            $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
+       }
+       | _"."_ n:name _":"_ b:bodynl {
+           trace("primary method + body");
+           tlcode_set_isblock_(b, true);
+           tlList* _as = tlListNewFrom2(TASK, tlSYM("block"), tlACTIVE(b));
+           $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, _as);
        }
        | _"."_ n:name t:ptail {
            trace("primary method");

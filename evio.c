@@ -470,6 +470,42 @@ static tlPause* _DirRead(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextNewCopy(task, dp.d_name));
 }
 
+typedef struct tlDirEachPause {
+    tlPause pause;
+    tlDir* dir;
+    tlValue* block;
+} tlDirEachPause;
+
+static tlPause* _DirEachResume(tlTask* task, tlPause* _pause) {
+    tlDirEachPause* pause = (tlDirEachPause*)_pause;
+again:;
+    struct dirent dp;
+    struct dirent *dpp;
+    if (readdir_r(pause->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
+    trace("readdir: %p", dpp);
+    if (!dpp) {
+        // TODO when done, is this really needed?
+        task->pause = _pause->caller;
+        TL_RETURN(tlNull);
+    }
+    tlCall* call = tlcall_from(task, pause->block, tlTextNewCopy(task, dp.d_name), null);
+    tlPause* p = tlTaskEvalCall(task, call);
+    if (p) return tlTaskPauseAttach(task, p, pause);
+    goto again;
+}
+
+static tlPause* _DirEach(tlTask* task, tlArgs* args) {
+    tlDir* dir = tlDirCast(tlArgsTarget(args));
+    if (!dir) TL_THROW("expected a Dir");
+    tlValue* block = tlArgsMapGet(args, tlSYM("block"));
+    if (!block) TL_RETURN(tlNull);
+
+    tlDirEachPause* pause = tlPauseAlloc(task, sizeof(tlDirEachPause), 2, _DirEachResume);
+    pause->dir = dir;
+    pause->block = block;
+    return _DirEachResume(task, (tlPause*)pause);
+}
+
 
 // ** child processes **
 
@@ -663,6 +699,7 @@ void evio_init() {
     );
     _tlDirClass.map = tlClassMapFrom(
         "read", _DirRead,
+        "each", _DirEach,
         null
     );
     _tlChildClass.map = tlClassMapFrom(
