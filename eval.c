@@ -650,6 +650,7 @@ INTERNAL tlPause* run_apply(tlTask* task, tlCall* call) {
 
     tlValue fn = tlcall_fn(call);
     trace("%p: fn=%s", call, tl_str(fn));
+    assert(fn && tlRefIs(fn));
 
     // TODO if zero args, or no key args ... optimize
     switch(tl_head(fn)->type) {

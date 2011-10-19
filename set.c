@@ -88,6 +88,7 @@ int tlset_add_(tlSet* set, tlValue key) {
     int size = tlset_size(set);
     int at = tlset_indexof2(set, key);
     assert(at >= 0 && at < size);
+    trace("adding key: %s", tl_str(key));
     if (set->data[at] == key) return at;
     assert(!set->data[size - 1]);
     for (int i = size - 2; i >= at; i--) set->data[i + 1] = set->data[i];

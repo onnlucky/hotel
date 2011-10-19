@@ -177,12 +177,12 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
         namecount++;
     }
     if (namecount > 0) {
-        trace("args with keys: %d", namecount);
-        names = tlListNew(task, size);
+        trace("args with keys: %d size: %d", namecount, size);
+        names = tlListNew(task, size + 2);
         nameset = tlset_new(task, namecount);
         for (int i = 0; i < size; i += 2) {
             tlValue name = tlListGet(args, i);
-            tlListSet_(names, i / 2, name);
+            tlListSet_(names, 2 + i / 2, name);
             if (!name || name == tlNull) continue;
             tlset_add_(nameset, name);
         }
