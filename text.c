@@ -68,6 +68,16 @@ tlText* tlTextSub(tlTask* task, tlText* from, int first, int size) {
     return tlTextNewTake(task, data);
 }
 
+tlText* tlTextCat(tlTask* task, tlText* left, tlText* right) {
+    int size = tlTextSize(left) + tlTextSize(right);
+    char* data = malloc(size + 1);
+    if (!data) return null;
+    memcpy(data, left->data, tlTextSize(left));
+    memcpy(data + tlTextSize(left), right->data, tlTextSize(right));
+    data[size] = 0;
+    return tlTextNewTake(task, data);
+}
+
 // TODO remove from here, move to eval, return a tlPause ...
 tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     if (tlTextIs(v)) return v;
@@ -92,6 +102,16 @@ INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
     const char* p = strstr(tlTextData(text), tlTextData(find));
     if (!p) TL_RETURN(tlNull);
     TL_RETURN(tlINT(p - tlTextData(text)));
+}
+
+INTERNAL tlPause* _TextCat(tlTask* task, tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    tlText* add = tlTextCast(tlArgsAt(args, 0));
+    if (!add) TL_THROW("arg must be a Text");
+
+    TL_RETURN(tlTextCat(task, text, add));
 }
 
 INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
@@ -158,10 +178,12 @@ static tlClass _tlTextClass = {
 static void text_init() {
     _tlTextClass.map = tlClassMapFrom(
             "size", _TextSize,
-            "search", _TextSearch,
-            "slice", _TextSlice,
             "startsWith", _TextStartsWith,
             "endsWith", _TextEndsWith,
+            "search", _TextSearch,
+
+            "slice", _TextSlice,
+            "cat", _TextCat,
             null
     );
     _tl_emptyText = tlTEXT("");
