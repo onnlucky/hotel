@@ -1,3 +1,3 @@
-_Task_new ->{ print "hello" }
+_Task_new { print "hello" }
 yield
 print "DONE"

@@ -174,10 +174,8 @@ tlValue tlcollect_new_(tlTask* task, tlList* list);
                |eos)*      { $$ = t }
        |                   { $$ = tlListEmpty(); }
 
-bodynl = __ &{ push_indent(G) } ts:stmsnl { pop_indent(G); $$ = tlcode_from(TASK, ts); }
-       |    &{ pop_indent(G) }
-stmsnl =  _ &{ check_indent(G) } t:stm eos ts:stmsnl { $$ = tlListCat(TASK, L(t), L(ts)); }
-       |  _ &{ check_indent(G) } t:stm               { $$ = L(t); }
+stmsnl =  t:stm ssep ts:stmsnl { $$ = tlListCat(TASK, L(t), L(ts)); }
+       |  t:stm                { $$ = L(t); }
 
    stm = singleassign | multiassign | noassign
 
@@ -195,11 +193,21 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); 
              | e:pexpr      { $$ = tlListNewFrom1(TASK, e); }
 
 
-    fn = "(" __ as:fargs __ ")"_"->"_"{" __ b:body __ "}" {
+ block = b:fn {
+            tlcode_set_isblock_(b, true);
+            $$ = b;
+       }
+       | ts:stmsnl &ssepend {
+           b = tlcode_from(TASK, ts);
+           tlcode_set_isblock_(b, true);
+           $$ = b;
+       }
+
+    fn = "(" __ as:fargs __ ")"_"{" __ b:body __ "}" {
             tlcode_set_args_(TASK, tlcode_as(b), L(as));
             $$ = b;
         }
-        | "->"_"{"__ b:body __ "}" { $$ = b; }
+        | "{"__ b:body __ "}" { $$ = b; }
 
 fargs = a:farg __","__ as:fargs { $$ = tlListPrepend(TASK, L(as), a); }
       | a:farg                  { $$ = tlListNewFrom1(TASK, a); }
@@ -226,29 +234,6 @@ selfapply = n:name _ &eosfull {
        }
        | expr
 
-       | fn:lookup _ ":" b:bodynl {
-           tlcode_set_isblock_(b, true);
-           as = tlListNewFrom2(TASK, tlSYM("block"), tlACTIVE(b));
-           $$ = call_activate(tlcall_from_list(TASK, fn, as));
-       }
-       | fn:lookup _ !"(" as:pcargs _":"_ b:bodynl {
-           tlcode_set_isblock_(b, true);
-           as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
-           $$ = call_activate(tlcall_from_list(TASK, fn, as));
-       }
-       | fn:lookup _ !"(" as:pcargs {
-           trace("primary function call");
-           $$ = call_activate(tlcall_from_list(TASK, fn, as));
-       }
-       | v:value _"."_ n:name _ !"(" as:pcargs _":"_ b:bodynl {
-           fatal("primary send + bodynl");
-       }
-       | v:value _"."_ n:name _ !"(" as:pcargs {
-           trace("primary send");
-           $$ = call_activate(tlcall_send_from_list(TASK, sa_object_send, v, n, as));
-       }
-       | expr
-
 # // TODO fix below and add [] and such ...
        | v:value _"."_ n:name _ !"(" {
            // TODO here we want to "tail" more primary sends ...
@@ -256,18 +241,15 @@ selfapply = n:name _ &eosfull {
            //$$ = set_target(t, tlsend_from_list(TASK, null, n, tlListEmpty()));
            $$ = tlcall_send_from_list(TASK, sa_object_send, v, n, tlListEmpty());
        }
-       | expr
 
 # // TODO add [] and oop.method: and oop.method arg1: ... etc
- ptail = _!"(" as:pcargs _":"_ b:bodynl {
+ ptail = _!"(" as:pcargs _":"_ b:block {
            trace("primary args + body");
-           tlcode_set_isblock_(b, true);
            as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
            $$ = tlcall_from_list(TASK, null, as);
        }
-       | _":"_ b:bodynl {
-           trace("primary body");
-           tlcode_set_isblock_(b, true);
+       | _":"_ b:block {
+           trace("primary block");
            $$ = tlcall_from_list(TASK, null, tlListNewFrom2(TASK, tlSYM("block"), tlACTIVE(b)));
        }
        | _!"(" as:pcargs {
@@ -278,9 +260,8 @@ selfapply = n:name _ &eosfull {
            trace("primary method + args()");
            $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, as));
        }
-       | _"."_ n:name _ as:pcargs _":"_ b:bodynl {
+       | _"."_ n:name _ as:cargs _":"_ b:block {
            trace("primary method + args + body");
-           tlcode_set_isblock_(b, true);
            as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
            $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
        }
@@ -288,9 +269,8 @@ selfapply = n:name _ &eosfull {
            trace("primary method + args");
            $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
        }
-       | _"."_ n:name _":"_ b:bodynl {
+       | _"."_ n:name _":"_ b:block {
            trace("primary method + body");
-           tlcode_set_isblock_(b, true);
            tlList* _as = tlListNewFrom2(TASK, tlSYM("block"), tlACTIVE(b));
            $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, _as);
        }
@@ -303,26 +283,25 @@ selfapply = n:name _ &eosfull {
            $$ = null;
        }
 
-  tail = _"("__ as:cargs __")"_":"_ b:bodynl {
-           trace("function call + bodynl");
-           tlcode_set_isblock_(b, true);
+  tail = _"("__ as:cargs __")"_":"_ b:block {
+           trace("function args + block");
            as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
            $$ = tlcall_from_list(TASK, null, as);
        }
        | _"("__ as:cargs __")" t:tail {
-           trace("function call");
+           trace("function args");
            $$ = set_target(t, tlcall_from_list(TASK, null, as));
        }
        | _"."_ n:name _"("__ as:cargs __")" t:tail {
-           trace("method call()");
+           trace("method args()");
            $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, as));
        }
        | _"."_ n:name t:tail {
-           trace("method call");
+           trace("method");
            $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, tlListEmpty()));
        }
        | _"["__ e:expr __"]" t:tail {
-           trace("array get call");
+           trace("array get");
            $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, tlSYM("get"), as));
        }
        | _ {
@@ -437,8 +416,11 @@ slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* ("*/"|!.)
   comment = (slcomment nle | icomment)
 
+     ssep = _ ";" _
+  ssepend = _ (nl | "}" | ")" | "]" | slcomment nle | !.) __
+
       eos = _ (nl | ";" | slcomment nle) __
-  eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.)
+  eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.) __
       eom = _ (nl | "," | slcomment nle) __
        nl = "\n" | "\r\n" | "\r"
       nle = "\n" | "\r\n" | "\r" | !.
