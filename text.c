@@ -115,10 +115,41 @@ INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextSub(task, text, first, last - first));
 }
 
+static int intmin(int left, int right) { return (left<right)?left:right; }
+
+INTERNAL tlPause* _TextStartsWith(tlTask* task, tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    tlText* start = tlTextCast(tlArgsAt(args, 0));
+    if (!start) TL_THROW("arg must be a Text");
+
+    int textsize = tlTextSize(text);
+    int startsize = tlTextSize(start);
+    if (textsize < startsize) TL_RETURN(tlFalse);
+
+    int r = strncmp(tlTextData(text), tlTextData(start), startsize);
+    TL_RETURN(tlBOOL(r == 0));
+}
+
+INTERNAL tlPause* _TextEndsWith(tlTask* task, tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    tlText* start = tlTextCast(tlArgsAt(args, 0));
+    if (!start) TL_THROW("arg must be a Text");
+
+    int textsize = tlTextSize(text);
+    int startsize = tlTextSize(start);
+    if (textsize < startsize) TL_RETURN(tlFalse);
+
+    int r = strncmp(tlTextData(text) + textsize - startsize, tlTextData(start), startsize);
+    TL_RETURN(tlBOOL(r == 0));
+}
+
 const char* _TextToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "%s", tlTextData(tlTextAs(v))); return buf;
 }
-
 static tlClass _tlTextClass = {
     .name = "text",
     .toText = _TextToText,
@@ -129,6 +160,8 @@ static void text_init() {
             "size", _TextSize,
             "search", _TextSearch,
             "slice", _TextSlice,
+            "startsWith", _TextStartsWith,
+            "endsWith", _TextEndsWith,
             null
     );
     _tl_emptyText = tlTEXT("");
