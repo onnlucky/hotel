@@ -770,7 +770,7 @@ static tlPause* _object_send(tlTask* task, tlArgs* args) {
     if (klass->send) return klass->send(task, nargs);
     if (klass->map) {
         tlValue field = tlmap_get(task, klass->map, msg);
-        if (!field) TL_RETURN(tlUndefined);
+        if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
         if (!tlcallable_is(field)) TL_RETURN(field);
         nargs->fn = field;
         return start_args(task, nargs, null);

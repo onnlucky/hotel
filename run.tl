@@ -1,3 +1,7 @@
+if = (c, block){ bool(c, block, {})() }
+
 dir = _Dir_open("test")
-dir.each block=(p)->{ print p }
+dir.each: (p){
+    if (p.endsWith(".tl")): print p
+}
 
