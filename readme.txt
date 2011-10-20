@@ -1,5 +1,9 @@
 # TODO
 
+make all "callables" tlClass based, and add a klass->call method to dispatch
+change list/map/set syntax into [], [:] and [||]
+change tlPause to tlSync? tlTaskSync ... ?
+
 tlArgsAt -> tlArgsGet ... like a list tlListGet
 rework all types as the tlClass things ... stop using anything else
 remove old task_alloc and such
