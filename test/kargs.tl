@@ -1,4 +1,4 @@
-print = (a1){
+print = { a1 ->
     out(a1, " ")
     out(args.size, " ")
     out(args.map.size, " ")

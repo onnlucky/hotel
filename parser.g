@@ -203,7 +203,7 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); 
            $$ = b;
        }
 
-    fn = "(" __ as:fargs __ ")"_"{" __ b:body __ "}" {
+    fn = "{" __ as:fargs __"->"__ b:body __ "}" {
             tlcode_set_args_(TASK, tlcode_as(b), L(as));
             $$ = b;
         }
