@@ -208,6 +208,7 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); 
             $$ = b;
         }
         | "{"__ b:body __ "}" { $$ = b; }
+        | "->" _ ts:stmsnl &ssepend { $$ = tlcode_from(TASK, ts); }
 
 fargs = a:farg __","__ as:fargs { $$ = tlListPrepend(TASK, L(as), a); }
       | a:farg                  { $$ = tlListNewFrom1(TASK, a); }
