@@ -1,7 +1,7 @@
 x = [1, 2, 3]
 out(x.get(2), " == 3\n")
 
-y = { foo = 1, bar = 2, baz = 3 }
+y = [foo: 1, bar: 2, baz: 3]
 out(y.get(#baz), " == 3\n")
 out(y.get(#bar), " == 2\n")
 out(y.get(#foo), " == 1\n")

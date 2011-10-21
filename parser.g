@@ -368,20 +368,21 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-   map = "{"__ is:items __"}"   { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
+   map = "["__ is:items __"]"   { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
+       | "["__":"__"]"          { $$ = map_activate(tlmap_empty()); }
  items = i:item eom is:items    { $$ = tlListPrepend(TASK, L(is), i); }
        | i:item                 { $$ = tlListNewFrom1(TASK, i) }
-       |                        { $$ = tlListEmpty(); }
 
-  item = "+"_ n:name            { $$ = tlListNewFrom2(TASK, n, tlTrue); }
-       | "-"_ n:name            { $$ = tlListNewFrom2(TASK, n, tlFalse); }
-       | n:name _"="__ v:expr   { $$ = tlListNewFrom2(TASK, n, v); }
+  item = n:name _":"__ v:expr   { $$ = tlListNewFrom2(TASK, n, v); }
+#// TODO use this +/- thing for args ...
+#//       |"+"_ n:name            { $$ = tlListNewFrom2(TASK, n, tlTrue); }
+#//       | "-"_ n:name            { $$ = tlListNewFrom2(TASK, n, tlFalse); }
 
 #// TODO list_activate ...
-  list = "["__ is:litems __"]"   { $$ = list_activate(L(is)); }
+  list = "["__ is:litems __"]"  { $$ = list_activate(L(is)); }
+       | "["__"]"               { $$ = list_activate(tlListEmpty()); }
 litems = v:expr eom is:litems   { $$ = tlListPrepend(TASK, L(is), v); }
        | v:expr                 { $$ = tlListNewFrom1(TASK, v); }
-       |                        { $$ = tlListEmpty(); }
 
  value = lit | number | text | map | list | sym | lookup
 
