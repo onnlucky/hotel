@@ -209,9 +209,6 @@ void* tlpause_alloc(tlTask* task, size_t bytes, int datas, tlResumeCb resumecb) 
     pause->resumecb = resumecb;
     return pause;
 }
-void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb) {
-    return tlpause_alloc(task, bytes, fields, cb);
-}
 
 INTERNAL tlPause* run_apply(tlTask* task, tlCall* call);
 INTERNAL tlPause* run_activate(tlTask* task, tlValue v, tlEnv* env);
@@ -350,6 +347,12 @@ INTERNAL tlPause* start_args(tlTask* task, tlArgs* args, tlPause* pause) {
     switch(tl_head(fn)->type) {
         case TLClosure: return chain_args_closure(task, tlclosure_as(fn), args, pause);
         case TLHostFn: return chain_args_fun(task, tlHostFnAs(fn), args, pause);
+    }
+    if (tlCallableIs(fn)) {
+        print("CHAINING");
+        task->pause = task->pause->caller;
+        task->value = args;
+        return null;
     }
     fatal("not implemented: chain args to pause %s", tl_str(fn));
 }
@@ -652,6 +655,15 @@ INTERNAL tlPause* run_apply(tlTask* task, tlCall* call) {
     trace("%p: fn=%s", call, tl_str(fn));
     assert(fn && tlRefIs(fn));
 
+    tlClass* klass = tlClassGet(fn);
+    if (klass) {
+        if (klass->call) return klass->call(task, call);
+        if (klass->map) {
+            tlValue field = tlmap_get_sym(klass->map, s_call);
+            if (field) fatal("not implemented yet");
+        }
+    }
+
     // TODO if zero args, or no key args ... optimize
     switch(tl_head(fn)->type) {
     case TLHostFn:
@@ -689,7 +701,7 @@ tlPause* tlTaskEvalArgs(tlTask* task, tlArgs* args) {
     return start_args(task, args, null);
 }
 tlPause* tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
-    assert(tlcallable_is(fn));
+    assert(tlCallableIs(fn));
     args->fn = fn;
     return start_args(task, args, null);
 }
@@ -709,6 +721,16 @@ static tlPause* _catch(tlTask* task, tlArgs* args) {
     assert(task->pause->resumecb == resume_code);
     ((tlPauseCode*)task->pause)->handler = block;
     TL_RETURN(tlNull);
+}
+bool tlCallableIs(tlValue v) {
+    if (!tlref_is(v)) return false;
+    tlClass* klass = tlClassGet(v);
+    if (!klass) return tlcallable_is(v);
+    if (klass->call) return true;
+    if (klass->map) {
+        if (tlmap_get_sym(klass->map, s_call)) return true;
+    }
+    return false;
 }
 bool tlcallable_is(tlValue v) {
     if (!tlref_is(v)) return false;
@@ -771,8 +793,10 @@ static tlPause* _object_send(tlTask* task, tlArgs* args) {
     if (klass->map) {
         tlValue field = tlmap_get(task, klass->map, msg);
         if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
-        if (!tlcallable_is(field)) TL_RETURN(field);
+        if (!tlCallableIs(field)) TL_RETURN(field);
         nargs->fn = field;
+        // TODO temporary until start_args is refactored
+        if (tlHostFnIs(field)) return tlHostFnAs(field)->hostcb(task, nargs);
         return start_args(task, nargs, null);
     }
     fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));

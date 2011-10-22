@@ -227,6 +227,7 @@ TL_REF_TYPE(tlHostFn);
 
 #undef TL_TYPE
 
+bool tlCallableIs(tlValue v);
 bool tlcallable_is(tlValue v);
 
 #if 1
@@ -243,14 +244,17 @@ static inline tlValue tlvalue_from_active(tlValue v) {
 
 typedef tlPause*(*tlSendFn)(tlTask* task, tlArgs* args);
 typedef tlPause*(*tlActFn)(tlTask* task, tlArgs* args);
+typedef tlPause*(*tlCallFn)(tlTask* task, tlCall* args);
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 
 struct tlClass {
     const char* name;
+    tlToTextFn toText;
+
     tlMap* map;
     tlSendFn send;
     tlActFn act;
-    tlToTextFn toText;
+    tlCallFn call;
 };
 
 // simple primitive functions

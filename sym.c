@@ -13,6 +13,7 @@ static tlSym s_return;
 static tlSym s_goto;
 
 static tlSym s_this;
+static tlSym s_call;
 static tlSym s_send;
 static tlSym s_op;
 
@@ -162,6 +163,7 @@ static void sym_init() {
     s_text   = tlSYM("text");
     s_block  = tlSYM("block");
     s_this   = tlSYM("this");
+    s_call   = tlSYM("call");
     s_send   = tlSYM("send");
     s_op     = tlSYM("op");
     s_class  = tlSYM("class");

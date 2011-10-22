@@ -1,5 +1,9 @@
 # TODO
 
+fix somehow when returning function, their frame is still current ...
+return task/pausing a bit: return values, null if pausing or exception
+add tlTaskPausing(task) to attach
+
 make all "callables" tlClass based, and add a klass->call method to dispatch
 change tlPause to tlSync? tlTaskSync ... ?
 

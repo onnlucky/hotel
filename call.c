@@ -1,6 +1,6 @@
 // hotel functions and calling them ...
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tlClass _tlHostFnClass;
 tlClass* tlHostFnClass = &_tlHostFnClass;
@@ -13,8 +13,6 @@ struct tlHostFn {
 
 tlHostFn* tlHostFnNew(tlTask* task, tlHostCb hostcb, int size) {
     tlHostFn* fn = tlAllocWithFields(task, tlHostFnClass, sizeof(tlHostFn), size);
-    // TODO just for now ... fix by adding a .apply to tlClass ...
-    tl_head(fn)->type = TLHostFn;
     fn->hostcb = hostcb;
     return fn;
 }
@@ -208,9 +206,51 @@ const char* _HostFnToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<HostFn@%p>", v); return buf;
 }
 
+typedef struct CFunctionPause {
+    tlPause pause;
+    tlCall* call;
+} CFunctionPause;
+
+INTERNAL tlPause* tlTaskSetPause(tlTask* task, tlValue v);
+static tlPause* CFunctionResume(tlTask* task, tlPause* _frame) {
+    trace("");
+    CFunctionPause* frame = (CFunctionPause*)_frame;
+    tlArgs* args = tlArgsAs(tltask_value(task));
+    print("args: %s", tl_str(args));
+    tlTaskSetPause(task, _frame->caller);
+    return tlHostFnAs(tlcall_fn(frame->call))->hostcb(task, args);
+}
+
+/*
+static tlPause* CFunctionCallFn2(tlTask* task, tlCall* call) {
+    tlArgs* args = tlEvalCallArgs(task, call);
+    if (args) return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
+    if (tlTaskPausing(task)) {
+        CFunctionPause* frame = tlPauseAlloc(task, sizeof(CFunctionPause), CFunctionResume);
+        return tlTaskPauseAttach(task, frame);
+    }
+    return null;
+}
+*/
+
+INTERNAL tlPause* tlEvalCallArgs(tlTask*, tlCall*);
+INTERNAL tlPause* start_call(tlTask* task, tlCall* call);
+static tlPause* CFunctionCallFn(tlTask* task, tlCall* call) {
+    trace("");
+    tlPause* p = start_call(task, call);
+    if (p) {
+        CFunctionPause* frame = tlPauseAlloc(task, sizeof(CFunctionPause), 0, CFunctionResume);
+        frame->call = call;
+        return tlTaskPauseAttach(task, p, frame);
+    }
+    tlArgs* args = tlArgsAs(tltask_value(task));
+    return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
+}
+
 static tlClass _tlHostFnClass = {
-    .name = "HostFn",
+    .name = "CFunction",
     .toText = _HostFnToText,
+    .call = CFunctionCallFn,
 };
 
 static void call_init() {

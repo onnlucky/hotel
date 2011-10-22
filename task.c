@@ -41,14 +41,6 @@ struct tlWorker {
     void* defer_data;
 };
 
-// any hotel "operation" can be paused and resumed using a tlPause object
-// a Pause is basically the equivalent of a continuation or a stack frame
-// notice, most operations will only materialize a pause if they need to
-struct tlPause {
-    tlHead head;
-    tlPause* caller;     // the pause below/after us
-    tlResumeCb resumecb; // a function called when resuming
-};
 void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb);
 
 void tlworker_detach(tlWorker* worker, tlTask* task);
@@ -114,6 +106,7 @@ INTERNAL tlPause* tlTaskSetPause(tlTask* task, tlValue v) {
     assert_backtrace(task->pause);
     return task->pause;
 }
+// TODO this should really not be
 INTERNAL tlPause* tlTaskPauseCaller(tlTask* task, tlValue v) {
     if (!v) return null;
     tlPause* caller = tlpause_as(v)->caller;

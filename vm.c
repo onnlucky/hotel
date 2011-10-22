@@ -12,17 +12,19 @@
 #include "list.c"
 #include "set.c"
 #include "map.c"
+
+// evaluator internals
+#include "pause.c"
 #include "args.c"
 #include "call.c"
-
 #include "task.c"
 #include "actor.c"
 #include "object.c"
-
 #include "code.c"
 #include "env.c"
 #include "eval.c"
 
+// extras
 #include "buf.c"
 #include "buffer.c"
 #include "evio.c"
