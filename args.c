@@ -79,20 +79,20 @@ void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
     tlmap_set_sym_(args->map, name, v);
 }
 
-static tlPause* _ArgsSize(tlTask* task, tlArgs* args) {
+static tlValue _ArgsSize(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
-    TL_RETURN(tlINT(tlArgsSize(as)));
+    return tlINT(tlArgsSize(as));
 }
-static tlPause* _ArgsMap(tlTask* task, tlArgs* args) {
+static tlValue _ArgsMap(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
-    TL_RETURN(tlArgsMap(as));
+    return tlArgsMap(as);
 }
-static tlPause* _ArgsNames(tlTask* task, tlArgs* args) {
+static tlValue _ArgsNames(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
-    TL_RETURN(tlArgsMap(as));
+    return tlArgsMap(as);
 }
 
 const char* _ArgsToText(tlValue v, char* buf, int size) {

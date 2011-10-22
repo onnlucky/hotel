@@ -14,8 +14,8 @@ INTERNAL void* tl_atomic_set_if(void** slot, void* v, void* current) {
 }
 
 INTERNAL tlValue tlresult_get(tlValue v, int at);
-INTERNAL tlPause* run_apply(tlTask* task, tlCall* call);
-INTERNAL void run_resume(tlTask* task, tlPause* run);
+INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
+INTERNAL tlValue run_resume(tlTask* task, tlFrame* frame, tlValue res);
 
 tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
@@ -62,11 +62,11 @@ struct tlTask {
 
     tlValue value;     // current value
     tlObject* sender;  // current mutable object (== current thread or actor)
-    tlPause* pause;    // current pause (== current continuation or top of stack)
+    tlFrame* frame;    // current frame (== top of stack or current continuation)
 
     // TODO remove these in favor a some flags
     tlValue exception; // current exception
-    tlValue jumping;    // indicates non linear suspend ... don't attach
+    tlValue jumping;   // indicates non linear suspend ... don't attach
     tlTaskState state; // state it is currently in
 };
 
@@ -93,12 +93,13 @@ INTERNAL tlTask* tltask_from_entry(lqentry* entry) {
     return (tlTask*)(((char *)entry) - ((intptr_t) &((tlTask*)0)->entry));
 }
 
-void assert_backtrace(tlPause* pause) {
+void assert_backtrace(tlFrame* frame) {
     int i = 100;
-    while (i-- && pause) pause = pause->caller;
-    if (pause) fatal("STACK CORRUPTED");
+    while (i-- && frame) frame = frame->caller;
+    if (frame) fatal("STACK CORRUPTED");
 }
 
+/*
 // TODO could replace this by checking return from each function ... tasks/eval knows what to do
 INTERNAL tlPause* tlTaskSetPause(tlTask* task, tlValue v) {
     trace("      <<<< %p", v);
@@ -115,34 +116,41 @@ INTERNAL tlPause* tlTaskPauseCaller(tlTask* task, tlValue v) {
     assert_backtrace(task->pause);
     return caller;
 }
-INTERNAL tlPause* tlTaskPause(tlTask* task, tlValue v) {
-    tlPause* pause = tlpause_as(v);
-    trace("    >>>> %p", pause);
-    task->pause = pause;
-    assert_backtrace(task->pause);
-    return pause;
-}
-INTERNAL tlPause* tlTaskPauseAttach(tlTask* task, tlPause* pause, tlValue c) {
-    if (task->jumping) return pause;
-    assert(tlpause_is(pause));
-    tlPause* caller = tlpause_as(c);
-    trace("> %p.caller = %p", pause, caller);
-    pause->caller = caller;
-    assert_backtrace(pause);
-    return caller;
+*/
+
+INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
+    if (task->jumping) return null;
+    assert(_frame);
+    tlFrame* frame = tlFrameAs(_frame);
+    trace("> %p.caller = %p", task->value, frame);
+    tlFrameAs(task->value)->caller = frame;
+    assert_backtrace(task->frame);
+    return null;
 }
 
-
-
+INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
+    assert(_frame);
+    tlFrame* frame = tlFrameAs(_frame);
+    trace("    >>>> %p", frame);
+    task->value = task->frame = frame;
+    assert_backtrace(task->frame);
+    return null;
+}
 
 // TODO rework this back into eval.c
 INTERNAL void code_workfn(tlTask* task) {
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
     while (task->state == TL_STATE_RUN) {
-        run_resume(task, task->pause);
-        if (!task->pause) {
+        tlValue res = task->value;
+        while (res) {
+            res = run_resume(task, task->frame, task->value);
+            // TODO here we should do frame management ...
+            if (res) assert(task->frame);
+        }
+        if (!task->frame) {
             task->state = TL_STATE_DONE;
+            // TODO really detach?
             tlworker_detach(task->worker, task);
         }
     }
@@ -157,18 +165,31 @@ tlTask* tltask_new(tlWorker* worker) {
     return task;
 }
 
+typedef struct TaskCallFrame {
+    tlFrame frame;
+    tlCall* call;
+} TaskCallFrame;
+
+static tlValue resumeTaskCall(tlTask* task, tlFrame* _frame, tlValue _res) {
+    tlCall* call = ((TaskCallFrame*)_frame)->call;
+    return evalCall(task, call);
+}
+
 void tltask_call(tlTask* task, tlCall* call) {
     assert(tltask_is(task));
     trace(">> call");
-    // TODO this will immediately eval some, I guess that is not what we really want ...
-    run_apply(task, call);
-    trace("<< call");
+
+    TaskCallFrame* frame = tlFrameAlloc(task, resumeTaskCall, sizeof(TaskCallFrame));
+    frame->call = call;
+    task->value = tlNull;
+    task->frame = (tlFrame*)frame;
+    trace("<< call: %s frame: %p", tl_str(task->value), task->frame);
 }
 
 void tltask_value_set_(tlTask* task, tlValue v) {
     assert(v);
     assert(!tlactive_is(v));
-    assert(!tlpause_is(v));
+    assert(!tlFrameIs(v));
     assert(!task->exception);
 
     trace("!! SET: %s", tl_str(v));
@@ -178,23 +199,15 @@ void tltask_exception_set_(tlTask* task, tlValue v) {
     assert(v);
     assert(!tlactive_is(v));
     assert(!tlcall_is(v));
-    assert(!tlpause_is(v));
+    assert(!tlFrameIs(v));
 
     trace("!! SET EXCEPTION: %s", tl_str(v));
     task->value = null;
     task->exception = v;
 }
 
-tlPause* tltask_return(tlTask* task, tlValue v) {
-    assert(!tlresult_is(v));
-    assert(!tlcall_is(v));
-    assert(!tlpause_is(v));
-    tltask_value_set_(task, v);
-    return null;
-}
-
-INTERNAL tlPause* run_throw(tlTask* task, tlValue exception);
-tlPause* tltask_throw_take(tlTask* task, char* str) {
+INTERNAL tlValue run_throw(tlTask* task, tlValue exception);
+tlValue tltask_throw_take(tlTask* task, char* str) {
     tlText* text = tlTextNewTake(task, str);
     return run_throw(task, text);
 }
@@ -244,10 +257,7 @@ void tltask_ready_detach(tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-
-// ** host **
-
-static tlPause* _Task_new(tlTask* task, tlArgs* args) {
+static tlValue _Task_new(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsAt(args, 0);
     assert(task && task->worker && task->worker->vm);
 
@@ -255,121 +265,16 @@ static tlPause* _Task_new(tlTask* task, tlArgs* args) {
     tlTaskEvalCall(ntask, tlcall_from(ntask, fn, null));
     tlTaskReadyInit(ntask);
 
-    TL_RETURN(ntask);
+    return ntask;
 }
 
-static tlPause* _TaskYield(tlTask* task, tlArgs* args) {
+static tlValue _TaskYield(tlTask* task, tlArgs* args) {
     tlTaskWait(task);
     tlTaskReadyWait(task);
-    TL_RETURN_SET(tlNull);
-    return tlPauseAlloc(task, sizeof(tlPause), 0, null);
-}
-
-// TODO pass rest of args to function
-static tlPause* _task_new(tlTask* task, tlArgs* args) {
-    tlValue fn = tlArgsAt(args, 0);
-    assert(task && task->worker && task->worker->vm);
-
-    tlTask* ntask = tltask_new(task->worker);
-    tltask_call(ntask, tlcall_from(ntask, fn, null));
-    tltask_ready_detach(ntask);
-
-    TL_RETURN(ntask);
-}
-
-static tlPause* _task_yield(tlTask* task, tlArgs* args) {
-    fatal("to be removed");
-    return null;
-    /*
-    trace("%s", tl_str(task));
-    task->state = TL_STATE_WAIT;
-    tltask_ready_detach(task);
-    TL_RETURN(tlNull);
-    */
-}
-
-static tlPause* _task_send(tlTask* task, tlArgs* args) {
-    fatal("to be removed");
-    return null;
-    /*
-    tlTask* to = tltask_cast(ArgsAt(args, 0));
-    assert(to && to != task);
-    assert(to->state != TL_STATE_DONE);
-    tlTask* root = to->blocked_on;
-    while (root) {
-        if (root == task) fatal("cyclic message");
-        root = root->blocked_on;
-    }
-
-    task->state = TL_STATE_WAIT;
-    task->blocked_on = to;
-
-    tlResult* msg = tlresult_new(to, args);
-    tlresult_set_(msg, 0, task);
-
-    // direct send
-    //if (tlworker_try_attach(to)) {
-        if (to->state == TL_STATE_WAIT && !to->blocked_on) {
-            tlworker_attach(task->worker, to);
-            trace("direct send");
-            to->value = msg;
-            tltask_ready_detach(to);
-            tlworker_detach(task->worker, task);
-            return null;
-        }
-    //}
-
-    // indirect send
-    trace("indirect send; appending to queue");
-    task->value = msg;
-    tlworker_detach(task->worker, task);
-    lqueue_put(&to->msg_q, &task->entry);
-    // try to ready ...
-    return null;
-    */
-}
-
-static tlPause* _task_receive(tlTask* task, tlArgs* args) {
-    fatal("to be removed");
-    return null;
-    /*
-    tlTask* from = tltask_from_entry(lqueue_get(&task->msg_q));
-    trace("receive: %p %s <- %p %s", task, tl_str(task), from, tl_str(from));
-    if (from) {
-        tltask_value_set_(task, from->value);
-        return null;
-    }
-    task->state = TL_STATE_WAIT;
-    tlworker_detach(task->worker, task);
-    return null;
-    */
-}
-
-static tlPause* _task_reply(tlTask* task, tlArgs* args) {
-    fatal("to be removed");
-    return null;
-    /*
-    tlTask* to = tltask_cast(ArgsAt(args, 0));
-    assert(to && to != task);
-    assert(to->blocked_on == task);
-
-    tlworker_attach(task->worker, to);
-    trace("reply: %p %s -> %p %s", task, tl_str(task), to, tl_str(to));
-
-    tlResult* msg = tlresult_new_skip(to, args);
-    to->value = msg;
-    to->blocked_on = null;
-    tltask_ready_detach(to);
-    TL_RETURN(tlNull);
-    */
+    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
 
 static const tlHostCbs __task_hostcbs[] = {
-    { "_task_new", _task_new },
-    { "_task_yield", _task_yield },
-    { "_task_send", _task_send },
-    { "_task_receive", _task_receive },
-    { "_task_reply", _task_reply },
     { "_Task_new", _Task_new },
     { "yield", _TaskYield },
     { 0, 0 }

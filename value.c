@@ -84,11 +84,6 @@ int tl_int_or(tlValue v, int d) {
     return tl_int(v);
 }
 
-static tlPause* _value_type(tlTask* task, tlArgs* args) {
-    tlValue v = tlArgsAt(args, 0);
-    return tltask_return(task, tlINT(tl_type(v)));
-}
-
 // creating value objects
 void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes) {
     trace("ALLOC: %p %zd", v, bytes);

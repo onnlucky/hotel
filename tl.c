@@ -8,7 +8,7 @@
 #include "trace-on.h"
 
 // this is how a print function could look
-static tlPause* _print(tlTask* task, tlArgs* args) {
+static tlValue _print(tlTask* task, tlArgs* args) {
     tlText* sep = tlTEXT(" ");
     tlValue v = tlArgsMapGet(args, tlSYM("sep"));
     if (v) sep = tlvalue_to_text(task, v);
@@ -31,10 +31,10 @@ static tlPause* _print(tlTask* task, tlArgs* args) {
     if (end) printf("%s", tlTextData(end));
     printf("\n");
     fflush(stdout);
-    TL_RETURN(tlNull);
+    return tlNull;
 }
 
-static tlPause* _assert(tlTask* task, tlArgs* args) {
+static tlValue _assert(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsMapGet(args, tlSYM("text")));
     if (!text) text = tlTextEmpty();
     for (int i = 0; i < 1000; i++) {
@@ -45,7 +45,7 @@ static tlPause* _assert(tlTask* task, tlArgs* args) {
             TL_THROW("Assertion Failed");
         }
     }
-    TL_RETURN(tlNull);
+    return tlNull;
 }
 
 // this is how to setup a vm

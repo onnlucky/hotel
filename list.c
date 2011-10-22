@@ -220,7 +220,7 @@ tlList* tlListSlice(tlTask* task, tlList* list, int begin, int end) {
 }
 
 // called when list literals contain lookups or expressions to evaluate
-static tlPause* _list_clone(tlTask* task, tlArgs* args) {
+static tlValue _list_clone(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tlListSize(list);
@@ -229,23 +229,23 @@ static tlPause* _list_clone(tlTask* task, tlArgs* args) {
     for (int i = 0; i < size; i++) {
         if (!list->data[i]) list->data[i] = tlArgsAt(args, argc++);
     }
-    TL_RETURN(list);
+    return list;
 }
-static tlPause* _ListSize(tlTask* task, tlArgs* args) {
+static tlValue _ListSize(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    TL_RETURN(tlINT(tlListSize(list)));
+    return tlINT(tlListSize(list));
 }
-static tlPause* _ListGet(tlTask* task, tlArgs* args) {
+static tlValue _ListGet(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsAt(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
     tlValue res = tlListGet(list, at);
-    if (!res) TL_RETURN(tlNull);
-    TL_RETURN(res);
+    if (!res) return tlNull;
+    return res;
 }
-static tlPause* _ListSet(tlTask* task, tlArgs* args) {
+static tlValue _ListSet(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsAt(args, 0), -1);
@@ -254,7 +254,7 @@ static tlPause* _ListSet(tlTask* task, tlArgs* args) {
     if (!val || val == tlUndefined) val = tlNull;
     fatal("not implemented yet");
     tlList* nlist = tlNull; //tlListSet(task, list, at, val);
-    TL_RETURN(nlist);
+    return nlist;
 }
 
 // TODO eval: { "_list_clone", _list_clone },

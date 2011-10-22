@@ -197,7 +197,7 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
 }
 
 // called when map literals contain lookups or expressions to evaluate
-static tlPause* _map_clone(tlTask* task, tlArgs* args) {
+static tlValue _map_clone(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
     int size = tlmap_size(map);
@@ -209,46 +209,46 @@ static tlPause* _map_clone(tlTask* task, tlArgs* args) {
         }
     }
     assert(argc == tlArgsSize(args));
-    TL_RETURN(map);
+    return map;
 }
-static tlPause* _map_dump(tlTask* task, tlArgs* args) {
+static tlValue _map_dump(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
     tlmap_dump(map);
-    TL_RETURN(tlNull);
+    return tlNull;
 }
-static tlPause* _map_is(tlTask* task, tlArgs* args) {
-    TL_RETURN(tlBOOL(tlMapIs(tlArgsAt(args, 0))));
+static tlValue _map_is(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlMapIs(tlArgsAt(args, 0)));
 }
-static tlPause* _object_is(tlTask* task, tlArgs* args) {
+static tlValue _object_is(tlTask* task, tlArgs* args) {
     tlValue map = tlMapCast(tlArgsAt(args, 0));
-    if (!map) TL_RETURN(tlFalse);
-    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(tlTrue);
-    TL_RETURN(tlFalse);
+    if (!map) return tlFalse;
+    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return tlTrue;
+    return tlFalse;
 }
-static tlPause* _object_from(tlTask* task, tlArgs* args) {
+static tlValue _object_from(tlTask* task, tlArgs* args) {
     tlValue map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
-    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) TL_RETURN(map);
+    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return map;
     map = TL_CLONE(map);
     tlflag_set(map, TL_FLAG_ISOBJECT);
-    TL_RETURN(map);
+    return map;
 }
-static tlPause* _MapSize(tlTask* task, tlArgs* args) {
+static tlValue _MapSize(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    TL_RETURN(tlINT(tlmap_size(map)));
+    return tlINT(tlmap_size(map));
 }
-static tlPause* _MapGet(tlTask* task, tlArgs* args) {
+static tlValue _MapGet(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     tlValue key = tlArgsAt(args, 0);
     if (!key) TL_THROW("Excpected a key");
     tlValue res = tlmap_get(task, map, key);
-    if (!res) TL_RETURN(tlUndefined);
-    TL_RETURN(res);
+    if (!res) return tlUndefined;
+    return res;
 }
-static tlPause* _MapSet(tlTask* task, tlArgs* args) {
+static tlValue _MapSet(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     tlValue key = tlArgsAt(args, 0);
@@ -256,15 +256,15 @@ static tlPause* _MapSet(tlTask* task, tlArgs* args) {
     tlValue val = tlArgsAt(args, 1);
     if (!val || val == tlUndefined) val = tlNull;
     tlMap* nmap = tlmap_set(task, map, key, val);
-    TL_RETURN(nmap);
+    return nmap;
 }
-static tlPause* _MapToObject(tlTask* task, tlArgs* args) {
+static tlValue _MapToObject(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     tlMap* nmap = tlmap_new(task, map->keys);
     for (int i = 0; i < tlmap_size(map); i++) nmap->data[i] = map->data[i];
     nmap->head.klass = tlValueObjectClass;
-    TL_RETURN(nmap);
+    return nmap;
 }
 
 const char* _MapToText(tlValue v, char* buf, int size) {
@@ -278,7 +278,7 @@ static tlClass _tlMapClass = {
 const char* _ValueToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<ValueObject@%p %d>", v, tlmap_size(tlMapFromObjectAs(v))); return buf;
 }
-static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
+static tlValue _ValueReceive(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapFromObjectCast(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
 
@@ -291,13 +291,13 @@ static tlPause* _ValueReceive(tlTask* task, tlArgs* args) {
             if (!klass) break;
             field = tlmap_get(task, klass, msg);
             if (field) {
-                if (!tlcallable_is(field)) TL_RETURN(field);
+                if (!tlcallable_is(field)) return field;
                 return tlTaskEvalArgsFn(task, args, field);
             }
         } while (true);
-        TL_RETURN(tlUndefined);
+        return tlUndefined;
     }
-    if (!tlcallable_is(field)) TL_RETURN(field);
+    if (!tlcallable_is(field)) return field;
     return tlTaskEvalArgsFn(task, args, field);
 }
 static tlClass _tlValueObjectClass = {

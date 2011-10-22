@@ -470,40 +470,35 @@ static tlPause* _DirRead(tlTask* task, tlArgs* args) {
     TL_RETURN(tlTextNewCopy(task, dp.d_name));
 }
 
-typedef struct tlDirEachPause {
-    tlPause pause;
+typedef struct tlDirEachFrame {
+    tlFrame frame;
     tlDir* dir;
     tlValue* block;
-} tlDirEachPause;
+} tlDirEachFrame;
 
-static tlPause* _DirEachResume(tlTask* task, tlPause* _pause) {
-    tlDirEachPause* pause = (tlDirEachPause*)_pause;
+static tlValue _DirEachResume(tlTask* task, tlFrame* _frame, tlValue _res) {
+    tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
 again:;
     struct dirent dp;
     struct dirent *dpp;
-    if (readdir_r(pause->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
+    if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
-    if (!dpp) {
-        // TODO when done, is this really needed?
-        task->pause = _pause->caller;
-        TL_RETURN(tlNull);
-    }
-    tlCall* call = tlcall_from(task, pause->block, tlTextNewCopy(task, dp.d_name), null);
-    tlPause* p = tlTaskEvalCall(task, call);
-    if (p) return tlTaskPauseAttach(task, p, pause);
+    if (!dpp) return tlNull;
+    tlValue res = tlEvalCallable(task, pause->block, tlTextNewCopy(task, dp.d_name), null);
+    if (!res) return tlTaskFrameAttach(task, frame);
     goto again;
 }
 
-static tlPause* _DirEach(tlTask* task, tlArgs* args) {
+static tlValue _DirEach(tlTask* task, tlArgs* args) {
     tlDir* dir = tlDirCast(tlArgsTarget(args));
     if (!dir) TL_THROW("expected a Dir");
     tlValue* block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) TL_RETURN(tlNull);
 
-    tlDirEachPause* pause = tlPauseAlloc(task, sizeof(tlDirEachPause), 2, _DirEachResume);
+    tlDirEachFrame* frame = tlFrameAlloc(task, _DirEachResume, sizeof(tlDirEachFrame));
     pause->dir = dir;
     pause->block = block;
-    return _DirEachResume(task, (tlPause*)pause);
+    return _DirEachResume(task, (tlPause*)pause, tlNull);
 }
 
 

@@ -2,6 +2,7 @@
 
 #include "trace-on.h"
 
+#if 0
 static tlClass tlObjectClass;
 
 struct tlObject {
@@ -129,4 +130,4 @@ static const tlHostCbs __object_hostcbs[] = {
 static void object_init() {
     tl_register_hostcbs(__object_hostcbs);
 }
-
+#endif

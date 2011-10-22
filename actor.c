@@ -10,18 +10,18 @@ typedef struct tlActor {
     lqueue msg_q;
 } tlActor;
 
-typedef struct tlPauseInQueue {
-    tlPause pause;
+typedef struct ReceiveFrame {
+    tlFrame frame;
     tlArgs* args;
-} tlPauseInQueue;
+} ReceiveFrame;
 
-typedef struct tlPauseAct {
-    tlPause pause;
+typedef struct ActorFrame {
+    tlFrame frame;
     tlActor* actor;
-} tlPauseAct;
+} ActorFrame;
 
-INTERNAL tlPause* tlActorReceive(tlTask* task, tlArgs* args);
-INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args);
+INTERNAL tlValue tlActorReceive(tlTask* task, tlArgs* args);
+INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args);
 
 INTERNAL bool tlActorIs(tlValue v) {
     return tlClassGet(v)->send == tlActorReceive;
@@ -59,27 +59,26 @@ INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
     _ActorScheduleNext(task, actor);
 }
 
-INTERNAL tlPause* _ResumeInQueue(tlTask* task, tlPause* _pause) {
+INTERNAL tlValue _ResumeReceive(tlTask* task, tlFrame* _frame, tlValue _res) {
     trace("");
-    tlPauseInQueue* pause = (tlPauseInQueue*)_pause;
-    return _ActorReceive2(task, pause->args);
+    ReceiveFrame* frame = (ReceiveFrame*)_frame;
+    return _ActorReceive2(task, frame->args);
 }
 
-INTERNAL tlPause* _ResumeAct(tlTask* task, tlPause* _pause) {
+INTERNAL tlValue _ResumeAct(tlTask* task, tlFrame* _frame, tlValue _res) {
     trace("");
-    tlPauseAct* pause = (tlPauseAct*)_pause;
-    _ActorScheduleNext(task, pause->actor);
-    task->pause = _pause->caller;
-    return null;
+    ActorFrame* frame = (ActorFrame*)_frame;
+    _ActorScheduleNext(task, frame->actor);
+    return _res;
 }
 
-tlPause* tlActorReceive(tlTask* task, tlArgs* args) {
+tlValue tlActorReceive(tlTask* task, tlArgs* args) {
     tlActor* actor = tlActorAs(args->target);
     assert(actor);
 
     if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
         // pause current task
-        tlPauseInQueue* pause = tlPauseAlloc(task, sizeof(tlPauseInQueue), 0, _ResumeInQueue);
+        ReceiveFrame* pause = tlFrameAlloc(task, _ResumeReceive, sizeof(ReceiveFrame));
         pause->args = args;
         // after the pause, enqueue the task in the msg queue
         tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
@@ -89,7 +88,7 @@ tlPause* tlActorReceive(tlTask* task, tlArgs* args) {
     }
 }
 
-INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
     trace("");
     tlActor* actor = tlActorAs(args->target);
     tlSym msg = tlsym_cast(args->msg);
@@ -98,57 +97,55 @@ INTERNAL tlPause* _ActorReceive2(tlTask* task, tlArgs* args) {
     assert(actor->owner == task);
 
     trace("actor receive %p: %s (%d)", actor, tl_str(msg), tlArgsSize(args));
-    tlPause* p = null;
+    tlValue res = null;
     if (actor->head.klass->act) {
-        p = actor->head.klass->act(task, args);
+        res = actor->head.klass->act(task, args);
     } else {
         assert(actor->head.klass->map);
-        tlValue v = tlmap_get(task, actor->head.klass->map, msg);
-        if (!tlcallable_is(v)) {
-            if (!v) v = tlNull;
-            TL_RETURN_SET(v);
-        } else {
-            p = tlTaskEvalArgsFn(task, args, v);
+        res = tlmap_get(task, actor->head.klass->map, msg);
+        if (tlCallableIs(res)) {
+            res = tlTaskEvalArgsFn(task, args, res);
         }
     }
-    trace("actor acted: %p", p);
-    if (p) {
-        tlPauseAct* pause = tlPauseAlloc(task, sizeof(tlPauseAct), 0, _ResumeAct);
-        pause->actor = actor;
-        return tlTaskPauseAttach(task, p, pause);
+    trace("actor acted: %p", res);
+    if (!res) {
+        // TODO this is no good, will keep actor locked
+        ActorFrame* frame = tlFrameAlloc(task, _ResumeAct, sizeof(ActorFrame));
+        frame->actor = actor;
+        return tlTaskPauseAttach(task, frame);
     }
     _ActorScheduleNext(task, actor);
-    return null;
+    return res;
 }
 
-typedef tlPause*(*tlActorAquireCb)(tlTask* task, tlActor* actor, void* data);
+typedef tlValue(*tlActorAquireCb)(tlTask* task, tlActor* actor, void* data);
 
-typedef struct tlPauseAquire {
-    tlPause pause;
+typedef struct ActorAquireFrame {
+    tlFrame frame;
     tlActor* actor;
     tlActorAquireCb cb;
     void* data;
-} tlPauseAquire;
+} ActorAquireFrame;
 
-INTERNAL tlPause* _ResumeAquire(tlTask* task, tlPause* _pause) {
+INTERNAL tlValue _ResumeAquire(tlTask* task, tlFrame* _frame, tlValue _res) {
     trace("");
-    tlPauseAquire* pause = (tlPauseAquire*)_pause;
-    return pause->cb(task, pause->actor, pause->data);
+    ActorAquireFrame* frame = (ActorAquireFrame*)_frame;
+    return frame->cb(task, frame->actor, frame->data);
 }
 
-tlPause* tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* data) {
+tlValue tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* data) {
     trace("%p", actor);
     assert(actor);
 
     if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
         // pause current task
-        tlPauseAquire* pause = tlPauseAlloc(task, sizeof(tlPauseAquire), 0, _ResumeAquire);
-        pause->actor = actor;
-        pause->cb = cb;
-        pause->data = data;
+        ActorAquireFrame* frame = tlFrameAlloc(task, _ResumeAquire, sizeof(ActorAquireFrame));
+        frame->actor = actor;
+        frame->cb = cb;
+        frame->data = data;
         // after the pause, enqueue the task in the msg queue
         tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
-        return tlTaskPause(task, pause);
+        return tlTaskPause(task, frame);
     } else {
         return cb(task, actor, data);
     }

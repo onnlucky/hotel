@@ -14,7 +14,7 @@
 #include "map.c"
 
 // evaluator internals
-#include "pause.c"
+#include "frame.c"
 #include "args.c"
 #include "call.c"
 #include "task.c"
@@ -26,12 +26,12 @@
 
 // extras
 #include "buf.c"
-#include "buffer.c"
-#include "evio.c"
+//#include "buffer.c"
+//#include "evio.c"
 
 #include "trace-off.h"
 
-static tlPause* _out(tlTask* task, tlArgs* args) {
+static tlValue _out(tlTask* task, tlArgs* args) {
     trace("out(%d)", tlArgsSize(args));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlArgsAt(args, i);
@@ -39,70 +39,70 @@ static tlPause* _out(tlTask* task, tlArgs* args) {
         printf("%s", tlTextData(tlvalue_to_text(task, v)));
     }
     fflush(stdout);
-    TL_RETURN(tlNull);
+    return tlNull;
 }
 
-static tlPause* _bool(tlTask* task, tlArgs* args) {
+static tlValue _bool(tlTask* task, tlArgs* args) {
     tlValue c = tlArgsAt(args, 0);
     trace("bool(%s)", tl_bool(c)?"true":"false");
     tlValue res = tlArgsAt(args, tl_bool(c)?1:2);
-    TL_RETURN(res);
+    return res;
 }
-static tlPause* _not(tlTask* task, tlArgs* args) {
+static tlValue _not(tlTask* task, tlArgs* args) {
     trace("!%s", t_str(tlArgsAt(args, 0)));
-    TL_RETURN(tlBOOL(!tl_bool(tlArgsAt(args, 0))));
+    return tlBOOL(!tl_bool(tlArgsAt(args, 0)));
 }
-static tlPause* _eq(tlTask* task, tlArgs* args) {
+static tlValue _eq(tlTask* task, tlArgs* args) {
     trace("%p === %p", tlArgsAt(args, 0), tlArgsAt(args, 1));
-    TL_RETURN(tlBOOL(tlArgsAt(args, 0) == tlArgsAt(args, 1)));
+    return tlBOOL(tlArgsAt(args, 0) == tlArgsAt(args, 1));
 }
-static tlPause* _neq(tlTask* task, tlArgs* args) {
+static tlValue _neq(tlTask* task, tlArgs* args) {
     trace("%p !== %p", tlArgsAt(args, 0), tlArgsAt(args, 1));
-    TL_RETURN(tlBOOL(tlArgsAt(args, 0) != tlArgsAt(args, 1)));
+    return tlBOOL(tlArgsAt(args, 0) != tlArgsAt(args, 1));
 }
 
 // TODO only for ints ...
-static tlPause* _lt(tlTask* task, tlArgs* args) {
+static tlValue _lt(tlTask* task, tlArgs* args) {
     trace("%d < %d", tl_int(tlArgsAt(args, 0)), tl_int(tlArgsAt(args, 1)));
-    TL_RETURN(tlBOOL(tl_int(tlArgsAt(args, 0)) < tl_int(tlArgsAt(args, 1))));
+    return tlBOOL(tl_int(tlArgsAt(args, 0)) < tl_int(tlArgsAt(args, 1)));
 }
-static tlPause* _lte(tlTask* task, tlArgs* args) {
+static tlValue _lte(tlTask* task, tlArgs* args) {
     trace("%d <= %d", tl_int(tlArgsAt(args, 0)), tl_int(tlArgsAt(args, 1)));
-    TL_RETURN(tlBOOL(tl_int(tlArgsAt(args, 0)) <= tl_int(tlArgsAt(args, 1))));
+    return tlBOOL(tl_int(tlArgsAt(args, 0)) <= tl_int(tlArgsAt(args, 1)));
 }
-static tlPause* _gt(tlTask* task, tlArgs* args) {
+static tlValue _gt(tlTask* task, tlArgs* args) {
     trace("%d > %d", tl_int(tlArgsAt(args, 0)), tl_int(tlArgsAt(args, 1)));
-    TL_RETURN(tlBOOL(tl_int(tlArgsAt(args, 0)) > tl_int(tlArgsAt(args, 1))));
+    return tlBOOL(tl_int(tlArgsAt(args, 0)) > tl_int(tlArgsAt(args, 1)));
 }
-static tlPause* _gte(tlTask* task, tlArgs* args) {
+static tlValue _gte(tlTask* task, tlArgs* args) {
     trace("%d >= %d", tl_int(tlArgsAt(args, 0)), tl_int(tlArgsAt(args, 1)));
-    TL_RETURN(tlBOOL(tl_int(tlArgsAt(args, 0)) >= tl_int(tlArgsAt(args, 1))));
+    return tlBOOL(tl_int(tlArgsAt(args, 0)) >= tl_int(tlArgsAt(args, 1)));
 }
 
-static tlPause* _add(tlTask* task, tlArgs* args) {
+static tlValue _add(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsAt(args, 0)) + tl_int(tlArgsAt(args, 1));
     trace("ADD: %d", res);
-    TL_RETURN(tlINT(res));
+    return tlINT(res);
 }
-static tlPause* _sub(tlTask* task, tlArgs* args) {
+static tlValue _sub(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsAt(args, 0)) - tl_int(tlArgsAt(args, 1));
     trace("SUB: %d", res);
-    TL_RETURN(tlINT(res));
+    return tlINT(res);
 }
-static tlPause* _mul(tlTask* task, tlArgs* args) {
+static tlValue _mul(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsAt(args, 0)) * tl_int(tlArgsAt(args, 1));
     trace("MUL: %d", res);
-    TL_RETURN(tlINT(res));
+    return tlINT(res);
 }
-static tlPause* _div(tlTask* task, tlArgs* args) {
+static tlValue _div(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsAt(args, 0)) / tl_int(tlArgsAt(args, 1));
     trace("DIV: %d", res);
-    TL_RETURN(tlINT(res));
+    return tlINT(res);
 }
-static tlPause* _mod(tlTask* task, tlArgs* args) {
+static tlValue _mod(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsAt(args, 0)) % tl_int(tlArgsAt(args, 1));
     trace("MOD: %d", res);
-    TL_RETURN(tlINT(res));
+    return tlINT(res);
 }
 
 static void vm_init();
@@ -135,11 +135,11 @@ void tlvm_init() {
 
     eval_init();
     task_init();
-    object_init();
+    //object_init();
     vm_init();
 
-    io_init();
-    evio_init();
+    //io_init();
+    //evio_init();
 }
 
 // when outside of vm, be your own worker, and attach it to tasks
@@ -177,8 +177,9 @@ void tlworker_run(tlWorker* worker) {
 void tlworker_run_io(tlWorker* worker) {
     while (true) {
         tlworker_run(worker);
-        if (!tlIoHasWaiting(worker->vm)) break;
-        tlIoWait(worker->vm);
+        //if (!tlIoHasWaiting(worker->vm)) break;
+        //tlIoWait(worker->vm);
+        break;
     }
 }
 
@@ -235,7 +236,7 @@ static const tlHostCbs __vm_hostcbs[] = {
     { "div",  _div },
     { "mod",  _mod },
 
-    { "_Buffer_new", _Buffer_new },
+    //{ "_Buffer_new", _Buffer_new },
 
     { 0, 0 },
 };

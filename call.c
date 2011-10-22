@@ -206,45 +206,29 @@ const char* _HostFnToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<HostFn@%p>", v); return buf;
 }
 
-typedef struct CFunctionPause {
-    tlPause pause;
+typedef struct CFunctionFrame {
+    tlFrame frame;
     tlCall* call;
-} CFunctionPause;
+} CFunctionFrame;
 
-INTERNAL tlPause* tlTaskSetPause(tlTask* task, tlValue v);
-static tlPause* CFunctionResume(tlTask* task, tlPause* _frame) {
+static tlValue CFunctionResume(tlTask* task, tlFrame* _frame, tlValue _res) {
     trace("");
-    CFunctionPause* frame = (CFunctionPause*)_frame;
-    tlArgs* args = tlArgsAs(tltask_value(task));
+    CFunctionFrame* frame = (CFunctionFrame*)_frame;
+    if (!_res) return null; // throwing
+    tlArgs* args = tlArgsAs(_res);
     print("args: %s", tl_str(args));
-    tlTaskSetPause(task, _frame->caller);
     return tlHostFnAs(tlcall_fn(frame->call))->hostcb(task, args);
 }
 
-/*
-static tlPause* CFunctionCallFn2(tlTask* task, tlCall* call) {
-    tlArgs* args = tlEvalCallArgs(task, call);
-    if (args) return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
-    if (tlTaskPausing(task)) {
-        CFunctionPause* frame = tlPauseAlloc(task, sizeof(CFunctionPause), CFunctionResume);
-        return tlTaskPauseAttach(task, frame);
-    }
-    return null;
-}
-*/
-
-INTERNAL tlPause* tlEvalCallArgs(tlTask*, tlCall*);
-INTERNAL tlPause* start_call(tlTask* task, tlCall* call);
-static tlPause* CFunctionCallFn(tlTask* task, tlCall* call) {
+static tlValue CFunctionCallFn(tlTask* task, tlCall* call) {
     trace("");
-    tlPause* p = start_call(task, call);
-    if (p) {
-        CFunctionPause* frame = tlPauseAlloc(task, sizeof(CFunctionPause), 0, CFunctionResume);
-        frame->call = call;
-        return tlTaskPauseAttach(task, p, frame);
-    }
-    tlArgs* args = tlArgsAs(tltask_value(task));
-    return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
+    tlArgs* args = tlTaskEvalCall(task, call);
+    if (args) return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
+
+    // throwing or pausing
+    CFunctionFrame* frame = tlFrameAlloc(task, CFunctionResume, sizeof(CFunctionFrame));
+    frame->call = call;
+    return tlTaskPauseAttach(task, frame);
 }
 
 static tlClass _tlHostFnClass = {

@@ -117,7 +117,7 @@ enum {
     TLResult,
     TLError,
 
-    TLPause,
+    TLFrame,
     TLTask,
     TLWorker,
     TLVm,
@@ -199,6 +199,8 @@ TL_REF_TYPE(tlMap);
 TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlValueObject);
 
+TL_REF_TYPE(tlFrame);
+
 TL_TYPE(call, Call);
 TL_TYPE(msg, Msg);
 
@@ -216,7 +218,6 @@ TL_TYPE(collect, Collect);
 TL_TYPE(result, Result);
 TL_TYPE(error, Error);
 
-TL_TYPE(pause, Pause);
 TL_TYPE(task, Task);
 TL_TYPE(worker, Worker);
 TL_TYPE(vm, Vm);
@@ -242,9 +243,9 @@ static inline tlValue tlvalue_from_active(tlValue v) {
 }
 #endif
 
-typedef tlPause*(*tlSendFn)(tlTask* task, tlArgs* args);
-typedef tlPause*(*tlActFn)(tlTask* task, tlArgs* args);
-typedef tlPause*(*tlCallFn)(tlTask* task, tlCall* args);
+typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
+typedef tlValue(*tlActFn)(tlTask* task, tlArgs* args);
+typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 
 struct tlClass {
@@ -397,18 +398,18 @@ tlTask* tltask_set_background_(tlTask* task, bool bg);
 tlWorker* tltask_worker(tlTask* task);
 tlVm* tltask_vm(tlTask* task);
 
-tlPause* tlTaskEvalArgs(tlTask* task, tlArgs* args);
-tlPause* tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
-tlPause* tlTaskEvalCall(tlTask* task, tlCall* call);
+tlValue tlTaskEvalArgs(tlTask* task, tlArgs* args);
+tlValue tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
+tlValue tlTaskEvalCall(tlTask* task, tlCall* call);
 
 bool tltask_isdone(tlTask* task);
 tlValue tltask_value(tlTask* task);
 tlValue tltask_exception(tlTask* task);
 
-tlPause* tltask_return(tlTask* task, tlValue v);
-tlPause* tltask_return_many(tlTask* task, tlValue vs[], int len);
-tlPause* tltask_throw(tlTask* task, tlValue v);
-tlPause* tltask_throw_take(tlTask* task, char* str);
+tlValue tltask_return(tlTask* task, tlValue v);
+tlValue tltask_return_many(tlTask* task, tlValue vs[], int len);
+tlValue tltask_throw(tlTask* task, tlValue v);
+tlValue tltask_throw_take(tlTask* task, char* str);
 #define TL_RETURN(v) return tltask_return(task, v)
 #define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tltask_throw_take(task, strdup(_s)); } while (0)
 #define TL_THROW_VALUE(v) return tltask_throw(task, v)
@@ -420,8 +421,8 @@ tlPause* tltask_throw_take(tlTask* task, char* str);
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);
 typedef void(*tlWorkCb)(tlTask*);
-typedef tlPause*(*tlResumeCb)(tlTask*, tlPause*);
-typedef tlPause*(*tlHostCb)(tlTask*, tlArgs*);
+typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue);
+typedef tlValue(*tlHostCb)(tlTask*, tlArgs*);
 
 // ** memory **
 

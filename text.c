@@ -86,35 +86,35 @@ tlText* tlvalue_to_text(tlTask* task, tlValue v) {
     return tlTEXT("<ERROR.to-text>");
 }
 
-INTERNAL tlPause* _TextSize(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TextSize(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    TL_RETURN(tlINT(tlTextSize(text)));
+    return tlINT(tlTextSize(text));
 }
 
-INTERNAL tlPause* _TextSearch(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TextSearch(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     tlText* find = tlTextCast(tlArgsAt(args, 0));
     if (!find) TL_THROW("expected a Text");
     const char* p = strstr(tlTextData(text), tlTextData(find));
-    if (!p) TL_RETURN(tlNull);
-    TL_RETURN(tlINT(p - tlTextData(text)));
+    if (!p) return tlNull;
+    return tlINT(p - tlTextData(text));
 }
 
-INTERNAL tlPause* _TextCat(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TextCat(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     tlText* add = tlTextCast(tlArgsAt(args, 0));
     if (!add) TL_THROW("arg must be a Text");
 
-    TL_RETURN(tlTextCat(task, text, add));
+    return tlTextCat(task, text, add);
 }
 
-INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TextSlice(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
@@ -125,19 +125,19 @@ INTERNAL tlPause* _TextSlice(tlTask* task, tlArgs* args) {
     trace("%d %d (%s)%d", first, last, text->data, size);
 
     if (first < 0) first = size + first;
-    if (first < 0) TL_RETURN(tlTextEmpty());
-    if (first >= size) TL_RETURN(tlTextEmpty());
+    if (first < 0) return tlTextEmpty();
+    if (first >= size) return tlTextEmpty();
     if (last <= 0) last = size + last;
-    if (last < first) TL_RETURN(tlTextEmpty());
+    if (last < first) return tlTextEmpty();
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 
-    TL_RETURN(tlTextSub(task, text, first, last - first));
+    return tlTextSub(task, text, first, last - first);
 }
 
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
-INTERNAL tlPause* _TextStartsWith(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TextStartsWith(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
@@ -146,13 +146,13 @@ INTERNAL tlPause* _TextStartsWith(tlTask* task, tlArgs* args) {
 
     int textsize = tlTextSize(text);
     int startsize = tlTextSize(start);
-    if (textsize < startsize) TL_RETURN(tlFalse);
+    if (textsize < startsize) return tlFalse;
 
     int r = strncmp(tlTextData(text), tlTextData(start), startsize);
-    TL_RETURN(tlBOOL(r == 0));
+    return tlBOOL(r == 0);
 }
 
-INTERNAL tlPause* _TextEndsWith(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TextEndsWith(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
@@ -161,10 +161,10 @@ INTERNAL tlPause* _TextEndsWith(tlTask* task, tlArgs* args) {
 
     int textsize = tlTextSize(text);
     int startsize = tlTextSize(start);
-    if (textsize < startsize) TL_RETURN(tlFalse);
+    if (textsize < startsize) return tlFalse;
 
     int r = strncmp(tlTextData(text) + textsize - startsize, tlTextData(start), startsize);
-    TL_RETURN(tlBOOL(r == 0));
+    return tlBOOL(r == 0);
 }
 
 const char* _TextToText(tlValue v, char* buf, int size) {
