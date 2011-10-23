@@ -137,22 +137,34 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     return null;
 }
 
-// TODO rework this back into eval.c
 INTERNAL void code_workfn(tlTask* task) {
+    trace("");
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
-    while (task->state == TL_STATE_RUN) {
-        tlValue res = task->value;
-        while (res) {
-            res = run_resume(task, task->frame, task->value);
-            // TODO here we should do frame management ...
-            if (res) assert(task->frame);
-        }
-        if (!task->frame) {
-            task->state = TL_STATE_DONE;
-            // TODO really detach?
-            tlworker_detach(task->worker, task);
-        }
+
+    tlValue res = task->value;
+    tlFrame* frame = task->frame;
+    task->frame = null;
+    assert(frame);
+    assert(res);
+
+    while (frame && res) {
+        trace("frame: %p - %s", frame, tl_str(res));
+        if (frame->resumecb) res = run_resume(task, frame, res);
+        frame = frame->caller;
+    }
+
+    if (!res) {
+        trace("pausing: %p", task->frame);
+        assert(task->frame);
+        task->state = TL_STATE_WAIT;
+    } else {
+        trace("done: %s", tl_str(res));
+        assert(!task->frame);
+        task->value = res;
+        task->state = TL_STATE_DONE;
+        // TODO remove this ...
+        tlworker_detach(task->worker, task);
     }
 }
 

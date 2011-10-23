@@ -641,6 +641,7 @@ INTERNAL tlValue run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
 }
 */
 
+// TODO this now returns ARGS but that should not be ...
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
     assert(call);
 
@@ -686,16 +687,8 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
 INTERNAL tlValue run_resume(tlTask* task, tlFrame* frame, tlValue _res) {
     trace("RESUME");
     task->jumping = 0;
-
-    // dummy "pauses" have no resume callback
-    while (!frame->resumecb) {
-        frame = frame->caller;
-        if (!frame) return _res;
-    }
     assert(frame->resumecb);
-    _res = frame->resumecb(task, frame, _res);
-    if (_res) task->frame = null;
-    return _res;
+    return frame->resumecb(task, frame, _res);
 }
 
 tlValue tlTaskEvalArgs(tlTask* task, tlArgs* args) {
