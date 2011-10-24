@@ -10,8 +10,13 @@ run: tl
 test: tl
 	cd test && ./run.sh
 
-parser.c: parser.g
-	greg -o parser.c parser.g
+
+greg/greg:
+	git clone http://github.com/onnlucky/greg
+	cd greg && git checkout 8bc002c0f640c2d93bb9d9dc965d61df8caf4cf4 && make
+
+parser.c: parser.g greg/greg
+	greg/greg -o parser.c parser.g
 
 parser.o: parser.c tl.h config.h Makefile
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c parser.c -o parser.o
@@ -32,7 +37,8 @@ tl: $(LIBGC) parser.o ev.o *.c *.h llib/lqueue.* llib/lhashmap.* Makefile
 clean:
 	rm -rf tl parser.c *.o *.so tl.dSYM
 distclean: clean
-	rm -rf libgc.a libgc
+	rm -rf libgc.a libgc greg
+dist-clean: distclean
 
 .PHONY: run test clean distclean
 
