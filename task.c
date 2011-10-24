@@ -160,7 +160,7 @@ INTERNAL void code_workfn(tlTask* task) {
         task->state = TL_STATE_WAIT;
     } else {
         trace("done: %s", tl_str(res));
-        assert(!task->frame);
+        //assert(!task->frame);
         task->value = res;
         task->state = TL_STATE_DONE;
         // TODO remove this ...
@@ -182,7 +182,7 @@ typedef struct TaskCallFrame {
     tlCall* call;
 } TaskCallFrame;
 
-static tlValue resumeTaskCall(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeTaskCall(tlTask* task, tlFrame* _frame, tlValue _res) {
     tlCall* call = ((TaskCallFrame*)_frame)->call;
     return tlEval(task, call);
 }
@@ -269,7 +269,7 @@ void tltask_ready_detach(tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-static tlValue _Task_new(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsAt(args, 0);
     assert(task && task->worker && task->worker->vm);
 
@@ -280,7 +280,7 @@ static tlValue _Task_new(tlTask* task, tlArgs* args) {
     return ntask;
 }
 
-static tlValue _TaskYield(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _TaskYield(tlTask* task, tlArgs* args) {
     tlTaskWait(task);
     tlTaskReadyWait(task);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));

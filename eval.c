@@ -637,6 +637,10 @@ INTERNAL tlValue run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
 }
 */
 
+INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue _res) {
+    return evalArgs(task, tlArgsAs(_res));
+}
+
 INTERNAL tlArgs* applyCall(tlTask* task, tlCall* call) {
     trace("");
     assert(call);
@@ -660,38 +664,37 @@ INTERNAL tlArgs* applyCall(tlTask* task, tlCall* call) {
         }
     }
 
+    tlArgs* args = null;
+
     // TODO if zero args, or no key args ... optimize
     switch(tl_head(fn)->type) {
     case TLHostFn:
         //if (tlHostFnAs(fn)->hostcb == _goto) return run_goto(task, call, tlHostFnAs(fn));
     case TLClosure:
-        return evalCall(task, call);
+        args = evalCall(task, call);
+        break;
     case TLCall:
-        return evalCallFn(task, call, tlcall_as(fn));
+        args = evalCallFn(task, call, tlcall_as(fn));
+        break;
     case TLThunk:
         if (tlcall_argc(call) > 0) {
-            return evalCall(task, call);
+            args = evalCall(task, call);
+            break;
         }
         return run_thunk(task, tlthunk_as(fn));
     default:
         warning("unable to run: %s", tl_str(fn));
         assert(false);
     }
-    return null;
-}
 
-INTERNAL tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue _val) {
-    return evalArgs(task, tlArgsAs(_val));
+    if (args) return evalArgs(task, args);
+    tlFrame* frame = tlFrameAlloc(task, resumeEvalCall, sizeof(tlFrame));
+    return tlTaskPauseAttach(task, frame);
 }
 
 tlValue tlEval(tlTask* task, tlValue v) {
-    if (tlcall_is(v)) {
-        tlArgs* args = applyCall(task, tlcall_as(v));
-        // TODO applyCall does not return args when HostFunctions are called ... this should move up
-        if (args) return evalArgs(task, args);
-        tlFrame* frame = tlFrameAlloc(task, resumeEval, sizeof(tlFrame));
-        return tlTaskPauseAttach(task, frame);
-    }
+    trace("");
+    if (tlcall_is(v)) return applyCall(task, tlcall_as(v));
     return v;
 }
 
@@ -716,11 +719,11 @@ tlValue tlTaskEvalCall(tlTask* task, tlCall* call) {
 
 // ** integration **
 
-static tlValue _backtrace(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
     print_backtrace(task->frame);
     return tlNull;
 }
-static tlValue _catch(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     tlValue block = tlArgsMapGet(args, s_block);
     assert(tlclosure_is(block));
     assert(task->frame->resumecb == resumeCode);
@@ -745,7 +748,7 @@ bool tlcallable_is(tlValue v) {
     }
     return false;
 }
-static tlValue _callable_is(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _callable_is(tlTask* task, tlArgs* args) {
     tlValue v = tlArgsAt(args, 0);
     if (!tlref_is(v)) return tlFalse;
 
@@ -758,7 +761,7 @@ static tlValue _callable_is(tlTask* task, tlArgs* args) {
     }
     return tlFalse;
 }
-static tlValue _method_invoke(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsAt(args, 0);
     assert(fn);
     tlArgs* oldargs = tlArgsAs(tlArgsAt(args, 1));
@@ -780,7 +783,7 @@ static tlValue _method_invoke(tlTask* task, tlArgs* args) {
     return evalArgs(task, nargs);
 }
 
-static tlValue _object_send(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     tlValue target = tlArgsAt(args, 0);
     tlValue msg = tlArgsAt(args, 1);
 
