@@ -184,7 +184,7 @@ typedef struct TaskCallFrame {
 
 static tlValue resumeTaskCall(tlTask* task, tlFrame* _frame, tlValue _res) {
     tlCall* call = ((TaskCallFrame*)_frame)->call;
-    return evalCall(task, call);
+    return tlEval(task, call);
 }
 
 void tltask_call(tlTask* task, tlCall* call) {

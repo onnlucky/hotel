@@ -398,6 +398,8 @@ tlTask* tltask_set_background_(tlTask* task, bool bg);
 tlWorker* tltask_worker(tlTask* task);
 tlVm* tltask_vm(tlTask* task);
 
+tlValue tlEval(tlTask* task, tlValue v);
+
 tlValue tlTaskEvalArgs(tlTask* task, tlArgs* args);
 tlValue tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 tlValue tlTaskEvalCall(tlTask* task, tlCall* call);

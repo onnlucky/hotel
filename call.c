@@ -220,9 +220,11 @@ static tlValue CFunctionResume(tlTask* task, tlFrame* _frame, tlValue _res) {
     return tlHostFnAs(tlcall_fn(frame->call))->hostcb(task, args);
 }
 
+INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
+
 static tlValue CFunctionCallFn(tlTask* task, tlCall* call) {
     trace("");
-    tlArgs* args = tlTaskEvalCall(task, call);
+    tlArgs* args = evalCall(task, call);
     if (args) return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
 
     // throwing or pausing
