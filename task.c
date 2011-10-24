@@ -129,7 +129,6 @@ INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
 }
 
 INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
-    assert(_frame);
     tlFrame* frame = tlFrameAs(_frame);
     trace("    >>>> %p", frame);
     task->value = task->frame = frame;
@@ -142,30 +141,32 @@ INTERNAL void code_workfn(tlTask* task) {
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
 
-    tlValue res = task->value;
-    tlFrame* frame = task->frame;
-    task->frame = null;
-    assert(frame);
-    assert(res);
+    while (task->state == TL_STATE_RUN) {
+        tlValue res = task->value;
+        tlFrame* frame = task->frame;
+        task->frame = null;
+        assert(frame);
+        assert(res);
 
-    while (frame && res) {
-        trace("frame: %p - %s", frame, tl_str(res));
-        if (frame->resumecb) res = run_resume(task, frame, res);
-        frame = frame->caller;
-    }
+        while (frame && res) {
+            trace("frame: %p - %s", frame, tl_str(res));
+            if (frame->resumecb) res = run_resume(task, frame, res);
+            trace(" << %p <<<< %p", frame->caller, frame);
+            frame = frame->caller;
+        }
 
-    if (!res) {
-        trace("pausing: %p", task->frame);
+        if (res) {
+            trace("done: %s", tl_str(res));
+            task->value = res;
+            task->state = TL_STATE_DONE;
+            tlworker_detach(task->worker, task);
+            return;
+        }
+
+        trace("paused: %p", task->frame);
         assert(task->frame);
-        task->state = TL_STATE_WAIT;
-    } else {
-        trace("done: %s", tl_str(res));
-        //assert(!task->frame);
-        task->value = res;
-        task->state = TL_STATE_DONE;
-        // TODO remove this ...
-        tlworker_detach(task->worker, task);
     }
+    trace("WAIT: %p %p", task, task->frame);
 }
 
 tlTask* tltask_new(tlWorker* worker) {
