@@ -66,7 +66,7 @@ struct tlTask {
 
     // TODO remove these in favor a some flags
     tlValue exception; // current exception
-    tlValue jumping;   // indicates non linear suspend ... don't attach
+    bool jumping;      // indicates non linear suspend ... don't attach
     tlTaskState state; // state it is currently in
 };
 
@@ -118,12 +118,14 @@ INTERNAL tlPause* tlTaskPauseCaller(tlTask* task, tlValue v) {
 }
 */
 
+// TODO task->value as intermediate frame is a kludge
 INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     if (task->jumping) return null;
     assert(_frame);
     tlFrame* frame = tlFrameAs(_frame);
     trace("> %p.caller = %p", task->value, frame);
     tlFrameAs(task->value)->caller = frame;
+    task->value = frame;
     assert_backtrace(task->frame);
     return null;
 }
@@ -131,7 +133,9 @@ INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
 INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     tlFrame* frame = tlFrameAs(_frame);
     trace("    >>>> %p", frame);
-    task->value = task->frame = frame;
+    task->frame = frame;
+    if (task->jumping) return null;
+    task->value = frame;
     assert_backtrace(task->frame);
     return null;
 }
@@ -149,21 +153,29 @@ INTERNAL void code_workfn(tlTask* task) {
         assert(res);
 
         while (frame && res) {
-            trace("frame: %p - %s", frame, tl_str(res));
-            if (frame->resumecb) res = run_resume(task, frame, res);
-            trace(" << %p <<<< %p", frame->caller, frame);
-            frame = frame->caller;
+            trace("!!frame: %p - %s", frame, tl_str(res));
+            if (frame->resumecb) res = frame->resumecb(task, frame, res);
+            if (task->jumping) {
+                trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
+                frame = task->frame;
+                res = task->value;
+                task->jumping = false;
+            } else {
+                trace(" << %p <<<< %p", frame->caller, frame);
+                frame = frame->caller;
+            }
         }
+        trace("!!out of frame && res");
 
         if (res) {
-            trace("done: %s", tl_str(res));
+            trace("!!done: %s", tl_str(res));
             task->value = res;
             task->state = TL_STATE_DONE;
             tlworker_detach(task->worker, task);
             return;
         }
 
-        trace("paused: %p", task->frame);
+        trace("!!paused: %p", task->frame);
         assert(task->frame);
     }
     trace("WAIT: %p %p", task, task->frame);

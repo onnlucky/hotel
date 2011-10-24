@@ -143,7 +143,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call);
 
 INTERNAL tlValue run_throw(tlTask* task, tlValue exception) {
     trace("throwing: %s", tl_str(exception));
-    task->jumping = tlTrue;
+    task->jumping = true;
     tlFrame* frame = task->frame;
     task->frame = null;
     while (frame) {
@@ -169,30 +169,46 @@ INTERNAL tlValue run_throw(tlTask* task, tlValue exception) {
 }
 
 // return works like a closure, on lookup we close it over the current pause
-INTERNAL tlValue _return(tlTask* task, tlArgs* args) {
-    trace("RETURN(%d)", tlArgsSize(args));
+typedef struct ReturnFrame {
+    tlFrame frame;
+    tlArgs* args;
+} ReturnFrame;
 
-    task->jumping = tlTrue;
+INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue _val) {
+    print("_val? %s", tl_str(_val));
+    tlArgs* args = ((ReturnFrame*)frame)->args;
+    trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
 
     tlHostFn* fn = tlHostFnAs(args->fn);
     tlArgs* as = tlArgsAs(tlHostFnGet(fn, 0));
-    tlFrame* frame = task->frame;
-    tlValue caller = null;
     trace("%p", frame);
     while (frame) {
         if (CodeFrameIs(frame)) {
             if (CodeFrameAs(frame)->env->args == as) {
                 trace("found caller: %p.caller: %p", frame, frame->caller);
-                caller = frame->caller;
                 break;
             }
         }
         frame = frame->caller;
     }
+    if (tlArgsSize(args) == 1) task->value = tlArgsAt(args, 0);
+    else task->value = tlresult_new(task, args);
 
-    tlTaskPause(task, caller);
-    if (tlArgsSize(args) == 1) return tlArgsAt(args, 0);
-    return tlresult_new(task, args);
+    if (!frame) {
+        trace("caller out of stack, just returning ... %s", tl_str(task->value));
+        return task->value;
+    }
+    trace("jumping");
+    task->jumping = true;
+    tlTaskPause(task, frame->caller);
+    return null;
+}
+
+INTERNAL tlValue _return(tlTask* task, tlArgs* args) {
+    trace("RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
+    ReturnFrame* frame = tlFrameAlloc(task, resumeReturn, sizeof(ReturnFrame));
+    frame->args = args;
+    return tlTaskPause(task, frame);
 }
 
 // goto should never be called, instead we run it as a pause
@@ -203,7 +219,7 @@ INTERNAL tlValue _goto(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _continuation(tlTask* task, tlArgs* args) {
     trace("CONTINUATION(%d)", tlArgsSize(args));
 
-    task->jumping = tlTrue;
+    task->jumping = true;
     tlTaskPause(task, tlHostFnAs(args->fn)->data[0]);
 
     if (tlArgsSize(args) == 0) return args->fn;
@@ -526,7 +542,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
 
     for (;pc < code->head.size - 4; pc++) {
         tlValue op = code->ops[pc];
-        trace2("%p pc=%d, op=%s", frame, pc, tl_str(op));
+        trace("%p pc=%d, op=%s", frame, pc, tl_str(op));
 
         // a value marked as active
         if (tlactive_is(op)) {
@@ -705,13 +721,6 @@ tlValue tlEval(tlTask* task, tlValue v) {
     trace("");
     if (tlcall_is(v)) return applyCall(task, tlcall_as(v));
     return v;
-}
-
-INTERNAL tlValue run_resume(tlTask* task, tlFrame* frame, tlValue _res) {
-    trace("RESUME");
-    task->jumping = 0;
-    assert(frame->resumecb);
-    return frame->resumecb(task, frame, _res);
 }
 
 tlValue tlTaskEvalArgs(tlTask* task, tlArgs* args) {
