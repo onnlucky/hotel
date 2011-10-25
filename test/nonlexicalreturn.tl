@@ -1,7 +1,3 @@
-id = { block -> return block }
-print id(block="hello")
-
-
 block = { block -> return block }
 testfunction = { ->
     return block:{-> return 42; 10000 }

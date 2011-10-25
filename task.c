@@ -184,10 +184,10 @@ INTERNAL void code_workfn(tlTask* task) {
             return;
         }
 
-        trace("!!paused: %p", task->frame);
+        trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
         assert(task->frame);
         // attach c transient stack back to full stack
-        if (task->value && frame) tlFrameAs(task->value)->caller = frame->caller;
+        if (task->value && frame) tlFrameAs(task->value)->caller = frame;
         assert_backtrace(task->frame);
     }
     trace("WAIT: %p %p", task, task->frame);

@@ -130,10 +130,10 @@ INTERNAL void print_backtrace(tlFrame* frame) {
     while (frame) {
         if (CodeFrameIs(frame)) {
             tlSym name = CodeFrameAs(frame)->code->name;
-            if (name) print("  %s", tl_str(name));
-            else print("  <anon>");
+            if (name) print("%p  %s", frame, tl_str(name));
+            else print("%p  <anon>", frame);
         } else {
-            print("  <native: %p>", frame);
+            print("%p  <native>", frame);
         }
         frame = frame->caller;
     }
@@ -182,22 +182,47 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue _val) {
     if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
     else res = tlresult_new(task, args);
 
-    // we go looking for a frame with the same args in its env
-    tlHostFn* fn = tlHostFnAs(args->fn);
-    tlArgs* as = tlArgsAs(tlHostFnGet(fn, 0));
+    // we have just reified the stack, now we go looking for our frame, then we go looking
+    // for first lexical scoped function, if any
+    // we look for "args" because these stay the same after copy-on-write of env and frames
+    tlArgs* targetargs = tlHostFnGet(tlHostFnAs(args->fn), 0);
+    tlFrame* lastblock = null;
     trace("%p", frame);
     while (frame) {
         if (CodeFrameIs(frame)) {
-            if (CodeFrameAs(frame)->env->args == as) {
-                trace("found caller: %p.caller: %p", frame, frame->caller);
-                return tlTaskJump(task, frame->caller, res);
+            CodeFrame* cframe = CodeFrameAs(frame);
+            if (cframe->env->args == targetargs) {
+                if (!tlcode_isblock(cframe->code)) {
+                    trace("found caller function: %p.caller: %p", frame, frame->caller);
+                    return tlTaskJump(task, frame->caller, res);
+                }
+                trace("found caller block: %p.caller: %p", frame, frame->caller);
+                lastblock = frame;
+                break;
             }
         }
         frame = frame->caller;
     }
-
-    // TODO make a test case and figure out what to do ...
-    trace("caller out of stack, just returning ...");
+    while (frame) {
+        if (CodeFrameIs(frame)) {
+            CodeFrame* cframe = CodeFrameAs(frame);
+            if (cframe->env->args == targetargs) {
+                if (!tlcode_isblock(cframe->code)) {
+                    trace("found enclosing function: %p.caller: %p", frame, frame->caller);
+                    return tlTaskJump(task, frame->caller, res);
+                } else {
+                    trace("found enclosing block: %p.caller: %p", frame, frame->caller);
+                    lastblock = frame;
+                    tlEnv* env = cframe->env->parent;
+                    if (env) targetargs = env->args;
+                    else targetargs = null;
+                }
+            }
+        }
+        frame = frame->caller;
+    }
+    trace("caller function out of stack; lastblock: %p", lastblock);
+    if (lastblock) return tlTaskJump(task, lastblock->caller, res);
     return res;
 }
 
@@ -302,7 +327,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     */
     tlValue v = tlenv_get(task, env, name);
     if (!v) TL_THROW("undefined '%s'", tl_str(name));
-    trace("%s -> %s", tl_str(name), tl_str(task->value));
+    trace("%s -> %s", tl_str(name), tl_str(v));
     return v;
 }
 
@@ -462,7 +487,7 @@ INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue _res) {
 
 INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     CodeFrame* frame = tlFrameAlloc(task, resumeCode, sizeof(CodeFrame));
-    frame->env = tlenv_new(task, fn->env);
+    frame->env = tlenv_copy(task, fn->env);
     frame->code = fn->code;
     // TODO really? I don't think this should be
     task->frame = (tlFrame*)frame;
@@ -492,9 +517,9 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
             frame->env = tlenv_set(task, frame->env, name, v);
         }
     }
+    frame->env = tlenv_set_args(task, frame->env, args);
+    // TODO remove this ...
     if (!tlcode_isblock(fn->code)) {
-        frame->env = tlenv_set_args(task, frame->env, args);
-        // TODO remove this ...
         frame->env = tlenv_set(task, frame->env, s_args, args);
     }
     // TODO only do this if the closure is a method
