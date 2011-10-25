@@ -1,8 +1,7 @@
 # TODO
 
-fix somehow when returning function, their frame is still current ...
-return task/pausing a bit: return values, null if pausing or exception
-add tlTaskPausing(task) to attach
+the _res values could be multiple, add code to unpack it? or add second param for full list?
+fixup last bits on new value-return work and make all testcases pass again ...
 
 make all "callables" tlClass based, and add a klass->call method to dispatch
 change tlPause to tlSync? tlTaskSync ... ?

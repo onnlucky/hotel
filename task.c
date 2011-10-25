@@ -140,6 +140,14 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     return null;
 }
 
+INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
+    trace("jumping: %p", frame);
+    task->jumping = true;
+    task->value = res;
+    task->frame = frame;
+    return null;
+}
+
 INTERNAL void code_workfn(tlTask* task) {
     trace("");
     assert(task->state == TL_STATE_READY);
@@ -169,6 +177,7 @@ INTERNAL void code_workfn(tlTask* task) {
 
         if (res) {
             trace("!!done: %s", tl_str(res));
+            task->frame = null;
             task->value = res;
             task->state = TL_STATE_DONE;
             tlworker_detach(task->worker, task);
@@ -177,6 +186,9 @@ INTERNAL void code_workfn(tlTask* task) {
 
         trace("!!paused: %p", task->frame);
         assert(task->frame);
+        // attach c transient stack back to full stack
+        if (task->value && frame) tlFrameAs(task->value)->caller = frame->caller;
+        assert_backtrace(task->frame);
     }
     trace("WAIT: %p %p", task, task->frame);
 }

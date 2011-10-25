@@ -216,7 +216,7 @@ static tlValue CFunctionResume(tlTask* task, tlFrame* _frame, tlValue _res) {
     CFunctionFrame* frame = (CFunctionFrame*)_frame;
     if (!_res) return null; // throwing
     tlArgs* args = tlArgsAs(_res);
-    print("args: %s", tl_str(args));
+    trace("args: %s", tl_str(args));
     return tlHostFnAs(tlcall_fn(frame->call))->hostcb(task, args);
 }
 

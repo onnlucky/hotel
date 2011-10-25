@@ -175,10 +175,14 @@ typedef struct ReturnFrame {
 } ReturnFrame;
 
 INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue _val) {
-    print("_val? %s", tl_str(_val));
     tlArgs* args = ((ReturnFrame*)frame)->args;
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
 
+    tlValue res;
+    if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
+    else res = tlresult_new(task, args);
+
+    // we go looking for a frame with the same args in its env
     tlHostFn* fn = tlHostFnAs(args->fn);
     tlArgs* as = tlArgsAs(tlHostFnGet(fn, 0));
     trace("%p", frame);
@@ -186,22 +190,15 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue _val) {
         if (CodeFrameIs(frame)) {
             if (CodeFrameAs(frame)->env->args == as) {
                 trace("found caller: %p.caller: %p", frame, frame->caller);
-                break;
+                return tlTaskJump(task, frame->caller, res);
             }
         }
         frame = frame->caller;
     }
-    if (tlArgsSize(args) == 1) task->value = tlArgsAt(args, 0);
-    else task->value = tlresult_new(task, args);
 
-    if (!frame) {
-        trace("caller out of stack, just returning ... %s", tl_str(task->value));
-        return task->value;
-    }
-    trace("jumping");
-    task->jumping = true;
-    tlTaskPause(task, frame->caller);
-    return null;
+    // TODO make a test case and figure out what to do ...
+    trace("caller out of stack, just returning ...");
+    return res;
 }
 
 INTERNAL tlValue _return(tlTask* task, tlArgs* args) {
