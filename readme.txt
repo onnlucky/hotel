@@ -1,5 +1,9 @@
 # TODO
 
+check lazy arguments, and fix them
+fix goto in the same way we did return ...
+add break in same way as return, but return outer most lexical block ...?
+fix continuations
 the _res values could be multiple, add code to unpack it? or add second param for full list?
 fixup last bits on new value-return work and make all testcases pass again ...
 
