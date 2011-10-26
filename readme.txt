@@ -1,16 +1,15 @@
 # TODO
 
-fix goto in the same way we did return ...
+add continuations (same as goto)
+change return into same as goto
 add break in same way as return, but return outer most lexical block ...?
-fix continuations
 the _res values could be multiple, add code to unpack it? or add second param for full list?
-fixup last bits on new value-return work and make all testcases pass again ...
+port evio and such into new style value/frame
 
-make all "callables" tlClass based, and add a klass->call method to dispatch
-change tlPause to tlSync? tlTaskSync ... ?
+rework all "callables" as tlClass based, and use the class->call
+rework all types as the tlClass things ... stop using anything else
 
 tlArgsAt -> tlArgsGet ... like a list tlListGet
-rework all types as the tlClass things ... stop using anything else
 remove old task_alloc and such
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 we do the "get field and dispatch" a lot in a lot of places ... dry it up
