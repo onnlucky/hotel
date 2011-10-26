@@ -486,6 +486,7 @@ INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue _res) {
 }
 
 INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
+    trace("");
     CodeFrame* frame = tlFrameAlloc(task, resumeCode, sizeof(CodeFrame));
     frame->env = tlenv_copy(task, fn->env);
     frame->code = fn->code;
@@ -527,11 +528,13 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     tlValue oop = tlArgsMapGet(args, s_this);
     if (oop) frame->env = tlenv_set(task, frame->env, s_this, oop);
 
-    return evalCode2(task, frame, null);
+    trace("mapped all args...");
+    return evalCode2(task, frame, tlNull);
 }
 
 INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsFn(args);
+    trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     if (tlclosure_is(fn)) return evalCode(task, args, tlclosure_as(fn));
     if (tlHostFnIs(fn)) return tlHostFnAs(fn)->hostcb(task, args);
     fatal("OEPS %s", tl_str(fn));
@@ -617,6 +620,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
         trace2("%p op: data: %s", frame, tl_str(op));
         task->value = op;
     }
+    trace("done ...");
     return task->value;
 }
 

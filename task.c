@@ -122,6 +122,7 @@ INTERNAL tlPause* tlTaskPauseCaller(tlTask* task, tlValue v) {
 INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     if (task->jumping) return null;
     assert(_frame);
+    assert(task->value);
     tlFrame* frame = tlFrameAs(_frame);
     trace("> %p.caller = %p", task->value, frame);
     tlFrameAs(task->value)->caller = frame;

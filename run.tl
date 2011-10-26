@@ -1,12 +1,9 @@
-id = { block -> return block }
-print id(block="hello")
-
-
-block = { block -> return block }
-testfunction = { ->
-    return block:{-> return 42; 10000 }
+if = { c, block -> bool(c, block, {})() }
+loop = { n ->
+    if n <= 0: return
+    if n <= 0: error
+    print("N:", n)
+    goto loop n - 1
 }
-b = testfunction()
-print b()
-print "DONE"
+loop 1
 
