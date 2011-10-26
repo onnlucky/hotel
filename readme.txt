@@ -1,6 +1,5 @@
 # TODO
 
-check lazy arguments, and fix them
 fix goto in the same way we did return ...
 add break in same way as return, but return outer most lexical block ...?
 fix continuations

@@ -179,8 +179,10 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue _val) {
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
 
     tlValue res;
-    if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
+    if (tlArgsSize(args) == 0) res = tlNull;
+    else if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
     else res = tlresult_new(task, args);
+    assert(res);
 
     // we have just reified the stack, now we go looking for our frame, then we go looking
     // for first lexical scoped function, if any
@@ -233,9 +235,58 @@ INTERNAL tlValue _return(tlTask* task, tlArgs* args) {
     return tlTaskPause(task, frame);
 }
 
-// goto should never be called, instead we run it as a pause
-INTERNAL tlValue _goto(tlTask* task, tlArgs* args) {
-    fatal("_goto is not supposed to be called");
+TL_REF_TYPE(tlGoto);
+struct tlGoto {
+    tlHead head;
+    tlArgs* args;
+};
+static tlValue GotoCallFn(tlTask* task, tlCall* call);
+static tlClass _tlGotoClass = {
+    .name = "Goto",
+    .call = GotoCallFn,
+};
+tlClass* tlGotoClass = &_tlGotoClass;
+
+typedef struct GotoFrame {
+    tlFrame frame;
+    tlCall* call;
+    tlArgs* targetargs;
+} GotoFrame;
+
+INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue _val) {
+    tlCall* call = ((GotoFrame*)frame)->call;
+    tlArgs* targetargs = ((GotoFrame*)frame)->targetargs;
+    trace("RESUME GOTO(%d)", tlcall_argc(call));
+    trace("%p - %s", targetargs, tl_str(targetargs));
+
+    // TODO handle multiple arguments ... but what does that mean?
+    assert(tlcall_argc(call) == 1);
+
+    tlFrame* caller = null;
+    while (frame) {
+        if (CodeFrameIs(frame)) {
+            if (CodeFrameAs(frame)->env->args == targetargs) {
+                caller = frame->caller;
+                break;
+            }
+        }
+        frame = frame->caller;
+    }
+    tlValue res = tlEval(task, tlcall_arg(call, 0));
+    if (!res) {
+        // jumping is not allowed unless the stack is reified first; assert that fact
+        assert(!task->jumping);
+        tlTaskPauseAttach(task, caller);
+        return tlTaskJump(task, task->frame, tlNull);
+    }
+    return tlTaskJump(task, caller, res);
+}
+INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
+    trace("GOTO(%d)", tlcall_argc(call));
+    GotoFrame* frame = tlFrameAlloc(task, resumeGoto, sizeof(GotoFrame));
+    frame->call = call;
+    frame->targetargs = tlGotoAs(tlcall_fn(call))->args;
+    return tlTaskPause(task, frame);
 }
 
 INTERNAL tlValue _continuation(tlTask* task, tlArgs* args) {
@@ -305,16 +356,14 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), task->frame);
         return fn;
     }
-    /*
     if (name == s_goto) {
-        assert(task->pause && task->pause->resumecb == resumeCode);
-        tlArgs* args = tlenv_get_args(env);
-        tlHostFn* fn = tlHostFnNew(task, _goto, 1);
-        tlHostFnSet_(fn, 0, args);
-        tltask_value_set_(task, fn);
-        trace("%s -> %s", tl_str(name), tl_str(task->value));
-        return null;
+        assert(task->frame && task->frame->resumecb == resumeCode);
+        tlGoto* fn = tlAlloc(task, tlGotoClass, sizeof(tlGoto));
+        fn->args = tlenv_get_args(env);
+        trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), task->frame);
+        return fn;
     }
+    /*
     if (name == s_continuation) {
         // TODO freeze current pause ...
         assert(task->pause && task->pause->resumecb == resumeCode);
@@ -639,45 +688,6 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
     frame->call = call;
     return evalCall2(task, frame, null);
 }
-
-/*
-INTERNAL tlValue run_goto(tlTask* task, tlCall* call, tlHostFn* fn) {
-    trace("%p", call);
-
-    // TODO handle multiple arguments ... but what does that mean?
-    assert(tlcall_argc(call) == 1);
-
-    tlArgs* args = tlArgsAs(tlHostFnGet(fn, 0));
-    tlValue pause = task->pause;
-    tlValue caller = null;
-    while (pause) {
-        if (CodeFrameIs(pause)) {
-            if (CodeFrameAs(pause)->env->args == args) {
-                caller = pause->caller;
-                break;
-            }
-        }
-        pause = pause->caller;
-    }
-
-    tlTaskPause(task, caller);
-
-    tlValue v = tlcall_arg(call, 0);
-    if (tlcall_is(v)) {
-        tlValue r = evalCall(task, tlcall_as(v));
-        if (r) {
-            assert(!task->jumping);
-            tlTaskPauseAttach(task, r, caller);
-            task->jumping = tlTrue;
-            return caller;
-        }
-        return null;
-    }
-
-    tltask_value_set_(task, v);
-    return null;
-}
-*/
 
 INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue _res) {
     return evalArgs(task, tlArgsAs(_res));
