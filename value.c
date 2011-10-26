@@ -44,8 +44,8 @@ const char* const type_to_str[] = {
 
     "env",
     "closure",
-    "fun",
-    "run",
+    "thunk",
+    "lazy",
 
     "code",
     "thunk",

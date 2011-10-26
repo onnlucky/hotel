@@ -350,7 +350,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
 // when call->fn is a call itself
 INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue _res) {
     CallFnFrame* frame = (CallFnFrame*)_frame;
-    return evalCall(task, tlcall_copy_fn(task, frame->call, _res));
+    return applyCall(task, tlcall_copy_fn(task, frame->call, _res));
 }
 INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
     trace(">> %p", fn);
@@ -361,7 +361,7 @@ INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
         return tlTaskPauseAttach(task, frame);
     }
     trace("<< %p", res);
-    return evalCall(task, tlcall_copy_fn(task, call, res));
+    return applyCall(task, tlcall_copy_fn(task, call, res));
 }
 
 /*
@@ -680,7 +680,7 @@ INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue _res) {
 }
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
-    trace("");
+    trace("apply >> %p(%d) <<", call, tlcall_argc(call));
     assert(call);
 
     for (int i = 0;; i++) {
@@ -716,13 +716,11 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
         break;
     case TLCall:
         trace("call");
-        args = evalCallFn(task, call, tlcall_as(fn));
-        break;
+        return evalCallFn(task, call, tlcall_as(fn));
     case TLThunk:
         trace("thunk");
         if (tlcall_argc(call) > 0) {
             args = evalCall(task, call);
-            break;
         }
         return run_thunk(task, tlthunk_as(fn));
     default:
