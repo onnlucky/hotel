@@ -289,15 +289,27 @@ INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
     return tlTaskPause(task, frame);
 }
 
-INTERNAL tlValue _continuation(tlTask* task, tlArgs* args) {
-    trace("CONTINUATION(%d)", tlArgsSize(args));
+TL_REF_TYPE(tlContinuation);
+struct tlContinuation {
+    tlHead head;
+    tlFrame* frame;
+};
+static tlValue ContinuationCallFn(tlTask* task, tlCall* call);
+static tlClass _tlContinuationClass = {
+    .name = "Goto",
+    .call = ContinuationCallFn,
+};
+tlClass* tlContinuationClass = &_tlContinuationClass;
 
-    task->jumping = true;
-    tlTaskPause(task, tlHostFnAs(args->fn)->data[0]);
+INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
+    trace("CONTINUATION(%d)", tlcall_argc(call));
 
-    if (tlArgsSize(args) == 0) return args->fn;
-    tltask_value_set_(task, tlresult_new2(task, args->fn, args));
-    return null;
+    tlContinuation* cont = tlContinuationAs(tlcall_fn(call));
+
+    if (tlcall_argc(call) == 0) return tlTaskJump(task, cont->frame, cont);
+    tlArgs* args = evalCall(task, call);
+    assert(args);
+    return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
 }
 
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
@@ -345,9 +357,17 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
     return call;
 }
 
+INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue _res) {
+    tlContinuation* cont = tlAlloc(task, tlContinuationClass, sizeof(tlContinuation));
+    cont->frame = frame->caller;
+    assert(cont->frame && cont->frame->resumecb == resumeCode);
+    cont->frame->head.keep++;
+    trace("%s -> %s", tl_str(s_continuation), tl_str(cont));
+    return cont;
+}
+
 // lookups potentially need to run hotel code (not yet though)
 INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
-    // when we bind continuations, the task->pause *MUST* be the current code pause
     if (name == s_return) {
         assert(task->frame && task->frame->resumecb == resumeCode);
         tlArgs* args = tlenv_get_args(env);
@@ -363,17 +383,11 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), task->frame);
         return fn;
     }
-    /*
     if (name == s_continuation) {
-        // TODO freeze current pause ...
-        assert(task->pause && task->pause->resumecb == resumeCode);
-        tlHostFn* fn = tlHostFnNew(task, _continuation, 1);
-        tlHostFnSet_(fn, 0, TL_KEEP(task->pause));
-        tltask_value_set_(task, fn);
-        trace("%s -> %s", tl_str(name), tl_str(task->value));
-        return null;
+        tlFrame* frame = tlFrameAlloc(task, resumeContinuation, sizeof(tlFrame));
+        trace("pausing for continuation: %p", frame);
+        return tlTaskPause(task, frame);
     }
-    */
     tlValue v = tlenv_get(task, env, name);
     if (!v) TL_THROW("undefined '%s'", tl_str(name));
     trace("%s -> %s", tl_str(name), tl_str(v));
@@ -449,7 +463,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
         names = code->argnames;
         defaults = code->argdefaults;
     } else {
-        assert(tlHostFnIs(fn) || tlthunk_is(fn));
+        tlCallableIs(fn);
     }
 
     tlArgs* args = frame->args;
@@ -529,8 +543,9 @@ INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue _res) {
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res);
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue _res) {
     CodeFrame* frame = (CodeFrame*)_frame;
-    // TODO this should be done somewhere else ... but ...
-    if (_frame->head.keep > 1) frame = TL_CLONE(frame);
+    // TODO this should be done for all Frames everywhere ... but ... for now
+    // TODO keep should trickle down to frame->caller now too ... oeps
+    if (_frame->head.keep > 1) frame = tlAllocClone(task, frame, sizeof(CodeFrame), 0);
     return evalCode2(task, frame, _res);
 }
 
@@ -539,8 +554,6 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     CodeFrame* frame = tlFrameAlloc(task, resumeCode, sizeof(CodeFrame));
     frame->env = tlenv_copy(task, fn->env);
     frame->code = fn->code;
-    // TODO really? I don't think this should be
-    task->frame = (tlFrame*)frame;
 
     tlList* names = fn->code->argnames;
     tlMap* defaults = fn->code->argdefaults;
@@ -607,6 +620,8 @@ INTERNAL tlValue chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlValu
 // this is the main part of eval: running the "list" of "bytecode"
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
     int pc = frame->pc;
+    // TODO really wanna do this? I guess so
+    task->frame = (tlFrame*)frame;
     tlCode* code = frame->code;
     tlEnv* env = frame->env;
     trace("%p -- %d [%d]", frame, pc, code->head.size);
@@ -622,9 +637,8 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
         if (tlactive_is(op)) {
             trace2("%p op: active -- %s", frame, tl_str(tlvalue_from_active(op)));
 
-            // make sure we keep the current frame up to date, continuations might capture it
-            if (frame->frame.head.keep > 1) frame = TL_CLONE(frame);
-            frame->env = env; frame->pc = pc + 1;
+            frame->env = env;
+            frame->pc = pc + 1;
 
             tlValue v = run_activate(task, tlvalue_from_active(op), env);
             if (!v) return tlTaskPauseAttach(task, frame);
@@ -772,6 +786,7 @@ tlValue tlTaskEvalCall(tlTask* task, tlCall* call) {
 // ** integration **
 
 INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
+    fatal("wrong");
     print_backtrace(task->frame);
     return tlNull;
 }

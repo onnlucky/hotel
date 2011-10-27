@@ -1,9 +1,7 @@
-if = { c, block -> bool(c, block, {})() }
-loop = { n ->
-    if n <= 0: return
-    if n <= 0: error
-    print("N:", n)
-    goto loop n - 1
-}
-loop 1
+cc, extra = continuation
+print "HELLO", extra
+done = return
+bool(extra, {done()}, {})()
+cc("WORLD!")
+print("ERROR")
 
