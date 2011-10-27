@@ -127,7 +127,7 @@ INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     trace("> %p.caller = %p", task->value, frame);
     tlFrameAs(task->value)->caller = frame;
     task->value = frame;
-    assert_backtrace(task->frame);
+    if_debug(assert_backtrace(task->frame));
     return null;
 }
 
@@ -137,7 +137,7 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     task->frame = frame;
     if (task->jumping) return null;
     task->value = frame;
-    assert_backtrace(task->frame);
+    if_debug(assert_backtrace(task->frame));
     return null;
 }
 
@@ -189,7 +189,7 @@ INTERNAL void code_workfn(tlTask* task) {
         assert(task->frame);
         // attach c transient stack back to full stack
         if (task->value && frame) tlFrameAs(task->value)->caller = frame;
-        assert_backtrace(task->frame);
+        if_debug(assert_backtrace(task->frame));
     }
     trace("WAIT: %p %p", task, task->frame);
 }
