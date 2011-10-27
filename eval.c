@@ -312,6 +312,15 @@ INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
     return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
 }
 
+INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue _res) {
+    tlContinuation* cont = tlAlloc(task, tlContinuationClass, sizeof(tlContinuation));
+    cont->frame = frame->caller;
+    assert(cont->frame && cont->frame->resumecb == resumeCode);
+    cont->frame->head.keep++;
+    trace("%s -> %s", tl_str(s_continuation), tl_str(cont));
+    return cont;
+}
+
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
 
@@ -355,15 +364,6 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
     }
     trace2("%p << call: %d", frame, tlcall_argc(call));
     return call;
-}
-
-INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue _res) {
-    tlContinuation* cont = tlAlloc(task, tlContinuationClass, sizeof(tlContinuation));
-    cont->frame = frame->caller;
-    assert(cont->frame && cont->frame->resumecb == resumeCode);
-    cont->frame->head.keep++;
-    trace("%s -> %s", tl_str(s_continuation), tl_str(cont));
-    return cont;
 }
 
 // lookups potentially need to run hotel code (not yet though)

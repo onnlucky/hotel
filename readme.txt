@@ -1,8 +1,8 @@
 # TODO
 
-add continuations (same as goto)
-change return into same as goto
-add break in same way as return, but return outer most lexical block ...?
+fix throw and catch ...
+change return into same as goto?
+add break as a return or by throwing?
 the _res values could be multiple, add code to unpack it? or add second param for full list?
 port evio and such into new style value/frame
 
