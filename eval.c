@@ -785,12 +785,16 @@ tlValue tlTaskEvalCall(tlTask* task, tlCall* call) {
 
 // ** integration **
 
-INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
-    fatal("wrong");
-    print_backtrace(task->frame);
+INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue _res) {
+    print_backtrace(frame->caller);
     return tlNull;
 }
+INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
+    tlFrame* frame = tlFrameAlloc(task, resumeBacktrace, sizeof(tlFrame));
+    return tlTaskPause(task, frame);
+}
 INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
+    fatal("HERE");
     tlValue block = tlArgsMapGet(args, s_block);
     assert(tlclosure_is(block));
     assert(task->frame->resumecb == resumeCode);
