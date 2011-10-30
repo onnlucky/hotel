@@ -17,7 +17,7 @@ tlBuffer* tlBufferNew(tlTask* task) {
     return buf;
 }
 
-INTERNAL tlPause* _BufferRead(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _BufferRead(tlTask* task, tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(args->target);
     assert(buffer);
     tl_buf* buf = buffer->buf;
@@ -27,10 +27,10 @@ INTERNAL tlPause* _BufferRead(tlTask* task, tlArgs* args) {
     char* data = malloc(canread(buf) + 1);
     int last = tlbuf_read(buf, data, canread(buf));
     data[last] = 0;
-    TL_RETURN(tlTextNewTake(task, data));
+    return tlTextNewTake(task, data);
 }
 
-INTERNAL tlPause* _BufferWrite(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _BufferWrite(tlTask* task, tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(args->target);
     assert(buffer);
     tl_buf* buf = buffer->buf;
@@ -38,14 +38,14 @@ INTERNAL tlPause* _BufferWrite(tlTask* task, tlArgs* args) {
 
     tlText* text = tlTextCast(tlArgsAt(args, 0));
     if (!text) TL_THROW("expected a Text");
-    TL_RETURN(tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text))));
+    return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));
 }
 
-tlPause* _Buffer_new(tlTask* task, tlArgs* args) {
-    TL_RETURN(tlBufferNew(task));
+INTERNAL tlValue _Buffer_new(tlTask* task, tlArgs* args) {
+    return tlBufferNew(task);
 }
 
-static void io_init() {
+static void buffer_init() {
     _tlBufferClass.map = tlClassMapFrom(
             "read", _BufferRead,
             "write", _BufferWrite,

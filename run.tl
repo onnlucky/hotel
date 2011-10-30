@@ -1,21 +1,14 @@
-out("step 1\n")
-(
-    _backtrace();
-    _catch: out("ok\n")
-    assert("oeps" == "no way")
-    out("fail\n")
-)
-out("step 2\n")
-(
-    assert(not "oeps" == "no way")
-)
-out("step 3\n")
-(
-    assert("must be unequal", "oeps" != "no way")
-)
-out("step 4\n")
-(
-    _catch: out("ok\n")
-    assert("last", "is", "false", "so", "fail", false)
-)
-out("done\n")
+child = _Child_run("echo", "hello", "world")
+child.in.close
+child.err.close
+
+print "here"
+//status = child.wait
+//out("echo status: ", status, "\n")
+
+buf = _Buffer_new()
+child.out.read(buf)
+
+out("echo stdout: ", buf.read, "\n")
+out("DONE\n")
+

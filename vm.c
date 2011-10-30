@@ -26,8 +26,8 @@
 
 // extras
 #include "buf.c"
-//#include "buffer.c"
-//#include "evio.c"
+#include "buffer.c"
+#include "evio.c"
 
 #include "trace-off.h"
 
@@ -138,8 +138,8 @@ void tlvm_init() {
     //object_init();
     vm_init();
 
-    //io_init();
-    //evio_init();
+    buffer_init();
+    evio_init();
 }
 
 // when outside of vm, be your own worker, and attach it to tasks
@@ -236,7 +236,7 @@ static const tlHostCbs __vm_hostcbs[] = {
     { "div",  _div },
     { "mod",  _mod },
 
-    //{ "_Buffer_new", _Buffer_new },
+    { "_Buffer_new", _Buffer_new },
 
     { 0, 0 },
 };
