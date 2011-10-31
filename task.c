@@ -258,6 +258,7 @@ tlValue tltask_value(tlTask* task) {
 }
 
 void tlTaskWait(tlTask* task) {
+    trace("%p", task);
     assert(task->state == TL_STATE_READY || task->state == TL_STATE_RUN);
     assert(tltask_is(task));
     tlVm* vm = tlTaskGetVm(task);
@@ -267,6 +268,7 @@ void tlTaskWait(tlTask* task) {
 }
 
 void tlTaskReadyWait(tlTask* task) {
+    trace("%p", task);
     assert(task->state == TL_STATE_WAIT);
     tlVm* vm = tlTaskGetVm(task);
     vm->waiting--;
@@ -276,6 +278,7 @@ void tlTaskReadyWait(tlTask* task) {
 }
 
 void tlTaskReadyInit(tlTask* task) {
+    trace("%p", task);
     assert(task->state == TL_STATE_INIT);
     tlVm* vm = tlTaskGetVm(task);
     task->worker = null;

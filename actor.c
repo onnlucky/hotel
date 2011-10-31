@@ -107,7 +107,7 @@ INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
             res = tlTaskEvalArgsFn(task, args, res);
         }
     }
-    trace("actor acted: %p", res);
+    trace("actor acted: %p (%s)", res, tl_str(res));
     if (!res) {
         // TODO this is no good, will keep actor locked
         ActorFrame* frame = tlFrameAlloc(task, _ResumeAct, sizeof(ActorFrame));

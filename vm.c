@@ -29,7 +29,7 @@
 #include "buffer.c"
 #include "evio.c"
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tlValue _out(tlTask* task, tlArgs* args) {
     trace("out(%d)", tlArgsSize(args));
@@ -49,7 +49,7 @@ static tlValue _bool(tlTask* task, tlArgs* args) {
     return res;
 }
 static tlValue _not(tlTask* task, tlArgs* args) {
-    trace("!%s", t_str(tlArgsAt(args, 0)));
+    trace("!%s", tl_str(tlArgsAt(args, 0)));
     return tlBOOL(!tl_bool(tlArgsAt(args, 0)));
 }
 static tlValue _eq(tlTask* task, tlArgs* args) {
@@ -119,7 +119,7 @@ void tlvm_init() {
 
     trace("    field size: %zd", sizeof(tlValue));
     trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlValue));
-    trace("frame overhead: %zd (%zd)", sizeof(tlPause), sizeof(tlPause)/sizeof(tlValue));
+    trace("frame overhead: %zd (%zd)", sizeof(tlFrame), sizeof(tlFrame)/sizeof(tlValue));
     trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlValue));
 
     sym_init();
@@ -177,9 +177,8 @@ void tlworker_run(tlWorker* worker) {
 void tlworker_run_io(tlWorker* worker) {
     while (true) {
         tlworker_run(worker);
-        //if (!tlIoHasWaiting(worker->vm)) break;
-        //tlIoWait(worker->vm);
-        break;
+        if (!tlIoHasWaiting(worker->vm)) break;
+        tlIoWait(worker->vm);
     }
 }
 
