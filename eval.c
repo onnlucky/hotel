@@ -141,31 +141,41 @@ INTERNAL void print_backtrace(tlFrame* frame) {
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call);
 
-INTERNAL tlValue run_throw(tlTask* task, tlValue exception) {
-    trace("throwing: %s", tl_str(exception));
-    task->jumping = true;
-    tlFrame* frame = task->frame;
-    task->frame = null;
+typedef struct tlErrorFrame {
+    tlFrame frame;
+    tlValue value;
+} tlErrorFrame;
+
+INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue _res) {
+    tlErrorFrame* error= (tlErrorFrame*)frame;
+    print_backtrace(frame);
+    frame = frame->caller;
+
     while (frame) {
         if (CodeFrameIs(frame)) {
             tlClosure* handler = CodeFrameAs(frame)->handler;
             if (handler) {
                 tlCall* call = tlcall_new(task, 1, null);
                 tlcall_fn_set_(call, handler);
-                tlcall_arg_set_(call, 0, exception);
-
-                // TODO attach current frame as a real exception ...
+                tlcall_arg_set_(call, 0, error->value);
                 tlValue res = tlEval(task, call);
-                fatal("nothing useful implemented after refactor");
-                return res;
+                if (res) return tlTaskJump(task, frame->caller, res);
+                return tlTaskPauseAttach(task, frame->caller);
             }
         }
         frame = frame->caller;
     }
     // TODO don't do fatal, instead stop this task ...
-    tltask_exception_set_(task, exception);
-    fatal("uncaught exception: %s", tl_str(exception));
+    tltask_exception_set_(task, error->value);
+    fatal("uncaught exception: %s", tl_str(error->value));
     return null;
+}
+
+INTERNAL tlValue run_throw(tlTask* task, tlValue value) {
+    trace("throwing: %s", tl_str(value));
+    tlErrorFrame* error = tlFrameAlloc(task, resumeThrow, sizeof(tlErrorFrame));
+    error->value = value;
+    return tlTaskPause(task, error);
 }
 
 // return works like a closure, on lookup we close it over the current pause
@@ -794,8 +804,8 @@ INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
     return tlTaskPause(task, frame);
 }
 INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
-    fatal("HERE");
     tlValue block = tlArgsMapGet(args, s_block);
+    trace("%p %s", block, tl_str(block));
     assert(tlclosure_is(block));
     assert(task->frame->resumecb == resumeCode);
     ((CodeFrame*)task->frame)->handler = block;
