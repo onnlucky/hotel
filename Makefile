@@ -1,6 +1,7 @@
-CC:=clang
 CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS)
+ifeq ($(VALGRIND),1)
 TOOL=valgrind -q --track-origins=yes
+endif
 
 all: tl
 
@@ -9,7 +10,6 @@ run: tl
 
 test: tl
 	cd test && ./run.sh
-
 
 greg/greg:
 	git clone http://github.com/onnlucky/greg
@@ -21,7 +21,7 @@ parser.c: parser.g greg/greg
 parser.o: parser.c tl.h config.h Makefile
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c parser.c -o parser.o
 
-ev.o: ev/*.c ev/*.h Makefile
+ev.o: ev/*.c ev/*.h config.h Makefile
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
