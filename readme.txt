@@ -1,5 +1,10 @@
 # TODO
 
+add ! syntax for new task
+rework task.c into newstyle, add task.stop, task.wait, just like Process?
+add to task.c tlTaskEval, which frames and on resumes calls tlEval ...
+document public api on outside of task vs inside of task ...
+
 change return into same as goto?
 add break as a return or by throwing?
 the _res values could be multiple, add code to unpack it? or add second param for full list?

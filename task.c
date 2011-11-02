@@ -303,7 +303,7 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     assert(task && task->worker && task->worker->vm);
 
     tlTask* ntask = tltask_new(task->worker);
-    tlTaskEvalCall(ntask, tlcall_from(ntask, fn, null));
+    tltask_call(ntask, tlcall_from(ntask, fn, null));
     tlTaskReadyInit(ntask);
 
     return ntask;
