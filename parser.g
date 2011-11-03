@@ -220,7 +220,11 @@ farg = "&&" n:name { $$ = tlListNewFrom2(TASK, n, tlCollectLazy); }
      |     n:name { $$ = tlListNewFrom2(TASK, n, tlNull); }
 
 
-  expr = e:op_log { $$ = call_activate(e); }
+  expr = "!" b:block {
+            $$ = call_activate(tlcall_from_list(TASK,
+                        tlACTIVE(tlSYM("_Task_new")), tlListNewFrom2(TASK, tlNull, tlACTIVE(b))));
+       }
+       | e:op_log { $$ = call_activate(e); }
 
 selfapply = n:name _ &eosfull {
     $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(n), tlListEmpty()));
@@ -229,6 +233,10 @@ selfapply = n:name _ &eosfull {
  pexpr = "assert" _!"(" < as:pcargs > &eosfull {
             as = tlListAppend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
             $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
+       }
+       | "!" b:block {
+            $$ = call_activate(tlcall_from_list(TASK,
+                        tlACTIVE(tlSYM("_Task_new")), tlListNewFrom2(TASK, tlNull, tlACTIVE(b))));
        }
        | v:value t:ptail &eosfull {
            $$ = call_activate(set_target(t, v));
