@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     gtk_init(&argc, &argv);
 
     GtkWindow* window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
-    gtk_window_set_default_size(window, 500, 500);
+    gtk_window_set_default_size(window, 200, 200);
     g_signal_connect(window, "expose-event", G_CALLBACK(expose_event), NULL);
     g_signal_connect(window, "delete-event", G_CALLBACK(gtk_main_quit), NULL);
     gtk_window_present(window);
