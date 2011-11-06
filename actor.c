@@ -39,7 +39,7 @@ INTERNAL void _ActorScheduleNext(tlTask* task, tlActor* actor) {
     assert(actor->owner == task);
 
     // dequeue the first task in line
-    tlTask* ntask = tltask_from_entry(lqueue_get(&actor->msg_q));
+    tlTask* ntask = tlTaskFromEntry(lqueue_get(&actor->msg_q));
     trace("%p", ntask);
 
     // make it the owner and schedule it; null is perfectly good as owner
@@ -104,7 +104,7 @@ INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
         assert(actor->head.klass->map);
         res = tlmap_get(task, actor->head.klass->map, msg);
         if (tlCallableIs(res)) {
-            res = tlTaskEvalArgsFn(task, args, res);
+            res = tlEvalArgsFn(task, args, res);
         }
     }
     trace("actor acted: %p (%s)", res, tl_str(res));

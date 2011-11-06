@@ -42,7 +42,7 @@ int test_ev(char **args, int argc) {
 
 static void timer_cb(ev_timer *timer, int revents) {
     trace("timer_cb: %p", timer);
-    tlTask* task = tltask_as(timer->data);
+    tlTask* task = tlTaskAs(timer->data);
     tlTaskReadyWait(task);
     free(timer);
 }
@@ -173,7 +173,7 @@ static void read_cb(ev_io *ev, int revents) {
         TL_THROW_SET("read: failed: %s", strerror(errno));
     } else {
         didwrite(buf, len);
-        TL_RETURN_SET(tlINT(len));
+        task->value = tlINT(len);
     }
     ev_io_stop(ev);
     if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
@@ -229,7 +229,7 @@ static void write_cb(ev_io *ev, int revents) {
         TL_THROW_SET("write: failed: %s", strerror(errno));
     } else {
         didread(buf, len);
-        TL_RETURN_SET(tlINT(len));
+        task->value = tlINT(len);
     }
     ev_io_stop(ev);
     if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
@@ -374,7 +374,7 @@ static void accept_cb(ev_io* ev, int revents) {
         if (nonblock(fd) < 0) {
             TL_THROW_SET("tcp_accept: nonblock failed: %s", strerror(errno));
         } else {
-            TL_RETURN_SET(tlSocketNew(task, fd));
+            task->value = tlSocketNew(task, fd);
         }
     }
     ev_io_stop(ev);
@@ -554,9 +554,9 @@ static void child_cb(ev_child *ev, int revents) {
     ev_child_stop(ev);
 
     while (true) {
-        tlTask* task = tltask_from_entry(lqueue_get(&child->wait_q));
+        tlTask* task = tlTaskFromEntry(lqueue_get(&child->wait_q));
         if (!task) return;
-        TL_RETURN_SET(tlINT(WEXITSTATUS(child->ev.rstatus)));
+        task->value = tlINT(WEXITSTATUS(child->ev.rstatus));
         tlTaskReadyWait(task);
     }
 }

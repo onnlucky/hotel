@@ -1,8 +1,6 @@
 # TODO
 
-rework task.c into newstyle, add task.stop, task.wait, just like Process?
-add to task.c tlTaskEval, which frames and on resumes calls tlEval ...
-document public api on outside of task vs inside of task ...
+rework task.c into newstyle, add task.stop, task.wait, task.value, just like Process?
 
 change return into same as goto?
 add break as a return or by throwing?
@@ -28,22 +26,7 @@ example: function = { }
 
   ----
 
-ensure task attach/detach is correct, and ready/done etc don't have races ...
-
-clean up task.c arrange things around tlResult and such ...
-clean up tl.h; nice up code.{h,c} and call.c
-
-fix return/goto when target has returned already ... what to do anyhow?
-
-expose parsed code: tlBlock, tlCall, tlAssign, tlLookup? or not?
-only optimize after parser, inspect step: single tlAssign become just name ...
-give parser its own objects/classes instead of using tllists so much?
-
-add a syntax for blocks like `catch: e -> print exception` and `arr.each(e -> print e)`
-
 sprinkle more INTERNAL around and such
-think about c-stack eval until we need to pause, limit its depth somehow
-remove start_args ... we don't need to materialize its run all the time
 
 add default arguments using print = (sep=" ", end="\n")->{...} etc ...
 implement collector: x, *rest = multiple_return()
@@ -55,24 +38,12 @@ implement defer (add defer[] to tlCodeRun) or something ...
 bring back a boot.tl library
 implement serializing tlValue's to disk
 
-experiment with refcounting, experiment with alloc pool per task for certain sizes ...
-* alloc ref=1
-* when ref > 1, assert that all fields are valid
-* when doing mutable things, assert that ref == 1, copy/clone otherwise
-* think about how to defer refcounting to battle "churn"
-x = KEEP(v); return FREE(v); return PASS(v);
-
 optimize: parser should add all local names to code->envnames and env should use this ...
 optimize: parser pexpr and others lots of branches start out the same, let them share prefix ...
 optimize: task->value by tagging as active incase of tResult or such?
 optimize: compile code by collecting all local names, use that as dict, and keep values inside run
 
 do the open/close correctly; do close as lazy as possible? if x: return x ... no need to close/copy
-
-GC:
-* first, boehm will suffice
-* local refcounted/mutable heap with tracing collector
-* global heap = immutable, non-cyclic, or it can be, tasks can be mutable global dict
 
 add static initializers, until first vm is created allow tlSYM("...") tlText("...") etc.
 

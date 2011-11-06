@@ -145,7 +145,7 @@ void tlvm_init() {
 // when outside of vm, be your own worker, and attach it to tasks
 void tlworker_attach(tlWorker* worker, tlTask* task) {
     assert(tlworker_is(worker));
-    assert(tltask_is(task));
+    assert(tlTaskIs(task));
     assert(worker->vm);
     assert(!task->worker);
 
@@ -154,7 +154,7 @@ void tlworker_attach(tlWorker* worker, tlTask* task) {
 
 void tlworker_detach(tlWorker* worker, tlTask* task) {
     assert(tlworker_is(worker));
-    assert(tltask_is(task));
+    assert(tlTaskIs(task));
     assert(task->worker == worker);
     task->worker = null;
 }
@@ -165,7 +165,7 @@ void tlworker_run(tlWorker* worker) {
     assert(tlvm_is(worker->vm));
     tlVm* vm = worker->vm;
     while (true) {
-        tlTask* task = tltask_from_entry(lqueue_get(&vm->run_q));
+        tlTask* task = tlTaskFromEntry(lqueue_get(&vm->run_q));
         if (!task) break;
         trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
         tlworker_attach(worker, task);

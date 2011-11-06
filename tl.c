@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlvm_new();
     tlWorker* worker = tlworker_new(vm);
-    tlTask* task = tltask_new(worker);
+    tlTask* task = tlTaskNew(worker);
 
     tlEnv* env = tlvm_global_env(vm);
     tlHostFn* f_print = tlHostFnNew(task, _print, 1);
@@ -80,20 +80,21 @@ int main(int argc, char** argv) {
     assert(code);
 
     tlClosure* fn = tlclosure_new(task, code, env);
-    tltask_call(task, tlcall_from(task, fn, null));
-    tltask_ready_detach(task);
+    tlCall* call = tlcall_from(task, fn, null);
+    tlTaskEval(task, call);
+    tlTaskReadyInit(task);
 
     trace("RUNNING");
     tlworker_run_io(worker);
     trace("DONE");
 
-    tlValue ex = tltask_exception(task);
-    if (ex) {
-        printf("%s\n", tl_str(ex));
+    tlValue err = tlTaskGetError(task);
+    if (err) {
+        printf("%s\n", tl_str(err));
         return 1;
     }
 
-    tlValue v = tltask_value(task);
+    tlValue v = tlTaskGetValue(task);
     if (tl_bool(v)) printf("%s\n", tl_str(v));
     tlvm_delete(vm);
     return 0;

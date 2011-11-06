@@ -200,6 +200,7 @@ TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlValueObject);
 
 TL_REF_TYPE(tlFrame);
+TL_REF_TYPE(tlTask);
 
 TL_TYPE(call, Call);
 TL_TYPE(msg, Msg);
@@ -218,7 +219,6 @@ TL_TYPE(collect, Collect);
 TL_TYPE(result, Result);
 TL_TYPE(error, Error);
 
-TL_TYPE(task, Task);
 TL_TYPE(worker, Worker);
 TL_TYPE(vm, Vm);
 
@@ -393,32 +393,19 @@ void tlworker_task_ready(tlTask* task);
 void tlworker_task_waitfor(tlTask* task, tlTask* other);
 
 // ** task management **
-tlTask* tltask_new(tlWorker* worker); // starts attached
-tlTask* tltask_set_background_(tlTask* task, bool bg);
-tlWorker* tltask_worker(tlTask* task);
-tlVm* tltask_vm(tlTask* task);
+tlTask* tlTaskNew(tlWorker* worker);
+tlWorker* tlTaskWorker(tlTask* task);
+tlVm* tlTaskVm(tlTask* task);
+
+tlValue tlTaskGetValue(tlTask* task);
+tlValue tlTaskGetError(tlTask* task);
+
+tlValue tlTaskThrowTake(tlTask* task, char* str);
+#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(task, strdup(_s)); } while (0)
+#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(task, strdup(_s)); } while (0)
 
 tlValue tlEval(tlTask* task, tlValue v);
-
-tlValue tlTaskEvalArgs(tlTask* task, tlArgs* args);
-tlValue tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
-tlValue tlTaskEvalCall(tlTask* task, tlCall* call);
-
-bool tltask_isdone(tlTask* task);
-tlValue tltask_value(tlTask* task);
-tlValue tltask_exception(tlTask* task);
-
-tlValue tltask_return(tlTask* task, tlValue v);
-tlValue tltask_return_many(tlTask* task, tlValue vs[], int len);
-tlValue tltask_throw(tlTask* task, tlValue v);
-tlValue tltask_throw_take(tlTask* task, char* str);
-#define TL_RETURN(v) return tltask_return(task, v)
-#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tltask_throw_take(task, strdup(_s)); } while (0)
-#define TL_THROW_VALUE(v) return tltask_throw(task, v)
-
-#define TL_RETURN_SET(v) task->value = v
-#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tltask_throw_take(task, strdup(_s)); } while (0)
-#define TL_THROW_VALUE_SET(v) return tltask_throw(task, v)
+tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);

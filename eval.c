@@ -141,23 +141,15 @@ INTERNAL void print_backtrace(tlFrame* frame) {
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call);
 
-typedef struct tlErrorFrame {
-    tlFrame frame;
-    tlValue value;
-} tlErrorFrame;
-
-INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue _res) {
-    tlErrorFrame* error= (tlErrorFrame*)frame;
+INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error) {
     print_backtrace(frame);
-    frame = frame->caller;
-
     while (frame) {
         if (CodeFrameIs(frame)) {
             tlClosure* handler = CodeFrameAs(frame)->handler;
             if (handler) {
                 tlCall* call = tlcall_new(task, 1, null);
                 tlcall_fn_set_(call, handler);
-                tlcall_arg_set_(call, 0, error->value);
+                tlcall_arg_set_(call, 0, error);
                 tlValue res = tlEval(task, call);
                 if (res) return tlTaskJump(task, frame->caller, res);
                 return tlTaskPauseAttach(task, frame->caller);
@@ -166,16 +158,9 @@ INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue _res) {
         frame = frame->caller;
     }
     // TODO don't do fatal, instead stop this task ...
-    tltask_exception_set_(task, error->value);
-    fatal("uncaught exception: %s", tl_str(error->value));
+    //tltask_exception_set_(task, error->value);
+    fatal("uncaught exception: %s", tl_str(error));
     return null;
-}
-
-INTERNAL tlValue run_throw(tlTask* task, tlValue value) {
-    trace("throwing: %s", tl_str(value));
-    tlErrorFrame* error = tlFrameAlloc(task, resumeThrow, sizeof(tlErrorFrame));
-    error->value = value;
-    return tlTaskPause(task, error);
 }
 
 // return works like a closure, on lookup we close it over the current pause
@@ -667,7 +652,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
 
         // just a symbol means setting the current value under this name in env
         if (tlsym_is(op)) {
-            tlValue v = tltask_value(task);
+            tlValue v = tlresult_get(task->value, 0);
             trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
             if (!tlclosure_is(v)) tlenv_close_captures(env);
             env = tlenv_set(task, env, tlsym_as(op), v);
@@ -776,21 +761,14 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
 }
 
 tlValue tlEval(tlTask* task, tlValue v) {
-    trace("");
+    trace("%s", tl_str(v));
     if (tlcall_is(v)) return applyCall(task, tlcall_as(v));
     return v;
 }
-
-tlValue tlTaskEvalArgs(tlTask* task, tlArgs* args) {
-    return evalArgs(task, args);
-}
-tlValue tlTaskEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
+tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
     assert(tlCallableIs(fn));
     args->fn = fn;
     return evalArgs(task, args);
-}
-tlValue tlTaskEvalCall(tlTask* task, tlCall* call) {
-    return tlEval(task, call);
 }
 
 // ** integration **
