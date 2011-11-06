@@ -1,5 +1,7 @@
 # TODO
 
+create libtl.so/libtl.a ...
+on parse errors, throw it on the task, not fatal() out ...
 add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 do throwing different: value resumecb(task, frame, value, error) and every resume handles errors
 

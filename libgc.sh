@@ -15,5 +15,8 @@ else
 fi
 ./configure $DEBUG $NOTHREADS $THREADS
 make
-cp .libs/libgc.a ..
-
+rm -rf objs
+mkdir objs
+cd objs
+cp ../.libs/libgc.a .
+ar -x libgc.a

@@ -2,8 +2,6 @@
 
 #include "tl.h"
 
-#include "vm.c"
-
 #include "debug.h"
 #include "trace-on.h"
 
