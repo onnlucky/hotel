@@ -106,8 +106,14 @@ static tlValue _mod(tlTask* task, tlArgs* args) {
 }
 
 static void vm_init();
-void tlvm_init() {
+
+void tl_init() {
+    static bool tl_inited;
+    if (tl_inited) return;
+    tl_inited = true;
+
     GC_INIT();
+
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
     assert(!tlsym_is(tlFalse));
@@ -193,30 +199,24 @@ tlWorker* tlworker_new(tlVm* vm) {
 }
 void tlworker_delete(tlWorker* worker) { free(worker); }
 
-tlVm* tlvm_new() {
+tlVm* tlVmNew() {
     tlVm* vm = calloc(1, sizeof(tlVm));
     vm->head.type = TLVm;
     vm->waiter = tlworker_new(vm);
+    vm->globals = tlenv_new(null, null);
     return vm;
 }
-void tlvm_delete(tlVm* vm) { free(vm); }
+
+void tlVmDelete(tlVm* vm) {
+    free(vm);
+}
+
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v) {
+    vm->globals = tlenv_set(null, vm->globals, key, v);
+}
 
 tlEnv* tlvm_global_env(tlVm* vm) {
-    tlEnv* env = tlenv_new(null, null);
-
-    /*
-    env = tlenv_set(null, env, tlSYM("eq"),  tlFUN(_eq,  tlSYM("eq")));
-    env = tlenv_set(null, env, tlSYM("neq"), tlFUN(_neq, tlSYM("neq")));
-    env = tlenv_set(null, env, tlSYM("gte"), tlFUN(_gte, tlSYM("gte")));
-    env = tlenv_set(null, env, tlSYM("lte"), tlFUN(_lte, tlSYM("lte")));
-    env = tlenv_set(null, env, tlSYM("not"), tlFUN(_not, tlSYM("not")));
-    env = tlenv_set(null, env, tlSYM("add"), tlFUN(_add, tlSYM("add")));
-    env = tlenv_set(null, env, tlSYM("sub"), tlFUN(_sub, tlSYM("sub")));
-    env = tlenv_set(null, env, tlSYM("mul"), tlFUN(_mul, tlSYM("mul")));
-    env = tlenv_set(null, env, tlSYM("div"), tlFUN(_div, tlSYM("div")));
-    env = tlenv_set(null, env, tlSYM("mod"), tlFUN(_mod, tlSYM("mod")));
-    */
-    return env;
+    return vm->globals;
 }
 
 static const tlHostCbs __vm_hostcbs[] = {
@@ -247,5 +247,25 @@ static void vm_init() {
     tl_register_hostcbs(__vm_hostcbs);
     tlMap* system = tlObjectFrom(null, "version", tlTEXT(TL_VERSION), null);
     tl_register_global("system", system);
+}
+
+tlTask* tlVmRun(tlVm* vm, tlText* script) {
+    tlWorker* worker = tlworker_new(vm);
+    tlTask* task = tlTaskNew(worker);
+
+    // TODO if no success, task should have exception
+    tlCode* code = tlcode_cast(tl_parse(task, script));
+    if (!code) return task;
+    trace("PARSED");
+
+    tlClosure* fn = tlclosure_new(task, code, vm->globals);
+    tlCall* call = tlcall_from(task, fn, null);
+    tlTaskEval(task, call);
+    tlTaskReadyInit(task);
+
+    trace("RUNNING");
+    tlworker_run_io(worker);
+    trace("DONE");
+    return task;
 }
 

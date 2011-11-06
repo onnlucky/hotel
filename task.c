@@ -28,6 +28,8 @@ struct tlVm {
     // the waiter does not actually "work", it helps tasks keep reference back to the vm
     tlWorker* waiter;
     int waiting;
+
+    tlEnv* globals;
 };
 
 typedef void(*tlWorkerDeferCb)(tlTask* task, void* data);

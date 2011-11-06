@@ -263,7 +263,7 @@ tlValue tlBOOL(unsigned c);
 tlInt tlINT(int i);
 tlValue tlACTIVE(tlValue v);
 
-// tlTEXT and tlSYM can only be used after tlvm_new()
+// tlTEXT and tlSYM can only be used after tl_init()
 #define tlTEXT tlTextFromStatic
 #define tlSYM tlsym_from_static
 tlSym tlsym_from_static(const char* s);
@@ -379,8 +379,11 @@ tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key);
 tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v);
 
 // ** vm management **
-tlVm* tlvm_new();
-void tlvm_delete(tlVm* vm);
+void tl_init();
+tlVm* tlVmNew();
+tlTask* tlVmRun(tlVm* vm, tlText* code);
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v);
+void tlVmDelete(tlVm* vm);
 
 tlWorker* tlvm_create_worker(tlVm* vm);
 void tlworker_delete(tlWorker* worker);

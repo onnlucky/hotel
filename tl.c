@@ -50,7 +50,7 @@ static tlValue _assert(tlTask* task, tlArgs* args) {
 
 // this is how to setup a vm
 int main(int argc, char** argv) {
-    tlvm_init();
+    tl_init();
 
     if (argc < 2) fatal("no file to run");
     const char* file = argv[1];
@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     tlText* script = tlTextNewTake(null, tlbuf_free_get(buf));
     assert(script);
 
-    tlVm* vm = tlvm_new();
+    tlVm* vm = tlVmNew();
     tlWorker* worker = tlworker_new(vm);
     tlTask* task = tlTaskNew(worker);
 
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
 
     tlValue v = tlTaskGetValue(task);
     if (tl_bool(v)) printf("%s\n", tl_str(v));
-    tlvm_delete(vm);
+    tlVmDelete(vm);
     return 0;
 }
 
