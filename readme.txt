@@ -1,6 +1,7 @@
 # TODO
 
-rework task.c into newstyle, add task.stop, task.wait, task.value, just like Process?
+add task.stop to kill it by error? java ThreadDeath how do we do it safely?
+do throwing different: value resumecb(task, frame, value, error) and every resume handles errors
 
 change return into same as goto?
 add break as a return or by throwing?

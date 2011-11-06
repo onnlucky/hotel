@@ -164,14 +164,17 @@ void tlworker_run(tlWorker* worker) {
     assert(tlworker_is(worker));
     assert(tlvm_is(worker->vm));
     tlVm* vm = worker->vm;
+    bool didwork = false;
     while (true) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&vm->run_q));
         if (!task) break;
+        didwork = true;
         trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
         tlworker_attach(worker, task);
         code_workfn(task);
     }
     trace(">>>> WORKER DONE <<<<");
+    //assert(didwork); fails Child_run ... why?
 }
 
 void tlworker_run_io(tlWorker* worker) {

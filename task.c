@@ -58,6 +58,7 @@ typedef enum {
 static tlClass _tlTaskClass;
 tlClass* tlTaskClass = &_tlTaskClass;
 
+// TODO slim this one down ...
 struct tlTask {
     tlHead head;
     tlWorker* worker;  // current worker that is working on this task
@@ -71,6 +72,8 @@ struct tlTask {
     tlValue error;     // if task is in an error state, this is the value (throwing)
     bool jumping;      // indicates non linear suspend ... don't attach
     tlTaskState state; // state it is currently in
+
+    lqueue wait_q;     // for task.wait, holds all waiters ...
 };
 
 tlVm* tlTaskGetVm(tlTask* task) {
@@ -133,6 +136,8 @@ INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
     return null;
 }
 
+INTERNAL void tlTaskDone(tlTask* task, tlValue res);
+
 INTERNAL void code_workfn(tlTask* task) {
     trace("");
     assert(task->state == TL_STATE_READY);
@@ -161,14 +166,9 @@ INTERNAL void code_workfn(tlTask* task) {
         trace("!!out of frame && res");
 
         if (res) {
-            trace("!!done: %s", tl_str(res));
-            task->frame = null;
-            task->value = res;
-            task->state = TL_STATE_DONE;
-            tlworker_detach(task->worker, task);
+            tlTaskDone(task, res);
             return;
         }
-
         trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
         assert(task->frame);
         // attach c transient stack back to full stack
@@ -263,19 +263,21 @@ void tlTaskReadyInit(tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-/*
-void tltask_ready_detach(tlTask* task) {
-    trace("ready: %p", task);
-    assert(tlTaskIs(task));
-    assert(task->worker);
-    tlVm* vm = task->worker->vm;
+INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
+    trace("%s done: %s", tl_str(task), tl_str(res));
+    task->frame = null;
+    task->value = res;
+    task->state = TL_STATE_DONE;
+    task->worker = tlTaskGetVm(task)->waiter;
 
-    assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_INIT);
-    task->state = TL_STATE_READY;
-    tlworker_detach(task->worker, task);
-    lqueue_put(&vm->run_q, &task->entry);
+    while (true) {
+        tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
+        if (!waiter) return;
+        waiter->value = task->value;
+        tlTaskReadyWait(waiter);
+    }
+    return;
 }
-*/
 
 INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     assert(task && task->worker && task->worker->vm);
@@ -292,6 +294,31 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _TaskYield(tlTask* task, tlArgs* args) {
     tlTaskWait(task);
     tlTaskReadyWait(task);
+    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+}
+
+INTERNAL tlValue _TaskIsDone(tlTask* task, tlArgs* args) {
+    tlTask* other = tlTaskCast(tlArgsTarget(args));
+    return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
+}
+
+INTERNAL tlValue _TaskWait(tlTask* task, tlArgs* args) {
+    tlTask* other = tlTaskCast(tlArgsTarget(args));
+    if (!other) TL_THROW("expected a Task");
+    trace("task.wait: %s", tl_str(other));
+
+    // already done
+    if (other->state == TL_STATE_DONE) {
+        return other->value;
+    }
+    if (other->state == TL_STATE_ERROR) {
+        // TODO throw the error instead
+        return tlNull;
+    }
+
+    trace("!! parking");
+    tlTaskWait(task);
+    lqueue_put(&other->wait_q, &task->entry);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
 
@@ -322,5 +349,10 @@ static const tlHostCbs __task_hostcbs[] = {
 
 static void task_init() {
     tl_register_hostcbs(__task_hostcbs);
+    _tlTaskClass.map = tlClassMapFrom(
+        "wait", _TaskWait,
+        "done", _TaskIsDone,
+        null
+    );
 }
 

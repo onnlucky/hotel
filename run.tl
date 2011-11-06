@@ -1,4 +1,9 @@
-!sleep 30; print 30
-!sleep 20; print 20
-!sleep 10; print 10
+x = !sleep 10; 42
+print x.done
+print x.wait
+
+x = !sleep 10; 42
+sleep 20
+print x.done
+print x.wait
 
