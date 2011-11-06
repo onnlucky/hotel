@@ -1,10 +1,10 @@
 // a bytebuffer that where you can read/write from/to
 
+#include "buf.h"
 #include "trace-off.h"
 
 #define SIZE (10*1024)
 
-typedef struct tl_buf tl_buf;
 struct tl_buf {
     char *data;
     int size;
@@ -121,7 +121,7 @@ uint32_t tlbuf_read_uint32(tl_buf* buf) {
 }
 
 // TODO check file size and check if we read all in end
-static tl_buf* tlbuf_new_from_file(const char* file) {
+tl_buf* tlbuf_new_from_file(const char* file) {
     trace("file: %s", file);
     tl_buf* buf = tlbuf_new();
 

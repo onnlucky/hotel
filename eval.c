@@ -760,6 +760,11 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     return tlTaskPauseAttach(task, frame);
 }
 
+tlText* tlToText(tlTask* task, tlValue v) {
+    if (tlTextIs(v)) return v;
+    // TODO actually invoke toText ...
+    return tlTextNewCopy(task, tl_str(v));
+}
 tlValue tlEval(tlTask* task, tlValue v) {
     trace("%s", tl_str(v));
     if (tlcall_is(v)) return applyCall(task, tlcall_as(v));

@@ -36,7 +36,7 @@ static tlValue _out(tlTask* task, tlArgs* args) {
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlArgsAt(args, i);
         if (!v) break;
-        printf("%s", tlTextData(tlvalue_to_text(task, v)));
+        printf("%s", tlTextData(tlToText(task, v)));
     }
     fflush(stdout);
     return tlNull;
@@ -183,7 +183,7 @@ void tlworker_run(tlWorker* worker) {
     //assert(didwork); fails Child_run ... why?
 }
 
-void tlworker_run_io(tlWorker* worker) {
+void tlWorkerRun(tlWorker* worker) {
     while (true) {
         tlworker_run(worker);
         if (!tlIoHasWaiting(worker->vm)) break;
@@ -191,18 +191,18 @@ void tlworker_run_io(tlWorker* worker) {
     }
 }
 
-tlWorker* tlworker_new(tlVm* vm) {
+tlWorker* tlWorkerNew(tlVm* vm) {
     tlWorker* worker = calloc(1, sizeof(tlWorker));
     worker->head.type = TLWorker;
     worker->vm = vm;
     return worker;
 }
-void tlworker_delete(tlWorker* worker) { free(worker); }
+void tlWorkerDelete(tlWorker* worker) { free(worker); }
 
 tlVm* tlVmNew() {
     tlVm* vm = calloc(1, sizeof(tlVm));
     vm->head.type = TLVm;
-    vm->waiter = tlworker_new(vm);
+    vm->waiter = tlWorkerNew(vm);
     vm->globals = tlenv_new(null, null);
     return vm;
 }
@@ -215,7 +215,7 @@ void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v) {
     vm->globals = tlenv_set(null, vm->globals, key, v);
 }
 
-tlEnv* tlvm_global_env(tlVm* vm) {
+tlEnv* tlVmGlobalEnv(tlVm* vm) {
     return vm->globals;
 }
 
@@ -250,7 +250,7 @@ static void vm_init() {
 }
 
 tlTask* tlVmRun(tlVm* vm, tlText* script) {
-    tlWorker* worker = tlworker_new(vm);
+    tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(worker);
 
     // TODO if no success, task should have exception
@@ -264,7 +264,7 @@ tlTask* tlVmRun(tlVm* vm, tlText* script) {
     tlTaskReadyInit(task);
 
     trace("RUNNING");
-    tlworker_run_io(worker);
+    tlWorkerRun(worker);
     trace("DONE");
     return task;
 }

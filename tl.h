@@ -383,11 +383,12 @@ void tl_init();
 tlVm* tlVmNew();
 tlTask* tlVmRun(tlVm* vm, tlText* code);
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v);
+tlEnv* tlVmGlobalEnv(tlVm* vm);
 void tlVmDelete(tlVm* vm);
 
-tlWorker* tlvm_create_worker(tlVm* vm);
-void tlworker_delete(tlWorker* worker);
-void tlworker_run(tlWorker* worker);
+tlWorker* tlWorkerNew(tlVm* vm);
+void tlWorkerDelete(tlWorker* worker);
+void tlWorkerRun(tlWorker* worker);
 
 void tlworker_attach(tlWorker* worker, tlTask* task);
 // these all detach from the task
@@ -400,6 +401,11 @@ tlTask* tlTaskNew(tlWorker* worker);
 tlWorker* tlTaskWorker(tlTask* task);
 tlVm* tlTaskVm(tlTask* task);
 
+void tlTaskEval(tlTask* task, tlValue v);
+void tlTaskReadyInit(tlTask* task);
+void tlTaskReadyWait(tlTask* task);
+void tlTaskWait(tlTask* task);
+
 tlValue tlTaskGetValue(tlTask* task);
 tlValue tlTaskGetError(tlTask* task);
 
@@ -409,6 +415,9 @@ tlValue tlTaskThrowTake(tlTask* task, char* str);
 
 tlValue tlEval(tlTask* task, tlValue v);
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
+tlText* tlToText(tlTask* task, tlValue v);
+
+tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env);
 
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);

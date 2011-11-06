@@ -78,14 +78,6 @@ tlText* tlTextCat(tlTask* task, tlText* left, tlText* right) {
     return tlTextNewTake(task, data);
 }
 
-// TODO remove from here, move to eval, return a tlPause ...
-tlText* tlvalue_to_text(tlTask* task, tlValue v) {
-    if (tlTextIs(v)) return v;
-    if (!tlref_is(v)) return tlTextNewCopy(task, tl_str(v));
-    warning("to_text not implemented yet: %s", tl_str(v));
-    return tlTEXT("<ERROR.to-text>");
-}
-
 INTERNAL tlValue _TextSize(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));

@@ -1,7 +1,7 @@
 // starting point of hotel
 
 #include "tl.h"
-
+#include "buf.h"
 #include "debug.h"
 #include "trace-on.h"
 
@@ -9,22 +9,22 @@
 static tlValue _print(tlTask* task, tlArgs* args) {
     tlText* sep = tlTEXT(" ");
     tlValue v = tlArgsMapGet(args, tlSYM("sep"));
-    if (v) sep = tlvalue_to_text(task, v);
+    if (v) sep = tlToText(task, v);
 
     tlText* begin = null;
     v = tlArgsMapGet(args, tlSYM("begin"));
-    if (v) begin = tlvalue_to_text(task, v);
+    if (v) begin = tlToText(task, v);
 
     tlText* end = null;
     v = tlArgsMapGet(args, tlSYM("end"));
-    if (v) end = tlvalue_to_text(task, v);
+    if (v) end = tlToText(task, v);
 
     if (begin) printf("%s", tlTextData(begin));
     for (int i = 0; i < 1000; i++) {
         tlValue v = tlArgsAt(args, i);
         if (!v) break;
         if (i > 0) printf("%s", tlTextData(sep));
-        printf("%s", tlTextData(tlvalue_to_text(task, v)));
+        printf("%s", tlTextData(tlToText(task, v)));
     }
     if (end) printf("%s", tlTextData(end));
     printf("\n");
@@ -60,10 +60,10 @@ int main(int argc, char** argv) {
     assert(script);
 
     tlVm* vm = tlVmNew();
-    tlWorker* worker = tlworker_new(vm);
+    tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(worker);
 
-    tlEnv* env = tlvm_global_env(vm);
+    tlEnv* env = tlVmGlobalEnv(vm);
     tlHostFn* f_print = tlHostFnNew(task, _print, 1);
     tlHostFnSet_(f_print, 0, tlSYM("print"));
     //assert(tlSYM("print") == tlHostFnGet(f_print, 0));
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     tlTaskReadyInit(task);
 
     trace("RUNNING");
-    tlworker_run_io(worker);
+    tlWorkerRun(worker);
     trace("DONE");
 
     tlValue err = tlTaskGetError(task);
