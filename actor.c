@@ -55,7 +55,7 @@ INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
 
     // try to own the actor, incase another worker released it inbetween ...
     // notice the task we put in is a place holder
-    if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) return;
+    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) return;
     _ActorScheduleNext(task, actor);
 }
 
@@ -76,7 +76,7 @@ tlValue tlActorReceive(tlTask* task, tlArgs* args) {
     tlActor* actor = tlActorAs(args->target);
     assert(actor);
 
-    if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
+    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
         // pause current task
         ReceiveFrame* pause = tlFrameAlloc(task, _ResumeReceive, sizeof(ReceiveFrame));
         pause->args = args;
@@ -137,7 +137,7 @@ tlValue tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* da
     trace("%p", actor);
     assert(actor);
 
-    if (tl_atomic_set_if((void**)&actor->owner, task, null) != task) {
+    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
         // pause current task
         ActorAquireFrame* frame = tlFrameAlloc(task, _ResumeAquire, sizeof(ActorAquireFrame));
         frame->actor = actor;

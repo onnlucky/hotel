@@ -676,6 +676,12 @@ static const tlHostCbs __evio_hostcbs[] = {
     { 0, 0 }
 };
 
+static a_val NONE = 0;
+static a_val WAIT = 1;
+static a_val INTR = 2;
+static a_val loop_status = 0;
+static ev_async loop_interrupt;
+
 void evio_init() {
     _tlFileClass.map = tlClassMapFrom(
         "close", _FileClose,
@@ -747,6 +753,9 @@ void evio_init() {
     _statMap->head.klass = tlValueObjectClass;
 
     ev_default_loop(0);
+
+    ev_async_init(&loop_interrupt, 0);
+    ev_async_start(&loop_interrupt);
 }
 
 bool tlIoHasWaiting(tlVm* vm) {
@@ -758,6 +767,18 @@ bool tlIoHasWaiting(tlVm* vm) {
 void tlIoWait(tlVm* vm) {
     assert(vm);
     trace("EVLOOP_ONESHOT: %d", vm->waiting);
+    if (a_set_if(&loop_status, WAIT, NONE) != WAIT) {
+        fatal("oeps ... logic error");
+    }
     ev_loop(EVLOOP_ONESHOT);
+    a_set(&loop_status, NONE);
+}
+
+void tlIoInterrupt(tlVm* vm) {
+    assert(vm);
+    assert(vm->waiting >= 0);
+    if (a_set_if(&loop_status, WAIT, WAIT|INTR) == (WAIT|INTR)) {
+        ev_async_send(&loop_interrupt);
+    }
 }
 

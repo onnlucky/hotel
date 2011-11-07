@@ -2,17 +2,6 @@
 
 #include "trace-on.h"
 
-INTERNAL void* tl_atomic_get(void** slot) {
-    return *slot;
-}
-INTERNAL void* tl_atomic_set(void** slot, void* v) {
-    return *slot = v;
-}
-INTERNAL void* tl_atomic_set_if(void** slot, void* v, void* current) {
-    if (*slot == current) return *slot = v;
-    return *slot;
-}
-
 INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
 INTERNAL tlValue run_resume(tlTask* task, tlFrame* frame, tlValue res);

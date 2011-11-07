@@ -45,6 +45,8 @@
 #include "llib/lhashmap.h"
 #include "llib/lqueue.h"
 
+#include "a_var.h"
+
 #include "debug.h"
 #include "trace-off.h"
 
