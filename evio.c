@@ -476,7 +476,8 @@ typedef struct tlDirEachFrame {
     tlValue* block;
 } tlDirEachFrame;
 
-static tlValue _DirEachResume(tlTask* task, tlFrame* _frame, tlValue _res) {
+static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
 //again:;
     struct dirent dp;
@@ -498,10 +499,10 @@ static tlValue _DirEach(tlTask* task, tlArgs* args) {
     tlValue* block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) return tlNull;
 
-    tlDirEachFrame* frame = tlFrameAlloc(task, _DirEachResume, sizeof(tlDirEachFrame));
+    tlDirEachFrame* frame = tlFrameAlloc(task, resumeDirEach, sizeof(tlDirEachFrame));
     frame->dir = dir;
     frame->block = block;
-    return _DirEachResume(task, (tlValue)frame, tlNull);
+    return resumeDirEach(task, (tlValue)frame, tlNull, null);
 }
 
 

@@ -202,6 +202,8 @@ TL_REF_TYPE(tlValueObject);
 TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlTask);
 
+TL_REF_TYPE(tlError);
+
 TL_TYPE(call, Call);
 TL_TYPE(msg, Msg);
 
@@ -217,7 +219,6 @@ TL_TYPE(lookup, Lookup);
 TL_TYPE(collect, Collect);
 
 TL_TYPE(result, Result);
-TL_TYPE(error, Error);
 
 TL_TYPE(worker, Worker);
 TL_TYPE(vm, Vm);
@@ -422,7 +423,7 @@ tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env);
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);
 typedef void(*tlWorkCb)(tlTask*);
-typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue);
+typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue, tlError*);
 typedef tlValue(*tlHostCb)(tlTask*, tlArgs*);
 
 // ** memory **

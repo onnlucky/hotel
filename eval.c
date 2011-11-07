@@ -121,7 +121,7 @@ tlValue tlresult_get(tlValue v, int at) {
     return tlNull;
 }
 
-INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue _val);
+INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err);
 bool CodeFrameIs(tlFrame* frame) { return frame && frame->resumecb == resumeCode; }
 CodeFrame* CodeFrameAs(tlFrame* frame) { assert(CodeFrameIs(frame)); return (CodeFrame*)frame; }
 
@@ -169,11 +169,10 @@ typedef struct ReturnFrame {
     tlArgs* args;
 } ReturnFrame;
 
-INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue _val) {
+INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlArgs* args = ((ReturnFrame*)frame)->args;
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
 
-    tlValue res;
     if (tlArgsSize(args) == 0) res = tlNull;
     else if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
     else res = tlresult_new(task, args);
@@ -248,7 +247,7 @@ typedef struct GotoFrame {
     tlArgs* targetargs;
 } GotoFrame;
 
-INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue _val) {
+INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlCall* call = ((GotoFrame*)frame)->call;
     tlArgs* targetargs = ((GotoFrame*)frame)->targetargs;
     trace("RESUME GOTO(%d)", tlcall_argc(call));
@@ -267,7 +266,7 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue _val) {
         }
         frame = frame->caller;
     }
-    tlValue res = tlEval(task, tlcall_arg(call, 0));
+    res = tlEval(task, tlcall_arg(call, 0));
     if (!res) {
         // jumping is not allowed unless the stack is reified first; assert that fact
         assert(!task->jumping);
@@ -307,7 +306,7 @@ INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
     return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
 }
 
-INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue _res) {
+INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlContinuation* cont = tlAlloc(task, tlContinuationClass, sizeof(tlContinuation));
     cont->frame = frame->caller;
     assert(cont->frame && cont->frame->resumecb == resumeCode);
@@ -319,9 +318,9 @@ INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue _res) 
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
 
-INTERNAL tlValue resume_activate_call(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
-    return run_activate_call(task, frame, frame->call, frame->env, _res);
+    return run_activate_call(task, frame, frame->call, frame->env, res);
 }
 
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCall* call, tlEnv* env, tlValue _res) {
@@ -346,7 +345,7 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
             v = run_activate(task, tlvalue_from_active(v), env);
             if (!v) {
                 if (!frame) {
-                    frame = tlFrameAlloc(task, resume_activate_call, sizeof(ActivateCallFrame));
+                    frame = tlFrameAlloc(task, resumeActivateCall, sizeof(ActivateCallFrame));
                     frame->env = env;
                 }
                 frame->count = -1 - i;
@@ -406,9 +405,9 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
 }
 
 // when call->fn is a call itself
-INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     CallFnFrame* frame = (CallFnFrame*)_frame;
-    return applyCall(task, tlcall_copy_fn(task, frame->call, _res));
+    return applyCall(task, tlcall_copy_fn(task, frame->call, res));
 }
 INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
     trace(">> %p", fn);
@@ -531,17 +530,17 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
     return args;
 }
 
-INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue _res) {
-    return evalCall2(task, (CallFrame*)frame, _res);
+INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    return evalCall2(task, (CallFrame*)frame, res);
 }
 
-INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res);
-INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue res);
+INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     CodeFrame* frame = (CodeFrame*)_frame;
     // TODO this should be done for all Frames everywhere ... but ... for now
     // TODO keep should trickle down to frame->caller now too ... oeps
     if (_frame->head.keep > 1) frame = tlAllocClone(task, frame, sizeof(CodeFrame), 0);
-    return evalCode2(task, frame, _res);
+    return evalCode2(task, frame, res);
 }
 
 INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
@@ -698,8 +697,8 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
     return evalCall2(task, frame, null);
 }
 
-INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue _res) {
-    return evalArgs(task, tlArgsAs(_res));
+INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    return evalArgs(task, tlArgsAs(res));
 }
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
@@ -778,7 +777,7 @@ tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
 
 // ** integration **
 
-INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue _res) {
+INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     print_backtrace(frame->caller);
     return tlNull;
 }

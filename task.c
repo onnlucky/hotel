@@ -143,7 +143,7 @@ INTERNAL void code_workfn(tlTask* task) {
 
         while (frame && res) {
             trace("!!frame: %p - %s", frame, tl_str(res));
-            if (frame->resumecb) res = frame->resumecb(task, frame, res);
+            if (frame->resumecb) res = frame->resumecb(task, frame, res, null);
             if (task->jumping) {
                 trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
                 frame = task->frame;
@@ -182,7 +182,8 @@ typedef struct TaskEvalFrame {
     tlValue value;
 } TaskEvalFrame;
 
-INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
     return tlEval(task, ((TaskEvalFrame*)_frame)->value);
 }
 
@@ -203,7 +204,7 @@ typedef struct TaskThrowFrame {
 } TaskThrowFrame;
 
 INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error);
-INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     return evalThrow(task, _frame->caller, ((TaskThrowFrame*)_frame)->error);
 }
 

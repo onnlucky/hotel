@@ -59,17 +59,17 @@ INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
     _ActorScheduleNext(task, actor);
 }
 
-INTERNAL tlValue _ResumeReceive(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
     ReceiveFrame* frame = (ReceiveFrame*)_frame;
     return _ActorReceive2(task, frame->args);
 }
 
-INTERNAL tlValue _ResumeAct(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeAct(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
     ActorFrame* frame = (ActorFrame*)_frame;
     _ActorScheduleNext(task, frame->actor);
-    return _res;
+    return res;
 }
 
 tlValue tlActorReceive(tlTask* task, tlArgs* args) {
@@ -78,7 +78,7 @@ tlValue tlActorReceive(tlTask* task, tlArgs* args) {
 
     if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
         // pause current task
-        ReceiveFrame* pause = tlFrameAlloc(task, _ResumeReceive, sizeof(ReceiveFrame));
+        ReceiveFrame* pause = tlFrameAlloc(task, resumeReceive, sizeof(ReceiveFrame));
         pause->args = args;
         // after the pause, enqueue the task in the msg queue
         tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
@@ -110,7 +110,7 @@ INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
     trace("actor acted: %p (%s)", res, tl_str(res));
     if (!res) {
         // TODO this is no good, will keep actor locked
-        ActorFrame* frame = tlFrameAlloc(task, _ResumeAct, sizeof(ActorFrame));
+        ActorFrame* frame = tlFrameAlloc(task, resumeAct, sizeof(ActorFrame));
         frame->actor = actor;
         return tlTaskPauseAttach(task, frame);
     }
@@ -127,7 +127,7 @@ typedef struct ActorAquireFrame {
     void* data;
 } ActorAquireFrame;
 
-INTERNAL tlValue _ResumeAquire(tlTask* task, tlFrame* _frame, tlValue _res) {
+INTERNAL tlValue resumeAquire(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
     ActorAquireFrame* frame = (ActorAquireFrame*)_frame;
     return frame->cb(task, frame->actor, frame->data);
@@ -139,7 +139,7 @@ tlValue tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* da
 
     if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
         // pause current task
-        ActorAquireFrame* frame = tlFrameAlloc(task, _ResumeAquire, sizeof(ActorAquireFrame));
+        ActorAquireFrame* frame = tlFrameAlloc(task, resumeAquire, sizeof(ActorAquireFrame));
         frame->actor = actor;
         frame->cb = cb;
         frame->data = data;
