@@ -234,6 +234,8 @@ void tlTaskWait(tlTask* task) {
     vm->waiting++;
 }
 
+void tlIoInterrupt(tlVm* vm);
+
 void tlTaskReady(tlTask* task) {
     trace("%s", tl_str(task));
     assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_INIT);
@@ -243,6 +245,7 @@ void tlTaskReady(tlTask* task) {
     if (task->state == TL_STATE_WAIT) vm->waiting--;
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
+    tlIoInterrupt(vm);
 }
 
 INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
