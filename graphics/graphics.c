@@ -15,7 +15,6 @@ static tlClass _GraphicsClass = {
 tlClass* GraphicsClass = &_GraphicsClass;
 
 static tlValue _circle(tlTask* task, tlArgs* args) {
-    print("!! HERE !!");
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_t* cr = g->cairo;
     int x = tl_int_or(tlArgsAt(args, 0), 0);
@@ -45,21 +44,26 @@ void graphicsDelete(Graphics* g) {
 }
 
 Graphics* graphicsSizeTo(tlTask* task, Graphics* g, int width, int height) {
-    print("CREATING GRAPHICS!!! width: %d, height: %d", width, height);
     if (!g) {
+        print("new graphics; width: %d, height: %d", width, height);
         g = tlAlloc(task, GraphicsClass, sizeof(Graphics));
     }
+    if (g->cairo) { cairo_destroy(g->cairo); g->cairo = null; }
     if (!g->surface || cairo_image_surface_get_width(g->surface) != width
             || cairo_image_surface_get_height(g->surface) != height) {
-        if (g->cairo) { cairo_destroy(g->cairo); g->cairo = null; }
         if (g->surface) { cairo_surface_destroy(g->surface); g->surface = null; }
         g->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-        g->cairo = cairo_create(g->surface);
     }
+    g->cairo = cairo_create(g->surface);
+    cairo_save(g->cairo);
+    cairo_set_operator(g->cairo, CAIRO_OPERATOR_CLEAR);
+    cairo_set_source_rgba(g->cairo, 0, 0, 0, 255);
+    cairo_rectangle(g->cairo, 0, 0, width, height);
+    cairo_fill(g->cairo);
+    cairo_restore(g->cairo);
     return g;
 }
 void graphicsDrawOn(Graphics* g, cairo_t* cr) {
-    print("DRAWING!!!");
     cairo_set_source_surface(cr, g->surface, 0, 0);
     cairo_fill_extents(cr, null, null, null, null);
 }

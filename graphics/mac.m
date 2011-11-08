@@ -79,29 +79,22 @@ static tlValue _window_hide(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 static tlValue _window_graphics(tlTask* task, tlArgs* args) {
-    print("graphics");
     Window* window = WindowAs(tlArgsTarget(args));
     Graphics* buf = A_PTR(a_swap(A_VAR(window->buf), null));
-    print("buf: %p", buf);
     Graphics* g = graphicsSizeTo(task, buf, window->width, window->height);
-    print("  g: %p", g);
-    print("%s", tl_str(g));
     return g;
 }
 static tlValue _window_draw(tlTask* task, tlArgs* args) {
-    print("draw");
     Window* window = WindowAs(tlArgsTarget(args));
     Graphics* buf = GraphicsCast(tlArgsAt(args, 0));
     if (!buf) TL_THROW("expected a buffer");
-    if (a_swap_if(A_VAR(window->draw), A_VAL(buf), null) != null) {
-        // TODO block the current task until drawing is ready ...
-        fatal("not implemented yet");
+    while (a_swap_if(A_VAR(window->draw), A_VAL(buf), null) != null) {
+        [[window->nswindow contentView]
+                performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
+        usleep(20*1000);
     }
-
-    print("!! needs Display !! %p", window->draw);
     [[window->nswindow contentView]
-            performSelectorOnMainThread: @selector(needsDisplay)
-                             withObject: nil waitUntilDone: NO];
+            performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
     return tlNull;
 }
 
@@ -110,12 +103,16 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
 
 @implementation HotelView
 
+- (void)draw {
+    [self setNeedsDisplay: YES];
+}
+
 - (void)drawRect: (NSRect)rect {
-    print("!!draw rect!!");
     Graphics* buf = A_PTR(a_swap(A_VAR(window->draw), null));
     if (buf) {
         if (window->old) {
             if (a_swap_if(A_VAR(window->buf), A_VAL(window->old), null) != null) {
+                print(">> BUFFER FULL: DELETING");
                 graphicsDelete(window->old);
             }
         }
@@ -142,7 +139,6 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
     cairo_paint(cr);
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
-
 }
 
 @end
@@ -173,18 +169,13 @@ static pthread_cond_t cocoa_start;
 // can be called many times, will once init the Cocoa framework
 static void ns_init() {
     static bool inited;
-    print("NS INITED: %s", inited?"true":"false");
     if (inited) return; inited = true;
 
-    print("locking");
     pthread_mutex_lock(&cocoa);
     should_start_cocoa = true;
-    print("signalling");
     pthread_cond_signal(&cocoa_start);
-    print("waiting");
     pthread_cond_wait(&cocoa_start, &cocoa);
     pthread_mutex_unlock(&cocoa);
-    print("done...: %p", NSApp);
 
     shared = tlAlloc(null, AppClass, sizeof(App));
     shared->app = NSApp;
