@@ -292,13 +292,13 @@ static tlValue _ValueReceive(tlTask* task, tlArgs* args) {
             if (!klass) break;
             field = tlmap_get(task, klass, msg);
             if (field) {
-                if (!tlcallable_is(field)) return field;
+                if (!tlCallableIs(field)) return field;
                 return tlEvalArgsFn(task, args, field);
             }
         } while (true);
         return tlUndefined;
     }
-    if (!tlcallable_is(field)) return field;
+    if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(task, args, field);
 }
 static tlClass _tlValueObjectClass = {
