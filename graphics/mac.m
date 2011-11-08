@@ -25,7 +25,9 @@ struct App {
     tlHead head;
     NSApplication* app;
 };
-static tlClass _AppClass;
+static tlClass _AppClass = {
+    .name = "App",
+};
 tlClass* AppClass = &_AppClass;
 static App* shared;
 
@@ -40,10 +42,13 @@ struct Window {
     HotelWindow* nswindow;
     Graphics* buf;
     Graphics* draw;
+    Graphics* old;
     int width;
     int height;
 };
-static tlClass _WindowClass;
+static tlClass _WindowClass = {
+    .name = "Window"
+};
 tlClass* WindowClass = &_WindowClass;
 
 static tlValue _Window_new(tlTask* task, tlArgs* args) {
@@ -58,6 +63,8 @@ static tlValue _Window_new(tlTask* task, tlArgs* args) {
     view->window = window;
     [window->nswindow setContentView: view];
     window->nswindow->window = window;
+    window->width = 200;
+    window->height = 200;
     return window;
 }
 
@@ -72,12 +79,17 @@ static tlValue _window_hide(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 static tlValue _window_graphics(tlTask* task, tlArgs* args) {
+    print("graphics");
     Window* window = WindowAs(tlArgsTarget(args));
-    Graphics* buf = buf;
-    window->buf = null;
-    return graphicsSizeTo(task, buf, window->width, window->height);
+    Graphics* buf = A_PTR(a_swap(A_VAR(window->buf), null));
+    print("buf: %p", buf);
+    Graphics* g = graphicsSizeTo(task, buf, window->width, window->height);
+    print("  g: %p", g);
+    print("%s", tl_str(g));
+    return g;
 }
 static tlValue _window_draw(tlTask* task, tlArgs* args) {
+    print("draw");
     Window* window = WindowAs(tlArgsTarget(args));
     Graphics* buf = GraphicsCast(tlArgsAt(args, 0));
     if (!buf) TL_THROW("expected a buffer");
@@ -86,6 +98,7 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
         fatal("not implemented yet");
     }
 
+    print("!! needs Display !! %p", window->draw);
     [[window->nswindow contentView]
             performSelectorOnMainThread: @selector(needsDisplay)
                              withObject: nil waitUntilDone: NO];
@@ -98,11 +111,20 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
 @implementation HotelView
 
 - (void)drawRect: (NSRect)rect {
+    print("!!draw rect!!");
     Graphics* buf = A_PTR(a_swap(A_VAR(window->draw), null));
-    if (!buf) {
-        warning("not buffer to draw... why did you call needsDisplay?");
-        return;
+    if (buf) {
+        if (window->old) {
+            if (a_swap_if(A_VAR(window->buf), A_VAL(window->old), null) != null) {
+                graphicsDelete(window->old);
+            }
+        }
+        window->old = buf;
+    } else {
+        if (!window->old) return;
+        buf = window->old;
     }
+    assert(buf);
 
     // get gc context and translate/scale it for cairo
     CGContextRef ctx = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
@@ -120,6 +142,7 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
     cairo_paint(cr);
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
+
 }
 
 @end
@@ -147,6 +170,7 @@ static bool should_start_cocoa;
 static pthread_mutex_t cocoa;
 static pthread_cond_t cocoa_start;
 
+// can be called many times, will once init the Cocoa framework
 static void ns_init() {
     static bool inited;
     print("NS INITED: %s", inited?"true":"false");
@@ -166,6 +190,7 @@ static void ns_init() {
     shared->app = NSApp;
 }
 
+// will stop the Cocoa framework if started, otherwise will just exit the cocoa thread
 static void ns_stop() {
     pthread_mutex_lock(&cocoa);
     if (should_start_cocoa) {
@@ -180,6 +205,9 @@ static void ns_stop() {
     pthread_mutex_unlock(&cocoa);
 }
 
+// Cocoa cannot be convinced its main thread to be something but the first thread
+// so we immediately launch a second thread for the hotel interpreter
+// TODO we can, theoretically, gift cocoa our thread if we control our worker better ...
 static void* tl_main(void* data) {
     tl_init();
     tlVm* vm = tlVmNew();
@@ -191,8 +219,10 @@ static void* tl_main(void* data) {
     return 0;
 }
 
-pthread_t tl_thread;
+// we launch the hotel interpreter thread, and then wait
+// if the interpreter wishes to start the Cocoa environment, we let it
 int main() {
+    pthread_t tl_thread;
     pthread_mutex_init(&cocoa, null);
     pthread_cond_init(&cocoa_start, null);
 
@@ -210,6 +240,7 @@ int main() {
         [NSApp setActivationPolicy: NSApplicationActivationPolicyRegular];
         assert([NSThread isMainThread]);
         pthread_cond_signal(&cocoa_start);
+        // this will only return when Cocoa's mainloop is done
         [NSApp run];
     }
 
