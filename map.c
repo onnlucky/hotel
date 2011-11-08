@@ -184,6 +184,7 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
     va_end(ap);
 
     tlMap* map = tlmap_new(null, keys);
+    map->head.klass = tlValueObjectClass;
     tlmap_set_sym_(map, tlSYM(n1), tlFUN(fn1, n1));
     va_start(ap, fn1);
     while (true) {
