@@ -3,8 +3,6 @@
 #include "graphics.h"
 #include "../tl.h"
 
-TL_REF_TYPE(Graphics);
-
 struct Graphics {
     tlHead head;
     cairo_t* cairo;
@@ -37,24 +35,29 @@ static tlValue _rgb(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-void test_graphics(cairo_t* cr) {
-    tl_init();
+Graphics* graphicsSizeTo(tlTask* task, Graphics* g, int width, int height) {
+    if (!g) {
+        g = tlAlloc(task, GraphicsClass, sizeof(Graphics));
+    }
+    return g;
+}
+void graphicsDrawOn(Graphics* g, cairo_t* cr) {
+}
 
+static tlValue _Graphics_new(tlTask* task, tlArgs* args) {
+    return graphicsSizeTo(task, null, 0, 0);
+}
+
+void graphics_init(tlVm* vm) {
     _GraphicsClass.map = tlClassMapFrom(
         "rgb", _rgb,
         "circle", _circle,
         null
     );
-
-    Graphics* g = tlAlloc(null, GraphicsClass, sizeof(Graphics));
-    g->cairo = cr;
-
-    tlVm* vm = tlVmNew();
-    tlVmGlobalSet(vm, tlSYM("g"), g);
-    tlVmRun(vm, tlTEXT("g.rgb(20, 20, 150); g.circle(100, 100, 50)"));
-    tlVmDelete(vm);
-    print("DONE!!");
+    tlMap* GraphicsStatic = tlClassMapFrom(
+        "new", _Graphics_new,
+        null
+    );
+    tlVmGlobalSet(vm, tlSYM("Graphics"), GraphicsStatic);
 }
-
-#include "../vm.c"
 

@@ -1,4 +1,8 @@
 #include <cairo/cairo.h>
+#include "../tl.h"
 
-void test_graphics(cairo_t* cr);
+TL_REF_TYPE(Graphics);
+void graphics_init(tlVm* vm);
+Graphics* graphicsSizeTo(tlTask* task, Graphics* g, int width, int height);
+void graphicsDrawOn(Graphics* g, cairo_t* cr);
 
