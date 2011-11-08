@@ -249,16 +249,25 @@ static void vm_init() {
     tl_register_global("system", system);
 }
 
-tlTask* tlVmRun(tlVm* vm, tlText* script) {
+tlTask* tlVmRunFile(tlVm* vm, tlText* file) {
+    tl_buf* buf = tlbuf_new_from_file(tlTextData(file));
+    if (!buf) fatal("cannot read file: %s", tl_str(file));
+
+    tlbuf_write_uint8(buf, 0);
+    tlText* code = tlTextNewTake(null, tlbuf_free_get(buf));
+    return tlVmRun(vm, code);
+}
+
+tlTask* tlVmRun(tlVm* vm, tlText* code) {
     tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(worker);
 
     // TODO if no success, task should have exception
-    tlCode* code = tlcode_cast(tl_parse(task, script));
-    if (!code) return task;
+    tlCode* body = tlcode_cast(tl_parse(task, code));
+    if (!body) return task;
     trace("PARSED");
 
-    tlClosure* fn = tlclosure_new(task, code, vm->globals);
+    tlClosure* fn = tlclosure_new(task, body, vm->globals);
     tlCall* call = tlcall_from(task, fn, null);
     tlTaskEval(task, call);
     tlTaskReady(task);
@@ -267,5 +276,52 @@ tlTask* tlVmRun(tlVm* vm, tlText* script) {
     tlWorkerRun(worker);
     trace("DONE");
     return task;
+}
+
+static tlValue _print(tlTask* task, tlArgs* args) {
+    tlText* sep = tlTEXT(" ");
+    tlValue v = tlArgsMapGet(args, tlSYM("sep"));
+    if (v) sep = tlToText(task, v);
+
+    tlText* begin = null;
+    v = tlArgsMapGet(args, tlSYM("begin"));
+    if (v) begin = tlToText(task, v);
+
+    tlText* end = null;
+    v = tlArgsMapGet(args, tlSYM("end"));
+    if (v) end = tlToText(task, v);
+
+    if (begin) printf("%s", tlTextData(begin));
+    for (int i = 0; i < 1000; i++) {
+        tlValue v = tlArgsAt(args, i);
+        if (!v) break;
+        if (i > 0) printf("%s", tlTextData(sep));
+        printf("%s", tlTextData(tlToText(task, v)));
+    }
+    if (end) printf("%s", tlTextData(end));
+    printf("\n");
+    fflush(stdout);
+    return tlNull;
+}
+
+static tlValue _assert(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsMapGet(args, tlSYM("text")));
+    if (!text) text = tlTextEmpty();
+    for (int i = 0; i < 1000; i++) {
+        tlValue v = tlArgsAt(args, i);
+        if (!v) break;
+        if (!tl_bool(v)) TL_THROW("Assertion Failed: %s", tlTextData(text));
+    }
+    return tlNull;
+}
+
+void tlVmInitDefaultEnv(tlVm* vm) {
+    tlHostFn* f_print = tlHostFnNew(null, _print, 1);
+    tlHostFnSet_(f_print, 0, tlSYM("print"));
+    tlVmGlobalSet(vm, tlSYM("print"), f_print);
+
+    tlHostFn* f_assert = tlHostFnNew(null, _assert, 1);
+    tlHostFnSet_(f_assert, 0, tlSYM("assert"));
+    tlVmGlobalSet(vm, tlSYM("assert"), f_assert);
 }
 

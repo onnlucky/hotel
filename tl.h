@@ -382,7 +382,10 @@ tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v);
 // ** vm management **
 void tl_init();
 tlVm* tlVmNew();
+void tlVmInitDefaultEnv(tlVm* vm);
 tlTask* tlVmRun(tlVm* vm, tlText* code);
+tlTask* tlVmRunFile(tlVm* vm, tlText* file);
+
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v);
 tlEnv* tlVmGlobalEnv(tlVm* vm);
 void tlVmDelete(tlVm* vm);
