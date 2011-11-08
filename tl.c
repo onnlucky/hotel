@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     tlClosure* fn = tlclosure_new(task, code, env);
     tlCall* call = tlcall_from(task, fn, null);
     tlTaskEval(task, call);
-    tlTaskReadyInit(task);
+    tlTaskReady(task);
 
     trace("RUNNING");
     tlWorkerRun(worker);

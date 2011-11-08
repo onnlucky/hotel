@@ -402,11 +402,10 @@ tlTask* tlTaskNew(tlWorker* worker);
 tlWorker* tlTaskWorker(tlTask* task);
 tlVm* tlTaskVm(tlTask* task);
 
-void tlTaskEval(tlTask* task, tlValue v);
-void tlTaskReadyInit(tlTask* task);
-void tlTaskReadyWait(tlTask* task);
 void tlTaskWait(tlTask* task);
+void tlTaskReady(tlTask* task);
 
+void tlTaskEval(tlTask* task, tlValue v);
 tlValue tlTaskGetValue(tlTask* task);
 tlValue tlTaskGetError(tlTask* task);
 

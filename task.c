@@ -234,23 +234,13 @@ void tlTaskWait(tlTask* task) {
     vm->waiting++;
 }
 
-void tlTaskReadyWait(tlTask* task) {
-    trace("%s - ready wait", tl_str(task));
-    assert(task->state == TL_STATE_WAIT);
-    assert(task->frame);
-    tlVm* vm = tlTaskGetVm(task);
-    vm->waiting--;
-    task->worker = null;
-    task->state = TL_STATE_READY;
-    lqueue_put(&vm->run_q, &task->entry);
-}
-
-void tlTaskReadyInit(tlTask* task) {
-    trace("%s - ready init", tl_str(task));
-    assert(task->state == TL_STATE_INIT);
+void tlTaskReady(tlTask* task) {
+    trace("%s", tl_str(task));
+    assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_INIT);
     assert(task->frame);
     tlVm* vm = tlTaskGetVm(task);
     task->worker = null;
+    if (task->state == TL_STATE_WAIT) vm->waiting--;
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
 }
@@ -266,7 +256,7 @@ INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
         if (!waiter) return;
         waiter->value = task->value;
-        tlTaskReadyWait(waiter);
+        tlTaskReady(waiter);
     }
     return;
 }
@@ -279,13 +269,13 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
 
     if (tlCallableIs(v)) v = tlcall_from(ntask, v, null);
     tlTaskEval(ntask, v);
-    tlTaskReadyInit(ntask);
+    tlTaskReady(ntask);
     return ntask;
 }
 
 INTERNAL tlValue _TaskYield(tlTask* task, tlArgs* args) {
     tlTaskWait(task);
-    tlTaskReadyWait(task);
+    tlTaskReady(task);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
 

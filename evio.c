@@ -43,7 +43,7 @@ int test_ev(char **args, int argc) {
 static void timer_cb(ev_timer *timer, int revents) {
     trace("timer_cb: %p", timer);
     tlTask* task = tlTaskAs(timer->data);
-    tlTaskReadyWait(task);
+    tlTaskReady(task);
     free(timer);
 }
 
@@ -176,7 +176,7 @@ static void read_cb(ev_io *ev, int revents) {
         task->value = tlINT(len);
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
 static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
@@ -232,7 +232,7 @@ static void write_cb(ev_io *ev, int revents) {
         task->value = tlINT(len);
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
 static tlValue _FileWrite2(tlTask* task, tlActor* actor, void* data) {
@@ -378,7 +378,7 @@ static void accept_cb(ev_io* ev, int revents) {
         }
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReadyWait(task);
+    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
 }
 
 static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
@@ -558,7 +558,7 @@ static void child_cb(ev_child *ev, int revents) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&child->wait_q));
         if (!task) return;
         task->value = tlINT(WEXITSTATUS(child->ev.rstatus));
-        tlTaskReadyWait(task);
+        tlTaskReady(task);
     }
 }
 

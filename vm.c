@@ -261,7 +261,7 @@ tlTask* tlVmRun(tlVm* vm, tlText* script) {
     tlClosure* fn = tlclosure_new(task, code, vm->globals);
     tlCall* call = tlcall_from(task, fn, null);
     tlTaskEval(task, call);
-    tlTaskReadyInit(task);
+    tlTaskReady(task);
 
     trace("RUNNING");
     tlWorkerRun(worker);

@@ -50,6 +50,33 @@ do the open/close correctly; do close as lazy as possible? if x: return x ... no
 
 add static initializers, until first vm is created allow tlSYM("...") tlText("...") etc.
 
+# missing
+
+modules
+c-based modules
+lazy evaluation (call by need)
+finalizers
+default arguments
+
+# hotel - a programming language
+
+Hotel is a programming language. Its main focus is to make everything in the language highlevel,
+firstclass and simple. If the language can do something for you, you don't have to. In its design
+it is heavily influenced by the "scripting" languages: javascript, ruby, etc. but different:
+1. The default is immutable;
+2. modules and environments can be mixed and matched;
+3. there are no threads, instead there are tasks and actors.
+
+Why go throught all that trouble? Because this way, regardless of any design decision library writers make, you can build your applications the way it bests suits you. Even in the face of blocking APIs or callback based APIs or library dependecies mutually exclusive to yours or to other libraries.
+
+It is called hotel for a reason. You came here to solve your problem. Hotel does the chores and is here to service you.
+
+hotel |hōˈtel|
+noun
+1 an establishment providing accommodations, meals, and other services for travelers and tourists.
+2 a code word representing the letter H, used in radio communication.
+3 a programming language providing many services for programmers and developers.
+
 
 # syntax design
 
