@@ -12,12 +12,12 @@ static inline void check_var(void* ptr) { }
 #define A_VAR(x) (check_var(x), (a_var)(&x))
 static inline a_val A_VAL_NB(void* ptr) { return (intptr_t)ptr; }
 static inline a_val A_VAL(void* ptr) {
-    __sync_synchronize();
+    if (ptr) __sync_synchronize();
     return (intptr_t)ptr;
 }
 static inline void* A_PTR_NB(a_val v) { return (void*)v; }
 static inline void* A_PTR(a_val v) {
-    __sync_synchronize();
+    if (v) __sync_synchronize();
     return (void*)v;
 }
 
