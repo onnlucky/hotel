@@ -351,6 +351,8 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v);
 tlMap* tlmap_del(tlTask* task, tlMap* map, tlValue key);
 tlMap* tlmap_join(tlTask* task, tlMap* lhs, tlMap* rhs);
 
+tlMap* tlMapToObject_(tlMap* map);
+
 // ** code **
 tlCode* tlcode_from(tlTask* task, tlList* stms);
 

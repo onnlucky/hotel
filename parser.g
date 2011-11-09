@@ -187,15 +187,20 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
        #| "*" n:name                 { $$ = tlListNewFrom1(TASK, n); }
        |     n:name                 { $$ = tlListNewFrom1(TASK, n); }
 
-singleassign = n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); try_name(n, e); }
+singleassign = n:name    _"="__ e:fn    { $$ = tlListNewFrom(TASK, tlACTIVE(e), n, null); try_name(n, e); }
+             | n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); try_name(n, e); }
  multiassign = ns:anames _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, tlcollect_new_(TASK, L(ns)), null); }
     noassign = e:selfapply  { $$ = tlListNewFrom1(TASK, e); }
              | e:pexpr      { $$ = tlListNewFrom1(TASK, e); }
 
 
  block = b:fn {
-            tlcode_set_isblock_(b, true);
-            $$ = b;
+           tlcode_set_isblock_(b, true);
+           $$ = b;
+       }
+       | "("__ b:body __ ")" {
+           tlcode_set_isblock_(b, true);
+           $$ = b;
        }
        | ts:stmsnl &ssepend {
            b = tlcode_from(TASK, ts);
@@ -203,12 +208,15 @@ singleassign = n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); 
            $$ = b;
        }
 
-    fn = "{" __ as:fargs __"->"__ b:body __ "}" {
-            tlcode_set_args_(TASK, tlcode_as(b), L(as));
-            $$ = b;
-        }
-        | "{"__ b:body __ "}" { $$ = b; }
-        | "->" _ ts:stmsnl &ssepend { $$ = tlcode_from(TASK, ts); }
+    fn = "(" __ as:fargs __"->"__ b:body __ ")" {
+           tlcode_set_args_(TASK, tlcode_as(b), L(as));
+           $$ = b;
+       }
+       | as:fargs _"->"_ ts:stmsnl &ssepend {
+           b = tlcode_from(TASK, ts);
+           tlcode_set_args_(TASK, tlcode_as(b), L(as));
+           $$ = b;
+       }
 
 fargs = a:farg __","__ as:fargs { $$ = tlListPrepend(TASK, L(as), a); }
       | a:farg                  { $$ = tlListNewFrom1(TASK, a); }
@@ -242,14 +250,6 @@ selfapply = n:name _ &eosfull {
            $$ = call_activate(set_target(t, v));
        }
        | expr
-
-# // TODO fix below and add [] and such ...
-       | v:value _"."_ n:name _ !"(" {
-           // TODO here we want to "tail" more primary sends ...
-           trace("primary send");
-           //$$ = set_target(t, tlsend_from_list(TASK, null, n, tlListEmpty()));
-           $$ = tlcall_send_from_list(TASK, sa_object_send, v, n, tlListEmpty());
-       }
 
 # // TODO add [] and oop.method: and oop.method arg1: ... etc
  ptail = _!"(" as:pcargs _":"_ b:block {
@@ -377,10 +377,12 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-   map = "["__ is:items __"]"   { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
-       | "["__":"__"]"          { $$ = map_activate(tlmap_empty()); }
- items = i:item eom is:items    { $$ = tlListPrepend(TASK, L(is), i); }
-       | i:item                 { $$ = tlListNewFrom1(TASK, i) }
+object = "{"__ is:items __"}" { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
+       | "{"__"}"             { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
+   map = "["__ is:items __"]" { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
+       | "["__":"__"]"        { $$ = map_activate(tlmap_empty()); }
+ items = i:item eom is:items  { $$ = tlListPrepend(TASK, L(is), i); }
+       | i:item               { $$ = tlListNewFrom1(TASK, i) }
 
   item = n:name _":"__ v:expr   { $$ = tlListNewFrom2(TASK, n, v); }
 #// TODO use this +/- thing for args ...
@@ -393,16 +395,14 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
 litems = v:expr eom is:litems   { $$ = tlListPrepend(TASK, L(is), v); }
        | v:expr                 { $$ = tlListNewFrom1(TASK, v); }
 
- value = lit | number | text | map | list | sym | lookup
+ value = lit | number | text | object | map | list | sym | lookup
 
    lit = "true"      { $$ = tlTrue; }
        | "false"     { $$ = tlFalse; }
        | "null"      { $$ = tlNull; }
        | "undefined" { $$ = tlUndefined; }
-#       | "goto"      { $$ = _CALL1(_REF(s_goto), _REF(s_caller)); }
 
 #   mut = "$" n:name  { $$ = _CALL1(_REF(tlSYM("%get")), _REF(n)); }
-#   ref = n:name      { $$ = _REF(n); }
  lookup = n:name      { $$ = tlACTIVE(n); }
 
    sym = "#" n:name                 { $$ = n }

@@ -1,6 +1,7 @@
 # TODO
 
 implement tlFirst for resume functions
+implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
 
 rework throwing vs resume now that resume takes an tlError* ...
 add task.stop to kill it by error? java ThreadDeath how do we do it safely?

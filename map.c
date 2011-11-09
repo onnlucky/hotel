@@ -1,6 +1,6 @@
 // a map implementation
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tlClass _tlMapClass;
 static tlClass _tlValueObjectClass;
@@ -28,6 +28,9 @@ tlMap* tlmap_new(tlTask* task, tlSet* keys) {
     assert(tlmap_size(map) == tlset_size(keys));
     return map;
 }
+tlMap* tlMapToObject_(tlMap* map) {
+    map->head.klass = tlValueObjectClass; return map;
+}
 int tlmap_size(tlMap* map) {
     assert(tlMapOrObjectIs(map));
     return map->head.size;
@@ -53,12 +56,11 @@ tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
 }
 tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
     trace("set map: %s = %s", tl_str(key), tl_str(v));
-    //if (tlint_is(key)) return tlmap_set_int(task, map, tlint_as(key), v);
 
     int at = 0;
     at = tlset_indexof(map->keys, key);
     if (at >= 0) {
-        tlMap* nmap = TL_CLONE(map);
+        tlMap* nmap = tlAllocClone(task, map, sizeof(tlMap), map->head.size);
         nmap->data[at] = v;
         return nmap;
     }
@@ -157,8 +159,7 @@ tlMap* tlObjectFrom(tlTask* task, ...) {
     }
     va_end(ap);
 
-    map->head.klass = tlValueObjectClass;
-    return map;
+    return tlMapToObject_(map);
 }
 
 tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
@@ -184,7 +185,6 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
     va_end(ap);
 
     tlMap* map = tlmap_new(null, keys);
-    map->head.klass = tlValueObjectClass;
     tlmap_set_sym_(map, tlSYM(n1), tlFUN(fn1, n1));
     va_start(ap, fn1);
     while (true) {
@@ -194,13 +194,13 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
     }
     va_end(ap);
 
-    return map;
+    return tlMapToObject_(map);
 }
 
 // called when map literals contain lookups or expressions to evaluate
 static tlValue _map_clone(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsAt(args, 0));
-    if (!map) TL_THROW("Expected a map");
+    if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsAt(args, 0);
     int size = tlmap_size(map);
     map = tlAllocClone(task, map, sizeof(tlMap), size);
     int argc = 1;
@@ -210,6 +210,37 @@ static tlValue _map_clone(tlTask* task, tlArgs* args) {
         }
     }
     assert(argc == tlArgsSize(args));
+    return map;
+}
+// TODO these functions create way to many intermediates ... add more code :(
+static tlValue _map_update(tlTask* task, tlArgs* args) {
+    trace("");
+    if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
+    if (!tlMapOrObjectIs(tlArgsAt(args, 1))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsAt(args, 0);
+    tlClass* klass = map->head.klass;
+    tlMap* add = tlArgsAt(args, 1);
+    for (int i = 0; i < add->head.size; i++) {
+        map = tlmap_set(task, map, add->keys->data[i], add->data[i]);
+    }
+    map->head.klass = klass;
+    return map;
+}
+static tlValue _map_inherit(tlTask* task, tlArgs* args) {
+    trace("");
+    if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsAt(args, 0);
+    tlValue oclass = tlmap_get_sym(map, s_class);
+    tlClass* klass = map->head.klass;
+    for (int i = 1; i < tlArgsSize(args); i++) {
+        if (!tlMapOrObjectIs(tlArgsAt(args, i))) TL_THROW("Expected a Map");
+        tlMap* add = tlArgsAt(args, 1);
+        for (int i = 0; i < add->head.size; i++) {
+            map = tlmap_set(task, map, add->keys->data[i], add->data[i]);
+        }
+    }
+    if (oclass) map = tlmap_set(task, map, s_class, oclass);
+    map->head.klass = klass;
     return map;
 }
 static tlValue _map_dump(tlTask* task, tlArgs* args) {
@@ -231,6 +262,7 @@ static tlValue _object_from(tlTask* task, tlArgs* args) {
     tlValue map = tlMapCast(tlArgsAt(args, 0));
     if (!map) TL_THROW("Expected a map");
     if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return map;
+    fatal("broken ...");
     map = TL_CLONE(map);
     tlflag_set(map, TL_FLAG_ISOBJECT);
     return map;
@@ -264,8 +296,7 @@ static tlValue _MapToObject(tlTask* task, tlArgs* args) {
     if (!map) TL_THROW("Expected a map");
     tlMap* nmap = tlmap_new(task, map->keys);
     for (int i = 0; i < tlmap_size(map); i++) nmap->data[i] = map->data[i];
-    nmap->head.klass = tlValueObjectClass;
-    return nmap;
+    return tlMapToObject_(nmap);
 }
 
 const char* _MapToText(tlValue v, char* buf, int size) {
@@ -295,6 +326,7 @@ static tlValue _ValueReceive(tlTask* task, tlArgs* args) {
                 if (!tlCallableIs(field)) return field;
                 return tlEvalArgsFn(task, args, field);
             }
+            map = klass;
         } while (true);
         return tlUndefined;
     }
