@@ -19,13 +19,12 @@ Square = {
     call: ( x, y, width, height ->
         _1 = Point.call(x, y)
         _map_inherit({width: width, height: height, class: this.class}, (_1))
-        //{width: width, height: height, class: this.class, x: _1.x, y: _1.y}
     )
     class: {
         area: -> this.width * this.height
         class: Point.class
     }
-    //Null: Square(0, 0, 0, 0)
+    //Null: (->Square(0, 0, 0, 0)).lazy
 }
 
 s1 = Square.call(10, 20, 42, 10)
