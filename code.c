@@ -11,6 +11,8 @@ struct tlCode {
     tlValue ops[];
 };
 
+void debugcode(tlCode* code);
+
 tlCode* tlcode_new(tlTask* task, int size) {
     return task_alloc(task, TLCode, 4 + size);
 }
@@ -20,6 +22,7 @@ tlCode* tlcode_from(tlTask* task, tlList* ops) {
     for (int i = 0; i < size; i++) {
         code->ops[i] = tlListGet(ops, i);
     }
+    //debugcode(code);
     return code;
 }
 void tlcode_set_isblock_(tlCode* code, bool isblock) {
@@ -71,6 +74,16 @@ void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defa
     code->argnames = names;
     if (have_defaults) {
         //code->argdefaults = defaults;
+    }
+}
+
+void debugcode(tlCode* code) {
+    print("size: %d", code->head.size);
+    print("name: %s", tl_str(code->name));
+    print("argnames: %p", code->argnames);
+    print("argdefaults: %p", code->argdefaults);
+    for (int i = 0; i < code->head.size - 4; i++) {
+        print("%3d: %s%s", i, tlactive_is(code->ops[i])?"!":"", tl_str(code->ops[i]));
     }
 }
 
