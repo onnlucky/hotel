@@ -374,6 +374,9 @@ bool tlcall_name_exists(tlCall* call, tlSym name);
 void tlcall_fn_set_(tlCall* call, tlValue v);
 void tlcall_set_(tlCall* call, int at, tlValue v);
 
+tlValue tlFirst(tlResult* res);
+tlResult* tlResultNewFrom(tlTask* task, ...);
+
 // ** environment (scope) **
 tlEnv* tlenv_new(tlTask* task, tlEnv* parent);
 tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key);

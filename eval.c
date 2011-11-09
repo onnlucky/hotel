@@ -106,6 +106,22 @@ tlResult* tlresult_new_skip(tlTask* task, tlArgs* args) {
     }
     return res;
 }
+tlResult* tlResultNewFrom(tlTask* task, ...) {
+    va_list ap;
+    int size = 0;
+
+    va_start(ap, task);
+    for (tlValue v = va_arg(ap, tlValue); v; v = va_arg(ap, tlValue)) size++;
+    va_end(ap);
+
+    tlResult* res = task_alloc(task, TLResult, size + 1);
+
+    va_start(ap, task);
+    for (int i = 0; i < size; i++) res->data[i] = va_arg(ap, tlValue);
+    va_end(ap);
+
+    return res;
+}
 void tlresult_set_(tlResult* res, int at, tlValue v) {
     assert(at >= 0 && at < res->head.size);
     res->data[at] = v;

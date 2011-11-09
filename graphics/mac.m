@@ -43,8 +43,6 @@ struct Window {
     Graphics* buf;
     Graphics* draw;
     Graphics* old;
-    int width;
-    int height;
 };
 static tlClass _WindowClass = {
     .name = "Window"
@@ -62,9 +60,8 @@ static tlValue _Window_new(tlTask* task, tlArgs* args) {
     HotelView* view = [[HotelView new] autorelease];
     view->window = window;
     [window->nswindow setContentView: view];
+    [window->nswindow center];
     window->nswindow->window = window;
-    window->width = 200;
-    window->height = 200;
     return window;
 }
 
@@ -80,8 +77,9 @@ static tlValue _window_hide(tlTask* task, tlArgs* args) {
 }
 static tlValue _window_graphics(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
+    NSRect frame = [[window->nswindow contentView] frame];
     Graphics* buf = A_PTR(a_swap(A_VAR(window->buf), null));
-    Graphics* g = graphicsSizeTo(task, buf, window->width, window->height);
+    Graphics* g = graphicsSizeTo(task, buf, frame.size.width, frame.size.height);
     return g;
 }
 static tlValue _window_draw(tlTask* task, tlArgs* args) {
@@ -97,11 +95,47 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
             performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
     return tlNull;
 }
+static tlValue _window_setTitle(tlTask* task, tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    tlText* text = tlTextCast(tlArgsAt(args, 0));
+    if (text) {
+        [window->nswindow setTitle: [NSString stringWithUTF8String: tlTextData(text)]];
+    }
+    return tlNull;
+}
+static tlValue _window_frame(tlTask* task, tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    int height = 0;
+    NSScreen* screen = [window->nswindow screen];
+    if (screen) height = [screen frame].size.height;
+    NSRect wframe = [window->nswindow frame];
+    NSRect vframe = [[window->nswindow contentView] frame];
+    int y = height - wframe.origin.y - vframe.size.height;
+    if (y < 0) y = 0;
+    return tlResultNewFrom(task,
+            tlINT(wframe.origin.x), tlINT(y),
+            tlINT(vframe.size.width), tlINT(vframe.size.height), null);
+}
+static tlValue _window_mouse(tlTask* task, tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    int height = 0;
+    NSScreen* screen = [window->nswindow screen];
+    if (screen) height = [screen frame].size.height;
+    NSPoint point = [NSEvent mouseLocation];
+    return tlResultNewFrom(task, tlINT(point.x), tlINT(height - point.y), null);
+}
 
 @implementation HotelWindow
+- (void)keyDown: (NSEvent*)event {
+    NSLog(@"keydown: %@", event);
+}
 @end
 
 @implementation HotelView
+
+-(void)mouseDown:(NSEvent*)event {
+    NSLog(@"mouseDown: %@", event);
+}
 
 - (void)draw {
     [self setNeedsDisplay: YES];
@@ -122,15 +156,16 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
         buf = window->old;
     }
     assert(buf);
+    NSRect frame = [self frame];
 
     // get gc context and translate/scale it for cairo
     CGContextRef ctx = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
-    CGContextTranslateCTM(ctx, 0.0, window->height);
+    CGContextTranslateCTM(ctx, 0.0, frame.size.height);
     CGContextScaleCTM(ctx, 1.0, -1.0);
 
     // create a cairo context and drow the buf context to it
     cairo_surface_t *surface =
-            cairo_quartz_surface_create_for_cg_context(ctx, window->width, window->height);
+            cairo_quartz_surface_create_for_cg_context(ctx, frame.size.width, frame.size.height);
     cairo_t *cr = cairo_create(surface);
 
     graphicsDrawOn(buf, cr);
@@ -149,6 +184,9 @@ void window_init(tlVm* vm) {
     _WindowClass.map = tlClassMapFrom(
         "show", _window_show,
         "hide", _window_hide,
+        "setTitle", _window_setTitle,
+        "frame", _window_frame,
+        "mouse", _window_mouse,
         "graphics", _window_graphics,
         "draw", _window_draw,
         null
