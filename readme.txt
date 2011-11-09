@@ -1,16 +1,17 @@
 # TODO
 
-implement tlFirst for resume functions
-implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
-
+when calling non functions or unresolvable lookups and such, don't assert, throw instead ...
 rework throwing vs resume now that resume takes an tlError* ...
-add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 on parse errors, throw it on the task, not fatal() out ...
 add looping and implement break by throwing
+add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 
 rework all "callables" as tlClass based, and use the class->call
 rework all types as the tlClass things ... stop using anything else
 remove old task_alloc and such
+
+implement tlFirst for resume functions
+implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
 
 tlArgsAt -> tlArgsGet ... like a list tlListGet
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
