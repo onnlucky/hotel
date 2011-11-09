@@ -598,6 +598,7 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     // TODO only do this if the closure is a method
     // the *only* dynamically scoped name
     tlValue oop = tlArgsMapGet(args, s_this);
+    if (!oop) oop = tlArgsTarget(args);
     if (oop) frame->env = tlenv_set(task, frame->env, s_this, oop);
 
     trace("mapped all args...");

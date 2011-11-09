@@ -1,9 +1,10 @@
-x = !sleep 10; 42
-print x.done
-print x.wait
+Point = [
+    new: { x, y -> print "this:", this; [ x: x, y: y, class: this.class ].toObject }
+    class: [
+        area: { -> this.x * this.y }
+    ].toObject
+].toObject
 
-x = !sleep 10; 42
-sleep 20
-print x.done
-print x.wait
+p = Point.new 10, 10
+p.area
 

@@ -1,20 +1,17 @@
 # TODO
 
-add something around tlWorkerMigrate(...thread...) so Cocoa can take the main thread? tricky...
+implement tlFirst for resume functions
 
-on parse errors, throw it on the task, not fatal() out ...
-add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 rework throwing vs resume now that resume takes an tlError* ...
-
-change return into same as goto?
-add break as a return or by throwing?
-the _res values could be multiple, add code to unpack it? or add second param for full list?
+add task.stop to kill it by error? java ThreadDeath how do we do it safely?
+on parse errors, throw it on the task, not fatal() out ...
+add looping and implement break by throwing
 
 rework all "callables" as tlClass based, and use the class->call
 rework all types as the tlClass things ... stop using anything else
+remove old task_alloc and such
 
 tlArgsAt -> tlArgsGet ... like a list tlListGet
-remove old task_alloc and such
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 we do the "get field and dispatch" a lot in a lot of places ... dry it up
 
@@ -27,6 +24,8 @@ writing to sockets should accept strings too ... place buffer inbetween? actor i
 add methods vs functions, methods try to bind a this dynamically ... helps with actors too
 example: function = { }
          method = @{ }
+
+add something around tlWorkerMigrate(...thread...) so Cocoa can take the main thread? tricky...
 
   ----
 
@@ -46,10 +45,6 @@ optimize: parser should add all local names to code->envnames and env should use
 optimize: parser pexpr and others lots of branches start out the same, let them share prefix ...
 optimize: task->value by tagging as active incase of tResult or such?
 optimize: compile code by collecting all local names, use that as dict, and keep values inside run
-
-do the open/close correctly; do close as lazy as possible? if x: return x ... no need to close/copy
-
-add static initializers, until first vm is created allow tlSYM("...") tlText("...") etc.
 
 # missing
 
