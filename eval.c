@@ -608,8 +608,19 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
 INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
+    assert(tlCallableIs(fn));
     if (tlclosure_is(fn)) return evalCode(task, args, tlclosure_as(fn));
     if (tlHostFnIs(fn)) return tlHostFnAs(fn)->hostcb(task, args);
+    if (tlValueObjectIs(fn)) {
+        tlValue call = tlmap_get_sym(fn, s_call);
+        if (call) {
+            trace("%s", tl_str(call));
+            if (!tlCallableIs(call)) return call;
+            args->fn = call;
+            args->target = fn;
+            return evalArgs(task, args);
+        }
+    }
     fatal("OEPS %s", tl_str(fn));
     return null;
 }
@@ -733,38 +744,52 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     assert(fn && tlRefIs(fn));
 
     tlClass* klass = tlClassGet(fn);
-    if (klass) {
-        trace("call in class: %p", klass);
+    tlArgs* args = null;
+    if (tlValueObjectIs(fn)) {
+        tlValue field = tlmap_get_sym(fn, s_call);
+        if (field) {
+            trace("invoking object.call");
+            args = evalCall(task, call);
+        } else {
+            warning("unable to run: %s", tl_str(fn));
+            fatal("oeps");
+        }
+    } else if (klass) {
+        trace("call in class: %p %p %p", klass, klass->call, klass->map);
         if (klass->call) return klass->call(task, call);
         if (klass->map) {
             tlValue field = tlmap_get_sym(klass->map, s_call);
-            if (field) fatal("not implemented yet");
+            if (field) {
+                trace("invoking object.call");
+                args = evalCall(task, call);
+            } else {
+                warning("unable to run: %s", tl_str(fn));
+                fatal("oeps");
+            }
         }
-    }
-
-    tlArgs* args = null;
-
-    // TODO if zero args, or no key args ... optimize
-    switch(tl_head(fn)->type) {
-    case TLHostFn:
-        trace("hostfn");
-        //if (tlHostFnAs(fn)->hostcb == _goto) return run_goto(task, call, tlHostFnAs(fn));
-    case TLClosure:
-        args = evalCall(task, call);
-        trace("closure: %s", tl_str(args));
-        break;
-    case TLCall:
-        trace("call");
-        return evalCallFn(task, call, tlcall_as(fn));
-    case TLThunk:
-        trace("thunk");
-        if (tlcall_argc(call) > 0) {
+    } else {
+        // TODO if zero args, or no key args ... optimize
+        switch(tl_head(fn)->type) {
+        case TLHostFn:
+            trace("hostfn");
+            //if (tlHostFnAs(fn)->hostcb == _goto) return run_goto(task, call, tlHostFnAs(fn));
+        case TLClosure:
             args = evalCall(task, call);
+            trace("closure: %s", tl_str(args));
+            break;
+        case TLCall:
+            trace("call");
+            return evalCallFn(task, call, tlcall_as(fn));
+        case TLThunk:
+            trace("thunk");
+            if (tlcall_argc(call) > 0) {
+                args = evalCall(task, call);
+            }
+            return run_thunk(task, tlthunk_as(fn));
+        default:
+            warning("unable to run: %s", tl_str(fn));
+            fatal("oeps");
         }
-        return run_thunk(task, tlthunk_as(fn));
-    default:
-        warning("unable to run: %s", tl_str(fn));
-        assert(false);
     }
 
     if (args) {
@@ -812,12 +837,11 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
 }
 bool tlCallableIs(tlValue v) {
     if (!tlref_is(v)) return false;
+    if (tlValueObjectIs(v) && tlmap_get_sym(v, s_call)) return true;
     tlClass* klass = tlClassGet(v);
     if (!klass) return tlcallable_is(v);
     if (klass->call) return true;
-    if (klass->map) {
-        if (tlmap_get_sym(klass->map, s_call)) return true;
-    }
+    if (klass->map && tlmap_get_sym(klass->map, s_call)) return true;
     return false;
 }
 bool tlcallable_is(tlValue v) {
