@@ -24,6 +24,8 @@
 #include "env.c"
 #include "eval.c"
 
+#include "var.c"
+
 // extras
 #include "buf.c"
 #include "buffer.c"
@@ -141,6 +143,7 @@ void tl_init() {
 
     eval_init();
     task_init();
+    var_init();
     //object_init();
     vm_init();
 

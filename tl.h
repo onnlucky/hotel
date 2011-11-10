@@ -226,6 +226,7 @@ TL_TYPE(vm, Vm);
 TL_TYPE(tagged, Tagged);
 
 TL_REF_TYPE(tlHostFn);
+TL_REF_TYPE(tlVar);
 
 #undef TL_TYPE
 

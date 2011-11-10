@@ -177,15 +177,22 @@ tlValue tlcollect_new_(tlTask* task, tlList* list);
 stmsnl =  t:stm ssep ts:stmsnl { $$ = tlListCat(TASK, L(t), L(ts)); }
        |  t:stm                { $$ = L(t); }
 
-   stm = singleassign | multiassign | noassign
-
-#   var = "var" _ "$" n:name _"="__ e:pexpr { $$ = tlListNewFrom4(TASK, _ASSIGN_, _CALL1(_REF(tlSYM("%var")), e), _RESULT_, n); }
-#       |         "$" n:name _"="__ e:pexpr { $$ = _CALL2(_REF(tlSYM("%set")), _REF(n), e); }
-#assign =          as:anames _"="__ e:pexpr { $$ = tlListPrepend2(TASK, L(as), _ASSIGN_, e); }
+   stm = varassign | singleassign | multiassign | noassign
 
 anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
        #| "*" n:name                 { $$ = tlListNewFrom1(TASK, n); }
        |     n:name                 { $$ = tlListNewFrom1(TASK, n); }
+
+   varassign = "var"__"$" n:name __"="__ e:pexpr {
+                 $$ = tlListNewFrom(TASK, call_activate(
+                             tlcall_from(TASK, tlACTIVE(tlSYM("_Var_new")), e, null)
+                 ), n, null);
+             }
+             | "$" n:name _"="__ e:pexpr {
+                 $$ = tlListNewFrom1(TASK, call_activate(
+                             tlcall_from(TASK, tlACTIVE(tlSYM("_var_set")), tlACTIVE(n), e, null)
+                 ));
+             }
 
 singleassign = n:name    _"="__ e:fn    { $$ = tlListNewFrom(TASK, tlACTIVE(e), n, null); try_name(n, e); }
              | n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); try_name(n, e); }
@@ -377,32 +384,27 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-object = "{"__ is:items __"}" { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
-       | "{"__"}"             { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
-   map = "["__ is:items __"]" { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
-       | "["__":"__"]"        { $$ = map_activate(tlmap_empty()); }
- items = i:item eom is:items  { $$ = tlListPrepend(TASK, L(is), i); }
-       | i:item               { $$ = tlListNewFrom1(TASK, i) }
+object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
+       | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
+   map = "["__ is:items __"]"  { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
+       | "["__":"__"]"         { $$ = map_activate(tlmap_empty()); }
+ items = i:item eom is:items   { $$ = tlListPrepend(TASK, L(is), i); }
+       | i:item                { $$ = tlListNewFrom1(TASK, i) }
+  item = n:name _":"__ v:expr  { $$ = tlListNewFrom2(TASK, n, v); }
 
-  item = n:name _":"__ v:expr   { $$ = tlListNewFrom2(TASK, n, v); }
-#// TODO use this +/- thing for args ...
-#//       |"+"_ n:name            { $$ = tlListNewFrom2(TASK, n, tlTrue); }
-#//       | "-"_ n:name            { $$ = tlListNewFrom2(TASK, n, tlFalse); }
+  list = "["__ is:litems __"]" { $$ = list_activate(L(is)); }
+       | "["__"]"              { $$ = list_activate(tlListEmpty()); }
+litems = v:expr eom is:litems  { $$ = tlListPrepend(TASK, L(is), v); }
+       | v:expr                { $$ = tlListNewFrom1(TASK, v); }
 
-#// TODO list_activate ...
-  list = "["__ is:litems __"]"  { $$ = list_activate(L(is)); }
-       | "["__"]"               { $$ = list_activate(tlListEmpty()); }
-litems = v:expr eom is:litems   { $$ = tlListPrepend(TASK, L(is), v); }
-       | v:expr                 { $$ = tlListNewFrom1(TASK, v); }
-
- value = lit | number | text | object | map | list | sym | lookup
+ value = lit | number | text | object | map | list | sym | varref | lookup
 
    lit = "true"      { $$ = tlTrue; }
        | "false"     { $$ = tlFalse; }
        | "null"      { $$ = tlNull; }
        | "undefined" { $$ = tlUndefined; }
 
-#   mut = "$" n:name  { $$ = _CALL1(_REF(tlSYM("%get")), _REF(n)); }
+ varref = "$" n:name  { $$ = tlcall_from(TASK, tlACTIVE(tlSYM("_var_get")), tlACTIVE(n), null); }
  lookup = n:name      { $$ = tlACTIVE(n); }
 
    sym = "#" n:name                 { $$ = n }
