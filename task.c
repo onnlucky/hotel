@@ -160,6 +160,7 @@ INTERNAL void code_workfn(tlTask* task) {
             tlTaskDone(task, res);
             return;
         }
+        if (task->error) return;
         trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
         assert(task->frame);
         // attach c transient stack back to full stack
@@ -248,12 +249,31 @@ void tlTaskReady(tlTask* task) {
     tlIoInterrupt(vm);
 }
 
+INTERNAL void tlTaskError(tlTask* task, tlValue error) {
+    trace("%s error: %s", tl_str(task), tl_str(error));
+    task->frame = null;
+    task->value = null;
+    task->error = error;
+    task->state = TL_STATE_ERROR;
+    task->worker = tlTaskGetVm(task)->waiter;
+    task->jumping = true;
+
+    while (true) {
+        tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
+        if (!waiter) return;
+        waiter->value = task->value;
+        tlTaskReady(waiter);
+    }
+    return;
+}
 INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
     trace("%s done: %s", tl_str(task), tl_str(res));
     task->frame = null;
     task->value = res;
+    task->error = null;
     task->state = TL_STATE_DONE;
     task->worker = tlTaskGetVm(task)->waiter;
+    task->jumping = true;
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));

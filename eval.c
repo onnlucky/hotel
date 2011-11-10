@@ -173,9 +173,8 @@ INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error) {
         }
         frame = frame->caller;
     }
-    // TODO don't do fatal, instead stop this task ...
-    //tltask_exception_set_(task, error->value);
-    fatal("uncaught exception: %s", tl_str(error));
+    warning("uncaught exception: %s", tl_str(error));
+    tlTaskError(task, error);
     return null;
 }
 
@@ -751,8 +750,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
             trace("invoking object.call");
             args = evalCall(task, call);
         } else {
-            warning("unable to run: %s", tl_str(fn));
-            fatal("oeps");
+            TL_THROW("unable to call: %s", tl_str(fn));
         }
     } else if (klass) {
         trace("call in class: %p %p %p", klass, klass->call, klass->map);
@@ -763,8 +761,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
                 trace("invoking object.call");
                 args = evalCall(task, call);
             } else {
-                warning("unable to run: %s", tl_str(fn));
-                fatal("oeps");
+                TL_THROW("unable to call: %s", tl_str(fn));
             }
         }
     } else {
@@ -787,8 +784,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
             }
             return run_thunk(task, tlthunk_as(fn));
         default:
-            warning("unable to run: %s", tl_str(fn));
-            fatal("oeps");
+            TL_THROW("unable to call: %s", tl_str(fn));
         }
     }
 

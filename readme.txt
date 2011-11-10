@@ -1,5 +1,6 @@
 # TODO
 
+think about what to do with uncaught exceptions? Task finalizer prints them if nobody read them?
 when calling non functions or unresolvable lookups and such, don't assert, throw instead ...
 rework throwing vs resume now that resume takes an tlError* ...
 on parse errors, throw it on the task, not fatal() out ...
@@ -55,6 +56,7 @@ c-based modules
 lazy evaluation (call by need)
 finalizers
 default arguments
+complex lhs assigns
 
 # hotel - a programming language
 
