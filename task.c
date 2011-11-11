@@ -12,11 +12,16 @@ void tlresult_set_(tlResult* res, int at, tlValue v);
 
 struct tlVm {
     tlHead head;
+    // tasks ready to run
     lqueue run_q;
 
     // the waiter does not actually "work", it helps tasks keep reference back to the vm
     tlWorker* waiter;
-    int waiting;
+
+    // task counts: total, waiting or in io
+    a_val tasks;
+    a_val waiting;
+    a_val iowaiting;
 
     tlEnv* globals;
 };
@@ -47,7 +52,8 @@ typedef enum {
     TL_STATE_INIT = 0,  // only first time
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
     TL_STATE_RUN,       // running
-    TL_STATE_WAIT,      // waiting on a task, blocked_on is usually set
+    TL_STATE_WAIT,      // waiting in an actor or task queue
+    TL_STATE_IOWAIT,    // waiting on io to become readable/writable
 
     TL_STATE_DONE,      // task is done, others can read its value
     TL_STATE_ERROR,     // task is done, value is actually an error
@@ -231,28 +237,53 @@ tlValue tlTaskGetValue(tlTask* task) {
     return tlresult_get(task->value, 0);
 }
 
+void tlTaskWaitIo(tlTask* task) {
+    trace("%p", task);
+    assert(tlTaskIs(task));
+    assert(task->state == TL_STATE_RUN);
+    tlVm* vm = tlTaskGetVm(task);
+    task->state = TL_STATE_IOWAIT;
+    task->worker = vm->waiter;
+    a_inc(&vm->iowaiting);
+}
+
 void tlTaskWait(tlTask* task) {
     trace("%p", task);
-    assert(task->state == TL_STATE_READY || task->state == TL_STATE_RUN);
     assert(tlTaskIs(task));
+    //assert(task->state == TL_STATE_READY || task->state == TL_STATE_RUN);
+    assert(task->state == TL_STATE_RUN);
     tlVm* vm = tlTaskGetVm(task);
     task->state = TL_STATE_WAIT;
     task->worker = vm->waiter;
-    vm->waiting++;
+    a_inc(&vm->waiting);
 }
 
 void tlIoInterrupt(tlVm* vm);
 
 void tlTaskReady(tlTask* task) {
     trace("%s", tl_str(task));
-    assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_INIT);
+    assert(tlTaskIs(task));
+    assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_IOWAIT);
     assert(task->frame);
     tlVm* vm = tlTaskGetVm(task);
+    if (task->state == TL_STATE_IOWAIT) a_dec(&vm->iowaiting);
+    else a_dec(&vm->waiting);
     task->worker = null;
-    if (task->state == TL_STATE_WAIT) vm->waiting--;
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
     tlIoInterrupt(vm);
+}
+
+void tlTaskStart(tlTask* task) {
+    trace("%s", tl_str(task));
+    assert(tlTaskIs(task));
+    assert(task->state == TL_STATE_INIT);
+    assert(task->frame);
+    tlVm* vm = tlTaskGetVm(task);
+    a_inc(&vm->tasks);
+    task->worker = null;
+    task->state = TL_STATE_READY;
+    lqueue_put(&vm->run_q, &task->entry);
 }
 
 INTERNAL void tlTaskError(tlTask* task, tlValue error) {
@@ -261,7 +292,9 @@ INTERNAL void tlTaskError(tlTask* task, tlValue error) {
     task->value = null;
     task->error = error;
     task->state = TL_STATE_ERROR;
-    task->worker = tlTaskGetVm(task)->waiter;
+    tlVm* vm = tlTaskGetVm(task);
+    a_dec(&vm->tasks);
+    task->worker = vm->waiter;
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
@@ -277,7 +310,9 @@ INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
     task->value = res;
     task->error = null;
     task->state = TL_STATE_DONE;
-    task->worker = tlTaskGetVm(task)->waiter;
+    tlVm* vm = tlTaskGetVm(task);
+    a_dec(&vm->tasks);
+    task->worker = vm->waiter;
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
@@ -296,7 +331,7 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
 
     if (tlCallableIs(v)) v = tlcall_from(ntask, v, null);
     tlTaskEval(ntask, v);
-    tlTaskReady(ntask);
+    tlTaskStart(ntask);
     return ntask;
 }
 
@@ -412,6 +447,7 @@ INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {
         case TL_STATE_READY: state = "ready"; break;
         case TL_STATE_RUN: state = "run"; break;
         case TL_STATE_WAIT: state = "wait"; break;
+        case TL_STATE_IOWAIT: state = "iowait"; break;
         case TL_STATE_DONE: state = "done"; break;
         case TL_STATE_ERROR: state = "error"; break;
     }

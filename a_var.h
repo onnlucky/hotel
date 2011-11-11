@@ -28,6 +28,8 @@ static inline a_val a_get(a_var var) {
 }
 
 // various atomic operations on intptr_t numbers
+static inline a_val a_inc(a_var var) { return __sync_add_and_fetch(var, 1); }
+static inline a_val a_dec(a_var var) { return __sync_sub_and_fetch(var, 1); }
 static inline a_val a_add(a_var var, a_val v) { return __sync_add_and_fetch(var, v); }
 static inline a_val a_sub(a_var var, a_val v) { return __sync_sub_and_fetch(var, v); }
 static inline a_val a_or(a_var var, a_val v) { return __sync_or_and_fetch(var, v); }

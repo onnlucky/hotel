@@ -57,7 +57,7 @@ static tlValue _io_sleep(tlTask* task, tlArgs* args) {
     ev_timer_init(timer, timer_cb, ms, 0);
     ev_timer_start(timer);
 
-    tlTaskWait(task);
+    tlTaskWaitIo(task);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
 
@@ -176,7 +176,7 @@ static void read_cb(ev_io *ev, int revents) {
         task->value = tlINT(len);
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
 
 static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
@@ -198,7 +198,7 @@ static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
 
     ev->events = EV_READ;
     ev_io_start(ev);
-    tlTaskWait(task);
+    tlTaskWaitIo(task);
 
     trace("read: waiting");
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
@@ -232,7 +232,7 @@ static void write_cb(ev_io *ev, int revents) {
         task->value = tlINT(len);
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
 
 static tlValue _FileWrite2(tlTask* task, tlActor* actor, void* data) {
@@ -255,7 +255,7 @@ static tlValue _FileWrite2(tlTask* task, tlActor* actor, void* data) {
 
     ev->events = EV_WRITE;
     ev_io_start(ev);
-    tlTaskWait(task);
+    tlTaskWaitIo(task);
 
     trace("write: waiting");
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
@@ -378,7 +378,7 @@ static void accept_cb(ev_io* ev, int revents) {
         }
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_WAIT) tlTaskReady(task);
+    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
 
 static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
@@ -395,7 +395,7 @@ static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
 
     ev->events = EV_READ;
     ev_io_start(ev);
-    tlTaskWait(task);
+    tlTaskWaitIo(task);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
 
@@ -582,9 +582,8 @@ static tlValue _ChildWait(tlTask* task, tlArgs* args) {
         return tlINT(WEXITSTATUS(child->ev.rstatus));
     }
 
-    // TODO "park" the task; by disowning the current actor ... how?
-    trace("!! parking");
-    tlTaskWait(task);
+    // TODO this is not thread safe and needs fixing ... first reify stack, then ...
+    tlTaskWaitIo(task);
     lqueue_put(&child->wait_q, &task->entry);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
@@ -761,13 +760,13 @@ void evio_init() {
 
 bool tlIoHasWaiting(tlVm* vm) {
     assert(vm);
-    assert(vm->waiting >= 0);
-    return vm->waiting > 0;
+    assert(vm->iowaiting >= 0);
+    return a_get(&vm->iowaiting) > 0;
 }
 
 void tlIoWait(tlVm* vm) {
     assert(vm);
-    trace("EVLOOP_ONESHOT: %d", vm->waiting);
+    trace("EVLOOP_ONESHOT: %zd -- %zd", vm->iowaiting, vm->waiting);
     if (a_set_if(&loop_status, WAIT, NONE) != WAIT) {
         fatal("oeps ... logic error");
     }

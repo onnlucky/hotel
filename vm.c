@@ -169,7 +169,7 @@ void tlworker_detach(tlWorker* worker, tlTask* task) {
 }
 
 // when outside of vm, make it all run by calling this function
-void tlworker_run(tlWorker* worker) {
+void tlWorkerRun(tlWorker* worker) {
     assert(tlworker_is(worker));
     assert(tlvm_is(worker->vm));
     tlVm* vm = worker->vm;
@@ -186,9 +186,12 @@ void tlworker_run(tlWorker* worker) {
     //assert(didwork); fails Child_run ... why?
 }
 
-void tlWorkerRun(tlWorker* worker) {
+void tlWorkerRunIo(tlWorker* worker) {
+    tlVm* vm = worker->vm;
     while (true) {
-        tlworker_run(worker);
+        tlWorkerRun(worker);
+        trace(">>>> WORKER tasks: %zd, wait: %zd, io: %zd <<<<",
+                vm->tasks, vm->waiting, vm->iowaiting);
         if (!tlIoHasWaiting(worker->vm)) break;
         tlIoWait(worker->vm);
     }
@@ -274,10 +277,10 @@ tlTask* tlVmRun(tlVm* vm, tlText* code) {
     tlClosure* fn = tlclosure_new(task, body, vm->globals);
     tlCall* call = tlcall_from(task, fn, null);
     tlTaskEval(task, call);
-    tlTaskReady(task);
+    tlTaskStart(task);
 
     trace("RUNNING");
-    tlWorkerRun(worker);
+    tlWorkerRunIo(worker);
     trace("DONE");
     return task;
 }

@@ -1,23 +1,24 @@
-if = cond, &tb, &fb -> bool(cond, tb, fb)()
+if = cond, block -> bool(cond, block, (->))()
 
-Variable = ( v ->
-    _task_new((->
-        loop = ( v ->
-            from, msg, nv = _task_receive()
-            if(msg == #get, (_task_reply(from, v); goto(loop(v))))
-            if(msg == #set, (_task_reply(from, nv); goto(loop(nv))))
-            out("ERROR: unknown message: ", msg, "\n")
-            _task_reply(from, null)
-            goto(loop(v))
+Variable = (v ->
+    !(
+        loop = (v ->
+            msg = Task.receive
+            if msg.get(0) == #get: msg.reply v; goto loop v
+            if msg.get(0) == #set: msg.reply msg.get(1); goto loop msg.get(1)
+            print("ERROR: unknown message:", msg.get(0))
+            msg.reply
+            goto loop v
         )
         loop(v)
-    ))
+    )
 )
 
 x = Variable(0)
-out("get: ", _task_send(x, #get), "\n")
-out("set: ", _task_send(x, #set, 100), "\n")
-out("set: ", _task_send(x, #set, 200), "\n")
-out("set: ", _task_send(x, #set, 300), "\n")
-out("get: ", _task_send(x, #get), "\n")
-out("get: ", _task_send(x, #get), "\n")
+out("get: ", x.send(#get), "\n")
+out("set: ", x.send(#set, 100), "\n")
+out("set: ", x.send(#set, 200), "\n")
+out("set: ", x.send(#set, 300), "\n")
+out("get: ", x.send(#get), "\n")
+out("get: ", x.send(#get), "\n")
+
