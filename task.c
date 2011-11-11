@@ -406,8 +406,7 @@ void print_backtrace(tlFrame*);
 INTERNAL tlValue resumeRecv(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("");
     tlTask* sender = tlTaskFromEntry(lqueue_get(&task->msg_q));
-    print("!! !! GOT SENDER? %s", tl_str(sender));
-    print_backtrace(frame->caller);
+    //print_backtrace(frame->caller);
     if (sender) return sender->value;
     tlTaskWait(task);
     return tlTaskPause(task, frame);

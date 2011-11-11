@@ -231,12 +231,12 @@ static tlValue _list_clone(tlTask* task, tlArgs* args) {
     }
     return list;
 }
-static tlValue _ListSize(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _list_size(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     return tlINT(tlListSize(list));
 }
-static tlValue _ListGet(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _list_get(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsAt(args, 0), -1);
@@ -245,7 +245,7 @@ static tlValue _ListGet(tlTask* task, tlArgs* args) {
     if (!res) return tlNull;
     return res;
 }
-static tlValue _ListSet(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _list_set(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsAt(args, 0), -1);
@@ -256,16 +256,42 @@ static tlValue _ListSet(tlTask* task, tlArgs* args) {
     tlList* nlist = tlNull; //tlListSet(task, list, at, val);
     return nlist;
 }
+INTERNAL tlValue _list_add(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    if (!list) TL_THROW("Expected a list");
+    tlValue val = tlArgsAt(args, 0);
+    if (!val || val == tlUndefined) val = tlNull;
+    return tlListAppend(task, list, val);
+}
+INTERNAL tlValue _list_slice(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    if (!list) TL_THROW("Expected a list");
+
+    int size = tlListSize(list);
+    int first = tl_int_or(tlArgsAt(args, 0), 0);
+    int last = tl_int_or(tlArgsAt(args, 1), size);
+
+    trace("%d %d %d", first, last, size);
+    if (first < 0) first = size + first;
+    if (first < 0) return tlListEmpty();
+    if (first >= size) return tlListEmpty();
+    if (last <= 0) last = size + last;
+    if (last < first) return tlListEmpty();
+
+    trace("%d %d %d", first, last, size);
+    return tlListSlice(task, list, first, last);
+}
 
 // TODO eval: { "_list_clone", _list_clone },
 
 static void list_init() {
     _tlListClass.map = tlClassMapFrom(
-            "size", _ListSize,
-            "get", _ListGet,
-            "set", _ListSet,
+            "size", _list_size,
+            "get", _list_get,
+            "set", _list_set,
+            "add", _list_add,
+            "slice", _list_slice,
             //"search", _ListSearch,
-            //"slice", _ListSlice,
             null
     );
     _tl_emptyList = tlAlloc(null, tlListClass, sizeof(tlList));
