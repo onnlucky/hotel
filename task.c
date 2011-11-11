@@ -32,8 +32,16 @@ struct tlWorker {
     void* defer_data;
 };
 
-void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb);
+TL_REF_TYPE(tlMessage);
+static tlClass _tlMessageClass;
+tlClass* tlMessageClass = &_tlMessageClass;
+struct tlMessage {
+    tlHead head;
+    tlTask* sender;
+    tlArgs* args;
+};
 
+void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb);
 
 typedef enum {
     TL_STATE_INIT = 0,  // only first time
@@ -62,6 +70,7 @@ struct tlTask {
     tlValue error;     // if task is in an error state, this is the value (throwing)
     tlTaskState state; // state it is currently in
 
+    lqueue msg_q;      // for task.send and task.receive ...
     lqueue wait_q;     // for task.wait, holds all waiters ...
 };
 
@@ -323,6 +332,79 @@ INTERNAL tlValue _TaskWait(tlTask* task, tlArgs* args) {
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
 
+typedef struct TaskSendFrame {
+    tlFrame frame;
+    tlTask* other;
+    tlMessage* msg;
+} TaskSendFrame;
+INTERNAL tlValue resumeReply(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    trace("");
+    return task->value;
+}
+INTERNAL tlValue resumeSend(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    trace("");
+    tlTaskWait(task);
+    tlTask* other = ((TaskSendFrame*)frame)->other;
+    frame->resumecb = resumeReply;
+    task->value = ((TaskSendFrame*)frame)->msg;
+    task->frame = frame;
+    lqueue_put(&other->msg_q, &task->entry);
+    // TODO not thread safe, our worker must own the task first
+    if (other->state == TL_STATE_WAIT) tlTaskReady(other);
+    return tlTaskNotRunning;
+}
+INTERNAL tlValue _task_send(tlTask* task, tlArgs* args) {
+    tlTask* other = tlTaskCast(tlArgsTarget(args));
+    if (!other) TL_THROW("expected a Task");
+    trace("task.send: %s %s", tl_str(other), tl_str(task));
+    tlMessage* msg = tlAlloc(task, tlMessageClass, sizeof(tlMessage));
+    msg->sender = task;
+    msg->args = args;
+    TaskSendFrame* frame = tlFrameAlloc(task, resumeSend, sizeof(TaskSendFrame));
+    frame->other = other;
+    frame->msg = msg;
+    // TODO tlTaskPause should preserve task->value ... but it doesn't
+    return tlTaskPause(task, frame);
+}
+
+void print_backtrace(tlFrame*);
+INTERNAL tlValue resumeRecv(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    trace("");
+    tlTask* sender = tlTaskFromEntry(lqueue_get(&task->msg_q));
+    print("!! !! GOT SENDER? %s", tl_str(sender));
+    print_backtrace(frame->caller);
+    if (sender) return sender->value;
+    tlTaskWait(task);
+    return tlTaskPause(task, frame);
+}
+INTERNAL tlValue _task_receive(tlTask* task, tlArgs* args) {
+    trace("task.receive: %s", tl_str(task));
+    tlTask* sender = tlTaskFromEntry(lqueue_get(&task->wait_q));
+    if (sender) return sender->value;
+    return tlTaskPause(task, tlFrameAlloc(task, resumeRecv, sizeof(tlFrame)));
+}
+
+INTERNAL tlValue _message_reply(tlTask* task, tlArgs* args) {
+    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
+    if (!msg) TL_THROW("expected a Message");
+    trace("msg.reply: %s", tl_str(msg));
+    // TODO do multiple return ...
+    tlValue res = tlArgsAt(args, 0);
+    if (!res) res = tlNull;
+    msg->sender->value = res;
+    tlTaskReady(msg->sender);
+    return tlNull;
+}
+
+INTERNAL tlValue _message_get(tlTask* task, tlArgs* args) {
+    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
+    if (!msg) TL_THROW("expected a Message");
+    tlValue key = tlArgsAt(args, 0);
+    trace("msg.get: %s %s", tl_str(msg), tl_str(key));
+    if (tlint_is(key)) return tlArgsAt(msg->args, tl_int(key));
+    return tlArgsMapGet(msg->args, key);
+}
+
 INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {
     const char* state = "unknown";
     switch (tlTaskAs(v)->state) {
@@ -341,6 +423,9 @@ static tlClass _tlTaskClass = {
     .name = "Task",
     .toText = _TaskToText,
 };
+static tlClass _tlMessageClass = {
+    .name = "Message",
+};
 
 static const tlHostCbs __task_hostcbs[] = {
     { "_Task_new", _Task_new },
@@ -353,7 +438,19 @@ static void task_init() {
     _tlTaskClass.map = tlClassMapFrom(
         "wait", _TaskWait,
         "done", _TaskIsDone,
+        "send", _task_send,
+        null
+    );
+    _tlMessageClass.name = "Message";
+    _tlMessageClass.map = tlClassMapFrom(
+        "reply", _message_reply,
+        "get", _message_get,
         null
     );
 }
-
+static void task_default(tlVm* vm) {
+    tlVmGlobalSet(vm, tlSYM("Task"), tlClassMapFrom(
+        "receive", _task_receive,
+        null
+    ));
+}

@@ -207,6 +207,7 @@ tlVm* tlVmNew() {
     vm->head.type = TLVm;
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlenv_new(null, null);
+    task_default(vm);
     return vm;
 }
 
