@@ -34,7 +34,6 @@ struct tlWorker {
 
 void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb);
 
-void tlworker_detach(tlWorker* worker, tlTask* task);
 
 typedef enum {
     TL_STATE_INIT = 0,  // only first time
@@ -61,7 +60,6 @@ struct tlTask {
 
     // TODO remove these in favor a some flags
     tlValue error;     // if task is in an error state, this is the value (throwing)
-    bool jumping;      // indicates non linear suspend ... don't attach
     tlTaskState state; // state it is currently in
 
     lqueue wait_q;     // for task.wait, holds all waiters ...
@@ -98,7 +96,6 @@ void assert_backtrace(tlFrame* frame) {
 
 // TODO task->value as intermediate frame is a kludge
 INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
-    if (task->jumping) return null;
     assert(_frame);
     assert(task->value);
     tlFrame* frame = tlFrameAs(_frame);
@@ -113,7 +110,6 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     tlFrame* frame = tlFrameAs(_frame);
     trace("    >>>> %p", frame);
     task->frame = frame;
-    if (task->jumping) return null;
     task->value = frame;
     if_debug(assert_backtrace(task->frame));
     return null;
@@ -121,34 +117,35 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
 
 INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
     trace("jumping: %p", frame);
-    task->jumping = true;
     task->value = res;
     task->frame = frame;
-    return null;
+    return tlTaskJumping;
 }
 
 INTERNAL void tlTaskDone(tlTask* task, tlValue res);
 
-INTERNAL void code_workfn(tlTask* task) {
-    trace("");
+// after a worker has picked a task from the run queue, it will run it ... this function
+// that means we will return here *after* we have put ourselves in other queues
+// at that point any other worker could aready have picked this task again ...
+INTERNAL void tlTaskRun(tlTask* task) {
+    trace("%s", tl_str(task));
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
 
     while (task->state == TL_STATE_RUN) {
         tlValue res = task->value;
         tlFrame* frame = task->frame;
-        task->frame = null;
         assert(frame);
         assert(res);
 
         while (frame && res) {
             trace("!!frame: %p - %s", frame, tl_str(res));
             if (frame->resumecb) res = frame->resumecb(task, frame, res, null);
-            if (task->jumping) {
+            if (res == tlTaskNotRunning) return;
+            if (res == tlTaskJumping) {
                 trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
                 frame = task->frame;
                 res = task->value;
-                task->jumping = false;
             } else {
                 trace(" << %p <<<< %p", frame->caller, frame);
                 frame = frame->caller;
@@ -256,7 +253,6 @@ INTERNAL void tlTaskError(tlTask* task, tlValue error) {
     task->error = error;
     task->state = TL_STATE_ERROR;
     task->worker = tlTaskGetVm(task)->waiter;
-    task->jumping = true;
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
@@ -273,7 +269,6 @@ INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
     task->error = null;
     task->state = TL_STATE_DONE;
     task->worker = tlTaskGetVm(task)->waiter;
-    task->jumping = true;
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
@@ -313,6 +308,7 @@ INTERNAL tlValue _TaskWait(tlTask* task, tlArgs* args) {
     trace("task.wait: %s", tl_str(other));
 
     // already done
+    // TODO not thread safe this way ...
     if (other->state == TL_STATE_DONE) {
         return other->value;
     }

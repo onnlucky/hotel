@@ -82,6 +82,9 @@ static const tlValue tlThunkNull =    (tlHead*)((50 << 3)|2);
 static const tlValue tlCollectLazy =  (tlHead*)((51 << 3)|2);
 static const tlValue tlCollectEager = (tlHead*)((52 << 3)|2);
 
+static const tlValue tlTaskNotRunning = (tlHead*)((20 << 3)|2);
+static const tlValue tlTaskJumping    = (tlHead*)((21 << 3)|2);
+
 // a few defines
 #define TL_MAX_PRIV_SIZE 7
 #define TL_MAX_DATA_SIZE (65535 - TL_MAX_PRIV_SIZE)

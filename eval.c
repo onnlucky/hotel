@@ -271,6 +271,7 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     // TODO handle multiple arguments ... but what does that mean?
     assert(tlcall_argc(call) == 1);
 
+    // TODO what if we cannot find our caller ... do same as return?
     tlFrame* caller = null;
     while (frame) {
         if (CodeFrameIs(frame)) {
@@ -283,8 +284,6 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     }
     res = tlEval(task, tlcall_arg(call, 0));
     if (!res) {
-        // jumping is not allowed unless the stack is reified first; assert that fact
-        assert(!task->jumping);
         tlTaskPauseAttach(task, caller);
         return tlTaskJump(task, task->frame, tlNull);
     }
@@ -305,11 +304,26 @@ struct tlContinuation {
 };
 static tlValue ContinuationCallFn(tlTask* task, tlCall* call);
 static tlClass _tlContinuationClass = {
-    .name = "Goto",
+    .name = "Continuation",
     .call = ContinuationCallFn,
 };
 tlClass* tlContinuationClass = &_tlContinuationClass;
 
+typedef struct ContinuationFrame {
+    tlFrame frame;
+    tlArgs* args;
+    tlContinuation* cont;
+} ContinuationFrame;
+
+INTERNAL tlValue resumeCC(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    ContinuationFrame* frame = (ContinuationFrame*)_frame;
+    tlContinuation* cont = frame->cont;
+    tlArgs* args = frame->args;
+    if (!args) args = res;
+    if (!args) return null;
+    assert(tlArgsIs(args));
+    return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
+}
 INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
     trace("CONTINUATION(%d)", tlcall_argc(call));
 
@@ -317,8 +331,11 @@ INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
 
     if (tlcall_argc(call) == 0) return tlTaskJump(task, cont->frame, cont);
     tlArgs* args = evalCall(task, call);
-    assert(args);
-    return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
+    // TODO this would be nice: task->value = args
+    ContinuationFrame* frame = tlFrameAlloc(task, resumeCC, sizeof(ContinuationFrame));
+    frame->args = args;
+    frame->cont = cont;
+    return tlTaskPause(task, frame);
 }
 
 INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {

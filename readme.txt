@@ -1,5 +1,7 @@
 # TODO
 
+deadlock for Sync(actors): set state=WAIT, if owner.state==WAIT and owner.current.owner == us
+
 think about what to do with uncaught exceptions? Task finalizer prints them if nobody read them?
 when calling non functions or unresolvable lookups and such, don't assert, throw instead ...
 rework throwing vs resume now that resume takes an tlError* ...

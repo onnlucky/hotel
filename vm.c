@@ -180,7 +180,7 @@ void tlworker_run(tlWorker* worker) {
         didwork = true;
         trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
         tlworker_attach(worker, task);
-        code_workfn(task);
+        tlTaskRun(task);
     }
     trace(">>>> WORKER DONE <<<<");
     //assert(didwork); fails Child_run ... why?
