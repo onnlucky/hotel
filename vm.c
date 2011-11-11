@@ -193,7 +193,7 @@ void tlWorkerRunIo(tlWorker* worker) {
         trace(">>>> WORKER tasks: %zd, wait: %zd, io: %zd <<<<",
                 vm->tasks, vm->waiting, vm->iowaiting);
         if (!tlIoHasWaiting(worker->vm)) break;
-        tlIoWait(worker->vm);
+        tlIoWait(vm);
     }
 }
 

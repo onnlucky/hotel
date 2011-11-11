@@ -178,6 +178,48 @@ INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error) {
     return null;
 }
 
+// on a reified the stack look for first lexical scoped function, if any
+// we look for "args" because these stay the same after copy-on-write of env and frames
+INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
+    tlFrame* lastblock = null;
+    trace("%p", frame);
+    while (frame) {
+        if (CodeFrameIs(frame)) {
+            CodeFrame* cframe = CodeFrameAs(frame);
+            if (cframe->env->args == targetargs) {
+                if (!tlcode_isblock(cframe->code)) {
+                    trace("found caller function: %p.caller: %p", frame, frame->caller);
+                    return frame;
+                }
+                trace("found caller block: %p.caller: %p", frame, frame->caller);
+                lastblock = frame;
+                break;
+            }
+        }
+        frame = frame->caller;
+    }
+    while (frame) {
+        if (CodeFrameIs(frame)) {
+            CodeFrame* cframe = CodeFrameAs(frame);
+            if (cframe->env->args == targetargs) {
+                if (!tlcode_isblock(cframe->code)) {
+                    trace("found enclosing function: %p.caller: %p", frame, frame->caller);
+                    return frame;
+                } else {
+                    trace("found enclosing block: %p.caller: %p", frame, frame->caller);
+                    lastblock = frame;
+                    tlEnv* env = cframe->env->parent;
+                    if (env) targetargs = env->args;
+                    else targetargs = null;
+                }
+            }
+        }
+        frame = frame->caller;
+    }
+    trace("caller function out of stack; lastblock: %p", lastblock);
+    return lastblock;
+}
+
 // return works like a closure, on lookup we close it over the current pause
 typedef struct ReturnFrame {
     tlFrame frame;
@@ -193,47 +235,10 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
     else res = tlresult_new(task, args);
     assert(res);
 
-    // we have just reified the stack, now we go looking for our frame, then we go looking
-    // for first lexical scoped function, if any
-    // we look for "args" because these stay the same after copy-on-write of env and frames
-    tlArgs* targetargs = tlHostFnGet(tlHostFnAs(args->fn), 0);
-    tlFrame* lastblock = null;
+    // we have just reified the stack, now find our frame
+    frame = lexicalFunctionFrame(frame, tlHostFnGet(tlHostFnAs(args->fn), 0));
     trace("%p", frame);
-    while (frame) {
-        if (CodeFrameIs(frame)) {
-            CodeFrame* cframe = CodeFrameAs(frame);
-            if (cframe->env->args == targetargs) {
-                if (!tlcode_isblock(cframe->code)) {
-                    trace("found caller function: %p.caller: %p", frame, frame->caller);
-                    return tlTaskJump(task, frame->caller, res);
-                }
-                trace("found caller block: %p.caller: %p", frame, frame->caller);
-                lastblock = frame;
-                break;
-            }
-        }
-        frame = frame->caller;
-    }
-    while (frame) {
-        if (CodeFrameIs(frame)) {
-            CodeFrame* cframe = CodeFrameAs(frame);
-            if (cframe->env->args == targetargs) {
-                if (!tlcode_isblock(cframe->code)) {
-                    trace("found enclosing function: %p.caller: %p", frame, frame->caller);
-                    return tlTaskJump(task, frame->caller, res);
-                } else {
-                    trace("found enclosing block: %p.caller: %p", frame, frame->caller);
-                    lastblock = frame;
-                    tlEnv* env = cframe->env->parent;
-                    if (env) targetargs = env->args;
-                    else targetargs = null;
-                }
-            }
-        }
-        frame = frame->caller;
-    }
-    trace("caller function out of stack; lastblock: %p", lastblock);
-    if (lastblock) return tlTaskJump(task, lastblock->caller, res);
+    if (frame) return tlTaskJump(task, frame->caller, res);
     return res;
 }
 
@@ -271,17 +276,11 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     // TODO handle multiple arguments ... but what does that mean?
     assert(tlcall_argc(call) == 1);
 
-    // TODO what if we cannot find our caller ... do same as return?
+    // we have just reified the stack, now find our frame
+    frame = lexicalFunctionFrame(frame, targetargs);
     tlFrame* caller = null;
-    while (frame) {
-        if (CodeFrameIs(frame)) {
-            if (CodeFrameAs(frame)->env->args == targetargs) {
-                caller = frame->caller;
-                break;
-            }
-        }
-        frame = frame->caller;
-    }
+    if (frame) caller = frame->caller;
+    trace("JUMPING: %p", caller);
     res = tlEval(task, tlcall_arg(call, 0));
     if (!res) {
         tlTaskPauseAttach(task, caller);
@@ -399,14 +398,14 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         tlArgs* args = tlenv_get_args(env);
         tlHostFn* fn = tlHostFnNew(task, _return, 1);
         tlHostFnSet_(fn, 0, args);
-        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), task->frame);
+        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), fn->args);
         return fn;
     }
     if (name == s_goto) {
         assert(task->frame && task->frame->resumecb == resumeCode);
         tlGoto* fn = tlAlloc(task, tlGotoClass, sizeof(tlGoto));
         fn->args = tlenv_get_args(env);
-        trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), task->frame);
+        trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), fn->args);
         return fn;
     }
     if (name == s_continuation) {
