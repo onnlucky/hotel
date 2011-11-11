@@ -479,17 +479,15 @@ typedef struct tlDirEachFrame {
 static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     if (err) return null;
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
-//again:;
+again:;
     struct dirent dp;
     struct dirent *dpp;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    /* TODO
-    tlValue res = tlEvalCallable(task, frame->block, tlTextNewCopy(task, dp.d_name), null);
-    if (!res) return tlTaskFrameAttach(task, frame);
+    res = tlEval(task, tlcall_from(task, frame->block, tlTextNewCopy(task, dp.d_name), null));
+    if (!res) return tlTaskPauseAttach(task, frame);
     goto again;
-    */
     return tlNull;
 }
 

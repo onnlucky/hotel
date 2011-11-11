@@ -1,6 +1,7 @@
 block = block -> return block
 testfunction = (->
-    return block: (-> return 42; 10000 )
+    b = block: (-> return 42; 10000 )
+    return b
 )
 b = testfunction()
 print b()

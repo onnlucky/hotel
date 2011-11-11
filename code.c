@@ -77,13 +77,31 @@ void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defa
     }
 }
 
+void debugcall(int depth, tlCall* call) {
+    fprintf(stderr, "%d, (", tl_head(call)->size);
+    for (int i = 0; i < tl_head(call)->size; i++) {
+        tlValue a = tlcall_value_iter(call, i);
+        if (i > 0) fprintf(stderr, ", ");
+        fprintf(stderr, "%s", tl_str(a));
+    }
+    fprintf(stderr, ")\n");
+}
+
 void debugcode(tlCode* code) {
     print("size: %d", code->head.size);
     print("name: %s", tl_str(code->name));
     print("argnames: %p", code->argnames);
     print("argdefaults: %p", code->argdefaults);
     for (int i = 0; i < code->head.size - 4; i++) {
-        print("%3d: %s%s", i, tlactive_is(code->ops[i])?"!":"", tl_str(code->ops[i]));
+        tlValue op = code->ops[i];
+        print("%3d: %s%s", i, tlactive_is(op)?"!":"", tl_str(op));
+        if (tlactive_is(op)) {
+            op = tlvalue_from_active(op);
+            if (tlcall_is(op)) {
+                debugcall(0, tlcall_as(op));
+            }
+        }
     }
+    //fatal("DONE");
 }
 

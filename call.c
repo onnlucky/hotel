@@ -159,6 +159,7 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
     return call;
 }
 
+
 // TODO share code here ... almost same as above
 tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
     assert(fn);
@@ -200,6 +201,42 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
         call->data[call->head.size - 1] = nameset;
     }
     return call;
+}
+
+tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
+    if (!tlcall_is(_call)) {
+        return tlcall_from_list(task, _call, tlListNewFrom2(task, s_block, block));
+    }
+    tlCall* call = tlcall_as(_call);
+    int size = tlcall_argc(call) + 1;
+    tlList* names = null;
+    tlSet* nameset = null;
+    if (!tlflag_isset(call, TL_FLAG_HASKEYS)) {
+        names = tlListNew(task, size);
+        nameset = tlset_new(task, 1);
+        tlListSet_(names, size - 1, s_block);
+        tlset_add_(nameset, s_block);
+    } else {
+        tlList* oldnames = call->data[call->head.size - 2];
+        names = tlListAppend(task, oldnames, tlListGet(oldnames, tlListSize(oldnames) - 1));
+        names->data[tlListSize(names) - 2] = s_block;
+        int at;
+        nameset = tlset_add(task, call->data[call->head.size - 1], s_block, &at);
+        print("%d .. %d", tlListSize(names), tlset_size(nameset));
+        for (int i = 0; i < tlListSize(names); i++) {
+            print("%d: %s", i, tl_str(names->data[i]));
+        }
+    }
+    tlCall* ncall = tlcall_new(task, size, true);
+    for (int i = 0; i < size; i++) {
+        ncall->data[i] = call->data[i];
+    }
+    print("no keys: %d == %d + 2 first: %s", ncall->head.size, size + 1, tl_str(call->data[0]));
+    tlflag_set(ncall, TL_FLAG_HASKEYS);
+    ncall->data[ncall->head.size - 3] = block;
+    ncall->data[ncall->head.size - 2] = names;
+    ncall->data[ncall->head.size - 1] = nameset;
+    return ncall;
 }
 
 const char* _HostFnToText(tlValue v, char* buf, int size) {

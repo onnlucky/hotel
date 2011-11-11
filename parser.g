@@ -183,22 +183,22 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
        #| "*" n:name                 { $$ = tlListNewFrom1(TASK, n); }
        |     n:name                 { $$ = tlListNewFrom1(TASK, n); }
 
-   varassign = "var"__"$" n:name __"="__ e:pexpr {
+   varassign = "var"__"$" n:name __"="__ e:bpexpr {
                  $$ = tlListNewFrom(TASK, call_activate(
                              tlcall_from(TASK, tlACTIVE(tlSYM("_Var_new")), e, null)
                  ), n, null);
              }
-             | "$" n:name _"="__ e:pexpr {
+             | "$" n:name _"="__ e:bpexpr {
                  $$ = tlListNewFrom1(TASK, call_activate(
                              tlcall_from(TASK, tlACTIVE(tlSYM("_var_set")), tlACTIVE(n), e, null)
                  ));
              }
 
 singleassign = n:name    _"="__ e:fn    { $$ = tlListNewFrom(TASK, tlACTIVE(e), n, null); try_name(n, e); }
-             | n:name    _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, n, null); try_name(n, e); }
- multiassign = ns:anames _"="__ e:pexpr { $$ = tlListNewFrom(TASK, e, tlcollect_new_(TASK, L(ns)), null); }
+             | n:name    _"="__ e:bpexpr { $$ = tlListNewFrom(TASK, e, n, null); try_name(n, e); }
+ multiassign = ns:anames _"="__ e:bpexpr { $$ = tlListNewFrom(TASK, e, tlcollect_new_(TASK, L(ns)), null); }
     noassign = e:selfapply  { $$ = tlListNewFrom1(TASK, e); }
-             | e:pexpr      { $$ = tlListNewFrom1(TASK, e); }
+             | e:bpexpr     { $$ = tlListNewFrom1(TASK, e); }
 
 
  block = b:fn {
@@ -236,16 +236,24 @@ farg = "&&" n:name { $$ = tlListNewFrom2(TASK, n, tlCollectLazy); }
 
 
   expr = "!" b:block {
-            $$ = call_activate(tlcall_from_list(TASK,
-                        tlACTIVE(tlSYM("_Task_new")), tlListNewFrom2(TASK, tlNull, tlACTIVE(b))));
+            $$ = tlcall_from_list(TASK,
+                        tlACTIVE(tlSYM("_Task_new")), tlListNewFrom2(TASK, tlNull, tlACTIVE(b)));
        }
-       | e:op_log { $$ = call_activate(e); }
+       | op_log
 
 selfapply = n:name _ &eosfull {
     $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(n), tlListEmpty()));
 }
 
- pexpr = "assert" _!"(" < as:pcargs > &eosfull {
+bpexpr = v:value t:ptail _":"_ b:block {
+           $$ = call_activate(tlcall_add_block(TASK, set_target(t, v), tlACTIVE(b)));
+       }
+       | e:expr _":"_ b:block {
+           $$ = call_activate(tlcall_add_block(TASK, e, tlACTIVE(b)));
+       }
+       | pexpr
+
+ pexpr = "assert" _!"(" < as:pcargs > &peosfull {
             as = tlListAppend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
             $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
@@ -253,22 +261,11 @@ selfapply = n:name _ &eosfull {
             $$ = call_activate(tlcall_from_list(TASK,
                         tlACTIVE(tlSYM("_Task_new")), tlListNewFrom2(TASK, tlNull, tlACTIVE(b))));
        }
-       | v:value t:ptail &eosfull {
-           $$ = call_activate(set_target(t, v));
-       }
-       | expr
+       | v:value t:ptail &peosfull { $$ = call_activate(set_target(t, v)); }
+       | e:expr                   { $$ = call_activate(e); }
 
 # // TODO add [] and oop.method: and oop.method arg1: ... etc
- ptail = _!"(" as:pcargs _":"_ b:block {
-           trace("primary args + body");
-           as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
-           $$ = tlcall_from_list(TASK, null, as);
-       }
-       | _":"_ b:block {
-           trace("primary block");
-           $$ = tlcall_from_list(TASK, null, tlListNewFrom2(TASK, tlSYM("block"), tlACTIVE(b)));
-       }
-       | _!"(" as:pcargs {
+ ptail = _!"(" as:pcargs {
            trace("primary args");
            $$ = tlcall_from_list(TASK, null, as);
        }
@@ -276,19 +273,9 @@ selfapply = n:name _ &eosfull {
            trace("primary method + args()");
            $$ = set_target(t, tlcall_send_from_list(TASK, sa_object_send, null, n, as));
        }
-       | _"."_ n:name _ as:cargs _":"_ b:block {
-           trace("primary method + args + body");
-           as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
-           $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
-       }
        | _"."_ n:name _ as:pcargs {
            trace("primary method + args");
            $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, as);
-       }
-       | _"."_ n:name _":"_ b:block {
-           trace("primary method + body");
-           tlList* _as = tlListNewFrom2(TASK, tlSYM("block"), tlACTIVE(b));
-           $$ = tlcall_send_from_list(TASK, sa_object_send, null, n, _as);
        }
        | _"."_ n:name t:ptail {
            trace("primary method");
@@ -299,12 +286,7 @@ selfapply = n:name _ &eosfull {
            $$ = null;
        }
 
-  tail = _"("__ as:cargs __")"_":"_ b:block {
-           trace("function args + block");
-           as = tlListAppend2(TASK, L(as), tlSYM("block"), tlACTIVE(b));
-           $$ = tlcall_from_list(TASK, null, as);
-       }
-       | _"("__ as:cargs __")" t:tail {
+  tail = _"("__ as:cargs __")" t:tail {
            trace("function args");
            $$ = set_target(t, tlcall_from_list(TASK, null, as));
        }
@@ -433,6 +415,7 @@ slcomment = "//" (!nl .)*
 
       eos = _ (nl | ";" | slcomment nle) __
   eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.) __
+ peosfull = _ (nl | ":" | ";" | "}" | ")" | "]" | slcomment nle | !.) __
       eom = _ (nl | "," | slcomment nle) __
        nl = "\n" | "\r\n" | "\r"
       nle = "\n" | "\r\n" | "\r" | !.
@@ -499,6 +482,7 @@ tlValue tl_parse(tlTask* task, tlText* text) {
     yydeinit(&g);
 
     trace("\n----PARSED----");
+    debugcode(tlcode_as(v));
     return v;
 }
 

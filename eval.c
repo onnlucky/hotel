@@ -398,7 +398,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         tlArgs* args = tlenv_get_args(env);
         tlHostFn* fn = tlHostFnNew(task, _return, 1);
         tlHostFnSet_(fn, 0, args);
-        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), fn->args);
+        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), args);
         return fn;
     }
     if (name == s_goto) {
@@ -756,7 +756,9 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
 
     tlValue fn = tlcall_fn(call);
     trace("%p: fn=%s", call, tl_str(fn));
-    assert(fn && tlRefIs(fn));
+    if (!fn || !tlRefIs(fn)) {
+        TL_THROW("unable to call: %s", tl_str(fn));
+    }
 
     tlClass* klass = tlClassGet(fn);
     tlArgs* args = null;

@@ -19,4 +19,6 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args);
 tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args);
 void tlcall_fn_set_(tlCall* call, tlValue fn);
 void tlcall_arg_set_(tlCall* call, int at, tlValue v);
+tlCall* tlcall_add_block(tlTask* task, tlValue call, tlCode* block);
 
+void debugcode(tlCode* code);

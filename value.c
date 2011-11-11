@@ -39,7 +39,7 @@ const char* const type_to_str[] = {
     "text",
 
     "list", "set", "map",
-    "args", "call", "msg",
+    "call", "args", "msg",
     "object",
 
     "env",
