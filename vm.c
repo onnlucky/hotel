@@ -106,6 +106,13 @@ static tlValue _mod(tlTask* task, tlArgs* args) {
     trace("MOD: %d", res);
     return tlINT(res);
 }
+static tlValue _random(tlTask* task, tlArgs* args) {
+    // TODO fix this when we have floating point ...
+    int upto = tl_int_or(tlArgsAt(args, 0), 0x3FFFFFFF);
+    int res = random() % upto;
+    trace("RND: %d", res);
+    return tlINT(res);
+}
 
 static void vm_init();
 
@@ -244,6 +251,8 @@ static const tlHostCbs __vm_hostcbs[] = {
     { "mul",  _mul },
     { "div",  _div },
     { "mod",  _mod },
+
+    { "random", _random },
 
     { "_Buffer_new", _Buffer_new },
 
