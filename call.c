@@ -222,16 +222,16 @@ tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
         names->data[tlListSize(names) - 2] = s_block;
         int at;
         nameset = tlset_add(task, call->data[call->head.size - 1], s_block, &at);
-        print("%d .. %d", tlListSize(names), tlset_size(nameset));
+        trace("%d .. %d", tlListSize(names), tlset_size(nameset));
         for (int i = 0; i < tlListSize(names); i++) {
-            print("%d: %s", i, tl_str(names->data[i]));
+            trace("%d: %s", i, tl_str(names->data[i]));
         }
     }
     tlCall* ncall = tlcall_new(task, size, true);
     for (int i = 0; i < size; i++) {
         ncall->data[i] = call->data[i];
     }
-    print("no keys: %d == %d + 2 first: %s", ncall->head.size, size + 1, tl_str(call->data[0]));
+    trace("no keys: %d == %d + 2 first: %s", ncall->head.size, size + 1, tl_str(call->data[0]));
     tlflag_set(ncall, TL_FLAG_HASKEYS);
     ncall->data[ncall->head.size - 3] = block;
     ncall->data[ncall->head.size - 2] = names;

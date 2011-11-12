@@ -47,6 +47,11 @@ static void timer_cb(ev_timer *timer, int revents) {
     free(timer);
 }
 
+static tlValue resumeSleep(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    frame->resumecb = null;
+    tlTaskWaitIo(task);
+    return tlTaskNotRunning;
+}
 static tlValue _io_sleep(tlTask* task, tlArgs* args) {
     int millis = tl_int_or(tlArgsAt(args, 0), 1000);
     trace("sleep: %d", millis);
@@ -57,8 +62,7 @@ static tlValue _io_sleep(tlTask* task, tlArgs* args) {
     ev_timer_init(timer, timer_cb, ms, 0);
     ev_timer_start(timer);
 
-    tlTaskWaitIo(task);
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    return tlTaskPauseResuming(task, resumeSleep, tlNull);
 }
 
 
@@ -573,6 +577,13 @@ static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
     return child;
 }
 
+static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    tlChild* child = tlChildAs(res);
+    frame->resumecb = null;
+    tlTaskWaitIo(task);
+    lqueue_put(&child->wait_q, &task->entry);
+    return tlTaskNotRunning;
+}
 static tlValue _ChildWait(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
@@ -582,11 +593,7 @@ static tlValue _ChildWait(tlTask* task, tlArgs* args) {
         assert(kill(child->ev.pid, 0) == -1);
         return tlINT(WEXITSTATUS(child->ev.rstatus));
     }
-
-    // TODO this is not thread safe and needs fixing ... first reify stack, then ...
-    tlTaskWaitIo(task);
-    lqueue_put(&child->wait_q, &task->entry);
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    return tlTaskPauseResuming(task, resumeChildWait, child);
 }
 
 static tlValue _ChildIn(tlTask* task, tlArgs* args) {

@@ -133,6 +133,11 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     return null;
 }
 
+INTERNAL tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb cb, tlValue res) {
+    task->value = res;
+    return tlTaskPause(task, tlFrameAlloc(task, cb, sizeof(tlFrame)));
+}
+
 INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
     trace("jumping: %p", frame);
     task->value = res;
@@ -158,6 +163,7 @@ INTERNAL void tlTaskRun(tlTask* task) {
         assert(res);
 
         while (frame && res) {
+            assert(task->state == TL_STATE_RUN);
             trace("!!frame: %p - %s", frame, tl_str(res));
             if (frame->resumecb) res = frame->resumecb(task, frame, res, null);
             if (!res) break;
@@ -203,6 +209,7 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
     task->frame = null;
     tlValue res = null;
     while (frame) {
+        assert(task->state == TL_STATE_RUN);
         if (frame->resumecb) res = frame->resumecb(task, frame, null, error);
         trace("!! error frame: %p handled? %p || %p", frame, res, task->frame);
         // returning a regular result means the error has been handled
