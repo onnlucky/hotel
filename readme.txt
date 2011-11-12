@@ -1,8 +1,11 @@
 # TODO
 
+add num.c and give numbers a tlClass
+
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code
 * use gcov to remove any unused code or add tests for them (larger parts...)
+* clean up and comment eval.c maybe remove some of it to run.c oid
 
 implement tlFirst for resume functions
 start using tlTaskPauseResuming() ... a lot more
@@ -58,6 +61,9 @@ optimize: compile code by collecting all local names, use that as dict, and keep
 
 # missing
 
+operators (well, the real ones)
+classes (well, syntax for them and super and such ...)
+class loaders for overriding/extending known classes
 modules
 c-based modules
 lazy evaluation (call by need)
