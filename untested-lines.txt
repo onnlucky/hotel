@@ -1,0 +1,742 @@
+actor.c.gcov:    #####:   33:INTERNAL void tlActorInit(tlActor* actor) {
+actor.c.gcov:    #####:   35:    actor->head.klass = &tlActorClass;
+actor.c.gcov:    #####:   36:}
+actor.c.gcov:    #####:   50:INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
+actor.c.gcov:    #####:   51:    tlActor* actor = tlActorAs(data);
+actor.c.gcov:    #####:   54:    lqueue_put(&actor->msg_q, &task->entry);
+actor.c.gcov:    #####:   58:    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) return;
+actor.c.gcov:    #####:   59:    _ActorScheduleNext(task, actor);
+actor.c.gcov:    #####:  102:        res = actor->head.klass->act(task, args);
+actor.c.gcov:    #####:  130:INTERNAL tlValue resumeAquire(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+actor.c.gcov:    #####:  132:    ActorAquireFrame* frame = (ActorAquireFrame*)_frame;
+actor.c.gcov:    #####:  133:    return frame->cb(task, frame->actor, frame->data);
+actor.c.gcov:    #####:  142:        ActorAquireFrame* frame = tlFrameAlloc(task, resumeAquire, sizeof(ActorAquireFrame));
+actor.c.gcov:    #####:  143:        frame->actor = actor;
+actor.c.gcov:    #####:  144:        frame->cb = cb;
+actor.c.gcov:    #####:  145:        frame->data = data;
+actor.c.gcov:    #####:  147:        tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
+actor.c.gcov:    #####:  148:        return tlTaskPause(task, frame);
+actor.c.gcov:    #####:  154:void tlActorRelease(tlTask* task, tlActor* actor) {
+actor.c.gcov:    #####:  156:    _ActorScheduleNext(task, actor);
+actor.c.gcov:    #####:  157:}
+args.c.gcov:    #####:   43:int tlArgsMapSize(tlArgs* args) {
+args.c.gcov:    #####:   44:    assert(tlArgsIs(args));
+args.c.gcov:    #####:   45:    return tlmap_size(args->map);
+args.c.gcov:    #####:   51:tlList* tlArgsList(tlArgs* args) {
+args.c.gcov:    #####:   52:    assert(tlArgsIs(args));
+args.c.gcov:    #####:   53:    return args->list;
+args.c.gcov:    #####:   92:static tlValue _ArgsNames(tlTask* task, tlArgs* args) {
+args.c.gcov:    #####:   93:    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+args.c.gcov:    #####:   94:    if (!as) TL_THROW("Expected a args object");
+args.c.gcov:    #####:   95:    return tlArgsMap(as);
+args.c.gcov:    #####:   98:const char* _ArgsToText(tlValue v, char* buf, int size) {
+args.c.gcov:    #####:   99:    snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
+args.c.gcov:    #####:  100:    return buf;
+buf.c.gcov:    #####:   27:void tlbuf_free(tl_buf* buf) {
+buf.c.gcov:    #####:   28:    check(buf);
+buf.c.gcov:    #####:   29:    free(buf->data);
+buf.c.gcov:    #####:   30:    free(buf);
+buf.c.gcov:    #####:   31:}
+buf.c.gcov:    #####:   40:int tlbuf_size(tl_buf* buf) {
+buf.c.gcov:    #####:   41:    return buf->size;
+buf.c.gcov:    #####:   44:int tlbuf_grow(tl_buf* buf) {
+buf.c.gcov:    #####:   45:    buf->size += SIZE;
+buf.c.gcov:    #####:   47:    buf->data = realloc(buf->data, buf->size);
+buf.c.gcov:    #####:   48:    check(buf);
+buf.c.gcov:    #####:   49:    return buf->size;
+buf.c.gcov:    #####:   59:void tlbuf_reread(tl_buf* buf) { buf->readpos = 0; check(buf); }
+buf.c.gcov:    #####:   60:void tlbuf_clear(tl_buf* buf) { buf->readpos = 0; buf->writepos = 0; check(buf); }
+buf.c.gcov:    #####:   61:int tlbuf_canread(const tl_buf* buf) { return canread(buf); }
+buf.c.gcov:    #####:   62:int tlbuf_canwrite(const tl_buf* buf) { return canwrite(buf); }
+buf.c.gcov:    #####:   63:int tlbuf_readpos(const tl_buf* buf) { return buf->readpos; }
+buf.c.gcov:    #####:   64:int tlbuf_writepos(const tl_buf* buf) { return buf->writepos; }
+buf.c.gcov:    #####:   65:const char * tlbuf_readbuf(tl_buf* buf) { return readbuf(buf); }
+buf.c.gcov:    #####:   67:void tlbuf_compact(tl_buf* buf) {
+buf.c.gcov:    #####:   68:    int len = canread(buf);
+buf.c.gcov:    #####:   70:    if (len > 0) {
+buf.c.gcov:    #####:   71:        memcpy(buf->data, buf->data + buf->readpos, len);
+buf.c.gcov:    #####:   73:    buf->readpos = 0;
+buf.c.gcov:    #####:   74:    buf->writepos = len;
+buf.c.gcov:    #####:   75:    check(buf);
+buf.c.gcov:    #####:   76:}
+buf.c.gcov:    #####:   96:int tlbuf_read_skip(tl_buf* buf, int count) {
+buf.c.gcov:    #####:   97:    int len = canread(buf);
+buf.c.gcov:    #####:   98:    if (len > count) len = count;
+buf.c.gcov:    #####:   99:    buf->readpos += len;
+buf.c.gcov:    #####:  100:    check(buf);
+buf.c.gcov:    #####:  101:    return len;
+buf.c.gcov:    #####:  103:uint8_t tlbuf_read_uint8(tl_buf* buf) {
+buf.c.gcov:    #####:  104:    uint8_t r = *((uint8_t*)(buf->data + buf->readpos));
+buf.c.gcov:    #####:  105:    buf->readpos += 1;
+buf.c.gcov:    #####:  106:    return r;
+buf.c.gcov:    #####:  108:uint32_t tlbuf_read_uint24(tl_buf* buf) {
+buf.c.gcov:    #####:  109:    uint32_t r = 0;
+buf.c.gcov:    #####:  110:    for (int i = 0; i < 3; i++) {
+buf.c.gcov:    #####:  111:        r = (r << 8) | tlbuf_read_uint8(buf);
+buf.c.gcov:    #####:  113:    return r;
+buf.c.gcov:    #####:  115:uint32_t tlbuf_read_uint32(tl_buf* buf) {
+buf.c.gcov:    #####:  116:    uint32_t r = 0;
+buf.c.gcov:    #####:  117:    for (int i = 0; i < 4; i++) {
+buf.c.gcov:    #####:  118:        r = (r << 8) | tlbuf_read_uint8(buf);
+buf.c.gcov:    #####:  120:    return r;
+buf.c.gcov:    #####:  130:        warning("cannot open: %s, %s", file, strerror(errno));
+buf.c.gcov:    #####:  131:        return 0;
+buffer.c.gcov:    #####:   33:INTERNAL tlValue _BufferWrite(tlTask* task, tlArgs* args) {
+buffer.c.gcov:    #####:   34:    tlBuffer* buffer = tlBufferCast(args->target);
+buffer.c.gcov:    #####:   35:    assert(buffer);
+buffer.c.gcov:    #####:   36:    tl_buf* buf = buffer->buf;
+buffer.c.gcov:    #####:   37:    assert(buf);
+buffer.c.gcov:    #####:   39:    tlText* text = tlTextCast(tlArgsAt(args, 0));
+buffer.c.gcov:    #####:   40:    if (!text) TL_THROW("expected a Text");
+buffer.c.gcov:    #####:   41:    return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));
+call.c.gcov:    #####:  107:int tlcall_names_size(tlCall* call) {
+call.c.gcov:    #####:  108:    if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return 0;
+call.c.gcov:    #####:  109:    tlSet* nameset = call->data[call->head.size - 1];
+call.c.gcov:    #####:  110:    return tlset_size(nameset);
+call.c.gcov:    #####:  175:        assert(tlsym_is(tlListGet(args, i)));
+call.c.gcov:    #####:  176:        namecount++;
+call.c.gcov:    #####:  180:        names = tlListNew(task, size + 2);
+call.c.gcov:    #####:  181:        nameset = tlset_new(task, namecount);
+call.c.gcov:    #####:  182:        for (int i = 0; i < size; i += 2) {
+call.c.gcov:    #####:  183:            tlValue name = tlListGet(args, i);
+call.c.gcov:    #####:  184:            tlListSet_(names, 2 + i / 2, name);
+call.c.gcov:    #####:  185:            if (!name || name == tlNull) continue;
+call.c.gcov:    #####:  186:            tlset_add_(nameset, name);
+call.c.gcov:    #####:  198:        assert(names && nameset);
+call.c.gcov:    #####:  199:        tlflag_set(call, TL_FLAG_HASKEYS);
+call.c.gcov:    #####:  200:        call->data[call->head.size - 2] = names;
+call.c.gcov:    #####:  201:        call->data[call->head.size - 1] = nameset;
+call.c.gcov:    #####:  220:        tlList* oldnames = call->data[call->head.size - 2];
+call.c.gcov:    #####:  221:        names = tlListAppend(task, oldnames, tlListGet(oldnames, tlListSize(oldnames) - 1));
+call.c.gcov:    #####:  222:        names->data[tlListSize(names) - 2] = s_block;
+call.c.gcov:    #####:  224:        nameset = tlset_add(task, call->data[call->head.size - 1], s_block, &at);
+call.c.gcov:    #####:  226:        for (int i = 0; i < tlListSize(names); i++) {
+call.c.gcov:    #####:  242:const char* _HostFnToText(tlValue v, char* buf, int size) {
+call.c.gcov:    #####:  243:    snprintf(buf, size, "<HostFn@%p>", v); return buf;
+call.c.gcov:    #####:  279:static void call_init() {
+call.c.gcov:    #####:  280:    _tlHostFnClass.map = tlClassMapFrom(
+call.c.gcov:    #####:  284:}
+code.c.gcov:    #####:   37:void tlcode_set_ops_(tlCode* code, tlList* ops) {
+code.c.gcov:    #####:   38:    int size = tlListSize(ops);
+code.c.gcov:    #####:   39:    for (int i = 0; i < size; i++) {
+code.c.gcov:    #####:   40:        code->ops[i] = tlListGet(ops, i);
+code.c.gcov:    #####:   42:}
+code.c.gcov:    #####:   61:void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defaults) {
+code.c.gcov:    #####:   62:    int size = tlListSize(name_defaults);
+code.c.gcov:    #####:   63:    tlList* names = tlListNew(task, size / 2);
+code.c.gcov:    #####:   65:    assert(size % 2 == 0);
+code.c.gcov:    #####:   67:    bool have_defaults = false;
+code.c.gcov:    #####:   68:    for (int i = 0; i < size; i += 2) {
+code.c.gcov:    #####:   69:        tlListSet_(names, i / 2, tlListGet(name_defaults, i));
+code.c.gcov:    #####:   70:        tlValue v = tlListGet(name_defaults, i + 1);
+code.c.gcov:    #####:   71:        if (v) have_defaults = true;
+code.c.gcov:    #####:   72:        tlListSet_(names, i / 2, v);
+code.c.gcov:    #####:   74:    code->argnames = names;
+code.c.gcov:    #####:   78:}
+code.c.gcov:    #####:   80:void debugcall(int depth, tlCall* call) {
+code.c.gcov:    #####:   81:    fprintf(stderr, "%d, (", tl_head(call)->size);
+code.c.gcov:    #####:   82:    for (int i = 0; i < tl_head(call)->size; i++) {
+code.c.gcov:    #####:   83:        tlValue a = tlcall_value_iter(call, i);
+code.c.gcov:    #####:   84:        if (i > 0) fprintf(stderr, ", ");
+code.c.gcov:    #####:   85:        fprintf(stderr, "%s", tl_str(a));
+code.c.gcov:    #####:   87:    fprintf(stderr, ")\n");
+code.c.gcov:    #####:   88:}
+code.c.gcov:    #####:   90:void debugcode(tlCode* code) {
+code.c.gcov:    #####:   91:    print("size: %d", code->head.size);
+code.c.gcov:    #####:   92:    print("name: %s", tl_str(code->name));
+code.c.gcov:    #####:   93:    print("argnames: %p", code->argnames);
+code.c.gcov:    #####:   94:    print("argdefaults: %p", code->argdefaults);
+code.c.gcov:    #####:   95:    for (int i = 0; i < code->head.size - 4; i++) {
+code.c.gcov:    #####:   96:        tlValue op = code->ops[i];
+code.c.gcov:    #####:   97:        print("%3d: %s%s", i, tlactive_is(op)?"!":"", tl_str(op));
+code.c.gcov:    #####:   98:        if (tlactive_is(op)) {
+code.c.gcov:    #####:   99:            op = tlvalue_from_active(op);
+code.c.gcov:    #####:  100:            if (tlcall_is(op)) {
+code.c.gcov:    #####:  101:                debugcall(0, tlcall_as(op));
+code.c.gcov:    #####:  106:}
+env.c.gcov:    #####:   15:int tlenv_size(tlEnv* env) {
+env.c.gcov:    #####:   16:    return env->head.size - 4;
+env.c.gcov:    #####:   40:    env = tlenv_copy(task, env);
+env.c.gcov:    #####:   41:    env->args = args;
+env.c.gcov:    #####:   42:    return env;
+env.c.gcov:    #####:   47:    return tlenv_get_args(env->parent);
+error.c.gcov:    #####:   44:const char* _ErrorToText(tlValue v, char* buf, int size) {
+error.c.gcov:    #####:   45:    snprintf(buf, size, "<Error: %s>", tl_str(tlErrorValue(v))); return buf;
+eval.c.gcov:    #####:    8:tlValue TL_KEEP(tlValue v) {
+eval.c.gcov:    #####:    9:    if (!tlref_is(v)) return v;
+eval.c.gcov:    #####:   10:    assert(tl_head(v)->keep >= 1);
+eval.c.gcov:    #####:   11:    tl_head(v)->keep++;
+eval.c.gcov:    #####:   12:    return v;
+eval.c.gcov:    #####:   14:void TL_FREE(tlValue v) {
+eval.c.gcov:    #####:   15:    if (!tlref_is(v)) return;
+eval.c.gcov:    #####:   16:    tl_head(v)->keep--;
+eval.c.gcov:    #####:   17:    if (tl_head(v)->keep == 0) free(v);
+eval.c.gcov:    #####:  101:tlResult* tlresult_new_skip(tlTask* task, tlArgs* args) {
+eval.c.gcov:    #####:  102:    int size = tlArgsSize(args);
+eval.c.gcov:    #####:  103:    tlResult* res = task_alloc(task, TLResult, size - 1);
+eval.c.gcov:    #####:  104:    for (int i = 1; i < size; i++) {
+eval.c.gcov:    #####:  105:        res->data[i - 1] = tlArgsAt(args, i);
+eval.c.gcov:    #####:  107:    return res;
+eval.c.gcov:    #####:  109:tlResult* tlResultNewFrom(tlTask* task, ...) {
+eval.c.gcov:    #####:  111:    int size = 0;
+eval.c.gcov:    #####:  113:    va_start(ap, task);
+eval.c.gcov:    #####:  114:    for (tlValue v = va_arg(ap, tlValue); v; v = va_arg(ap, tlValue)) size++;
+eval.c.gcov:    #####:  115:    va_end(ap);
+eval.c.gcov:    #####:  117:    tlResult* res = task_alloc(task, TLResult, size + 1);
+eval.c.gcov:    #####:  119:    va_start(ap, task);
+eval.c.gcov:    #####:  120:    for (int i = 0; i < size; i++) res->data[i] = va_arg(ap, tlValue);
+eval.c.gcov:    #####:  121:    va_end(ap);
+eval.c.gcov:    #####:  123:    return res;
+eval.c.gcov:    #####:  125:void tlresult_set_(tlResult* res, int at, tlValue v) {
+eval.c.gcov:    #####:  126:    assert(at >= 0 && at < res->head.size);
+eval.c.gcov:    #####:  127:    res->data[at] = v;
+eval.c.gcov:    #####:  128:}
+eval.c.gcov:    #####:  137:    return tlNull;
+eval.c.gcov:    #####:  144:INTERNAL void print_backtrace(tlFrame* frame) {
+eval.c.gcov:    #####:  145:    print("BACKTRACE:");
+eval.c.gcov:    #####:  146:    while (frame) {
+eval.c.gcov:    #####:  147:        if (CodeFrameIs(frame)) {
+eval.c.gcov:    #####:  148:            tlSym name = CodeFrameAs(frame)->code->name;
+eval.c.gcov:    #####:  149:            if (name) print("%p  %s", frame, tl_str(name));
+eval.c.gcov:    #####:  150:            else print("%p  <anon>", frame);
+eval.c.gcov:    #####:  152:            print("%p  <native>", frame);
+eval.c.gcov:    #####:  154:        frame = frame->caller;
+eval.c.gcov:    #####:  156:}
+eval.c.gcov:    #####:  160:INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error) {
+eval.c.gcov:    #####:  161:    print_backtrace(frame);
+eval.c.gcov:    #####:  162:    while (frame) {
+eval.c.gcov:    #####:  163:        if (CodeFrameIs(frame)) {
+eval.c.gcov:    #####:  164:            tlClosure* handler = CodeFrameAs(frame)->handler;
+eval.c.gcov:    #####:  165:            if (handler) {
+eval.c.gcov:    #####:  166:                tlCall* call = tlcall_new(task, 1, null);
+eval.c.gcov:    #####:  167:                tlcall_fn_set_(call, handler);
+eval.c.gcov:    #####:  168:                tlcall_arg_set_(call, 0, error);
+eval.c.gcov:    #####:  169:                tlValue res = tlEval(task, call);
+eval.c.gcov:    #####:  170:                if (res) return tlTaskJump(task, frame->caller, res);
+eval.c.gcov:    #####:  171:                return tlTaskPauseAttach(task, frame->caller);
+eval.c.gcov:    #####:  174:        frame = frame->caller;
+eval.c.gcov:    #####:  176:    warning("uncaught exception: %s", tl_str(error));
+eval.c.gcov:    #####:  177:    tlTaskError(task, error);
+eval.c.gcov:    #####:  178:    return null;
+eval.c.gcov:    #####:  213:                    else targetargs = null;
+eval.c.gcov:    #####:  242:    return res;
+eval.c.gcov:    #####:  291:    return tlTaskJump(task, caller, res);
+eval.c.gcov:    #####:  354:INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+eval.c.gcov:    #####:  355:    if (err) return null;
+eval.c.gcov:    #####:  356:    ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
+eval.c.gcov:    #####:  357:    return run_activate_call(task, frame, frame->call, frame->env, res);
+eval.c.gcov:    #####:  367:        i = -i - 1;
+eval.c.gcov:    #####:  369:        tlValue v = _res;
+eval.c.gcov:    #####:  371:        assert(v);
+eval.c.gcov:    #####:  372:        call = tlcall_value_iter_set_(call, i, v);
+eval.c.gcov:    #####:  373:        i++;
+eval.c.gcov:    #####:  381:                if (!frame) {
+eval.c.gcov:    #####:  382:                    frame = tlFrameAlloc(task, resumeActivateCall, sizeof(ActivateCallFrame));
+eval.c.gcov:    #####:  383:                    frame->env = env;
+eval.c.gcov:    #####:  385:                frame->count = -1 - i;
+eval.c.gcov:    #####:  386:                frame->call = call;
+eval.c.gcov:    #####:  387:                return tlTaskPauseAttach(task, frame);
+eval.c.gcov:    #####:  438:    assert(false);
+eval.c.gcov:    #####:  515:            tlArgsMapSet_(args, name, v);
+eval.c.gcov:    #####:  516:            named++;
+eval.c.gcov:    #####:  616:                    fatal("not implemented yet: defaults with call and too few args");
+eval.c.gcov:    #####:  655:    fatal("OEPS %s", tl_str(fn));
+eval.c.gcov:    #####:  759:INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+eval.c.gcov:    #####:  760:    if (err) return null;
+eval.c.gcov:    #####:  761:    return evalArgs(task, tlArgsAs(res));
+eval.c.gcov:    #####:  777:        TL_THROW("unable to call: %s", tl_str(fn));
+eval.c.gcov:    #####:  788:            TL_THROW("unable to call: %s", tl_str(fn));
+eval.c.gcov:    #####:  793:        if (klass->map) {
+eval.c.gcov:    #####:  794:            tlValue field = tlmap_get_sym(klass->map, s_call);
+eval.c.gcov:    #####:  795:            if (field) {
+eval.c.gcov:    #####:  797:                args = evalCall(task, call);
+eval.c.gcov:    #####:  799:                TL_THROW("unable to call: %s", tl_str(fn));
+eval.c.gcov:    #####:  818:                args = evalCall(task, call);
+eval.c.gcov:    #####:  822:            TL_THROW("unable to call: %s", tl_str(fn));
+eval.c.gcov:    #####:  831:    tlFrame* frame = tlFrameAlloc(task, resumeEvalCall, sizeof(tlFrame));
+eval.c.gcov:    #####:  832:    return tlTaskPauseAttach(task, frame);
+eval.c.gcov:    #####:  843:    return v;
+eval.c.gcov:    #####:  853:INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+eval.c.gcov:    #####:  854:    print_backtrace(frame->caller);
+eval.c.gcov:    #####:  855:    return tlNull;
+eval.c.gcov:    #####:  857:INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
+eval.c.gcov:    #####:  858:    tlFrame* frame = tlFrameAlloc(task, resumeBacktrace, sizeof(tlFrame));
+eval.c.gcov:    #####:  859:    return tlTaskPause(task, frame);
+eval.c.gcov:    #####:  884:    return false;
+eval.c.gcov:    #####:  886:INTERNAL tlValue _callable_is(tlTask* task, tlArgs* args) {
+eval.c.gcov:    #####:  887:    tlValue v = tlArgsAt(args, 0);
+eval.c.gcov:    #####:  888:    if (!tlref_is(v)) return tlFalse;
+eval.c.gcov:    #####:  890:    switch(tl_head(v)->type) {
+eval.c.gcov:    #####:  895:            return tlTrue;
+eval.c.gcov:    #####:  897:    return tlFalse;
+eval.c.gcov:    #####:  899:INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
+eval.c.gcov:    #####:  900:    tlValue fn = tlArgsAt(args, 0);
+eval.c.gcov:    #####:  901:    assert(fn);
+eval.c.gcov:    #####:  902:    tlArgs* oldargs = tlArgsAs(tlArgsAt(args, 1));
+eval.c.gcov:    #####:  903:    assert(oldargs);
+eval.c.gcov:    #####:  904:    tlValue oop = tlArgsAt(oldargs, 0);
+eval.c.gcov:    #####:  905:    assert(oop);
+eval.c.gcov:    #####:  906:    assert(tlArgsAt(oldargs, 1)); // msg
+eval.c.gcov:    #####:  908:    tlMap* map = tlArgsMap(oldargs);
+eval.c.gcov:    #####:  909:    map = tlmap_set(task, map, s_this, oop);
+eval.c.gcov:    #####:  910:    int size = tlArgsSize(oldargs) - 2;
+eval.c.gcov:    #####:  912:    tlList* list = tlListNew(task, size);
+eval.c.gcov:    #####:  913:    for (int i = 0; i < size; i++) {
+eval.c.gcov:    #####:  914:        tlListSet_(list, i, tlArgsAt(oldargs, i + 2));
+eval.c.gcov:    #####:  916:    tlArgs* nargs = tlArgsNew(task, list, map);
+eval.c.gcov:    #####:  917:    tlArgsSetFn_(nargs, fn);
+eval.c.gcov:    #####:  918:    return evalArgs(task, nargs);
+eval.c.gcov:    #####:  943:        return evalArgs(task, nargs);
+eval.c.gcov:    #####:  945:    fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));
+evio.c.gcov:    #####:   28:static void signal_cb(ev_signal *signal, int revents) {
+evio.c.gcov:    #####:   29:    print("signal");
+evio.c.gcov:    #####:   30:}
+evio.c.gcov:    #####:   32:int test_ev(char **args, int argc) {
+evio.c.gcov:    #####:   34:    ev_signal_init(&signal, signal_cb, SIGINT);
+evio.c.gcov:    #####:   35:    ev_signal_start(&signal);
+evio.c.gcov:    #####:   36:    return 0;
+evio.c.gcov:    #####:   71:static int nonblock(int fd) {
+evio.c.gcov:    #####:   72:    int flags = 0;
+evio.c.gcov:    #####:   73:    if ((flags = fcntl(fd, F_GETFL, 0)) < 0) return -1;
+evio.c.gcov:    #####:   74:    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
+evio.c.gcov:    #####:   75:    return 0;
+evio.c.gcov:    #####:   85:TL_REF_TYPE(tlSocket);
+evio.c.gcov:    #####:   86:TL_REF_TYPE(tlServerSocket);
+evio.c.gcov:    #####:  128:static tlSocket* tlSocketFrom(ev_io *ev) {
+evio.c.gcov:    #####:  129:    return tlSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
+evio.c.gcov:    #####:  131:static tlServerSocket* tlServerSocketFrom(ev_io *ev) {
+evio.c.gcov:    #####:  132:    return tlServerSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
+evio.c.gcov:    #####:  141:static tlSocket* tlSocketNew(tlTask* task, int fd) {
+evio.c.gcov:    #####:  142:    tlSocket *sock = tlAlloc(task, tlSocketClass, sizeof(tlSocket));
+evio.c.gcov:    #####:  143:    ev_io_init(&sock->ev, null, fd, 0);
+evio.c.gcov:    #####:  144:    return sock;
+evio.c.gcov:    #####:  146:static tlServerSocket* tlServerSocketNew(tlTask* task, int fd) {
+evio.c.gcov:    #####:  147:    tlServerSocket *sock = tlAlloc(task, tlServerSocketClass, sizeof(tlServerSocket));
+evio.c.gcov:    #####:  148:    ev_io_init(&sock->ev, null, fd, 0);
+evio.c.gcov:    #####:  149:    return sock;
+evio.c.gcov:    #####:  174:        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+evio.c.gcov:    #####:  175:            ev_io_start(ev); trace("read: EAGAIN || EWOULDBLOCK"); return;
+evio.c.gcov:    #####:  177:        TL_THROW_SET("read: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  221:static void write_cb(ev_io *ev, int revents) {
+evio.c.gcov:    #####:  222:    tlFile* file = tlFileFrom(ev);
+evio.c.gcov:    #####:  223:    tlTask* task = file->actor.owner;
+evio.c.gcov:    #####:  224:    tl_buf* buf = (tl_buf*)ev->data;
+evio.c.gcov:    #####:  225:    assert(task);
+evio.c.gcov:    #####:  228:    int len = write(ev->fd, readbuf(buf), canread(buf));
+evio.c.gcov:    #####:  229:    if (len < 0) {
+evio.c.gcov:    #####:  230:        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+evio.c.gcov:    #####:  231:            ev_io_start(ev); trace("write: EAGAIN || EWOULDBLOCK"); return;
+evio.c.gcov:    #####:  233:        TL_THROW_SET("write: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  235:        didread(buf, len);
+evio.c.gcov:    #####:  236:        task->value = tlINT(len);
+evio.c.gcov:    #####:  238:    ev_io_stop(ev);
+evio.c.gcov:    #####:  239:    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
+evio.c.gcov:    #####:  242:static tlValue _FileWrite2(tlTask* task, tlActor* actor, void* data) {
+evio.c.gcov:    #####:  243:    tlFile* file = tlFileOrSocketAs(data);
+evio.c.gcov:    #####:  244:    tlBuffer* buffer = tlBufferAs(actor);
+evio.c.gcov:    #####:  245:    assert(file->actor.owner == task);
+evio.c.gcov:    #####:  246:    assert(buffer->actor.owner == task);
+evio.c.gcov:    #####:  249:    if (canread(buffer->buf) <= 0) TL_THROW("write: failed: buffer empty");
+evio.c.gcov:    #####:  251:    ev_io* ev = &file->ev;
+evio.c.gcov:    #####:  253:    ev->cb = write_cb;
+evio.c.gcov:    #####:  254:    ev->data = buffer->buf;
+evio.c.gcov:    #####:  256:    int revents = ev_clear_pending(ev);
+evio.c.gcov:    #####:  257:    if (revents & EV_WRITE) { write_cb(ev, revents); return task->value; }
+evio.c.gcov:    #####:  260:    ev->events = EV_WRITE;
+evio.c.gcov:    #####:  261:    ev_io_start(ev);
+evio.c.gcov:    #####:  262:    tlTaskWaitIo(task);
+evio.c.gcov:    #####:  265:    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+evio.c.gcov:    #####:  268:static tlValue _FileWrite(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  269:    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+evio.c.gcov:    #####:  270:    if (!file) TL_THROW("expected a File");
+evio.c.gcov:    #####:  272:    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+evio.c.gcov:    #####:  273:    if (!buffer) TL_THROW("expected a Buffer");
+evio.c.gcov:    #####:  275:    return tlActorAquire(task, tlActorAs(buffer), _FileWrite2, file);
+evio.c.gcov:    #####:  294:static tlValue _Socket_resolve(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  295:    tlText* name = tlTextCast(tlArgsAt(args, 0));
+evio.c.gcov:    #####:  296:    if (!name) TL_THROW("expected a Text");
+evio.c.gcov:    #####:  298:    struct hostent *hp = gethostbyname(tlTextData(name));
+evio.c.gcov:    #####:  299:    if (!hp) return tlNull;
+evio.c.gcov:    #####:  300:    if (!hp->h_addr_list[0]) return tlNull;
+evio.c.gcov:    #####:  301:    return tlTextNewTake(task, inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
+evio.c.gcov:    #####:  304:static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  305:    tlText* address = tlTextCast(tlArgsAt(args, 0));
+evio.c.gcov:    #####:  306:    if (!address) TL_THROW("expected a ip address");
+evio.c.gcov:    #####:  307:    int port = tl_int_or(tlArgsAt(args, 1), -1);
+evio.c.gcov:    #####:  308:    if (port < 0) TL_THROW("expected a port");
+evio.c.gcov:    #####:  313:    if (!inet_aton(tlTextData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
+evio.c.gcov:    #####:  316:    bzero(&sockaddr, sizeof(sockaddr));
+evio.c.gcov:    #####:  317:    sockaddr.sin_family = AF_INET;
+evio.c.gcov:    #####:  318:    bcopy(&ip, &sockaddr.sin_addr.s_addr, sizeof(ip));
+evio.c.gcov:    #####:  319:    sockaddr.sin_port = htons(port);
+evio.c.gcov:    #####:  321:    int fd = socket(AF_INET, SOCK_STREAM, 0);
+evio.c.gcov:    #####:  322:    if (fd < 0) TL_THROW("tcp_connect: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  324:    if (nonblock(fd) < 0) TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
+evio.c.gcov:    #####:  326:    int r = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+evio.c.gcov:    #####:  327:    if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
+evio.c.gcov:    #####:  329:    if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
+evio.c.gcov:    #####:  330:    return tlSocketNew(task, fd);
+evio.c.gcov:    #####:  334:static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  335:    int port = tl_int_or(tlArgsAt(args, 0), -1);
+evio.c.gcov:    #####:  339:    bzero(&sockaddr, sizeof(sockaddr));
+evio.c.gcov:    #####:  340:    sockaddr.sin_family = AF_INET;
+evio.c.gcov:    #####:  341:    sockaddr.sin_addr.s_addr = INADDR_ANY;
+evio.c.gcov:    #####:  342:    sockaddr.sin_port = htons(port);
+evio.c.gcov:    #####:  344:    int fd = socket(AF_INET, SOCK_STREAM, 0);
+evio.c.gcov:    #####:  345:    if (fd < 0) TL_THROW("tcp_listen: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  347:    if (nonblock(fd) < 0) TL_THROW("tcp_listen: nonblock failed: %s", strerror(errno));
+evio.c.gcov:    #####:  349:    int flags = 1;
+evio.c.gcov:    #####:  350:    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags)) < 0) {
+evio.c.gcov:    #####:  351:        TL_THROW("tcp_listen: so_reuseaddr failed: %s", strerror(errno));
+evio.c.gcov:    #####:  354:    int r = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+evio.c.gcov:    #####:  355:    if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
+evio.c.gcov:    #####:  357:    listen(fd, 128); // backlog, configurable?
+evio.c.gcov:    #####:  358:    return tlServerSocketNew(task, fd);
+evio.c.gcov:    #####:  362:static void accept_cb(ev_io* ev, int revents) {
+evio.c.gcov:    #####:  363:    tlFile* file = tlFileFrom(ev);
+evio.c.gcov:    #####:  364:    tlTask* task = file->actor.owner;
+evio.c.gcov:    #####:  365:    assert(task);
+evio.c.gcov:    #####:  369:    bzero(&sockaddr, sizeof(sockaddr));
+evio.c.gcov:    #####:  370:    socklen_t len = sizeof(sockaddr);
+evio.c.gcov:    #####:  371:    int fd = accept(ev->fd, (struct sockaddr *)&sockaddr, &len);
+evio.c.gcov:    #####:  372:    if (fd < 0) {
+evio.c.gcov:    #####:  373:        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+evio.c.gcov:    #####:  374:            ev_io_start(ev); trace("tcp_accept: EAGAIN || EWOULDBLOCK"); return;
+evio.c.gcov:    #####:  376:        TL_THROW_SET("tcp_accept: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  378:        if (nonblock(fd) < 0) {
+evio.c.gcov:    #####:  379:            TL_THROW_SET("tcp_accept: nonblock failed: %s", strerror(errno));
+evio.c.gcov:    #####:  381:            task->value = tlSocketNew(task, fd);
+evio.c.gcov:    #####:  384:    ev_io_stop(ev);
+evio.c.gcov:    #####:  385:    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
+evio.c.gcov:    #####:  388:static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  389:    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+evio.c.gcov:    #####:  390:    if (!file) TL_THROW("expected a File");
+evio.c.gcov:    #####:  392:    ev_io *ev = &file->ev;
+evio.c.gcov:    #####:  394:    ev->cb = accept_cb;
+evio.c.gcov:    #####:  396:    int revents = ev_clear_pending(ev);
+evio.c.gcov:    #####:  397:    if (revents & EV_READ) { read_cb(ev, revents); return task->value; }
+evio.c.gcov:    #####:  400:    ev->events = EV_READ;
+evio.c.gcov:    #####:  401:    ev_io_start(ev);
+evio.c.gcov:    #####:  402:    tlTaskWaitIo(task);
+evio.c.gcov:    #####:  403:    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+evio.c.gcov:    #####:  408:static tlValue _Path_stat(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  409:    tlText* name = tlTextCast(tlArgsAt(args, 0));
+evio.c.gcov:    #####:  410:    if (!name) TL_THROW("expected a name");
+evio.c.gcov:    #####:  413:    int r = stat(tlTextData(name), &buf);
+evio.c.gcov:    #####:  414:    if (r == -1) TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
+evio.c.gcov:    #####:  416:    tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap), tlmap_size(_statMap));
+evio.c.gcov:    #####:  417:    tlmap_set_sym_(res, _s_dev, tlINT(buf.st_dev));
+evio.c.gcov:    #####:  418:    tlmap_set_sym_(res, _s_ino, tlINT(buf.st_ino));
+evio.c.gcov:    #####:  419:    tlmap_set_sym_(res, _s_mode, tlINT(buf.st_mode));
+evio.c.gcov:    #####:  420:    tlmap_set_sym_(res, _s_nlink, tlINT(buf.st_nlink));
+evio.c.gcov:    #####:  421:    tlmap_set_sym_(res, _s_uid, tlINT(buf.st_uid));
+evio.c.gcov:    #####:  422:    tlmap_set_sym_(res, _s_gid, tlINT(buf.st_gid));
+evio.c.gcov:    #####:  423:    tlmap_set_sym_(res, _s_rdev, tlINT(buf.st_rdev));
+evio.c.gcov:    #####:  424:    tlmap_set_sym_(res, _s_size, tlINT(buf.st_size));
+evio.c.gcov:    #####:  425:    tlmap_set_sym_(res, _s_blksize, tlINT(buf.st_blksize));
+evio.c.gcov:    #####:  426:    tlmap_set_sym_(res, _s_blocks, tlINT(buf.st_blocks));
+evio.c.gcov:    #####:  427:    tlmap_set_sym_(res, _s_atime, tlINT(buf.st_atime));
+evio.c.gcov:    #####:  428:    tlmap_set_sym_(res, _s_mtime, tlINT(buf.st_mtime));
+evio.c.gcov:    #####:  429:    return res;
+evio.c.gcov:    #####:  457:static tlValue _DirClose(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  458:    tlDir* dir = tlDirCast(tlArgsTarget(args));
+evio.c.gcov:    #####:  459:    if (!dir) TL_THROW("expected a Dir");
+evio.c.gcov:    #####:  461:    if (closedir(dir->p)) TL_THROW("closedir: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  462:    return tlNull;
+evio.c.gcov:    #####:  465:static tlValue _DirRead(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  466:    tlDir* dir = tlDirCast(tlArgsTarget(args));
+evio.c.gcov:    #####:  467:    if (!dir) TL_THROW("expected a Dir");
+evio.c.gcov:    #####:  471:    if (readdir_r(dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  473:    if (!dpp) return tlNull;
+evio.c.gcov:    #####:  474:    return tlTextNewCopy(task, dp.d_name, 0);
+evio.c.gcov:    #####:  538:static tlValue _Child_exec(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  539:    char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
+evio.c.gcov:    #####:  540:    for (int i = 0; i < tlArgsSize(args); i++) {
+evio.c.gcov:    #####:  541:        tlText* text = tlTextCast(tlArgsAt(args, i));
+evio.c.gcov:    #####:  542:        if (!text) {
+evio.c.gcov:    #####:  543:            free(argv);
+evio.c.gcov:    #####:  544:            TL_THROW("expected a Text");
+evio.c.gcov:    #####:  546:        argv[i] = (char*)tlTextData(text);
+evio.c.gcov:    #####:  548:    argv[tlArgsSize(args)] = 0;
+evio.c.gcov:    #####:  550:    execvp(argv[0], argv);
+evio.c.gcov:    #####:  553:    free(argv);
+evio.c.gcov:    #####:  554:    TL_THROW("Process.exec: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  593:        assert(kill(child->ev.pid, 0) == -1);
+evio.c.gcov:    #####:  594:        return tlINT(WEXITSTATUS(child->ev.rstatus));
+evio.c.gcov:    #####:  618:static tlValue _ChildStatus(tlTask* task, tlArgs* args) {
+evio.c.gcov:    #####:  619:    tlChild* child = tlChildCast(tlArgsTarget(args));
+evio.c.gcov:    #####:  620:    if (!child) TL_THROW("expected a Child");
+evio.c.gcov:    #####:  622:    return tlINT(WEXITSTATUS(child->ev.rstatus));
+evio.c.gcov:    #####:  632:            free(argv);
+evio.c.gcov:    #####:  633:            TL_THROW("expected a Text");
+evio.c.gcov:    #####:  643:        TL_THROW_SET("child exec: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  644:        close(_in[0]); close(_in[1]); close(_out[0]); close(_out[1]); close(_err[0]); close(_err[1]);
+evio.c.gcov:    #####:  645:        free(argv);
+evio.c.gcov:    #####:  646:        return null;
+evio.c.gcov:    #####:  653:            TL_THROW_SET("child exec: failed: %s", strerror(errno));
+evio.c.gcov:    #####:  654:            close(_in[0]); close(_in[1]); close(_out[0]); close(_out[1]); close(_err[0]); close(_err[1]);
+evio.c.gcov:    #####:  655:            free(argv);
+evio.c.gcov:    #####:  656:            return null;
+evio.c.gcov:    #####:  663:    dup2(_in[0], 0);
+evio.c.gcov:    #####:  664:    dup2(_out[1], 1);
+evio.c.gcov:    #####:  665:    dup2(_err[1], 2);
+evio.c.gcov:    #####:  666:    int max = getdtablesize();
+evio.c.gcov:    #####:  667:    if (max < 0) max = 50000;
+evio.c.gcov:    #####:  668:    for (int i = 3; i < max; i++) close(i); // by lack of anything better ...
+evio.c.gcov:    #####:  669:    execvp(argv[0], argv);
+evio.c.gcov:    #####:  670:    warning("tl run failed: %s", strerror(errno));
+evio.c.gcov:    #####:  671:    _exit(255);
+evio.c.gcov:    #####:  779:        fatal("oeps ... logic error");
+evio.c.gcov:    #####:  789:        ev_async_send(&loop_interrupt);
+list.c.gcov:    #####:   58:tlList* tlListFrom_a(tlTask* task, tlValue* as, int size) {
+list.c.gcov:    #####:   59:    tlList* list = tlListNew(task, size);
+list.c.gcov:    #####:   60:    for (int i = 0; i < size; i++) tlListSet_(list, i, as[i]);
+list.c.gcov:    #####:   61:    return list;
+list.c.gcov:    #####:  118:tlList* tlListAppend2(tlTask* task, tlList* list, tlValue v1, tlValue v2) {
+list.c.gcov:    #####:  119:    assert(tlListIs(list));
+list.c.gcov:    #####:  121:    int osize = tlListSize(list);
+list.c.gcov:    #####:  124:    tlList* nlist = tlListCopy(task, list, osize + 2);
+list.c.gcov:    #####:  125:    tlListSet_(nlist, osize, v1);
+list.c.gcov:    #####:  126:    tlListSet_(nlist, osize + 1, v2);
+list.c.gcov:    #####:  127:    return nlist;
+list.c.gcov:    #####:  152:tlList* tlListPrepend4(tlTask* task, tlList* list, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
+list.c.gcov:    #####:  153:    int size = tlListSize(list);
+list.c.gcov:    #####:  156:    tlList *nlist = tlListNew(task, size + 4);
+list.c.gcov:    #####:  157:    memcpy(nlist->data + 2, list->data, sizeof(tlValue) * size);
+list.c.gcov:    #####:  158:    nlist->data[0] = v1;
+list.c.gcov:    #####:  159:    nlist->data[1] = v2;
+list.c.gcov:    #####:  160:    nlist->data[2] = v3;
+list.c.gcov:    #####:  161:    nlist->data[3] = v4;
+list.c.gcov:    #####:  162:    return nlist;
+list.c.gcov:    #####:  165:tlList* tlListNew_add(tlTask* task, tlValue v) {
+list.c.gcov:    #####:  167:    tlList* list = tlListNew(task, 1);
+list.c.gcov:    #####:  168:    tlListSet_(list, 0, v);
+list.c.gcov:    #####:  169:    return list;
+list.c.gcov:    #####:  172:tlList* tlListNew_add2(tlTask* task, tlValue v1, tlValue v2) {
+list.c.gcov:    #####:  174:    tlList* list = tlListNew(task, 2);
+list.c.gcov:    #####:  175:    tlListSet_(list, 0, v1);
+list.c.gcov:    #####:  176:    tlListSet_(list, 1, v2);
+list.c.gcov:    #####:  177:    return list;
+list.c.gcov:    #####:  180:tlList* tlListNew_add3(tlTask* task, tlValue v1, tlValue v2, tlValue v3) {
+list.c.gcov:    #####:  182:    tlList* list = tlListNew(task, 3);
+list.c.gcov:    #####:  183:    tlListSet_(list, 0, v1);
+list.c.gcov:    #####:  184:    tlListSet_(list, 1, v2);
+list.c.gcov:    #####:  185:    tlListSet_(list, 2, v3);
+list.c.gcov:    #####:  186:    return list;
+list.c.gcov:    #####:  189:tlList* tlListNew_add4(tlTask* task, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
+list.c.gcov:    #####:  191:    tlList* list = tlListNew(task, 4);
+list.c.gcov:    #####:  192:    tlListSet_(list, 0, v1);
+list.c.gcov:    #####:  193:    tlListSet_(list, 1, v2);
+list.c.gcov:    #####:  194:    tlListSet_(list, 2, v3);
+list.c.gcov:    #####:  195:    tlListSet_(list, 3, v4);
+list.c.gcov:    #####:  196:    return list;
+list.c.gcov:    #####:  248:INTERNAL tlValue _list_set(tlTask* task, tlArgs* args) {
+list.c.gcov:    #####:  249:    tlList* list = tlListCast(tlArgsTarget(args));
+list.c.gcov:    #####:  250:    if (!list) TL_THROW("Expected a list");
+list.c.gcov:    #####:  251:    int at = tl_int_or(tlArgsAt(args, 0), -1);
+list.c.gcov:    #####:  252:    if (at < 0) TL_THROW("Expected a number >= 0");
+list.c.gcov:    #####:  253:    tlValue val = tlArgsAt(args, 1);
+list.c.gcov:    #####:  254:    if (!val || val == tlUndefined) val = tlNull;
+list.c.gcov:    #####:  255:    fatal("not implemented yet");
+map.c.gcov:    #####:   10:tlMap* tlMapFromObjectAs(tlValue v) { assert(tlValueObjectIs(v)); return (tlMap*)v; }
+map.c.gcov:    #####:   22:tlMap* tlmap_empty() { return _tl_emptyMap; }
+map.c.gcov:    #####:   38:tlSet* tlmap_keyset(tlMap* map) {
+map.c.gcov:    #####:   39:    return map->keys;
+map.c.gcov:    #####:   41:void tlmap_dump(tlMap* map) {
+map.c.gcov:    #####:   42:    print("---- MAP DUMP @ %p ----", map);
+map.c.gcov:    #####:   43:    for (int i = 0; i < tlmap_size(map); i++) {
+map.c.gcov:    #####:   44:        print("%d %p: %p", i, map->data[i], map->keys->data[i]);
+map.c.gcov:    #####:   45:        print("%d %s: %s", i, tl_str(map->data[i]), tl_str(map->keys->data[i]));
+map.c.gcov:    #####:   47:    print("----");
+map.c.gcov:    #####:   48:}
+map.c.gcov:    #####:  246:static tlValue _map_dump(tlTask* task, tlArgs* args) {
+map.c.gcov:    #####:  247:    tlMap* map = tlMapCast(tlArgsAt(args, 0));
+map.c.gcov:    #####:  248:    if (!map) TL_THROW("Expected a map");
+map.c.gcov:    #####:  249:    tlmap_dump(map);
+map.c.gcov:    #####:  250:    return tlNull;
+map.c.gcov:    #####:  252:static tlValue _map_is(tlTask* task, tlArgs* args) {
+map.c.gcov:    #####:  253:    return tlBOOL(tlMapIs(tlArgsAt(args, 0)));
+map.c.gcov:    #####:  255:static tlValue _object_is(tlTask* task, tlArgs* args) {
+map.c.gcov:    #####:  256:    tlValue map = tlMapCast(tlArgsAt(args, 0));
+map.c.gcov:    #####:  257:    if (!map) return tlFalse;
+map.c.gcov:    #####:  258:    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return tlTrue;
+map.c.gcov:    #####:  259:    return tlFalse;
+map.c.gcov:    #####:  261:static tlValue _object_from(tlTask* task, tlArgs* args) {
+map.c.gcov:    #####:  262:    tlValue map = tlMapCast(tlArgsAt(args, 0));
+map.c.gcov:    #####:  263:    if (!map) TL_THROW("Expected a map");
+map.c.gcov:    #####:  264:    if (tlflag_isset(map, TL_FLAG_ISOBJECT)) return map;
+map.c.gcov:    #####:  265:    fatal("broken ...");
+map.c.gcov:    #####:  284:static tlValue _MapSet(tlTask* task, tlArgs* args) {
+map.c.gcov:    #####:  285:    tlMap* map = tlMapCast(tlArgsTarget(args));
+map.c.gcov:    #####:  286:    if (!map) TL_THROW("Expected a map");
+map.c.gcov:    #####:  287:    tlValue key = tlArgsAt(args, 0);
+map.c.gcov:    #####:  288:    if (!key) TL_THROW("Expected a key");
+map.c.gcov:    #####:  289:    tlValue val = tlArgsAt(args, 1);
+map.c.gcov:    #####:  290:    if (!val || val == tlUndefined) val = tlNull;
+map.c.gcov:    #####:  291:    tlMap* nmap = tlmap_set(task, map, key, val);
+map.c.gcov:    #####:  292:    return nmap;
+map.c.gcov:    #####:  294:static tlValue _MapToObject(tlTask* task, tlArgs* args) {
+map.c.gcov:    #####:  295:    tlMap* map = tlMapCast(tlArgsTarget(args));
+map.c.gcov:    #####:  296:    if (!map) TL_THROW("Expected a map");
+map.c.gcov:    #####:  297:    tlMap* nmap = tlmap_new(task, map->keys);
+map.c.gcov:    #####:  298:    for (int i = 0; i < tlmap_size(map); i++) nmap->data[i] = map->data[i];
+map.c.gcov:    #####:  299:    return tlMapToObject_(nmap);
+map.c.gcov:    #####:  302:const char* _MapToText(tlValue v, char* buf, int size) {
+map.c.gcov:    #####:  303:    snprintf(buf, size, "<Map@%p %d>", v, tlmap_size(tlMapAs(v))); return buf;
+map.c.gcov:    #####:  310:const char* _ValueToText(tlValue v, char* buf, int size) {
+map.c.gcov:    #####:  311:    snprintf(buf, size, "<ValueObject@%p %d>", v, tlmap_size(tlMapFromObjectAs(v))); return buf;
+map.c.gcov:    #####:  331:        return tlUndefined;
+set.c.gcov:    #####:   68:tlSet* tlset_add(tlTask* task, tlSet* set, tlValue key, int* at) {
+set.c.gcov:    #####:   70:    *at = tlset_indexof(set, key);
+set.c.gcov:    #####:   71:    if (key == null || *at >= 0) return set;
+set.c.gcov:    #####:   74:    int size = tlset_size(set);
+set.c.gcov:    #####:   75:    tlSet* nset = tlset_new(task, size + 1);
+set.c.gcov:    #####:   77:    int i = 0;
+set.c.gcov:    #####:   78:    for (; i < size && set->data[i] > key; i++) nset->data[i] = set->data[i];
+set.c.gcov:    #####:   79:    *at = i;
+set.c.gcov:    #####:   80:    nset->data[i] = key;
+set.c.gcov:    #####:   81:    for (; i < size; i++) nset->data[i + 1] = set->data[i];
+set.c.gcov:    #####:   84:    return nset;
+sym.c.gcov:    #####:   53:tlText* tltext_from_sym(tlSym sym) {
+sym.c.gcov:    #####:   54:    assert(tlsym_is(sym));
+sym.c.gcov:    #####:   55:    return _TEXT_FROM_SYM(sym);
+sym.c.gcov:    #####:  146:static void strfree(void *str) { }
+sym.c.gcov:    #####:  148:const char* _SymToText(tlValue v, char* buf, int size) {
+sym.c.gcov:    #####:  149:    snprintf(buf, size, "<Symbol@%p #%s>", v, tlTextData(_TEXT_FROM_SYM(v))); return buf;
+task.c.gcov:    #####:   93:void tlVmScheduleTask(tlVm* vm, tlTask* task) {
+task.c.gcov:    #####:   94:    lqueue_put(&vm->run_q, &task->entry);
+task.c.gcov:    #####:   95:}
+task.c.gcov:    #####:  108:void assert_backtrace(tlFrame* frame) {
+task.c.gcov:    #####:  109:    int i = 100;
+task.c.gcov:    #####:  110:    while (i-- && frame) frame = frame->caller;
+task.c.gcov:    #####:  111:    if (frame) fatal("STACK CORRUPTED");
+task.c.gcov:    #####:  112:}
+task.c.gcov:    #####:  227:    warning("uncaught exception: %s", tl_str(error));
+task.c.gcov:    #####:  228:    return tlTaskError(task, error);
+task.c.gcov:    #####:  329:INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
+task.c.gcov:    #####:  331:    task->frame = null;
+task.c.gcov:    #####:  332:    task->value = null;
+task.c.gcov:    #####:  333:    task->error = error;
+task.c.gcov:    #####:  334:    task->state = TL_STATE_ERROR;
+task.c.gcov:    #####:  335:    tlVm* vm = tlTaskGetVm(task);
+task.c.gcov:    #####:  336:    a_dec(&vm->tasks);
+task.c.gcov:    #####:  337:    task->worker = vm->waiter;
+task.c.gcov:    #####:  340:        tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
+task.c.gcov:    #####:  341:        if (!waiter) return tlTaskNotRunning;
+task.c.gcov:    #####:  342:        waiter->value = task->value;
+task.c.gcov:    #####:  343:        tlTaskReady(waiter);
+task.c.gcov:    #####:  344:    }
+task.c.gcov:    #####:  405:        return tlNull;
+task.c.gcov:    #####:  482:    return tlArgsMapGet(msg->args, key);
+task.c.gcov:    #####:  485:INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {
+task.c.gcov:    #####:  486:    const char* state = "unknown";
+task.c.gcov:    #####:  487:    switch (tlTaskAs(v)->state) {
+task.c.gcov:    #####:  488:        case TL_STATE_INIT: state = "init"; break;
+task.c.gcov:    #####:  489:        case TL_STATE_READY: state = "ready"; break;
+task.c.gcov:    #####:  490:        case TL_STATE_RUN: state = "run"; break;
+task.c.gcov:    #####:  491:        case TL_STATE_WAIT: state = "wait"; break;
+task.c.gcov:    #####:  492:        case TL_STATE_IOWAIT: state = "iowait"; break;
+task.c.gcov:    #####:  493:        case TL_STATE_DONE: state = "done"; break;
+task.c.gcov:    #####:  494:        case TL_STATE_ERROR: state = "error"; break;
+task.c.gcov:    #####:  496:    snprintf(buf, size, "<Task@%p - %s>", v, state);
+task.c.gcov:    #####:  497:    return buf;
+text.c.gcov:    #####:   17:tlText* tlTextEmpty() { return _tl_emptyText; }
+text.c.gcov:    #####:   65:tlText* tlTextCat(tlTask* task, tlText* left, tlText* right) {
+text.c.gcov:    #####:   66:    int size = tlTextSize(left) + tlTextSize(right);
+text.c.gcov:    #####:   67:    char* data = malloc(size + 1);
+text.c.gcov:    #####:   68:    if (!data) return null;
+text.c.gcov:    #####:   69:    memcpy(data, left->data, tlTextSize(left));
+text.c.gcov:    #####:   70:    memcpy(data + tlTextSize(left), right->data, tlTextSize(right));
+text.c.gcov:    #####:   71:    data[size] = 0;
+text.c.gcov:    #####:   72:    return tlTextNewTake(task, data, size);
+text.c.gcov:    #####:  124:INTERNAL tlValue _text_search(tlTask* task, tlArgs* args) {
+text.c.gcov:    #####:  126:    tlText* text = tlTextCast(tlArgsTarget(args));
+text.c.gcov:    #####:  127:    if (!text) TL_THROW("this must be a Text");
+text.c.gcov:    #####:  128:    tlText* find = tlTextCast(tlArgsAt(args, 0));
+text.c.gcov:    #####:  129:    if (!find) TL_THROW("expected a Text");
+text.c.gcov:    #####:  130:    const char* p = strstr(tlTextData(text), tlTextData(find));
+text.c.gcov:    #####:  131:    if (!p) return tlNull;
+text.c.gcov:    #####:  132:    return tlINT(p - tlTextData(text));
+text.c.gcov:    #####:  135:INTERNAL tlValue _text_cat(tlTask* task, tlArgs* args) {
+text.c.gcov:    #####:  137:    tlText* text = tlTextCast(tlArgsTarget(args));
+text.c.gcov:    #####:  138:    if (!text) TL_THROW("this must be a Text");
+text.c.gcov:    #####:  139:    tlText* add = tlTextCast(tlArgsAt(args, 0));
+text.c.gcov:    #####:  140:    if (!add) TL_THROW("arg must be a Text");
+text.c.gcov:    #####:  142:    return tlTextCat(task, text, add);
+text.c.gcov:    #####:  166:static int intmin(int left, int right) { return (left<right)?left:right; }
+text.c.gcov:    #####:  168:INTERNAL tlValue _text_startsWith(tlTask* task, tlArgs* args) {
+text.c.gcov:    #####:  170:    tlText* text = tlTextCast(tlArgsTarget(args));
+text.c.gcov:    #####:  171:    if (!text) TL_THROW("this must be a Text");
+text.c.gcov:    #####:  172:    tlText* start = tlTextCast(tlArgsAt(args, 0));
+text.c.gcov:    #####:  173:    if (!start) TL_THROW("arg must be a Text");
+text.c.gcov:    #####:  175:    int textsize = tlTextSize(text);
+text.c.gcov:    #####:  176:    int startsize = tlTextSize(start);
+text.c.gcov:    #####:  177:    if (textsize < startsize) return tlFalse;
+text.c.gcov:    #####:  179:    int r = strncmp(tlTextData(text), tlTextData(start), startsize);
+text.c.gcov:    #####:  180:    return tlBOOL(r == 0);
+value.c.gcov:    #####:    7:INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
+value.c.gcov:    #####:   21:            default: return TLInvalid;
+value.c.gcov:    #####:   24:    if (tlref_is(v)) {
+value.c.gcov:    #####:   25:        uint8_t t = tl_head(v)->type;
+value.c.gcov:    #####:   26:        assert(t > 0 || t <= TLInt);
+value.c.gcov:    #####:   27:        return t;
+value.c.gcov:    #####:   29:    return TLInvalid;
+value.c.gcov:    #####:   65:const char* tl_type_str(tlValue v) {
+value.c.gcov:    #####:   66:    int type = tl_type(v);
+value.c.gcov:    #####:   67:    assert(type >= 0 && type < TL_TYPE_LAST);
+value.c.gcov:    #####:   68:    return type_to_str[type];
+value.c.gcov:    #####:  126:tlValue task_alloc_priv(tlTask* task, uint8_t type, int size, uint8_t privs) {
+value.c.gcov:    #####:  127:    assert(privs <= 0x0F);
+value.c.gcov:    #####:  128:    tlHead* head = task_alloc(task, type, size + privs);
+value.c.gcov:    #####:  129:    assert((((intptr_t)head) & 7) == 0);
+value.c.gcov:    #####:  130:    head->flags = privs;
+value.c.gcov:    #####:  131:    return (tlValue)head;
+value.c.gcov:    #####:  133:tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
+value.c.gcov:    #####:  134:    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
+value.c.gcov:    #####:  135:    assert(privs <= 0x0F);
+value.c.gcov:    #####:  136:    bytes = bytes + ((size_t)datas + privs) * sizeof(tlValue);
+value.c.gcov:    #####:  137:    int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
+value.c.gcov:    #####:  138:    assert(size < 0xFFFF);
+value.c.gcov:    #####:  141:    tlData* to = calloc(1, bytes);
+value.c.gcov:    #####:  142:    assert((((intptr_t)to) & 7) == 0);
+value.c.gcov:    #####:  143:    to->head.flags = privs;
+value.c.gcov:    #####:  144:    to->head.type = type;
+value.c.gcov:    #####:  145:    to->head.size = size;
+value.c.gcov:    #####:  146:    to->head.keep = 1;
+value.c.gcov:    #####:  147:    return to;
+value.c.gcov:    #####:  149:tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
+value.c.gcov:    #####:  150:    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
+value.c.gcov:    #####:  151:    assert(bytes % sizeof(tlValue) == 0);
+value.c.gcov:    #####:  152:    assert(fields >= 0);
+value.c.gcov:    #####:  153:    int size = fields + bytes/sizeof(tlValue) - sizeof(tlHead)/sizeof(intptr_t);
+value.c.gcov:    #####:  154:    assert(size >= 0 && size < 0xFFFF);
+value.c.gcov:    #####:  156:    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue) * fields);
+value.c.gcov:    #####:  157:    assert((((intptr_t)head) & 7) == 0);
+value.c.gcov:    #####:  159:    head->flags = 0;
+value.c.gcov:    #####:  160:    head->type = type;
+value.c.gcov:    #####:  161:    head->size = size;
+value.c.gcov:    #####:  162:    head->keep = 1;
+value.c.gcov:    #####:  163:    return (tlValue)head;
+value.c.gcov:    #####:  165:tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields, int privs, tlFreeCb freecb) {
+value.c.gcov:    #####:  166:    tlHead* head = (tlHead*)tltask_alloc(task, type, bytes, fields + privs);
+value.c.gcov:    #####:  167:    return (tlValue)head;
+value.c.gcov:    #####:  206:        snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", klass->name, v);
+value.c.gcov:    #####:  207:        return _str_buf;
+value.c.gcov:    #####:  212:        return tlTextData(tlTextAs(v));
+value.c.gcov:    #####:  214:        snprintf(_str_buf, _BUF_SIZE, "#%s", tlTextData(tltext_from_sym(v)));
+value.c.gcov:    #####:  215:        return _str_buf;
+value.c.gcov:    #####:  217:        snprintf(_str_buf, _BUF_SIZE, "%d", tl_int(v));
+value.c.gcov:    #####:  218:        return _str_buf;
+value.c.gcov:    #####:  226:        assert(false);
+value.c.gcov:    #####:  228:        return tl_type_str(v);
+vm.c.gcov:    #####:   76:static tlValue _gt(tlTask* task, tlArgs* args) {
+vm.c.gcov:    #####:   78:    return tlBOOL(tl_int(tlArgsAt(args, 0)) > tl_int(tlArgsAt(args, 1)));
+vm.c.gcov:    #####:  174:void tlworker_detach(tlWorker* worker, tlTask* task) {
+vm.c.gcov:    #####:  175:    assert(tlworker_is(worker));
+vm.c.gcov:    #####:  176:    assert(tlTaskIs(task));
+vm.c.gcov:    #####:  177:    assert(task->worker == worker);
+vm.c.gcov:    #####:  178:    task->worker = null;
+vm.c.gcov:    #####:  179:}
+vm.c.gcov:    #####:  216:void tlWorkerDelete(tlWorker* worker) { free(worker); }
+vm.c.gcov:    #####:  235:tlEnv* tlVmGlobalEnv(tlVm* vm) {
+vm.c.gcov:    #####:  236:    return vm->globals;

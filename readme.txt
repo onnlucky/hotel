@@ -1,18 +1,20 @@
 # TODO
 
-start using tlTaskPauseResuming() ... a lot more
-deadlock for Sync(actors): set state=WAIT, if owner.state==WAIT and owner.current.owner == us
+start preparing a first release:
+* every file, new coding style, stamp with license, remove any commented code
+* use gcov to remove any unused code or add tests for them (larger parts...)
 
-think about what to do with uncaught exceptions? Task finalizer prints them if nobody read them?
+implement tlFirst for resume functions
+start using tlTaskPauseResuming() ... a lot more
+deadlock detection for actors: state=WAIT, if owner.state==WAIT and owner.current.owner == us
+remove the actor "after work handler", no longer needed ... tlTaskRun doesn't touch the task
 on parse errors, throw it on the task, not fatal() out ...
-add task.stop to kill it by error? java ThreadDeath how do we do it safely?
+
+syntax change: do symbols using 'symbol
 
 rework all "callables" as tlClass based, and use the class->call
 rework all types as the tlClass things ... stop using anything else
 remove old task_alloc and such
-
-implement tlFirst for resume functions
-implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
 
 tlArgsAt -> tlArgsGet ... like a list tlListGet
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
@@ -29,6 +31,11 @@ example: function = { }
          method = @{ }
 
 add something around tlWorkerMigrate(...thread...) so Cocoa can take the main thread? tricky...
+
+implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
+add task.stop to kill it by error? java ThreadDeath how do we do it safely?
+add finalizers to tasks: report errors if nobody else reads them
+add finalizers to opened files: closed the fds
 
   ----
 
