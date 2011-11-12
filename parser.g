@@ -482,7 +482,7 @@ tlValue tl_parse(tlTask* task, tlText* text) {
     yydeinit(&g);
 
     trace("\n----PARSED----");
-    debugcode(tlcode_as(v));
+    //debugcode(tlcode_as(v));
     return v;
 }
 

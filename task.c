@@ -143,9 +143,9 @@ INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
 
-// after a worker has picked a task from the run queue, it will run it ... this function
-// that means we will return here *after* we have put ourselves in other queues
-// at that point any other worker could aready have picked this task again ...
+// after a worker has picked a task from the run queue, it will run it
+// that means sometimes when returning from resumecb, the task might be in other queues
+// at that point any other worker could aready have picked up this task
 INTERNAL void tlTaskRun(tlTask* task) {
     trace("%s", tl_str(task));
     assert(task->state == TL_STATE_READY);
@@ -179,7 +179,6 @@ INTERNAL void tlTaskRun(tlTask* task) {
             tlTaskDone(task, res);
             return;
         }
-        if (task->error) return;
         trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
         assert(frame);
         assert(task->frame);
@@ -192,14 +191,13 @@ INTERNAL void tlTaskRun(tlTask* task) {
     trace("WAIT: %p %p", task, task->frame);
 }
 
-// when a task is in an error state ...
-// returning from here goes straight to tlTaskRun ...
+// when a task is in an error state it will throw it until somebody handles it
 INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
     trace("");
     assert(task->state == TL_STATE_RUN);
     assert(task->frame);
 
-    print_backtrace(task->frame);
+    //print_backtrace(task->frame);
 
     tlFrame* frame = task->frame;
     task->frame = null;
@@ -254,7 +252,8 @@ void tlTaskEval(tlTask* task, tlValue v) {
 INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack);
 
 INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    return tlTaskRunThrow(task, tlErrorNew(task, res, frame));
+    task->frame = task->frame->caller;
+    return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
 }
 tlValue tlTaskThrowTake(tlTask* task, char* str) {
     trace("throw: %s", str);

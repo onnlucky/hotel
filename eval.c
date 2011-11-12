@@ -571,8 +571,18 @@ INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlError* 
 
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue res);
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) return null;
     CodeFrame* frame = (CodeFrame*)_frame;
+    if (err) {
+        tlClosure* handler = frame->handler;
+        if (!handler) return null;
+
+        tlCall* call = tlcall_new(task, 1, null);
+        tlcall_fn_set_(call, handler);
+        tlcall_arg_set_(call, 0, err);
+        // doing it this way means this codeblock is over ... we might let the handler decide that
+        return tlEval(task, call);
+    }
+
     // TODO this should be done for all Frames everywhere ... but ... for now
     // TODO keep should trickle down to frame->caller now too ... oeps
     if (_frame->head.keep > 1) frame = tlAllocClone(task, frame, sizeof(CodeFrame), 0);

@@ -6,9 +6,7 @@ deadlock for Sync(actors): set state=WAIT, if owner.state==WAIT and owner.curren
 
 think about what to do with uncaught exceptions? Task finalizer prints them if nobody read them?
 when calling non functions or unresolvable lookups and such, don't assert, throw instead ...
-rework throwing vs resume now that resume takes an tlError* ...
 on parse errors, throw it on the task, not fatal() out ...
-add looping and implement break by throwing
 add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 
 rework all "callables" as tlClass based, and use the class->call
