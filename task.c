@@ -5,6 +5,7 @@
 INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
 INTERNAL tlValue run_resume(tlTask* task, tlFrame* frame, tlValue res);
+void print_backtrace(tlFrame*);
 
 tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
@@ -139,7 +140,8 @@ INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
     return tlTaskJumping;
 }
 
-INTERNAL void tlTaskDone(tlTask* task, tlValue res);
+INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
+INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
 
 // after a worker has picked a task from the run queue, it will run it ... this function
 // that means we will return here *after* we have put ourselves in other queues
@@ -190,6 +192,37 @@ INTERNAL void tlTaskRun(tlTask* task) {
     trace("WAIT: %p %p", task, task->frame);
 }
 
+// when a task is in an error state ...
+// returning from here goes straight to tlTaskRun ...
+INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
+    trace("");
+    assert(task->state == TL_STATE_RUN);
+    assert(task->frame);
+
+    print_backtrace(task->frame);
+
+    tlFrame* frame = task->frame;
+    task->frame = null;
+    tlValue res = null;
+    while (frame) {
+        if (frame->resumecb) res = frame->resumecb(task, frame, null, error);
+        trace("!! error frame: %p handled? %p || %p", frame, res, task->frame);
+        // returning a regular result means the error has been handled
+        assert(res != tlTaskNotRunning && res != tlTaskJumping);
+        if (res) return tlTaskJump(task, frame->caller, res);
+        // returning null, but by tlTaskPause, means the error has been handled too
+        if (task->frame) {
+            // fixup the stack by skipping our frame
+            tlTaskPauseAttach(task, frame->caller);
+            // jump to top of stack with current value
+            return tlTaskJump(task, task->worker->top, task->value);
+        }
+        frame = frame->caller;
+    }
+    warning("uncaught exception: %s", tl_str(error));
+    return tlTaskError(task, error);
+}
+
 tlTask* tlTaskNew(tlWorker* worker) {
     tlTask* task = tlAlloc(null, tlTaskClass, sizeof(tlTask));
     task->worker = worker;
@@ -218,22 +251,15 @@ void tlTaskEval(tlTask* task, tlValue v) {
     task->frame = (tlFrame*)frame;
 }
 
+INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack);
 
-typedef struct TaskThrowFrame {
-    tlFrame frame;
-    tlValue error;
-} TaskThrowFrame;
-
-INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error);
-INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    return evalThrow(task, _frame->caller, ((TaskThrowFrame*)_frame)->error);
+INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    return tlTaskRunThrow(task, tlErrorNew(task, res, frame));
 }
-
 tlValue tlTaskThrowTake(tlTask* task, char* str) {
     trace("throw: %s", str);
-    TaskThrowFrame* frame = tlFrameAlloc(task, resumeTaskThrow, sizeof(TaskThrowFrame));
-    frame->error = tlTextNewTake(task, str);
-    return tlTaskPause(task, frame);
+    task->value = tlTextNewTake(task, str);
+    return tlTaskPause(task, tlFrameAlloc(task, resumeTaskThrow, sizeof(tlFrame)));
 }
 
 tlValue tlTaskGetError(tlTask* task) {
@@ -294,7 +320,7 @@ void tlTaskStart(tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-INTERNAL void tlTaskError(tlTask* task, tlValue error) {
+INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
     trace("%s error: %s", tl_str(task), tl_str(error));
     task->frame = null;
     task->value = null;
@@ -306,13 +332,13 @@ INTERNAL void tlTaskError(tlTask* task, tlValue error) {
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
-        if (!waiter) return;
+        if (!waiter) return tlTaskNotRunning;
         waiter->value = task->value;
         tlTaskReady(waiter);
     }
-    return;
+    return tlTaskNotRunning;
 }
-INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
+INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
     trace("%s done: %s", tl_str(task), tl_str(res));
     task->frame = null;
     task->value = res;
@@ -324,11 +350,11 @@ INTERNAL void tlTaskDone(tlTask* task, tlValue res) {
 
     while (true) {
         tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
-        if (!waiter) return;
+        if (!waiter) return tlTaskNotRunning;
         waiter->value = task->value;
         tlTaskReady(waiter);
     }
-    return;
+    return tlTaskNotRunning;
 }
 
 INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
@@ -414,7 +440,6 @@ INTERNAL tlValue _task_send(tlTask* task, tlArgs* args) {
     return tlTaskPause(task, frame);
 }
 
-void print_backtrace(tlFrame*);
 INTERNAL tlValue resumeRecv(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("");
     tlTask* sender = tlTaskFromEntry(lqueue_get(&task->msg_q));

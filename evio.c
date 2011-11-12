@@ -477,7 +477,12 @@ typedef struct tlDirEachFrame {
 } tlDirEachFrame;
 
 static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) return null;
+    if (err) {
+        print(">>> HAVE ERROR: %s <<<", tl_str(tlErrorValue(err)));
+        if (tlErrorValue(err) == s_break) return tlNull;
+        if (tlErrorValue(err) != s_continue) return null;
+    }
+    print(">>>> RESUME DIR EACH <<<<");
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
 again:;
     struct dirent dp;

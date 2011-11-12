@@ -285,8 +285,8 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     if (!res) {
         // fixup the stack by skipping our frame
         tlTaskPauseAttach(task, caller);
-        // jump to top of stack
-        return tlTaskJump(task, task->worker->top, tlNull);
+        // jump to top of stack with current value
+        return tlTaskJump(task, task->worker->top, task->value);
     }
     return tlTaskJump(task, caller, res);
 }
@@ -439,6 +439,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
 
 // when call->fn is a call itself
 INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
     CallFnFrame* frame = (CallFnFrame*)_frame;
     return applyCall(task, tlcall_copy_fn(task, frame->call, res));
 }
@@ -564,11 +565,13 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
 }
 
 INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (err) return null;
     return evalCall2(task, (CallFrame*)frame, res);
 }
 
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue res);
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
     CodeFrame* frame = (CodeFrame*)_frame;
     // TODO this should be done for all Frames everywhere ... but ... for now
     // TODO keep should trickle down to frame->caller now too ... oeps
@@ -743,6 +746,7 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
 }
 
 INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
     return evalArgs(task, tlArgsAs(res));
 }
 

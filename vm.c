@@ -23,6 +23,7 @@
 #include "code.c"
 #include "env.c"
 #include "eval.c"
+#include "error.c"
 
 #include "var.c"
 
@@ -150,6 +151,8 @@ void tl_init() {
 
     eval_init();
     task_init();
+    error_init();
+
     var_init();
     //object_init();
     vm_init();

@@ -369,6 +369,8 @@ tlValue tlArgsAt(tlArgs* args, int at);
 int tlArgsMapSize(tlArgs* args);
 tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 
+tlValue tlErrorValue(tlError* error);
+
 tlCall* tlcall_from(tlTask* task, ...);
 tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args);
 tlValue tlcall_fn(tlCall* call);
