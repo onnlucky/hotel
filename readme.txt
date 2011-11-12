@@ -1,11 +1,9 @@
 # TODO
 
-fix uncaught exceptions ... I just broke them
 start using tlTaskPauseResuming() ... a lot more
 deadlock for Sync(actors): set state=WAIT, if owner.state==WAIT and owner.current.owner == us
 
 think about what to do with uncaught exceptions? Task finalizer prints them if nobody read them?
-when calling non functions or unresolvable lookups and such, don't assert, throw instead ...
 on parse errors, throw it on the task, not fatal() out ...
 add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 

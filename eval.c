@@ -352,6 +352,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
 
 INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
     ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
     return run_activate_call(task, frame, frame->call, frame->env, res);
 }
