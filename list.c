@@ -283,6 +283,9 @@ INTERNAL tlValue _list_slice(tlTask* task, tlArgs* args) {
 }
 
 // TODO eval: { "_list_clone", _list_clone },
+static tlClass _tlListClass = {
+    .name = "List",
+};
 
 static void list_init() {
     _tlListClass.map = tlClassMapFrom(

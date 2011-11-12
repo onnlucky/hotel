@@ -269,9 +269,9 @@ tlInt tlINT(int i);
 tlValue tlACTIVE(tlValue v);
 
 // tlTEXT and tlSYM can only be used after tl_init()
-#define tlTEXT tlTextFromStatic
-#define tlSYM tlsym_from_static
-tlSym tlsym_from_static(const char* s);
+#define tlTEXT(x) tlTextFromStatic(x, strlen(x))
+#define tlSYM(x) tlsym_from_static(x, strlen(x))
+tlSym tlsym_from_static(const char* s, int len);
 
 int tl_bool(tlValue v);
 int tl_bool_or(tlValue v, bool d);
@@ -291,15 +291,15 @@ int tlTextSize(tlText* text);
 const char* tlTextData(tlText* text);
 
 tlText* tlTextEmpty();
-tlText* tlTextFromStatic(const char* s);
+tlText* tlTextFromStatic(const char* s, int len);
 
-tlText* tlTextNewCopy(tlTask* task, const char* s);
-tlText* tlTextNewTake(tlTask* task, char* s);
+tlText* tlTextNewCopy(tlTask* task, const char* s, int len);
+tlText* tlTextNewTake(tlTask* task, char* s, int len);
 
 tlText* tlValueToText(tlTask* task, tlValue v);
 
-tlSym tlsym_from_copy(tlTask* task, const char* s);
-tlSym tlsym_from_take(tlTask* task, char* s);
+tlSym tlsym_from_copy(tlTask* task, const char* s, int len);
+tlSym tlsym_from_take(tlTask* task, char* s, int len);
 tlSym tlsym_from_text(tlTask* task, tlText* text);
 tlText* tltext_from_sym(tlSym s);
 

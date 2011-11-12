@@ -55,7 +55,7 @@ tlText* tltext_from_sym(tlSym sym) {
     return _TEXT_FROM_SYM(sym);
 }
 
-tlSym tlsym_from_static(const char* s) {
+tlSym tlsym_from_static(const char* s, int len) {
     assert(s);
     assert(symbols);
     trace("#%s", s);
@@ -63,17 +63,17 @@ tlSym tlsym_from_static(const char* s) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlsym_from_text(null, tlTEXT(s));
+    return tlsym_from_text(null, tlTextFromStatic(s, len));
 }
 
-tlSym tlsym_from_copy(tlTask* task, const char* s) {
+tlSym tlsym_from_copy(tlTask* task, const char* s, int len) {
     assert(s);
     assert(symbols);
     trace("#%s", s);
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlsym_from_text(task, tlTextNewCopy(task, s));
+    return tlsym_from_text(task, tlTextNewCopy(task, s, len));
 }
 
 tlSym tlsym_from_text(tlTask* task, tlText* text) {

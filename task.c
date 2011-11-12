@@ -264,7 +264,7 @@ INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlEr
 }
 tlValue tlTaskThrowTake(tlTask* task, char* str) {
     trace("throw: %s", str);
-    task->value = tlTextNewTake(task, str);
+    task->value = tlTextNewTake(task, str, 0);
     return tlTaskPause(task, tlFrameAlloc(task, resumeTaskThrow, sizeof(tlFrame)));
 }
 

@@ -835,7 +835,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
 tlText* tlToText(tlTask* task, tlValue v) {
     if (tlTextIs(v)) return v;
     // TODO actually invoke toText ...
-    return tlTextNewCopy(task, tl_str(v));
+    return tlTextNewCopy(task, tl_str(v), 0);
 }
 tlValue tlEval(tlTask* task, tlValue v) {
     trace("%s", tl_str(v));
@@ -952,6 +952,7 @@ static const tlHostCbs __eval_hostcbs[] = {
     { "_method_invoke", _method_invoke },
     { "_object_send", _object_send },
     //{ "_new_object", _new_object },
+    { "_Text_cat", _Text_cat },
     { "_list_clone", _list_clone },
     { "_map_clone", _map_clone },
     { "_map_update", _map_update },

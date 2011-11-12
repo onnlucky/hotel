@@ -254,7 +254,7 @@ bpexpr = v:value t:ptail _":"_ b:block {
        | pexpr
 
  pexpr = "assert" _!"(" < as:pcargs > &peosfull {
-            as = tlListAppend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
+            as = tlListAppend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext, 0));
             $$ = call_activate(tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | "!" b:block {
@@ -354,7 +354,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tlACTIVE(tlSYM("pow
                     )*
 
  paren = "assert"_"("__ < as:cargs > __")" t:tail {
-            as = tlListPrepend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext));
+            as = tlListPrepend2(TASK, L(as), tlSYM("text"), tlTextNewCopy(TASK, yytext, 0));
             $$ = set_target(t, tlcall_from_list(TASK, tlACTIVE(tlSYM("assert")), as));
        }
        | f:fn t:tail                { $$ = set_target(t, tlACTIVE(f)); }
@@ -394,17 +394,17 @@ number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
 
   text = '"' '"'          { $$ = tlTextEmpty(); }
        | '"'  t:stext '"' { $$ = t }
-       | '"' ts:ctext '"' { $$ = tlcall_from_list(TASK, tlACTIVE(tlSYM("text_cat")), L(ts)); }
+       | '"' ts:ctext '"' { $$ = tlcall_from_list(TASK, tlACTIVE(tlSYM("_Text_cat")), L(ts)); }
 
- stext = < (!"$" !"\"" .)+ > { $$ = tlTextNewTake(TASK, unescape(yytext)); }
+ stext = < (!"$" !"\"" .)+ > { $$ = tlTextNewTake(TASK, unescape(yytext), 0); }
  ptext = "$("_ e:expr _")"   { $$ = e }
        | "$" l:lookup        { $$ = l }
- ctext = t:ptext ts:ctext    { $$ = tlListPrepend(TASK, ts, t); }
-       | t:stext ts:ctext    { $$ = tlListPrepend(TASK, ts, t); }
-       | t:ptext             { $$ = tlListNewFrom1(TASK, t); }
-       | t:stext             { $$ = tlListNewFrom(TASK, t); }
+ ctext = t:ptext ts:ctext    { $$ = tlListPrepend2(TASK, ts, tlNull, t); }
+       | t:stext ts:ctext    { $$ = tlListPrepend2(TASK, ts, tlNull, t); }
+       | t:ptext             { $$ = tlListNewFrom2(TASK, tlNull, t); }
+       | t:stext             { $$ = tlListNewFrom2(TASK, tlNull, t); }
 
-  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tlsym_from_copy(TASK, yytext); }
+  name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tlsym_from_copy(TASK, yytext, 0); }
 
 slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" .)* ("*/"|!.)
