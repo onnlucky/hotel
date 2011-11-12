@@ -32,6 +32,7 @@ struct tlWorker {
 
     tlVm* vm;
     tlTask* current;
+    tlFrame* top; // when reifying the stack, this keeps the top of stack
 
     tlWorkerDeferCb defer_cb;
     void* defer_data;
@@ -112,21 +113,22 @@ void assert_backtrace(tlFrame* frame) {
 // TODO task->value as intermediate frame is a kludge
 INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     assert(_frame);
-    assert(task->value);
+    assert(task->worker);
     tlFrame* frame = tlFrameAs(_frame);
-    trace("> %p.caller = %p", task->value, frame);
-    tlFrameAs(task->value)->caller = frame;
-    task->value = frame;
-    if_debug(assert_backtrace(task->frame));
+    trace("> %p.caller = %p", task->frame, frame);
+    task->frame->caller = frame;
+    task->frame = frame;
+    if_debug(assert_backtrace(task->worker->top));
     return null;
 }
 
 INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
+    assert(task->worker);
     tlFrame* frame = tlFrameAs(_frame);
     trace("    >>>> %p", frame);
     task->frame = frame;
-    task->value = frame;
-    if_debug(assert_backtrace(task->frame));
+    task->worker->top = frame;
+    if_debug(assert_backtrace(task->worker->top));
     return null;
 }
 
@@ -156,27 +158,33 @@ INTERNAL void tlTaskRun(tlTask* task) {
         while (frame && res) {
             trace("!!frame: %p - %s", frame, tl_str(res));
             if (frame->resumecb) res = frame->resumecb(task, frame, res, null);
+            if (!res) break;
             if (res == tlTaskNotRunning) return;
             if (res == tlTaskJumping) {
+                // may only jump from first resumecb after reifying stack ... can we assert that?
                 trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
                 frame = task->frame;
                 res = task->value;
-            } else {
-                trace(" << %p <<<< %p", frame->caller, frame);
-                frame = frame->caller;
+                continue;
             }
+            trace(" << %p <<<< %p", frame->caller, frame);
+            frame = frame->caller;
         }
         trace("!!out of frame && res");
 
         if (res) {
+            assert(!frame);
             tlTaskDone(task, res);
             return;
         }
         if (task->error) return;
         trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
+        assert(frame);
         assert(task->frame);
+        assert(task->worker->top);
         // attach c transient stack back to full stack
-        if (task->value && frame) tlFrameAs(task->value)->caller = frame;
+        task->frame->caller = frame->caller;
+        task->frame = task->worker->top;
         if_debug(assert_backtrace(task->frame));
     }
     trace("WAIT: %p %p", task, task->frame);
@@ -335,10 +343,14 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     return ntask;
 }
 
-INTERNAL tlValue _TaskYield(tlTask* task, tlArgs* args) {
+INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlTaskWait(task);
     tlTaskReady(task);
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    frame->resumecb = null;
+    return tlTaskNotRunning;
+}
+INTERNAL tlValue _TaskYield(tlTask* task, tlArgs* args) {
+    return tlTaskPause(task, tlFrameAlloc(task, resumeYield, sizeof(tlFrame)));
 }
 
 INTERNAL tlValue _TaskIsDone(tlTask* task, tlArgs* args) {

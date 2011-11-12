@@ -283,8 +283,10 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     trace("JUMPING: %p", caller);
     res = tlEval(task, tlcall_arg(call, 0));
     if (!res) {
+        // fixup the stack by skipping our frame
         tlTaskPauseAttach(task, caller);
-        return tlTaskJump(task, task->frame, tlNull);
+        // jump to top of stack
+        return tlTaskJump(task, task->worker->top, tlNull);
     }
     return tlTaskJump(task, caller, res);
 }
