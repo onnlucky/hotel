@@ -50,20 +50,20 @@ tlValue map_activate(tlMap* map) {
     int i = 0;
     int argc = 0;
     for (int i = 0;; i++) {
-        tlValue v = tlmap_value_iter(map, i);
+        tlValue v = tlMapValueIter(map, i);
         if (!v) break;
         if (tlActiveIs(v) || tlcall_is(v)) argc++;
     }
     if (!argc) return map;
     tlCall* call = tlcall_new(null, argc + 1, null);
-    tlcall_fn_set_(call, tl_active(tlSYM("_map_clone")));
+    tlcall_fn_set_(call, tl_active(tlSYM("_Map_clone")));
     tlcall_arg_set_(call, 0, map);
     argc = 1;
     for (int i = 0;; i++) {
-        tlValue v = tlmap_value_iter(map, i);
+        tlValue v = tlMapValueIter(map, i);
         if (!v) break;
         if (tlActiveIs(v) || tlcall_is(v)) {
-            tlmap_value_iter_set_(map, i, null);
+            tlMapValueIterSet_(map, i, null);
             tlcall_arg_set_(call, argc++, v);
         }
     }
@@ -78,7 +78,7 @@ tlValue list_activate(tlList* list) {
     }
     if (!argc) return list;
     tlCall* call = tlcall_new(null, argc + 1, null);
-    tlcall_fn_set_(call, tl_active(tlSYM("_list_clone")));
+    tlcall_fn_set_(call, tl_active(tlSYM("_List_clone")));
     tlcall_arg_set_(call, 0, list);
     argc = 1;
     for (int i = 0; i < size; i++) {
@@ -366,10 +366,10 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlcall_from(TASK, tl_active(tlSYM("po
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
-       | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlmap_from_pairs(TASK, L(is)))); }
-   map = "["__ is:items __"]"  { $$ = map_activate(tlmap_from_pairs(TASK, L(is))); }
-       | "["__":"__"]"         { $$ = map_activate(tlmap_empty()); }
+object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs(TASK, L(is)))); }
+       | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlMapFromPairs(TASK, L(is)))); }
+   map = "["__ is:items __"]"  { $$ = map_activate(tlMapFromPairs(TASK, L(is))); }
+       | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
  items = i:item eom is:items   { $$ = tlListPrepend(TASK, L(is), i); }
        | i:item                { $$ = tlListFrom1(TASK, i) }
   item = n:name _":"__ v:expr  { $$ = tlListFrom2(TASK, n, v); }

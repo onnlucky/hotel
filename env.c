@@ -65,7 +65,7 @@ tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key) {
     trace("%p.get %s", env, tl_str(key));
 
     if (env->map) {
-        tlValue v = tlmap_get_sym(env->map, key);
+        tlValue v = tlMapGetSym(env->map, key);
         if (v) return v;
     }
     return tlenv_get(task, env->parent, key);
@@ -78,12 +78,12 @@ tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v) {
     if (tlflag_isset(env, TL_FLAG_CLOSED)) {
         env = tlenv_copy(task, env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
-    } else if (tlmap_get_sym(env->map, key)) {
+    } else if (tlMapGetSym(env->map, key)) {
         env = tlenv_copy(task, env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     }
 
-    env->map = tlmap_set(task, env->map, key, v);
+    env->map = tlMapSet(task, env->map, key, v);
     return env;
 }
 

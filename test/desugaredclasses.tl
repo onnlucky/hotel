@@ -12,13 +12,13 @@ Square = class {x, y, @width, @height ->
 Point = {
     call: (x, y -> { x: x, y: y, class: this.class })
     class: {
-        move: dx, dy -> _map_update(this, { x: this.x + dx, y: this.y + dy })
+        move: dx, dy -> _Map_update(this, { x: this.x + dx, y: this.y + dy })
     }
 }
 Square = {
     call: ( x, y, width, height ->
         _1 = Point(x, y)
-        _map_inherit({width: width, height: height, class: this.class}, (_1))
+        _Map_inherit({width: width, height: height, class: this.class}, (_1))
     )
     class: {
         area: -> this.width * this.height

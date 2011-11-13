@@ -413,19 +413,19 @@ static tlValue _Path_stat(tlTask* task, tlArgs* args) {
     int r = stat(tlTextData(name), &buf);
     if (r == -1) TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
 
-    tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap), tlmap_size(_statMap));
-    tlmap_set_sym_(res, _s_dev, tlINT(buf.st_dev));
-    tlmap_set_sym_(res, _s_ino, tlINT(buf.st_ino));
-    tlmap_set_sym_(res, _s_mode, tlINT(buf.st_mode));
-    tlmap_set_sym_(res, _s_nlink, tlINT(buf.st_nlink));
-    tlmap_set_sym_(res, _s_uid, tlINT(buf.st_uid));
-    tlmap_set_sym_(res, _s_gid, tlINT(buf.st_gid));
-    tlmap_set_sym_(res, _s_rdev, tlINT(buf.st_rdev));
-    tlmap_set_sym_(res, _s_size, tlINT(buf.st_size));
-    tlmap_set_sym_(res, _s_blksize, tlINT(buf.st_blksize));
-    tlmap_set_sym_(res, _s_blocks, tlINT(buf.st_blocks));
-    tlmap_set_sym_(res, _s_atime, tlINT(buf.st_atime));
-    tlmap_set_sym_(res, _s_mtime, tlINT(buf.st_mtime));
+    tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap), tlMapSize(_statMap));
+    tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
+    tlMapSetSym_(res, _s_ino, tlINT(buf.st_ino));
+    tlMapSetSym_(res, _s_mode, tlINT(buf.st_mode));
+    tlMapSetSym_(res, _s_nlink, tlINT(buf.st_nlink));
+    tlMapSetSym_(res, _s_uid, tlINT(buf.st_uid));
+    tlMapSetSym_(res, _s_gid, tlINT(buf.st_gid));
+    tlMapSetSym_(res, _s_rdev, tlINT(buf.st_rdev));
+    tlMapSetSym_(res, _s_size, tlINT(buf.st_size));
+    tlMapSetSym_(res, _s_blksize, tlINT(buf.st_blksize));
+    tlMapSetSym_(res, _s_blocks, tlINT(buf.st_blocks));
+    tlMapSetSym_(res, _s_atime, tlINT(buf.st_atime));
+    tlMapSetSym_(res, _s_mtime, tlINT(buf.st_mtime));
     return res;
 }
 
@@ -756,7 +756,7 @@ void evio_init() {
     tlSetAdd_(keys, _s_atime);
     tlSetAdd_(keys, _s_mtime);
 
-    _statMap = tlmap_new(null, keys);
+    _statMap = tlMapNew(null, keys);
     tlMapToObject_(_statMap);
 
     ev_default_loop(0);

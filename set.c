@@ -5,7 +5,7 @@ struct tlSet {
     tlValue data[];
 };
 
-static tlSet* v_set_empty;
+static tlSet* _tl_set_empty;
 
 int tlSetSize(tlSet* set) {
     assert(tlSetIs(set));
@@ -35,7 +35,7 @@ tlSet* tlSetCopy(tlTask* task, tlSet* set, int size) {
     int osize = tlSetSize(set);
     if (size == -1) size = osize;
 
-    if (size == 0) return v_set_empty;
+    if (size == 0) return _tl_set_empty;
 
     tlSet* nset = tlSetNew(task, size);
 
@@ -103,6 +103,6 @@ static tlClass _tlSetClass = {
 tlClass* tlSetClass = &_tlSetClass;
 
 static void set_init() {
-    v_set_empty = tlSetNew(null, 0);
+    _tl_set_empty = tlSetNew(null, 0);
 }
 

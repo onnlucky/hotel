@@ -2,23 +2,29 @@
 
 #include "trace-off.h"
 
-static tlSym s_continuation;
-static tlSym s_args;
 
 static tlSym s_text;
 static tlSym s_block;
 
+static tlSym s_this;
+static tlSym s_args;
+static tlSym s_continuation;
 static tlSym s_return;
 static tlSym s_goto;
 static tlSym s_continue;
 static tlSym s_break;
 
-static tlSym s_this;
 static tlSym s_call;
 static tlSym s_send;
 static tlSym s_op;
 
 static tlSym s_class;
+
+static tlSym s_Text_cat;
+static tlSym s_List_clone;
+static tlSym s_Map_clone;
+static tlSym s_Map_update;
+static tlSym s_Map_inherit;
 
 static LHashMap *symbols = 0;
 static LHashMap *globals = 0;
@@ -167,6 +173,12 @@ static void sym_init() {
     s_send   = tlSYM("send");
     s_op     = tlSYM("op");
     s_class  = tlSYM("class");
+
+    s_Text_cat = tlSYM("_Text_cat");
+    s_List_clone = tlSYM("_List_clone");
+    s_Map_clone = tlSYM("_Map_clone");
+    s_Map_update = tlSYM("_Map_update");
+    s_Map_inherit = tlSYM("_Map_inherit");
 
     globals = lhashmap_new(strequals, strhash, strfree);
 }

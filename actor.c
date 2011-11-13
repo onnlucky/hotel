@@ -102,7 +102,7 @@ INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
         res = actor->head.klass->act(task, args);
     } else {
         assert(actor->head.klass->map);
-        res = tlmap_get(task, actor->head.klass->map, msg);
+        res = tlMapGet(task, actor->head.klass->map, msg);
         if (tlCallableIs(res)) {
             res = tlEvalArgsFn(task, args, res);
         }

@@ -1,6 +1,6 @@
 # TODO
 
-add num.c and give numbers a tlClass
+make parser use s_Map_clone etc ... instead of tlSYM("_Map_clone") ...
 
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code

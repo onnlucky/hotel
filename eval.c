@@ -515,14 +515,14 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
         tlSym name = tlcall_arg_name(call, at);
         tlValue d = tlNull;
         if (name) {
-            if (defaults) d = tlmap_get_sym(defaults, name);
+            if (defaults) d = tlMapGetSym(defaults, name);
         } else {
             while (true) {
                 if (!names) break;
                 tlSym fnname = tlListGet(names, at - named + skipped);
                 if (!fnname) break;
                 if (!tlcall_names_contains(call, fnname)) {
-                    if (defaults) d = tlmap_get_sym(defaults, fnname);
+                    if (defaults) d = tlMapGetSym(defaults, fnname);
                     break;
                 }
                 skipped++;
@@ -597,7 +597,7 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
                 v = tlArgsAt(args, first); first++;
             }
             if (!v && defaults) {
-                v = tlmap_get_sym(defaults, name);
+                v = tlMapGetSym(defaults, name);
                 if (tlthunk_is(v) || v == tlThunkNull) {
                     v = tlthunk_new(task, tlNull);
                 } else if (tlcall_is(v)) {
@@ -631,7 +631,7 @@ INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     if (tlclosure_is(fn)) return evalCode(task, args, tlclosure_as(fn));
     if (tlHostFnIs(fn)) return tlHostFnAs(fn)->hostcb(task, args);
     if (tlValueObjectIs(fn)) {
-        tlValue call = tlmap_get_sym(fn, s_call);
+        tlValue call = tlMapGetSym(fn, s_call);
         if (call) {
             trace("%s", tl_str(call));
             if (!tlCallableIs(call)) return call;
@@ -768,7 +768,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     tlClass* klass = tl_class(fn);
     tlArgs* args = null;
     if (tlValueObjectIs(fn)) {
-        tlValue field = tlmap_get_sym(fn, s_call);
+        tlValue field = tlMapGetSym(fn, s_call);
         if (field) {
             trace("invoking object.call");
             args = evalCall(task, call);
@@ -779,7 +779,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
         trace("call in class: %p %p %p", klass, klass->call, klass->map);
         if (klass->call) return klass->call(task, call);
         if (klass->map) {
-            tlValue field = tlmap_get_sym(klass->map, s_call);
+            tlValue field = tlMapGetSym(klass->map, s_call);
             if (field) {
                 trace("invoking object.call");
                 args = evalCall(task, call);
@@ -863,11 +863,11 @@ bool tlcallable_is(tlValue v) {
 }
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
-    if (tlValueObjectIs(v) && tlmap_get_sym(v, s_call)) return true;
+    if (tlValueObjectIs(v) && tlMapGetSym(v, s_call)) return true;
     tlClass* klass = tl_class(v);
     if (!klass) return tlcallable_is(v);
     if (klass->call) return true;
-    if (klass->map && tlmap_get_sym(klass->map, s_call)) return true;
+    if (klass->map && tlMapGetSym(klass->map, s_call)) return true;
     return false;
 }
 INTERNAL tlValue _callable_is(tlTask* task, tlArgs* args) {
@@ -893,7 +893,7 @@ INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
     assert(tlArgsAt(oldargs, 1)); // msg
 
     tlMap* map = tlArgsMap(oldargs);
-    map = tlmap_set(task, map, s_this, oop);
+    map = tlMapSet(task, map, s_this, oop);
     int size = tlArgsSize(oldargs) - 2;
 
     tlList* list = tlListNew(task, size);
@@ -921,7 +921,7 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     assert(klass);
     if (klass->send) return klass->send(task, nargs);
     if (klass->map) {
-        tlValue field = tlmap_get(task, klass->map, msg);
+        tlValue field = tlMapGet(task, klass->map, msg);
         if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
         if (!tlCallableIs(field)) return field;
         nargs->fn = field;
@@ -940,10 +940,10 @@ static const tlHostCbs __eval_hostcbs[] = {
     { "_object_send", _object_send },
     //{ "_new_object", _new_object },
     { "_Text_cat", _Text_cat },
-    { "_list_clone", _list_clone },
-    { "_map_clone", _map_clone },
-    { "_map_update", _map_update },
-    { "_map_inherit", _map_inherit },
+    { "_List_clone", _List_clone },
+    { "_Map_clone", _Map_clone },
+    { "_Map_update", _Map_update },
+    { "_Map_inherit", _Map_inherit },
     { 0, 0 }
 };
 

@@ -17,10 +17,10 @@ struct tlArgs {
 static tlArgs* v_args_empty;
 
 tlArgs* tlArgsNewNames(tlTask* task, int size, tlSet* names) {
-    if (!names) names = v_set_empty;
+    if (!names) names = _tl_set_empty;
     tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
     args->list = tlListNew(task, size - tlSetSize(names));
-    args->map = tlmap_new(task, names);
+    args->map = tlMapNew(task, names);
     return args;
 }
 
@@ -42,7 +42,7 @@ int tlArgsSize(tlArgs* args) {
 }
 int tlArgsMapSize(tlArgs* args) {
     assert(tlArgsIs(args));
-    return tlmap_size(args->map);
+    return tlMapSize(args->map);
 }
 tlValue tlArgsFn(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -62,7 +62,7 @@ tlValue tlArgsAt(tlArgs* args, int at) {
 }
 tlValue tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
-    return tlmap_get_sym(args->map, name);
+    return tlMapGetSym(args->map, name);
 }
 
 void tlArgsSetFn_(tlArgs* args, tlValue fn) {
@@ -76,7 +76,7 @@ void tlArgsSetAt_(tlArgs* args, int at, tlValue v) {
 }
 void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
     assert(tlArgsIs(args));
-    tlmap_set_sym_(args->map, name, v);
+    tlMapSetSym_(args->map, name, v);
 }
 
 static tlValue _ArgsSize(tlTask* task, tlArgs* args) {

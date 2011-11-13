@@ -220,7 +220,7 @@ tlList* tlListSlice(tlTask* task, tlList* list, int begin, int end) {
 }
 
 // called when list literals contain lookups or expressions to evaluate
-static tlValue _list_clone(tlTask* task, tlArgs* args) {
+static tlValue _List_clone(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tlListSize(list);

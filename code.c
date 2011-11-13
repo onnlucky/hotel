@@ -47,7 +47,7 @@ void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args) {
     // output: name*, {name->default}
 
     int size = tlListSize(args);
-    tlMap* defaults = tlmap_from_pairs(task, args);
+    tlMap* defaults = tlMapFromPairs(task, args);
 
     tlList* names = tlListNew(task, size);
     for (int i = 0; i < size; i++) {

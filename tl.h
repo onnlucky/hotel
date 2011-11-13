@@ -316,32 +316,34 @@ tlList* tlListSplice(tlTask* task, tlList* list, int first, int size);
 
 void tlListSet_(tlList* list, int at, tlValue v);
 
+
 // ** map **
-int tlmap_size(tlMap* map);
-int tlmap_isempty(tlMap* map);
-tlValue tlmap_get_int(tlMap* map, int key);
-tlValue tlmap_get_sym(tlMap* map, tlSym key);
-tlValue tlmap_value_iter(tlMap* map, int i);
-tlValue tlmap_key_iter(tlMap* map, int i);
-void tlmap_value_iter_set_(tlMap* map, int i, tlValue v);
-void tlmap_set_int_(tlMap* map, int key, tlValue v);
-void tlmap_set_sym_(tlMap* map, tlSym key, tlValue v);
+int tlMapSize(tlMap* map);
+int tlMapIsEmpty(tlMap* map);
+tlValue tlMapGetInt(tlMap* map, int key);
+tlValue tlMapGetSym(tlMap* map, tlSym key);
+tlValue tlMapValueIter(tlMap* map, int i);
+tlValue tlMapKeyIter(tlMap* map, int i);
 
-tlMap* tlmap_empty();
-tlMap* tlmap_new(tlTask* task, tlSet* keys);
-tlMap* tlmap_copy(tlTask* task, tlMap* map);
-tlMap* tlmap_from1(tlTask* task, tlValue key, tlValue v);
-tlMap* tlmap_from(tlTask* task, ... /*tlValue, tlValue*/);
-tlMap* tlmap_from_many(tlTask* task, tlValue vs[], int len /*multiple of 2*/);
-tlMap* tlmap_from_list(tlTask* task, tlList* ls);
-tlMap* tlmap_from_pairs(tlTask* task, tlList* ls);
-
-tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key);
-tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v);
-tlMap* tlmap_del(tlTask* task, tlMap* map, tlValue key);
-tlMap* tlmap_join(tlTask* task, tlMap* lhs, tlMap* rhs);
-
+void tlMapValueIterSet_(tlMap* map, int i, tlValue v);
+void tlMapSetInt_(tlMap* map, int key, tlValue v);
+void tlMapSetSym_(tlMap* map, tlSym key, tlValue v);
 tlMap* tlMapToObject_(tlMap* map);
+
+tlMap* tlMapEmpty();
+tlMap* tlMapNew(tlTask* task, tlSet* keys);
+tlMap* tlMapCopy(tlTask* task, tlMap* map);
+tlMap* tlMapFrom1(tlTask* task, tlValue key, tlValue v);
+tlMap* tlMapFrom(tlTask* task, ... /*tlValue, tlValue*/);
+tlMap* tlMapFromMany(tlTask* task, tlValue vs[], int len /*multiple of 2*/);
+tlMap* tlMapFromList(tlTask* task, tlList* ls);
+tlMap* tlMapFromPairs(tlTask* task, tlList* ls);
+
+tlValue tlMapGet(tlTask* task, tlMap* map, tlValue key);
+tlMap* tlMapSet(tlTask* task, tlMap* map, tlValue key, tlValue v);
+tlMap* tlMapDel(tlTask* task, tlMap* map, tlValue key);
+tlMap* tlMapJoin(tlTask* task, tlMap* lhs, tlMap* rhs);
+
 
 // ** code **
 tlCode* tlcode_from(tlTask* task, tlList* stms);
