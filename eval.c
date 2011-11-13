@@ -363,8 +363,8 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
     for (;; i++) {
         tlValue v = tlcall_value_iter(call, i);
         if (!v) break;
-        if (tlactive_is(v)) {
-            v = run_activate(task, tlvalue_from_active(v), env);
+        if (tlActiveIs(v)) {
+            v = run_activate(task, tl_value(v), env);
             if (!v) {
                 if (!frame) {
                     frame = tlFrameAlloc(task, resumeActivateCall, sizeof(ActivateCallFrame));
@@ -412,7 +412,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
 
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
     trace("%s", tl_str(v));
-    if (tlsym_is(v)) {
+    if (tlSymIs(v)) {
         tlenv_close_captures(env);
         return lookup(task, env, v);
     }
@@ -591,7 +591,7 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
         int first = 0;
         int size = tlListSize(names);
         for (int i = 0; i < size; i++) {
-            tlSym name = tlsym_as(tlListGet(names, i));
+            tlSym name = tlSymAs(tlListGet(names, i));
             tlValue v = tlArgsMapGet(args, name);
             if (!v) {
                 v = tlArgsAt(args, first); first++;
@@ -675,13 +675,13 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
         trace("%p pc=%d, op=%s", frame, pc, tl_str(op));
 
         // a value marked as active
-        if (tlactive_is(op)) {
-            trace2("%p op: active -- %s", frame, tl_str(tlvalue_from_active(op)));
+        if (tlActiveIs(op)) {
+            trace2("%p op: active -- %s", frame, tl_str(tl_value(op)));
 
             frame->env = env;
             frame->pc = pc + 1;
 
-            tlValue v = run_activate(task, tlvalue_from_active(op), env);
+            tlValue v = run_activate(task, tl_value(op), env);
             if (!v) return tlTaskPauseAttach(task, frame);
 
             if (tlcall_is(v)) {
@@ -697,11 +697,11 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
         }
 
         // just a symbol means setting the current value under this name in env
-        if (tlsym_is(op)) {
+        if (tlSymIs(op)) {
             tlValue v = tlresult_get(task->value, 0);
             trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
             if (!tlclosure_is(v)) tlenv_close_captures(env);
-            env = tlenv_set(task, env, tlsym_as(op), v);
+            env = tlenv_set(task, env, tlSymAs(op), v);
             // this is good enough: every lookup will also close the environment
             // and the only way we got a closure is by lookup or binding ...
             continue;
@@ -712,7 +712,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
             tlCollect* names = tlcollect_as(op);
             trace2("%p op: collect -- %d -- %s", frame, names->head.size, tl_str(task->value));
             for (int i = 0; i < names->head.size; i++) {
-                tlSym name = tlsym_as(names->data[i]);
+                tlSym name = tlSymAs(names->data[i]);
                 tlValue v = tlresult_get(task->value, i);
                 trace2("%p op: collect: %s = %s", frame, tl_str(name), tl_str(v));
                 env = tlenv_set(task, env, name, v);
@@ -756,7 +756,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     for (int i = 0;; i++) {
         tlValue v = tlcall_value_iter(call, i);
         if (!v) { assert(i >= tlcall_argc(call)); break; }
-        assert(!tlactive_is(v));
+        assert(!tlActiveIs(v));
     }
 
     tlValue fn = tlcall_fn(call);
@@ -765,7 +765,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
         TL_THROW("unable to call: %s", tl_str(fn));
     }
 
-    tlClass* klass = tlClassGet(fn);
+    tlClass* klass = tl_class(fn);
     tlArgs* args = null;
     if (tlValueObjectIs(fn)) {
         tlValue field = tlmap_get_sym(fn, s_call);
@@ -857,7 +857,7 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
     if (tlValueObjectIs(v) && tlmap_get_sym(v, s_call)) return true;
-    tlClass* klass = tlClassGet(v);
+    tlClass* klass = tl_class(v);
     if (!klass) return tlcallable_is(v);
     if (klass->call) return true;
     if (klass->map && tlmap_get_sym(klass->map, s_call)) return true;
@@ -918,7 +918,7 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     nargs->list = tlListSlice(task, args->list, 2, tlListSize(args->list));
     nargs->map = args->map;
 
-    tlClass* klass = tlClassGet(target);
+    tlClass* klass = tl_class(target);
     assert(klass);
     if (klass->send) return klass->send(task, nargs);
     if (klass->map) {

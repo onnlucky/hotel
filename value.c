@@ -1,5 +1,7 @@
 // this is how all tl values look in memory
 
+#include "code.h"
+
 static tlClass _tlIntClass;
 tlClass* tlIntClass = &_tlIntClass;
 
@@ -13,13 +15,13 @@ int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull |
 
 tlValue tlINT(int i) { return (tlValue)((intptr_t)i << 2 | 1); }
 int tl_int(tlValue v) {
-    assert(tlint_is(v));
+    assert(tlIntIs(v));
     int i = (intptr_t)v;
     if (i < 0) return (i >> 2) | 0xC0000000;
     return i >> 2;
 }
 int tl_int_or(tlValue v, int d) {
-    if (!tlint_is(v)) return d;
+    if (!tlIntIs(v)) return d;
     return tl_int(v);
 }
 
@@ -46,7 +48,7 @@ void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc) {
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
     head->size = fieldc;
-    head->klass = tlClassGet(v);
+    head->klass = tl_class(v);
     head->keep = 1;
     memcpy((void*)head + sizeof(tlHead), v + sizeof(tlHead), bytes + fieldc*sizeof(tlValue) - sizeof(tlHead));
     return (void*)head;
@@ -106,7 +108,7 @@ tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields, int
     return (tlValue)head;
 }
 tlValue tltask_clone(tlTask* task, tlValue v) {
-    tlData* from = tldata_as(v);
+    tlData* from = (tlData*)v;
     size_t bytes = sizeof(tlHead) + sizeof(tlValue) * from->head.size;
     int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
     assert(size < 0xFFFF);
@@ -136,9 +138,9 @@ const char* tl_str(tlValue v) {
     _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
     _str_buf = _str_bufs[_str_buf_at];
 
-    if (tlactive_is(v)) v = tlvalue_from_active(v);
+    if (tlActiveIs(v)) v = tl_value(v);
 
-    tlClass* klass = tlClassGet(v);
+    tlClass* klass = tl_class(v);
     if (klass) {
         tlToTextFn fn = klass->toText;
         if (fn) return fn(v, _str_buf, _BUF_SIZE);

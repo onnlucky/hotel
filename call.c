@@ -130,7 +130,7 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
     for (int i = 0; i < size; i += 2) {
         tlValue name = tlListGet(args, i);
         if (!name || name == tlNull) continue;
-        assert(tlsym_is(tlListGet(args, i)));
+        assert(tlSymIs(tlListGet(args, i)));
         namecount++;
     }
     if (namecount > 0) {
@@ -163,7 +163,7 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
 // TODO share code here ... almost same as above
 tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
     assert(fn);
-    assert(tlsym_is(msg));
+    assert(tlSymIs(msg));
     int size = tlListSize(args);
     int namecount = 0;
 
@@ -172,7 +172,7 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
     for (int i = 0; i < size; i += 2) {
         tlValue name = tlListGet(args, i);
         if (!name || name == tlNull) continue;
-        assert(tlsym_is(tlListGet(args, i)));
+        assert(tlSymIs(tlListGet(args, i)));
         namecount++;
     }
     if (namecount > 0) {

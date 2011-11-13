@@ -1,5 +1,9 @@
 #pragma once
 
+bool tlActiveIs(tlValue v);
+tlValue tl_active(tlValue value);
+tlValue tl_value(tlValue active);
+
 bool tlcode_is(tlValue v);
 tlCode* tlcode_as(tlValue v);
 tlCode* tlcode_cast(tlValue v);

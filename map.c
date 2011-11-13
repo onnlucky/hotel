@@ -104,14 +104,14 @@ tlMap* tlmap_from_pairs(tlTask* task, tlList* pairs) {
     tlSet* keys = tlset_new(task, size);
     for (int i = 0; i < size; i++) {
         tlList* pair = tlListAs(tlListGet(pairs, i));
-        tlSym name = tlsym_as(tlListGet(pair, 0));
+        tlSym name = tlSymAs(tlListGet(pair, 0));
         tlset_add_(keys, name);
     }
 
     tlMap* map = tlmap_new(task, keys);
     for (int i = 0; i < size; i++) {
         tlList* pair = tlListAs(tlListGet(pairs, i));
-        tlSym name = tlsym_as(tlListGet(pair, 0));
+        tlSym name = tlSymAs(tlListGet(pair, 0));
         tlValue v = tlListGet(pair, 1);
         tlmap_set_sym_(map, name, v);
     }

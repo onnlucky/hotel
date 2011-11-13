@@ -29,27 +29,27 @@ static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
 static tlClass _tlSymClass;
 tlClass* tlSymClass = &_tlSymClass;
 
-bool tlactive_is(tlValue v) { return !tlint_is(v) && (((intptr_t)v) & 7) >= 4; }
-tlValue tlvalue_from_active(tlValue a) {
-    assert(tlactive_is(a));
+bool tlActiveIs(tlValue v) { return !tlIntIs(v) && (((intptr_t)v) & 7) >= 4; }
+tlValue tl_value(tlValue a) {
+    assert(tlActiveIs(a));
     tlValue v = (tlValue)((intptr_t)a & ~4);
-    assert(!tlactive_is(v));
-    assert(tlRefIs(v) || tlsym_is(v));
+    assert(!tlActiveIs(v));
+    assert(tlRefIs(v) || tlSymIs(v));
     return v;
 }
-tlValue tlactive_from_value(tlValue v) {
-    assert(tlRefIs(v) || tlsym_is(v));
-    assert(!tlactive_is(v));
+tlValue tl_active(tlValue v) {
+    assert(tlRefIs(v) || tlSymIs(v));
+    assert(!tlActiveIs(v));
     tlValue a = (tlValue)((intptr_t)v | 4);
-    assert(tlactive_is(a));
+    assert(tlActiveIs(a));
     return a;
 }
 tlValue tlACTIVE(tlValue v) {
-    return tlactive_from_value(v);
+    return tl_active(v);
 }
 
 tlText* tltext_from_sym(tlSym sym) {
-    assert(tlsym_is(sym));
+    assert(tlSymIs(sym));
     return _TEXT_FROM_SYM(sym);
 }
 
@@ -102,7 +102,7 @@ void tl_register_hostcbs(const tlHostCbs* cbs) {
 }
 
 static tlValue tl_global(tlSym sym) {
-    assert(tlsym_is(sym));
+    assert(tlSymIs(sym));
     assert(globals);
     return lhashmap_get(globals, tlTextData(_TEXT_FROM_SYM(sym)));
 }

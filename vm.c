@@ -126,8 +126,8 @@ void tl_init() {
 
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
-    assert(!tlsym_is(tlFalse));
-    assert(!tlsym_is(tlTrue));
+    assert(!tlSymIs(tlFalse));
+    assert(!tlSymIs(tlTrue));
     //assert(tl_class(tlTrue) == tlBoolClass);
     //assert(tl_class(tlFalse) == tlBoolClass);
     assert(!tlArgsIs(0));

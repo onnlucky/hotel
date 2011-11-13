@@ -52,7 +52,7 @@ void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args) {
     tlList* names = tlListNew(task, size);
     for (int i = 0; i < size; i++) {
         tlList* entry = tlListAs(tlListGet(args, i));
-        tlSym name = tlsym_as(tlListGet(entry, 0));
+        tlSym name = tlSymAs(tlListGet(entry, 0));
         tlListSet_(names, i, name);
     }
     code->argnames = names;
@@ -94,9 +94,9 @@ void debugcode(tlCode* code) {
     print("argdefaults: %p", code->argdefaults);
     for (int i = 0; i < code->head.size - 4; i++) {
         tlValue op = code->ops[i];
-        print("%3d: %s%s", i, tlactive_is(op)?"!":"", tl_str(op));
-        if (tlactive_is(op)) {
-            op = tlvalue_from_active(op);
+        print("%3d: %s%s", i, tlActiveIs(op)?"!":"", tl_str(op));
+        if (tlActiveIs(op)) {
+            op = tl_value(op);
             if (tlcall_is(op)) {
                 debugcall(0, tlcall_as(op));
             }

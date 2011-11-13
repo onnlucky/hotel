@@ -24,7 +24,7 @@ INTERNAL tlValue tlActorReceive(tlTask* task, tlArgs* args);
 INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args);
 
 INTERNAL bool tlActorIs(tlValue v) {
-    return tlClassGet(v)->send == tlActorReceive;
+    return tl_class(v)->send == tlActorReceive;
 }
 INTERNAL tlActor* tlActorAs(tlValue v) {
     assert(tlActorIs(v)); return (tlActor*)v;
@@ -91,7 +91,7 @@ tlValue tlActorReceive(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
     trace("");
     tlActor* actor = tlActorAs(args->target);
-    tlSym msg = tlsym_cast(args->msg);
+    tlSym msg = tlSymCast(args->msg);
     assert(actor);
     assert(msg);
     assert(actor->owner == task);

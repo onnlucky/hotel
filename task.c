@@ -478,7 +478,7 @@ INTERNAL tlValue _message_get(tlTask* task, tlArgs* args) {
     if (!msg) TL_THROW("expected a Message");
     tlValue key = tlArgsAt(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));
-    if (tlint_is(key)) return tlArgsAt(msg->args, tl_int(key));
+    if (tlIntIs(key)) return tlArgsAt(msg->args, tl_int(key));
     return tlArgsMapGet(msg->args, key);
 }
 

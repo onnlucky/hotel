@@ -4,6 +4,7 @@
 *.la
 *.so
 *.dylib
+*.dSYM
 
 parser.c
 tl
