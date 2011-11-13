@@ -32,17 +32,15 @@ tlClass* tlSymClass = &_tlSymClass;
 bool tlactive_is(tlValue v) { return !tlint_is(v) && (((intptr_t)v) & 7) >= 4; }
 tlValue tlvalue_from_active(tlValue a) {
     assert(tlactive_is(a));
-    //assert(tlref_is(a) || tlsym_is(a));
     tlValue v = (tlValue)((intptr_t)a & ~4);
     assert(!tlactive_is(v));
-    assert(tlref_is(v) || tlsym_is(v));
+    assert(tlRefIs(v) || tlsym_is(v));
     return v;
 }
 tlValue tlactive_from_value(tlValue v) {
-    assert(tlref_is(v) || tlsym_is(v));
+    assert(tlRefIs(v) || tlsym_is(v));
     assert(!tlactive_is(v));
     tlValue a = (tlValue)((intptr_t)v | 4);
-    //assert(tlref_is(a) || tlsym_is(a));
     assert(tlactive_is(a));
     return a;
 }

@@ -128,8 +128,8 @@ void tl_init() {
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
     assert(!tlsym_is(tlFalse));
     assert(!tlsym_is(tlTrue));
-    assert(tl_type(tlTrue) == TLBool);
-    assert(tl_type(tlFalse) == TLBool);
+    //assert(tl_class(tlTrue) == tlBoolClass);
+    //assert(tl_class(tlFalse) == tlBoolClass);
     assert(!tlArgsIs(0));
     assert(tlArgsAs(0) == 0);
 

@@ -7,67 +7,6 @@ INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags 
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
-uint8_t tl_type(tlValue v) {
-    intptr_t i = (intptr_t)v;
-    if (!v) return TLInvalid;
-    if (tlint_is(v)) return TLInt;
-    if (tlsym_is(v)) return TLSym;
-    if (i < 1024) {
-        switch (i) {
-            case (1 << 3)|2: return TLUndefined;
-            case (2 << 3)|2: return TLNull;
-            case (3 << 3)|2: return TLBool;
-            case (4 << 3)|2: return TLBool;
-            default: return TLInvalid;
-        }
-    }
-    if (tlref_is(v)) {
-        uint8_t t = tl_head(v)->type;
-        assert(t > 0 || t <= TLInt);
-        return t;
-    }
-    return TLInvalid;
-}
-
-const char* const type_to_str[] = {
-    "invalid",
-    "undefined", "null", "bool", "sym", "int",
-
-    "<ERROR-TAGGED>",
-
-    "num", "float",
-    "text",
-
-    "list", "set", "map",
-    "call", "args", "msg",
-    "object",
-
-    "env",
-    "closure",
-    "thunk",
-    "lazy",
-
-    "code",
-    "thunk",
-    "result",
-    "collect",
-    "error",
-
-    "task",
-    "worker",
-    "vm",
-
-    "<ERROR-LAST>",
-
-    0, 0, 0, 0, 0, 0, 0, 0
-};
-
-const char* tl_type_str(tlValue v) {
-    int type = tl_type(v);
-    assert(type >= 0 && type < TL_TYPE_LAST);
-    return type_to_str[type];
-}
-
 // creating tagged values
 tlValue tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
 int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
@@ -206,27 +145,12 @@ const char* tl_str(tlValue v) {
         snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", klass->name, v);
         return _str_buf;
     }
-
-    switch (tl_type(v)) {
-    case TLText:
-        return tlTextData(tlTextAs(v));
-    case TLSym:
-        snprintf(_str_buf, _BUF_SIZE, "#%s", tlTextData(tltext_from_sym(v)));
-        return _str_buf;
-    case TLInt:
-        snprintf(_str_buf, _BUF_SIZE, "%d", tl_int(v));
-        return _str_buf;
-    case TLBool:
-        if (v == tlFalse) return "false";
-        if (v == tlTrue) return "true";
-    case TLNull:
-        if (v == tlNull) return "null";
-    case TLUndefined:
-        if (v == tlUndefined) return "undefined";
-        assert(false);
-    default:
-        return tl_type_str(v);
-    }
+    // TODO also remove ...
+    if (v == tlFalse) return "false";
+    if (v == tlTrue) return "true";
+    if (v == tlNull) return "null";
+    if (v == tlUndefined) return "undefined";
+    return "<!! old style value !!>";
 }
 
 static const char* _IntToText(tlValue v, char* buf, int size) {

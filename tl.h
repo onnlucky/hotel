@@ -9,7 +9,6 @@ typedef void* tlValue;
 typedef tlValue tlSym;
 typedef tlValue tlInt;
 
-// TOOD rename to tlType ...
 typedef struct tlClass tlClass;
 
 // common head of all ref values; values appear in memory at 8 byte alignments
@@ -133,10 +132,10 @@ enum {
 };
 typedef uint8_t tlType;
 
-static inline bool tlref_is(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
-static inline tlHead* tl_head(tlValue v) { assert(tlref_is(v)); return (tlHead*)v; }
+static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
+static inline tlHead* tl_head(tlValue v) { assert(tlRefIs(v)); return (tlHead*)v; }
 
-static inline bool tldata_is(tlValue v) { return tlref_is(v); }
+static inline bool tldata_is(tlValue v) { return tlRefIs(v); }
 static inline tlData* tldata_as(tlValue v) { assert(tldata_is(v) || !v); return (tlData*)v; }
 static inline tlData* tldata_cast(tlValue v) { return tldata_is(v)?(tlData*)v:null; }
 
@@ -159,12 +158,10 @@ static inline bool tlSymIs(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr
 static inline tlSym tlSymAs(tlValue v) { assert(tlSymIs(v)); return (tlSym)v; }
 static inline tlSym tlSymCast(tlValue v) { return tlSymIs(v)?tlSymAs(v):0; }
 
-static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
-
 #define TL_TYPE(SMALL, CAPS) \
 typedef struct tl##CAPS tl##CAPS; \
 static inline bool tl##SMALL##_is(tlValue v) { \
-    return tlref_is(v) && tl_head(v)->type == TL##CAPS; } \
+    return tlRefIs(v) && tl_head(v)->type == TL##CAPS; } \
 static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
     assert(tl##SMALL##_is(v) || !v); return (tl##CAPS*)v; } \
 static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \

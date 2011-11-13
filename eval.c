@@ -5,18 +5,6 @@
 
 #include "trace-on.h"
 
-tlValue TL_KEEP(tlValue v) {
-    if (!tlref_is(v)) return v;
-    assert(tl_head(v)->keep >= 1);
-    tl_head(v)->keep++;
-    return v;
-}
-void TL_FREE(tlValue v) {
-    if (!tlref_is(v)) return;
-    tl_head(v)->keep--;
-    if (tl_head(v)->keep == 0) free(v);
-}
-
 // various internal structures
 struct tlClosure {
     tlHead head;
@@ -867,7 +855,7 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 bool tlCallableIs(tlValue v) {
-    if (!tlref_is(v)) return false;
+    if (!tlRefIs(v)) return false;
     if (tlValueObjectIs(v) && tlmap_get_sym(v, s_call)) return true;
     tlClass* klass = tlClassGet(v);
     if (!klass) return tlcallable_is(v);
@@ -876,7 +864,7 @@ bool tlCallableIs(tlValue v) {
     return false;
 }
 bool tlcallable_is(tlValue v) {
-    if (!tlref_is(v)) return false;
+    if (!tlRefIs(v)) return false;
 
     switch(tl_head(v)->type) {
         case TLClosure: case TLHostFn: return true;
@@ -885,7 +873,7 @@ bool tlcallable_is(tlValue v) {
 }
 INTERNAL tlValue _callable_is(tlTask* task, tlArgs* args) {
     tlValue v = tlArgsAt(args, 0);
-    if (!tlref_is(v)) return tlFalse;
+    if (!tlRefIs(v)) return tlFalse;
 
     switch(tl_head(v)->type) {
         case TLClosure:

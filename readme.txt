@@ -15,6 +15,9 @@ on parse errors, throw it on the task, not fatal() out ...
 
 syntax change: do symbols using 'symbol
 
+work on a repl by allowing Env to be generic and thus mutable ...
+think about special inherited task local *Env* of sorts, for stdout, error modes, etc ... ? yes, for dynamically scoped stuff
+
 rework all "callables" as tlClass based, and use the class->call
 rework all types as the tlClass things ... stop using anything else
 remove old task_alloc and such
