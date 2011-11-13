@@ -11,6 +11,9 @@ typedef tlValue tlInt;
 
 typedef struct tlClass tlClass;
 
+// TODO how well defined is the struct memory layout we embed pretty deep sometimes
+// TODO rework now that we have classes ... but into what?
+// TODO we actually have 3 bits in the class pointer ... just incase
 // common head of all ref values; values appear in memory at 8 byte alignments
 // thus pointers to values have 3 lowest bits set to 000
 typedef struct tlHead {
@@ -21,6 +24,7 @@ typedef struct tlHead {
     tlClass* klass;
 } tlHead;
 
+// TODO remove ...
 // this is how all values look in memory
 typedef struct tlData {
     tlHead head;
@@ -28,8 +32,8 @@ typedef struct tlData {
 } tlData;
 
 
+// TODO remove and simplify ... any value can handle its own privately
 // various flags we use; cannot mix freely <GC(2)|USER|USER | PRIV|FREE|PRIVCOUNT(2)>
-
 // if HASFREE is set, privfield[1] is free function
 static const uint8_t TL_FLAG_HASFREE  = 0x08;
 static const uint8_t TL_FLAG_HASPRIV  = 0x04;
@@ -58,6 +62,8 @@ static const uint8_t TL_FLAG_2          = 0x20;
 static const tlValue tlZero = (tlHead*)((0 << 1)|1);
 static const tlValue tlOne =  (tlHead*)((1 << 1)|1);
 static const tlValue tlTwo =  (tlHead*)((2 << 1)|1);
+#define TL_MAX_INT32 ((int32_t)0x3FFFFFFF)
+#define TL_MIN_INT32 ((int32_t)0xBFFFFFFF)
 #ifdef M32
 static const tlValue tlIntMax = (tlHead*)(0x7FFFFFFF);
 static const tlValue tlIntMin = (tlHead*)(0xFFFFFFFF);
@@ -87,6 +93,9 @@ static const tlValue tlTaskJumping    = (tlHead*)((11 << 3)|2);
 static const tlValue tlThunkNull =    (tlHead*)((50 << 3)|2);
 static const tlValue tlCollectLazy =  (tlHead*)((51 << 3)|2);
 static const tlValue tlCollectEager = (tlHead*)((52 << 3)|2);
+
+// for the attentive reader, where does 100 tag come into play?
+// internally this is called an "active" value, which is used in the interpreter
 
 // a few defines
 #define TL_MAX_PRIV_SIZE 7
