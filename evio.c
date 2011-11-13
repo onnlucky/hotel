@@ -730,7 +730,7 @@ void evio_init() {
     tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
     tl_register_global("_File_CREAT",    tlINT(O_CREAT));
 
-    tlSet* keys = tlset_new(null, 12);
+    tlSet* keys = tlSetNew(null, 12);
     _s_dev = tlSYM("dev");
     _s_ino = tlSYM("ino");
     _s_mode = tlSYM("mode");
@@ -743,22 +743,21 @@ void evio_init() {
     _s_blocks = tlSYM("blocks");
     _s_atime = tlSYM("atime");
     _s_mtime = tlSYM("mtime");
-    tlset_add_(keys, _s_dev);
-    tlset_add_(keys, _s_ino);
-    tlset_add_(keys, _s_mode);
-    tlset_add_(keys, _s_nlink);
-    tlset_add_(keys, _s_uid);
-    tlset_add_(keys, _s_gid);
-    tlset_add_(keys, _s_rdev);
-    tlset_add_(keys, _s_size);
-    tlset_add_(keys, _s_blksize);
-    tlset_add_(keys, _s_blocks);
-    tlset_add_(keys, _s_atime);
-    tlset_add_(keys, _s_mtime);
+    tlSetAdd_(keys, _s_dev);
+    tlSetAdd_(keys, _s_ino);
+    tlSetAdd_(keys, _s_mode);
+    tlSetAdd_(keys, _s_nlink);
+    tlSetAdd_(keys, _s_uid);
+    tlSetAdd_(keys, _s_gid);
+    tlSetAdd_(keys, _s_rdev);
+    tlSetAdd_(keys, _s_size);
+    tlSetAdd_(keys, _s_blksize);
+    tlSetAdd_(keys, _s_blocks);
+    tlSetAdd_(keys, _s_atime);
+    tlSetAdd_(keys, _s_mtime);
 
     _statMap = tlmap_new(null, keys);
-    // TODO make this api somewhere?
-    _statMap->head.klass = tlValueObjectClass;
+    tlMapToObject_(_statMap);
 
     ev_default_loop(0);
 

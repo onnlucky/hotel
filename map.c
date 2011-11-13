@@ -23,9 +23,9 @@ tlMap* tlmap_empty() { return _tl_emptyMap; }
 
 tlMap* tlmap_new(tlTask* task, tlSet* keys) {
     if (!keys) keys = v_set_empty;
-    tlMap* map = tlAllocWithFields(task, tlMapClass, sizeof(tlMap), tlset_size(keys));
+    tlMap* map = tlAllocWithFields(task, tlMapClass, sizeof(tlMap), tlSetSize(keys));
     map->keys = keys;
-    assert(tlmap_size(map) == tlset_size(keys));
+    assert(tlmap_size(map) == tlSetSize(keys));
     return map;
 }
 tlMap* tlMapToObject_(tlMap* map) {
@@ -49,7 +49,7 @@ void tlmap_dump(tlMap* map) {
 
 tlValue tlmap_get(tlTask* task, tlMap* map, tlValue key) {
     assert(tlMapOrObjectIs(map));
-    int at = tlset_indexof(map->keys, key);
+    int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
     assert(at < tlmap_size(map));
     return map->data[at];
@@ -58,16 +58,16 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
     trace("set map: %s = %s", tl_str(key), tl_str(v));
 
     int at = 0;
-    at = tlset_indexof(map->keys, key);
+    at = tlSetIndexof(map->keys, key);
     if (at >= 0) {
         tlMap* nmap = tlAllocClone(task, map, sizeof(tlMap), map->head.size);
         nmap->data[at] = v;
         return nmap;
     }
 
-    int size = tlset_size(map->keys) + 1;
-    tlSet* keys = tlset_copy(task, map->keys, size);
-    at = tlset_add_(keys, key);
+    int size = tlSetSize(map->keys) + 1;
+    tlSet* keys = tlSetCopy(task, map->keys, size);
+    at = tlSetAdd_(keys, key);
 
     tlMap* nmap = tlmap_new(task, keys);
     int i;
@@ -83,7 +83,7 @@ tlMap* tlmap_set(tlTask* task, tlMap* map, tlValue key, tlValue v) {
 
 tlValue tlmap_get_sym(tlMap* map, tlSym key) {
     assert(tlMapOrObjectIs(map));
-    int at = tlset_indexof(map->keys, key);
+    int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
     assert(at < tlmap_size(map));
     trace("keys get: %s = %s", tl_str(key), tl_str(map->data[at]));
@@ -91,7 +91,7 @@ tlValue tlmap_get_sym(tlMap* map, tlSym key) {
 }
 void tlmap_set_sym_(tlMap* map, tlSym key, tlValue v) {
     assert(tlMapOrObjectIs(map));
-    int at = tlset_indexof(map->keys, key);
+    int at = tlSetIndexof(map->keys, key);
     assert(at >= 0 && at < tlmap_size(map));
     trace("keys set_: %s = %s", tl_str(key), tl_str(map->data[at]));
     map->data[at] = v;
@@ -101,11 +101,11 @@ tlMap* tlmap_from_pairs(tlTask* task, tlList* pairs) {
     int size = tlListSize(pairs);
     trace("%d", size);
 
-    tlSet* keys = tlset_new(task, size);
+    tlSet* keys = tlSetNew(task, size);
     for (int i = 0; i < size; i++) {
         tlList* pair = tlListAs(tlListGet(pairs, i));
         tlSym name = tlSymAs(tlListGet(pair, 0));
-        tlset_add_(keys, name);
+        tlSetAdd_(keys, name);
     }
 
     tlMap* map = tlmap_new(task, keys);
@@ -141,12 +141,12 @@ tlMap* tlObjectFrom(tlTask* task, ...) {
     }
     va_end(ap);
 
-    tlSet* keys = tlset_new(task, size);
+    tlSet* keys = tlSetNew(task, size);
     va_start(ap, task);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
         va_arg(ap, tlValue);
-        tlset_add_(keys, tlSYM(n));
+        tlSetAdd_(keys, tlSYM(n));
     }
     va_end(ap);
 
@@ -174,13 +174,13 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
     }
     va_end(ap);
 
-    tlSet* keys = tlset_new(null, size);
-    tlset_add_(keys, tlSYM(n1));
+    tlSet* keys = tlSetNew(null, size);
+    tlSetAdd_(keys, tlSYM(n1));
     va_start(ap, fn1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
         va_arg(ap, tlHostCb);
-        tlset_add_(keys, tlSYM(n));
+        tlSetAdd_(keys, tlSYM(n));
     }
     va_end(ap);
 

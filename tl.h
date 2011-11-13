@@ -197,11 +197,8 @@ static inline _T* _T##As(tlValue v) { \
 static inline _T* _T##Cast(tlValue v) { \
     return _T##Is(v)?(_T*)v:null; }
 
-TL_TYPE(num, Num);
-TL_TYPE(float, Float);
-TL_TYPE(set, Set);
-
 TL_REF_TYPE(tlText);
+TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
 TL_REF_TYPE(tlArgs);

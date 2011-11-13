@@ -107,12 +107,12 @@ tlSet* tlcall_names(tlCall* call) {
 int tlcall_names_size(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return 0;
     tlSet* nameset = call->data[call->head.size - 1];
-    return tlset_size(nameset);
+    return tlSetSize(nameset);
 }
 bool tlcall_names_contains(tlCall* call, tlSym name) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return false;
     tlSet* nameset = call->data[call->head.size - 1];
-    return tlset_indexof(nameset, name) >= 0;
+    return tlSetIndexof(nameset, name) >= 0;
 }
 void tlcall_fn_set_(tlCall* call, tlValue fn) {
     call->data[0] = fn;
@@ -136,12 +136,12 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
     if (namecount > 0) {
         trace("args with keys: %d", namecount);
         names = tlListNew(task, size);
-        nameset = tlset_new(task, namecount);
+        nameset = tlSetNew(task, namecount);
         for (int i = 0; i < size; i += 2) {
             tlValue name = tlListGet(args, i);
             tlListSet_(names, i / 2, name);
             if (!name || name == tlNull) continue;
-            tlset_add_(nameset, name);
+            tlSetAdd_(nameset, name);
         }
     }
 
@@ -178,12 +178,12 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
     if (namecount > 0) {
         trace("args with keys: %d size: %d", namecount, size);
         names = tlListNew(task, size + 2);
-        nameset = tlset_new(task, namecount);
+        nameset = tlSetNew(task, namecount);
         for (int i = 0; i < size; i += 2) {
             tlValue name = tlListGet(args, i);
             tlListSet_(names, 2 + i / 2, name);
             if (!name || name == tlNull) continue;
-            tlset_add_(nameset, name);
+            tlSetAdd_(nameset, name);
         }
     }
 
@@ -213,16 +213,16 @@ tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
     tlSet* nameset = null;
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) {
         names = tlListNew(task, size);
-        nameset = tlset_new(task, 1);
+        nameset = tlSetNew(task, 1);
         tlListSet_(names, size - 1, s_block);
-        tlset_add_(nameset, s_block);
+        tlSetAdd_(nameset, s_block);
     } else {
         tlList* oldnames = call->data[call->head.size - 2];
         names = tlListAppend(task, oldnames, tlListGet(oldnames, tlListSize(oldnames) - 1));
         names->data[tlListSize(names) - 2] = s_block;
         int at;
-        nameset = tlset_add(task, call->data[call->head.size - 1], s_block, &at);
-        trace("%d .. %d", tlListSize(names), tlset_size(nameset));
+        nameset = tlSetAdd(task, call->data[call->head.size - 1], s_block, &at);
+        trace("%d .. %d", tlListSize(names), tlSetSize(nameset));
         for (int i = 0; i < tlListSize(names); i++) {
             trace("%d: %s", i, tl_str(names->data[i]));
         }

@@ -7,14 +7,14 @@ struct tlSet {
 
 static tlSet* v_set_empty;
 
-int tlset_size(tlSet* set) {
-    assert(tlset_is(set));
+int tlSetSize(tlSet* set) {
+    assert(tlSetIs(set));
     return set->head.size;
 }
 
-void tlset_assert(tlSet* set) {
-    assert(tlset_is(set));
-    int size = tlset_size(set);
+void tlSetAssert(tlSet* set) {
+    assert(tlSetIs(set));
+    int size = tlSetSize(set);
     intptr_t v1 = 0; intptr_t v2 = 0;
     for (int i = 0; i < size; i++) {
         v1 = (intptr_t)set->data[i];
@@ -23,31 +23,31 @@ void tlset_assert(tlSet* set) {
     }
 }
 
-tlSet* tlset_new(tlTask* task, int size) {
-    return task_alloc(task, TLSet, size);
+tlSet* tlSetNew(tlTask* task, int size) {
+    return tlAllocWithFields(task, tlSetClass, sizeof(tlSet), size);
 }
 
-tlSet* tlset_copy(tlTask* task, tlSet* set, int size) {
-    assert(tlset_is(set));
+tlSet* tlSetCopy(tlTask* task, tlSet* set, int size) {
+    assert(tlSetIs(set));
     assert(size >= 0 || size == -1);
     trace("%d", size);
 
-    int osize = tlset_size(set);
+    int osize = tlSetSize(set);
     if (size == -1) size = osize;
 
     if (size == 0) return v_set_empty;
 
-    tlSet* nset = tlset_new(task, size);
+    tlSet* nset = tlSetNew(task, size);
 
     if (osize > size) osize = size;
     memcpy(nset->data, set->data, sizeof(tlValue) * osize);
-    tlset_assert(nset);
+    tlSetAssert(nset);
     return nset;
 }
 
-int tlset_indexof2(tlSet* set, tlValue key) {
-    tlset_assert(set);
-    int size = tlset_size(set);
+int tlSetIndexof2(tlSet* set, tlValue key) {
+    tlSetAssert(set);
+    int size = tlSetSize(set);
     if (key == null || size == 0) return -1;
 
     int min = 0, max = size - 1;
@@ -59,20 +59,20 @@ int tlset_indexof2(tlSet* set, tlValue key) {
     return min;
 }
 
-int tlset_indexof(tlSet* set, tlValue key) {
-    int at = tlset_indexof2(set, key);
+int tlSetIndexof(tlSet* set, tlValue key) {
+    int at = tlSetIndexof2(set, key);
     if (set->data[at] != key) return -1;
     return at;
 }
 
-tlSet* tlset_add(tlTask* task, tlSet* set, tlValue key, int* at) {
+tlSet* tlSetAdd(tlTask* task, tlSet* set, tlValue key, int* at) {
     trace();
-    *at = tlset_indexof(set, key);
+    *at = tlSetIndexof(set, key);
     if (key == null || *at >= 0) return set;
 
     trace("adding key: %s", tl_str(key));
-    int size = tlset_size(set);
-    tlSet* nset = tlset_new(task, size + 1);
+    int size = tlSetSize(set);
+    tlSet* nset = tlSetNew(task, size + 1);
 
     int i = 0;
     for (; i < size && set->data[i] > key; i++) nset->data[i] = set->data[i];
@@ -84,9 +84,9 @@ tlSet* tlset_add(tlTask* task, tlSet* set, tlValue key, int* at) {
     return nset;
 }
 
-int tlset_add_(tlSet* set, tlValue key) {
-    int size = tlset_size(set);
-    int at = tlset_indexof2(set, key);
+int tlSetAdd_(tlSet* set, tlValue key) {
+    int size = tlSetSize(set);
+    int at = tlSetIndexof2(set, key);
     assert(at >= 0 && at < size);
     trace("adding key: %s", tl_str(key));
     if (set->data[at] == key) return at;
@@ -97,6 +97,12 @@ int tlset_add_(tlSet* set, tlValue key) {
     return at;
 }
 
+static tlClass _tlSetClass = {
+    .name = "Set",
+};
+tlClass* tlSetClass = &_tlSetClass;
+
 static void set_init() {
-    v_set_empty = task_alloc(null, TLSet, 0);
+    v_set_empty = tlSetNew(null, 0);
 }
+
