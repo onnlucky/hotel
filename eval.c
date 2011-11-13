@@ -854,6 +854,13 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     ((CodeFrame*)task->frame)->handler = block;
     return tlNull;
 }
+bool tlcallable_is(tlValue v) {
+    if (!tlRefIs(v)) return false;
+    switch(tl_head(v)->type) {
+        case TLClosure: case TLHostFn: return true;
+    }
+    return false;
+}
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
     if (tlValueObjectIs(v) && tlmap_get_sym(v, s_call)) return true;
@@ -861,14 +868,6 @@ bool tlCallableIs(tlValue v) {
     if (!klass) return tlcallable_is(v);
     if (klass->call) return true;
     if (klass->map && tlmap_get_sym(klass->map, s_call)) return true;
-    return false;
-}
-bool tlcallable_is(tlValue v) {
-    if (!tlRefIs(v)) return false;
-
-    switch(tl_head(v)->type) {
-        case TLClosure: case TLHostFn: return true;
-    }
     return false;
 }
 INTERNAL tlValue _callable_is(tlTask* task, tlArgs* args) {

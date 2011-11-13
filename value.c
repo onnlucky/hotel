@@ -2,9 +2,6 @@
 
 #include "code.h"
 
-static tlClass _tlIntClass;
-tlClass* tlIntClass = &_tlIntClass;
-
 INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
@@ -155,16 +152,31 @@ const char* tl_str(tlValue v) {
     return "<!! old style value !!>";
 }
 
-static const char* _IntToText(tlValue v, char* buf, int size) {
+static const char* undefinedToText(tlValue v, char* buf, int size) { return "undefined"; }
+static tlClass _tlUndefinedClass = { .name = "Undefined", .toText = undefinedToText };
+
+static const char* nullToText(tlValue v, char* buf, int size) { return "null"; }
+static tlClass _tlNullClass = { .name = "Null", .toText = nullToText };
+
+static const char* boolToText(tlValue v, char* buf, int size) {
+    switch ((intptr_t)v) {
+        case TL_FALSE: return "false";
+        case TL_TRUE: return "true";
+        default: return "<!! error !!>";
+    }
+}
+static tlClass _tlBoolClass = { .name = "Bool", .toText = boolToText };
+
+static const char* intToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "%d", tl_int(v)); return buf;
 }
+static tlClass _tlIntClass = { .name = "Int", .toText = intToText };
 
-static tlClass _tlIntClass = {
-    .name = "int",
-    .toText = _IntToText,
-};
+tlClass* tlUndefinedClass = &_tlUndefinedClass;
+tlClass* tlNullClass = &_tlNullClass;
+tlClass* tlBoolClass = &_tlBoolClass;
+tlClass* tlIntClass = &_tlIntClass;
 
 static void value_init() {
-    tlIntClass = &_tlIntClass;
 }
 

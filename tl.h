@@ -72,17 +72,21 @@ static const tlValue tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
 
 // symbols are tlText* tagged with 010 and address > 1024
 // so we use values tagged with 010 and < 1024 to encode some special values
-static const tlValue tlUndefined = (tlHead*)((1 << 3)|2);
-static const tlValue tlNull =      (tlHead*)((2 << 3)|2);
-static const tlValue tlFalse =     (tlHead*)((3 << 3)|2);
-static const tlValue tlTrue =      (tlHead*)((4 << 3)|2);
+#define TL_UNDEFINED ((1 << 3)|2)
+#define TL_NULL      ((2 << 3)|2)
+#define TL_FALSE     ((3 << 3)|2)
+#define TL_TRUE      ((4 << 3)|2)
+static const tlValue tlUndefined = (tlHead*)TL_UNDEFINED;
+static const tlValue tlNull =      (tlHead*)TL_NULL;
+static const tlValue tlFalse =     (tlHead*)TL_FALSE;
+static const tlValue tlTrue =      (tlHead*)TL_TRUE;
+
+static const tlValue tlTaskNotRunning = (tlHead*)((10 << 3)|2);
+static const tlValue tlTaskJumping    = (tlHead*)((11 << 3)|2);
 
 static const tlValue tlThunkNull =    (tlHead*)((50 << 3)|2);
 static const tlValue tlCollectLazy =  (tlHead*)((51 << 3)|2);
 static const tlValue tlCollectEager = (tlHead*)((52 << 3)|2);
-
-static const tlValue tlTaskNotRunning = (tlHead*)((20 << 3)|2);
-static const tlValue tlTaskJumping    = (tlHead*)((21 << 3)|2);
 
 // a few defines
 #define TL_MAX_PRIV_SIZE 7
@@ -156,15 +160,23 @@ static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
 
 extern tlClass* tlIntClass;
 extern tlClass* tlSymClass;
+extern tlClass* tlNullClass;
+extern tlClass* tlUndefinedClass;
+extern tlClass* tlBoolClass;
 
 static inline tlClass* tl_class(tlValue v) {
     if (tlRefIs(v)) return tl_head(v)->klass;
     if (tlIntIs(v)) return tlIntClass;
     if (tlSymIs(v)) return tlSymClass;
-    return null;
+    // assert(tlTagIs(v));
+    switch ((intptr_t)v) {
+        case TL_UNDEFINED: return tlUndefinedClass;
+        case TL_NULL: return tlNullClass;
+        case TL_FALSE: return tlBoolClass;
+        case TL_TRUE: return tlBoolClass;
+        default: return null;
+    }
 }
-
-const char* tl_str(tlValue v);
 
 #define TL_REF_TYPE(_T) \
 typedef struct _T _T; \
@@ -218,7 +230,6 @@ TL_REF_TYPE(tlVar);
 #undef TL_TYPE
 
 bool tlCallableIs(tlValue v);
-bool tlcallable_is(tlValue v);
 
 typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
 typedef tlValue(*tlActFn)(tlTask* task, tlArgs* args);
@@ -238,9 +249,9 @@ struct tlClass {
 // simple primitive functions
 tlValue tlBOOL(unsigned c);
 tlInt tlINT(int i);
-tlValue tlACTIVE(tlValue v);
 
 // tlTEXT and tlSYM can only be used after tl_init()
+// TODO remove tlSYM because that requires a *global* *leaking* table ...
 #define tlTEXT(x) tlTextFromStatic(x, strlen(x))
 #define tlSYM(x) tlsym_from_static(x, strlen(x))
 tlSym tlsym_from_static(const char* s, int len);
