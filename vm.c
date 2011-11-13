@@ -273,7 +273,7 @@ tlTask* tlVmRunFile(tlVm* vm, tlText* file) {
     if (!buf) fatal("cannot read file: %s", tl_str(file));
 
     tlbuf_write_uint8(buf, 0);
-    tlText* code = tlTextNewTake(null, tlbuf_free_get(buf), 0);
+    tlText* code = tlTextFromTake(null, tlbuf_free_get(buf), 0);
     return tlVmRun(vm, code);
 }
 

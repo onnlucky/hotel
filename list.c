@@ -24,13 +24,13 @@ tlList* tlListNew(tlTask* task, int size) {
     return list;
 }
 
-tlList* tlListNewFrom1(tlTask* task, tlValue v1) {
+tlList* tlListFrom1(tlTask* task, tlValue v1) {
     tlList* list = tlListNew(task, 1);
     tlListSet_(list, 0, v1);
     return list;
 }
 
-tlList* tlListNewFrom2(tlTask* task, tlValue v1, tlValue v2) {
+tlList* tlListFrom2(tlTask* task, tlValue v1, tlValue v2) {
     tlList* list = tlListNew(task, 2);
     assert(tlListSize(list) == 2);
     tlListSet_(list, 0, v1);
@@ -38,7 +38,7 @@ tlList* tlListNewFrom2(tlTask* task, tlValue v1, tlValue v2) {
     return list;
 }
 
-tlList* tlListNewFrom(tlTask* task, ...) {
+tlList* tlListFrom(tlTask* task, ...) {
     va_list ap;
     int size = 0;
 

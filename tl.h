@@ -201,16 +201,18 @@ TL_REF_TYPE(tlText);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
-TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlValueObject);
+
+TL_TYPE(call, Call);
+TL_REF_TYPE(tlArgs);
+TL_REF_TYPE(tlError);
 
 TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlTask);
 
-TL_REF_TYPE(tlError);
-
-TL_TYPE(call, Call);
-TL_TYPE(msg, Msg);
+// TODO rename to tlNative?
+TL_REF_TYPE(tlHostFn);
+TL_REF_TYPE(tlVar);
 
 TL_TYPE(object, Object);
 
@@ -218,25 +220,18 @@ TL_TYPE(env, Env);
 TL_TYPE(closure, Closure);
 TL_TYPE(thunk, Thunk);
 TL_TYPE(lazy, Lazy);
-
 TL_TYPE(code, Code);
-TL_TYPE(lookup, Lookup);
 TL_TYPE(collect, Collect);
-
 TL_TYPE(result, Result);
 
 TL_TYPE(worker, Worker);
 TL_TYPE(vm, Vm);
 
-TL_TYPE(tagged, Tagged);
-
-TL_REF_TYPE(tlHostFn);
-TL_REF_TYPE(tlVar);
-
 #undef TL_TYPE
 
 bool tlCallableIs(tlValue v);
 
+// TODO rework this a bit more ...
 typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
 typedef tlValue(*tlActFn)(tlTask* task, tlArgs* args);
 typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
@@ -252,15 +247,14 @@ struct tlClass {
     tlCallFn call;
 };
 
-// simple primitive functions
+// to and from primitive values
 tlValue tlBOOL(unsigned c);
 tlInt tlINT(int i);
 
 // tlTEXT and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
 #define tlTEXT(x) tlTextFromStatic(x, strlen(x))
-#define tlSYM(x) tlsym_from_static(x, strlen(x))
-tlSym tlsym_from_static(const char* s, int len);
+#define tlSYM(x) tlSymFromStatic(x, strlen(x))
 
 int tl_bool(tlValue v);
 int tl_bool_or(tlValue v, bool d);
@@ -275,25 +269,29 @@ const char* tl_str(tlValue v);
 // Mutable setters (ending with underscore) must only be used after you just created the value.
 // Notice hotel level text, list, etc. values are not necesairy primitive tlTexts or tlLists etc.
 
+
 // ** text **
 int tlTextSize(tlText* text);
 const char* tlTextData(tlText* text);
 
 tlText* tlTextEmpty();
+
 tlText* tlTextFromStatic(const char* s, int len);
-
-tlText* tlTextNewCopy(tlTask* task, const char* s, int len);
-tlText* tlTextNewTake(tlTask* task, char* s, int len);
-
-tlText* tlValueToText(tlTask* task, tlValue v);
-
-tlSym tlsym_from_copy(tlTask* task, const char* s, int len);
-tlSym tlsym_from_take(tlTask* task, char* s, int len);
-tlSym tlsym_from_text(tlTask* task, tlText* text);
-tlText* tltext_from_sym(tlSym s);
+tlText* tlTextFromCopy(tlTask* task, const char* s, int len);
+tlText* tlTextFromTake(tlTask* task, char* s, int len);
 
 tlText* tlTextCat(tlTask* task, tlText* lhs, tlText* rhs);
 tlText* tlTextSub(tlTask* task, tlText* from, int first, int size);
+
+
+// ** symbols **
+tlSym tlSymFromStatic(const char* s, int len);
+tlSym tlSymFromCopy(tlTask* task, const char* s, int len);
+tlSym tlSymFromTake(tlTask* task, char* s, int len);
+
+tlSym tlSymFromText(tlTask* task, tlText* text);
+tlText* tlTextFromSym(tlSym s);
+
 
 // ** list **
 int tlListSize(tlList* list);
@@ -302,12 +300,11 @@ tlValue tlListGet(tlList* list, int at);
 
 tlList* tlListEmpty();
 tlList* tlListNew(tlTask* task, int size);
-tlList* tlListNewCopy(tlTask* task, tlList* from, int newsize);
-tlList* tlListNewFrom1(tlTask* task, tlValue v);
-tlList* tlListNewFrom2(tlTask* task, tlValue v1, tlValue v2);
-tlList* tlListNewFrom(tlTask* task, ... /*tlValue*/);
-tlList* tlListNewFromMany(tlTask* task, tlValue vs[], int len);
+tlList* tlListFrom1(tlTask* task, tlValue v);
+tlList* tlListFrom2(tlTask* task, tlValue v1, tlValue v2);
+tlList* tlListFrom(tlTask* task, ... /*tlValue*/);
 
+tlList* tlListCopy(tlTask* task, tlList* from, int newsize);
 tlList* tlListAppend(tlTask* task, tlList* list, tlValue v);
 tlList* tlListAppend2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
 tlList* tlListPrepend(tlTask* task, tlList* list, tlValue v);

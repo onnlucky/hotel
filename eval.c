@@ -823,7 +823,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
 tlText* tlToText(tlTask* task, tlValue v) {
     if (tlTextIs(v)) return v;
     // TODO actually invoke toText ...
-    return tlTextNewCopy(task, tl_str(v), 0);
+    return tlTextFromCopy(task, tl_str(v), 0);
 }
 tlValue tlEval(tlTask* task, tlValue v) {
     trace("%s", tl_str(v));

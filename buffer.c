@@ -27,7 +27,7 @@ INTERNAL tlValue _BufferRead(tlTask* task, tlArgs* args) {
     char* data = malloc(canread(buf) + 1);
     int last = tlbuf_read(buf, data, canread(buf));
     data[last] = 0;
-    return tlTextNewTake(task, data, last);
+    return tlTextFromTake(task, data, last);
 }
 
 INTERNAL tlValue _BufferWrite(tlTask* task, tlArgs* args) {

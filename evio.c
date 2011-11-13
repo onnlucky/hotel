@@ -298,7 +298,7 @@ static tlValue _Socket_resolve(tlTask* task, tlArgs* args) {
     struct hostent *hp = gethostbyname(tlTextData(name));
     if (!hp) return tlNull;
     if (!hp->h_addr_list[0]) return tlNull;
-    return tlTextNewTake(task, inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
+    return tlTextFromTake(task, inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
 }
 
 static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
@@ -471,7 +471,7 @@ static tlValue _DirRead(tlTask* task, tlArgs* args) {
     if (readdir_r(dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    return tlTextNewCopy(task, dp.d_name, 0);
+    return tlTextFromCopy(task, dp.d_name, 0);
 }
 
 typedef struct tlDirEachFrame {
@@ -492,7 +492,7 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    res = tlEval(task, tlcall_from(task, frame->block, tlTextNewCopy(task, dp.d_name, 0), null));
+    res = tlEval(task, tlcall_from(task, frame->block, tlTextFromCopy(task, dp.d_name, 0), null));
     if (!res) return tlTaskPauseAttach(task, frame);
     goto again;
     return tlNull;

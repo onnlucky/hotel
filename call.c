@@ -205,7 +205,7 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
 
 tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
     if (!tlcall_is(_call)) {
-        return tlcall_from_list(task, _call, tlListNewFrom2(task, s_block, block));
+        return tlcall_from_list(task, _call, tlListFrom2(task, s_block, block));
     }
     tlCall* call = tlcall_as(_call);
     int size = tlcall_argc(call) + 1;
