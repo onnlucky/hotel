@@ -228,10 +228,10 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
     return tlTaskError(task, error);
 }
 
-tlTask* tlTaskNew(tlWorker* worker) {
+tlTask* tlTaskNew(tlVm* vm) {
     tlTask* task = tlAlloc(null, tlTaskClass, sizeof(tlTask));
-    task->worker = worker;
     assert(task->state == TL_STATE_INIT);
+    task->worker = vm->waiter;
     trace("new %s", tl_str(task));
     return task;
 }
@@ -268,8 +268,8 @@ tlValue tlTaskThrowTake(tlTask* task, char* str) {
     return tlTaskPause(task, tlFrameAlloc(task, resumeTaskThrow, sizeof(tlFrame)));
 }
 
-tlValue tlTaskGetError(tlTask* task) {
-    return task->error;
+tlError* tlTaskGetError(tlTask* task) {
+    return tlErrorAs(task->error);
 }
 
 tlValue tlTaskGetValue(tlTask* task) {
@@ -367,7 +367,7 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     assert(task && task->worker && task->worker->vm);
 
     tlValue v = tlArgsAt(args, 0);
-    tlTask* ntask = tlTaskNew(task->worker);
+    tlTask* ntask = tlTaskNew(tlTaskGetVm(task));
 
     if (tlCallableIs(v)) v = tlcall_from(ntask, v, null);
     tlTaskEval(ntask, v);

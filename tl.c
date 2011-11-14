@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
-    tlTask* maintask = tlVmRunFile(vm, tlTEXT(argv[1]));
+    tlTask* maintask = tlVmEvalFile(vm, tlTEXT(argv[1]));
 
     tlValue err = tlTaskGetError(maintask);
     if (err) {

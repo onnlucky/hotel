@@ -345,9 +345,56 @@ tlMap* tlMapDel(tlTask* task, tlMap* map, tlValue key);
 tlMap* tlMapJoin(tlTask* task, tlMap* lhs, tlMap* rhs);
 
 
-// ** code **
-tlCode* tlcode_from(tlTask* task, tlList* stms);
+// ** creating and running vms **
+void tl_init();
 
+tlVm* tlVmNew();
+void tlVmInitDefaultEnv(tlVm* vm);
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v);
+void tlVmDelete(tlVm* vm);
+
+
+// ** running code **
+// parsing
+tlValue tlParse(tlTask* task, tlText* text);
+
+// runs until all tasks are done
+tlTask* tlVmEval(tlVm* vm, tlValue v);
+tlTask* tlVmEvalCall(tlVm* vm, tlValue fn, ...);
+tlTask* tlVmEvalCode(tlVm* vm, tlText* code);
+tlTask* tlVmEvalFile(tlVm* vm, tlText* file);
+
+// setup a single task to eval something, returns immedately
+tlValue tlEval(tlTask* task, tlValue v);
+tlValue tlEvalCall(tlTask* task, tlValue fn, ...);
+tlTask* tlEvalCode(tlVm* vm, tlText* code);
+
+// reading status from tasks
+bool tlTaskIsDone(tlTask* task);
+tlError* tlTaskGetError(tlTask* task);
+tlValue tlTaskGetValue(tlTask* task);
+
+// reading errors
+tlValue tlErrorValue(tlError* error);
+
+// invoking toText, almost same as tlEvalCode("v.toText")
+tlText* tlToText(tlTask* task, tlValue v);
+
+
+// ** extending hotel with native functions **
+
+// task management
+tlTask* tlTaskNew(tlVm* vm);
+tlVm* tlTaskGetVm(tlTask* task);
+
+void tlTaskWait(tlTask* task);
+void tlTaskReady(tlTask* task);
+
+tlValue tlTaskThrowTake(tlTask* task, char* str);
+#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(task, strdup(_s)); } while (0)
+#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(task, strdup(_s)); } while (0)
+
+// args
 tlValue tlArgsTarget(tlArgs* args);
 tlSym tlArgsMsg(tlArgs* args);
 
@@ -357,7 +404,33 @@ tlValue tlArgsAt(tlArgs* args, int at);
 int tlArgsMapSize(tlArgs* args);
 tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 
-tlValue tlErrorValue(tlError* error);
+// results, from a result or a value, get the first result or the value itself
+tlValue tlFirst(tlResult* res);
+// returning multiple results from native functions
+tlResult* tlResultNewFrom(tlTask* task, ...);
+
+// native functions signature TODO rename to tlNativeCb
+typedef tlValue(*tlHostCb)(tlTask*, tlArgs*);
+// native frame activation/resume signature
+typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue, tlError*);
+
+// allocate values
+void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);
+void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc);
+void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc);
+tlFrame* tlAllocFrame(tlTask* task, tlResumeCb resume, size_t bytes);
+
+// create objects with only native functions (to use as classes)
+tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...);
+
+
+
+// ******************** rest ********************
+// TODO figure out which of these are private or can move to lower level includes
+
+tlWorker* tlTaskWorker(tlTask* task);
+
+tlCode* tlcode_from(tlTask* task, tlList* stms);
 
 tlCall* tlcall_from(tlTask* task, ...);
 tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args);
@@ -370,24 +443,12 @@ bool tlcall_name_exists(tlCall* call, tlSym name);
 void tlcall_fn_set_(tlCall* call, tlValue v);
 void tlcall_set_(tlCall* call, int at, tlValue v);
 
-tlValue tlFirst(tlResult* res);
-tlResult* tlResultNewFrom(tlTask* task, ...);
-
 // ** environment (scope) **
 tlEnv* tlenv_new(tlTask* task, tlEnv* parent);
 tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key);
 tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v);
 
-// ** vm management **
-void tl_init();
-tlVm* tlVmNew();
-void tlVmInitDefaultEnv(tlVm* vm);
-tlTask* tlVmRun(tlVm* vm, tlText* code);
-tlTask* tlVmRunFile(tlVm* vm, tlText* file);
-
-void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v);
 tlEnv* tlVmGlobalEnv(tlVm* vm);
-void tlVmDelete(tlVm* vm);
 
 tlWorker* tlWorkerNew(tlVm* vm);
 void tlWorkerDelete(tlWorker* worker);
@@ -399,40 +460,15 @@ void tlworker_task_detach(tlTask* task);
 void tlworker_task_ready(tlTask* task);
 void tlworker_task_waitfor(tlTask* task, tlTask* other);
 
-// ** task management **
-tlTask* tlTaskNew(tlWorker* worker);
-tlWorker* tlTaskWorker(tlTask* task);
-tlVm* tlTaskVm(tlTask* task);
-
-void tlTaskWait(tlTask* task);
-void tlTaskReady(tlTask* task);
-
-void tlTaskEval(tlTask* task, tlValue v);
-tlValue tlTaskGetValue(tlTask* task);
-tlValue tlTaskGetError(tlTask* task);
-
-tlValue tlTaskThrowTake(tlTask* task, char* str);
-#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(task, strdup(_s)); } while (0)
-#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(task, strdup(_s)); } while (0)
-
-tlValue tlEval(tlTask* task, tlValue v);
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
-tlText* tlToText(tlTask* task, tlValue v);
 
 tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env);
 
 // ** callbacks **
 typedef void(*tlFreeCb)(tlValue);
 typedef void(*tlWorkCb)(tlTask*);
-typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue, tlError*);
-typedef tlValue(*tlHostCb)(tlTask*, tlArgs*);
 
-// ** memory **
-
-void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);
-void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc);
-void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc);
-
+// TODO remove
 tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields);
 tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields,
                            int privs, tlFreeCb freecb);
@@ -442,6 +478,7 @@ tlValue tltask_clone(tlTask* task, tlValue v);
 
 // ** extending **
 
+// TODO rename and move to above
 tlHostFn* tlFUN(tlHostCb cb, const char* n);
 tlHostFn* tlHostFnNew(tlTask* task, tlHostCb cb, int fields);
 void tlHostFnSet_(tlHostFn* fun, int at, tlValue v);
@@ -449,11 +486,6 @@ void tlHostFnSet_(tlHostFn* fun, int at, tlValue v);
 typedef struct { const char* name; tlHostCb cb; } tlHostCbs;
 void tl_register_global(const char* name, tlValue v);
 void tl_register_hostcbs(const tlHostCbs* cbs);
-
-tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...);
-
-// ** running **
-tlValue tl_parse(tlTask* task, tlText* text);
 
 #endif // _tl_h_
 

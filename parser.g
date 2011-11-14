@@ -461,7 +461,7 @@ bool check_indent(void* data) {
     return peek_indent(G) == find_indent(G);
 }
 
-tlValue tl_parse(tlTask* task, tlText* text) {
+tlValue tlParse(tlTask* task, tlText* text) {
     trace("\n----PARSING----\n%s----", tl_str(text));
 
     if (!sa_object_send) sa_object_send = tl_active(tlSYM("_object_send"));
