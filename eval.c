@@ -224,7 +224,7 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
     assert(res);
 
     // we have just reified the stack, now find our frame
-    frame = lexicalFunctionFrame(frame, tlHostFnGet(tlHostFnAs(args->fn), 0));
+    frame = lexicalFunctionFrame(frame, tlNativeGet(tlNativeAs(args->fn), 0));
     trace("%p", frame);
     if (frame) return tlTaskJump(task, frame->caller, res);
     return res;
@@ -387,8 +387,8 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
         assert(task->frame && task->frame->resumecb == resumeCode);
         tlArgs* args = tlenv_get_args(env);
-        tlHostFn* fn = tlHostFnNew(task, _return, 1);
-        tlHostFnSet_(fn, 0, args);
+        tlNative* fn = tlNativeNew(task, _return, 1);
+        tlNativeSet_(fn, 0, args);
         trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), args);
         return fn;
     }
@@ -629,7 +629,7 @@ INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     assert(tlCallableIs(fn));
     if (tlclosure_is(fn)) return evalCode(task, args, tlclosure_as(fn));
-    if (tlHostFnIs(fn)) return tlHostFnAs(fn)->hostcb(task, args);
+    if (tlNativeIs(fn)) return tlNativeAs(fn)->native(task, args);
     if (tlValueObjectIs(fn)) {
         tlValue call = tlMapGetSym(fn, s_call);
         if (call) {
@@ -790,9 +790,6 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     } else {
         // TODO if zero args, or no key args ... optimize
         switch(tl_head(fn)->type) {
-        case TLHostFn:
-            trace("hostfn");
-            //if (tlHostFnAs(fn)->hostcb == _goto) return run_goto(task, call, tlHostFnAs(fn));
         case TLClosure:
             args = evalCall(task, call);
             trace("closure: %s", tl_str(args));
@@ -857,7 +854,7 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
 bool tlcallable_is(tlValue v) {
     if (!tlRefIs(v)) return false;
     switch(tl_head(v)->type) {
-        case TLClosure: case TLHostFn: return true;
+        case TLClosure: return true;
     }
     return false;
 }
@@ -869,19 +866,6 @@ bool tlCallableIs(tlValue v) {
     if (klass->call) return true;
     if (klass->map && tlMapGetSym(klass->map, s_call)) return true;
     return false;
-}
-INTERNAL tlValue _callable_is(tlTask* task, tlArgs* args) {
-    tlValue v = tlArgsAt(args, 0);
-    if (!tlRefIs(v)) return tlFalse;
-
-    switch(tl_head(v)->type) {
-        case TLClosure:
-        case TLHostFn:
-        case TLCall:
-        case TLThunk:
-            return tlTrue;
-    }
-    return tlFalse;
 }
 INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsAt(args, 0);
@@ -926,16 +910,15 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
         if (!tlCallableIs(field)) return field;
         nargs->fn = field;
         // TODO temporary until start_args is refactored
-        if (tlHostFnIs(field)) return tlHostFnAs(field)->hostcb(task, nargs);
+        if (tlNativeIs(field)) return tlNativeAs(field)->native(task, nargs);
         return evalArgs(task, nargs);
     }
     fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));
 }
 
-static const tlHostCbs __eval_hostcbs[] = {
+static const tlNativeCbs __eval_natives[] = {
     { "_backtrace", _backtrace },
     { "_catch", _catch },
-    { "_callable_is", _callable_is },
     { "_method_invoke", _method_invoke },
     { "_object_send", _object_send },
     //{ "_new_object", _new_object },
@@ -948,6 +931,6 @@ static const tlHostCbs __eval_hostcbs[] = {
 };
 
 static void eval_init() {
-    tl_register_hostcbs(__eval_hostcbs);
+    tl_register_natives(__eval_natives);
 }
 

@@ -2,34 +2,34 @@
 
 #include "trace-on.h"
 
-static tlClass _tlHostFnClass;
-tlClass* tlHostFnClass = &_tlHostFnClass;
+static tlClass _tlNativeClass;
+tlClass* tlNativeClass = &_tlNativeClass;
 
-struct tlHostFn {
+struct tlNative {
     tlHead head;
-    tlHostCb hostcb;
+    tlNativeCb native;
     tlValue data[];
 };
 
-tlHostFn* tlHostFnNew(tlTask* task, tlHostCb hostcb, int size) {
-    tlHostFn* fn = tlAllocWithFields(task, tlHostFnClass, sizeof(tlHostFn), size);
-    fn->hostcb = hostcb;
+tlNative* tlNativeNew(tlTask* task, tlNativeCb native, int size) {
+    tlNative* fn = tlAllocWithFields(task, tlNativeClass, sizeof(tlNative), size);
+    fn->native = native;
     return fn;
 }
-tlValue tlHostFnGet(tlHostFn* fn, int at) {
-    assert(tlHostFnIs(fn));
+tlValue tlNativeGet(tlNative* fn, int at) {
+    assert(tlNativeIs(fn));
     assert(at >= 0);
     if (at >= fn->head.size) return null;
     return fn->data[at];
 }
-void tlHostFnSet_(tlHostFn* fn, int at, tlValue v) {
-    assert(tlHostFnIs(fn));
+void tlNativeSet_(tlNative* fn, int at, tlValue v) {
+    assert(tlNativeIs(fn));
     assert(at >= 0 && at < fn->head.size);
     fn->data[at] = v;
 }
-tlHostFn* tlFUN(tlHostCb cb, const char* n) {
-    tlHostFn* fn = tlHostFnNew(null, cb, 1);
-    tlHostFnSet_(fn, 0, tlSYM(n));
+tlNative* tlNATIVE(tlNativeCb cb, const char* n) {
+    tlNative* fn = tlNativeNew(null, cb, 1);
+    tlNativeSet_(fn, 0, tlSYM(n));
     return fn;
 }
 
@@ -254,7 +254,7 @@ static tlValue CFunctionResume(tlTask* task, tlFrame* _frame, tlValue res, tlErr
     if (err) return null;
     tlArgs* args = tlArgsAs(res);
     trace("args: %s", tl_str(args));
-    return tlHostFnAs(tlcall_fn(frame->call))->hostcb(task, args);
+    return tlNativeAs(tlcall_fn(frame->call))->native(task, args);
 }
 
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
@@ -262,7 +262,7 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
 static tlValue CFunctionCallFn(tlTask* task, tlCall* call) {
     trace("");
     tlArgs* args = evalCall(task, call);
-    if (args) return tlHostFnAs(tlcall_fn(call))->hostcb(task, args);
+    if (args) return tlNativeAs(tlcall_fn(call))->native(task, args);
 
     // throwing or pausing
     CFunctionFrame* frame = tlFrameAlloc(task, CFunctionResume, sizeof(CFunctionFrame));
@@ -270,14 +270,14 @@ static tlValue CFunctionCallFn(tlTask* task, tlCall* call) {
     return tlTaskPauseAttach(task, frame);
 }
 
-static tlClass _tlHostFnClass = {
+static tlClass _tlNativeClass = {
     .name = "CFunction",
     .toText = _HostFnToText,
     .call = CFunctionCallFn,
 };
 
 static void call_init() {
-    _tlHostFnClass.map = tlClassMapFrom(
+    _tlNativeClass.map = tlClassMapFrom(
             null,
             null
     );

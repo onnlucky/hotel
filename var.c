@@ -34,7 +34,7 @@ INTERNAL tlValue _var_set(tlTask* task, tlArgs* args) {
     return var->value;
 }
 
-static const tlHostCbs __var_hostcbs[] = {
+static const tlNativeCbs __var_natives[] = {
     { "_Var_new", _Var_new },
     { "_var_get", _var_get },
     { "_var_set", _var_set },
@@ -42,6 +42,6 @@ static const tlHostCbs __var_hostcbs[] = {
 };
 
 INTERNAL void var_init() {
-    tl_register_hostcbs(__var_hostcbs);
+    tl_register_natives(__var_natives);
 }
 

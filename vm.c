@@ -236,7 +236,7 @@ tlEnv* tlVmGlobalEnv(tlVm* vm) {
     return vm->globals;
 }
 
-static const tlHostCbs __vm_hostcbs[] = {
+static const tlNativeCbs __vm_natives[] = {
     { "out",  _out },
     { "bool", _bool },
     { "not",  _not },
@@ -263,7 +263,7 @@ static const tlHostCbs __vm_hostcbs[] = {
 };
 
 static void vm_init() {
-    tl_register_hostcbs(__vm_hostcbs);
+    tl_register_natives(__vm_natives);
     tlMap* system = tlObjectFrom(null, "version", tlTEXT(TL_VERSION), null);
     tl_register_global("system", system);
 }
@@ -335,12 +335,12 @@ static tlValue _assert(tlTask* task, tlArgs* args) {
 }
 
 void tlVmInitDefaultEnv(tlVm* vm) {
-    tlHostFn* f_print = tlHostFnNew(null, _print, 1);
-    tlHostFnSet_(f_print, 0, tlSYM("print"));
+    tlNative* f_print = tlNativeNew(null, _print, 1);
+    tlNativeSet_(f_print, 0, tlSYM("print"));
     tlVmGlobalSet(vm, tlSYM("print"), f_print);
 
-    tlHostFn* f_assert = tlHostFnNew(null, _assert, 1);
-    tlHostFnSet_(f_assert, 0, tlSYM("assert"));
+    tlNative* f_assert = tlNativeNew(null, _assert, 1);
+    tlNativeSet_(f_assert, 0, tlSYM("assert"));
     tlVmGlobalSet(vm, tlSYM("assert"), f_assert);
 }
 

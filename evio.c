@@ -671,7 +671,7 @@ static tlValue _Child_run(tlTask* task, tlArgs* args) {
     _exit(255);
 }
 
-static const tlHostCbs __evio_hostcbs[] = {
+static const tlNativeCbs __evio_natives[] = {
     { "sleep", _io_sleep },
     { "_File_open", _File_open },
     { "_Socket_connect", _Socket_connect },
@@ -722,7 +722,7 @@ void evio_init() {
         null
     );
 
-    tl_register_hostcbs(__evio_hostcbs);
+    tl_register_natives(__evio_natives);
     tl_register_global("_File_RDONLY",   tlINT(O_RDONLY));
     tl_register_global("_File_WRONLY",   tlINT(O_WRONLY));
     tl_register_global("_File_RDWR",     tlINT(O_RDWR));

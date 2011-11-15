@@ -162,14 +162,14 @@ tlMap* tlObjectFrom(tlTask* task, ...) {
     return tlMapToObject_(map);
 }
 
-tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
+tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...) {
     va_list ap;
     int size = 1;
 
     va_start(ap, fn1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        tlHostCb fn = va_arg(ap, tlHostCb); assert(fn);
+        tlNativeCb fn = va_arg(ap, tlNativeCb); assert(fn);
         size++;
     }
     va_end(ap);
@@ -179,18 +179,18 @@ tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...) {
     va_start(ap, fn1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        va_arg(ap, tlHostCb);
+        va_arg(ap, tlNativeCb);
         tlSetAdd_(keys, tlSYM(n));
     }
     va_end(ap);
 
     tlMap* map = tlMapNew(null, keys);
-    tlMapSetSym_(map, tlSYM(n1), tlFUN(fn1, n1));
+    tlMapSetSym_(map, tlSYM(n1), tlNATIVE(fn1, n1));
     va_start(ap, fn1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        tlHostCb fn = va_arg(ap, tlHostCb);
-        tlMapSetSym_(map, tlSYM(n), tlFUN(fn, n));
+        tlNativeCb fn = va_arg(ap, tlNativeCb);
+        tlMapSetSym_(map, tlSYM(n), tlNATIVE(fn, n));
     }
     va_end(ap);
 

@@ -137,10 +137,6 @@ enum {
     TLWorker,
     TLVm,
 
-    // extension values and functions
-    TLTagged,
-    TLHostFn,
-
     TL_TYPE_LAST
 };
 typedef uint8_t tlType;
@@ -210,8 +206,7 @@ TL_REF_TYPE(tlError);
 TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlTask);
 
-// TODO rename to tlNative?
-TL_REF_TYPE(tlHostFn);
+TL_REF_TYPE(tlNative);
 TL_REF_TYPE(tlVar);
 
 TL_TYPE(object, Object);
@@ -383,13 +378,27 @@ tlText* tlToText(tlTask* task, tlValue v);
 
 // ** extending hotel with native functions **
 
+// native functions signature
+typedef tlValue(*tlNativeCb)(tlTask*, tlArgs*);
+
 // task management
 tlTask* tlTaskNew(tlVm* vm);
 tlVm* tlTaskGetVm(tlTask* task);
 
+// stack reification
+// native frame activation/resume signature
+typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue, tlError*);
+// pause task to reify stack
+tlValue tlTaskPause(tlTask* task, void* frame);
+tlValue tlTaskPauseAttach(tlTask* task, void* frame);
+tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb resume, tlValue res);
+// mark task as waiting
 void tlTaskWait(tlTask* task);
+void tlTaskWaitIo(tlTask* task);
+// mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady(tlTask* task);
 
+// throw errors
 tlValue tlTaskThrowTake(tlTask* task, char* str);
 #define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(task, strdup(_s)); } while (0)
 #define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(task, strdup(_s)); } while (0)
@@ -409,11 +418,6 @@ tlValue tlFirst(tlResult* res);
 // returning multiple results from native functions
 tlResult* tlResultNewFrom(tlTask* task, ...);
 
-// native functions signature TODO rename to tlNativeCb
-typedef tlValue(*tlHostCb)(tlTask*, tlArgs*);
-// native frame activation/resume signature
-typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue, tlError*);
-
 // allocate values
 void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);
 void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc);
@@ -421,7 +425,7 @@ void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc);
 tlFrame* tlAllocFrame(tlTask* task, tlResumeCb resume, size_t bytes);
 
 // create objects with only native functions (to use as classes)
-tlMap* tlClassMapFrom(const char* n1, tlHostCb fn1, ...);
+tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...);
 
 
 
@@ -479,13 +483,13 @@ tlValue tltask_clone(tlTask* task, tlValue v);
 // ** extending **
 
 // TODO rename and move to above
-tlHostFn* tlFUN(tlHostCb cb, const char* n);
-tlHostFn* tlHostFnNew(tlTask* task, tlHostCb cb, int fields);
-void tlHostFnSet_(tlHostFn* fun, int at, tlValue v);
+tlNative* tlNATIVE(tlNativeCb cb, const char* name);
+tlNative* tlNativeNew(tlTask* task, tlNativeCb cb, int fields);
+void tlNativeSet_(tlNative* fun, int at, tlValue v);
 
-typedef struct { const char* name; tlHostCb cb; } tlHostCbs;
+typedef struct { const char* name; tlNativeCb cb; } tlNativeCbs;
 void tl_register_global(const char* name, tlValue v);
-void tl_register_hostcbs(const tlHostCbs* cbs);
+void tl_register_natives(const tlNativeCbs* cbs);
 
 #endif // _tl_h_
 

@@ -505,14 +505,14 @@ static tlClass _tlMessageClass = {
     .name = "Message",
 };
 
-static const tlHostCbs __task_hostcbs[] = {
+static const tlNativeCbs __task_natives[] = {
     { "_Task_new", _Task_new },
     { "yield", _TaskYield },
     { 0, 0 }
 };
 
 static void task_init() {
-    tl_register_hostcbs(__task_hostcbs);
+    tl_register_natives(__task_natives);
     _tlTaskClass.map = tlClassMapFrom(
         "wait", _TaskWait,
         "done", _TaskIsDone,

@@ -49,12 +49,12 @@ static tlClass _tlErrorClass = {
     .toText = _ErrorToText,
 };
 
-static const tlHostCbs __error_hostcbs[] = {
+static const tlNativeCbs __error_natives[] = {
     { "_throw", _throw },
     { 0, 0 }
 };
 
 INTERNAL void error_init() {
-    tl_register_hostcbs(__error_hostcbs);
+    tl_register_natives(__error_natives);
 }
 
