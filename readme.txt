@@ -1,7 +1,5 @@
 # TODO
 
-make parser use s_Map_clone etc ... instead of tlSYM("_Map_clone") ...
-
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code
 * use gcov to remove any unused code or add tests for them (larger parts...)
