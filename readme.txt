@@ -1,24 +1,26 @@
 # TODO
 
+build-in if, break, continue, again ... ?
+remove the actor "after work handler", no longer needed ... tlTaskRun doesn't touch the task
+
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code
 * use gcov to remove any unused code or add tests for them (larger parts...)
 * clean up and comment eval.c maybe remove some of it to run.c oid
+* rework all "callables" as tlClass based, and use the class->call
+* rework all types as the tlClass things ... stop using anything else
+* remove old task_alloc and such
 
 implement tlFirst for resume functions
 start using tlTaskPauseResuming() ... a lot more
-deadlock detection for actors: state=WAIT, if owner.state==WAIT and owner.current.owner == us
-remove the actor "after work handler", no longer needed ... tlTaskRun doesn't touch the task
 on parse errors, throw it on the task, not fatal() out ...
+deadlock detection for actors: state=WAIT, if owner.state==WAIT and owner.current.owner == us
+deadlock detection for tasks: what we had before ...
 
 syntax change: do symbols using 'symbol
 
 work on a repl by allowing Env to be generic and thus mutable ...
 think about special inherited task local *Env* of sorts, for stdout, error modes, etc ... ? yes, for dynamically scoped stuff
-
-rework all "callables" as tlClass based, and use the class->call
-rework all types as the tlClass things ... stop using anything else
-remove old task_alloc and such
 
 tlArgsAt -> tlArgsGet ... like a list tlListGet
 rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
@@ -101,7 +103,7 @@ all run the initial statment unchanged
   print fac 10
   sometimes print fact 10
 
-same for:
+same for: (impossible! how did parser know true is not a function? ... well true is the simple case)
   if true: print "foo"
   timed if true: print "foo"
 
