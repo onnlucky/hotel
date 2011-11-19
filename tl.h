@@ -1,4 +1,4 @@
-// author: Onne Gorter <onne@onnlucky.com>
+// license: MIT (see license.txt), copyright 2011 by Onne Gorter
 #ifndef _tl_h_
 #define _tl_h_
 #pragma once
