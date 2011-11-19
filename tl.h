@@ -219,8 +219,8 @@ TL_TYPE(code, Code);
 TL_TYPE(collect, Collect);
 TL_TYPE(result, Result);
 
-TL_TYPE(worker, Worker);
-TL_TYPE(vm, Vm);
+TL_REF_TYPE(tlWorker);
+TL_REF_TYPE(tlVm);
 
 #undef TL_TYPE
 
@@ -465,12 +465,6 @@ tlEnv* tlVmGlobalEnv(tlVm* vm);
 tlWorker* tlWorkerNew(tlVm* vm);
 void tlWorkerDelete(tlWorker* worker);
 void tlWorkerRun(tlWorker* worker);
-
-void tlworker_attach(tlWorker* worker, tlTask* task);
-// these all detach from the task
-void tlworker_task_detach(tlTask* task);
-void tlworker_task_ready(tlTask* task);
-void tlworker_task_waitfor(tlTask* task, tlTask* other);
 
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 

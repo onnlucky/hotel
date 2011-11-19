@@ -86,7 +86,7 @@ tlVm* tlTaskGetVm(tlTask* task) {
     assert(tlTaskIs(task));
     assert(task->worker);
     assert(task->worker->vm);
-    assert(tlvm_is(task->worker->vm));
+    assert(tlVmIs(task->worker->vm));
     return task->worker->vm;
 }
 

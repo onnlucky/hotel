@@ -3,6 +3,7 @@
 #include "trace-on.h"
 
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
+INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn);
 
 static tlClass _tlNativeClass;
 tlClass* tlNativeClass = &_tlNativeClass;
@@ -34,6 +35,9 @@ struct tlCall {
     tlHead head;
     tlValue fn;
     tlValue data[];
+    // if HASKEYS:
+    //tlList* named;
+    //tlSet* names;
 };
 tlCall* tlCallNew(tlTask* task, int argc, bool keys) {
     tlCall* call = tlAllocWithFields(task, tlCallClass, sizeof(tlCall), argc + (keys?2:0));
@@ -272,7 +276,6 @@ static tlValue nativeCall(tlTask* task, tlCall* call) {
     return tlTaskPauseAttach(task, frame);
 }
 
-INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn);
 static tlValue callCall(tlTask* task, tlCall* call) {
     trace("%s", tl_str(call));
     return evalCallFn(task, call, tlCallAs(tlCallGetFn(call)));

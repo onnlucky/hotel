@@ -161,27 +161,10 @@ void tl_init() {
     evio_init();
 }
 
-// when outside of vm, be your own worker, and attach it to tasks
-void tlworker_attach(tlWorker* worker, tlTask* task) {
-    assert(tlworker_is(worker));
-    assert(tlTaskIs(task));
-    assert(worker->vm);
-    assert(!task->worker);
-
-    task->worker = worker;
-}
-
-void tlworker_detach(tlWorker* worker, tlTask* task) {
-    assert(tlworker_is(worker));
-    assert(tlTaskIs(task));
-    assert(task->worker == worker);
-    task->worker = null;
-}
-
 // when outside of vm, make it all run by calling this function
 void tlWorkerRun(tlWorker* worker) {
-    assert(tlworker_is(worker));
-    assert(tlvm_is(worker->vm));
+    assert(tlWorkerIs(worker));
+    assert(tlVmIs(worker->vm));
     tlVm* vm = worker->vm;
     bool didwork = false;
     while (true) {
@@ -189,7 +172,7 @@ void tlWorkerRun(tlWorker* worker) {
         if (!task) break;
         didwork = true;
         trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
-        tlworker_attach(worker, task);
+        task->worker = worker;
         tlTaskRun(task);
     }
     trace(">>>> WORKER DONE <<<<");
@@ -208,16 +191,16 @@ void tlWorkerRunIo(tlWorker* worker) {
 }
 
 tlWorker* tlWorkerNew(tlVm* vm) {
-    tlWorker* worker = calloc(1, sizeof(tlWorker));
-    worker->head.type = TLWorker;
+    tlWorker* worker = tlAlloc(null, tlWorkerClass, sizeof(tlWorker));
     worker->vm = vm;
     return worker;
 }
-void tlWorkerDelete(tlWorker* worker) { free(worker); }
+void tlWorkerDelete(tlWorker* worker) {
+    free(worker);
+}
 
 tlVm* tlVmNew() {
-    tlVm* vm = calloc(1, sizeof(tlVm));
-    vm->head.type = TLVm;
+    tlVm* vm = tlAlloc(null, tlVmClass, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlenv_new(null, null);
     task_default(vm);
@@ -341,4 +324,13 @@ void tlVmInitDefaultEnv(tlVm* vm) {
     tlNative* assert = tlNativeNew(null, _assert, tlSYM("assert"));
     tlVmGlobalSet(vm, tlNativeName(assert), assert);
 }
+
+static tlClass _tlVmClass = {
+    .name = "Vm"
+};
+static tlClass _tlWorkerClass = {
+    .name = "Worker"
+};
+tlClass* tlVmClass = &_tlVmClass;
+tlClass* tlWorkerClass = &_tlWorkerClass;
 
