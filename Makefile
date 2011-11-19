@@ -40,7 +40,7 @@ endif
 	ar -s libtl.a
 
 vm.o: *.c *.h llib/lqueue.* llib/lhashmap.* Makefile
-	$(CC) $(CFLAGS) vm.c -c
+	$(CC) $(CFLAGS) -Ilibgc/libatomic_ops/src vm.c -c
 
 tl: libtl.a tl.c
 	$(CC) $(CFLAGS) tl.c -o tl libtl.a -lm
