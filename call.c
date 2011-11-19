@@ -90,9 +90,13 @@ tlCall* tlCallCopy(tlTask* task, tlCall* o) {
     trace("%s", tl_str(o));
     tlCall* call = tlAllocClone(task, o, sizeof(tlCall));
     trace("%s", tl_str(call));
+    assert(tlflag_isset(o, TL_FLAG_HASKEYS) == tlflag_isset(call, TL_FLAG_HASKEYS));
+    assert(tlCallSize(o) == tlCallSize(call));
+    assert(tlCallGetFn(o) == tlCallGetFn(call));
     return call;
 }
 tlCall* tlCallCopySetFn(tlTask* task, tlCall* o, tlValue fn) {
+    trace("%s %s", tl_str(o), tl_str(fn));
     tlCall* call = tlCallCopy(task, o);
     call->fn = fn;
     return call;
@@ -225,6 +229,7 @@ tlCall* tlCallAddBlock(tlTask* task, tlValue _call, tlCode* block) {
         }
     }
     tlCall* ncall = tlCallNew(task, size, true);
+    ncall->fn = call->fn;
     for (int i = 0; i < size; i++) {
         ncall->data[i] = call->data[i];
     }

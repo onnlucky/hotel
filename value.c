@@ -45,6 +45,8 @@ void* tlAllocClone(tlTask* task, tlValue v, size_t bytes) {
     trace("CLONE: %p %zd %d", v, bytes, tl_head(v)->size);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
+    head->flags = tl_head(v)->flags;
+    head->type = tl_head(v)->type;
     head->size = fieldc;
     head->klass = tl_class(v);
     head->keep = 1;
