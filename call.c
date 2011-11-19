@@ -8,29 +8,21 @@ tlClass* tlNativeClass = &_tlNativeClass;
 struct tlNative {
     tlHead head;
     tlNativeCb native;
-    tlValue data[];
+    tlSym name;
 };
 
-tlNative* tlNativeNew(tlTask* task, tlNativeCb native, int size) {
-    tlNative* fn = tlAllocWithFields(task, tlNativeClass, sizeof(tlNative), size);
+tlNative* tlNativeNew(tlTask* task, tlNativeCb native, tlSym name) {
+    tlNative* fn = tlAlloc(task, tlNativeClass, sizeof(tlNative));
     fn->native = native;
+    fn->name = name;
     return fn;
 }
-tlValue tlNativeGet(tlNative* fn, int at) {
+tlSym tlNativeName(tlNative* fn) {
     assert(tlNativeIs(fn));
-    assert(at >= 0);
-    if (at >= fn->head.size) return null;
-    return fn->data[at];
-}
-void tlNativeSet_(tlNative* fn, int at, tlValue v) {
-    assert(tlNativeIs(fn));
-    assert(at >= 0 && at < fn->head.size);
-    fn->data[at] = v;
+    return tlSymAs(fn->name);
 }
 tlNative* tlNATIVE(tlNativeCb cb, const char* n) {
-    tlNative* fn = tlNativeNew(null, cb, 1);
-    tlNativeSet_(fn, 0, tlSYM(n));
-    return fn;
+    return tlNativeNew(null, cb, tlSYM(n));
 }
 
 struct tlCall {

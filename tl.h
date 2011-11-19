@@ -380,6 +380,13 @@ tlText* tlToText(tlTask* task, tlValue v);
 
 // native functions signature
 typedef tlValue(*tlNativeCb)(tlTask*, tlArgs*);
+tlNative* tlNATIVE(tlNativeCb cb, const char* name);
+tlNative* tlNativeNew(tlTask* task, tlNativeCb cb, tlSym name);
+
+// bulk create native functions and globals (don't overuse these)
+typedef struct { const char* name; tlNativeCb cb; } tlNativeCbs;
+void tl_register_natives(const tlNativeCbs* cbs);
+void tl_register_global(const char* name, tlValue v);
 
 // task management
 tlTask* tlTaskNew(tlVm* vm);
@@ -481,15 +488,6 @@ tlValue tltask_clone(tlTask* task, tlValue v);
 #define TL_CLONE(_V_) tltask_clone(task, _V_)
 
 // ** extending **
-
-// TODO rename and move to above
-tlNative* tlNATIVE(tlNativeCb cb, const char* name);
-tlNative* tlNativeNew(tlTask* task, tlNativeCb cb, int fields);
-void tlNativeSet_(tlNative* fun, int at, tlValue v);
-
-typedef struct { const char* name; tlNativeCb cb; } tlNativeCbs;
-void tl_register_global(const char* name, tlValue v);
-void tl_register_natives(const tlNativeCbs* cbs);
 
 #endif // _tl_h_
 

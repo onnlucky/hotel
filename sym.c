@@ -101,8 +101,7 @@ void tl_register_global(const char* name, tlValue v) {
 void tl_register_natives(const tlNativeCbs* cbs) {
     for (int i = 0; cbs[i].name; i++) {
         tlSym name = tlSYM(cbs[i].name);
-        tlNative* fn = tlNativeNew(null, cbs[i].cb, 1);
-        tlNativeSet_(fn, 0, name);
+        tlNative* fn = tlNativeNew(null, cbs[i].cb, name);
         lhashmap_putif(globals, (void*)cbs[i].name, fn, LHASHMAP_IGNORE);
     }
 }

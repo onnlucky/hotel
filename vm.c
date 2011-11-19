@@ -335,12 +335,10 @@ static tlValue _assert(tlTask* task, tlArgs* args) {
 }
 
 void tlVmInitDefaultEnv(tlVm* vm) {
-    tlNative* f_print = tlNativeNew(null, _print, 1);
-    tlNativeSet_(f_print, 0, tlSYM("print"));
-    tlVmGlobalSet(vm, tlSYM("print"), f_print);
+    tlNative* print = tlNativeNew(null, _print, tlSYM("print"));
+    tlVmGlobalSet(vm, tlNativeName(print), print);
 
-    tlNative* f_assert = tlNativeNew(null, _assert, 1);
-    tlNativeSet_(f_assert, 0, tlSYM("assert"));
-    tlVmGlobalSet(vm, tlSYM("assert"), f_assert);
+    tlNative* assert = tlNativeNew(null, _assert, tlSYM("assert"));
+    tlVmGlobalSet(vm, tlNativeName(assert), assert);
 }
 

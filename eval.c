@@ -208,14 +208,26 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
     return lastblock;
 }
 
-// return works like a closure, on lookup we close it over the current pause
+TL_REF_TYPE(tlReturn);
+struct tlReturn {
+    tlHead head;
+    tlArgs* args;
+};
+static tlValue ReturnCallFn(tlTask* task, tlCall* call);
+static tlClass _tlReturnClass = {
+    .name = "Return",
+    .call = ReturnCallFn,
+};
+tlClass* tlReturnClass = &_tlReturnClass;
+
 typedef struct ReturnFrame {
     tlFrame frame;
-    tlArgs* args;
+    tlArgs* targetargs;
 } ReturnFrame;
 
 INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    tlArgs* args = ((ReturnFrame*)frame)->args;
+    if (err) return null;
+    tlArgs* args = tlArgsAs(res);
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
 
     if (tlArgsSize(args) == 0) res = tlNull;
@@ -224,16 +236,18 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
     assert(res);
 
     // we have just reified the stack, now find our frame
-    frame = lexicalFunctionFrame(frame, tlNativeGet(tlNativeAs(args->fn), 0));
+    frame = lexicalFunctionFrame(frame, ((ReturnFrame*)frame)->targetargs);
     trace("%p", frame);
     if (frame) return tlTaskJump(task, frame->caller, res);
     return res;
 }
-
-INTERNAL tlValue _return(tlTask* task, tlArgs* args) {
-    trace("RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
+INTERNAL tlValue ReturnCallFn(tlTask* task, tlCall* call) {
+    trace("RETURN(%d)", tlcall_argc(call));
     ReturnFrame* frame = tlFrameAlloc(task, resumeReturn, sizeof(ReturnFrame));
-    frame->args = args;
+    frame->targetargs = tlReturnAs(tlcall_fn(call))->args;
+    tlArgs* args = evalCall(task, call);
+    if (!args) return tlTaskPauseAttach(task, frame);
+    task->value = args;
     return tlTaskPause(task, frame);
 }
 
@@ -386,10 +400,9 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
 INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
         assert(task->frame && task->frame->resumecb == resumeCode);
-        tlArgs* args = tlenv_get_args(env);
-        tlNative* fn = tlNativeNew(task, _return, 1);
-        tlNativeSet_(fn, 0, args);
-        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), args);
+        tlReturn* fn = tlAlloc(task, tlReturnClass, sizeof(tlReturn));
+        fn->args = tlenv_get_args(env);
+        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), fn->args);
         return fn;
     }
     if (name == s_goto) {
