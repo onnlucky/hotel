@@ -40,8 +40,9 @@ void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc) 
     head->keep = 1;
     return (void*)head;
 }
-void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc) {
-    trace("CLONE: %p %zd %d", v, bytes, fieldc);
+void* tlAllocClone(tlTask* task, tlValue v, size_t bytes) {
+    int fieldc = tl_head(v)->size;
+    trace("CLONE: %p %zd %d", v, bytes, tl_head(v)->size);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
     head->size = fieldc;
@@ -149,7 +150,9 @@ const char* tl_str(tlValue v) {
     if (v == tlTrue) return "true";
     if (v == tlNull) return "null";
     if (v == tlUndefined) return "undefined";
-    return "<!! old style value !!>";
+
+    snprintf(_str_buf, _BUF_SIZE, "<!! %p !!>", v);
+    return _str_buf;
 }
 
 static const char* undefinedToText(tlValue v, char* buf, int size) { return "undefined"; }

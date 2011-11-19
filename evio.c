@@ -413,7 +413,7 @@ static tlValue _Path_stat(tlTask* task, tlArgs* args) {
     int r = stat(tlTextData(name), &buf);
     if (r == -1) TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
 
-    tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap), tlMapSize(_statMap));
+    tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap));
     tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
     tlMapSetSym_(res, _s_ino, tlINT(buf.st_ino));
     tlMapSetSym_(res, _s_mode, tlINT(buf.st_mode));
@@ -492,7 +492,7 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    res = tlEval(task, tlcall_from(task, frame->block, tlTextFromCopy(task, dp.d_name, 0), null));
+    res = tlEval(task, tlCallFrom(task, frame->block, tlTextFromCopy(task, dp.d_name, 0), null));
     if (!res) return tlTaskPauseAttach(task, frame);
     goto again;
     return tlNull;

@@ -58,6 +58,9 @@ tlText* tlTextFromSym(tlSym sym) {
     assert(tlSymIs(sym));
     return _TEXT_FROM_SYM(sym);
 }
+const char* tlSymData(tlSym sym) {
+    return tlTextData(tlTextFromSym(sym));
+}
 
 tlSym tlSymFromStatic(const char* s, int len) {
     assert(s);

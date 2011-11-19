@@ -11,6 +11,7 @@ start preparing a first release:
 * rework all types as the tlClass things ... stop using anything else
 * remove old task_alloc and such
 
+stop head.size ... and fix it into something better ... ? how?
 implement tlFirst for resume functions
 start using tlTaskPauseResuming() ... a lot more
 on parse errors, throw it on the task, not fatal() out ...

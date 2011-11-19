@@ -124,6 +124,13 @@ tlValue tlresult_get(tlValue v, int at) {
     if (at < result->head.size) return result->data[at];
     return tlNull;
 }
+tlValue tlFirst(tlValue v) {
+    if (!v) return v;
+    if (!tlresult_is(v)) return v;
+    tlResult* result = tlresult_as(v);
+    if (0 < result->head.size) return result->data[0];
+    return tlNull;
+}
 
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err);
 bool CodeFrameIs(tlFrame* frame) { return frame && frame->resumecb == resumeCode; }
@@ -144,27 +151,6 @@ INTERNAL void print_backtrace(tlFrame* frame) {
 }
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call);
-
-INTERNAL tlValue evalThrow(tlTask* task, tlFrame* frame, tlValue error) {
-    print_backtrace(frame);
-    while (frame) {
-        if (CodeFrameIs(frame)) {
-            tlClosure* handler = CodeFrameAs(frame)->handler;
-            if (handler) {
-                tlCall* call = tlcall_new(task, 1, null);
-                tlcall_fn_set_(call, handler);
-                tlcall_arg_set_(call, 0, error);
-                tlValue res = tlEval(task, call);
-                if (res) return tlTaskJump(task, frame->caller, res);
-                return tlTaskPauseAttach(task, frame->caller);
-            }
-        }
-        frame = frame->caller;
-    }
-    warning("uncaught exception: %s", tl_str(error));
-    tlTaskError(task, error);
-    return null;
-}
 
 // on a reified the stack look for first lexical scoped function, if any
 // we look for "args" because these stay the same after copy-on-write of env and frames
@@ -242,9 +228,9 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
     return res;
 }
 INTERNAL tlValue ReturnCallFn(tlTask* task, tlCall* call) {
-    trace("RETURN(%d)", tlcall_argc(call));
+    trace("RETURN(%d)", tlCallSize(call));
     ReturnFrame* frame = tlFrameAlloc(task, resumeReturn, sizeof(ReturnFrame));
-    frame->targetargs = tlReturnAs(tlcall_fn(call))->args;
+    frame->targetargs = tlReturnAs(tlCallGetFn(call))->args;
     tlArgs* args = evalCall(task, call);
     if (!args) return tlTaskPauseAttach(task, frame);
     task->value = args;
@@ -272,18 +258,18 @@ typedef struct GotoFrame {
 INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlCall* call = ((GotoFrame*)frame)->call;
     tlArgs* targetargs = ((GotoFrame*)frame)->targetargs;
-    trace("RESUME GOTO(%d)", tlcall_argc(call));
+    trace("RESUME GOTO(%d)", tlCallSize(call));
     trace("%p - %s", targetargs, tl_str(targetargs));
 
     // TODO handle multiple arguments ... but what does that mean?
-    assert(tlcall_argc(call) == 1);
+    assert(tlCallSize(call) == 1);
 
     // we have just reified the stack, now find our frame
     frame = lexicalFunctionFrame(frame, targetargs);
     tlFrame* caller = null;
     if (frame) caller = frame->caller;
     trace("JUMPING: %p", caller);
-    res = tlEval(task, tlcall_arg(call, 0));
+    res = tlEval(task, tlCallGet(call, 0));
     if (!res) {
         // fixup the stack by skipping our frame
         tlTaskPauseAttach(task, caller);
@@ -293,10 +279,10 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     return tlTaskJump(task, caller, res);
 }
 INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
-    trace("GOTO(%d)", tlcall_argc(call));
+    trace("GOTO(%d)", tlCallSize(call));
     GotoFrame* frame = tlFrameAlloc(task, resumeGoto, sizeof(GotoFrame));
     frame->call = call;
-    frame->targetargs = tlGotoAs(tlcall_fn(call))->args;
+    frame->targetargs = tlGotoAs(tlCallGetFn(call))->args;
     return tlTaskPause(task, frame);
 }
 
@@ -328,11 +314,11 @@ INTERNAL tlValue resumeCC(tlTask* task, tlFrame* _frame, tlValue res, tlError* e
     return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
 }
 INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
-    trace("CONTINUATION(%d)", tlcall_argc(call));
+    trace("CONTINUATION(%d)", tlCallSize(call));
 
-    tlContinuation* cont = tlContinuationAs(tlcall_fn(call));
+    tlContinuation* cont = tlContinuationAs(tlCallGetFn(call));
 
-    if (tlcall_argc(call) == 0) return tlTaskJump(task, cont->frame, cont);
+    if (tlCallSize(call) == 0) return tlTaskJump(task, cont->frame, cont);
     tlArgs* args = evalCall(task, call);
     // TODO this would be nice: task->value = args
     ContinuationFrame* frame = tlFrameAlloc(task, resumeCC, sizeof(ContinuationFrame));
@@ -359,23 +345,23 @@ INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, 
     return run_activate_call(task, frame, frame->call, frame->env, res);
 }
 
+// TODO fix this?
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCall* call, tlEnv* env, tlValue _res) {
     int i = 0;
     if (frame) i = frame->count;
-    else call = tlcall_copy(task, call);
-    trace("%p >> call: %d - %d", frame, i, tlcall_argc(call));
+    else call = tlCallCopy(task, call);
+    trace("%p >> call: %d - %d", frame, i, tlCallSize(call));
 
     if (i < 0) {
         i = -i - 1;
-        // TODO unwrap res if it is a tlResult
-        tlValue v = _res;
+        tlValue v = tlFirst(_res);
         trace2("%p call: %d = %s", frame, i, tl_str(v));
         assert(v);
-        call = tlcall_value_iter_set_(call, i, v);
+        call = tlCallValueIterSet_(call, i, v);
         i++;
     }
     for (;; i++) {
-        tlValue v = tlcall_value_iter(call, i);
+        tlValue v = tlCallValueIter(call, i);
         if (!v) break;
         if (tlActiveIs(v)) {
             v = run_activate(task, tl_value(v), env);
@@ -388,11 +374,11 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
                 frame->call = call;
                 return tlTaskPauseAttach(task, frame);
             }
-            call = tlcall_value_iter_set_(call, i, v);
+            call = tlCallValueIterSet_(call, i, v);
         }
         trace2("%p call: %d = %s", frame, i, tl_str(v));
     }
-    trace2("%p << call: %d", frame, tlcall_argc(call));
+    trace2("%p << call: %d", frame, tlCallSize(call));
     return call;
 }
 
@@ -433,8 +419,8 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
         tlenv_captured(env); // half closes the environment
         return tlclosure_new(task, tlcode_as(v), env);
     }
-    if (tlcall_is(v)) {
-        return run_activate_call(task, null, tlcall_as(v), env, null);
+    if (tlCallIs(v)) {
+        return run_activate_call(task, null, tlCallAs(v), env, null);
     }
     assert(false);
 }
@@ -443,7 +429,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
 INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     if (err) return null;
     CallFnFrame* frame = (CallFnFrame*)_frame;
-    return applyCall(task, tlcall_copy_fn(task, frame->call, res));
+    return applyCall(task, tlCallCopySetFn(task, frame->call, res));
 }
 INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
     trace(">> %p", fn);
@@ -454,7 +440,7 @@ INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
         return tlTaskPauseAttach(task, frame);
     }
     trace("<< %p", res);
-    return applyCall(task, tlcall_copy_fn(task, call, res));
+    return applyCall(task, tlCallCopySetFn(task, call, res));
 }
 
 /*
@@ -482,23 +468,23 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
 
     // setup needed data
     tlCall* call = frame->call;
-    int argc = tlcall_argc(call);
+    int argc = tlCallSize(call);
 
     tlList* names = null;
     tlMap* defaults = null;
 
-    tlValue fn = tlcall_fn(call);
+    tlValue fn = tlCallGetFn(call);
     if (tlclosure_is(fn)) {
         tlCode* code = tlclosure_as(fn)->code;
         names = code->argnames;
         defaults = code->argdefaults;
     } else {
-        tlCallableIs(fn);
+        assert(tlCallableIs(fn));
     }
 
     tlArgs* args = frame->args;
     if (!args) {
-        args = tlArgsNewNames(task, argc, tlcall_names(call));
+        args = tlArgsNewNames(task, argc, tlCallNames(call));
         tlArgsSetFn_(args, fn);
     }
 
@@ -510,7 +496,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
 
     if (frame->count & 0x80000000) {
         tlValue v = _res;
-        tlSym name = tlcall_arg_name(call, at);
+        tlSym name = tlCallGetName(call, at);
         if (name) {
             trace("(frame) ARGS: %s = %s", tl_str(name), tl_str(v));
             tlArgsMapSet_(args, name, v);
@@ -524,8 +510,8 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
 
     // evaluate each argument
     for (; at < argc; at++) {
-        tlValue v = tlcall_arg(call, at);
-        tlSym name = tlcall_arg_name(call, at);
+        tlValue v = tlCallGet(call, at);
+        tlSym name = tlCallGetName(call, at);
         tlValue d = tlNull;
         if (name) {
             if (defaults) d = tlMapGetSym(defaults, name);
@@ -534,7 +520,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
                 if (!names) break;
                 tlSym fnname = tlListGet(names, at - named + skipped);
                 if (!fnname) break;
-                if (!tlcall_names_contains(call, fnname)) {
+                if (!tlCallNamesContains(call, fnname)) {
                     if (defaults) d = tlMapGetSym(defaults, fnname);
                     break;
                 }
@@ -544,7 +530,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
 
         if (tlthunk_is(d) || d == tlThunkNull) {
             v = tlthunk_new(task, v);
-        } else if (tlcall_is(v)) {
+        } else if (tlCallIs(v)) {
             v = applyCall(task, v);
             if (!v) {
                 assert(at < 0xFFFF && named < 0xFF && skipped < 0x7F);
@@ -578,16 +564,16 @@ INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError*
         tlClosure* handler = frame->handler;
         if (!handler) return null;
 
-        tlCall* call = tlcall_new(task, 1, null);
-        tlcall_fn_set_(call, handler);
-        tlcall_arg_set_(call, 0, err);
+        tlCall* call = tlCallNew(task, 1, null);
+        tlCallSetFn_(call, handler);
+        tlCallSet_(call, 0, err);
         // doing it this way means this codeblock is over ... we might let the handler decide that
         return tlEval(task, call);
     }
 
     // TODO this should be done for all Frames everywhere ... but ... for now
     // TODO keep should trickle down to frame->caller now too ... oeps
-    if (_frame->head.keep > 1) frame = tlAllocClone(task, frame, sizeof(CodeFrame), 0);
+    if (_frame->head.keep > 1) frame = tlAllocClone(task, frame, sizeof(CodeFrame));
     return evalCode2(task, frame, res);
 }
 
@@ -613,7 +599,7 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
                 v = tlMapGetSym(defaults, name);
                 if (tlthunk_is(v) || v == tlThunkNull) {
                     v = tlthunk_new(task, tlNull);
-                } else if (tlcall_is(v)) {
+                } else if (tlCallIs(v)) {
                     fatal("not implemented yet: defaults with call and too few args");
                 }
             }
@@ -697,13 +683,13 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
             tlValue v = run_activate(task, tl_value(op), env);
             if (!v) return tlTaskPauseAttach(task, frame);
 
-            if (tlcall_is(v)) {
+            if (tlCallIs(v)) {
                 trace("%p op: active call: %p", frame, task->value);
-                v = applyCall(task, tlcall_as(v));
+                v = applyCall(task, tlCallAs(v));
                 if (!v) return tlTaskPauseAttach(task, frame);
             }
             assert(!tlFrameIs(v));
-            assert(!tlcall_is(v));
+            assert(!tlCallIs(v));
             task->value = v;
             trace2("%p op: active resolved: %s", frame, tl_str(task->value));
             continue;
@@ -744,8 +730,8 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
 INTERNAL tlValue run_thunk(tlTask* task, tlThunk* thunk) {
     tlValue v = thunk->value;
     trace("%p -> %s", thunk, tl_str(v));
-    if (tlcall_is(v)) {
-        return tlEval(task, tlcall_as(v));
+    if (tlCallIs(v)) {
+        return tlEval(task, tlCallAs(v));
     }
     return v;
 }
@@ -763,16 +749,16 @@ INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlEr
 }
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
-    trace("apply >> %p(%d) <<", call, tlcall_argc(call));
+    trace("apply >> %p(%d) <<", call, tlCallSize(call));
     assert(call);
 
     for (int i = 0;; i++) {
-        tlValue v = tlcall_value_iter(call, i);
-        if (!v) { assert(i >= tlcall_argc(call)); break; }
+        tlValue v = tlCallValueIter(call, i);
+        if (!v) { assert(i >= tlCallSize(call)); break; }
         assert(!tlActiveIs(v));
     }
 
-    tlValue fn = tlcall_fn(call);
+    tlValue fn = tlCallGetFn(call);
     trace("%p: fn=%s", call, tl_str(fn));
     if (!fn || !tlRefIs(fn)) {
         TL_THROW("unable to call: %s", tl_str(fn));
@@ -807,12 +793,9 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
             args = evalCall(task, call);
             trace("closure: %s", tl_str(args));
             break;
-        case TLCall:
-            trace("call");
-            return evalCallFn(task, call, tlcall_as(fn));
         case TLThunk:
             trace("thunk");
-            if (tlcall_argc(call) > 0) {
+            if (tlCallSize(call) > 0) {
                 args = evalCall(task, call);
             }
             return run_thunk(task, tlthunk_as(fn));
@@ -837,7 +820,7 @@ tlText* tlToText(tlTask* task, tlValue v) {
 }
 tlValue tlEval(tlTask* task, tlValue v) {
     trace("%s", tl_str(v));
-    if (tlcall_is(v)) return applyCall(task, tlcall_as(v));
+    if (tlCallIs(v)) return applyCall(task, tlCallAs(v));
     return v;
 }
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {

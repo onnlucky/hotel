@@ -287,7 +287,7 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code) {
     trace("PARSED");
 
     tlClosure* fn = tlclosure_new(task, body, vm->globals);
-    tlCall* call = tlcall_from(task, fn, null);
+    tlCall* call = tlCallFrom(task, fn, null);
     tlTaskEval(task, call);
     tlTaskStart(task);
 

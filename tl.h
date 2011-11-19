@@ -199,7 +199,7 @@ TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
 TL_REF_TYPE(tlValueObject);
 
-TL_TYPE(call, Call);
+TL_REF_TYPE(tlCall);
 TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlError);
 
@@ -286,6 +286,7 @@ tlSym tlSymFromTake(tlTask* task, char* s, int len);
 
 tlSym tlSymFromText(tlTask* task, tlText* text);
 tlText* tlTextFromSym(tlSym s);
+const char* tlSymData(tlSym sym);
 
 
 // ** list **
@@ -421,14 +422,14 @@ int tlArgsMapSize(tlArgs* args);
 tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 
 // results, from a result or a value, get the first result or the value itself
-tlValue tlFirst(tlResult* res);
+tlValue tlFirst(tlValue res);
 // returning multiple results from native functions
 tlResult* tlResultNewFrom(tlTask* task, ...);
 
 // allocate values
 void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);
 void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc);
-void* tlAllocClone(tlTask* task, tlValue v, size_t bytes, int fieldc);
+void* tlAllocClone(tlTask* task, tlValue v, size_t bytes);
 tlFrame* tlAllocFrame(tlTask* task, tlResumeCb resume, size_t bytes);
 
 // create objects with only native functions (to use as classes)
@@ -443,16 +444,16 @@ tlWorker* tlTaskWorker(tlTask* task);
 
 tlCode* tlcode_from(tlTask* task, tlList* stms);
 
-tlCall* tlcall_from(tlTask* task, ...);
-tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args);
-tlValue tlcall_fn(tlCall* call);
-tlValue tlcall_arg(tlCall* call, int at);
-tlValue tlcall_arg_name(tlCall* call, int at);
-tlSet* tlcall_names(tlCall* call);
-bool tlcall_name_exists(tlCall* call, tlSym name);
+tlCall* tlCallFrom(tlTask* task, ...);
+tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args);
+tlValue tlCallGetFn(tlCall* call);
+tlValue tlCallGet(tlCall* call, int at);
+tlValue tlCallGetName(tlCall* call, int at);
+tlSet* tlCallNames(tlCall* call);
+bool tlCallNameExists(tlCall* call, tlSym name);
 
-void tlcall_fn_set_(tlCall* call, tlValue v);
-void tlcall_set_(tlCall* call, int at, tlValue v);
+void tlCallSetFn_(tlCall* call, tlValue v);
+void tlCallSet_(tlCall* call, int at, tlValue v);
 
 // ** environment (scope) **
 tlEnv* tlenv_new(tlTask* task, tlEnv* parent);

@@ -80,7 +80,7 @@ void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defa
 void debugcall(int depth, tlCall* call) {
     fprintf(stderr, "%d, (", tl_head(call)->size);
     for (int i = 0; i < tl_head(call)->size; i++) {
-        tlValue a = tlcall_value_iter(call, i);
+        tlValue a = tlCallValueIter(call, i);
         if (i > 0) fprintf(stderr, ", ");
         fprintf(stderr, "%s", tl_str(a));
     }
@@ -97,8 +97,8 @@ void debugcode(tlCode* code) {
         print("%3d: %s%s", i, tlActiveIs(op)?"!":"", tl_str(op));
         if (tlActiveIs(op)) {
             op = tl_value(op);
-            if (tlcall_is(op)) {
-                debugcall(0, tlcall_as(op));
+            if (tlCallIs(op)) {
+                debugcall(0, tlCallAs(op));
             }
         }
     }

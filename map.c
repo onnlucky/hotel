@@ -60,7 +60,7 @@ tlMap* tlMapSet(tlTask* task, tlMap* map, tlValue key, tlValue v) {
     int at = 0;
     at = tlSetIndexof(map->keys, key);
     if (at >= 0) {
-        tlMap* nmap = tlAllocClone(task, map, sizeof(tlMap), map->head.size);
+        tlMap* nmap = tlAllocClone(task, map, sizeof(tlMap));
         nmap->data[at] = v;
         return nmap;
     }
@@ -202,7 +202,7 @@ static tlValue _Map_clone(tlTask* task, tlArgs* args) {
     if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsAt(args, 0);
     int size = tlMapSize(map);
-    map = tlAllocClone(task, map, sizeof(tlMap), size);
+    map = tlAllocClone(task, map, sizeof(tlMap));
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!map->data[i] || map->data[i] == tlUndefined) {

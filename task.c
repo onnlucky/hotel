@@ -369,7 +369,7 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     tlValue v = tlArgsAt(args, 0);
     tlTask* ntask = tlTaskNew(tlTaskGetVm(task));
 
-    if (tlCallableIs(v)) v = tlcall_from(ntask, v, null);
+    if (tlCallableIs(v)) v = tlCallFrom(ntask, v, null);
     tlTaskEval(ntask, v);
     tlTaskStart(ntask);
     return ntask;

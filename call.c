@@ -2,6 +2,8 @@
 
 #include "trace-on.h"
 
+INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
+
 static tlClass _tlNativeClass;
 tlClass* tlNativeClass = &_tlNativeClass;
 
@@ -25,37 +27,51 @@ tlNative* tlNATIVE(tlNativeCb cb, const char* n) {
     return tlNativeNew(null, cb, tlSYM(n));
 }
 
+static tlClass _tlCallClass;
+tlClass* tlCallClass = &_tlCallClass;
+
 struct tlCall {
     tlHead head;
+    tlValue fn;
     tlValue data[];
 };
-tlCall* tlcall_new(tlTask* task, int argc, bool keys) {
-    tlCall* call = task_alloc(task, TLCall, argc + (keys?3:1));
+tlCall* tlCallNew(tlTask* task, int argc, bool keys) {
+    tlCall* call = tlAllocWithFields(task, tlCallClass, sizeof(tlCall), argc + (keys?2:0));
     if (keys) tlflag_set(call, TL_FLAG_HASKEYS);
     return call;
 }
-int tlcall_argc(tlCall* call) {
-    if (tlflag_isset(call, TL_FLAG_HASKEYS)) return call->head.size - 3;
-    return call->head.size - 1;
+int tlCallSize(tlCall* call) {
+    if (tlflag_isset(call, TL_FLAG_HASKEYS)) return call->head.size - 2;
+    return call->head.size;
 }
-
-tlValue tlcall_get(tlCall* call, int at) {
+tlValue tlCallGetFn(tlCall* call) {
+    assert(tlCallIs(call));
+    return call->fn;
+}
+void tlCallSetFn_(tlCall* call, tlValue fn) {
+    assert(tlCallIs(call));
+    call->fn = fn;
+}
+tlValue tlCallGet(tlCall* call, int at) {
+    assert(tlCallIs(call));
     assert(at >= 0);
-    if (at < 0 || at > tlcall_argc(call)) return null;
+    if (!(at >= 0 && at < tlCallSize(call))) return null;
     return call->data[at];
 }
-void tlcall_set_(tlCall* call, int at, tlValue v) {
-    assert(at >= 0 && at <= tlcall_argc(call));
+void tlCallSet_(tlCall* call, int at, tlValue v) {
+    assert(at >= 0 && at < tlCallSize(call));
     call->data[at] = v;
 }
-tlValue tlcall_value_iter(tlCall* call, int i) {
-    return tlcall_get(call, i);
+tlValue tlCallValueIter(tlCall* call, int i) {
+    if (i == 0) return call->fn;
+    return tlCallGet(call, i - 1);
 }
-tlCall* tlcall_value_iter_set_(tlCall* call, int i, tlValue v) {
-    tlcall_set_(call, i, v);
+tlCall* tlCallValueIterSet_(tlCall* call, int i, tlValue v) {
+    if (i == 0) { call->fn = v; return call; }
+    tlCallSet_(call, i - 1, v);
     return call;
 }
-tlCall* tlcall_from(tlTask* task, ...) {
+tlCall* tlCallFrom(tlTask* task, ...) {
     va_list ap;
     int size = 0;
 
@@ -63,57 +79,46 @@ tlCall* tlcall_from(tlTask* task, ...) {
     for (tlValue v = va_arg(ap, tlValue); v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
 
-    tlCall* call = tlcall_new(task, size - 1, false);
+    tlCall* call = tlCallNew(task, size - 1, false);
 
     va_start(ap, task);
-    for (int i = 0; i < size; i++) tlcall_set_(call, i, va_arg(ap, tlValue));
+    for (int i = 0; i < size; i++) tlCallValueIterSet_(call, i, va_arg(ap, tlValue));
     va_end(ap);
     return call;
 }
-tlCall* tlcall_copy(tlTask* task, tlCall* o) {
-    return TL_CLONE(o);
-}
-tlCall* tlcall_copy_fn(tlTask* task, tlCall* o, tlValue fn) {
-    tlCall* call = TL_CLONE(o);
-    call->data[0] = fn;
+tlCall* tlCallCopy(tlTask* task, tlCall* o) {
+    trace("%s", tl_str(o));
+    tlCall* call = tlAllocClone(task, o, sizeof(tlCall));
+    trace("%s", tl_str(call));
     return call;
 }
-tlValue tlcall_fn(tlCall* call) {
-    return call->data[0];
+tlCall* tlCallCopySetFn(tlTask* task, tlCall* o, tlValue fn) {
+    tlCall* call = tlCallCopy(task, o);
+    call->fn = fn;
+    return call;
 }
-tlValue tlcall_arg(tlCall* call, int at) {
-    if (at < 0 || at >= tlcall_argc(call)) return null;
-    return call->data[at + 1];
-}
-tlValue tlcall_arg_name(tlCall* call, int at) {
+tlValue tlCallGetName(tlCall* call, int at) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     tlList* names = call->data[call->head.size - 2];
     tlValue name = tlListGet(names, at);
     if (name == tlNull) return null;
     return name;
 }
-tlSet* tlcall_names(tlCall* call) {
+tlSet* tlCallNames(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     return call->data[call->head.size - 1];
 }
-int tlcall_names_size(tlCall* call) {
+int tlCallNamesSize(tlCall* call) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return 0;
     tlSet* nameset = call->data[call->head.size - 1];
     return tlSetSize(nameset);
 }
-bool tlcall_names_contains(tlCall* call, tlSym name) {
+bool tlCallNamesContains(tlCall* call, tlSym name) {
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return false;
     tlSet* nameset = call->data[call->head.size - 1];
     return tlSetIndexof(nameset, name) >= 0;
 }
-void tlcall_fn_set_(tlCall* call, tlValue fn) {
-    call->data[0] = fn;
-}
-void tlcall_arg_set_(tlCall* call, int at, tlValue v) {
-    assert(at >= 0 && at < tlcall_argc(call));
-    call->data[at + 1] = v;
-}
-tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
+tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args) {
     int size = tlListSize(args);
     int namecount = 0;
 
@@ -137,10 +142,10 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
         }
     }
 
-    tlCall* call = tlcall_new(task, size/2, namecount > 0);
-    tlcall_fn_set_(call, fn);
+    tlCall* call = tlCallNew(task, size/2, namecount > 0);
+    tlCallSetFn_(call, fn);
     for (int i = 1; i < size; i += 2) {
-        tlcall_arg_set_(call, i / 2, tlListGet(args, i));
+        tlCallSet_(call, i / 2, tlListGet(args, i));
     }
     if (namecount) {
         assert(names && nameset);
@@ -153,7 +158,7 @@ tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args) {
 
 
 // TODO share code here ... almost same as above
-tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
+tlCall* tlCallSendFromList(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
     assert(fn);
     assert(tlSymIs(msg));
     int size = tlListSize(args);
@@ -179,12 +184,12 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
         }
     }
 
-    tlCall* call = tlcall_new(task, size/2 + 2, namecount > 0);
-    tlcall_fn_set_(call, fn);
-    tlcall_arg_set_(call, 0, oop);
-    tlcall_arg_set_(call, 1, msg);
+    tlCall* call = tlCallNew(task, size/2 + 2, namecount > 0);
+    tlCallSetFn_(call, fn);
+    tlCallSet_(call, 0, oop);
+    tlCallSet_(call, 1, msg);
     for (int i = 1; i < size; i += 2) {
-        tlcall_arg_set_(call, 2 + i / 2, tlListGet(args, i));
+        tlCallSet_(call, 2 + i / 2, tlListGet(args, i));
     }
     if (namecount) {
         assert(names && nameset);
@@ -195,12 +200,12 @@ tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg
     return call;
 }
 
-tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
-    if (!tlcall_is(_call)) {
-        return tlcall_from_list(task, _call, tlListFrom2(task, s_block, block));
+tlCall* tlCallAddBlock(tlTask* task, tlValue _call, tlCode* block) {
+    if (!tlCallIs(_call)) {
+        return tlCallFromList(task, _call, tlListFrom2(task, s_block, block));
     }
-    tlCall* call = tlcall_as(_call);
-    int size = tlcall_argc(call) + 1;
+    tlCall* call = tlCallAs(_call);
+    int size = tlCallSize(call) + 1;
     tlList* names = null;
     tlSet* nameset = null;
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) {
@@ -219,7 +224,7 @@ tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
             trace("%d: %s", i, tl_str(names->data[i]));
         }
     }
-    tlCall* ncall = tlcall_new(task, size, true);
+    tlCall* ncall = tlCallNew(task, size, true);
     for (int i = 0; i < size; i++) {
         ncall->data[i] = call->data[i];
     }
@@ -231,43 +236,53 @@ tlCall* tlcall_add_block(tlTask* task, tlValue _call, tlCode* block) {
     return ncall;
 }
 
-const char* _HostFnToText(tlValue v, char* buf, int size) {
-    snprintf(buf, size, "<HostFn@%p>", v); return buf;
+const char* nativeToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<Native@%p: %s>", v, tlSymData((tlNativeName(v)))); return buf;
+}
+const char* callToText(tlValue v, char* buf, int size) {
+    snprintf(buf, size, "<Call@%p: %d>", v, tlCallSize(v)); return buf;
 }
 
-typedef struct CFunctionFrame {
+typedef struct NativeCallFrame {
     tlFrame frame;
     tlCall* call;
-} CFunctionFrame;
+} NativeCallFrame;
 
-static tlValue CFunctionResume(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+static tlValue nativeCallResume(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
-    CFunctionFrame* frame = (CFunctionFrame*)_frame;
     if (err) return null;
+    NativeCallFrame* frame = (NativeCallFrame*)_frame;
     tlArgs* args = tlArgsAs(res);
     trace("args: %s", tl_str(args));
-    return tlNativeAs(tlcall_fn(frame->call))->native(task, args);
+    return tlNativeAs(tlCallGetFn(frame->call))->native(task, args);
 }
-
-INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
-
-static tlValue CFunctionCallFn(tlTask* task, tlCall* call) {
+static tlValue nativeCall(tlTask* task, tlCall* call) {
     trace("");
     tlArgs* args = evalCall(task, call);
-    if (args) return tlNativeAs(tlcall_fn(call))->native(task, args);
+    if (args) return tlNativeAs(tlCallGetFn(call))->native(task, args);
 
     // throwing or pausing
-    CFunctionFrame* frame = tlFrameAlloc(task, CFunctionResume, sizeof(CFunctionFrame));
+    NativeCallFrame* frame = tlFrameAlloc(task, nativeCallResume, sizeof(NativeCallFrame));
     frame->call = call;
     return tlTaskPauseAttach(task, frame);
 }
 
-static tlClass _tlNativeClass = {
-    .name = "CFunction",
-    .toText = _HostFnToText,
-    .call = CFunctionCallFn,
-};
+INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn);
+static tlValue callCall(tlTask* task, tlCall* call) {
+    trace("%s", tl_str(call));
+    return evalCallFn(task, call, tlCallAs(tlCallGetFn(call)));
+}
 
+static tlClass _tlNativeClass = {
+    .name = "Native",
+    .toText = nativeToText,
+    .call = nativeCall,
+};
+static tlClass _tlCallClass = {
+    .name = "Call",
+    .toText = callToText,
+    .call = callCall,
+};
 static void call_init() {
     _tlNativeClass.map = tlClassMapFrom(
             null,

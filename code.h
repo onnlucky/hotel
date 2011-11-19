@@ -18,11 +18,11 @@ void tlcode_set_ops_(tlCode* code, tlList* ops);
 
 bool tlcode_isblock(tlCode* code);
 
-tlCall* tlcall_new(tlTask* task, int argc, bool keys);
-tlCall* tlcall_from_list(tlTask* task, tlValue fn, tlList* args);
-tlCall* tlcall_send_from_list(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args);
-void tlcall_fn_set_(tlCall* call, tlValue fn);
-void tlcall_arg_set_(tlCall* call, int at, tlValue v);
-tlCall* tlcall_add_block(tlTask* task, tlValue call, tlCode* block);
+tlCall* tlCallNew(tlTask* task, int argc, bool keys);
+tlCall* tlCallSendFromList(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args);
+tlCall* tlCallAddBlock(tlTask* task, tlValue call, tlCode* block);
+
+tlValue tlCallValueIter(tlCall* call, int i);
+tlCall* tlCallValueIterSet_(tlCall* call, int i, tlValue v);
 
 void debugcode(tlCode* code);
