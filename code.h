@@ -25,4 +25,6 @@ tlCall* tlCallAddBlock(tlTask* task, tlValue call, tlCode* block);
 tlValue tlCallValueIter(tlCall* call, int i);
 tlCall* tlCallValueIterSet_(tlCall* call, int i, tlValue v);
 
+tlCollect* tlCollectFromList_(tlList* list);
+
 void debugcode(tlCode* code);

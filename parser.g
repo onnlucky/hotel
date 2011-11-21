@@ -168,8 +168,6 @@ static char* unescape(const char* s) {
 #define TASK yyxvar->task
 #define L(l) tlListAs(l)
 
-tlValue tlcollect_new_(tlTask* task, tlList* list);
-
 //#define YY_DEBUG
 #define YY_STACK_SIZE 1024
 
@@ -205,7 +203,7 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
 
 singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n, null); try_name(n, e); }
              | n:name    _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, n, null); try_name(n, e); }
- multiassign = ns:anames _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, tlcollect_new_(TASK, L(ns)), null); }
+ multiassign = ns:anames _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, tlCollectFromList_(L(ns)), null); }
     noassign = e:selfapply  { $$ = tlListFrom1(TASK, e); }
              | e:bpexpr     { $$ = tlListFrom1(TASK, e); }
 

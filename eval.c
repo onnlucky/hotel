@@ -71,9 +71,9 @@ tlThunk* tlthunk_new(tlTask* task, tlValue v) {
     thunk->value = v;
     return thunk;
 }
-tlValue tlcollect_new_(tlTask* task, tlList* list) {
-    list->head.type = TLCollect;
-    return list;
+tlCollect* tlCollectFromList_(tlList* list) {
+    list->head.klass = tlCollectClass;
+    return tlCollectAs(list);
 }
 tlResult* tlResultFromArgs(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
@@ -85,7 +85,7 @@ tlResult* tlResultFromArgs(tlTask* task, tlArgs* args) {
 }
 tlResult* tlResultFromArgsPrepend(tlTask* task, tlValue first, tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = task_alloc(task, TLResult, size + 1);
+    tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size + 1);
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
         res->data[i + 1] = tlArgsAt(args, i);
@@ -94,7 +94,7 @@ tlResult* tlResultFromArgsPrepend(tlTask* task, tlValue first, tlArgs* args) {
 }
 tlResult* tlResultFromArgsSkipOne(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = task_alloc(task, TLResult, size - 1);
+    tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size - 1);
     for (int i = 1; i < size; i++) {
         res->data[i - 1] = tlArgsAt(args, i);
     }
@@ -108,7 +108,7 @@ tlResult* tlResultNewFrom(tlTask* task, ...) {
     for (tlValue v = va_arg(ap, tlValue); v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
 
-    tlResult* res = task_alloc(task, TLResult, size + 1);
+    tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size + 1);
 
     va_start(ap, task);
     for (int i = 0; i < size; i++) res->data[i] = va_arg(ap, tlValue);
