@@ -54,74 +54,8 @@ void* tlAllocClone(tlTask* task, tlValue v, size_t bytes) {
     return (void*)head;
 }
 
-tlValue task_alloc(tlTask* task, uint8_t type, int size) {
-    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
-    tlHead* head = (tlHead*)calloc(1, sizeof(tlHead) + sizeof(tlValue) * size);
-    assert((((intptr_t)head) & 7) == 0);
-    head->flags = 0;
-    head->type = type;
-    head->size = size;
-    head->keep = 1;
-    return (tlValue)head;
-}
-tlValue task_alloc_priv(tlTask* task, uint8_t type, int size, uint8_t privs) {
-    assert(privs <= 0x0F);
-    tlHead* head = task_alloc(task, type, size + privs);
-    assert((((intptr_t)head) & 7) == 0);
-    head->flags = privs;
-    return (tlValue)head;
-}
-tlValue task_alloc_full(tlTask* task, uint8_t type, size_t bytes, uint8_t privs, uint16_t datas) {
-    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
-    assert(privs <= 0x0F);
-    bytes = bytes + ((size_t)datas + privs) * sizeof(tlValue);
-    int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
-    assert(size < 0xFFFF);
-    trace("BYTES: %zd -- %d", bytes, size);
 
-    tlData* to = calloc(1, bytes);
-    assert((((intptr_t)to) & 7) == 0);
-    to->head.flags = privs;
-    to->head.type = type;
-    to->head.size = size;
-    to->head.keep = 1;
-    return to;
-}
-tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields) {
-    assert(type > TL_TYPE_TAGGED && type < TL_TYPE_LAST);
-    assert(bytes % sizeof(tlValue) == 0);
-    assert(fields >= 0);
-    int size = fields + bytes/sizeof(tlValue) - sizeof(tlHead)/sizeof(intptr_t);
-    assert(size >= 0 && size < 0xFFFF);
-
-    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue) * fields);
-    assert((((intptr_t)head) & 7) == 0);
-
-    head->flags = 0;
-    head->type = type;
-    head->size = size;
-    head->keep = 1;
-    return (tlValue)head;
-}
-tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields, int privs, tlFreeCb freecb) {
-    tlHead* head = (tlHead*)tltask_alloc(task, type, bytes, fields + privs);
-    return (tlValue)head;
-}
-tlValue tltask_clone(tlTask* task, tlValue v) {
-    tlData* from = (tlData*)v;
-    size_t bytes = sizeof(tlHead) + sizeof(tlValue) * from->head.size;
-    int size = (bytes - sizeof(tlHead)) / sizeof(tlValue);
-    assert(size < 0xFFFF);
-    trace("BYTES: %zd -- %d -- %s", bytes, size, tl_str(v));
-    assert(from->head.size == size);
-    tlData* to = malloc(bytes);
-    memcpy(to, from, bytes);
-    assert(to->head.size == size);
-    to->head.keep = 1;
-    return to;
-}
-
-// pritive toString
+// primitive toString
 #define _BUF_COUNT 8
 #define _BUF_SIZE 128
 static char** _str_bufs;
@@ -147,12 +81,6 @@ const char* tl_str(tlValue v) {
         snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", klass->name, v);
         return _str_buf;
     }
-    // TODO also remove ...
-    if (v == tlFalse) return "false";
-    if (v == tlTrue) return "true";
-    if (v == tlNull) return "null";
-    if (v == tlUndefined) return "undefined";
-
     snprintf(_str_buf, _BUF_SIZE, "<!! %p !!>", v);
     return _str_buf;
 }

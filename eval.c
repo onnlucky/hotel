@@ -6,11 +6,16 @@
 #include "trace-on.h"
 
 // various internal structures
+static tlClass _tlClosureClass = { .name = "Function" };
+tlClass* tlClosureClass = &_tlClosureClass;
 struct tlClosure {
     tlHead head;
     tlCode* code;
     tlEnv* env;
 };
+
+static tlClass _tlThunkClass = { .name = "Thunk" };
+tlClass* tlThunkClass = &_tlThunkClass;
 struct tlThunk {
     tlHead head;
     tlValue value;
@@ -60,14 +65,14 @@ typedef struct CodeFrame {
     int pc;
 } CodeFrame;
 
-tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env) {
-    tlClosure* fn = task_alloc(task, TLClosure, 2);
+tlClosure* tlClosureNew(tlTask* task, tlCode* code, tlEnv* env) {
+    tlClosure* fn = tlAlloc(task, tlClosureClass, sizeof(tlClosure));
     fn->code = code;
     fn->env = tlEnvNew(task, env);
     return fn;
 }
-tlThunk* tlthunk_new(tlTask* task, tlValue v) {
-    tlThunk* thunk = task_alloc(task, TLThunk, 1);
+tlThunk* tlThunkNew(tlTask* task, tlValue v) {
+    tlThunk* thunk = tlAlloc(task, tlThunkClass, sizeof(tlThunk));
     thunk->value = v;
     return thunk;
 }
@@ -167,7 +172,7 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
         if (CodeFrameIs(frame)) {
             CodeFrame* cframe = CodeFrameAs(frame);
             if (cframe->env->args == targetargs) {
-                if (!tlcode_isblock(cframe->code)) {
+                if (!tlCodeIsBlock(cframe->code)) {
                     trace("found caller function: %p.caller: %p", frame, frame->caller);
                     return frame;
                 }
@@ -182,7 +187,7 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
         if (CodeFrameIs(frame)) {
             CodeFrame* cframe = CodeFrameAs(frame);
             if (cframe->env->args == targetargs) {
-                if (!tlcode_isblock(cframe->code)) {
+                if (!tlCodeIsBlock(cframe->code)) {
                     trace("found enclosing function: %p.caller: %p", frame, frame->caller);
                     return frame;
                 } else {
@@ -421,9 +426,9 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
         tlEnvCloseCaptures(env);
         return lookup(task, env, v);
     }
-    if (tlcode_is(v)) {
+    if (tlCodeIs(v)) {
         tlEnvCaptured(env); // half closes the environment
-        return tlclosure_new(task, tlcode_as(v), env);
+        return tlClosureNew(task, tlCodeAs(v), env);
     }
     if (tlCallIs(v)) {
         return run_activate_call(task, null, tlCallAs(v), env, null);
@@ -456,7 +461,7 @@ INTERNAL tlValue start_args(tlTask* task, tlArgs* args, tlValue pause) {
     tlValue fn = tlArgsFn(args);
     assert(tlref_is(fn));
     switch(tl_head(fn)->type) {
-        case TLClosure: return chain_args_closure(task, tlclosure_as(fn), args, pause);
+        case TLClosure: return chain_args_closure(task, tlClosureAs(fn), args, pause);
         case TLHostFn: return chain_args_fun(task, tlHostFnAs(fn), args, pause);
     }
     if (tlCallableIs(fn)) {
@@ -480,8 +485,8 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
     tlMap* defaults = null;
 
     tlValue fn = tlCallGetFn(call);
-    if (tlclosure_is(fn)) {
-        tlCode* code = tlclosure_as(fn)->code;
+    if (tlClosureIs(fn)) {
+        tlCode* code = tlClosureAs(fn)->code;
         names = code->argnames;
         defaults = code->argdefaults;
     } else {
@@ -534,8 +539,8 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
             }
         }
 
-        if (tlthunk_is(d) || d == tlThunkNull) {
-            v = tlthunk_new(task, v);
+        if (tlThunkIs(d) || d == tlThunkNull) {
+            v = tlThunkNew(task, v);
         } else if (tlCallIs(v)) {
             v = applyCall(task, v);
             if (!v) {
@@ -603,8 +608,8 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
             }
             if (!v && defaults) {
                 v = tlMapGetSym(defaults, name);
-                if (tlthunk_is(v) || v == tlThunkNull) {
-                    v = tlthunk_new(task, tlNull);
+                if (tlThunkIs(v) || v == tlThunkNull) {
+                    v = tlThunkNew(task, tlNull);
                 } else if (tlCallIs(v)) {
                     fatal("not implemented yet: defaults with call and too few args");
                 }
@@ -616,7 +621,7 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     }
     frame->env = tlEnvSetArgs(task, frame->env, args);
     // TODO remove this ...
-    if (!tlcode_isblock(fn->code)) {
+    if (!tlCodeIsBlock(fn->code)) {
         frame->env = tlEnvSet(task, frame->env, s_args, args);
     }
     // TODO only do this if the closure is a method
@@ -633,7 +638,7 @@ INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     assert(tlCallableIs(fn));
-    if (tlclosure_is(fn)) return evalCode(task, args, tlclosure_as(fn));
+    if (tlClosureIs(fn)) return evalCode(task, args, tlClosureAs(fn));
     if (tlNativeIs(fn)) return tlNativeAs(fn)->native(task, args);
     if (tlValueObjectIs(fn)) {
         tlValue call = tlMapGetSym(fn, s_call);
@@ -675,7 +680,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
     // set value from any pause/resume
     task->value = _res;
 
-    for (;pc < code->head.size - 4; pc++) {
+    for (;pc < code->head.size; pc++) {
         tlValue op = code->ops[pc];
         trace("%p pc=%d, op=%s", frame, pc, tl_str(op));
 
@@ -705,7 +710,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
         if (tlSymIs(op)) {
             tlValue v = tlFirst(task->value);
             trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
-            if (!tlclosure_is(v)) tlEnvCloseCaptures(env);
+            if (!tlClosureIs(v)) tlEnvCloseCaptures(env);
             env = tlEnvSet(task, env, tlSymAs(op), v);
             // this is good enough: every lookup will also close the environment
             // and the only way we got a closure is by lookup or binding ...
@@ -754,10 +759,31 @@ INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlEr
     return evalArgs(task, tlArgsAs(res));
 }
 
+INTERNAL tlValue callCall(tlTask* task, tlCall* call) {
+    trace("%s", tl_str(call));
+    return evalCallFn(task, call, tlCallAs(tlCallGetFn(call)));
+}
+INTERNAL tlValue callClosure(tlTask* task, tlCall* call) {
+    trace("%s", tl_str(call));
+    tlArgs* args = evalCall(task, call);
+    if (args) return evalArgs(task, args);
+
+    tlFrame* frame = tlFrameAlloc(task, resumeEvalCall, sizeof(tlFrame));
+    return tlTaskPauseAttach(task, frame);
+}
+INTERNAL tlValue callThunk(tlTask* task, tlCall* call) {
+    if (tlCallSize(call) > 0) {
+        fatal("broken");
+        //tlArgs* args = evalCall(task, call);
+    }
+    return run_thunk(task, tlThunkAs(tlCallGetFn(call)));
+}
+
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     trace("apply >> %p(%d) <<", call, tlCallSize(call));
     assert(call);
 
+    // TODO if asserts ...
     for (int i = 0;; i++) {
         tlValue v = tlCallValueIter(call, i);
         if (!v) { assert(i >= tlCallSize(call)); break; }
@@ -792,24 +818,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
                 TL_THROW("unable to call: %s", tl_str(fn));
             }
         }
-    } else {
-        // TODO if zero args, or no key args ... optimize
-        switch(tl_head(fn)->type) {
-        case TLClosure:
-            args = evalCall(task, call);
-            trace("closure: %s", tl_str(args));
-            break;
-        case TLThunk:
-            trace("thunk");
-            if (tlCallSize(call) > 0) {
-                args = evalCall(task, call);
-            }
-            return run_thunk(task, tlthunk_as(fn));
-        default:
-            TL_THROW("unable to call: %s", tl_str(fn));
-        }
     }
-
     if (args) {
         trace("args: %s, fn: %s", tl_str(args), tl_str(fn));
         assert(tlArgsIs(args));
@@ -848,23 +857,15 @@ INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     tlValue block = tlArgsMapGet(args, s_block);
     trace("%p %s", block, tl_str(block));
-    assert(tlclosure_is(block));
+    assert(tlClosureIs(block));
     assert(task->frame->resumecb == resumeCode);
     ((CodeFrame*)task->frame)->handler = block;
     return tlNull;
-}
-bool tlcallable_is(tlValue v) {
-    if (!tlRefIs(v)) return false;
-    switch(tl_head(v)->type) {
-        case TLClosure: return true;
-    }
-    return false;
 }
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
     if (tlValueObjectIs(v) && tlMapGetSym(v, s_call)) return true;
     tlClass* klass = tl_class(v);
-    if (!klass) return tlcallable_is(v);
     if (klass->call) return true;
     if (klass->map && tlMapGetSym(klass->map, s_call)) return true;
     return false;
@@ -934,5 +935,9 @@ static const tlNativeCbs __eval_natives[] = {
 
 static void eval_init() {
     tl_register_natives(__eval_natives);
+
+    _tlCallClass.call = callCall;
+    _tlClosureClass.call = callClosure;
+    _tlThunkClass.call = callThunk;
 }
 

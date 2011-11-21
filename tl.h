@@ -97,49 +97,10 @@ static const tlValue tlCollectEager = (tlHead*)((52 << 3)|2);
 // for the attentive reader, where does 100 tag come into play?
 // internally this is called an "active" value, which is used in the interpreter
 
-// a few defines
+// TODO remove ... a few defines
 #define TL_MAX_PRIV_SIZE 7
 #define TL_MAX_DATA_SIZE (65535 - TL_MAX_PRIV_SIZE)
 #define TL_MAX_ARGS_SIZE 2000
-
-// all known primitive types
-enum {
-    TLInvalid = 0,
-
-    // these never appear in head->type since these are tagged
-    TLUndefined, TLNull, TLBool, TLSym, TLInt,
-
-    TL_TYPE_TAGGED,
-
-    TLNum,
-    TLFloat,
-    TLText,
-
-    TLList, TLSet, TLMap,
-    TLCall, TLArgs, TLMsg,
-
-    TLObject,
-
-    TLEnv,
-    TLClosure,
-    TLThunk,
-    TLLazy,
-
-    TLCode,
-    TLLookup,
-    TLCollect,
-
-    TLResult,
-    TLError,
-
-    TLFrame,
-    TLTask,
-    TLWorker,
-    TLVm,
-
-    TL_TYPE_LAST
-};
-typedef uint8_t tlType;
 
 static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
 static inline bool tlTagIs(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
@@ -201,30 +162,27 @@ TL_REF_TYPE(tlValueObject);
 
 TL_REF_TYPE(tlCall);
 TL_REF_TYPE(tlArgs);
+TL_REF_TYPE(tlResult);
 TL_REF_TYPE(tlError);
 
+TL_REF_TYPE(tlEnv);
 TL_REF_TYPE(tlFrame);
-TL_REF_TYPE(tlTask);
 
 TL_REF_TYPE(tlNative);
-TL_REF_TYPE(tlVar);
+TL_REF_TYPE(tlCode);
 
+// TODO these 6 don't need to be exposed
+TL_REF_TYPE(tlVar);
 TL_REF_TYPE(tlObject);
 
-TL_REF_TYPE(tlEnv);
-TL_TYPE(code, Code);
-
-TL_TYPE(closure, Closure);
-TL_TYPE(thunk, Thunk);
-TL_TYPE(lazy, Lazy);
-
+TL_REF_TYPE(tlClosure);
+TL_REF_TYPE(tlThunk);
+TL_REF_TYPE(tlLazy);
 TL_REF_TYPE(tlCollect);
-TL_REF_TYPE(tlResult);
 
-TL_REF_TYPE(tlWorker);
 TL_REF_TYPE(tlVm);
-
-#undef TL_TYPE
+TL_REF_TYPE(tlWorker);
+TL_REF_TYPE(tlTask);
 
 bool tlCallableIs(tlValue v);
 
@@ -439,25 +397,6 @@ tlFrame* tlAllocFrame(tlTask* task, tlResumeCb resume, size_t bytes);
 tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...);
 
 
-
-// ******************** rest ********************
-// TODO figure out which of these are private or can move to lower level includes
-
-tlWorker* tlTaskWorker(tlTask* task);
-
-tlCode* tlcode_from(tlTask* task, tlList* stms);
-
-tlCall* tlCallFrom(tlTask* task, ...);
-tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args);
-tlValue tlCallGetFn(tlCall* call);
-tlValue tlCallGet(tlCall* call, int at);
-tlValue tlCallGetName(tlCall* call, int at);
-tlSet* tlCallNames(tlCall* call);
-bool tlCallNameExists(tlCall* call, tlSym name);
-
-void tlCallSetFn_(tlCall* call, tlValue v);
-void tlCallSet_(tlCall* call, int at, tlValue v);
-
 // ** environment (scope) **
 tlEnv* tlEnvNew(tlTask* task, tlEnv* parent);
 tlValue tlEnvGet(tlTask* task, tlEnv* env, tlSym key);
@@ -467,25 +406,12 @@ tlEnv* tlVmGlobalEnv(tlVm* vm);
 
 tlWorker* tlWorkerNew(tlVm* vm);
 void tlWorkerDelete(tlWorker* worker);
+tlWorker* tlTaskWorker(tlTask* task);
+
+// when creating your own worker, run this ... (not implemented yet)
 void tlWorkerRun(tlWorker* worker);
 
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
-
-tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env);
-
-// ** callbacks **
-typedef void(*tlFreeCb)(tlValue);
-typedef void(*tlWorkCb)(tlTask*);
-
-// TODO remove
-tlValue tltask_alloc(tlTask* task, tlType type, int bytes, int fields);
-tlValue tltask_alloc_privs(tlTask* task, tlType type, int bytes, int fields,
-                           int privs, tlFreeCb freecb);
-tlValue tltask_clone(tlTask* task, tlValue v);
-#define TL_ALLOC(_T_, _FC_) tltask_alloc(task, TL##_T_, sizeof(tl##_T_), _FC_)
-#define TL_CLONE(_V_) tltask_clone(task, _V_)
-
-// ** extending **
 
 #endif // _tl_h_
 

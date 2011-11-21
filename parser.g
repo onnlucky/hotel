@@ -51,8 +51,8 @@ bool check_indent(void* data);
 
 void try_name(tlSym name, tlValue v) {
     if (tlActiveIs(v)) v = tl_value(v);
-    if (tlcode_is(v)) {
-        tlcode_set_name_(tlcode_as(v), name);
+    if (tlCodeIs(v)) {
+        tlCodeSetName_(tlCodeAs(v), name);
     }
     assert(tlSymIs(name));
 }
@@ -175,7 +175,7 @@ static char* unescape(const char* s) {
 
  start = __ b:body __ !.   { $$ = b; try_name(s_main, b); }
 
-  body = ts:stms           { $$ = tlcode_from(TASK, ts); }
+  body = ts:stms           { $$ = tlCodeFrom(TASK, ts); }
 
   stms = t:stm (eos t2:stm { t = tlListCat(TASK, L(t), L(t2)); }
                |eos)*      { $$ = t }
@@ -209,26 +209,26 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
 
 
  block = b:fn {
-           tlcode_set_isblock_(b, true);
+           tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
        | "("__ b:body __ ")" {
-           tlcode_set_isblock_(b, true);
+           tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
        | ts:stmsnl &ssepend {
-           b = tlcode_from(TASK, ts);
-           tlcode_set_isblock_(b, true);
+           b = tlCodeFrom(TASK, ts);
+           tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
 
     fn = "(" __ as:fargs __"->"__ b:body __ ")" {
-           tlcode_set_args_(TASK, tlcode_as(b), L(as));
+           tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
            $$ = b;
        }
        | as:fargs _"->"_ ts:stmsnl &ssepend {
-           b = tlcode_from(TASK, ts);
-           tlcode_set_args_(TASK, tlcode_as(b), L(as));
+           b = tlCodeFrom(TASK, ts);
+           tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
            $$ = b;
        }
 
@@ -367,7 +367,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(TASK, tl_active(s_pow), l,
        | f:fn t:tail                { $$ = set_target(t, tl_active(f)); }
        | "("__ e:pexpr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body  __")" t:tail {
-           tlcode_set_isblock_(b, true);
+           tlCodeSetIsBlock_(b, true);
            $$ = set_target(t, tlCallFromList(TASK, tl_active(b), tlListEmpty()));
        }
        | v:value t:tail             { $$ = set_target(t, v); }
@@ -509,7 +509,7 @@ tlValue tlParse(tlTask* task, tlText* text) {
     yydeinit(&g);
 
     trace("\n----PARSED----");
-    //debugcode(tlcode_as(v));
+    //debugcode(tlCodeAs(v));
     return v;
 }
 

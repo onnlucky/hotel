@@ -276,11 +276,6 @@ static tlValue nativeCall(tlTask* task, tlCall* call) {
     return tlTaskPauseAttach(task, frame);
 }
 
-static tlValue callCall(tlTask* task, tlCall* call) {
-    trace("%s", tl_str(call));
-    return evalCallFn(task, call, tlCallAs(tlCallGetFn(call)));
-}
-
 static tlClass _tlNativeClass = {
     .name = "Native",
     .toText = nativeToText,
@@ -289,7 +284,6 @@ static tlClass _tlNativeClass = {
 static tlClass _tlCallClass = {
     .name = "Call",
     .toText = callToText,
-    .call = callCall,
 };
 static void call_init() {
     _tlNativeClass.map = tlClassMapFrom(

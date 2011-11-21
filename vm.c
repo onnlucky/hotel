@@ -265,11 +265,11 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code) {
     tlTask* task = tlTaskNew(vm);
 
     // TODO if no success, task should have exception
-    tlCode* body = tlcode_cast(tlParse(task, code));
+    tlCode* body = tlCodeCast(tlParse(task, code));
     if (!body) return task;
     trace("PARSED");
 
-    tlClosure* fn = tlclosure_new(task, body, vm->globals);
+    tlClosure* fn = tlClosureNew(task, body, vm->globals);
     tlCall* call = tlCallFrom(task, fn, null);
     tlTaskEval(task, call);
     tlTaskStart(task);

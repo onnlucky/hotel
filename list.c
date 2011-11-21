@@ -224,7 +224,7 @@ static tlValue _List_clone(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsAt(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tlListSize(list);
-    list = TL_CLONE(list);
+    list = tlAllocClone(task, list, sizeof(tlList));
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!list->data[i]) list->data[i] = tlArgsAt(args, argc++);

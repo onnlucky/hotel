@@ -2,6 +2,9 @@
 
 #include "trace-off.h"
 
+static tlClass _tlCodeClass = { .name = "Code" };
+tlClass* tlCodeClass = &_tlCodeClass;
+
 struct tlCode {
     tlHead head;
     tlInt flags;
@@ -13,35 +16,36 @@ struct tlCode {
 
 void debugcode(tlCode* code);
 
-tlCode* tlcode_new(tlTask* task, int size) {
-    return task_alloc(task, TLCode, 4 + size);
+tlCode* tlCodeNew(tlTask* task, int size) {
+    return tlAllocWithFields(task, tlCodeClass, sizeof(tlCode), size);
 }
-tlCode* tlcode_from(tlTask* task, tlList* ops) {
+tlCode* tlCodeFrom(tlTask* task, tlList* ops) {
     int size = tlListSize(ops);
-    tlCode* code = tlcode_new(task, size);
+    tlCode* code = tlCodeNew(task, size);
     for (int i = 0; i < size; i++) {
         code->ops[i] = tlListGet(ops, i);
     }
-    //debugcode(code);
     return code;
 }
-void tlcode_set_isblock_(tlCode* code, bool isblock) {
+void tlCodeSetIsBlock_(tlCode* code, bool isblock) {
     code->flags = tlOne;
 }
-bool tlcode_isblock(tlCode* code) {
+bool tlCodeIsBlock(tlCode* code) {
     return code->flags == tlOne;
 }
-void tlcode_set_name_(tlCode* code, tlSym name) {
+void tlCodeSetName_(tlCode* code, tlSym name) {
     code->name = name;
 }
-void tlcode_set_ops_(tlCode* code, tlList* ops) {
+/*
+void tlCodeSetOps_(tlCode* code, tlList* ops) {
     int size = tlListSize(ops);
     for (int i = 0; i < size; i++) {
         code->ops[i] = tlListGet(ops, i);
     }
 }
+*/
 // TODO filter out collects ...
-void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args) {
+void tlCodeSetArgs_(tlTask* task, tlCode* code, tlList* args) {
     trace("%d", tllist_size(args));
     // args = [name, default]*
     // output: name*, {name->default}
@@ -58,7 +62,7 @@ void tlcode_set_args_(tlTask* task, tlCode* code, tlList* args) {
     code->argnames = names;
     code->argdefaults = defaults;
 }
-void tlcode_set_arg_name_defaults_(tlTask* task, tlCode* code, tlList* name_defaults) {
+void tlCodeSetArgNameDefaults_(tlTask* task, tlCode* code, tlList* name_defaults) {
     int size = tlListSize(name_defaults);
     tlList* names = tlListNew(task, size / 2);
     //tlList* defaults = tllist_new(task, size / 2);
