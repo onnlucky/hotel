@@ -15,10 +15,16 @@ struct tlThunk {
     tlHead head;
     tlValue value;
 };
+
+static tlClass _tlResultClass = { .name = "Result" };
+tlClass* tlResultClass = &_tlResultClass;
 struct tlResult {
     tlHead head;
     tlValue data[];
 };
+
+static tlClass _tlCollectClass = { .name = "Collect" };
+tlClass* tlCollectClass = &_tlCollectClass;
 struct tlCollect {
     tlHead head;
     tlValue data[];
@@ -57,7 +63,7 @@ typedef struct CodeFrame {
 tlClosure* tlclosure_new(tlTask* task, tlCode* code, tlEnv* env) {
     tlClosure* fn = task_alloc(task, TLClosure, 2);
     fn->code = code;
-    fn->env = tlenv_new(task, env);
+    fn->env = tlEnvNew(task, env);
     return fn;
 }
 tlThunk* tlthunk_new(tlTask* task, tlValue v) {
@@ -69,15 +75,15 @@ tlValue tlcollect_new_(tlTask* task, tlList* list) {
     list->head.type = TLCollect;
     return list;
 }
-tlResult* tlresult_new(tlTask* task, tlArgs* args) {
+tlResult* tlResultFromArgs(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = task_alloc(task, TLResult, size);
+    tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size);
     for (int i = 0; i < size; i++) {
         res->data[i] = tlArgsAt(args, i);
     }
     return res;
 }
-tlResult* tlresult_new2(tlTask* task, tlValue first, tlArgs* args) {
+tlResult* tlResultFromArgsPrepend(tlTask* task, tlValue first, tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = task_alloc(task, TLResult, size + 1);
     res->data[0] = first;
@@ -86,7 +92,7 @@ tlResult* tlresult_new2(tlTask* task, tlValue first, tlArgs* args) {
     }
     return res;
 }
-tlResult* tlresult_new_skip(tlTask* task, tlArgs* args) {
+tlResult* tlResultFromArgsSkipOne(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = task_alloc(task, TLResult, size - 1);
     for (int i = 1; i < size; i++) {
@@ -110,24 +116,24 @@ tlResult* tlResultNewFrom(tlTask* task, ...) {
 
     return res;
 }
-void tlresult_set_(tlResult* res, int at, tlValue v) {
+void tlResultSet_(tlResult* res, int at, tlValue v) {
     assert(at >= 0 && at < res->head.size);
     res->data[at] = v;
 }
-tlValue tlresult_get(tlValue v, int at) {
+tlValue tlResultGet(tlValue v, int at) {
     assert(at >= 0);
-    if (!tlresult_is(v)) {
+    if (!tlResultIs(v)) {
         if (at == 0) return v;
         return tlNull;
     }
-    tlResult* result = tlresult_as(v);
+    tlResult* result = tlResultAs(v);
     if (at < result->head.size) return result->data[at];
     return tlNull;
 }
 tlValue tlFirst(tlValue v) {
     if (!v) return v;
-    if (!tlresult_is(v)) return v;
-    tlResult* result = tlresult_as(v);
+    if (!tlResultIs(v)) return v;
+    tlResult* result = tlResultAs(v);
     if (0 < result->head.size) return result->data[0];
     return tlNull;
 }
@@ -218,7 +224,7 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
 
     if (tlArgsSize(args) == 0) res = tlNull;
     else if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
-    else res = tlresult_new(task, args);
+    else res = tlResultFromArgs(task, args);
     assert(res);
 
     // we have just reified the stack, now find our frame
@@ -311,7 +317,7 @@ INTERNAL tlValue resumeCC(tlTask* task, tlFrame* _frame, tlValue res, tlError* e
     if (!args) args = res;
     if (!args) return null;
     assert(tlArgsIs(args));
-    return tlTaskJump(task, cont->frame, tlresult_new2(task, cont, args));
+    return tlTaskJump(task, cont->frame, tlResultFromArgsPrepend(task, cont, args));
 }
 INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
     trace("CONTINUATION(%d)", tlCallSize(call));
@@ -387,14 +393,14 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
         assert(task->frame && task->frame->resumecb == resumeCode);
         tlReturn* fn = tlAlloc(task, tlReturnClass, sizeof(tlReturn));
-        fn->args = tlenv_get_args(env);
+        fn->args = tlEnvGetArgs(env);
         trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), fn->args);
         return fn;
     }
     if (name == s_goto) {
         assert(task->frame && task->frame->resumecb == resumeCode);
         tlGoto* fn = tlAlloc(task, tlGotoClass, sizeof(tlGoto));
-        fn->args = tlenv_get_args(env);
+        fn->args = tlEnvGetArgs(env);
         trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), fn->args);
         return fn;
     }
@@ -403,7 +409,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         trace("pausing for continuation: %p", frame);
         return tlTaskPause(task, frame);
     }
-    tlValue v = tlenv_get(task, env, name);
+    tlValue v = tlEnvGet(task, env, name);
     if (!v) TL_THROW("undefined '%s'", tl_str(name));
     trace("%s -> %s", tl_str(name), tl_str(v));
     return v;
@@ -412,11 +418,11 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
     trace("%s", tl_str(v));
     if (tlSymIs(v)) {
-        tlenv_close_captures(env);
+        tlEnvCloseCaptures(env);
         return lookup(task, env, v);
     }
     if (tlcode_is(v)) {
-        tlenv_captured(env); // half closes the environment
+        tlEnvCaptured(env); // half closes the environment
         return tlclosure_new(task, tlcode_as(v), env);
     }
     if (tlCallIs(v)) {
@@ -580,7 +586,7 @@ INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError*
 INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     trace("");
     CodeFrame* frame = tlFrameAlloc(task, resumeCode, sizeof(CodeFrame));
-    frame->env = tlenv_copy(task, fn->env);
+    frame->env = tlEnvCopy(task, fn->env);
     frame->code = fn->code;
 
     tlList* names = fn->code->argnames;
@@ -605,19 +611,19 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
             }
             if (!v) v = tlNull;
             trace("%p set arg: %s = %s", frame, tl_str(name), tl_str(v));
-            frame->env = tlenv_set(task, frame->env, name, v);
+            frame->env = tlEnvSet(task, frame->env, name, v);
         }
     }
-    frame->env = tlenv_set_args(task, frame->env, args);
+    frame->env = tlEnvSetArgs(task, frame->env, args);
     // TODO remove this ...
     if (!tlcode_isblock(fn->code)) {
-        frame->env = tlenv_set(task, frame->env, s_args, args);
+        frame->env = tlEnvSet(task, frame->env, s_args, args);
     }
     // TODO only do this if the closure is a method
     // the *only* dynamically scoped name
     tlValue oop = tlArgsMapGet(args, s_this);
     if (!oop) oop = tlArgsTarget(args);
-    if (oop) frame->env = tlenv_set(task, frame->env, s_this, oop);
+    if (oop) frame->env = tlEnvSet(task, frame->env, s_this, oop);
 
     trace("mapped all args...");
     return evalCode2(task, frame, tlNull);
@@ -697,24 +703,24 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
 
         // just a symbol means setting the current value under this name in env
         if (tlSymIs(op)) {
-            tlValue v = tlresult_get(task->value, 0);
+            tlValue v = tlFirst(task->value);
             trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
-            if (!tlclosure_is(v)) tlenv_close_captures(env);
-            env = tlenv_set(task, env, tlSymAs(op), v);
+            if (!tlclosure_is(v)) tlEnvCloseCaptures(env);
+            env = tlEnvSet(task, env, tlSymAs(op), v);
             // this is good enough: every lookup will also close the environment
             // and the only way we got a closure is by lookup or binding ...
             continue;
         }
 
         // a "collect" object means processing a multi return value
-        if (tlcollect_is(op)) {
-            tlCollect* names = tlcollect_as(op);
+        if (tlCollectIs(op)) {
+            tlCollect* names = tlCollectAs(op);
             trace2("%p op: collect -- %d -- %s", frame, names->head.size, tl_str(task->value));
             for (int i = 0; i < names->head.size; i++) {
                 tlSym name = tlSymAs(names->data[i]);
-                tlValue v = tlresult_get(task->value, i);
+                tlValue v = tlResultGet(task->value, i);
                 trace2("%p op: collect: %s = %s", frame, tl_str(name), tl_str(v));
-                env = tlenv_set(task, env, name, v);
+                env = tlEnvSet(task, env, name, v);
             }
             continue;
         }

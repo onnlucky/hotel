@@ -2,8 +2,10 @@
 
 #include "trace-on.h"
 
+static tlClass _tlObjectClass;
+tlClass* tlObjectClass = &_tlObjectClass;
+
 #if 0
-static tlClass tlObjectClass;
 
 struct tlObject {
     tlHead head;

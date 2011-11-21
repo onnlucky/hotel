@@ -4,6 +4,9 @@
 
 #include "trace-off.h"
 
+static tlClass _tlEnvClass;
+tlClass* tlEnvClass = &_tlEnvClass;
+
 struct tlEnv {
     tlHead head;
 
@@ -12,74 +15,70 @@ struct tlEnv {
     tlMap* map;
 };
 
-int tlenv_size(tlEnv* env) {
-    return env->head.size - 4;
-}
-
-tlEnv* tlenv_new(tlTask* task, tlEnv* parent) {
+tlEnv* tlEnvNew(tlTask* task, tlEnv* parent) {
     trace("env new; parent: %p", parent);
-    tlEnv* env = task_alloc(task, TLEnv, 3);
+    tlEnv* env = tlAlloc(task, tlEnvClass, sizeof(tlEnv));
     env->parent = parent;
     env->map = _tl_emptyMap;
     return env;
 }
 
-tlEnv* tlenv_copy(tlTask* task, tlEnv* env) {
+tlEnv* tlEnvCopy(tlTask* task, tlEnv* env) {
     trace("env copy: %p, parent: %p", env, env->parent);
-    tlEnv* nenv = tlenv_new(task, env->parent);
+    tlEnv* nenv = tlEnvNew(task, env->parent);
     nenv->args = env->args;
     nenv->map = env->map;
     return nenv;
 }
 
-tlEnv* tlenv_set_args(tlTask* task, tlEnv* env, tlArgs* args) {
+tlEnv* tlEnvSetArgs(tlTask* task, tlEnv* env, tlArgs* args) {
     if (!tlflag_isset(env, TL_FLAG_CLOSED)) {
         env->args = args;
         return env;
     }
-    env = tlenv_copy(task, env);
+    env = tlEnvCopy(task, env);
     env->args = args;
     return env;
 }
-tlArgs* tlenv_get_args(tlEnv* env) {
+tlArgs* tlEnvGetArgs(tlEnv* env) {
     if (!env) return null;
     if (env->args) return env->args;
-    return tlenv_get_args(env->parent);
+    return tlEnvGetArgs(env->parent);
 }
 
-void tlenv_close_captures(tlEnv* env) {
+void tlEnvCloseCaptures(tlEnv* env) {
     if (tlflag_isset(env, TL_FLAG_CAPTURED)) {
         tlflag_set(env, TL_FLAG_CLOSED);
     }
 }
-void tlenv_captured(tlEnv* env) {
+void tlEnvCaptured(tlEnv* env) {
     tlflag_set(env, TL_FLAG_CAPTURED);
 }
-tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key) {
+tlValue tlEnvGet(tlTask* task, tlEnv* env, tlSym key) {
     if (!env) {
         return tl_global(key);
         return null;
     }
 
-    assert(tlenv_is(env));
+    assert(tlEnvIs(env));
     trace("%p.get %s", env, tl_str(key));
 
     if (env->map) {
         tlValue v = tlMapGetSym(env->map, key);
         if (v) return v;
     }
-    return tlenv_get(task, env->parent, key);
+    return tlEnvGet(task, env->parent, key);
 }
 
-tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v) {
-    assert(tlenv_is(env));
+tlEnv* tlEnvSet(tlTask* task, tlEnv* env, tlSym key, tlValue v) {
+    assert(tlEnvIs(env));
     trace("%p.set %s = %s", env, tl_str(key), tl_str(v));
 
     if (tlflag_isset(env, TL_FLAG_CLOSED)) {
-        env = tlenv_copy(task, env);
+        env = tlEnvCopy(task, env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     } else if (tlMapGetSym(env->map, key)) {
-        env = tlenv_copy(task, env);
+        env = tlEnvCopy(task, env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     }
 

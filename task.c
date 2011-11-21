@@ -274,7 +274,7 @@ tlError* tlTaskGetError(tlTask* task) {
 
 tlValue tlTaskGetValue(tlTask* task) {
     assert(task->state == TL_STATE_DONE);
-    return tlresult_get(task->value, 0);
+    return tlFirst(task->value);
 }
 
 void tlTaskWaitIo(tlTask* task) {

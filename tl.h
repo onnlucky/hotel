@@ -209,15 +209,17 @@ TL_REF_TYPE(tlTask);
 TL_REF_TYPE(tlNative);
 TL_REF_TYPE(tlVar);
 
-TL_TYPE(object, Object);
+TL_REF_TYPE(tlObject);
 
-TL_TYPE(env, Env);
+TL_REF_TYPE(tlEnv);
+TL_TYPE(code, Code);
+
 TL_TYPE(closure, Closure);
 TL_TYPE(thunk, Thunk);
 TL_TYPE(lazy, Lazy);
-TL_TYPE(code, Code);
-TL_TYPE(collect, Collect);
-TL_TYPE(result, Result);
+
+TL_REF_TYPE(tlCollect);
+TL_REF_TYPE(tlResult);
 
 TL_REF_TYPE(tlWorker);
 TL_REF_TYPE(tlVm);
@@ -422,7 +424,8 @@ int tlArgsMapSize(tlArgs* args);
 tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 
 // results, from a result or a value, get the first result or the value itself
-tlValue tlFirst(tlValue res);
+tlValue tlFirst(tlValue v);
+tlValue tlResultGet(tlValue v, int at);
 // returning multiple results from native functions
 tlResult* tlResultNewFrom(tlTask* task, ...);
 
@@ -456,9 +459,9 @@ void tlCallSetFn_(tlCall* call, tlValue v);
 void tlCallSet_(tlCall* call, int at, tlValue v);
 
 // ** environment (scope) **
-tlEnv* tlenv_new(tlTask* task, tlEnv* parent);
-tlValue tlenv_get(tlTask* task, tlEnv* env, tlSym key);
-tlEnv* tlenv_set(tlTask* task, tlEnv* env, tlSym key, tlValue v);
+tlEnv* tlEnvNew(tlTask* task, tlEnv* parent);
+tlValue tlEnvGet(tlTask* task, tlEnv* env, tlSym key);
+tlEnv* tlEnvSet(tlTask* task, tlEnv* env, tlSym key, tlValue v);
 
 tlEnv* tlVmGlobalEnv(tlVm* vm);
 

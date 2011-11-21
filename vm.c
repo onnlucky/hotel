@@ -202,7 +202,7 @@ void tlWorkerDelete(tlWorker* worker) {
 tlVm* tlVmNew() {
     tlVm* vm = tlAlloc(null, tlVmClass, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
-    vm->globals = tlenv_new(null, null);
+    vm->globals = tlEnvNew(null, null);
     task_default(vm);
     return vm;
 }
@@ -212,7 +212,7 @@ void tlVmDelete(tlVm* vm) {
 }
 
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v) {
-    vm->globals = tlenv_set(null, vm->globals, key, v);
+    vm->globals = tlEnvSet(null, vm->globals, key, v);
 }
 
 tlEnv* tlVmGlobalEnv(tlVm* vm) {
