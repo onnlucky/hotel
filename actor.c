@@ -20,8 +20,8 @@ typedef struct ActorFrame {
     tlActor* actor;
 } ActorFrame;
 
-INTERNAL tlValue tlActorReceive(tlTask* task, tlArgs* args);
-INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args);
+INTERNAL tlValue actorReceive(tlTask* task, tlArgs* args);
+tlValue tlActorReceive(tlTask* task, tlArgs* args);
 
 INTERNAL bool tlActorIs(tlValue v) {
     return tl_class(v)->send == tlActorReceive;
@@ -35,6 +35,7 @@ INTERNAL void tlActorInit(tlActor* actor) {
 }
 
 INTERNAL void actorScheduleNext(tlTask* task, tlActor* actor) {
+    assert(tlActorIs(actor));
     assert(actor->owner == task);
 
     // dequeue the first task in line
@@ -45,23 +46,23 @@ INTERNAL void actorScheduleNext(tlTask* task, tlActor* actor) {
     actor->owner = ntask;
     if (ntask) tlVmScheduleTask(tlTaskGetVm(task), ntask);
 }
+INTERNAL tlValue actorEnqueue(tlTask* task, tlActor* actor, tlFrame* frame) {
+    assert(tlActorIs(actor));
+    assert(actor->owner != task);
 
-INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
-    tlActor* actor = tlActorAs(data);
-
-    // queue the task at the end
+    // make the task wait and enqueue it
+    task->frame = frame;
+    tlTaskWait(task);
     lqueue_put(&actor->msg_q, &task->entry);
 
     // try to own the actor, incase another worker released it inbetween ...
-    // notice the task we put in is a place holder
-    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) return;
-    actorScheduleNext(task, actor);
+    // notice the task we put in is a place holder, and if we succeed, it might be any task
+    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) == null) {
+        actorScheduleNext(task, actor);
+    }
+    return tlTaskNotRunning;
 }
 
-INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    trace("%s", tl_str(res));
-    return _ActorReceive2(task, tlArgsAs(res));
-}
 
 INTERNAL tlValue resumeAct(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
@@ -70,26 +71,15 @@ INTERNAL tlValue resumeAct(tlTask* task, tlFrame* _frame, tlValue res, tlError* 
     return res;
 }
 
-INTERNAL tlValue resumeEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("%s", tl_str(res));
-    tlActor* actor = tlActorAs(tlArgsAs(res)->target);
-    assert(actor);
-    frame->resumecb = resumeReceive;
-
-    tlTaskWait(task);
-
-    // queue the task at the actor
-    lqueue_put(&actor->msg_q, &task->entry);
-
-    // retry to own the actor, other worker might have released it inbetween ...
-    // the task we put in is a place holder
-    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) == null) {
-        // we own the actor, now schedule its next task
-        actorScheduleNext(task, actor);
-    }
-    return tlTaskNotRunning;
+    return actorReceive(task, tlArgsAs(res));
 }
-
+INTERNAL tlValue resumeReceiveEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    trace("%s", tl_str(res));
+    frame->resumecb = resumeReceive;
+    return actorEnqueue(task, tlActorAs(tlArgsAs(res)->target), frame);
+}
 tlValue tlActorReceive(tlTask* task, tlArgs* args) {
     tlActor* actor = tlActorAs(args->target);
     assert(actor);
@@ -97,30 +87,25 @@ tlValue tlActorReceive(tlTask* task, tlArgs* args) {
     trace("%s actor owned by: %s", tl_str(args), tl_str(actor->owner));
     if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
         // failed to own actor; pause current task, and enqueue it
-        return tlTaskPauseResuming(task, resumeEnqueue, args);
-    } else {
-        return _ActorReceive2(task, args);
+        return tlTaskPauseResuming(task, resumeReceiveEnqueue, args);
     }
+    return actorReceive(task, args);
 }
-
-INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
-    trace("");
+INTERNAL tlValue actorReceive(tlTask* task, tlArgs* args) {
+    trace("%s", tl_str(args));
     tlActor* actor = tlActorAs(args->target);
     tlSym msg = tlSymCast(args->msg);
+
     assert(actor);
     assert(msg);
     assert(actor->owner == task);
 
     trace("actor receive %p: %s (%d)", actor, tl_str(msg), tlArgsSize(args));
     tlValue res = null;
-    if (actor->head.klass->act) {
-        res = actor->head.klass->act(task, args);
-    } else {
-        assert(actor->head.klass->map);
-        res = tlMapGet(task, actor->head.klass->map, msg);
-        if (tlCallableIs(res)) {
-            res = tlEvalArgsFn(task, args, res);
-        }
+    assert(actor->head.klass->map);
+    res = tlMapGet(task, actor->head.klass->map, msg);
+    if (tlCallableIs(res)) {
+        res = tlEvalArgsFn(task, args, res);
     }
     trace("actor acted: %p (%s)", res, tl_str(res));
     if (!res) {
@@ -133,49 +118,66 @@ INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
     return res;
 }
 
-typedef tlValue(*tlActorAquireCb)(tlTask* task, tlActor* actor, void* data);
+
+// ** acquire and release from native **
 
 typedef struct ActorAquireFrame {
     tlFrame frame;
     tlActor* actor;
-    tlActorAquireCb cb;
-    void* data;
+    tlResumeCb resumecb;
+    tlValue res;
 } ActorAquireFrame;
 
+typedef struct ActorReleaseFrame {
+    tlFrame frame;
+    tlActor* actor;
+} ActorReleaseFrame;
+
+INTERNAL tlValue resumeRelease(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    trace("");
+    actorScheduleNext(task, tlActorAs(((ActorFrame*)_frame)->actor));
+    return res;
+}
 INTERNAL tlValue resumeAquire(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    // here we own the actor, now we can resume our given frame
     trace("");
     ActorAquireFrame* frame = (ActorAquireFrame*)_frame;
-    return frame->cb(task, frame->actor, frame->data);
+    res = frame->resumecb(task, null, frame->res, null);
+    if (!res) {
+        ActorFrame* nframe = tlFrameAlloc(task, resumeRelease, sizeof(ActorFrame));
+        nframe->actor = frame->actor;
+        return tlTaskPauseAttach(task, nframe);
+    }
+    actorScheduleNext(task, frame->actor);
+    return res;
+}
+INTERNAL tlValue resumeAquireEnqueue(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    trace("");
+    _frame->resumecb = resumeAquire;
+    return actorEnqueue(task, ((ActorAquireFrame*)_frame)->actor, _frame);
 }
 
-tlValue tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* data) {
-    trace("%p", actor);
+// almost same as tlTaskPauseResuming ... will call resumecb when locked
+tlValue tlActorAquireResuming(tlTask* task, tlActor* actor, tlResumeCb resumecb, tlValue res) {
+    trace("%p %p %s", actor, resumecb, tl_str(res));
     assert(actor);
 
     if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
         // pause current task
         ActorAquireFrame* frame = tlFrameAlloc(task, resumeAquire, sizeof(ActorAquireFrame));
         frame->actor = actor;
-        frame->cb = cb;
-        frame->data = data;
-        // after the pause, enqueue the task in the msg queue
-        tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
-        return tlTaskPause(task, frame);
+        frame->resumecb = resumecb;
+        frame->res = res;
+        return tlTaskPauseResuming(task, resumeAquireEnqueue, frame);
     } else {
-        return cb(task, actor, data);
+        tlValue nres = resumecb(task, null, res, null);
+        if (!nres) {
+            ActorReleaseFrame* frame = tlFrameAlloc(task, resumeRelease, sizeof(ActorReleaseFrame));
+            frame->actor = actor;
+            return tlTaskPauseAttach(task, frame);
+        }
+        actorScheduleNext(task, actor);
+        return nres;
     }
 }
-
-void tlActorRelease(tlTask* task, tlActor* actor) {
-    trace("%p", actor);
-    actorScheduleNext(task, actor);
-}
-
-// TODO remove? because it is not a concrete type
-static tlClass tlActorClass = {
-    .name = "actor",
-    .map = null,
-    .send = tlActorReceive,
-    .act = null,
-};
 

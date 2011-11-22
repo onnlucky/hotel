@@ -180,18 +180,17 @@ static void read_cb(ev_io *ev, int revents) {
         task->value = tlINT(len);
     }
     ev_io_stop(ev);
-    //tlActorRelease(task, tlActorAs(buffer));
     if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
-
-static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
-    tlFile* file = tlFileOrSocketAs(data);
-    tlBuffer* buffer = tlBufferAs(actor);
+static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    trace("%s", tl_str(res));
+    tlArgs* args = tlArgsAs(res);
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
     assert(file->actor.owner == task);
     assert(buffer->actor.owner == task);
-    buffer->actor.owner = null; // TODO this is hopelessly incorrect, but for now ...
+    trace("");
 
-    // release buffer or let Aquire do a pause with release?
     if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
 
     ev_io* ev = &file->ev;
@@ -209,16 +208,13 @@ static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
     trace("read: waiting");
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
-
 static tlValue _FileRead(tlTask* task, tlArgs* args) {
     trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
-
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    if (!file) TL_THROW("expected a File");
     if (!buffer) TL_THROW("expected a Buffer");
-
-    return tlActorAquire(task, tlActorAs(buffer), _FileRead2, file);
+    return tlActorAquireResuming(task, tlActorAs(buffer), resumeFileRead, args);
 }
 
 static void write_cb(ev_io *ev, int revents) {
@@ -241,12 +237,13 @@ static void write_cb(ev_io *ev, int revents) {
     ev_io_stop(ev);
     if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
-
-static tlValue _FileWrite2(tlTask* task, tlActor* actor, void* data) {
-    tlFile* file = tlFileOrSocketAs(data);
-    tlBuffer* buffer = tlBufferAs(actor);
+static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    tlArgs* args = tlArgsAs(res);
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
     assert(file->actor.owner == task);
     assert(buffer->actor.owner == task);
+    trace("");
 
     // TODO release
     if (canread(buffer->buf) <= 0) TL_THROW("write: failed: buffer empty");
@@ -267,15 +264,13 @@ static tlValue _FileWrite2(tlTask* task, tlActor* actor, void* data) {
     trace("write: waiting");
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
 }
-
 static tlValue _FileWrite(tlTask* task, tlArgs* args) {
+    trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
-
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    if (!file) TL_THROW("expected a File");
     if (!buffer) TL_THROW("expected a Buffer");
-
-    return tlActorAquire(task, tlActorAs(buffer), _FileWrite2, file);
+    return tlActorAquireResuming(task, tlActorAs(buffer), resumeFileWrite, args);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {

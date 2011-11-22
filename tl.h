@@ -188,7 +188,6 @@ bool tlCallableIs(tlValue v);
 
 // TODO rework this a bit more ...
 typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
-typedef tlValue(*tlActFn)(tlTask* task, tlArgs* args);
 typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 
@@ -198,7 +197,6 @@ struct tlClass {
 
     tlMap* map;
     tlSendFn send;
-    tlActFn act;
     tlCallFn call;
 };
 
