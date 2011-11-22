@@ -243,7 +243,7 @@ static void* tl_main(void* data) {
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
     window_init(vm);
-    tlVmRunFile(vm, tlTEXT("run.tl"));
+    tlVmEvalFile(vm, tlTEXT("run.tl"));
     ns_stop();
     return 0;
 }

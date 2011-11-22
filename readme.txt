@@ -10,6 +10,7 @@ start preparing a first release:
 stop head.size ... and fix it into something better ... ? how?
 start using tlTaskPauseResuming() ... a lot more
 on parse errors, throw it on the task, not fatal() out ...
+
 deadlock detection for actors: state=WAIT, if owner.state==WAIT and owner.current.owner == us
 deadlock detection for tasks: what we had before ...
 
