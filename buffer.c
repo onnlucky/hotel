@@ -1,13 +1,13 @@
-// an actor based buffer for io
+// an synchronized buffer, usable for io
 
 TL_REF_TYPE(tlBuffer);
 struct tlBuffer {
-    tlActor actor;
+    tlSynchronized sync;
     tl_buf* buf;
 };
 static tlClass _tlBufferClass = {
     .name = "Buffer",
-    .send = tlActorReceive,
+    .send = tlSynchronizedReceive,
 };
 tlClass* tlBufferClass = &_tlBufferClass;
 

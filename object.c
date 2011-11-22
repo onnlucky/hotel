@@ -1,4 +1,4 @@
-// object type, a hotel object is a thread/actore/mutable object all in one
+// object type, a fully mutable map accessed like an object
 
 #include "trace-on.h"
 

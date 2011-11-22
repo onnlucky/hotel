@@ -87,29 +87,29 @@ TL_REF_TYPE(tlServerSocket);
 
 // TODO should be able to read and write at same time ...
 struct tlFile {
-    tlActor actor;
+    tlSynchronized sync;
     ev_io ev;
 };
 // TODO add peer address ...
 struct tlSocket {
-    tlActor actor;
+    tlSynchronized sync;
     ev_io ev;
 };
 struct tlServerSocket {
-    tlActor actor;
+    tlSynchronized sync;
     ev_io ev;
 };
 static tlClass _tlFileClass = {
     .name = "File",
-    .send = tlActorReceive,
+    .send = tlSynchronizedReceive,
 };
 static tlClass _tlSocketClass = {
     .name = "Socket",
-    .send = tlActorReceive,
+    .send = tlSynchronizedReceive,
 };
 static tlClass _tlServerSocketClass = {
     .name = "ServerSocket",
-    .send = tlActorReceive,
+    .send = tlSynchronizedReceive,
 };
 tlClass* tlFileClass = &_tlFileClass;
 tlClass* tlSocketClass = &_tlSocketClass;
@@ -164,7 +164,7 @@ static tlValue _FileClose(tlTask* task, tlArgs* args) {
 
 static void read_cb(ev_io *ev, int revents) {
     tlFile* file = tlFileFrom(ev);
-    tlTask* task = file->actor.owner;
+    tlTask* task = file->sync.owner;
     tl_buf* buf = (tl_buf*)ev->data;
     assert(task);
     trace("read_cb: %p %d", file, ev->fd);
@@ -187,8 +187,8 @@ static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError
     tlArgs* args = tlArgsAs(res);
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
-    assert(file->actor.owner == task);
-    assert(buffer->actor.owner == task);
+    assert(file->sync.owner == task);
+    assert(buffer->sync.owner == task);
     trace("");
 
     if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
@@ -214,12 +214,12 @@ static tlValue _FileRead(tlTask* task, tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
     if (!file) TL_THROW("expected a File");
     if (!buffer) TL_THROW("expected a Buffer");
-    return tlActorAquireResuming(task, tlActorAs(buffer), resumeFileRead, args);
+    return tlSynchronizedAquireResuming(task, tlSynchronizedAs(buffer), resumeFileRead, args);
 }
 
 static void write_cb(ev_io *ev, int revents) {
     tlFile* file = tlFileFrom(ev);
-    tlTask* task = file->actor.owner;
+    tlTask* task = file->sync.owner;
     tl_buf* buf = (tl_buf*)ev->data;
     assert(task);
     trace("read_cb: %p %d", file, ev->fd);
@@ -241,8 +241,8 @@ static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlErro
     tlArgs* args = tlArgsAs(res);
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
-    assert(file->actor.owner == task);
-    assert(buffer->actor.owner == task);
+    assert(file->sync.owner == task);
+    assert(buffer->sync.owner == task);
     trace("");
 
     // TODO release
@@ -270,7 +270,7 @@ static tlValue _FileWrite(tlTask* task, tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
     if (!file) TL_THROW("expected a File");
     if (!buffer) TL_THROW("expected a Buffer");
-    return tlActorAquireResuming(task, tlActorAs(buffer), resumeFileWrite, args);
+    return tlSynchronizedAquireResuming(task, tlSynchronizedAs(buffer), resumeFileWrite, args);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {
@@ -359,7 +359,7 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
 // TODO return multiple, socket and peer address
 static void accept_cb(ev_io* ev, int revents) {
     tlFile* file = tlFileFrom(ev);
-    tlTask* task = file->actor.owner;
+    tlTask* task = file->sync.owner;
     assert(task);
     trace("accept_cb: %p %d", file, ev->fd);
 
@@ -429,12 +429,12 @@ static tlValue _Path_stat(tlTask* task, tlArgs* args) {
 
 TL_REF_TYPE(tlDir);
 struct tlDir {
-    tlActor actor;
+    tlSynchronized sync;
     DIR* p;
 };
 tlClass _tlDirClass = {
     .name = "Dir",
-    .send = tlActorReceive,
+    .send = tlSynchronizedReceive,
 };
 tlClass* tlDirClass = &_tlDirClass;
 
@@ -513,7 +513,7 @@ static tlValue _DirEach(tlTask* task, tlArgs* args) {
 
 TL_REF_TYPE(tlChild);
 struct tlChild {
-    tlActor actor;
+    tlSynchronized sync;
     ev_child ev;
     lqueue wait_q; // notice we don't need need the concurrent list here, but tasks can enter these
     tlValue in;
@@ -522,7 +522,7 @@ struct tlChild {
 };
 tlClass _tlChildClass = {
     .name = "Child",
-    .send = tlActorReceive,
+    .send = tlSynchronizedReceive,
 };
 tlClass* tlChildClass = &_tlChildClass;
 

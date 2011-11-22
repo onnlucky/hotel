@@ -1,7 +1,5 @@
 # TODO
 
-actor -> lock, after acquire, unlock ... see the big todo in evio
-
 build-in if, break, continue, again ... ?
 
 start preparing a first release:

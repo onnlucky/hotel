@@ -54,7 +54,7 @@ typedef enum {
     TL_STATE_INIT = 0,  // only first time
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
     TL_STATE_RUN,       // running
-    TL_STATE_WAIT,      // waiting in an actor or task queue
+    TL_STATE_WAIT,      // waiting in an synchronized or task queue
     TL_STATE_IOWAIT,    // waiting on io to become readable/writable
 
     TL_STATE_DONE,      // task is done, others can read its value
@@ -71,7 +71,6 @@ struct tlTask {
     lqentry entry;     // how it gets linked into a queues
 
     tlValue value;     // current value
-    tlObject* sender;  // current mutable object (== current thread or actor)
     tlFrame* frame;    // current frame (== top of stack or current continuation)
 
     // TODO remove these in favor a some flags

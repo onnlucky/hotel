@@ -18,7 +18,7 @@
 #include "args.c"
 #include "call.c"
 #include "task.c"
-#include "actor.c"
+#include "sync.c"
 #include "object.c"
 #include "code.c"
 #include "env.c"
