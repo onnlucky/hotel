@@ -1,18 +1,15 @@
 # TODO
 
+actor -> lock, after acquire, unlock ... see the big todo in evio
+
 build-in if, break, continue, again ... ?
-remove the actor "after work handler", no longer needed ... tlTaskRun doesn't touch the task
 
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code
 * use gcov to remove any unused code or add tests for them (larger parts...)
 * clean up and comment eval.c maybe remove some of it to run.c oid
-* rework all "callables" as tlClass based, and use the class->call
-* rework all types as the tlClass things ... stop using anything else
-* remove old task_alloc and such
 
 stop head.size ... and fix it into something better ... ? how?
-implement tlFirst for resume functions
 start using tlTaskPauseResuming() ... a lot more
 on parse errors, throw it on the task, not fatal() out ...
 deadlock detection for actors: state=WAIT, if owner.state==WAIT and owner.current.owner == us

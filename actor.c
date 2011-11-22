@@ -29,13 +29,12 @@ INTERNAL bool tlActorIs(tlValue v) {
 INTERNAL tlActor* tlActorAs(tlValue v) {
     assert(tlActorIs(v)); return (tlActor*)v;
 }
-
 INTERNAL void tlActorInit(tlActor* actor) {
     trace("");
     actor->head.klass = &tlActorClass;
 }
 
-INTERNAL void _ActorScheduleNext(tlTask* task, tlActor* actor) {
+INTERNAL void actorScheduleNext(tlTask* task, tlActor* actor) {
     assert(actor->owner == task);
 
     // dequeue the first task in line
@@ -56,33 +55,49 @@ INTERNAL void _ActorEnqueue(tlTask* task, void* data) {
     // try to own the actor, incase another worker released it inbetween ...
     // notice the task we put in is a place holder
     if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) return;
-    _ActorScheduleNext(task, actor);
+    actorScheduleNext(task, actor);
 }
 
 INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    trace("");
-    ReceiveFrame* frame = (ReceiveFrame*)_frame;
-    return _ActorReceive2(task, frame->args);
+    trace("%s", tl_str(res));
+    return _ActorReceive2(task, tlArgsAs(res));
 }
 
 INTERNAL tlValue resumeAct(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
     ActorFrame* frame = (ActorFrame*)_frame;
-    _ActorScheduleNext(task, frame->actor);
+    actorScheduleNext(task, frame->actor);
     return res;
+}
+
+INTERNAL tlValue resumeEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    trace("%s", tl_str(res));
+    tlActor* actor = tlActorAs(tlArgsAs(res)->target);
+    assert(actor);
+    frame->resumecb = resumeReceive;
+
+    tlTaskWait(task);
+
+    // queue the task at the actor
+    lqueue_put(&actor->msg_q, &task->entry);
+
+    // retry to own the actor, other worker might have released it inbetween ...
+    // the task we put in is a place holder
+    if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) == null) {
+        // we own the actor, now schedule its next task
+        actorScheduleNext(task, actor);
+    }
+    return tlTaskNotRunning;
 }
 
 tlValue tlActorReceive(tlTask* task, tlArgs* args) {
     tlActor* actor = tlActorAs(args->target);
     assert(actor);
 
+    trace("%s actor owned by: %s", tl_str(args), tl_str(actor->owner));
     if (a_swap_if(A_VAR(actor->owner), A_VAL_NB(task), null) != null) {
-        // pause current task
-        ReceiveFrame* pause = tlFrameAlloc(task, resumeReceive, sizeof(ReceiveFrame));
-        pause->args = args;
-        // after the pause, enqueue the task in the msg queue
-        tlWorkerAfterTaskPause(task->worker, &_ActorEnqueue, actor);
-        return tlTaskPause(task, pause);
+        // failed to own actor; pause current task, and enqueue it
+        return tlTaskPauseResuming(task, resumeEnqueue, args);
     } else {
         return _ActorReceive2(task, args);
     }
@@ -114,7 +129,7 @@ INTERNAL tlValue _ActorReceive2(tlTask* task, tlArgs* args) {
         frame->actor = actor;
         return tlTaskPauseAttach(task, frame);
     }
-    _ActorScheduleNext(task, actor);
+    actorScheduleNext(task, actor);
     return res;
 }
 
@@ -153,7 +168,7 @@ tlValue tlActorAquire(tlTask* task, tlActor* actor, tlActorAquireCb cb, void* da
 
 void tlActorRelease(tlTask* task, tlActor* actor) {
     trace("%p", actor);
-    _ActorScheduleNext(task, actor);
+    actorScheduleNext(task, actor);
 }
 
 // TODO remove? because it is not a concrete type

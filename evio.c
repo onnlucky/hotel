@@ -180,6 +180,7 @@ static void read_cb(ev_io *ev, int revents) {
         task->value = tlINT(len);
     }
     ev_io_stop(ev);
+    //tlActorRelease(task, tlActorAs(buffer));
     if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
 
@@ -188,6 +189,7 @@ static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
     tlBuffer* buffer = tlBufferAs(actor);
     assert(file->actor.owner == task);
     assert(buffer->actor.owner == task);
+    buffer->actor.owner = null; // TODO this is hopelessly incorrect, but for now ...
 
     // release buffer or let Aquire do a pause with release?
     if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
@@ -209,6 +211,7 @@ static tlValue _FileRead2(tlTask* task, tlActor* actor, void* data) {
 }
 
 static tlValue _FileRead(tlTask* task, tlArgs* args) {
+    trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 

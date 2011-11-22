@@ -1,5 +1,13 @@
-id = x -> return x
-TEST = 100
-fn = -> out(TEST, "\n")
-id(fn)()
-fn()
+child = _Child_run("echo", "hello", "world")
+child.in.close
+child.err.close
+
+status = child.wait
+out("echo status: ", status, "\n")
+
+buf = _Buffer_new()
+child.out.read(buf)
+
+out("echo stdout: ", buf.read, "\n")
+out("DONE\n")
+
