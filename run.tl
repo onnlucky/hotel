@@ -1,13 +1,7 @@
-child = _Child_run("echo", "hello", "world")
-child.in.close
-child.err.close
-
-status = child.wait
-out("echo status: ", status, "\n")
-
-buf = _Buffer_new()
-child.out.read(buf)
-
-out("echo stdout: ", buf.read, "\n")
-out("DONE\n")
+queue = MsgQueue.new
+t1 = Task.current
+t2 = !t1.wait
+Task.yield
+print "should deadlock", t1, t2
+t2.wait
 

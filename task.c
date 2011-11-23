@@ -379,6 +379,9 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     tlTaskStart(ntask);
     return ntask;
 }
+INTERNAL tlValue _Task_current(tlTask* task, tlArgs* args) {
+    return task;
+}
 
 INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlTaskWait(task);
@@ -386,11 +389,11 @@ INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlError*
     frame->resumecb = null;
     return tlTaskNotRunning;
 }
-INTERNAL tlValue _TaskYield(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _Task_yield(tlTask* task, tlArgs* args) {
     return tlTaskPause(task, tlFrameAlloc(task, resumeYield, sizeof(tlFrame)));
 }
 
-INTERNAL tlValue _TaskIsDone(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _task_isDone(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskCast(tlArgsTarget(args));
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
@@ -454,18 +457,27 @@ static tlClass _tlTaskClass = {
 
 static const tlNativeCbs __task_natives[] = {
     { "_Task_new", _Task_new },
-    { "yield", _TaskYield },
+    { "yield", _Task_yield },
     { 0, 0 }
 };
+
+static tlMap* taskClass;
 
 static void task_init() {
     tl_register_natives(__task_natives);
     _tlTaskClass.map = tlClassMapFrom(
         "wait", _task_wait,
-        "done", _TaskIsDone,
+        "done", _task_isDone,
+        null
+    );
+    taskClass = tlClassMapFrom(
+        "current", _Task_current,
+        "yield", _Task_yield,
         null
     );
 }
+
 static void task_default(tlVm* vm) {
+   tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 
