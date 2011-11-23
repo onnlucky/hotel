@@ -1,3 +1,4 @@
+// author: Onne Gorter, license: MIT (see license.txt)
 // hotel lightweight tasks
 
 #include "trace-on.h"
@@ -39,17 +40,6 @@ struct tlWorker {
     void* defer_data;
 };
 
-TL_REF_TYPE(tlMessage);
-static tlClass _tlMessageClass;
-tlClass* tlMessageClass = &_tlMessageClass;
-struct tlMessage {
-    tlHead head;
-    tlTask* sender;
-    tlArgs* args;
-};
-
-void* tlPauseAlloc(tlTask* task, size_t bytes, int fields, tlResumeCb cb);
-
 typedef enum {
     TL_STATE_INIT = 0,  // only first time
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
@@ -69,6 +59,7 @@ struct tlTask {
     tlHead head;
     tlWorker* worker;  // current worker that is working on this task
     lqentry entry;     // how it gets linked into a queues
+    tlValue waiting;   // a single tlTask* or a tlQueue* with many waiting tasks
 
     tlValue value;     // current value
     tlFrame* frame;    // current frame (== top of stack or current continuation)
@@ -76,9 +67,6 @@ struct tlTask {
     // TODO remove these in favor a some flags
     tlValue error;     // if task is in an error state, this is the value (throwing)
     tlTaskState state; // state it is currently in
-
-    lqueue msg_q;      // for task.send and task.receive ...
-    lqueue wait_q;     // for task.wait, holds all waiters ...
 };
 
 tlVm* tlTaskGetVm(tlTask* task) {
@@ -93,16 +81,28 @@ void tlVmScheduleTask(tlVm* vm, tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-void tlWorkerAfterTaskPause(tlWorker* worker, tlWorkerDeferCb cb, void* data) {
-    assert(!worker->defer_cb);
-    worker->defer_cb = cb;
-    worker->defer_data = data;
-}
-
 INTERNAL tlTask* tlTaskFromEntry(lqentry* entry) {
     if (!entry) return null;
     return (tlTask*)(((char *)entry) - ((intptr_t) &((tlTask*)0)->entry));
 }
+
+TL_REF_TYPE(tlWaitQueue);
+static tlClass _tlWaitQueueClass = { .name = "WaitQueue" };
+tlClass* tlWaitQueueClass = &_tlWaitQueueClass;
+struct tlWaitQueue {
+    tlHead head;
+    lqueue wait_q;
+};
+tlWaitQueue* tlWaitQueueNew(tlTask* task) {
+    return tlAlloc(task, tlWaitQueueClass, sizeof(tlWaitQueue));
+}
+void tlWaitQueueAdd(tlWaitQueue* queue, tlTask* task) {
+    lqueue_put(&queue->wait_q, &task->entry);
+}
+tlTask* tlWaitQueueGet(tlWaitQueue* queue) {
+    return tlTaskFromEntry(lqueue_get(&queue->wait_q));
+}
+
 
 void assert_backtrace(tlFrame* frame) {
     int i = 100;
@@ -110,7 +110,6 @@ void assert_backtrace(tlFrame* frame) {
     if (frame) fatal("STACK CORRUPTED");
 }
 
-// TODO task->value as intermediate frame is a kludge
 INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     assert(_frame);
     assert(task->worker);
@@ -300,7 +299,7 @@ void tlTaskWait(tlTask* task) {
 void tlIoInterrupt(tlVm* vm);
 
 void tlTaskReady(tlTask* task) {
-    trace("%s", tl_str(task));
+    trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
     assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_IOWAIT);
     assert(task->frame);
@@ -325,6 +324,25 @@ void tlTaskStart(tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
+// TODO if error, make sure to communicate that too ...
+INTERNAL void signalWaiters(tlTask* task) {
+    tlValue waiting = A_PTR(a_swap(A_VAR(task->waiting), null));
+    if (!waiting) return;
+    if (tlTaskIs(waiting)) {
+        tlTask* waiter = tlTaskAs(waiting);
+        waiter->value = task->value;
+        tlTaskReady(waiter);
+        return;
+    }
+    tlWaitQueue* queue = tlWaitQueueAs(waiting);
+    while (true) {
+        tlTask* waiter = tlWaitQueueGet(queue);
+        if (!waiter) return;
+        waiter->value = task->value;
+        tlTaskReady(waiter);
+    }
+}
+
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
     trace("%s error: %s", tl_str(task), tl_str(error));
     task->frame = null;
@@ -334,13 +352,7 @@ INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
     tlVm* vm = tlTaskGetVm(task);
     a_dec(&vm->tasks);
     task->worker = vm->waiter;
-
-    while (true) {
-        tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
-        if (!waiter) return tlTaskNotRunning;
-        waiter->value = task->value;
-        tlTaskReady(waiter);
-    }
+    signalWaiters(task);
     return tlTaskNotRunning;
 }
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
@@ -352,13 +364,7 @@ INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
     tlVm* vm = tlTaskGetVm(task);
     a_dec(&vm->tasks);
     task->worker = vm->waiter;
-
-    while (true) {
-        tlTask* waiter = tlTaskFromEntry(lqueue_get(&task->wait_q));
-        if (!waiter) return tlTaskNotRunning;
-        waiter->value = task->value;
-        tlTaskReady(waiter);
-    }
+    signalWaiters(task);
     return tlTaskNotRunning;
 }
 
@@ -389,7 +395,8 @@ INTERNAL tlValue _TaskIsDone(tlTask* task, tlArgs* args) {
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
 
-INTERNAL tlValue _TaskWait(tlTask* task, tlArgs* args) {
+// TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
+INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskCast(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.wait: %s", tl_str(other));
@@ -406,79 +413,23 @@ INTERNAL tlValue _TaskWait(tlTask* task, tlArgs* args) {
 
     trace("!! parking");
     tlTaskWait(task);
-    lqueue_put(&other->wait_q, &task->entry);
+    tlValue already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), null));
+    if (already_waiting) {
+        tlWaitQueue* queue = tlWaitQueueCast(already_waiting);
+        if (queue) {
+            tlWaitQueueAdd(queue, task);
+        } else {
+            queue = tlWaitQueueNew(task);
+            tlWaitQueue* otherqueue = A_PTR(
+                    a_swap_if(A_VAR(other->waiting), A_VAL(queue), A_VAL_NB(already_waiting)));
+            if (otherqueue != already_waiting) queue = tlWaitQueueAs(otherqueue);
+            tlWaitQueueAdd(queue, already_waiting);
+            tlWaitQueueAdd(queue, task);
+        }
+        // TODO try again!
+    }
+    trace("!! >> WAITING << !!");
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
-}
-
-typedef struct TaskSendFrame {
-    tlFrame frame;
-    tlTask* other;
-    tlMessage* msg;
-} TaskSendFrame;
-INTERNAL tlValue resumeReply(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    trace("");
-    return task->value;
-}
-INTERNAL tlValue resumeSend(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    trace("");
-    tlTaskWait(task);
-    tlTask* other = ((TaskSendFrame*)frame)->other;
-    frame->resumecb = resumeReply;
-    task->value = ((TaskSendFrame*)frame)->msg;
-    task->frame = frame;
-    lqueue_put(&other->msg_q, &task->entry);
-    // TODO not thread safe, our worker must own the task first
-    if (other->state == TL_STATE_WAIT) tlTaskReady(other);
-    return tlTaskNotRunning;
-}
-INTERNAL tlValue _task_send(tlTask* task, tlArgs* args) {
-    tlTask* other = tlTaskCast(tlArgsTarget(args));
-    if (!other) TL_THROW("expected a Task");
-    trace("task.send: %s %s", tl_str(other), tl_str(task));
-    tlMessage* msg = tlAlloc(task, tlMessageClass, sizeof(tlMessage));
-    msg->sender = task;
-    msg->args = args;
-    TaskSendFrame* frame = tlFrameAlloc(task, resumeSend, sizeof(TaskSendFrame));
-    frame->other = other;
-    frame->msg = msg;
-    // TODO tlTaskPause should preserve task->value ... but it doesn't
-    return tlTaskPause(task, frame);
-}
-
-INTERNAL tlValue resumeRecv(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    trace("");
-    tlTask* sender = tlTaskFromEntry(lqueue_get(&task->msg_q));
-    //print_backtrace(frame->caller);
-    if (sender) return sender->value;
-    tlTaskWait(task);
-    return tlTaskPause(task, frame);
-}
-INTERNAL tlValue _task_receive(tlTask* task, tlArgs* args) {
-    trace("task.receive: %s", tl_str(task));
-    tlTask* sender = tlTaskFromEntry(lqueue_get(&task->wait_q));
-    if (sender) return sender->value;
-    return tlTaskPause(task, tlFrameAlloc(task, resumeRecv, sizeof(tlFrame)));
-}
-
-INTERNAL tlValue _message_reply(tlTask* task, tlArgs* args) {
-    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
-    if (!msg) TL_THROW("expected a Message");
-    trace("msg.reply: %s", tl_str(msg));
-    // TODO do multiple return ...
-    tlValue res = tlArgsAt(args, 0);
-    if (!res) res = tlNull;
-    msg->sender->value = res;
-    tlTaskReady(msg->sender);
-    return tlNull;
-}
-
-INTERNAL tlValue _message_get(tlTask* task, tlArgs* args) {
-    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
-    if (!msg) TL_THROW("expected a Message");
-    tlValue key = tlArgsAt(args, 0);
-    trace("msg.get: %s %s", tl_str(msg), tl_str(key));
-    if (tlIntIs(key)) return tlArgsAt(msg->args, tl_int(key));
-    return tlArgsMapGet(msg->args, key);
 }
 
 INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {
@@ -500,9 +451,6 @@ static tlClass _tlTaskClass = {
     .name = "Task",
     .toText = _TaskToText,
 };
-static tlClass _tlMessageClass = {
-    .name = "Message",
-};
 
 static const tlNativeCbs __task_natives[] = {
     { "_Task_new", _Task_new },
@@ -513,21 +461,11 @@ static const tlNativeCbs __task_natives[] = {
 static void task_init() {
     tl_register_natives(__task_natives);
     _tlTaskClass.map = tlClassMapFrom(
-        "wait", _TaskWait,
+        "wait", _task_wait,
         "done", _TaskIsDone,
-        "send", _task_send,
-        null
-    );
-    _tlMessageClass.name = "Message";
-    _tlMessageClass.map = tlClassMapFrom(
-        "reply", _message_reply,
-        "get", _message_get,
         null
     );
 }
 static void task_default(tlVm* vm) {
-    tlVmGlobalSet(vm, tlSYM("Task"), tlClassMapFrom(
-        "receive", _task_receive,
-        null
-    ));
 }
+

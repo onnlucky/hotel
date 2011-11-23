@@ -1,5 +1,7 @@
 # TODO
 
+remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
+
 build-in if, break, continue, again ... ?
 
 start preparing a first release:
@@ -7,12 +9,11 @@ start preparing a first release:
 * use gcov to remove any unused code or add tests for them (larger parts...)
 * clean up and comment eval.c maybe remove some of it to run.c oid
 
-stop head.size ... and fix it into something better ... ? how?
 start using tlTaskPauseResuming() ... a lot more
 on parse errors, throw it on the task, not fatal() out ...
 
-deadlock detection for actors: state=WAIT, if owner.state==WAIT and owner.current.owner == us
-deadlock detection for tasks: what we had before ...
+deadlock detection for synchronized: state=WAIT, if owner.state==WAIT and owner.current.owner == us
+deadlock detection for queues: what we had before ... ??
 
 syntax change: do symbols using 'symbol
 

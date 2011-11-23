@@ -1,4 +1,7 @@
-// license: MIT (see license.txt), copyright 2011 by Onne Gorter
+// author: Onne Gorter, license: MIT (see license.txt)
+
+// This is the hotel programming language public API.
+
 #ifndef _tl_h_
 #define _tl_h_
 #pragma once

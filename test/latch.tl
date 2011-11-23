@@ -1,14 +1,15 @@
 if = cond, block -> bool(cond, block, (->))()
 
 Latch = (max ->
-    guard = !(
+    queue = MsgQueue.new
+    !(
         loop = (count, hold ->
-            msg = Task.receive
-            if msg.get(0) == #enter: (
+            msg = queue.get
+            if msg.name == #enter: (
                 if count < max: msg.reply; goto loop(count + 1, hold)
                 goto loop(count + 1, hold.add(msg))
             )
-            if msg.get(0) == #exit: (
+            if msg.name == #exit: (
                 print "EXITING:", hold.size
                 msg.reply
                 if hold.size == 0: goto loop(count - 1, hold)
@@ -21,8 +22,8 @@ Latch = (max ->
         loop(0, [])
     )
     {
-        enter: -> guard.send #enter
-        exit: -> guard.send #exit
+        enter: -> queue.input.enter
+        exit: -> queue.input.exit
     }
 )
 

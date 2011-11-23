@@ -20,5 +20,10 @@ void* tlFrameAlloc(tlTask* task, tlResumeCb cb, size_t bytes) {
     return frame;
 }
 
+tlFrame* tlFrameSetResume(tlTask* task, tlFrame* frame, tlResumeCb cb) {
+    frame->resumecb = cb;
+    return frame;
+}
+
 tlValue tlTaskPauseAttach(tlTask* task, void* frame);
 

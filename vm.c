@@ -18,6 +18,7 @@
 #include "args.c"
 #include "call.c"
 #include "task.c"
+#include "queue.c"
 #include "sync.c"
 #include "object.c"
 #include "code.c"
@@ -152,6 +153,7 @@ void tl_init() {
     eval_init();
     task_init();
     error_init();
+    queue_init();
 
     var_init();
     //object_init();
@@ -204,6 +206,7 @@ tlVm* tlVmNew() {
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlEnvNew(null, null);
     task_default(vm);
+    queue_vm_default(vm);
     return vm;
 }
 
