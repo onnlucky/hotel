@@ -234,7 +234,7 @@ tlCall* tlCallAddBlock(tlTask* task, tlValue _call, tlCode* block) {
     }
     tlCall* ncall = tlCallNew(task, size, true);
     ncall->fn = call->fn;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size - 1; i++) {
         ncall->data[i] = call->data[i];
     }
     trace("no keys: %d == %d + 2 first: %s", ncall->head.size, size + 1, tl_str(call->data[0]));
