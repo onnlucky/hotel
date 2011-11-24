@@ -2,7 +2,7 @@
 
 remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
 
-build-in if, break, continue, again ... ?
+build-in if, break, continue, again ... while, loop?
 
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code

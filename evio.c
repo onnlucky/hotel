@@ -669,6 +669,13 @@ static tlValue _Child_run(tlTask* task, tlArgs* args) {
     _exit(255);
 }
 
+INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
+    tlFile* file = tlFileOrSocketAs(v);
+    tlClass* klass = tl_class(file);
+    snprintf(buf, size, "<%s@%d>", klass->name, file->ev.fd);
+    return buf;
+}
+
 static const tlNativeCbs __evio_natives[] = {
     { "sleep", _io_sleep },
     { "_File_open", _File_open },
@@ -689,18 +696,21 @@ static a_val loop_status = 0;
 static ev_async loop_interrupt;
 
 void evio_init() {
+    _tlFileClass.toText = fileToText;
     _tlFileClass.map = tlClassMapFrom(
         "close", _FileClose,
         "read", _FileRead,
         "write", _FileWrite,
         null
     );
+    _tlSocketClass.toText = fileToText;
     _tlSocketClass.map = tlClassMapFrom(
         "close", _FileClose,
         "read", _FileRead,
         "write", _FileWrite,
         null
     );
+    _tlServerSocketClass.toText = fileToText;
     _tlServerSocketClass.map = tlClassMapFrom(
         "close", _FileClose,
         "accept", _SocketAccept,

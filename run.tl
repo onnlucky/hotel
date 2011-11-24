@@ -11,6 +11,7 @@ HttpConnection = (conn ->
     in = _Buffer_new()
     var $sendheaders = false
     body = _Buffer_new()
+    var $end = false
     {
         url: (->
             // read and parse until headers are complete
@@ -27,8 +28,11 @@ HttpConnection = (conn ->
             )
             return $req.url
         )
-        end: -> this.flush(true); conn.close
-        write: text -> body.write text
+        end: -> if not $end: $end = true; this.flush(true); conn.close
+        write: (text ->
+            if $end: _throw "Already Ended Response"
+            body.write text
+        )
         flush: (ending ->
             if not $sendheaders: this.sendheaders ending
             while body.canread > 0: (
@@ -56,18 +60,13 @@ HttpServer = {
         while true: (
             client = socket.accept
             conn = HttpConnection(client)
-            block(conn)
-            //!block(client); conn.end
+            !block(conn); conn.end
         )
     )
 }
 
 var $count = 0
 HttpServer.new(8080): (conn->
-    $count = $count + 1
-    print conn.url
-    conn.write "hello from Hotel!\nyou are number: $($count)"
-    conn.end
-    print "DONE"
+    conn.write "hello from Hotel!\nyou are number: $( $count += 1 )"
 )
 

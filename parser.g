@@ -200,6 +200,21 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
                              tlCallFrom(TASK, tl_active(s_var_set), tl_active(n), e, null)
                  ));
              }
+#// TODO for now just add and subtract, until we do full operators
+             | "$" n:name _"+"_"="__ e:bpexpr {
+                 $$ = tlCallFrom(TASK, tl_active(s_var_get), tl_active(n), null);
+                 $$ = tlCallFrom(TASK, tl_active(s_add), $$, e, null);
+                 $$ = tlListFrom1(TASK, call_activate(
+                             tlCallFrom(TASK, tl_active(s_var_set), tl_active(n), $$, null)
+                 ));
+             }
+             | "$" n:name _"-"_"="__ e:bpexpr {
+                 $$ = tlCallFrom(TASK, tl_active(s_var_get), tl_active(n), null);
+                 $$ = tlCallFrom(TASK, tl_active(s_sub), $$, e, null);
+                 $$ = tlListFrom1(TASK, call_activate(
+                             tlCallFrom(TASK, tl_active(s_var_set), tl_active(n), $$, null)
+                 ));
+             }
 
 singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n, null); try_name(n, e); }
              | n:name    _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, n, null); try_name(n, e); }
@@ -404,7 +419,8 @@ number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
        | '"' ts:ctext '"' { $$ = tlCallFromList(TASK, tl_active(s_Text_cat), L(ts)); }
 
  stext = < (!"$" !"\"" .)+ > { $$ = tlTextFromTake(TASK, unescape(yytext), 0); }
- ptext = "$("_ e:expr _")"   { $$ = e }
+ ptext = "$("_ e:paren _")"  { $$ = e }
+       | "$("_ b:body  _")"  { tlCodeSetIsBlock_(b, true); $$ = tlCallFrom(TASK, tl_active(b), null); }
        | "$" l:lookup        { $$ = l }
  ctext = t:ptext ts:ctext    { $$ = tlListPrepend2(TASK, ts, tlNull, t); }
        | t:stext ts:ctext    { $$ = tlListPrepend2(TASK, ts, tlNull, t); }
