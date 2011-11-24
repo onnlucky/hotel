@@ -33,6 +33,9 @@
 #include "buffer.c"
 #include "evio.c"
 
+// super extra
+#include "http.c"
+
 #include "trace-on.h"
 
 static tlValue _out(tlTask* task, tlArgs* args) {
@@ -161,6 +164,8 @@ void tl_init() {
 
     buffer_init();
     evio_init();
+
+    http_init();
 }
 
 // when outside of vm, make it all run by calling this function

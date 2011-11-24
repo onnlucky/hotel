@@ -1,4 +1,4 @@
-CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS)
+CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -Ihttp-parser
 ifeq ($(VALGRIND),1)
 TOOL=valgrind -q --track-origins=yes
 endif
@@ -14,6 +14,9 @@ test: tl
 greg/greg:
 	git clone http://github.com/onnlucky/greg
 	cd greg && git checkout 8bc002c0f640c2d93bb9d9dc965d61df8caf4cf4 && make
+
+http-parser/http_parser.c:
+	git clone http://github.com/onnlucky/http-parser.git
 
 parser.c: parser.g greg/greg
 	greg/greg -o parser.c parser.g
@@ -39,7 +42,7 @@ ifneq ($(BOEHM),)
 endif
 	ar -s libtl.a
 
-vm.o: *.c *.h llib/lqueue.* llib/lhashmap.* Makefile
+vm.o: *.c *.h llib/lqueue.* llib/lhashmap.* Makefile http-parser/http_parser.c
 	$(CC) $(CFLAGS) -Ilibgc/libatomic_ops/src vm.c -c
 
 tl: libtl.a tl.c
@@ -49,7 +52,7 @@ clean:
 	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM
 	$(MAKE) -C graphics clean
 distclean: clean
-	rm -rf libgc greg
+	rm -rf greg/ libgc/ http-parser/
 dist-clean: distclean
 
 .PHONY: run test clean distclean

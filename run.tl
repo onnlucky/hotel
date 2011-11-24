@@ -1,7 +1,5 @@
-queue = MsgQueue.new
-t1 = Task.current
-t2 = !t1.wait
-Task.yield
-print "should deadlock", t1, t2
-t2.wait
+buf = _Buffer_new()
+buf.write "GET /a?/really/long/path.html HTTP/1.0\r\nHOST: foobarfoobar.com\r\n\r\n"
+print _http_parse(buf)
+print "DONE"
 
