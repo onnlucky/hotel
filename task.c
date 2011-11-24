@@ -173,6 +173,7 @@ INTERNAL void tlTaskRun(tlTask* task) {
             if (res == tlTaskNotRunning) return;
             if (res == tlTaskJumping) {
                 // may only jump from first resumecb after reifying stack ... can we assert that?
+                // also can we unlock things, like resume all jumped over frames with an error?
                 trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
                 frame = task->frame;
                 res = task->value;

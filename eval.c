@@ -266,6 +266,10 @@ typedef struct GotoFrame {
     tlArgs* targetargs;
 } GotoFrame;
 
+INTERNAL tlValue resumeGotoEval(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    // now it is business as usual
+    return tlEval(task, res);
+}
 INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlCall* call = ((GotoFrame*)frame)->call;
     tlArgs* targetargs = ((GotoFrame*)frame)->targetargs;
@@ -280,14 +284,11 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     tlFrame* caller = null;
     if (frame) caller = frame->caller;
     trace("JUMPING: %p", caller);
-    res = tlEval(task, tlCallGet(call, 0));
-    if (!res) {
-        // fixup the stack by skipping our frame
-        tlTaskPauseAttach(task, caller);
-        // jump to top of stack with current value
-        return tlTaskJump(task, task->worker->top, task->value);
-    }
-    return tlTaskJump(task, caller, res);
+
+    // now create a stack which does not involve our frame
+    tlTaskPauseResuming(task, resumeGotoEval, null);
+    tlTaskPauseAttach(task, caller);
+    return tlTaskJump(task, task->worker->top, tlCallGet(call, 0));
 }
 INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
     trace("GOTO(%d)", tlCallSize(call));
