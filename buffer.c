@@ -16,10 +16,15 @@ tlBuffer* tlBufferNew(tlTask* task) {
     buf->buf = tlbuf_new();
     return buf;
 }
-
-INTERNAL tlValue _BufferRead(tlTask* task, tlArgs* args) {
-    tlBuffer* buffer = tlBufferCast(args->target);
-    assert(buffer);
+INTERNAL tlValue _buffer_canread(tlTask* task, tlArgs* args) {
+    return tlINT(canread(tlBufferAs(tlArgsTarget(args))->buf));
+}
+INTERNAL tlValue _buffer_canwrite(tlTask* task, tlArgs* args) {
+    return tlINT(canwrite(tlBufferAs(tlArgsTarget(args))->buf));
+}
+INTERNAL tlValue _buffer_read(tlTask* task, tlArgs* args) {
+    tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
+    if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
     assert(buf);
 
@@ -30,14 +35,15 @@ INTERNAL tlValue _BufferRead(tlTask* task, tlArgs* args) {
     return tlTextFromTake(task, data, last);
 }
 
-INTERNAL tlValue _BufferWrite(tlTask* task, tlArgs* args) {
-    tlBuffer* buffer = tlBufferCast(args->target);
-    assert(buffer);
+INTERNAL tlValue _buffer_write(tlTask* task, tlArgs* args) {
+    tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
+    if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
     assert(buf);
 
     tlText* text = tlTextCast(tlArgsAt(args, 0));
     if (!text) TL_THROW("expected a Text");
+    // TODO grow buffer? auto grow buffer?
     return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));
 }
 
@@ -47,8 +53,10 @@ INTERNAL tlValue _Buffer_new(tlTask* task, tlArgs* args) {
 
 static void buffer_init() {
     _tlBufferClass.map = tlClassMapFrom(
-            "read", _BufferRead,
-            "write", _BufferWrite,
+            "canread", _buffer_canread,
+            "read", _buffer_read,
+            "canwrite", _buffer_canwrite,
+            "write", _buffer_write,
             null
     );
 }

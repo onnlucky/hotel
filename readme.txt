@@ -12,23 +12,19 @@ start preparing a first release:
 start using tlTaskPauseResuming() ... a lot more
 on parse errors, throw it on the task, not fatal() out ...
 
-deadlock detection for synchronized: state=WAIT, if owner.state==WAIT and owner.current.owner == us
-deadlock detection for queues: what we had before ... ??
-deadlock detection for waiters: what we had before ...
-
 syntax change: do symbols using 'symbol
 
 work on a repl by allowing Env to be generic and thus mutable ...
 think about special inherited task local *Env* of sorts, for stdout, error modes, etc ... ? yes, for dynamically scoped stuff
 
 tlArgsAt -> tlArgsGet ... like a list tlListGet
-rename/rework style: tlArgsGet(args, 0), tlArgsTarget(args), tlArgsMsg(args), tlMapGet(wr, map, key)
 we do the "get field and dispatch" a lot in a lot of places ... dry it up
 
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs
 
 think about evio doing read/write simultaniously ... two actors?
+do evio differently, needs its own thread, use new Queue thing to handle it ...
 writing to sockets should accept strings too ... place buffer inbetween? actor inside/outside?
 
 add methods vs functions, methods try to bind a this dynamically ... helps with actors too
