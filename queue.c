@@ -58,7 +58,8 @@ INTERNAL tlValue resumeEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlErro
     trace("queue.send: %s %s", tl_str(queue), tl_str(msg));
     task->value = msg;
     task->frame = tlFrameSetResume(task, frame, resumeReply);
-    tlTaskWait(task);
+
+    tlTaskWaitFor(task, null);
     lqueue_put(&queue->msg_q, &task->entry);
     queueSignal(queue);
     return tlTaskNotRunning;
@@ -78,7 +79,7 @@ INTERNAL tlValue resumeGet(tlTask* task, tlFrame* frame, tlValue res, tlError* e
     trace("SENDER: %s", tl_str(sender));
     if (sender) return sender->value;
 
-    tlTaskWait(task);
+    tlTaskWaitFor(task, null);
     lqueue_put(&queue->wait_q, &task->entry);
     return tlTaskNotRunning;
 }

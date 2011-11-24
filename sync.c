@@ -2,21 +2,14 @@
 
 #include "trace-on.h"
 
-// TODO public
-typedef struct tlSynchronized {
-    tlHead head;
-    tlTask* owner;
-    lqueue msg_q;
-} tlSynchronized;
-
-// TODO public
-tlValue tlSynchronizedReceive(tlTask* task, tlArgs* args);
-
-INTERNAL bool tlSynchronizedIs(tlValue v) {
+bool tlSynchronizedIs(tlValue v) {
     return tl_class(v)->send == tlSynchronizedReceive;
 }
-INTERNAL tlSynchronized* tlSynchronizedAs(tlValue v) {
+tlSynchronized* tlSynchronizedAs(tlValue v) {
     assert(tlSynchronizedIs(v)); return (tlSynchronized*)v;
+}
+tlTask* tlSynchronizedOwner(tlSynchronized* sync) {
+    return sync->owner;
 }
 
 INTERNAL void syncScheduleNext(tlTask* task, tlSynchronized* sync) {
@@ -38,7 +31,8 @@ INTERNAL tlValue syncEnqueue(tlTask* task, tlSynchronized* sync, tlFrame* frame)
 
     // make the task wait and enqueue it
     task->frame = frame;
-    tlTaskWait(task);
+    tlValue deadlock = tlTaskWaitFor(task, sync);
+    if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
     lqueue_put(&sync->msg_q, &task->entry);
 
     // try to own the sync, incase another worker released it inbetween ...

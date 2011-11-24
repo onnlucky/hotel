@@ -362,7 +362,7 @@ tlValue tlTaskPause(tlTask* task, void* frame);
 tlValue tlTaskPauseAttach(tlTask* task, void* frame);
 tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb resume, tlValue res);
 // mark task as waiting
-void tlTaskWait(tlTask* task);
+tlValue tlTaskWaitFor(tlTask* task, tlValue on);
 void tlTaskWaitIo(tlTask* task);
 // mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady(tlTask* task);
@@ -413,6 +413,18 @@ tlWorker* tlTaskWorker(tlTask* task);
 void tlWorkerRun(tlWorker* worker);
 
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
+
+typedef struct tlSynchronized {
+    tlHead head;
+    tlTask* owner;
+    lqueue msg_q;
+} tlSynchronized;
+
+tlValue tlSynchronizedReceive(tlTask* task, tlArgs* args);
+bool tlSynchronizedIs(tlValue v);
+tlSynchronized* tlSynchronizedAs(tlValue v);
+tlTask* tlSynchronizedOwner(tlSynchronized* sync);
+
 
 #endif // _tl_h_
 

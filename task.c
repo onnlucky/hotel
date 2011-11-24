@@ -12,6 +12,9 @@ tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
 void tlresult_set_(tlResult* res, int at, tlValue v);
 
+bool tlSynchronizedIs(tlValue v);
+tlSynchronized* tlSynchronizedAs(tlValue v);
+
 struct tlVm {
     tlHead head;
     // tasks ready to run
@@ -60,6 +63,7 @@ struct tlTask {
     tlWorker* worker;  // current worker that is working on this task
     lqentry entry;     // how it gets linked into a queues
     tlValue waiting;   // a single tlTask* or a tlQueue* with many waiting tasks
+    tlValue waitFor;   // what this task is blocked on
 
     tlValue value;     // current value
     tlFrame* frame;    // current frame (== top of stack or current continuation)
@@ -156,6 +160,7 @@ INTERNAL void tlTaskRun(tlTask* task) {
 
     while (task->state == TL_STATE_RUN) {
         tlValue res = task->value;
+        if (!res) res = tlNull;
         tlFrame* frame = task->frame;
         assert(frame);
         assert(res);
@@ -285,15 +290,39 @@ void tlTaskWaitIo(tlTask* task) {
     a_inc(&vm->iowaiting);
 }
 
-void tlTaskWait(tlTask* task) {
-    trace("%p", task);
+// TODO all this deadlock checking needs to thread more carefully
+INTERNAL tlTask* taskForLocked(tlValue on) {
+    if (!on) return null;
+    if (tlTaskIs(on)) return tlTaskAs(on);
+    if (tlSynchronizedIs(on)) return tlSynchronizedOwner(tlSynchronizedAs(on));
+    fatal("not implemented yet: %s", tl_str(on));
+    return null;
+}
+INTERNAL tlValue checkDeadlock(tlTask* task, tlValue on) {
+    tlTask* other = taskForLocked(on);
+    if (other == task) { trace("DEADLOCK: %s", tl_str(other)); return task; }
+    if (!other) return null;
+    if (other->state != TL_STATE_WAIT) return null;
+    return checkDeadlock(task, other->waitFor);
+}
+
+tlValue tlTaskWaitFor(tlTask* task, tlValue on) {
+    trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
-    //assert(task->state == TL_STATE_READY || task->state == TL_STATE_RUN);
     assert(task->state == TL_STATE_RUN);
     tlVm* vm = tlTaskGetVm(task);
     task->state = TL_STATE_WAIT;
+    task->waitFor = on;
+
+    tlValue deadlock;
+    if ((deadlock = checkDeadlock(task, on))) {
+        task->state = TL_STATE_RUN;
+        return deadlock;
+    }
+
     task->worker = vm->waiter;
     a_inc(&vm->waiting);
+    return null;
 }
 
 void tlIoInterrupt(tlVm* vm);
@@ -304,8 +333,12 @@ void tlTaskReady(tlTask* task) {
     assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_IOWAIT);
     assert(task->frame);
     tlVm* vm = tlTaskGetVm(task);
-    if (task->state == TL_STATE_IOWAIT) a_dec(&vm->iowaiting);
-    else a_dec(&vm->waiting);
+    if (task->state == TL_STATE_IOWAIT) {
+        a_dec(&vm->iowaiting);
+    } else {
+        task->waitFor = null;
+        a_dec(&vm->waiting);
+    }
     task->worker = null;
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
@@ -384,7 +417,7 @@ INTERNAL tlValue _Task_current(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    tlTaskWait(task);
+    tlTaskWaitFor(task, null);
     tlTaskReady(task);
     frame->resumecb = null;
     return tlTaskNotRunning;
@@ -415,7 +448,9 @@ INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
     }
 
     trace("!! parking");
-    tlTaskWait(task);
+    tlValue deadlock = tlTaskWaitFor(task, other);
+    if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
+
     tlValue already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), null));
     if (already_waiting) {
         tlWaitQueue* queue = tlWaitQueueCast(already_waiting);
