@@ -84,7 +84,7 @@ static tlValue _window_graphics(tlTask* task, tlArgs* args) {
 }
 static tlValue _window_draw(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    Graphics* buf = GraphicsCast(tlArgsAt(args, 0));
+    Graphics* buf = GraphicsCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("expected a buffer");
     while (a_swap_if(A_VAR(window->draw), A_VAL(buf), null) != null) {
         [[window->nswindow contentView]
@@ -97,7 +97,7 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
 }
 static tlValue _window_setTitle(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    tlText* text = tlTextCast(tlArgsAt(args, 0));
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (text) {
         [window->nswindow setTitle: [NSString stringWithUTF8String: tlTextData(text)]];
     }

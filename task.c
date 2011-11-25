@@ -405,7 +405,7 @@ INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
 INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
     assert(task && task->worker && task->worker->vm);
 
-    tlValue v = tlArgsAt(args, 0);
+    tlValue v = tlArgsGet(args, 0);
     tlTask* ntask = tlTaskNew(tlTaskGetVm(task));
 
     if (tlCallableIs(v)) v = tlCallFrom(ntask, v, null);

@@ -53,7 +53,7 @@ static tlValue resumeSleep(tlTask* task, tlFrame* frame, tlValue res, tlError* e
     return tlTaskNotRunning;
 }
 static tlValue _io_sleep(tlTask* task, tlArgs* args) {
-    int millis = tl_int_or(tlArgsAt(args, 0), 1000);
+    int millis = tl_int_or(tlArgsGet(args, 0), 1000);
     trace("sleep: %d", millis);
     float ms = millis / 1000.0;
 
@@ -186,7 +186,7 @@ static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError
     trace("%s", tl_str(res));
     tlArgs* args = tlArgsAs(res);
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
     assert(file->sync.owner == task);
     assert(buffer->sync.owner == task);
     trace("");
@@ -211,7 +211,7 @@ static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError
 static tlValue _FileRead(tlTask* task, tlArgs* args) {
     trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a File");
     if (!buffer) TL_THROW("expected a Buffer");
     return tlSynchronizedAquireResuming(task, tlSynchronizedAs(buffer), resumeFileRead, args);
@@ -240,7 +240,7 @@ static void write_cb(ev_io *ev, int revents) {
 static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlArgs* args = tlArgsAs(res);
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
     assert(file->sync.owner == task);
     assert(buffer->sync.owner == task);
     trace("");
@@ -267,17 +267,17 @@ static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlErro
 static tlValue _FileWrite(tlTask* task, tlArgs* args) {
     trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsAt(args, 0));
+    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a File");
     if (!buffer) TL_THROW("expected a Buffer");
     return tlSynchronizedAquireResuming(task, tlSynchronizedAs(buffer), resumeFileWrite, args);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a file name");
     trace("open: %s", tl_str(name));
-    int flags = tl_int_or(tlArgsAt(args, 1), -1);
+    int flags = tl_int_or(tlArgsGet(args, 1), -1);
     if (flags < 0) TL_THROW("expected flags");
     int perms = 0666;
 
@@ -290,7 +290,7 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
 
 // TODO this is a blocking call
 static tlValue _Socket_resolve(tlTask* task, tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a Text");
 
     struct hostent *hp = gethostbyname(tlTextData(name));
@@ -300,9 +300,9 @@ static tlValue _Socket_resolve(tlTask* task, tlArgs* args) {
 }
 
 static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
-    tlText* address = tlTextCast(tlArgsAt(args, 0));
+    tlText* address = tlTextCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a ip address");
-    int port = tl_int_or(tlArgsAt(args, 1), -1);
+    int port = tl_int_or(tlArgsGet(args, 1), -1);
     if (port < 0) TL_THROW("expected a port");
 
     trace("tcp_open: %s:%d", tl_str(address), port);
@@ -330,7 +330,7 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
 
 // TODO make backlog configurable
 static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
-    int port = tl_int_or(tlArgsAt(args, 0), -1);
+    int port = tl_int_or(tlArgsGet(args, 0), -1);
     trace("tcp_listen: 0.0.0.0:%d", port);
 
     struct sockaddr_in sockaddr;
@@ -404,7 +404,7 @@ static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
 // ** paths **
 
 static tlValue _Path_stat(tlTask* task, tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a name");
 
     struct stat buf;
@@ -445,7 +445,7 @@ static tlDir* tlDirNew(tlTask* task, DIR* p) {
 }
 
 static tlValue _Dir_open(tlTask* task, tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsAt(args, 0));
+    tlText* name = tlTextCast(tlArgsGet(args, 0));
     trace("opendir: %s", tl_str(name));
     DIR *p = opendir(tlTextData(name));
     if (!p) TL_THROW("opendir: failed: %s for: '%s'", strerror(errno), tl_str(name));
@@ -536,7 +536,7 @@ static tlChild* tlChildFrom(ev_child *ev) {
 static tlValue _Child_exec(tlTask* task, tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
-        tlText* text = tlTextCast(tlArgsAt(args, i));
+        tlText* text = tlTextCast(tlArgsGet(args, i));
         if (!text) {
             free(argv);
             TL_THROW("expected a Text");
@@ -625,7 +625,7 @@ static tlValue _ChildStatus(tlTask* task, tlArgs* args) {
 static tlValue _Child_run(tlTask* task, tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
-        tlText* text = tlTextCast(tlArgsAt(args, i));
+        tlText* text = tlTextCast(tlArgsGet(args, i));
         if (!text) {
             free(argv);
             TL_THROW("expected a Text");
@@ -675,6 +675,7 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<%s@%d>", klass->name, file->ev.fd);
     return buf;
 }
+
 
 static const tlNativeCbs __evio_natives[] = {
     { "sleep", _io_sleep },

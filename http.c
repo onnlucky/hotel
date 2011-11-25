@@ -41,7 +41,7 @@ static http_parser_settings settings = {
 };
 
 tlValue _http_parse(tlTask* task, tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsAt(args, 0));
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("expected a Buffer");
     http_parser *parser = malloc(sizeof(http_parser));
     http_parser_init(parser, HTTP_REQUEST);

@@ -31,7 +31,7 @@ tlObject* tlObjectNew(tlTask* task) {
     return self;
 }
 tlPause* _new_object(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsAt(args, 0));
+    tlMap* map = tlMapCast(tlArgsGet(args, 0));
     tlObject* oop = tlObjectNew(task);
     oop->map = map;
     TL_RETURN(oop);
@@ -105,9 +105,9 @@ static tlClass tlObjectClass = {
 
 tlPause* _this_set(tlTask* task, tlArgs* args) {
     assert(task->sender);
-    tlSym field = tlSymCast(tlArgsAt(args, 0));
+    tlSym field = tlSymCast(tlArgsGet(args, 0));
     assert(field);
-    tlValue v = tlArgsAt(args, 1);
+    tlValue v = tlArgsGet(args, 1);
     assert(v);
 
     task->sender->map = tlmap_set(task, task->sender->map, field, v);
@@ -116,7 +116,7 @@ tlPause* _this_set(tlTask* task, tlArgs* args) {
 
 tlPause* _this_get(tlTask* task, tlArgs* args) {
     assert(task->sender);
-    tlSym field = tlSymCast(tlArgsAt(args, 0));
+    tlSym field = tlSymCast(tlArgsGet(args, 0));
     assert(field);
 
     tlValue v = tlmap_get(task, task->sender->map, field);

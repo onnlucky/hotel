@@ -84,7 +84,7 @@ tlResult* tlResultFromArgs(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size);
     for (int i = 0; i < size; i++) {
-        res->data[i] = tlArgsAt(args, i);
+        res->data[i] = tlArgsGet(args, i);
     }
     return res;
 }
@@ -93,7 +93,7 @@ tlResult* tlResultFromArgsPrepend(tlTask* task, tlValue first, tlArgs* args) {
     tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size + 1);
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
-        res->data[i + 1] = tlArgsAt(args, i);
+        res->data[i + 1] = tlArgsGet(args, i);
     }
     return res;
 }
@@ -101,7 +101,7 @@ tlResult* tlResultFromArgsSkipOne(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = tlAllocWithFields(task, tlResultClass, sizeof(tlResult), size - 1);
     for (int i = 1; i < size; i++) {
-        res->data[i - 1] = tlArgsAt(args, i);
+        res->data[i - 1] = tlArgsGet(args, i);
     }
     return res;
 }
@@ -225,10 +225,10 @@ typedef struct ReturnFrame {
 INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     if (err) return null;
     tlArgs* args = tlArgsAs(res);
-    trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsAt(args, 0)));
+    trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsGet(args, 0)));
 
     if (tlArgsSize(args) == 0) res = tlNull;
-    else if (tlArgsSize(args) == 1) res = tlArgsAt(args, 0);
+    else if (tlArgsSize(args) == 1) res = tlArgsGet(args, 0);
     else res = tlResultFromArgs(task, args);
     assert(res);
 
@@ -605,7 +605,7 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
             tlSym name = tlSymAs(tlListGet(names, i));
             tlValue v = tlArgsMapGet(args, name);
             if (!v) {
-                v = tlArgsAt(args, first); first++;
+                v = tlArgsGet(args, first); first++;
             }
             if (!v && defaults) {
                 v = tlMapGetSym(defaults, name);
@@ -872,13 +872,13 @@ bool tlCallableIs(tlValue v) {
     return false;
 }
 INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
-    tlValue fn = tlArgsAt(args, 0);
+    tlValue fn = tlArgsGet(args, 0);
     assert(fn);
-    tlArgs* oldargs = tlArgsAs(tlArgsAt(args, 1));
+    tlArgs* oldargs = tlArgsAs(tlArgsGet(args, 1));
     assert(oldargs);
-    tlValue oop = tlArgsAt(oldargs, 0);
+    tlValue oop = tlArgsGet(oldargs, 0);
     assert(oop);
-    assert(tlArgsAt(oldargs, 1)); // msg
+    assert(tlArgsGet(oldargs, 1)); // msg
 
     tlMap* map = tlArgsMap(oldargs);
     map = tlMapSet(task, map, s_this, oop);
@@ -886,7 +886,7 @@ INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
 
     tlList* list = tlListNew(task, size);
     for (int i = 0; i < size; i++) {
-        tlListSet_(list, i, tlArgsAt(oldargs, i + 2));
+        tlListSet_(list, i, tlArgsGet(oldargs, i + 2));
     }
     tlArgs* nargs = tlArgsNew(task, list, map);
     tlArgsSetFn_(nargs, fn);
@@ -894,8 +894,8 @@ INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
-    tlValue target = tlArgsAt(args, 0);
-    tlValue msg = tlArgsAt(args, 1);
+    tlValue target = tlArgsGet(args, 0);
+    tlValue msg = tlArgsGet(args, 1);
 
     trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
 

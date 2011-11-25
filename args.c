@@ -56,7 +56,7 @@ tlMap* tlArgsMap(tlArgs* args) {
     assert(tlArgsIs(args));
     return args->map;
 }
-tlValue tlArgsAt(tlArgs* args, int at) {
+tlValue tlArgsGet(tlArgs* args, int at) {
     assert(tlArgsIs(args));
     return tlListGet(args->list, at);
 }

@@ -13,7 +13,7 @@ struct tlError {
 };
 
 INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack) {
-    trace("");
+    trace("%s", tl_str(value));
     assert(task); assert(value); assert(stack);
     tlError* err = tlAlloc(task, tlErrorClass, sizeof(tlError));
     err->value = value;
@@ -28,7 +28,7 @@ INTERNAL tlValue tlErrorValue(tlError* err) {
 INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("");
     assert(task->value == res && tlArgsIs(res));
-    res = tlArgsAt(res, 0);
+    res = tlArgsGet(res, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
     task->frame = task->frame->caller;

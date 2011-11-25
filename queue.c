@@ -107,7 +107,7 @@ INTERNAL tlValue _message_reply(tlTask* task, tlArgs* args) {
     if (!msg) TL_THROW("expected a Message");
     trace("msg.reply: %s", tl_str(msg));
     // TODO do multiple return ...
-    tlValue res = tlArgsAt(args, 0);
+    tlValue res = tlArgsGet(args, 0);
     if (!res) res = tlNull;
     msg->sender->value = res;
     tlTaskReady(msg->sender);
@@ -121,9 +121,9 @@ INTERNAL tlValue _message_name(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _message_get(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageCast(tlArgsTarget(args));
     if (!msg) TL_THROW("expected a Message");
-    tlValue key = tlArgsAt(args, 0);
+    tlValue key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));
-    if (tlIntIs(key)) return tlArgsAt(msg->args, tl_int(key));
+    if (tlIntIs(key)) return tlArgsGet(msg->args, tl_int(key));
     return tlArgsMapGet(msg->args, key);
 }
 

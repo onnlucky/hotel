@@ -41,7 +41,7 @@ INTERNAL tlValue _buffer_write(tlTask* task, tlArgs* args) {
     tl_buf* buf = buffer->buf;
     assert(buf);
 
-    tlText* text = tlTextCast(tlArgsAt(args, 0));
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
     // TODO grow buffer? auto grow buffer?
     return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));

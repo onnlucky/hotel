@@ -17,9 +17,9 @@ tlClass* GraphicsClass = &_GraphicsClass;
 static tlValue _circle(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_t* cr = g->cairo;
-    int x = tl_int_or(tlArgsAt(args, 0), 0);
-    int y = tl_int_or(tlArgsAt(args, 1), 0);
-    int r = tl_int_or(tlArgsAt(args, 2), -1);
+    int x = tl_int_or(tlArgsGet(args, 0), 0);
+    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    int r = tl_int_or(tlArgsGet(args, 2), -1);
     if (r <= 0) return tlNull;
     cairo_arc(cr, x, y, r, 0, 2*M_PI);
     cairo_fill_preserve(cr);
@@ -30,9 +30,9 @@ static tlValue _circle(tlTask* task, tlArgs* args) {
 static tlValue _rgb(tlTask* task, tlArgs* args) {
     Graphics* gr = GraphicsAs(tlArgsTarget(args));
     cairo_t* cr = gr->cairo;
-    float r = tl_int_or(tlArgsAt(args, 0), 0)/255.0;
-    float g = tl_int_or(tlArgsAt(args, 1), 0)/255.0;
-    float b = tl_int_or(tlArgsAt(args, 2), 0)/255.0;
+    float r = tl_int_or(tlArgsGet(args, 0), 0)/255.0;
+    float g = tl_int_or(tlArgsGet(args, 1), 0)/255.0;
+    float b = tl_int_or(tlArgsGet(args, 2), 0)/255.0;
     cairo_set_source_rgb(cr, r, g, b);
     return tlNull;
 }

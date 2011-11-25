@@ -199,14 +199,14 @@ tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...) {
 
 // called when map literals contain lookups or expressions to evaluate
 static tlValue _Map_clone(tlTask* task, tlArgs* args) {
-    if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
-    tlMap* map = tlArgsAt(args, 0);
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
     int size = tlMapSize(map);
     map = tlAllocClone(task, map, sizeof(tlMap));
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!map->data[i] || map->data[i] == tlUndefined) {
-            map->data[i] = tlArgsAt(args, argc++);
+            map->data[i] = tlArgsGet(args, argc++);
         }
     }
     assert(argc == tlArgsSize(args));
@@ -215,11 +215,11 @@ static tlValue _Map_clone(tlTask* task, tlArgs* args) {
 // TODO these functions create way to many intermediates ... add more code :(
 static tlValue _Map_update(tlTask* task, tlArgs* args) {
     trace("");
-    if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
-    if (!tlMapOrObjectIs(tlArgsAt(args, 1))) TL_THROW("Expected a Map");
-    tlMap* map = tlArgsAt(args, 0);
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    if (!tlMapOrObjectIs(tlArgsGet(args, 1))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
     tlClass* klass = map->head.klass;
-    tlMap* add = tlArgsAt(args, 1);
+    tlMap* add = tlArgsGet(args, 1);
     for (int i = 0; i < add->head.size; i++) {
         map = tlMapSet(task, map, add->keys->data[i], add->data[i]);
     }
@@ -228,13 +228,13 @@ static tlValue _Map_update(tlTask* task, tlArgs* args) {
 }
 static tlValue _Map_inherit(tlTask* task, tlArgs* args) {
     trace("");
-    if (!tlMapOrObjectIs(tlArgsAt(args, 0))) TL_THROW("Expected a Map");
-    tlMap* map = tlArgsAt(args, 0);
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
     tlValue oclass = tlMapGetSym(map, s_class);
     tlClass* klass = map->head.klass;
     for (int i = 1; i < tlArgsSize(args); i++) {
-        if (!tlMapOrObjectIs(tlArgsAt(args, i))) TL_THROW("Expected a Map");
-        tlMap* add = tlArgsAt(args, 1);
+        if (!tlMapOrObjectIs(tlArgsGet(args, i))) TL_THROW("Expected a Map");
+        tlMap* add = tlArgsGet(args, 1);
         for (int i = 0; i < add->head.size; i++) {
             map = tlMapSet(task, map, add->keys->data[i], add->data[i]);
         }
@@ -251,7 +251,7 @@ static tlValue _map_size(tlTask* task, tlArgs* args) {
 static tlValue _map_get(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    tlValue key = tlArgsAt(args, 0);
+    tlValue key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
     tlValue res = tlMapGet(task, map, key);
     if (!res) return tlUndefined;
@@ -260,9 +260,9 @@ static tlValue _map_get(tlTask* task, tlArgs* args) {
 static tlValue _map_set(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    tlValue key = tlArgsAt(args, 0);
+    tlValue key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Expected a key");
-    tlValue val = tlArgsAt(args, 1);
+    tlValue val = tlArgsGet(args, 1);
     if (!val || val == tlUndefined) val = tlNull;
     tlMap* nmap = tlMapSet(task, map, key, val);
     return nmap;

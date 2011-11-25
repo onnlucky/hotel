@@ -80,13 +80,13 @@ INTERNAL tlValue _Text_cat(tlTask* task, tlArgs* args) {
     tlList* list = null;
     int size = 0;
     for (int i = 0; i < argc; i++) {
-        tlValue v = tlArgsAt(args, i);
+        tlValue v = tlArgsGet(args, i);
         trace("%d: %s", i, tl_str(v));
         if (tlTextIs(v)) {
             size += tlTextAs(v)->len;
         } else {
             if (!list) list = tlListNew(task, argc);
-            tlText* text = tlTextFromCopy(task, tl_str(tlArgsAt(args, i)), 0);
+            tlText* text = tlTextFromCopy(task, tl_str(tlArgsGet(args, i)), 0);
             size += text->len;
             tlListSet_(list, i, text);
         }
@@ -98,7 +98,7 @@ INTERNAL tlValue _Text_cat(tlTask* task, tlArgs* args) {
     for (int i = 0; i < argc; i++) {
         const char* str;
         int len;
-        tlValue v = tlArgsAt(args, i);
+        tlValue v = tlArgsGet(args, i);
         if (tlTextIs(v)) {
             str = tlTextAs(v)->data;
             len = tlTextAs(v)->len;
@@ -125,7 +125,7 @@ INTERNAL tlValue _text_search(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    tlText* find = tlTextCast(tlArgsAt(args, 0));
+    tlText* find = tlTextCast(tlArgsGet(args, 0));
     if (!find) TL_THROW("expected a Text");
     const char* p = strstr(tlTextData(text), tlTextData(find));
     if (!p) return tlNull;
@@ -136,7 +136,7 @@ INTERNAL tlValue _text_cat(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    tlText* add = tlTextCast(tlArgsAt(args, 0));
+    tlText* add = tlTextCast(tlArgsGet(args, 0));
     if (!add) TL_THROW("arg must be a Text");
 
     return tlTextCat(task, text, add);
@@ -147,8 +147,8 @@ INTERNAL tlValue _text_slice(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     int size = tlTextSize(text);
-    int first = tl_int_or(tlArgsAt(args, 0), 0);
-    int last = tl_int_or(tlArgsAt(args, 1), size);
+    int first = tl_int_or(tlArgsGet(args, 0), 0);
+    int last = tl_int_or(tlArgsGet(args, 1), size);
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 
@@ -169,7 +169,7 @@ INTERNAL tlValue _text_startsWith(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    tlText* start = tlTextCast(tlArgsAt(args, 0));
+    tlText* start = tlTextCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a Text");
 
     int textsize = tlTextSize(text);
@@ -184,7 +184,7 @@ INTERNAL tlValue _text_endsWith(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
-    tlText* start = tlTextCast(tlArgsAt(args, 0));
+    tlText* start = tlTextCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a Text");
 
     int textsize = tlTextSize(text);

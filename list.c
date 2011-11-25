@@ -221,13 +221,13 @@ tlList* tlListSlice(tlTask* task, tlList* list, int begin, int end) {
 
 // called when list literals contain lookups or expressions to evaluate
 static tlValue _List_clone(tlTask* task, tlArgs* args) {
-    tlList* list = tlListCast(tlArgsAt(args, 0));
+    tlList* list = tlListCast(tlArgsGet(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tlListSize(list);
     list = tlAllocClone(task, list, sizeof(tlList));
     int argc = 1;
     for (int i = 0; i < size; i++) {
-        if (!list->data[i]) list->data[i] = tlArgsAt(args, argc++);
+        if (!list->data[i]) list->data[i] = tlArgsGet(args, argc++);
     }
     return list;
 }
@@ -239,7 +239,7 @@ INTERNAL tlValue _list_size(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _list_get(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsAt(args, 0), -1);
+    int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
     tlValue res = tlListGet(list, at);
     if (!res) return tlNull;
@@ -248,9 +248,9 @@ INTERNAL tlValue _list_get(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _list_set(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsAt(args, 0), -1);
+    int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
-    tlValue val = tlArgsAt(args, 1);
+    tlValue val = tlArgsGet(args, 1);
     if (!val || val == tlUndefined) val = tlNull;
     fatal("not implemented yet");
     tlList* nlist = tlNull; //tlListSet(task, list, at, val);
@@ -259,7 +259,7 @@ INTERNAL tlValue _list_set(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _list_add(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    tlValue val = tlArgsAt(args, 0);
+    tlValue val = tlArgsGet(args, 0);
     if (!val || val == tlUndefined) val = tlNull;
     return tlListAppend(task, list, val);
 }
@@ -268,8 +268,8 @@ INTERNAL tlValue _list_slice(tlTask* task, tlArgs* args) {
     if (!list) TL_THROW("Expected a list");
 
     int size = tlListSize(list);
-    int first = tl_int_or(tlArgsAt(args, 0), 0);
-    int last = tl_int_or(tlArgsAt(args, 1), size);
+    int first = tl_int_or(tlArgsGet(args, 0), 0);
+    int last = tl_int_or(tlArgsGet(args, 1), size);
 
     trace("%d %d %d", first, last, size);
     if (first < 0) first = size + first;

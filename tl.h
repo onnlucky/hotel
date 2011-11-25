@@ -378,7 +378,7 @@ tlSym tlArgsMsg(tlArgs* args);
 
 tlValue tlArgsFn(tlArgs* args);
 int tlArgsSize(tlArgs* args);
-tlValue tlArgsAt(tlArgs* args, int at);
+tlValue tlArgsGet(tlArgs* args, int at);
 int tlArgsMapSize(tlArgs* args);
 tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 
