@@ -11,11 +11,11 @@
 
 #include "trace-off.h"
 
-static tlValue sa_object_send;
+static tlValue sa_object_send, sa_this_send;
 static tlSym s_object_send;
 static tlSym s_Text_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
 static tlSym s_Var_new, s_var_get, s_var_set;
-static tlSym s_this, s_this_get, s_this_set;
+static tlSym s_this, s_this_get, s_this_set, s_this_send;
 static tlSym s_Task_new;
 static tlSym s_and, s_or, s_xor, s_not;
 static tlSym s_lt, s_lte, s_gt, s_gte, s_eq, s_neq, s_cmp;
@@ -289,8 +289,13 @@ bpexpr = v:value t:ptail _":"_ b:block {
             $$ = call_activate(tlCallFromList(TASK,
                         tl_active(s_Task_new), tlListFrom2(TASK, tlNull, tl_active(b))));
        }
+       | "@" n:name _"("__ as:cargs __")" t:ptail &peosfull {
+           trace("this method + args()");
+           $$ = set_target(t, tlCallSendFromList(TASK, sa_this_send, tl_active(s_this), n, as));
+           $$ = call_activate($$);
+       }
        | v:value t:ptail &peosfull { $$ = call_activate(set_target(t, v)); }
-       | e:expr                   { $$ = call_activate(e); }
+       | e:expr                    { $$ = call_activate(e); }
 
 # // TODO add [] and oop.method: and oop.method arg1: ... etc
  ptail = _!"(" as:pcargs {
@@ -496,7 +501,9 @@ tlValue tlParse(tlTask* task, tlText* text) {
 
     if (!s_object_send) {
         s_object_send = tlSYM("_object_send");
+        s_this_send = tlSYM("_this_send");
         sa_object_send = tl_active(s_object_send);
+        sa_this_send = tl_active(s_this_send);
         s_Text_cat = tlSYM("_Text_cat");
         s_List_clone = tlSYM("_List_clone");
         s_Map_clone = tlSYM("_Map_clone");

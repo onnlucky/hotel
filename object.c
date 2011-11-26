@@ -61,9 +61,31 @@ INTERNAL tlValue _this_set(tlTask* task, tlArgs* args) {
     obj->map = tlMapSet(task, obj->map, msg, val);
     return val;
 }
+INTERNAL tlValue _this_send(tlTask* task, tlArgs* args) {
+    tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
+    if (!obj) TL_THROW("expected an Object");
+    if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
+    tlSym msg = tlSymCast(tlArgsGet(args, 1));
+    if (!msg) TL_THROW("expected a field");
+    trace("%s.%s(%d)", tl_str(obj), tl_str(msg), tlArgsSize(args) - 2);
+    assert(obj->map);
+    tlValue field = tlMapGetSym(obj->map, msg);
+    if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
+    if (!tlCallableIs(field)) return field;
+
+
+    tlArgs* nargs = tlArgsNew(task, null, null);
+    nargs->target = obj;
+    nargs->msg = msg;
+    nargs->list = tlListSlice(task, args->list, 2, tlListSize(args->list));
+    nargs->map = args->map;
+
+    return tlEvalArgsFn(task, nargs, field);
+}
 
 static const tlNativeCbs __object_nativecbs[] = {
     { "_Object_new", _Object_new },
+    { "_this_send", _this_send },
     { "_this_get", _this_get },
     { "_this_set", _this_set },
     { 0, 0 }
