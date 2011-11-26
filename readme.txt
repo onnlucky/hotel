@@ -2,7 +2,6 @@
 
 instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
 
-bring back the full object ...
 remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
 
 build-in if, break, continue, again ... while, loop?
@@ -19,8 +18,6 @@ syntax change: do symbols using 'symbol
 
 work on a repl by allowing Env to be generic and thus mutable ...
 think about special inherited task local *Env* of sorts, for stdout, error modes, etc ... ? yes, for dynamically scoped stuff
-
-we do the "get field and dispatch" a lot in a lot of places ... dry it up
 
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs

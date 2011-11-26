@@ -7,7 +7,7 @@ struct tlBuffer {
 };
 static tlClass _tlBufferClass = {
     .name = "Buffer",
-    .send = tlLockReceive,
+    .locked = true,
 };
 tlClass* tlBufferClass = &_tlBufferClass;
 

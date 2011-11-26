@@ -893,6 +893,26 @@ INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
     return evalArgs(task, nargs);
 }
 
+INTERNAL tlValue evalMapSend(tlTask* task, tlMap* map, tlSym msg, tlArgs* args) {
+    tlValue field = tlMapGet(task, map, msg);
+    trace(".%s -> %s()", tl_str(msg), tl_str(field));
+    if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
+    if (!tlCallableIs(field)) return field;
+    args->fn = field;
+    // TODO temporary until start_args is refactored
+    if (tlNativeIs(field)) return tlNativeAs(field)->native(task, args);
+    return evalArgs(task, args);
+}
+INTERNAL tlValue evalSend(tlTask* task, tlArgs* args) {
+    tlValue target = tlArgsTarget(args);
+    tlSym msg = tlArgsMsg(args);
+    trace("%s.%s", tl_str(target), tl_str(msg));
+    tlClass* klass = tl_class(target);
+    if (klass->send) return klass->send(task, args);
+    if (klass->map) return evalMapSend(task, klass->map, msg, args);
+    fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));
+}
+
 INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     tlValue target = tlArgsGet(args, 0);
     tlValue msg = tlArgsGet(args, 1);
@@ -906,18 +926,8 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     nargs->map = args->map;
 
     tlClass* klass = tl_class(target);
-    assert(klass);
-    if (klass->send) return klass->send(task, nargs);
-    if (klass->map) {
-        tlValue field = tlMapGet(task, klass->map, msg);
-        if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
-        if (!tlCallableIs(field)) return field;
-        nargs->fn = field;
-        // TODO temporary until start_args is refactored
-        if (tlNativeIs(field)) return tlNativeAs(field)->native(task, nargs);
-        return evalArgs(task, nargs);
-    }
-    fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));
+    if (klass->locked) return evalSendLocked(task, nargs);
+    return evalSend(task, nargs);
 }
 
 static const tlNativeCbs __eval_natives[] = {

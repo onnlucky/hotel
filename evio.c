@@ -101,15 +101,15 @@ struct tlServerSocket {
 };
 static tlClass _tlFileClass = {
     .name = "File",
-    .send = tlLockReceive,
+    .locked = true,
 };
 static tlClass _tlSocketClass = {
     .name = "Socket",
-    .send = tlLockReceive,
+    .locked = true,
 };
 static tlClass _tlServerSocketClass = {
     .name = "ServerSocket",
-    .send = tlLockReceive,
+    .locked = true,
 };
 tlClass* tlFileClass = &_tlFileClass;
 tlClass* tlSocketClass = &_tlSocketClass;
@@ -434,7 +434,7 @@ struct tlDir {
 };
 tlClass _tlDirClass = {
     .name = "Dir",
-    .send = tlLockReceive,
+    .locked = true,
 };
 tlClass* tlDirClass = &_tlDirClass;
 
@@ -522,7 +522,7 @@ struct tlChild {
 };
 tlClass _tlChildClass = {
     .name = "Child",
-    .send = tlLockReceive,
+    .locked = true,
 };
 tlClass* tlChildClass = &_tlChildClass;
 

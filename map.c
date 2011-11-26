@@ -296,7 +296,7 @@ static tlValue objectReceive(tlTask* task, tlArgs* args) {
         do {
             tlMap* klass = tlMapGet(task, map, s_class);
             trace("CLASS: %s", tl_str(klass));
-            if (!klass) break;
+            if (!klass) TL_THROW("'%s' is undefined", tl_str(msg));
             field = tlMapGet(task, klass, msg);
             if (field) {
                 if (!tlCallableIs(field)) return field;

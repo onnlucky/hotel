@@ -117,6 +117,7 @@ void assert_backtrace(tlFrame* frame) {
 INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     assert(_frame);
     assert(task->worker);
+    assert(task->worker->top);
     tlFrame* frame = tlFrameAs(_frame);
     trace("> %p.caller = %p", task->frame, frame);
     task->frame->caller = frame;
@@ -128,6 +129,7 @@ INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
 INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     assert(task->worker);
     tlFrame* frame = tlFrameAs(_frame);
+    assert(frame);
     trace("    >>>> %p", frame);
     task->frame = frame;
     task->worker->top = frame;

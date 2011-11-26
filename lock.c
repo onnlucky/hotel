@@ -3,16 +3,20 @@
 #include "trace-on.h"
 
 bool tlLockIs(tlValue v) {
-    return tl_class(v)->send == tlLockReceive;
+    return tl_class(v)->locked;
 }
 tlLock* tlLockAs(tlValue v) {
     assert(tlLockIs(v)); return (tlLock*)v;
+}
+tlLock* tlLockCast(tlValue v) {
+    return (tlLockIs(v))?(tlLock*)v:null;
 }
 tlTask* tlLockOwner(tlLock* lock) {
     return lock->owner;
 }
 
 INTERNAL void lockScheduleNext(tlTask* task, tlLock* lock) {
+    trace("NEXT: %s", tl_str(lock));
     assert(tlLockIs(lock));
     assert(lock->owner == task);
 
@@ -26,6 +30,7 @@ INTERNAL void lockScheduleNext(tlTask* task, tlLock* lock) {
 }
 
 INTERNAL tlValue lockEnqueue(tlTask* task, tlLock* lock, tlFrame* frame) {
+    trace("%s", tl_str(lock));
     assert(tlLockIs(lock));
     assert(lock->owner != task);
 
@@ -55,47 +60,36 @@ INTERNAL tlValue resumeRelease(tlTask* task, tlFrame* _frame, tlValue res, tlErr
 }
 
 
-// ** lock from hotel code **
-
-INTERNAL tlValue lockReceive(tlTask* task, tlArgs* args);
+// ** lock a native object to send it a message **
+INTERNAL tlValue evalSend(tlTask* task, tlArgs* args);
+INTERNAL tlValue lockEvalSend(tlTask* task, tlLock* lock, tlArgs* args);
 
 INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("%s", tl_str(res));
-    return lockReceive(task, tlArgsAs(res));
+    tlArgs* args = tlArgsAs(res);
+    return lockEvalSend(task, tlLockAs(tlArgsTarget(args)), args);
 }
 INTERNAL tlValue resumeReceiveEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("%s", tl_str(res));
     frame->resumecb = resumeReceive;
     return lockEnqueue(task, tlLockAs(tlArgsAs(res)->target), frame);
 }
-
-tlValue tlLockReceive(tlTask* task, tlArgs* args) {
+tlValue evalSendLocked(tlTask* task, tlArgs* args) {
     tlLock* lock = tlLockAs(args->target);
+    trace("%s", tl_str(lock));
     assert(lock);
 
     if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
         // failed to own lock; pause current task, and enqueue it
         return tlTaskPauseResuming(task, resumeReceiveEnqueue, args);
     }
-    return lockReceive(task, args);
+    return lockEvalSend(task, lock, args);
 }
-
-INTERNAL tlValue lockReceive(tlTask* task, tlArgs* args) {
-    trace("%s", tl_str(args));
-    tlLock* lock = tlLockAs(args->target);
-    tlSym msg = tlSymCast(args->msg);
-
-    assert(lock);
-    assert(msg);
+INTERNAL tlValue lockEvalSend(tlTask* task, tlLock* lock, tlArgs* args) {
+    trace("%s", tl_str(lock));
     assert(lock->owner == task);
 
-    trace("lock receive %p: %s (%d)", lock, tl_str(msg), tlArgsSize(args));
-    tlValue res = null;
-    assert(lock->head.klass->map);
-    res = tlMapGet(task, lock->head.klass->map, msg);
-    if (tlCallableIs(res)) {
-        res = tlEvalArgsFn(task, args, res);
-    }
+    tlValue res = evalSend(task, args);
     if (!res) {
         ReleaseFrame* frame = tlFrameAlloc(task, resumeRelease, sizeof(ReleaseFrame));
         frame->lock = lock;

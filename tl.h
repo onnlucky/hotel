@@ -189,11 +189,6 @@ TL_REF_TYPE(tlTask);
 
 bool tlCallableIs(tlValue v);
 
-// TODO rework this a bit more ...
-typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
-typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
-typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
-
 // to and from primitive values
 tlValue tlBOOL(unsigned c);
 tlInt tlINT(int i);
@@ -407,12 +402,15 @@ tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 
 typedef struct tlLock tlLock;
 
-tlValue tlLockReceive(tlTask* task, tlArgs* args);
-
 bool tlLockIs(tlValue v);
 tlLock* tlLockAs(tlValue v);
 tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
+
+typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
+typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
+typedef tlValue(*tlRunFn)(tlTask* task, tlArgs* args);
+typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 
 // a class describes a hotel value for most fields null is perfectly fine
 struct tlClass {
@@ -422,6 +420,8 @@ struct tlClass {
     tlMap* map;
     tlSendFn send;
     tlCallFn call;
+
+    bool locked;
 };
 
 // any non-value object will have to be protected from concurrect access

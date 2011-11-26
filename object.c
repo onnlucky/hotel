@@ -2,7 +2,7 @@
 
 #include "trace-on.h"
 
-static tlClass _tlObjectClass = { .name = "Object", };
+static tlClass _tlObjectClass = { .name = "Object", .locked = true };
 tlClass* tlObjectClass = &_tlObjectClass;
 
 struct tlObject {
@@ -23,6 +23,19 @@ INTERNAL tlValue _Object_new(tlTask* task, tlArgs* args) {
     obj->map = map;
     return obj;
 }
+INTERNAL tlValue objectSend(tlTask* task, tlArgs* args) {
+    tlObject* obj = tlObjectCast(tlArgsTarget(args));
+    if (!obj) TL_THROW("expected an Object");
+    assert(tlLockOwner(tlLockAs(obj)) == task);
+    tlSym msg = tlArgsMsg(args);
+    assert(msg);
+    assert(obj->map);
+
+    tlValue field = tlMapGetSym(obj->map, msg);
+    if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
+    if (!tlCallableIs(field)) return field;
+    return tlEvalArgsFn(task, args, field);
+}
 INTERNAL tlValue _this_get(tlTask* task, tlArgs* args) {
     tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
     if (!obj) TL_THROW("expected an Object");
@@ -31,8 +44,8 @@ INTERNAL tlValue _this_get(tlTask* task, tlArgs* args) {
     if (!msg) TL_THROW("expected a field");
     assert(obj->map);
 
-    // TODO actually "call" the field
-    return tlMapGetSym(obj->map, msg);
+    tlValue res = tlMapGetSym(obj->map, msg);
+    return res?res:tlNull;
 }
 INTERNAL tlValue _this_set(tlTask* task, tlArgs* args) {
     tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
@@ -57,7 +70,7 @@ static const tlNativeCbs __object_nativecbs[] = {
 };
 
 static void object_init() {
-    _tlObjectClass.send = tlLockReceive;
+    _tlObjectClass.send = objectSend;
     tl_register_natives(__object_nativecbs);
 }
 
