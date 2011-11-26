@@ -32,7 +32,6 @@ INTERNAL void lockScheduleNext(tlTask* task, tlLock* lock) {
 INTERNAL tlValue lockEnqueue(tlTask* task, tlLock* lock, tlFrame* frame) {
     trace("%s", tl_str(lock));
     assert(tlLockIs(lock));
-    assert(lock->owner != task);
 
     // make the task wait and enqueue it
     task->frame = frame;
