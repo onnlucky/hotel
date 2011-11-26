@@ -1,5 +1,8 @@
 # TODO
 
+instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
+
+bring back the full object ...
 remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
 
 build-in if, break, continue, again ... while, loop?

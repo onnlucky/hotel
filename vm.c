@@ -159,7 +159,7 @@ void tl_init() {
     queue_init();
 
     var_init();
-    //object_init();
+    object_init();
     vm_init();
 
     buffer_init();
