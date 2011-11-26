@@ -194,15 +194,6 @@ typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
 typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 
-struct tlClass {
-    const char* name;
-    tlToTextFn toText;
-
-    tlMap* map;
-    tlSendFn send;
-    tlCallFn call;
-};
-
 // to and from primitive values
 tlValue tlBOOL(unsigned c);
 tlInt tlINT(int i);
@@ -414,18 +405,40 @@ void tlWorkerRun(tlWorker* worker);
 
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 
-typedef struct tlLock {
-    tlHead head;
-    tlTask* owner;
-    lqueue msg_q;
-} tlLock;
+typedef struct tlLock tlLock;
 
 tlValue tlLockReceive(tlTask* task, tlArgs* args);
+
 bool tlLockIs(tlValue v);
 tlLock* tlLockAs(tlValue v);
 tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
 
+// a class describes a hotel value for most fields null is perfectly fine
+struct tlClass {
+    const char* name;
+    tlToTextFn toText;
+
+    tlMap* map;
+    tlSendFn send;
+    tlCallFn call;
+};
+
+// any non-value object will have to be protected from concurrect access
+struct tlLock {
+    tlHead head;
+    tlTask* owner;
+    lqueue wait_q;
+};
+
+// any hotel "operation" can be paused and resumed
+// Any state that needs to be saved needs to be captured in a tlFrame
+// all frames together form a call stack
+struct tlFrame {
+    tlHead head;
+    tlFrame* caller;     // the frame below/after us
+    tlResumeCb resumecb; // the resume function to be called when this frame is to resume
+};
 
 #endif // _tl_h_
 

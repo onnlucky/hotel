@@ -17,7 +17,7 @@ INTERNAL void lockScheduleNext(tlTask* task, tlLock* lock) {
     assert(lock->owner == task);
 
     // dequeue the first task in line
-    tlTask* ntask = tlTaskFromEntry(lqueue_get(&lock->msg_q));
+    tlTask* ntask = tlTaskFromEntry(lqueue_get(&lock->wait_q));
     trace("%p", ntask);
 
     // make it the owner and schedule it; null is perfectly good as owner
@@ -33,7 +33,7 @@ INTERNAL tlValue lockEnqueue(tlTask* task, tlLock* lock, tlFrame* frame) {
     task->frame = frame;
     tlValue deadlock = tlTaskWaitFor(task, lock);
     if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
-    lqueue_put(&lock->msg_q, &task->entry);
+    lqueue_put(&lock->wait_q, &task->entry);
 
     // try to own the lock, incase another worker released it inbetween ...
     // notice the task we put in is a place holder, and if we succeed, it might be any task
