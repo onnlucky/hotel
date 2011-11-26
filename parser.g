@@ -15,6 +15,7 @@ static tlValue sa_object_send;
 static tlSym s_object_send;
 static tlSym s_Text_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
 static tlSym s_Var_new, s_var_get, s_var_set;
+static tlSym s_this, s_this_get, s_this_set;
 static tlSym s_Task_new;
 static tlSym s_and, s_or, s_xor, s_not;
 static tlSym s_lt, s_lte, s_gt, s_gte, s_eq, s_neq, s_cmp;
@@ -198,6 +199,11 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
              | "$" n:name _"="__ e:bpexpr {
                  $$ = tlListFrom1(TASK, call_activate(
                              tlCallFrom(TASK, tl_active(s_var_set), tl_active(n), e, null)
+                 ));
+             }
+             | "@" n:name _"="__ e:bpexpr {
+                 $$ = tlListFrom1(TASK, call_activate(
+                             tlCallFrom(TASK, tl_active(s_this_set), tl_active(s_this), n, e, null)
                  ));
              }
 #// TODO for now just add and subtract, until we do full operators
@@ -401,7 +407,7 @@ object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs
 litems = v:expr eom is:litems  { $$ = tlListPrepend(TASK, L(is), v); }
        | v:expr                { $$ = tlListFrom1(TASK, v); }
 
- value = lit | number | text | object | map | list | sym | varref | lookup
+ value = lit | number | text | object | map | list | sym | varref | thisref | lookup
 
    lit = "true"      { $$ = tlTrue; }
        | "false"     { $$ = tlFalse; }
@@ -409,6 +415,7 @@ litems = v:expr eom is:litems  { $$ = tlListPrepend(TASK, L(is), v); }
        | "undefined" { $$ = tlUndefined; }
 
  varref = "$" n:name  { $$ = tlCallFrom(TASK, tl_active(s_var_get), tl_active(n), null); }
+thisref = "@" n:name  { $$ = tlCallFrom(TASK, tl_active(s_this_get), tl_active(s_this), n, null); }
  lookup = n:name      { $$ = tl_active(n); }
 
    sym = "#" n:name                 { $$ = n }
@@ -498,6 +505,9 @@ tlValue tlParse(tlTask* task, tlText* text) {
         s_Var_new = tlSYM("_Var_new");
         s_var_get = tlSYM("_var_get");
         s_var_set = tlSYM("_var_set");
+        s_this = tlSYM("this");
+        s_this_get = tlSYM("_this_get");
+        s_this_set = tlSYM("_this_set");
         s_Task_new = tlSYM("_Task_new");
         s_and = tlSYM("and"); s_or = tlSYM("or"), s_xor = tlSYM("xor"), s_not = tlSYM("not");
         s_lt = tlSYM("lt"); s_lte = tlSYM("lte"); s_gt = tlSYM("gt"); s_gte = tlSYM("gte");

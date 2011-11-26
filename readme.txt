@@ -1,5 +1,6 @@
 # TODO
 
+start using tlRunCb in favor to tlCallCb, which is much too low level sometimes ...
 instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
 
 remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...

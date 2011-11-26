@@ -1,6 +1,9 @@
 o1 = _Object_new {
-    setFoo: (v-> _this_set(this, #foo, v))
+    foo: 0
+    getFoo: -> @foo
+    setFoo: v -> @foo = v
 }
+print o1.foo
 print o1.setFoo 42
 print o1.foo
 
