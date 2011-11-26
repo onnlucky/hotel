@@ -414,16 +414,17 @@ void tlWorkerRun(tlWorker* worker);
 
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
 
-typedef struct tlSynchronized {
+typedef struct tlLock {
     tlHead head;
     tlTask* owner;
     lqueue msg_q;
-} tlSynchronized;
+} tlLock;
 
-tlValue tlSynchronizedReceive(tlTask* task, tlArgs* args);
-bool tlSynchronizedIs(tlValue v);
-tlSynchronized* tlSynchronizedAs(tlValue v);
-tlTask* tlSynchronizedOwner(tlSynchronized* sync);
+tlValue tlLockReceive(tlTask* task, tlArgs* args);
+bool tlLockIs(tlValue v);
+tlLock* tlLockAs(tlValue v);
+tlLock* tlLockCast(tlValue v);
+tlTask* tlLockOwner(tlLock* lock);
 
 
 #endif // _tl_h_

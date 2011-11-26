@@ -19,7 +19,7 @@
 #include "call.c"
 #include "task.c"
 #include "queue.c"
-#include "sync.c"
+#include "lock.c"
 #include "object.c"
 #include "code.c"
 #include "env.c"

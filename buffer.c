@@ -1,13 +1,13 @@
-// an synchronized buffer, usable for io
+// a locked buffer, usable for io
 
 TL_REF_TYPE(tlBuffer);
 struct tlBuffer {
-    tlSynchronized sync;
+    tlLock lock;
     tl_buf* buf;
 };
 static tlClass _tlBufferClass = {
     .name = "Buffer",
-    .send = tlSynchronizedReceive,
+    .send = tlLockReceive,
 };
 tlClass* tlBufferClass = &_tlBufferClass;
 

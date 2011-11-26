@@ -1,4 +1,4 @@
-// a mutable variable, basically an synchronized object but no queue since all operations are atomic
+// a mutable variable, basically a locked object but no queue since all operations are atomic
 
 #include "trace-on.h"
 

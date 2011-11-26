@@ -12,8 +12,8 @@ tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
 void tlresult_set_(tlResult* res, int at, tlValue v);
 
-bool tlSynchronizedIs(tlValue v);
-tlSynchronized* tlSynchronizedAs(tlValue v);
+bool tlLockIs(tlValue v);
+tlLock* tlLockAs(tlValue v);
 
 struct tlVm {
     tlHead head;
@@ -47,7 +47,7 @@ typedef enum {
     TL_STATE_INIT = 0,  // only first time
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
     TL_STATE_RUN,       // running
-    TL_STATE_WAIT,      // waiting in an synchronized or task queue
+    TL_STATE_WAIT,      // waiting in a lock or task queue
     TL_STATE_IOWAIT,    // waiting on io to become readable/writable
 
     TL_STATE_DONE,      // task is done, others can read its value
@@ -295,7 +295,7 @@ void tlTaskWaitIo(tlTask* task) {
 INTERNAL tlTask* taskForLocked(tlValue on) {
     if (!on) return null;
     if (tlTaskIs(on)) return tlTaskAs(on);
-    if (tlSynchronizedIs(on)) return tlSynchronizedOwner(tlSynchronizedAs(on));
+    if (tlLockIs(on)) return tlLockOwner(tlLockAs(on));
     fatal("not implemented yet: %s", tl_str(on));
     return null;
 }

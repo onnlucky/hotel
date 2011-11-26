@@ -6,7 +6,7 @@ static tlClass _tlObjectClass = { .name = "Object", };
 tlClass* tlObjectClass = &_tlObjectClass;
 
 struct tlObject {
-    tlSynchronized sync;
+    tlLock lock;
     // TODO upgrade to something ... ahem ... more appropriate
     tlMap* map;
 };
@@ -26,7 +26,7 @@ INTERNAL tlValue _Object_new(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _this_get(tlTask* task, tlArgs* args) {
     tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
     if (!obj) TL_THROW("expected an Object");
-    if (tlSynchronizedOwner(tlSynchronizedAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
+    if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
     tlSym msg = tlSymCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expected a field");
     assert(obj->map);
@@ -37,7 +37,7 @@ INTERNAL tlValue _this_get(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _this_set(tlTask* task, tlArgs* args) {
     tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
     if (!obj) TL_THROW("expected an Object");
-    if (tlSynchronizedOwner(tlSynchronizedAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
+    if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
     tlSym msg = tlSymCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expected a field");
     tlValue val = tlArgsGet(args, 2);
@@ -57,7 +57,7 @@ static const tlNativeCbs __object_nativecbs[] = {
 };
 
 static void object_init() {
-    _tlObjectClass.send = tlSynchronizedReceive;
+    _tlObjectClass.send = tlLockReceive;
     tl_register_natives(__object_nativecbs);
 }
 
