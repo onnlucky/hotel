@@ -1,6 +1,6 @@
 // a map implementation
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 static tlClass _tlMapClass;
 static tlClass _tlValueObjectClass;
@@ -41,8 +41,7 @@ tlSet* tlMapKeySet(tlMap* map) {
 void tlMapDump(tlMap* map) {
     print("---- MAP DUMP @ %p ----", map);
     for (int i = 0; i < tlMapSize(map); i++) {
-        print("%d %p: %p", i, map->data[i], map->keys->data[i]);
-        print("%d %s: %s", i, tl_str(map->data[i]), tl_str(map->keys->data[i]));
+        print("%d %s: %s", i, tl_str(map->keys->data[i]), tl_str(map->data[i]));
     }
     print("----");
 }
@@ -283,10 +282,10 @@ static tlClass _tlMapClass = {
     .toText = mapToText,
 };
 
-const char* objectToText(tlValue v, char* buf, int size) {
+const char* valueObjectToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<ValueObject@%p %d>", v, tlMapSize(tlMapFromObjectAs(v))); return buf;
 }
-static tlValue objectReceive(tlTask* task, tlArgs* args) {
+static tlValue valueObjectSend(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapFromObjectCast(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
 
@@ -299,6 +298,7 @@ static tlValue objectReceive(tlTask* task, tlArgs* args) {
             if (!klass) TL_THROW("'%s' is undefined", tl_str(msg));
             field = tlMapGet(task, klass, msg);
             if (field) {
+                // TODO maybe just try, and catch not callable exceptions?
                 if (!tlCallableIs(field)) return field;
                 return tlEvalArgsFn(task, args, field);
             }
@@ -309,10 +309,22 @@ static tlValue objectReceive(tlTask* task, tlArgs* args) {
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(task, args, field);
 }
+static tlValue valueObjectRun(tlTask* task, tlValue fn, tlArgs* args) {
+    tlMap* map = tlMapFromObjectAs(fn);
+    tlValue field = tlMapGetSym(map, s_call);
+    if (field) {
+        trace("%s", tl_str(field));
+        // TODO this is awkward, tlCallableIs does not know about complex user objects
+        if (!tlCallableIs(field)) return field;
+        return tlEvalArgsTarget(task, args, fn, field);
+    }
+    TL_THROW("'%s' not callable", tl_str(fn));
+}
 static tlClass _tlValueObjectClass = {
     .name = "ValueObject",
-    .toText = objectToText,
-    .send = objectReceive,
+    .toText = valueObjectToText,
+    .send = valueObjectSend,
+    .run = valueObjectRun,
 };
 
 static void map_init() {

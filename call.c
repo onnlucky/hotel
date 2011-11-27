@@ -251,35 +251,14 @@ const char* nativeToText(tlValue v, char* buf, int size) {
 const char* callToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Call@%p: %d>", v, tlCallSize(v)); return buf;
 }
-
-typedef struct NativeCallFrame {
-    tlFrame frame;
-    tlCall* call;
-} NativeCallFrame;
-
-static tlValue nativeCallResume(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    trace("");
-    if (err) return null;
-    NativeCallFrame* frame = (NativeCallFrame*)_frame;
-    tlArgs* args = tlArgsAs(res);
-    trace("args: %s", tl_str(args));
-    return tlNativeAs(tlCallGetFn(frame->call))->native(task, args);
-}
-static tlValue nativeCall(tlTask* task, tlCall* call) {
-    trace("");
-    tlArgs* args = evalCall(task, call);
-    if (args) return tlNativeAs(tlCallGetFn(call))->native(task, args);
-
-    // throwing or pausing
-    NativeCallFrame* frame = tlFrameAlloc(task, nativeCallResume, sizeof(NativeCallFrame));
-    frame->call = call;
-    return tlTaskPauseAttach(task, frame);
+static tlValue nativeRun(tlTask* task, tlValue fn, tlArgs* args) {
+    return tlNativeAs(fn)->native(task, args);
 }
 
 static tlClass _tlNativeClass = {
     .name = "Native",
     .toText = nativeToText,
-    .call = nativeCall,
+    .run = nativeRun,
 };
 static tlClass _tlCallClass = {
     .name = "Call",

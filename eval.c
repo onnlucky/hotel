@@ -474,26 +474,6 @@ INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
     return applyCall(task, tlCallCopySetFn(task, call, res));
 }
 
-/*
-INTERNAL tlValue chain_args_closure(tlTask* task, tlClosure* fn, tlArgs* args, tlValue pause);
-INTERNAL tlValue chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlValue pause);
-INTERNAL tlValue start_args(tlTask* task, tlArgs* args, tlValue pause) {
-    tlValue fn = tlArgsFn(args);
-    assert(tlref_is(fn));
-    switch(tl_head(fn)->type) {
-        case TLClosure: return chain_args_closure(task, tlClosureAs(fn), args, pause);
-        case TLHostFn: return chain_args_fun(task, tlHostFnAs(fn), args, pause);
-    }
-    if (tlCallableIs(fn)) {
-        print("CHAINING");
-        task->frame = task->frame->caller;
-        task->value = args;
-        return null;
-    }
-    fatal("not implemented: chain args to pause %s", tl_str(fn));
-}
-*/
-
 INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
     trace2("%p", frame);
 
@@ -654,39 +634,21 @@ INTERNAL tlValue evalCode(tlTask* task, tlArgs* args, tlClosure* fn) {
     return evalCode2(task, frame, tlNull);
 }
 
+INTERNAL tlValue runClosure(tlTask* task, tlValue _fn, tlArgs* args) {
+    tlClosure* fn = tlClosureAs(_fn);
+    return evalCode(task, args, fn);
+}
+
 INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     assert(tlCallableIs(fn));
-    if (tlClosureIs(fn)) return evalCode(task, args, tlClosureAs(fn));
-    if (tlNativeIs(fn)) return tlNativeAs(fn)->native(task, args);
-    if (tlValueObjectIs(fn)) {
-        tlValue call = tlMapGetSym(fn, s_call);
-        if (call) {
-            trace("%s", tl_str(call));
-            if (!tlCallableIs(call)) return call;
-            args->fn = call;
-            args->target = fn;
-            return evalArgs(task, args);
-        }
-    }
+    tlClass* klass = tl_class(fn);
+    if (klass->run) return klass->run(task, fn, args);
     fatal("OEPS %s", tl_str(fn));
+    TL_THROW("'%s' not callable", tl_str(fn));
     return null;
 }
-
-/*
-INTERNAL tlValue chain_args_fun(tlTask* task, tlHostFn* fn, tlArgs* args, tlValue pause) {
-    trace("%p", pause);
-
-    tlValue caller = tlTaskPauseCaller(task, pause);
-    trace(">> NATIVE %p %s", fn, tl_str(tlHostFnGet(fn, 0)));
-
-    tlValue r = fn->hostcb(task, args);
-    if (r && caller) return tlTaskPauseAttach(task, r, caller);
-    if (r) return r;
-    return null;
-}
-*/
 
 // this is the main part of eval: running the "list" of "bytecode"
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
@@ -800,45 +762,25 @@ INTERNAL tlValue callThunk(tlTask* task, tlCall* call) {
 }
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
-    trace("apply >> %p(%d) <<", call, tlCallSize(call));
     assert(call);
+    trace("apply >> %p(%d) <<", call, tlCallSize(call));
 
-    // TODO if asserts ...
+#ifdef HAVE_ASSERTS
     for (int i = 0;; i++) {
         tlValue v = tlCallValueIter(call, i);
         if (!v) { assert(i >= tlCallSize(call)); break; }
         assert(!tlActiveIs(v));
-    }
+    };
+#endif
 
     tlValue fn = tlCallGetFn(call);
     trace("%p: fn=%s", call, tl_str(fn));
-    if (!fn || !tlRefIs(fn)) {
-        TL_THROW("unable to call: %s", tl_str(fn));
-    }
+    assert(fn);
 
     tlClass* klass = tl_class(fn);
-    tlArgs* args = null;
-    if (tlValueObjectIs(fn)) {
-        tlValue field = tlMapGetSym(fn, s_call);
-        if (field) {
-            trace("invoking object.call");
-            args = evalCall(task, call);
-        } else {
-            TL_THROW("unable to call: %s", tl_str(fn));
-        }
-    } else if (klass) {
-        trace("call in class: %p %p %p", klass, klass->call, klass->map);
-        if (klass->call) return klass->call(task, call);
-        if (klass->map) {
-            tlValue field = tlMapGetSym(klass->map, s_call);
-            if (field) {
-                trace("invoking object.call");
-                args = evalCall(task, call);
-            } else {
-                TL_THROW("unable to call: %s", tl_str(fn));
-            }
-        }
-    }
+    if (klass->call) return klass->call(task, call);
+
+    tlArgs* args = evalCall(task, call);
     if (args) {
         trace("args: %s, fn: %s", tl_str(args), tl_str(fn));
         assert(tlArgsIs(args));
@@ -863,6 +805,12 @@ tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
     args->fn = fn;
     return evalArgs(task, args);
 }
+tlValue tlEvalArgsTarget(tlTask* task, tlArgs* args, tlValue target, tlValue fn) {
+    assert(tlCallableIs(fn));
+    args->target = target;
+    args->fn = fn;
+    return evalArgs(task, args);
+}
 
 // ** integration **
 
@@ -882,11 +830,13 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     ((CodeFrame*)task->frame)->handler = block;
     return tlNull;
 }
+// TODO not so sure about this, user objects which return something on .call are also callable ...
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
-    if (tlValueObjectIs(v) && tlMapGetSym(v, s_call)) return true;
+    if (tlValueObjectIs(v)) return tlMapGetSym(v, s_call) != null;
     tlClass* klass = tl_class(v);
     if (klass->call) return true;
+    if (klass->run) return true;
     if (klass->map && tlMapGetSym(klass->map, s_call)) return true;
     return false;
 }
@@ -966,6 +916,7 @@ static void eval_init() {
 
     _tlCallClass.call = callCall;
     _tlClosureClass.call = callClosure;
+    _tlClosureClass.run = runClosure;
     _tlThunkClass.call = callThunk;
 }
 

@@ -398,7 +398,9 @@ tlWorker* tlTaskWorker(tlTask* task);
 // when creating your own worker, run this ... (not implemented yet)
 void tlWorkerRun(tlWorker* worker);
 
+// todo too low level?
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
+tlValue tlEvalArgsTarget(tlTask* task, tlArgs* args, tlValue target, tlValue fn);
 
 typedef struct tlLock tlLock;
 
@@ -407,21 +409,23 @@ tlLock* tlLockAs(tlValue v);
 tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
 
-typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
-typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
-typedef tlValue(*tlRunFn)(tlTask* task, tlArgs* args);
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
+typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
+typedef tlValue(*tlRunFn)(tlTask* task, tlValue fn, tlArgs* args);
+typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
 
 // a class describes a hotel value for most fields null is perfectly fine
 struct tlClass {
-    const char* name;
-    tlToTextFn toText;
+    const char* name;  // general name of the class
+    tlToTextFn toText; // a toText "printer" function
 
-    tlMap* map;
-    tlSendFn send;
-    tlCallFn call;
+    tlCallFn call;     // if called as a function, before arguments are evaluated
+    tlRunFn run;       // if called as a function, after arguments are evaluated
 
-    bool locked;
+    tlSendFn send;     // if send a message args.this and args.msg are filled in
+    tlMap* map;        // if send a message, lookup args.msg here and eval its field
+
+    bool locked;       // if the object has a lock, the task will aqcuire the lock
 };
 
 // any non-value object will have to be protected from concurrect access

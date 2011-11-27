@@ -1,8 +1,8 @@
 # TODO
 
+bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
 add @method arg, arg
-start using tlRunCb in favor to tlCallCb, which is much too low level sometimes ...
 instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
 
 remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
