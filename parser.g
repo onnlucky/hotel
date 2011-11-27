@@ -536,7 +536,7 @@ tlValue tlParse(tlTask* task, tlText* text) {
     yyinit(&g);
     g.data = &data;
     if (!yyparse(&g)) {
-        fatal("ERROR: %d", g.pos + g.offset);
+        TL_THROW("parser error: %d", g.pos + g.offset);
     }
     tlValue v = g.ss;
     yydeinit(&g);

@@ -285,6 +285,11 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
     if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
     return tlFileNew(task, fd);
 }
+static tlValue _File_from(tlTask* task, tlArgs* args) {
+    tlInt fd = tlIntCast(tlArgsGet(args, 0));
+    if (!fd) TL_THROW("espected a file descriptor");
+    return tlFileNew(task, tl_int(fd));
+}
 
 // ** sockets **
 
@@ -680,6 +685,7 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
 static const tlNativeCbs __evio_natives[] = {
     { "sleep", _io_sleep },
     { "_File_open", _File_open },
+    { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
     { "_Socket_resolve", _Socket_resolve },
     { "_ServerSocket_listen", _ServerSocket_listen },

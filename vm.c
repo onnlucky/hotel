@@ -325,12 +325,27 @@ static tlValue _assert(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlValue _eval(tlTask* task, tlArgs* args) {
+    tlText* code = tlTextCast(tlArgsGet(args, 0));
+    if (!code) TL_THROW("expected a Text");
+
+    tlCode* body = tlCodeAs(tlParse(task, code));
+    if (!body) return null;
+
+    tlClosure* fn = tlClosureNew(task, body, tlTaskGetVm(task)->globals);
+    tlCall* call = tlCallFrom(task, fn, null);
+    return tlEval(task, call);
+}
+
 void tlVmInitDefaultEnv(tlVm* vm) {
     tlNative* print = tlNativeNew(null, _print, tlSYM("print"));
     tlVmGlobalSet(vm, tlNativeName(print), print);
 
     tlNative* assert = tlNativeNew(null, _assert, tlSYM("assert"));
     tlVmGlobalSet(vm, tlNativeName(assert), assert);
+
+    tlNative* eval = tlNativeNew(null, _eval, tlSYM("eval"));
+    tlVmGlobalSet(vm, tlNativeName(eval), eval);
 }
 
 static tlClass _tlVmClass = {
