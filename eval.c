@@ -1,7 +1,25 @@
-// the main evaluator for hotel
-// implemented much like protothreads contexts + copying for forks and full continuations
+// author: Onne Gorter, license: MIT (see license.txt)
+// the main evaluator/interpreter for hotel
 //
-// a call evaluates to a args which evaluates the function application
+// Code blocks only do a few things:
+// 1. bind functions to the current environment
+// 2. lookup names in the current environment
+// 3. call functions (or methods or operators)
+// 4. collect the results and write them to the environment (or other places)
+// 5. return their last result
+//
+// Execution happens in "frames", a structure that know how to resume execution, and knows its
+// caller frame. While executing, frames are created only when they are needed. Almost all aspects
+// of execution can be "paused", at which point a frame is required.
+//
+// In general, calling functions happens in four steps:
+// 1. A call is "activated", all references are resolved against the current env
+// 2. The function to call is identified (or evaluated if needed)
+// 3. The arguments are evaluated, unless some/all are specified as lazy
+// 4. The functions is invoked
+// (5. the results are collected or the exception is thrown)
+//
+// so we go from tlCall -> tlArgs -> running -> tlCollect
 
 #include "trace-on.h"
 
@@ -35,7 +53,7 @@ struct tlCollect {
     tlValue data[];
 };
 
-// various types of runs, just for convenience ...
+// various types of frames, just for convenience ...
 typedef struct ActivateCallFrame {
     tlFrame frame;
     intptr_t count;
@@ -135,6 +153,7 @@ tlValue tlResultGet(tlValue v, int at) {
     if (at < result->head.size) return result->data[at];
     return tlNull;
 }
+// return the first value from a list of results, or just the value passed in
 tlValue tlFirst(tlValue v) {
     if (!v) return v;
     if (!tlResultIs(v)) return v;
@@ -899,8 +918,6 @@ INTERNAL tlValue evalMapSend(tlTask* task, tlMap* map, tlSym msg, tlArgs* args) 
     if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
     if (!tlCallableIs(field)) return field;
     args->fn = field;
-    // TODO temporary until start_args is refactored
-    if (tlNativeIs(field)) return tlNativeAs(field)->native(task, args);
     return evalArgs(task, args);
 }
 INTERNAL tlValue evalSend(tlTask* task, tlArgs* args) {

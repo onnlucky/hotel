@@ -1,4 +1,4 @@
-CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -Ihttp-parser
+CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g $(CFLAGS) -Ihttp-parser
 ifeq ($(VALGRIND),1)
 TOOL=valgrind -q --track-origins=yes
 endif

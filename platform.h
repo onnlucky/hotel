@@ -61,7 +61,6 @@
 
 #define UNUSED(x) (x = x)
 #define PUBLIC
-#define INTERNAL
 
 #define min(l, r) (((l) <= (r))?(l):(r))
 #define max(l, r) (((l) >= (r))?(l):(r))

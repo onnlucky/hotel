@@ -1,12 +1,19 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // hotel lightweight tasks
+//
+// All execution happens in the context of a task, much like a thread, but much more light weight.
+// A task is executed by a worker, and a worker belongs to a vm.
+// If a task is waiting, it is assigned the vm->waiter "worker"
+//
+// Anything mutable needs to be owned by the task, before it can act upon it.
+//
+// If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
 #include "trace-on.h"
 
 INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
-INTERNAL tlValue run_resume(tlTask* task, tlFrame* frame, tlValue res);
-void print_backtrace(tlFrame*);
+INTERNAL void print_backtrace(tlFrame*);
 
 tlResult* tlresult_new(tlTask* task, tlArgs* args);
 tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
@@ -114,7 +121,7 @@ void assert_backtrace(tlFrame* frame) {
     if (frame) fatal("STACK CORRUPTED");
 }
 
-INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
+tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     assert(_frame);
     assert(task->worker);
     assert(task->worker->top);
@@ -126,7 +133,7 @@ INTERNAL tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     return null;
 }
 
-INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
+tlValue tlTaskPause(tlTask* task, void* _frame) {
     assert(task->worker);
     tlFrame* frame = tlFrameAs(_frame);
     assert(frame);
@@ -137,7 +144,7 @@ INTERNAL tlValue tlTaskPause(tlTask* task, void* _frame) {
     return null;
 }
 
-INTERNAL tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb cb, tlValue res) {
+tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb cb, tlValue res) {
     task->value = res;
     return tlTaskPause(task, tlFrameAlloc(task, cb, sizeof(tlFrame)));
 }
