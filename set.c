@@ -13,6 +13,7 @@ int tlSetSize(tlSet* set) {
 }
 
 void tlSetAssert(tlSet* set) {
+#ifdef HAVE_ASSERTS
     assert(tlSetIs(set));
     int size = tlSetSize(set);
     intptr_t v1 = 0; intptr_t v2 = 0;
@@ -21,6 +22,7 @@ void tlSetAssert(tlSet* set) {
         assert(v1 < v2 || !v2);
         if (v1) v2 = v1;
     }
+#endif
 }
 
 tlSet* tlSetNew(tlTask* task, int size) {

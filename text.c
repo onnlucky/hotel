@@ -171,12 +171,14 @@ INTERNAL tlValue _text_startsWith(tlTask* task, tlArgs* args) {
     if (!text) TL_THROW("this must be a Text");
     tlText* start = tlTextCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a Text");
+    int from = tl_int_or((tlArgsGet(args, 1)), 0);
+
 
     int textsize = tlTextSize(text);
     int startsize = tlTextSize(start);
-    if (textsize < startsize) return tlFalse;
+    if (textsize + from < startsize) return tlFalse;
 
-    int r = strncmp(tlTextData(text), tlTextData(start), startsize);
+    int r = strncmp(tlTextData(text) + from, tlTextData(start), startsize);
     return tlBOOL(r == 0);
 }
 

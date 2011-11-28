@@ -15,7 +15,6 @@ start preparing a first release:
 * clean up and comment eval.c maybe remove some of it to run.c oid
 
 start using tlTaskPauseResuming() ... a lot more
-on parse errors, throw it on the task, not fatal() out ...
 
 syntax change: do symbols using 'symbol
 
