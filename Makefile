@@ -12,11 +12,11 @@ test: tl
 	cd test && ./run.sh
 
 greg/greg:
-	git clone http://github.com/onnlucky/greg
+	git clone git://github.com/onnlucky/greg.git
 	cd greg && git checkout 8bc002c0f640c2d93bb9d9dc965d61df8caf4cf4 && make
 
 http-parser/http_parser.c:
-	git clone http://github.com/onnlucky/http-parser.git
+	git clone git://github.com/onnlucky/http-parser.git
 
 parser.c: parser.g greg/greg
 	greg/greg -o parser.c parser.g
