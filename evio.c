@@ -809,7 +809,7 @@ void tlIoWait(tlVm* vm) {
     if (a_set_if(&loop_status, WAIT, NONE) != WAIT) {
         fatal("oeps ... logic error");
     }
-    ev_loop(EVLOOP_ONESHOT);
+    ev_run(EVRUN_ONCE);
     a_set(&loop_status, NONE);
 }
 
