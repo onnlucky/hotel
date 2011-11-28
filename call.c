@@ -2,6 +2,7 @@
 
 #include "trace-on.h"
 
+INTERNAL tlValue _call(tlTask* task, tlArgs* args);
 INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
 INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn);
 
@@ -266,8 +267,8 @@ static tlClass _tlCallClass = {
 };
 static void call_init() {
     _tlNativeClass.map = tlClassMapFrom(
-            null,
-            null
+        "call", _call,
+        null
     );
 }
 

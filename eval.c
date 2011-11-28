@@ -897,6 +897,14 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     return evalSend(task, nargs);
 }
 
+// TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
+INTERNAL tlValue _call(tlTask* task, tlArgs* args) {
+    tlValue* fn = tlArgsTarget(args);
+    tlList* list = tlListCast(tlArgsGet(args, 0));
+    tlArgs* nargs = tlArgsNew(task, list, null);
+    return tlEvalArgsFn(task, nargs, fn);
+}
+
 static const tlNativeCbs __eval_natives[] = {
     { "_backtrace", _backtrace },
     { "_catch", _catch },
@@ -917,6 +925,10 @@ static void eval_init() {
     _tlCallClass.call = callCall;
     _tlClosureClass.call = callClosure;
     _tlClosureClass.run = runClosure;
+    _tlClosureClass.map = tlClassMapFrom(
+        "call", _call,
+        null
+    );
     _tlThunkClass.call = callThunk;
 }
 

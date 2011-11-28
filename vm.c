@@ -151,7 +151,7 @@ void tl_init() {
     value_init();
     text_init();
     args_init();
-    //call_init();
+    call_init();
 
     eval_init();
     task_init();
