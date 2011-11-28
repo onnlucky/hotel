@@ -55,5 +55,17 @@ distclean: clean
 	rm -rf greg/ libgc/ http-parser/
 dist-clean: distclean
 
-.PHONY: run test clean distclean
+PREFIX?=/usr/local
+BINDIR:=$(DESTDIR)$(PREFIX)/bin
+LIBDIR:=$(DESTDIR)$(PREFIX)/lib
+INCDIR:=$(DESTDIR)$(PREFIX)/include
+install: tl.h libtl.a tl
+	mkdir -p $(BINDIR)
+	mkdir -p $(LIBDIR)
+	mkdir -p $(INCDIR)
+	cp tl $(BINDIR)/
+	cp libtl.a $(LIBDIR)/
+	cp tl.h $(INCDIR)/
+
+.PHONY: run test clean distclean install
 
