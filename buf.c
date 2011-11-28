@@ -10,6 +10,7 @@ struct tl_buf {
     int size;
     int readpos;
     int writepos;
+    bool autogrow;
 };
 
 #define check(buf) assert(buf->readpos <= buf->writepos && buf->writepos <= buf->size)
@@ -18,6 +19,7 @@ tl_buf* tlbuf_new() {
     tl_buf* buf = calloc(1, sizeof(tl_buf));
     buf->data = malloc(SIZE);
     buf->size = SIZE;
+    buf->autogrow = true;
 
     check(buf);
     trace("size: %d", buf->size);
@@ -49,12 +51,18 @@ int tlbuf_grow(tl_buf* buf) {
     return buf->size;
 }
 
+
 #define readbuf(buf) ((const char*) (buf->data + buf->readpos))
 #define writebuf(buf) (buf->data + buf->writepos)
 #define didread(buf, len) (buf->readpos += len)
 #define didwrite(buf, len) (buf->writepos += len)
 #define canread(buf) (buf->writepos - buf->readpos)
 #define canwrite(buf) (buf->size - buf->writepos)
+
+void tlbuf_autogrow(tl_buf* buf) {
+    if (canread(buf) < 1024) tlbuf_grow(buf);
+    assert(canwrite(buf) >= 1024);
+}
 
 void tlbuf_reread(tl_buf* buf) { buf->readpos = 0; check(buf); }
 void tlbuf_clear(tl_buf* buf) { buf->readpos = 0; buf->writepos = 0; check(buf); }
@@ -134,8 +142,7 @@ tl_buf* tlbuf_new_from_file(const char* file) {
     int len;
     while ((len = read(fd, writebuf(buf), canwrite(buf))) > 0) {
         didwrite(buf, len);
-        if (canwrite(buf) < 1024) tlbuf_grow(buf);
-        assert(canwrite(buf) >= 1024);
+        tlbuf_autogrow(buf);
     }
     check(buf);
 

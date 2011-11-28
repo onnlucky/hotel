@@ -1,47 +1,69 @@
+// sketch of http server
 if = cond, block -> bool(cond, block, (->))()
 while = (&cond, block ->
     loop = -> if cond(): block(); goto loop()
     loop()
 )
 
-file = _File_open("Makefile", _File_RDONLY)
-buf = _Buffer_new()
-file.read buf
-input = buf.read
-
-var $lines = []
-addline = (line, indent, start, end ->
-    $lines = $lines.add({line: line, indent: indent, text: input.slice(start, end)})
+HttpConnection = (conn ->
+    _Object_new {
+        _req: null, _didhead: false, _didend: false
+        _in: _Buffer_new()
+        _body: _Buffer_new()
+        url: (->
+            // read and parse until headers are complete
+            while not @_req: (
+                if @_in.canread > 1024: _throw "BAD REQUEST"
+                len = conn.read @_in
+                if len == 0: _throw "IO ERROR"
+                @_req = { url: @_in.read }
+                //ws = buf.find " "
+                //method = buf.read ws
+                //ws = buf.find " "
+                //url = buf.read ws
+                //@_req {{ method, url }}
+            )
+            return @_req.url
+        )
+        end: (-> if not @_didend: @_didend = true; @flush(true); conn.close)
+        write: (text ->
+            if @_didend: _throw "Already Ended Response"
+            @_body.write text
+        )
+        flush: (ending ->
+            if not @_didhead: @_sendheaders(ending)
+            while @_body.canread > 0: (
+                len = conn.write @_body
+                if len == 0: _throw "IO ERROR"
+            )
+        )
+        _sendheaders: (ending ->
+            @_didhead = true
+            headers = _Buffer_new()
+            headers.write "HTTP/1.0 200 Ok\r\n"
+            if ending: headers.write "Content-Length: $(@_body.canread)\r\n"
+            headers.write "\r\n"
+            while headers.canread > 0: (
+                len = conn.write headers
+                if len == 0: _throw "IO ERROR"
+            )
+        )
+    }
 )
 
-parse = (line, at ->
-    if at >= input.size: return
-
-    spaces = (at, indent ->
-        if input.startsWith(" ", at): goto(spaces(at + 1, indent + 1))
-        if input.startsWith("\t", at): goto(spaces(at + 1, indent + 4))
-        return at, indent
+HttpServer = {
+    new: (port, block ->
+        socket = _ServerSocket_listen(8080)
+        while true: (
+            client = socket.accept
+            conn = HttpConnection(client)
+            !block(conn); conn.end
+        )
     )
-    start, indent = spaces(at, 0)
+}
 
-    newlines = (at ->
-        if input.size == at: return at, at
-        if input.startsWith("\r\n", at): return at, at + 2
-        if input.startsWith("\n\r", at): return at, at + 2
-        if input.startsWith("\n", at): return at, at + 1
-        if input.startsWith("\r", at): return at, at + 1
-        goto(newlines(at + 1))
-    )
-    end, new = newlines(start)
-    addline(line, indent, start, end)
-    goto(parse(line + 1, new))
-)
-parse(1, 0)
-
-var $at = 0
-while $at < $lines.size: (
-    line = $lines.get($at)
-    print line.line, line.indent, "'$(line.text)'"
-    $at += 1
+var $count = 0
+HttpServer.new(8080): (conn->
+    conn.write "hello from Hotel!\nyou are number: $( $count += 1 )"
 )
 

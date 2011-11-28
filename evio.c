@@ -65,6 +65,15 @@ static tlValue _io_sleep(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeSleep, tlNull);
 }
 
+static tlValue _io_chdir(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    if (chdir(tlTextData(text))) {
+        TL_THROW("%s", strerror(errno));
+    }
+    return tlNull;
+}
+
 
 // ** file descriptors **
 
@@ -169,6 +178,7 @@ static void read_cb(ev_io *ev, int revents) {
     assert(task);
     trace("read_cb: %p %d", file, ev->fd);
 
+    tlbuf_autogrow(buf);
     int len = read(ev->fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -587,6 +597,11 @@ static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlErro
     lqueue_put(&child->wait_q, &task->entry);
     return tlTaskNotRunning;
 }
+static tlValue _child_running(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    return tlBOOL(ev_is_active(&child->ev));
+}
 static tlValue _ChildWait(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
@@ -684,6 +699,7 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
 
 static const tlNativeCbs __evio_natives[] = {
     { "sleep", _io_sleep },
+    { "_io_chdir", _io_chdir },
     { "_File_open", _File_open },
     { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
@@ -729,6 +745,7 @@ void evio_init() {
         null
     );
     _tlChildClass.map = tlClassMapFrom(
+        "running", _child_running,
         "wait", _ChildWait,
         "status", _ChildStatus,
         "in", _ChildIn,
