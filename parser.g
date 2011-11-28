@@ -174,7 +174,9 @@ static char* unescape(const char* s) {
 
 %}
 
- start = __ b:body __ !.   { $$ = b; try_name(s_main, b); }
+ start = hashbang b:body __ !.   { $$ = b; try_name(s_main, b); }
+hashbang = __ "#"_"!" (!nl .)* nle __
+         | __
 
   body = ts:stms           { $$ = tlCodeFrom(TASK, ts); }
 
