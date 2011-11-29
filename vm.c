@@ -153,6 +153,7 @@ void tl_init() {
     args_init();
     call_init();
 
+    env_init();
     eval_init();
     task_init();
     error_init();
@@ -210,7 +211,9 @@ tlVm* tlVmNew() {
     tlVm* vm = tlAlloc(null, tlVmClass, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlEnvNew(null, null);
-    task_default(vm);
+
+    env_vm_default(vm);
+    task_vm_default(vm);
     queue_vm_default(vm);
     return vm;
 }
@@ -323,18 +326,6 @@ static tlValue _assert(tlTask* task, tlArgs* args) {
         if (!tl_bool(v)) TL_THROW("Assertion Failed: %s", tlTextData(text));
     }
     return tlNull;
-}
-
-static tlValue _eval(tlTask* task, tlArgs* args) {
-    tlText* code = tlTextCast(tlArgsGet(args, 0));
-    if (!code) TL_THROW("expected a Text");
-
-    tlCode* body = tlCodeAs(tlParse(task, code));
-    if (!body) return null;
-
-    tlClosure* fn = tlClosureNew(task, body, tlTaskGetVm(task)->globals);
-    tlCall* call = tlCallFrom(task, fn, null);
-    return tlEval(task, call);
 }
 
 void tlVmInitDefaultEnv(tlVm* vm) {

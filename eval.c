@@ -123,7 +123,7 @@ tlResult* tlResultFromArgsSkipOne(tlTask* task, tlArgs* args) {
     }
     return res;
 }
-tlResult* tlResultNewFrom(tlTask* task, ...) {
+tlResult* tlResultFrom(tlTask* task, ...) {
     va_list ap;
     int size = 0;
 
@@ -163,8 +163,15 @@ tlValue tlFirst(tlValue v) {
 }
 
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err);
-bool CodeFrameIs(tlFrame* frame) { return frame && frame->resumecb == resumeCode; }
-CodeFrame* CodeFrameAs(tlFrame* frame) { assert(CodeFrameIs(frame)); return (CodeFrame*)frame; }
+static bool CodeFrameIs(tlFrame* frame) { return frame && frame->resumecb == resumeCode; }
+static CodeFrame* CodeFrameAs(tlFrame* frame) {
+    assert(CodeFrameIs(frame));
+    return (CodeFrame*)frame;
+}
+static tlEnv* CodeFrameGetEnv(tlFrame* frame) {
+    assert(CodeFrameIs(frame));
+    return ((CodeFrame*)frame)->env;
+}
 
 INTERNAL void print_backtrace(tlFrame* frame) {
     print("BACKTRACE:");
@@ -655,9 +662,13 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
     int pc = frame->pc;
     // TODO really wanna do this? I guess so
     task->frame = (tlFrame*)frame;
+
     tlCode* code = frame->code;
     tlEnv* env = frame->env;
     trace("%p -- %d [%d]", frame, pc, code->head.size);
+
+    // for _eval, it needs to "fish" up the env again, if is_eval we write it to worker
+    bool is_eval = task->worker->evalArgs == env->args;
 
     // set value from any pause/resume
     task->value = _res;
@@ -674,12 +685,18 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
             frame->pc = pc + 1;
 
             tlValue v = run_activate(task, tl_value(op), env);
-            if (!v) return tlTaskPauseAttach(task, frame);
+            if (!v) {
+                if (is_eval) task->worker->evalEnv = env;
+                return tlTaskPauseAttach(task, frame);
+            }
 
             if (tlCallIs(v)) {
                 trace("%p op: active call: %p", frame, task->value);
                 v = applyCall(task, tlCallAs(v));
-                if (!v) return tlTaskPauseAttach(task, frame);
+                if (!v) {
+                    if (is_eval) task->worker->evalEnv = env;
+                    return tlTaskPauseAttach(task, frame);
+                }
             }
             assert(!tlFrameIs(v));
             assert(!tlCallIs(v));
@@ -717,6 +734,7 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
         task->value = op;
     }
     trace("done ...");
+    if (is_eval) task->worker->evalEnv = env;
     return task->value;
 }
 
@@ -903,6 +921,50 @@ INTERNAL tlValue _call(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlArgs* nargs = tlArgsNew(task, list, null);
     return tlEvalArgsFn(task, nargs, fn);
+}
+
+tlValue tlVarSet(tlVar*, tlValue);
+tlValue tlVarGet(tlVar*);
+
+typedef struct EvalFrame {
+    tlFrame frame;
+    tlVar* var;
+} EvalFrame;
+
+static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    EvalFrame* frame = (EvalFrame*)_frame;
+    assert(task->worker->evalEnv);
+    assert(task->worker->evalEnv);
+    tlVarSet(frame->var, task->worker->evalEnv);
+    // TODO just throw the error?
+    if (err) return null;
+    return res;
+}
+static tlValue _eval(tlTask* task, tlArgs* args) {
+    tlVar* var = tlVarCast(tlArgsGet(args, 0));
+    if (!var) TL_THROW("expected a Var");
+    tlEnv* env = tlEnvCast(tlVarGet(var));
+    if (!env) TL_THROW("expected an Env in Var");
+    tlText* code = tlTextCast(tlArgsGet(args, 1));
+    if (!code) TL_THROW("expected a Text");
+
+    tlCode* body = tlCodeAs(tlParse(task, code));
+    if (!body) return null;
+
+    tlClosure* fn = tlClosureNew(task, body, env);
+    tlCall* call = tlCallFrom(task, fn, null);
+    tlArgs* cargs = evalCall(task, call);
+    assert(cargs);
+    task->worker->evalArgs = cargs;
+    tlValue res = evalArgs(task, cargs);
+    if (!res) {
+        EvalFrame* frame = tlFrameAlloc(task, resumeEval, sizeof(EvalFrame));
+        frame->var = var;
+        tlTaskPauseAttach(task, frame);
+    }
+    assert(task->worker->evalEnv);
+    tlVarSet(var, task->worker->evalEnv);
+    return res;
 }
 
 static const tlNativeCbs __eval_natives[] = {

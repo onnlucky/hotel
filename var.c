@@ -12,6 +12,9 @@ struct tlVar {
     tlValue value;
 };
 
+tlValue tlVarGet(tlVar* var) { return var->value; }
+tlValue tlVarSet(tlVar* var, tlValue v) { var->value = v; return v; }
+
 INTERNAL tlValue _Var_new(tlTask* task, tlArgs* args) {
     trace("");
     tlVar* var = tlAlloc(task, tlVarClass, sizeof(tlVar));

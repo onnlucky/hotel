@@ -46,6 +46,10 @@ struct tlWorker {
     tlTask* current;
     tlFrame* top; // when reifying the stack, this keeps the top of stack
 
+    // when _eval, this is where we can fish back the last env
+    tlArgs* evalArgs;
+    tlEnv* evalEnv;
+
     tlWorkerDeferCb defer_cb;
     void* defer_data;
 };
@@ -522,7 +526,7 @@ static void task_init() {
     );
 }
 
-static void task_default(tlVm* vm) {
+static void task_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 

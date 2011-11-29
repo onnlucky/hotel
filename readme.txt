@@ -4,6 +4,7 @@ bug: tlCallableIs does not know complex user objects, just try and catch not cal
 bug: { x: 42, x: runtime } is error due to duplicate x
 add @method arg, arg
 instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
+instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
 
 remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
 
