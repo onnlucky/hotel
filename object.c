@@ -32,7 +32,7 @@ INTERNAL tlValue objectSend(tlTask* task, tlArgs* args) {
     assert(obj->map);
 
     tlValue field = tlMapGetSym(obj->map, msg);
-    if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
+    if (!field) TL_THROW("%s.%s is undefined", tl_str(obj), tl_str(msg));
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(task, args, field);
 }
@@ -70,7 +70,7 @@ INTERNAL tlValue _this_send(tlTask* task, tlArgs* args) {
     trace("%s.%s(%d)", tl_str(obj), tl_str(msg), tlArgsSize(args) - 2);
     assert(obj->map);
     tlValue field = tlMapGetSym(obj->map, msg);
-    if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
+    if (!field) TL_THROW("%s.%s is undefined", tl_str(obj), tl_str(msg));
     if (!tlCallableIs(field)) return field;
 
 

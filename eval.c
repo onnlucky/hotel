@@ -423,14 +423,12 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
 // lookups potentially need to run hotel code (not yet though)
 INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
-        assert(task->frame && task->frame->resumecb == resumeCode);
         tlReturn* fn = tlAlloc(task, tlReturnClass, sizeof(tlReturn));
         fn->args = tlEnvGetArgs(env);
         trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), fn->args);
         return fn;
     }
     if (name == s_goto) {
-        assert(task->frame && task->frame->resumecb == resumeCode);
         tlGoto* fn = tlAlloc(task, tlGotoClass, sizeof(tlGoto));
         fn->args = tlEnvGetArgs(env);
         trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), fn->args);
@@ -496,8 +494,6 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
         tlCode* code = tlClosureAs(fn)->code;
         names = code->argnames;
         defaults = code->argdefaults;
-    } else {
-        assert(tlCallableIs(fn));
     }
 
     tlArgs* args = frame->args;
@@ -649,10 +645,8 @@ INTERNAL tlValue runClosure(tlTask* task, tlValue _fn, tlArgs* args) {
 INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
     tlValue fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
-    assert(tlCallableIs(fn));
     tlClass* klass = tl_class(fn);
     if (klass->run) return klass->run(task, fn, args);
-    fatal("OEPS %s", tl_str(fn));
     TL_THROW("'%s' not callable", tl_str(fn));
     return null;
 }
@@ -660,8 +654,6 @@ INTERNAL tlValue evalArgs(tlTask* task, tlArgs* args) {
 // this is the main part of eval: running the "list" of "bytecode"
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
     int pc = frame->pc;
-    // TODO really wanna do this? I guess so
-    task->frame = (tlFrame*)frame;
 
     tlCode* code = frame->code;
     tlEnv* env = frame->env;
@@ -837,16 +829,18 @@ INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlEr
     return tlNull;
 }
 INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
-    tlFrame* frame = tlFrameAlloc(task, resumeBacktrace, sizeof(tlFrame));
-    return tlTaskPause(task, frame);
+    return tlTaskPauseResuming(task, resumeBacktrace, null);
+}
+INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    tlArgs* args = tlArgsAs(res);
+    tlValue handler = tlArgsMapGet(args, s_block);
+    trace("%p.handler = %s", _frame->caller, tl_str(handler));
+    CodeFrame* frame = CodeFrameAs(_frame->caller);
+    frame->handler = handler;
+    return tlNull;
 }
 INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
-    tlValue block = tlArgsMapGet(args, s_block);
-    trace("%p %s", block, tl_str(block));
-    assert(tlClosureIs(block));
-    assert(task->frame->resumecb == resumeCode);
-    ((CodeFrame*)task->frame)->handler = block;
-    return tlNull;
+    return tlTaskPauseResuming(task, resumeCatch, args);
 }
 // TODO not so sure about this, user objects which return something on .call are also callable ...
 bool tlCallableIs(tlValue v) {
@@ -880,10 +874,10 @@ INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
     return evalArgs(task, nargs);
 }
 
-INTERNAL tlValue evalMapSend(tlTask* task, tlMap* map, tlSym msg, tlArgs* args) {
+INTERNAL tlValue evalMapSend(tlTask* task, tlMap* map, tlSym msg, tlArgs* args, tlValue target) {
     tlValue field = tlMapGet(task, map, msg);
     trace(".%s -> %s()", tl_str(msg), tl_str(field));
-    if (!field) TL_THROW("'%s' is undefined", tl_str(msg));
+    if (!field) TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
     if (!tlCallableIs(field)) return field;
     args->fn = field;
     return evalArgs(task, args);
@@ -894,8 +888,8 @@ INTERNAL tlValue evalSend(tlTask* task, tlArgs* args) {
     trace("%s.%s", tl_str(target), tl_str(msg));
     tlClass* klass = tl_class(target);
     if (klass->send) return klass->send(task, args);
-    if (klass->map) return evalMapSend(task, klass->map, msg, args);
-    fatal("sending to incomplete tlClass: %s.%s", tl_str(target), tl_str(msg));
+    if (klass->map) return evalMapSend(task, klass->map, msg, args, target);
+    TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
 }
 
 INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
@@ -932,14 +926,13 @@ typedef struct EvalFrame {
 } EvalFrame;
 
 static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    trace("resuming");
     EvalFrame* frame = (EvalFrame*)_frame;
     assert(task->worker->evalEnv);
-    assert(task->worker->evalEnv);
     tlVarSet(frame->var, task->worker->evalEnv);
-    // TODO just throw the error?
-    if (err) return null;
     return res;
 }
+
 static tlValue _eval(tlTask* task, tlArgs* args) {
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
@@ -949,6 +942,7 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
     if (!code) TL_THROW("expected a Text");
 
     tlCode* body = tlCodeAs(tlParse(task, code));
+    trace("parsed: %s", tl_str(body));
     if (!body) return null;
 
     tlClosure* fn = tlClosureNew(task, body, env);
@@ -958,10 +952,12 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
     task->worker->evalArgs = cargs;
     tlValue res = evalArgs(task, cargs);
     if (!res) {
+        trace("pausing");
         EvalFrame* frame = tlFrameAlloc(task, resumeEval, sizeof(EvalFrame));
         frame->var = var;
         tlTaskPauseAttach(task, frame);
     }
+    trace("done");
     assert(task->worker->evalEnv);
     tlVarSet(var, task->worker->evalEnv);
     return res;

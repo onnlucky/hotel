@@ -19,7 +19,6 @@ start using tlTaskPauseResuming() ... a lot more
 
 syntax change: do symbols using 'symbol
 
-work on a repl by allowing Env to be generic and thus mutable ...
 think about special inherited task local *Env* of sorts, for stdout, error modes, etc ... ? yes, for dynamically scoped stuff
 
 add send as code primitive: target, msg, args, instead of _object_send

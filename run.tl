@@ -10,9 +10,10 @@ buf = _Buffer_new()
 var $env = Env.new(Env.current)
 while true: (
     out "> "
-    stdin.read buf
+    len = stdin.read buf
+    if len == 0: return null
+
     _catch: e -> out("error: $e\n")
-    // eval wants a var with an env inside, a pointer, basically
     res = eval(env, buf.read)
     if res: print res
 )

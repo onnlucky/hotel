@@ -295,7 +295,7 @@ static tlValue valueObjectSend(tlTask* task, tlArgs* args) {
         do {
             tlMap* klass = tlMapGet(task, map, s_class);
             trace("CLASS: %s", tl_str(klass));
-            if (!klass) TL_THROW("'%s' is undefined", tl_str(msg));
+            if (!klass) TL_THROW("%s.%s is undefined", tl_str(tlArgsTarget(args)), tl_str(msg));
             field = tlMapGet(task, klass, msg);
             if (field) {
                 // TODO maybe just try, and catch not callable exceptions?
@@ -306,6 +306,7 @@ static tlValue valueObjectSend(tlTask* task, tlArgs* args) {
         } while (true);
         return tlUndefined;
     }
+    // TODO maybe just try, like above ...
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(task, args, field);
 }
