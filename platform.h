@@ -42,6 +42,10 @@
 #define GC_INIT()
 #endif
 
+#ifdef HAVE_THREADS
+#include <pthread.h>
+#endif
+
 #include "llib/lhashmap.h"
 #include "llib/lqueue.h"
 

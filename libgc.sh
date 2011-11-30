@@ -2,8 +2,8 @@
 set -e
 
 DEBUG="--enable-gc-debug"
-NOTHREADS="--disable-threads"
-#THREADS="--enable-threads=posix --enable-thread-local-alloc --enable-parallel-mark"
+#NOTHREADS="--disable-threads"
+THREADS="--enable-threads=posix --enable-thread-local-alloc --enable-parallel-mark"
 if ! cd libgc; then
     git clone git://github.com/ivmai/bdwgc.git libgc
     cd libgc

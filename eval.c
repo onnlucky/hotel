@@ -21,7 +21,7 @@
 //
 // so we go from tlCall -> tlArgs -> running -> tlCollect
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 // various internal structures
 static tlClass _tlClosureClass = { .name = "Function" };

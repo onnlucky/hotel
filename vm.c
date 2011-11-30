@@ -17,6 +17,7 @@
 #include "frame.c"
 #include "args.c"
 #include "call.c"
+#include "worker.c"
 #include "task.c"
 #include "queue.c"
 #include "lock.c"
@@ -167,44 +168,6 @@ void tl_init() {
     evio_init();
 
     http_init();
-}
-
-// when outside of vm, make it all run by calling this function
-void tlWorkerRun(tlWorker* worker) {
-    assert(tlWorkerIs(worker));
-    assert(tlVmIs(worker->vm));
-    tlVm* vm = worker->vm;
-    bool didwork = false;
-    while (true) {
-        tlTask* task = tlTaskFromEntry(lqueue_get(&vm->run_q));
-        if (!task) break;
-        didwork = true;
-        trace(">>>> TASK SCHEDULED IN: %p %s <<<<", task, tl_str(task));
-        task->worker = worker;
-        tlTaskRun(task);
-    }
-    trace(">>>> WORKER DONE <<<<");
-    //assert(didwork); fails Child_run ... why?
-}
-
-void tlWorkerRunIo(tlWorker* worker) {
-    tlVm* vm = worker->vm;
-    while (true) {
-        tlWorkerRun(worker);
-        trace(">>>> WORKER tasks: %zd, wait: %zd, io: %zd <<<<",
-                vm->tasks, vm->waiting, vm->iowaiting);
-        if (!tlIoHasWaiting(worker->vm)) break;
-        tlIoWait(vm);
-    }
-}
-
-tlWorker* tlWorkerNew(tlVm* vm) {
-    tlWorker* worker = tlAlloc(null, tlWorkerClass, sizeof(tlWorker));
-    worker->vm = vm;
-    return worker;
-}
-void tlWorkerDelete(tlWorker* worker) {
-    free(worker);
 }
 
 tlVm* tlVmNew() {
