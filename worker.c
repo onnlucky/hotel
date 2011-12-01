@@ -25,6 +25,7 @@ struct tlVm {
     // the waiter does not actually "work", it helps tasks keep reference back to the vm
     tlWorker* waiter;
     // the main task, if it exits, usually the vm is done
+    bool running;
     tlTask* main;
 
     // task counts: total, waiting or in io
@@ -40,7 +41,14 @@ struct tlVm {
 };
 
 INTERNAL bool tlVmIsRunning(tlVm* vm) {
-    return true; //tlTaskIsDone(vm->main);
+    return vm->running;
+}
+INTERNAL void tlVmStop(tlVm* vm) {
+    trace("!! VM STOPPING !!");
+    // TODO needs to be a_var oid
+    vm->running = false;
+    if (!vm->lock) return;
+    pthread_cond_broadcast(vm->signal);
 }
 
 // harmless when we are not (yet) running threaded
@@ -82,16 +90,11 @@ void tlWorkerSignal(tlWorker* worker) {
 }
 
 // this will run a bound task until that task is done, waiting if necesairy (or the vm has stopped)
-void* tlWorkerRunBound(void* data) {
-    tlWorker* worker = tlWorkerAs(data);
+void tlWorkerRunBound(tlWorker* worker) {
+    assert(tlWorkerIs(worker));
+    assert(tlVmIs(worker->vm));
     tlVm* vm = worker->vm;
     tlTask* task = tlTaskAs(worker->task);
-
-    pthread_mutex_lock(worker->lock);
-
-    trace("waiting on signal: %s", tl_str(task));
-    pthread_cond_signal(worker->signal);
-    pthread_cond_wait(worker->signal, worker->lock);
 
     while (tlVmIsRunning(vm)) {
         trace("running: %s", tl_str(task));
@@ -102,6 +105,20 @@ void* tlWorkerRunBound(void* data) {
     }
 
     trace("done: %s", tl_str(worker));
+    return;
+}
+
+void* tlboundworker_thread(void* data) {
+    tlWorker* worker = tlWorkerAs(data);
+    pthread_mutex_lock(worker->lock);
+
+    trace("waiting on signal: %s", tl_str(worker->task));
+    pthread_cond_signal(worker->signal);
+    pthread_cond_wait(worker->signal, worker->lock);
+
+    // ready to run
+    tlWorkerRunBound(worker);
+
     pthread_mutex_unlock(worker->lock);
     tlWorkerDelete(worker);
     return null;
@@ -109,7 +126,7 @@ void* tlWorkerRunBound(void* data) {
 
 tlWorker* tlWorkerNewBind(tlVm* vm, tlTask* task) {
     trace("run task on dedicated thread: %s", tl_str(task));
-    //tlVmStartThreaded(vm);
+    assert(vm->lock);
 
     tlWorker* worker = tlWorkerNew(vm);
     worker->lock = malloc(sizeof(pthread_mutex_t));
@@ -121,7 +138,7 @@ tlWorker* tlWorkerNewBind(tlVm* vm, tlTask* task) {
 
     pthread_t thread;
     pthread_mutex_lock(worker->lock);
-    pthread_create(&thread, null, &tlWorkerRunBound, worker);
+    pthread_create(&thread, null, &tlboundworker_thread, worker);
     pthread_cond_wait(worker->signal, worker->lock);
     pthread_mutex_unlock(worker->lock);
 
@@ -142,6 +159,40 @@ void tlWorkerRunBlocking(tlWorker* worker) {
     trace("done: %s", tl_str(worker));
 }
 
+void* tlworker_thread(void* data) {
+    tlWorker* worker = tlWorkerAs(data);
+    tlWorkerRunBlocking(worker);
+    tlWorkerDelete(worker);
+    return null;
+}
+
+// TODO before starting threads, make sure the task is bound and ready ...
+void tlVmStartThreads(tlVm* vm, tlWorker* worker, tlTask* task) {
+    trace("start threads: %s", tl_str(task));
+
+    assert(!vm->lock);
+    vm->lock = malloc(sizeof(pthread_mutex_t));
+    vm->signal = malloc(sizeof(pthread_cond_t));
+    if (pthread_mutex_init(vm->lock, null)) fatal("pthread: %s", strerror(errno));
+    if (pthread_cond_init(vm->signal, null)) fatal("pthread: %s", strerror(errno));
+
+    pthread_t thread;
+    tlWorker* nworker = tlWorkerNew(vm);
+    pthread_create(&thread, null, &tlworker_thread, nworker);
+
+    assert(!worker->lock);
+    worker->lock = malloc(sizeof(pthread_mutex_t));
+    worker->signal = malloc(sizeof(pthread_cond_t));
+    if (pthread_mutex_init(worker->lock, null)) fatal("pthread: %s", strerror(errno));
+    if (pthread_cond_init(worker->signal, null)) fatal("pthread: %s", strerror(errno));
+
+    // TODO this is too late to bind ...
+    worker->task = task;
+    pthread_mutex_lock(worker->lock);
+    tlWorkerRunBound(worker);
+    pthread_mutex_unlock(worker->lock);
+}
+
 // this will run tasks, until the task queue is empty, or the vm has stopped
 void tlWorkerRun(tlWorker* worker) {
     assert(tlWorkerIs(worker));
@@ -156,6 +207,7 @@ void tlWorkerRun(tlWorker* worker) {
     trace("done: %s", tl_str(worker));
 }
 
+// TODO remove this, event loops belong in hotel now
 void tlWorkerRunIo(tlWorker* worker) {
     tlVm* vm = worker->vm;
     while (true) {

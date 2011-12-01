@@ -1,20 +1,23 @@
 // sketch of a repl
 
 other = !(
-    Task.bindToThread
-    print 42
-    sleep 1000
-    print 42
-    sleep 1000
-    print 42
-    sleep 1000
-    print 42
-    sleep 1000
-    print "done"
+    print 1
+    Task.yield
+    print 2
+    Task.yield
+    print 3
+    Task.yield
+    print 4
+    Task.yield
+    print 5
+    Task.yield
+    print "DONE"
 )
 print "other:", other
-sleep 5000
+Task.yield
 other.wait
+
+//other.wait
 
 /*
 kq = kqueue()

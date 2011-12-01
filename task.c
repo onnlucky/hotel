@@ -358,6 +358,7 @@ void tlTaskStart(tlTask* task) {
 
 // TODO if error, make sure to communicate that too ...
 INTERNAL void signalWaiters(tlTask* task) {
+    assert(tlTaskIsDone(task));
     tlValue waiting = A_PTR(a_swap(A_VAR(task->waiting), null));
     if (!waiting) return;
     if (tlTaskIs(waiting)) {
@@ -374,6 +375,9 @@ INTERNAL void signalWaiters(tlTask* task) {
         tlTaskReady(waiter);
     }
 }
+INTERNAL void signalVm(tlTask* task) {
+    if (tlTaskGetVm(task)->main == task) tlVmStop(tlTaskGetVm(task));
+}
 
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
     trace("%s error: %s", tl_str(task), tl_str(error));
@@ -385,6 +389,7 @@ INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
     a_dec(&vm->tasks);
     task->worker = vm->waiter;
     signalWaiters(task);
+    signalVm(task);
     return tlTaskNotRunning;
 }
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
@@ -397,6 +402,7 @@ INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
     a_dec(&vm->tasks);
     task->worker = vm->waiter;
     signalWaiters(task);
+    signalVm(task);
     return tlTaskNotRunning;
 }
 

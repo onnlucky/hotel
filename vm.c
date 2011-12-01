@@ -237,6 +237,8 @@ tlTask* tlVmEvalFile(tlVm* vm, tlText* file) {
 tlTask* tlVmEvalCode(tlVm* vm, tlText* code) {
     tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(vm);
+    vm->main = task;
+    vm->running = true;
 
     // TODO if no success, task should have exception
     tlCode* body = tlCodeCast(tlParse(task, code));
@@ -249,7 +251,7 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code) {
     tlTaskStart(task);
 
     trace("RUNNING");
-    tlWorkerRunIo(worker);
+    tlWorkerRun(worker);
     trace("DONE");
     return task;
 }
