@@ -14,10 +14,21 @@ other = !(
     print "DONE"
 )
 print "other:", other
-Task.yield
-other.wait
 
-//other.wait
+// io "main" loop
+iocomands = TaskQueue.new
+loop:
+    loop:
+        args = add.peek
+        (
+            match(not args, (-> break))
+            match(args.msg == #read, (-> ev.waitread task.get(0); task.reply))
+            match(args.msg == #write, (-> ev.waitwrite task.get(0); task.reply))
+            match(args.msg == #wait, (-> ev.wait task.get(0); task.reply))
+            match(true, (->args.throw "error"))
+            throw "match error"
+        )
+    ev.run
 
 /*
 kq = kqueue()

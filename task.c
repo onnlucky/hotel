@@ -98,7 +98,7 @@ tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     assert(task->worker);
     assert(task->worker->top);
     tlFrame* frame = tlFrameAs(_frame);
-    trace("> %p.caller = %p", task->frame, frame);
+    //trace("> %p.caller = %p", task->frame, frame);
     task->frame->caller = frame;
     task->frame = frame;
     if_debug(assert_backtrace(task->worker->top));
@@ -109,7 +109,7 @@ tlValue tlTaskPause(tlTask* task, void* _frame) {
     assert(task->worker);
     tlFrame* frame = tlFrameAs(_frame);
     assert(frame);
-    trace("    >>>> %p", frame);
+    //trace("    >>>> %p", frame);
     task->frame = frame;
     task->worker->top = frame;
     if_debug(assert_backtrace(task->worker->top));
@@ -149,29 +149,29 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
 
         while (frame && res) {
             assert(task->state == TL_STATE_RUN);
-            trace("!!frame: %p - %s", frame, tl_str(res));
+            //trace("!!frame: %p - %s", frame, tl_str(res));
             if (frame->resumecb) res = frame->resumecb(task, frame, res, null);
             if (!res) break;
             if (res == tlTaskNotRunning) return;
             if (res == tlTaskJumping) {
                 // may only jump from first resumecb after reifying stack ... can we assert that?
                 // also can we unlock things, like resume all jumped over frames with an error?
-                trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
+                //trace(" << %p ---- %p (%s)", task->frame, frame, tl_str(task->value));
                 frame = task->frame;
                 res = task->value;
                 continue;
             }
-            trace(" << %p <<<< %p", frame->caller, frame);
+            //trace(" << %p <<<< %p", frame->caller, frame);
             frame = frame->caller;
         }
-        trace("!!out of frame && res");
+        //trace("!!out of frame && res");
 
         if (res) {
             assert(!frame);
             tlTaskDone(task, res);
             return;
         }
-        trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
+        //trace("!!paused: %p -- %p -- %p", task->frame, frame, task->value);
         assert(frame);
         assert(task->frame);
         assert(task->worker->top);
@@ -180,7 +180,7 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
         task->frame = task->worker->top;
         if_debug(assert_backtrace(task->frame));
     }
-    trace("WAIT: %p %p", task, task->frame);
+    //trace("WAIT: %p %p", task, task->frame);
 }
 
 // when a task is in an error state it will throw it until somebody handles it
