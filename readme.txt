@@ -1,22 +1,25 @@
 # TODO
 
 pull eventloop up into language, simplify evio ...
+think about evio doing read/write simultaniously ... two actors?
+do evio differently, needs its own thread, use new Queue thing to handle it ...
+writing to sockets should accept strings too ... place buffer inbetween? actor inside/outside?
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
+
+when unwinding stacks, resources need to be release, always, also when jumping/continuations
+tlFrame needs to know own size, and when copy-on-write is set, should mark its caller as such
+all tlClass need to describe their own size? would make sense
 
 add @method arg, arg
 instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
 instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
 
-remove tlHead in favor of just a tlClass ... use last 3 bits as flags, frame->resumecb same ...
-
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code
 * use gcov to remove any unused code or add tests for them (larger parts...)
 * clean up and comment eval.c maybe remove some of it to run.c oid
-
-start using tlTaskPauseResuming() ... a lot more
 
 syntax change: do symbols using 'symbol
 
@@ -25,24 +28,14 @@ think about special inherited task local *Env* of sorts, for stdout, error modes
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs
 
-think about evio doing read/write simultaniously ... two actors?
-do evio differently, needs its own thread, use new Queue thing to handle it ...
-writing to sockets should accept strings too ... place buffer inbetween? actor inside/outside?
-
 add methods vs functions, methods try to bind a this dynamically ... helps with actors too
 example: function = { }
          method = @{ }
-
-add something around tlWorkerMigrate(...thread...) so Cocoa can take the main thread? tricky...
 
 implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
 add task.stop to kill it by error? java ThreadDeath how do we do it safely?
 add finalizers to tasks: report errors if nobody else reads them
 add finalizers to opened files: closed the fds
-
-  ----
-
-sprinkle more INTERNAL around and such
 
 add default arguments using print = (sep=" ", end="\n")->{...} etc ...
 implement collector: x, *rest = multiple_return()
@@ -54,10 +47,11 @@ implement defer (add defer[] to tlCodeRun) or something ...
 bring back a boot.tl library
 implement serializing tlValue's to disk
 
-optimize: parser should add all local names to code->envnames and env should use this ...
-optimize: parser pexpr and others lots of branches start out the same, let them share prefix ...
-optimize: task->value by tagging as active incase of tResult or such?
-optimize: compile code by collecting all local names, use that as dict, and keep values inside run
+optimize: compiler should add all local names to code->envnames and env should use this ...
+optimize: compiler can shortcut writing/referencing local names to just indexes into locals.
+optimize: remove tlHead in favor of just a tlClass ... use last 3 bits as flags
+optimize: tlFrame can use 3 bits from resumecb too ...
+optimize: tlArgs (and tlCall) can be reworked more lean and simpler
 
 # missing
 
@@ -69,7 +63,11 @@ c-based modules
 lazy evaluation (call by need)
 finalizers
 default arguments
+splays on either side
 complex lhs assigns
+syntax for branches:
+  | false -> ...
+  | true -> ...
 
 # hotel - a programming language
 
