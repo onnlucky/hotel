@@ -8,6 +8,9 @@ writing to sockets should accept strings too ... place buffer inbetween? actor i
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
 
+idea: private using @, not _ ... and make class a private
+also classes have @name property, when writing, drop the class pointer in favor of just the @name
+
 when unwinding stacks, resources need to be release, always, also when jumping/continuations
 tlFrame needs to know own size, and when copy-on-write is set, should mark its caller as such
 all tlClass need to describe their own size? would make sense
