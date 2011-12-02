@@ -252,10 +252,12 @@ INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlEr
     task->frame = task->frame->caller;
     return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
 }
+tlValue tlTaskThrow(tlTask* task, tlValue err) {
+    trace("throw: %s", tl_str(err));
+    return tlTaskPauseResuming(task, resumeTaskThrow, err);
+}
 tlValue tlTaskThrowTake(tlTask* task, char* str) {
-    trace("throw: %s", str);
-    task->value = tlTextFromTake(task, str, 0);
-    return tlTaskPause(task, tlFrameAlloc(task, resumeTaskThrow, sizeof(tlFrame)));
+    return tlTaskThrow(task, tlTextFromTake(task, str, 0));
 }
 
 bool tlTaskIsDone(tlTask* task) {

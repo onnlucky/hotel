@@ -23,6 +23,15 @@
 
 #include "trace-off.h"
 
+// implemented in controlflow.c
+INTERNAL tlValue tlReturnNew(tlTask* task, tlArgs* args);
+INTERNAL tlValue tlGotoNew(tlTask* task, tlArgs* args);
+INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err);
+
+// var.c
+tlValue tlVarSet(tlVar*, tlValue);
+tlValue tlVarGet(tlVar*);
+
 // various internal structures
 static tlClass _tlClosureClass = { .name = "Function" };
 tlClass* tlClosureClass = &_tlClosureClass;
@@ -189,190 +198,6 @@ INTERNAL void print_backtrace(tlFrame* frame) {
 
 INTERNAL tlValue applyCall(tlTask* task, tlCall* call);
 
-// on a reified the stack look for first lexical scoped function, if any
-// we look for "args" because these stay the same after copy-on-write of env and frames
-INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
-    tlFrame* lastblock = null;
-    trace("%p", frame);
-    while (frame) {
-        if (CodeFrameIs(frame)) {
-            CodeFrame* cframe = CodeFrameAs(frame);
-            if (cframe->env->args == targetargs) {
-                if (!tlCodeIsBlock(cframe->code)) {
-                    trace("found caller function: %p.caller: %p", frame, frame->caller);
-                    return frame;
-                }
-                trace("found caller block: %p.caller: %p", frame, frame->caller);
-                lastblock = frame;
-                break;
-            }
-        }
-        frame = frame->caller;
-    }
-    while (frame) {
-        if (CodeFrameIs(frame)) {
-            CodeFrame* cframe = CodeFrameAs(frame);
-            if (cframe->env->args == targetargs) {
-                if (!tlCodeIsBlock(cframe->code)) {
-                    trace("found enclosing function: %p.caller: %p", frame, frame->caller);
-                    return frame;
-                } else {
-                    trace("found enclosing block: %p.caller: %p", frame, frame->caller);
-                    lastblock = frame;
-                    tlEnv* env = cframe->env->parent;
-                    if (env) targetargs = env->args;
-                    else targetargs = null;
-                }
-            }
-        }
-        frame = frame->caller;
-    }
-    trace("caller function out of stack; lastblock: %p", lastblock);
-    return lastblock;
-}
-
-TL_REF_TYPE(tlReturn);
-struct tlReturn {
-    tlHead head;
-    tlArgs* args;
-};
-static tlValue ReturnCallFn(tlTask* task, tlCall* call);
-static tlClass _tlReturnClass = {
-    .name = "Return",
-    .call = ReturnCallFn,
-};
-tlClass* tlReturnClass = &_tlReturnClass;
-
-typedef struct ReturnFrame {
-    tlFrame frame;
-    tlArgs* targetargs;
-} ReturnFrame;
-
-INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    if (err) return null;
-    tlArgs* args = tlArgsAs(res);
-    trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsGet(args, 0)));
-
-    if (tlArgsSize(args) == 0) res = tlNull;
-    else if (tlArgsSize(args) == 1) res = tlArgsGet(args, 0);
-    else res = tlResultFromArgs(task, args);
-    assert(res);
-
-    // we have just reified the stack, now find our frame
-    frame = lexicalFunctionFrame(frame, ((ReturnFrame*)frame)->targetargs);
-    trace("%p", frame);
-    if (frame) return tlTaskJump(task, frame->caller, res);
-    return res;
-}
-INTERNAL tlValue ReturnCallFn(tlTask* task, tlCall* call) {
-    trace("RETURN(%d)", tlCallSize(call));
-    ReturnFrame* frame = tlFrameAlloc(task, resumeReturn, sizeof(ReturnFrame));
-    frame->targetargs = tlReturnAs(tlCallGetFn(call))->args;
-    tlArgs* args = evalCall(task, call);
-    if (!args) return tlTaskPauseAttach(task, frame);
-    task->value = args;
-    return tlTaskPause(task, frame);
-}
-
-TL_REF_TYPE(tlGoto);
-struct tlGoto {
-    tlHead head;
-    tlArgs* args;
-};
-static tlValue GotoCallFn(tlTask* task, tlCall* call);
-static tlClass _tlGotoClass = {
-    .name = "Goto",
-    .call = GotoCallFn,
-};
-tlClass* tlGotoClass = &_tlGotoClass;
-
-typedef struct GotoFrame {
-    tlFrame frame;
-    tlCall* call;
-    tlArgs* targetargs;
-} GotoFrame;
-
-INTERNAL tlValue resumeGotoEval(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    // now it is business as usual
-    return tlEval(task, res);
-}
-INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    tlCall* call = ((GotoFrame*)frame)->call;
-    tlArgs* targetargs = ((GotoFrame*)frame)->targetargs;
-    trace("RESUME GOTO(%d)", tlCallSize(call));
-    trace("%p - %s", targetargs, tl_str(targetargs));
-
-    // TODO handle multiple arguments ... but what does that mean?
-    assert(tlCallSize(call) == 1);
-
-    // we have just reified the stack, now find our frame
-    frame = lexicalFunctionFrame(frame, targetargs);
-    tlFrame* caller = null;
-    if (frame) caller = frame->caller;
-    trace("JUMPING: %p", caller);
-
-    // now create a stack which does not involve our frame
-    tlTaskPauseResuming(task, resumeGotoEval, null);
-    tlTaskPauseAttach(task, caller);
-    return tlTaskJump(task, task->worker->top, tlCallGet(call, 0));
-}
-INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
-    trace("GOTO(%d)", tlCallSize(call));
-    GotoFrame* frame = tlFrameAlloc(task, resumeGoto, sizeof(GotoFrame));
-    frame->call = call;
-    frame->targetargs = tlGotoAs(tlCallGetFn(call))->args;
-    return tlTaskPause(task, frame);
-}
-
-TL_REF_TYPE(tlContinuation);
-struct tlContinuation {
-    tlHead head;
-    tlFrame* frame;
-};
-static tlValue ContinuationCallFn(tlTask* task, tlCall* call);
-static tlClass _tlContinuationClass = {
-    .name = "Continuation",
-    .call = ContinuationCallFn,
-};
-tlClass* tlContinuationClass = &_tlContinuationClass;
-
-typedef struct ContinuationFrame {
-    tlFrame frame;
-    tlArgs* args;
-    tlContinuation* cont;
-} ContinuationFrame;
-
-INTERNAL tlValue resumeCC(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    ContinuationFrame* frame = (ContinuationFrame*)_frame;
-    tlContinuation* cont = frame->cont;
-    tlArgs* args = frame->args;
-    if (!args) args = res;
-    if (!args) return null;
-    assert(tlArgsIs(args));
-    return tlTaskJump(task, cont->frame, tlResultFromArgsPrepend(task, cont, args));
-}
-INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
-    trace("CONTINUATION(%d)", tlCallSize(call));
-
-    tlContinuation* cont = tlContinuationAs(tlCallGetFn(call));
-
-    if (tlCallSize(call) == 0) return tlTaskJump(task, cont->frame, cont);
-    tlArgs* args = evalCall(task, call);
-    // TODO this would be nice: task->value = args
-    ContinuationFrame* frame = tlFrameAlloc(task, resumeCC, sizeof(ContinuationFrame));
-    frame->args = args;
-    frame->cont = cont;
-    return tlTaskPause(task, frame);
-}
-
-INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    tlContinuation* cont = tlAlloc(task, tlContinuationClass, sizeof(tlContinuation));
-    cont->frame = frame->caller;
-    assert(cont->frame && cont->frame->resumecb == resumeCode);
-    cont->frame->head.keep++;
-    trace("%s -> %s", tl_str(s_continuation), tl_str(cont));
-    return cont;
-}
 
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
@@ -420,24 +245,22 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
     return call;
 }
 
+
 // lookups potentially need to run hotel code (not yet though)
 INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
-        tlReturn* fn = tlAlloc(task, tlReturnClass, sizeof(tlReturn));
-        fn->args = tlEnvGetArgs(env);
-        trace("%s -> %s (bound return: %p)", tl_str(name), tl_str(fn), fn->args);
+        tlValue fn = tlReturnNew(task, tlEnvGetArgs(env));
+        trace("%s -> %s", tl_str(name), tl_str(fn));
         return fn;
     }
     if (name == s_goto) {
-        tlGoto* fn = tlAlloc(task, tlGotoClass, sizeof(tlGoto));
-        fn->args = tlEnvGetArgs(env);
-        trace("%s -> %s (bound goto: %p)", tl_str(name), tl_str(fn), fn->args);
+        tlValue fn = tlGotoNew(task, tlEnvGetArgs(env));
+        trace("%s -> %s", tl_str(name), tl_str(fn));
         return fn;
     }
     if (name == s_continuation) {
-        tlFrame* frame = tlFrameAlloc(task, resumeContinuation, sizeof(tlFrame));
         trace("pausing for continuation: %p", frame);
-        return tlTaskPause(task, frame);
+        return tlTaskPauseResuming(task, resumeContinuation, null);
     }
     tlValue v = tlEnvGet(task, env, name);
     if (!v) TL_THROW("undefined '%s'", tl_str(name));
@@ -800,6 +623,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call) {
     return tlTaskPauseAttach(task, frame);
 }
 
+// Various high level eval stuff, will piggyback on the task given
 tlText* tlToText(tlTask* task, tlValue v) {
     if (tlTextIs(v)) return v;
     // TODO actually invoke toText ...
@@ -822,8 +646,8 @@ tlValue tlEvalArgsTarget(tlTask* task, tlArgs* args, tlValue target, tlValue fn)
     return evalArgs(task, args);
 }
 
-// ** integration **
 
+// print a generic backtrace
 INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     print_backtrace(frame->caller);
     return tlNull;
@@ -831,6 +655,8 @@ INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlEr
 INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeBacktrace, null);
 }
+
+// install a catch handler (bit primitive like this)
 INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     tlArgs* args = tlArgsAs(res);
     tlValue handler = tlArgsMapGet(args, s_block);
@@ -842,6 +668,7 @@ INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlError
 INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeCatch, args);
 }
+
 // TODO not so sure about this, user objects which return something on .call are also callable ...
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
@@ -852,28 +679,8 @@ bool tlCallableIs(tlValue v) {
     if (klass->map && tlMapGetSym(klass->map, s_call)) return true;
     return false;
 }
-INTERNAL tlValue _method_invoke(tlTask* task, tlArgs* args) {
-    tlValue fn = tlArgsGet(args, 0);
-    assert(fn);
-    tlArgs* oldargs = tlArgsAs(tlArgsGet(args, 1));
-    assert(oldargs);
-    tlValue oop = tlArgsGet(oldargs, 0);
-    assert(oop);
-    assert(tlArgsGet(oldargs, 1)); // msg
 
-    tlMap* map = tlArgsMap(oldargs);
-    map = tlMapSet(task, map, s_this, oop);
-    int size = tlArgsSize(oldargs) - 2;
-
-    tlList* list = tlListNew(task, size);
-    for (int i = 0; i < size; i++) {
-        tlListSet_(list, i, tlArgsGet(oldargs, i + 2));
-    }
-    tlArgs* nargs = tlArgsNew(task, list, map);
-    tlArgsSetFn_(nargs, fn);
-    return evalArgs(task, nargs);
-}
-
+// send messages
 INTERNAL tlValue evalMapSend(tlTask* task, tlMap* map, tlSym msg, tlArgs* args, tlValue target) {
     tlValue field = tlMapGet(task, map, msg);
     trace(".%s -> %s()", tl_str(msg), tl_str(field));
@@ -882,6 +689,7 @@ INTERNAL tlValue evalMapSend(tlTask* task, tlMap* map, tlSym msg, tlArgs* args, 
     args->fn = field;
     return evalArgs(task, args);
 }
+
 INTERNAL tlValue evalSend(tlTask* task, tlArgs* args) {
     tlValue target = tlArgsTarget(args);
     tlSym msg = tlArgsMsg(args);
@@ -892,6 +700,7 @@ INTERNAL tlValue evalSend(tlTask* task, tlArgs* args) {
     TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
 }
 
+// TODO this should be like tlCall, not a tlCall invoking _object_send ...
 INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     tlValue target = tlArgsGet(args, 0);
     tlValue msg = tlArgsGet(args, 1);
@@ -909,6 +718,7 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     return evalSend(task, nargs);
 }
 
+// implement fn.call ... pretty generic
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
 INTERNAL tlValue _call(tlTask* task, tlArgs* args) {
     tlValue* fn = tlArgsTarget(args);
@@ -917,9 +727,7 @@ INTERNAL tlValue _call(tlTask* task, tlArgs* args) {
     return tlEvalArgsFn(task, nargs, fn);
 }
 
-tlValue tlVarSet(tlVar*, tlValue);
-tlValue tlVarGet(tlVar*);
-
+// eval
 typedef struct EvalFrame {
     tlFrame frame;
     tlVar* var;
@@ -933,6 +741,7 @@ static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* e
     return res;
 }
 
+// TODO setting worker->evalArgs doesn't work, instead build own CodeFrame, that works ...
 static tlValue _eval(tlTask* task, tlArgs* args) {
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
@@ -966,9 +775,7 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
 static const tlNativeCbs __eval_natives[] = {
     { "_backtrace", _backtrace },
     { "_catch", _catch },
-    { "_method_invoke", _method_invoke },
     { "_object_send", _object_send },
-    //{ "_new_object", _new_object },
     { "_Text_cat", _Text_cat },
     { "_List_clone", _List_clone },
     { "_Map_clone", _Map_clone },

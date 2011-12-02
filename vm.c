@@ -28,6 +28,7 @@
 #include "error.c"
 
 #include "var.c"
+#include "controlflow.c"
 
 // extras
 #include "buf.c"
@@ -161,6 +162,7 @@ void tl_init() {
     queue_init();
 
     var_init();
+    controlflow_init();
     object_init();
     vm_init();
 
