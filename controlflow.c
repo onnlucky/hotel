@@ -28,6 +28,31 @@ INTERNAL tlValue _continue(tlTask* task, tlArgs* args) {
     return tlTaskThrow(task, s_continue);
 }
 
+// match (produced by compiler, if cond is true, execute block and exit parent body)
+INTERNAL tlValue resumeMatch(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (!res) return null;
+    frame = frame->caller; // our parent codeblock
+    assert(CodeFrameIs(frame));
+    return tlTaskJump(task, frame->caller, res);
+}
+INTERNAL tlValue _match(tlTask* task, tlArgs* args) {
+    tlValue block = tlArgsMapGet(args, s_block);
+    if (!block) TL_THROW("match expectes a block");
+    tlValue cond = tlArgsGet(args, 0);
+    if (!cond) return tlNull;
+
+    if (!tl_bool(cond)) return tlNull;
+    tlValue res = tlEval(task, tlCallFrom(task, block, null));
+    if (!res) {
+        tlFrame* frame = tlFrameAlloc(task, resumeMatch, sizeof(tlFrame));
+        return tlTaskPauseAttach(task, frame);
+    }
+    return tlTaskPauseResuming(task, resumeMatch, res);
+}
+INTERNAL tlValue _nomatch(tlTask* task, tlArgs* args) {
+    TL_THROW("no branch taken");
+}
+
 // loop
 typedef struct LoopFrame {
     tlFrame frame;
@@ -259,6 +284,8 @@ INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, t
 
 static const tlNativeCbs __controlflow_natives[] = {
     { "if", _if },
+    { "_match", _match },
+    { "_nomatch", _nomatch },
     { "break", _break },
     { "continue", _continue },
     { "loop",  _loop },
