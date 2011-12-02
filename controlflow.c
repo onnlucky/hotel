@@ -101,6 +101,7 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
     return lastblock;
 }
 
+// TODO simplify by using .run, not .call ...
 TL_REF_TYPE(tlReturn);
 struct tlReturn {
     tlHead head;

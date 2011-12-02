@@ -1,6 +1,6 @@
 # TODO
 
-build-in if, break, continue, again ... while, loop?
+simplify return and continuation by using .run, instead of .call
 add matchreturn(cond, bock) statement ...
 
 pull eventloop up into language, simplify evio ...
