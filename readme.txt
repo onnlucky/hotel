@@ -1,8 +1,5 @@
 # TODO
 
-simplify return and continuation by using .run, instead of .call
-add matchreturn(cond, bock) statement ...
-
 pull eventloop up into language, simplify evio ...
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?

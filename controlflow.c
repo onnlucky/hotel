@@ -126,34 +126,28 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
     return lastblock;
 }
 
-// TODO simplify by using .run, not .call ...
 TL_REF_TYPE(tlReturn);
 struct tlReturn {
     tlHead head;
-    tlArgs* args;
+    tlArgs* targetargs;
 };
-static tlValue ReturnCallFn(tlTask* task, tlCall* call);
+static tlValue ReturnRun(tlTask* task, tlValue fn, tlArgs* args);
 static tlClass _tlReturnClass = {
     .name = "Return",
-    .call = ReturnCallFn,
+    .run = ReturnRun,
 };
 tlClass* tlReturnClass = &_tlReturnClass;
 
 INTERNAL tlValue tlReturnNew(tlTask* task, tlArgs* args) {
     tlReturn* ret = tlAlloc(task, tlReturnClass, sizeof(tlReturn));
-    ret->args = args;
+    ret->targetargs = args;
     return ret;
 }
 
-typedef struct ReturnFrame {
-    tlFrame frame;
-    tlArgs* targetargs;
-} ReturnFrame;
-
 INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    if (err) return null;
     tlArgs* args = tlArgsAs(res);
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsGet(args, 0)));
+    tlArgs* targetargs = tlReturnAs(tlArgsFn(args))->targetargs;
 
     if (tlArgsSize(args) == 0) res = tlNull;
     else if (tlArgsSize(args) == 1) res = tlArgsGet(args, 0);
@@ -161,19 +155,14 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
     assert(res);
 
     // we have just reified the stack, now find our frame
-    frame = lexicalFunctionFrame(frame, ((ReturnFrame*)frame)->targetargs);
+    frame = lexicalFunctionFrame(frame, targetargs);
     trace("%p", frame);
     if (frame) return tlTaskJump(task, frame->caller, res);
     return res;
 }
-INTERNAL tlValue ReturnCallFn(tlTask* task, tlCall* call) {
-    trace("RETURN(%d)", tlCallSize(call));
-    ReturnFrame* frame = tlFrameAlloc(task, resumeReturn, sizeof(ReturnFrame));
-    frame->targetargs = tlReturnAs(tlCallGetFn(call))->args;
-    tlArgs* args = evalCall(task, call);
-    if (!args) return tlTaskPauseAttach(task, frame);
-    task->value = args;
-    return tlTaskPause(task, frame);
+INTERNAL tlValue ReturnRun(tlTask* task, tlValue fn, tlArgs* args) {
+    assert(fn == tlArgsFn(args));
+    return tlTaskPauseResuming(task, resumeReturn, args);
 }
 
 TL_REF_TYPE(tlGoto);
@@ -205,9 +194,9 @@ INTERNAL tlValue resumeGotoEval(tlTask* task, tlFrame* frame, tlValue res, tlErr
     return tlEval(task, res);
 }
 INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    tlCall* call = ((GotoFrame*)frame)->call;
-    tlArgs* targetargs = ((GotoFrame*)frame)->targetargs;
+    tlCall* call = tlCallAs(res);
     trace("RESUME GOTO(%d)", tlCallSize(call));
+    tlArgs* targetargs = tlGotoAs(tlCallGetFn(call))->args;
     trace("%p - %s", targetargs, tl_str(targetargs));
 
     // TODO handle multiple arguments ... but what does that mean?
@@ -226,10 +215,7 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
 }
 INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
     trace("GOTO(%d)", tlCallSize(call));
-    GotoFrame* frame = tlFrameAlloc(task, resumeGoto, sizeof(GotoFrame));
-    frame->call = call;
-    frame->targetargs = tlGotoAs(tlCallGetFn(call))->args;
-    return tlTaskPause(task, frame);
+    return tlTaskPauseResuming(task, resumeGoto, call);
 }
 
 TL_REF_TYPE(tlContinuation);
@@ -237,43 +223,27 @@ struct tlContinuation {
     tlHead head;
     tlFrame* frame;
 };
-static tlValue ContinuationCallFn(tlTask* task, tlCall* call);
+static tlValue ContinuationRun(tlTask* task, tlValue fn, tlArgs* args);
 static tlClass _tlContinuationClass = {
     .name = "Continuation",
-    .call = ContinuationCallFn,
+    .run = ContinuationRun,
 };
 tlClass* tlContinuationClass = &_tlContinuationClass;
 
-typedef struct ContinuationFrame {
-    tlFrame frame;
-    tlArgs* args;
-    tlContinuation* cont;
-} ContinuationFrame;
-
-INTERNAL tlValue resumeCC(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    ContinuationFrame* frame = (ContinuationFrame*)_frame;
-    tlContinuation* cont = frame->cont;
-    tlArgs* args = frame->args;
-    if (!args) args = res;
-    if (!args) return null;
-    assert(tlArgsIs(args));
+INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    tlArgs* args = tlArgsAs(res);
+    tlContinuation* cont = tlContinuationAs(tlArgsFn(args));
     return tlTaskJump(task, cont->frame, tlResultFromArgsPrepend(task, cont, args));
 }
-INTERNAL tlValue ContinuationCallFn(tlTask* task, tlCall* call) {
-    trace("CONTINUATION(%d)", tlCallSize(call));
-
-    tlContinuation* cont = tlContinuationAs(tlCallGetFn(call));
-
-    if (tlCallSize(call) == 0) return tlTaskJump(task, cont->frame, cont);
-    tlArgs* args = evalCall(task, call);
-    // TODO this would be nice: task->value = args
-    ContinuationFrame* frame = tlFrameAlloc(task, resumeCC, sizeof(ContinuationFrame));
-    frame->args = args;
-    frame->cont = cont;
-    return tlTaskPause(task, frame);
+INTERNAL tlValue ContinuationRun(tlTask* task, tlValue fn, tlArgs* args) {
+    trace("CONTINUATION(%d)", tlArgsSize(args));
+    assert(tlContinuationIs(fn));
+    assert(fn == tlArgsFn(args));
+    return tlTaskPauseResuming(task, resumeContinuation, args);
 }
 
-INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+// called by eval.c when creating a continuation
+INTERNAL tlValue resumeNewContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlContinuation* cont = tlAlloc(task, tlContinuationClass, sizeof(tlContinuation));
     cont->frame = frame->caller;
     assert(cont->frame && cont->frame->resumecb == resumeCode);

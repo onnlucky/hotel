@@ -26,7 +26,7 @@
 // implemented in controlflow.c
 INTERNAL tlValue tlReturnNew(tlTask* task, tlArgs* args);
 INTERNAL tlValue tlGotoNew(tlTask* task, tlArgs* args);
-INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err);
+INTERNAL tlValue resumeNewContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err);
 
 // var.c
 tlValue tlVarSet(tlVar*, tlValue);
@@ -260,7 +260,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     }
     if (name == s_continuation) {
         trace("pausing for continuation: %p", frame);
-        return tlTaskPauseResuming(task, resumeContinuation, null);
+        return tlTaskPauseResuming(task, resumeNewContinuation, null);
     }
     tlValue v = tlEnvGet(task, env, name);
     if (!v) TL_THROW("undefined '%s'", tl_str(name));
