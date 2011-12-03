@@ -1,6 +1,8 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // a native and language level message queue
 
+#include "trace-on.h"
+
 TL_REF_TYPE(tlQueue);
 static tlClass _tlQueueClass = { .name = "MsgQueue" };
 tlClass* tlQueueClass = &_tlQueueClass;
@@ -13,10 +15,13 @@ TL_REF_TYPE(tlMessage);
 static tlClass _tlMessageClass = { .name = "Message" };
 tlClass* tlMessageClass = &_tlMessageClass;
 
+typedef void(*tlQueueSignalFn)(void);
+
 struct tlQueue {
     tlHead head;
     lqueue msg_q;
     lqueue wait_q;
+    tlQueueSignalFn signalcb;
     tlQueueInput* input;
 };
 struct tlQueueInput {
@@ -43,8 +48,17 @@ tlQueue* tlQueueNew(tlTask* task) {
 }
 
 INTERNAL void queueSignal(tlQueue* queue) {
+    if (queue->signalcb) queue->signalcb();
     tlTask* task = tlTaskFromEntry(lqueue_get(&queue->wait_q));
     if (task) tlTaskReady(task);
+}
+
+tlValue tlMessageReply(tlMessage* msg, tlValue res) {
+    trace("msg.reply: %s", tl_str(msg));
+    if (!res) res = tlNull;
+    msg->sender->value = res;
+    tlTaskReady(msg->sender);
+    return res;
 }
 
 INTERNAL tlValue resumeReply(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
@@ -93,6 +107,16 @@ INTERNAL tlValue _queue_get(tlTask* task, tlArgs* args) {
     if (sender) return sender->value;
     return tlTaskPauseResuming(task, resumeGet, args);
 }
+INTERNAL tlValue _queue_poll(tlTask* task, tlArgs* args) {
+    tlQueue* queue = tlQueueCast(tlArgsTarget(args));
+    if (!queue) TL_THROW("expected a Queue");
+    trace("queue.get: %s", tl_str(task));
+
+    tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
+    trace("SENDER: %s", tl_str(sender));
+    if (sender) return sender->value;
+    return tlNull;
+}
 INTERNAL tlValue _queue_input(tlTask* task, tlArgs* args) {
     tlQueue* queue = tlQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
@@ -105,13 +129,8 @@ INTERNAL tlValue _Queue_new(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _message_reply(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageCast(tlArgsTarget(args));
     if (!msg) TL_THROW("expected a Message");
-    trace("msg.reply: %s", tl_str(msg));
     // TODO do multiple return ...
-    tlValue res = tlArgsGet(args, 0);
-    if (!res) res = tlNull;
-    msg->sender->value = res;
-    tlTaskReady(msg->sender);
-    return tlNull;
+    return tlMessageReply(msg, tlArgsGet(args, 0));
 }
 INTERNAL tlValue _message_name(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageCast(tlArgsTarget(args));
@@ -133,6 +152,7 @@ void queue_init() {
     _tlQueueClass.map = tlClassMapFrom(
         "input", _queue_input,
         "get", _queue_get,
+        "poll", _queue_poll,
         null
     );
     _tlMessageClass.map = tlClassMapFrom(

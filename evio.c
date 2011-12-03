@@ -696,6 +696,51 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
     return buf;
 }
 
+// ** newstyle io, where languages controls all */
+
+static void new_timer_cb(ev_timer *timer, int revents) {
+    trace("timer_cb: %p", timer);
+    tlMessageReply(tlMessageAs(timer->data), null);
+    free(timer);
+}
+
+static tlValue _io_wait(tlTask* task, tlArgs* args) {
+    tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
+    if (!msg) TL_THROW("expect a Msg");
+
+    int millis = tl_int_or(tlArgsGet(args, 0), 1000);
+    trace("sleep: %d", millis);
+    float ms = millis / 1000.0;
+    ms = ms;
+
+    ev_timer *timer = malloc(sizeof(ev_timer));
+    timer->data = msg;
+    ev_timer_init(timer, new_timer_cb, ms, 0);
+    ev_timer_start(timer);
+    return tlNull;
+}
+
+static ev_async loop_interrupt;
+static void iointerrupt() {
+    print("!! INT INT INT INT INT INT !!");
+    // TODO only when multithreaded ...
+    //ev_async_send(&loop_interrupt);
+}
+
+static tlValue _io_init(tlTask* task, tlArgs* args) {
+    tlQueue* queue = tlQueueNew(task);
+    queue->signalcb = iointerrupt;
+    return queue;
+}
+
+static tlValue _io_run(tlTask* task, tlArgs* args) {
+    trace("!! here !!");
+    // TODO if no threading, see if any other are runnable ...
+    // TODO only if any tasks waiting on events ...
+    ev_run(EVRUN_ONCE);
+    trace(" ... ");
+    return tlNull;
+}
 
 static const tlNativeCbs __evio_natives[] = {
     { "sleep", _io_sleep },
@@ -709,6 +754,10 @@ static const tlNativeCbs __evio_natives[] = {
     { "_Dir_open", _Dir_open },
     { "_Child_exec", _Child_exec },
     { "_Child_run", _Child_run },
+
+    { "_io_wait", _io_wait },
+    { "_io_run", _io_run },
+    { "_io_init", _io_init },
     { 0, 0 }
 };
 
@@ -716,7 +765,6 @@ static a_val NONE = 0;
 static a_val WAIT = 1;
 static a_val INTR = 2;
 static a_val loop_status = 0;
-static ev_async loop_interrupt;
 
 void evio_init() {
     _tlFileClass.toText = fileToText;
