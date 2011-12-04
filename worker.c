@@ -12,8 +12,6 @@
 
 INTERNAL tlTask* tlTaskFromEntry(lqentry* entry);
 INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker);
-INTERNAL void tlIoWait(tlVm* vm);
-INTERNAL bool tlIoHasWaiting(tlVm* vm);
 INTERNAL bool tlVmIsRunning(tlVm* vm);
 INTERNAL void tlVmWaitSignal(tlVm* vm);
 
@@ -205,18 +203,6 @@ void tlWorkerRun(tlWorker* worker) {
         tlTaskRun(task, worker);
     }
     trace("done: %s", tl_str(worker));
-}
-
-// TODO remove this, event loops belong in hotel now
-void tlWorkerRunIo(tlWorker* worker) {
-    tlVm* vm = worker->vm;
-    while (true) {
-        tlWorkerRun(worker);
-        trace(">>>> WORKER tasks: %zd, wait: %zd, io: %zd <<<<",
-                vm->tasks, vm->waiting, vm->iowaiting);
-        if (!tlIoHasWaiting(worker->vm)) break;
-        tlIoWait(vm);
-    }
 }
 
 tlWorker* tlWorkerNew(tlVm* vm) {

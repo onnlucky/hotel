@@ -60,6 +60,9 @@ tlValue tlMessageReply(tlMessage* msg, tlValue res) {
     tlTaskReady(msg->sender);
     return res;
 }
+tlTask* tlMessageGetSender(tlMessage* msg) {
+    return msg->sender;
+}
 
 INTERNAL tlValue resumeReply(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("");

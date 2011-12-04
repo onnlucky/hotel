@@ -25,45 +25,21 @@ static tlSym _s_blocks;
 static tlSym _s_atime;
 static tlSym _s_mtime;
 
-static void signal_cb(ev_signal *signal, int revents) {
-    print("signal");
-}
+static void io_cb(ev_io *ev, int revents);
 
-int test_ev(char **args, int argc) {
-    ev_signal signal;
-    ev_signal_init(&signal, signal_cb, SIGINT);
-    ev_signal_start(&signal);
+static int nonblock(int fd) {
+    int flags = 0;
+    if ((flags = fcntl(fd, F_GETFL, 0)) < 0) return -1;
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
     return 0;
 }
 
-
-// ** timers **
-// TODO repeating timers maybe?
-
-static void timer_cb(ev_timer *timer, int revents) {
-    trace("timer_cb: %p", timer);
-    tlTask* task = tlTaskAs(timer->data);
-    tlTaskReady(task);
-    free(timer);
+/*
+static int nosigpipe(int fd) {
+    if (fcntl(fd, F_SETNOSIGPIPE, 1) < 0) return -1;
+    return 0;
 }
-
-static tlValue resumeSleep(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    frame->resumecb = null;
-    tlTaskWaitIo(task);
-    return tlTaskNotRunning;
-}
-static tlValue _io_sleep(tlTask* task, tlArgs* args) {
-    int millis = tl_int_or(tlArgsGet(args, 0), 1000);
-    trace("sleep: %d", millis);
-    float ms = millis / 1000.0;
-
-    ev_timer *timer = malloc(sizeof(ev_timer));
-    timer->data = task;
-    ev_timer_init(timer, timer_cb, ms, 0);
-    ev_timer_start(timer);
-
-    return tlTaskPauseResuming(task, resumeSleep, tlNull);
-}
+*/
 
 static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
@@ -74,39 +50,27 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-
-// ** file descriptors **
-
-static int nonblock(int fd) {
-    int flags = 0;
-    if ((flags = fcntl(fd, F_GETFL, 0)) < 0) return -1;
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
-    return 0;
-}
-/*
-static int nosigpipe(int fd) {
-    if (fcntl(fd, F_SETNOSIGPIPE, 1) < 0) return -1;
-    return 0;
-}
-*/
-
 TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlSocket);
 TL_REF_TYPE(tlServerSocket);
 
-// TODO should be able to read and write at same time ...
 struct tlFile {
     tlLock lock;
     ev_io ev;
+    tlMessage* reader;
+    tlMessage* writer;
 };
-// TODO add peer address ...
 struct tlSocket {
     tlLock lock;
     ev_io ev;
+    tlMessage* reader;
+    tlMessage* writer;
 };
 struct tlServerSocket {
     tlLock lock;
     ev_io ev;
+    tlMessage* reader;
+    tlMessage* writer;
 };
 static tlClass _tlFileClass = {
     .name = "File",
@@ -143,22 +107,22 @@ static tlServerSocket* tlServerSocketFrom(ev_io *ev) {
 
 static tlFile* tlFileNew(tlTask* task, int fd) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
-    ev_io_init(&file->ev, null, fd, 0);
+    ev_io_init(&file->ev, io_cb, fd, 0);
     trace("open: %p %d", file, fd);
     return file;
 }
 static tlSocket* tlSocketNew(tlTask* task, int fd) {
     tlSocket *sock = tlAlloc(task, tlSocketClass, sizeof(tlSocket));
-    ev_io_init(&sock->ev, null, fd, 0);
+    ev_io_init(&sock->ev, io_cb, fd, 0);
     return sock;
 }
 static tlServerSocket* tlServerSocketNew(tlTask* task, int fd) {
     tlServerSocket *sock = tlAlloc(task, tlServerSocketClass, sizeof(tlServerSocket));
-    ev_io_init(&sock->ev, null, fd, 0);
+    ev_io_init(&sock->ev, io_cb, fd, 0);
     return sock;
 }
 
-static tlValue _FileClose(tlTask* task, tlArgs* args) {
+static tlValue _file_close(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 
@@ -171,27 +135,6 @@ static tlValue _FileClose(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static void read_cb(ev_io *ev, int revents) {
-    tlFile* file = tlFileFrom(ev);
-    tlTask* task = file->lock.owner;
-    tl_buf* buf = (tl_buf*)ev->data;
-    assert(task);
-    trace("read_cb: %p %d", file, ev->fd);
-
-    tlbuf_autogrow(buf);
-    int len = read(ev->fd, writebuf(buf), canwrite(buf));
-    if (len < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ev_io_start(ev); trace("read: EAGAIN || EWOULDBLOCK"); return;
-        }
-        TL_THROW_SET("read: failed: %s", strerror(errno));
-    } else {
-        didwrite(buf, len);
-        task->value = tlINT(len);
-    }
-    ev_io_stop(ev);
-    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
-}
 static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("%s", tl_str(res));
     tlArgs* args = tlArgsAs(res);
@@ -201,24 +144,20 @@ static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError
     assert(buffer->lock.owner == task);
     trace("");
 
-    if (canwrite(buffer->buf) <= 0) TL_THROW("read: failed: buffer full");
+    tl_buf* buf = buffer->buf;
+    tlbuf_autogrow(buf);
+    if (canwrite(buf) <= 0) TL_THROW("read: failed: buffer full");
 
     ev_io* ev = &file->ev;
-    trace("read: %p %d", file, ev->fd);
-    ev->cb = read_cb;
-    ev->data = buffer->buf;
-
-    int revents = ev_clear_pending(ev);
-    if (revents & EV_READ) { read_cb(ev, revents); return task->value; }
-
-    ev->events = EV_READ;
-    ev_io_start(ev);
-    tlTaskWaitIo(task);
-
-    trace("read: waiting");
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    int len = read(ev->fd, writebuf(buf), canwrite(buf));
+    if (len < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
+        TL_THROW("read: failed: %s", strerror(errno));
+    }
+    didwrite(buf, len);
+    return tlINT(len);
 }
-static tlValue _FileRead(tlTask* task, tlArgs* args) {
+static tlValue _file_read(tlTask* task, tlArgs* args) {
     trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
@@ -227,26 +166,6 @@ static tlValue _FileRead(tlTask* task, tlArgs* args) {
     return tlLockAquireResuming(task, tlLockAs(buffer), resumeFileRead, args);
 }
 
-static void write_cb(ev_io *ev, int revents) {
-    tlFile* file = tlFileFrom(ev);
-    tlTask* task = file->lock.owner;
-    tl_buf* buf = (tl_buf*)ev->data;
-    assert(task);
-    trace("read_cb: %p %d", file, ev->fd);
-
-    int len = write(ev->fd, readbuf(buf), canread(buf));
-    if (len < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ev_io_start(ev); trace("write: EAGAIN || EWOULDBLOCK"); return;
-        }
-        TL_THROW_SET("write: failed: %s", strerror(errno));
-    } else {
-        didread(buf, len);
-        task->value = tlINT(len);
-    }
-    ev_io_stop(ev);
-    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
-}
 static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlArgs* args = tlArgsAs(res);
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
@@ -255,26 +174,20 @@ static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlErro
     assert(buffer->lock.owner == task);
     trace("");
 
-    // TODO release
-    if (canread(buffer->buf) <= 0) TL_THROW("write: failed: buffer empty");
+    tl_buf* buf = buffer->buf;
+    if (canread(buf) <= 0) TL_THROW("write: failed: buffer empty");
 
     ev_io* ev = &file->ev;
-    trace("write: %p %d", file, ev->fd);
-    ev->cb = write_cb;
-    ev->data = buffer->buf;
-
-    int revents = ev_clear_pending(ev);
-    if (revents & EV_WRITE) { write_cb(ev, revents); return task->value; }
-    // TODO return null on throw
-
-    ev->events = EV_WRITE;
-    ev_io_start(ev);
-    tlTaskWaitIo(task);
-
-    trace("write: waiting");
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    int len = write(ev->fd, readbuf(buf), canread(buf));
+    if (len < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
+        TL_THROW("%d: write: failed: %s", ev->fd, strerror(errno));
+    }
+    didread(buf, len);
+    return tlINT(len);
 }
-static tlValue _FileWrite(tlTask* task, tlArgs* args) {
+
+static tlValue _file_write(tlTask* task, tlArgs* args) {
     trace("");
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
@@ -295,11 +208,13 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
     if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
     return tlFileNew(task, fd);
 }
+
 static tlValue _File_from(tlTask* task, tlArgs* args) {
     tlInt fd = tlIntCast(tlArgsGet(args, 0));
     if (!fd) TL_THROW("espected a file descriptor");
     return tlFileNew(task, tl_int(fd));
 }
+
 
 // ** sockets **
 
@@ -402,6 +317,7 @@ static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 
+    /*
     ev_io *ev = &file->ev;
     trace("tcp_accept: %p %d", file, ev->fd);
     ev->cb = accept_cb;
@@ -414,6 +330,9 @@ static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
     ev_io_start(ev);
     tlTaskWaitIo(task);
     return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    */
+    fatal("not implemented");
+    return tlNull;
 }
 
 // ** paths **
@@ -593,7 +512,8 @@ static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
 static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     tlChild* child = tlChildAs(res);
     frame->resumecb = null;
-    tlTaskWaitIo(task);
+    fatal("not implemented");
+    //tlTaskWaitIo(task);
     lqueue_put(&child->wait_q, &task->entry);
     return tlTaskNotRunning;
 }
@@ -696,15 +616,62 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
     return buf;
 }
 
+
 // ** newstyle io, where languages controls all */
 
-static void new_timer_cb(ev_timer *timer, int revents) {
+static void io_cb(ev_io *ev, int revents) {
+    trace("io_cb: %p", ev);
+    tlFile* file = tlFileFrom(ev);
+    if (revents & EV_READ) {
+        trace("CANREAD");
+        assert(file->reader);
+        tlMessage* msg = tlMessageAs(file->reader);
+        tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
+        vm->iowaiting -= 1;
+        file->reader = null;
+        ev->events &= ~EV_READ;
+        tlMessageReply(msg, null);
+    }
+    if (revents & EV_WRITE) {
+        trace("CANWRITE");
+        assert(file->writer);
+        tlMessage* msg = tlMessageAs(file->writer);
+        tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
+        vm->iowaiting -= 1;
+        file->writer = null;
+        ev->events &= ~EV_WRITE;
+        tlMessageReply(msg, null);
+    }
+    if (!ev->events) ev_io_stop(ev);
+}
+
+static tlValue _io_waitread(tlTask* task, tlArgs* args) {
+    tlVm* vm = tlTaskGetVm(task);
+
+    tlFile* file = tlFileOrSocketCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a File");
+    tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
+    if (!msg) TL_THROW("expect a Msg");
+
+    file->reader = msg;
+
+    ev_io* ev = &file->ev;
+    ev->events |= EV_READ;
+    ev_io_start(&file->ev);
+
+    vm->iowaiting += 1;
+    return tlNull;
+}
+
+static void timer_cb(ev_timer* timer, int revents) {
     trace("timer_cb: %p", timer);
+    tlVm* vm = tlTaskGetVm(tlMessageGetSender(tlMessageAs(timer->data)));
+    vm->iowaiting -= 1;
     tlMessageReply(tlMessageAs(timer->data), null);
     free(timer);
 }
-
 static tlValue _io_wait(tlTask* task, tlArgs* args) {
+    tlVm* vm = tlTaskGetVm(task);
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expect a Msg");
 
@@ -715,17 +682,17 @@ static tlValue _io_wait(tlTask* task, tlArgs* args) {
 
     ev_timer *timer = malloc(sizeof(ev_timer));
     timer->data = msg;
-    ev_timer_init(timer, new_timer_cb, ms, 0);
+    ev_timer_init(timer, timer_cb, ms, 0);
     ev_timer_start(timer);
+    vm->iowaiting += 1;
     return tlNull;
 }
 
+
 static ev_async loop_interrupt;
-static void iointerrupt() {
-    print("!! INT INT INT INT INT INT !!");
-    // TODO only when multithreaded ...
-    //ev_async_send(&loop_interrupt);
-}
+static void async_cb(ev_async* async, int revents) { }
+
+static void iointerrupt() { ev_async_send(&loop_interrupt); }
 
 static tlValue _io_init(tlTask* task, tlArgs* args) {
     tlQueue* queue = tlQueueNew(task);
@@ -733,17 +700,34 @@ static tlValue _io_init(tlTask* task, tlArgs* args) {
     return queue;
 }
 
+static tlValue _io_haswaiting(tlTask* task, tlArgs* args) {
+    tlVm* vm = tlTaskGetVm(task);
+    assert(vm->iowaiting >= 0);
+    trace("IO HAS WAITING: %zd <<<<<", vm->iowaiting);
+    if (vm->iowaiting > 0) return tlTrue;
+    if (a_get(&vm->tasks) > 1) return tlTrue;
+    return tlFalse;
+}
+
 static tlValue _io_run(tlTask* task, tlArgs* args) {
-    trace("!! here !!");
-    // TODO if no threading, see if any other are runnable ...
-    // TODO only if any tasks waiting on events ...
-    ev_run(EVRUN_ONCE);
-    trace(" ... ");
+    tlVm* vm = tlTaskGetVm(task);
+    if (vm->lock) {
+        trace("blocking for events");
+        ev_run(EVRUN_ONCE);
+    } else {
+        if (vm->tasks - vm->iowaiting > 1) {
+            trace("checking for events");
+            ev_run(EVRUN_NOWAIT);
+        } else {
+            trace("blocking for events");
+            ev_run(EVRUN_ONCE);
+        }
+    }
+    trace("done");
     return tlNull;
 }
 
 static const tlNativeCbs __evio_natives[] = {
-    { "sleep", _io_sleep },
     { "_io_chdir", _io_chdir },
     { "_File_open", _File_open },
     { "_File_from", _File_from },
@@ -755,35 +739,32 @@ static const tlNativeCbs __evio_natives[] = {
     { "_Child_exec", _Child_exec },
     { "_Child_run", _Child_run },
 
-    { "_io_wait", _io_wait },
-    { "_io_run", _io_run },
     { "_io_init", _io_init },
+    { "_io_wait", _io_wait },
+    { "_io_waitread", _io_waitread },
+    { "_io_haswaiting", _io_haswaiting },
+    { "_io_run", _io_run },
     { 0, 0 }
 };
-
-static a_val NONE = 0;
-static a_val WAIT = 1;
-static a_val INTR = 2;
-static a_val loop_status = 0;
 
 void evio_init() {
     _tlFileClass.toText = fileToText;
     _tlFileClass.map = tlClassMapFrom(
-        "close", _FileClose,
-        "read", _FileRead,
-        "write", _FileWrite,
+        "close", _file_close,
+        "read", _file_read,
+        "write", _file_write,
         null
     );
     _tlSocketClass.toText = fileToText;
     _tlSocketClass.map = tlClassMapFrom(
-        "close", _FileClose,
-        "read", _FileRead,
-        "write", _FileWrite,
+        "close", _file_close,
+        "read", _file_read,
+        "write", _file_write,
         null
     );
     _tlServerSocketClass.toText = fileToText;
     _tlServerSocketClass.map = tlClassMapFrom(
-        "close", _FileClose,
+        "close", _file_close,
         "accept", _SocketAccept,
         null
     );
@@ -840,32 +821,11 @@ void evio_init() {
     tlMapToObject_(_statMap);
 
     ev_default_loop(0);
-
-    ev_async_init(&loop_interrupt, 0);
+    ev_async_init(&loop_interrupt, async_cb);
     ev_async_start(&loop_interrupt);
-}
 
-bool tlIoHasWaiting(tlVm* vm) {
-    assert(vm);
-    assert(vm->iowaiting >= 0);
-    return a_get(&vm->iowaiting) > 0;
-}
-
-void tlIoWait(tlVm* vm) {
-    assert(vm);
-    trace("EVLOOP_ONESHOT: %zd -- %zd", vm->iowaiting, vm->waiting);
-    if (a_set_if(&loop_status, WAIT, NONE) != WAIT) {
-        fatal("oeps ... logic error");
-    }
-    ev_run(EVRUN_ONCE);
-    a_set(&loop_status, NONE);
-}
-
-void tlIoInterrupt(tlVm* vm) {
-    assert(vm);
-    assert(vm->waiting >= 0);
-    if (a_set_if(&loop_status, WAIT, WAIT|INTR) == (WAIT|INTR)) {
-        ev_async_send(&loop_interrupt);
-    }
+    // TODO this is here as a "test"
+    ev_async_send(&loop_interrupt);
+    ev_run(EVRUN_NOWAIT);
 }
 

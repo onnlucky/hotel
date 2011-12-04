@@ -273,18 +273,6 @@ tlValue tlTaskGetValue(tlTask* task) {
     return tlFirst(task->value);
 }
 
-void tlTaskWaitIo(tlTask* task) {
-    trace("%p", task);
-    assert(tlTaskIs(task));
-    assert(task->state == TL_STATE_RUN);
-    tlVm* vm = tlTaskGetVm(task);
-    task->state = TL_STATE_IOWAIT;
-    if (!tlWorkerIsBound(task->worker)) {
-        task->worker = vm->waiter;
-    }
-    a_inc(&vm->iowaiting);
-}
-
 // TODO all this deadlock checking needs to thread more carefully
 INTERNAL tlTask* taskForLocked(tlValue on) {
     if (!on) return null;
@@ -322,8 +310,6 @@ tlValue tlTaskWaitFor(tlTask* task, tlValue on) {
     return null;
 }
 
-void tlIoInterrupt(tlVm* vm);
-
 void tlTaskReady(tlTask* task) {
     trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
@@ -331,7 +317,7 @@ void tlTaskReady(tlTask* task) {
     assert(task->frame);
     tlVm* vm = tlTaskGetVm(task);
     if (task->state == TL_STATE_IOWAIT) {
-        a_dec(&vm->iowaiting);
+        //a_dec(&vm->iowaiting);
     } else {
         task->waitFor = null;
         a_dec(&vm->waiting);
@@ -343,7 +329,6 @@ void tlTaskReady(tlTask* task) {
         task->worker = null;
         lqueue_put(&vm->run_q, &task->entry);
     }
-    tlIoInterrupt(vm);
 }
 
 void tlTaskStart(tlTask* task) {
