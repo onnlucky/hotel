@@ -14,7 +14,7 @@ io = _io_queue.input
     )
     loop: (
         len = sock.read buf
-        if len == 0: break
+        if len: break
         if len == null: io.waitread sock
     )
     print buf.read

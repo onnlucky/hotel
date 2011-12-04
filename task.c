@@ -27,8 +27,6 @@ typedef enum {
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
     TL_STATE_RUN,       // running
     TL_STATE_WAIT,      // waiting in a lock or task queue
-    TL_STATE_IOWAIT,    // waiting on io to become readable/writable
-
     TL_STATE_DONE,      // task is done, others can read its value
     TL_STATE_ERROR,     // task is done, value is actually an error
 } tlTaskState;
@@ -313,15 +311,11 @@ tlValue tlTaskWaitFor(tlTask* task, tlValue on) {
 void tlTaskReady(tlTask* task) {
     trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
-    assert(task->state == TL_STATE_WAIT || task->state == TL_STATE_IOWAIT);
+    assert(task->state == TL_STATE_WAIT);
     assert(task->frame);
     tlVm* vm = tlTaskGetVm(task);
-    if (task->state == TL_STATE_IOWAIT) {
-        //a_dec(&vm->iowaiting);
-    } else {
-        task->waitFor = null;
-        a_dec(&vm->waiting);
-    }
+    task->waitFor = null;
+    a_dec(&vm->waiting);
     task->state = TL_STATE_READY;
     if (tlWorkerIsBound(task->worker)) {
         tlWorkerSignal(task->worker);
@@ -482,7 +476,6 @@ INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {
         case TL_STATE_READY: state = "ready"; break;
         case TL_STATE_RUN: state = "run"; break;
         case TL_STATE_WAIT: state = "wait"; break;
-        case TL_STATE_IOWAIT: state = "iowait"; break;
         case TL_STATE_DONE: state = "done"; break;
         case TL_STATE_ERROR: state = "error"; break;
     }

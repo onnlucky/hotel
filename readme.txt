@@ -1,9 +1,10 @@
 # TODO
 
-pull eventloop up into language, simplify evio ...
-think about evio doing read/write simultaniously ... two actors?
-do evio differently, needs its own thread, use new Queue thing to handle it ...
-writing to sockets should accept strings too ... place buffer inbetween? actor inside/outside?
+allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
+do buffer.with: and file.writer.with: like things to lock them and allow atomicity if wanted
+do higher level lib around low level io/runloop
+
+start simple module system ...
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
@@ -32,8 +33,7 @@ add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs
 
 add methods vs functions, methods try to bind a this dynamically ... helps with actors too
-example: function = { }
-         method = @{ }
+example: function = ( -> ); method = ( @, -> )
 
 implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
 add task.stop to kill it by error? java ThreadDeath how do we do it safely?

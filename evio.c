@@ -310,7 +310,7 @@ static void accept_cb(ev_io* ev, int revents) {
         }
     }
     ev_io_stop(ev);
-    if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
+    //if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
 }
 
 static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
@@ -663,6 +663,24 @@ static tlValue _io_waitread(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlValue _io_waitwrite(tlTask* task, tlArgs* args) {
+    tlVm* vm = tlTaskGetVm(task);
+
+    tlFile* file = tlFileOrSocketCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a File");
+    tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
+    if (!msg) TL_THROW("expect a Msg");
+
+    file->reader = msg;
+
+    ev_io* ev = &file->ev;
+    ev->events |= EV_WRITE;
+    ev_io_start(&file->ev);
+
+    vm->iowaiting += 1;
+    return tlNull;
+}
+
 static void timer_cb(ev_timer* timer, int revents) {
     trace("timer_cb: %p", timer);
     tlVm* vm = tlTaskGetVm(tlMessageGetSender(tlMessageAs(timer->data)));
@@ -739,11 +757,13 @@ static const tlNativeCbs __evio_natives[] = {
     { "_Child_exec", _Child_exec },
     { "_Child_run", _Child_run },
 
-    { "_io_init", _io_init },
     { "_io_wait", _io_wait },
     { "_io_waitread", _io_waitread },
+    { "_io_waitwrite", _io_waitwrite },
+
     { "_io_haswaiting", _io_haswaiting },
     { "_io_run", _io_run },
+    { "_io_init", _io_init },
     { 0, 0 }
 };
 
