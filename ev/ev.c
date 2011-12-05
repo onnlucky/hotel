@@ -1345,6 +1345,7 @@ evpipe_write (EV_P_ EV_ATOMIC_T *flag)
         /* so when you think this write should be a send instead, please find out */
         /* where your send() is from - it's definitely not the microsoft send, and */
         /* tell me. thank you. */
+        dummy = 0;
         write (evpipe [1], &dummy, 1);
 
       errno = old_errno;
