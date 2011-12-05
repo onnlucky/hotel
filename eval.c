@@ -773,6 +773,7 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
 }
 
 static const tlNativeCbs __eval_natives[] = {
+    { "with", _with },
     { "_backtrace", _backtrace },
     { "_catch", _catch },
     { "_object_send", _object_send },
