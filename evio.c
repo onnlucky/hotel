@@ -50,35 +50,55 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+TL_REF_TYPE(tlReader);
+TL_REF_TYPE(tlWriter);
+
+struct tlReader {
+    tlLock lock;
+    ev_io* ev;
+    tlMessage* msg; // TODO remove, lock->owner == sender
+};
+struct tlWriter {
+    tlLock lock;
+    ev_io* ev;
+    tlMessage* msg; // TODO remove ...
+};
+static tlClass _tlReaderClass = {
+    .name = "Reader",
+    .locked = true,
+};
+static tlClass _tlWriterClass = {
+    .name = "Writer",
+    .locked = true,
+};
+tlClass* tlReaderClass = &_tlReaderClass;
+tlClass* tlWriterClass = &_tlWriterClass;
+
 TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlSocket);
 TL_REF_TYPE(tlServerSocket);
 
 struct tlFile {
-    tlLock lock;
+    tlHead head;
     ev_io ev;
-    tlMessage* reader;
-    tlMessage* writer;
+    tlReader* reader;
+    tlWriter* writer;
 };
 struct tlSocket {
-    tlLock lock;
+    tlHead head;
     ev_io ev;
-    tlMessage* reader;
-    tlMessage* writer;
+    tlReader* reader;
+    tlWriter* writer;
 };
 struct tlServerSocket {
     tlLock lock;
     ev_io ev;
-    tlMessage* reader;
-    tlMessage* writer;
 };
 static tlClass _tlFileClass = {
     .name = "File",
-    .locked = true,
 };
 static tlClass _tlSocketClass = {
     .name = "Socket",
-    .locked = true,
 };
 static tlClass _tlServerSocketClass = {
     .name = "ServerSocket",
@@ -89,10 +109,10 @@ tlClass* tlSocketClass = &_tlSocketClass;
 tlClass* tlServerSocketClass = &_tlServerSocketClass;
 
 static tlFile* tlFileOrSocketAs(tlValue v) {
-    assert(tlFileIs(v)||tlSocketIs(v)||tlServerSocketIs(v)); return (tlFile*)v;
+    assert(tlFileIs(v)||tlSocketIs(v)); return (tlFile*)v;
 }
 static tlFile* tlFileOrSocketCast(tlValue v) {
-    return (tlFileIs(v)||tlSocketIs(v)||tlServerSocketIs(v))?(tlFile*)v:null;
+    return (tlFileIs(v)||tlSocketIs(v))?(tlFile*)v:null;
 }
 
 static tlFile* tlFileFrom(ev_io *ev) {
@@ -103,6 +123,18 @@ static tlSocket* tlSocketFrom(ev_io *ev) {
 }
 static tlServerSocket* tlServerSocketFrom(ev_io *ev) {
     return tlServerSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
+}
+
+static tlReader* tlReaderNew(tlTask* task, ev_io* ev) {
+    tlReader* reader = tlAlloc(task, tlReaderClass, sizeof(tlReader));
+    reader->ev = ev;
+    return reader;
+}
+
+static tlWriter* tlWriterNew(tlTask* task, ev_io* ev) {
+    tlWriter* writer = tlAlloc(task, tlWriterClass, sizeof(tlWriter));
+    writer->ev = ev;
+    return writer;
 }
 
 static tlFile* tlFileNew(tlTask* task, int fd) {
@@ -135,65 +167,59 @@ static tlValue _file_close(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static tlValue resumeFileRead(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    trace("%s", tl_str(res));
-    tlArgs* args = tlArgsAs(res);
+static tlValue _file_reader(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
-    assert(file->lock.owner == task);
-    assert(buffer->lock.owner == task);
+    if (!file) TL_THROW("expected a File");
+
+    if (file->reader) return file->reader;
+    return file->reader = tlReaderNew(task, &file->ev);
+}
+
+static tlValue _file_writer(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
+
+    if (file->writer) return file->writer;
+    return file->writer = tlWriterNew(task, &file->ev);
+}
+
+static tlValue _reader_read(tlTask* task, tlArgs* args) {
     trace("");
+    tlReader* reader = tlReaderCast(tlArgsTarget(args));
+    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
+    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+    if (!buffer || !tlLockIsOwner(tlLockAs(buffer), task)) TL_THROW("expected a locked Buffer");
 
     tl_buf* buf = buffer->buf;
     tlbuf_autogrow(buf);
     if (canwrite(buf) <= 0) TL_THROW("read: failed: buffer full");
 
-    ev_io* ev = &file->ev;
-    int len = read(ev->fd, writebuf(buf), canwrite(buf));
+    int len = read(reader->ev->fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
-        TL_THROW("read: failed: %s", strerror(errno));
+        TL_THROW("%d: read: failed: %s", reader->ev->fd, strerror(errno));
     }
     didwrite(buf, len);
     return tlINT(len);
 }
-static tlValue _file_read(tlTask* task, tlArgs* args) {
-    trace("");
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
-    if (!file) TL_THROW("expected a File");
-    if (!buffer) TL_THROW("expected a Buffer");
-    return tlLockAquireResuming(task, tlLockAs(buffer), resumeFileRead, args);
-}
 
-static tlValue resumeFileWrite(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    tlArgs* args = tlArgsAs(res);
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
-    assert(file->lock.owner == task);
-    assert(buffer->lock.owner == task);
+static tlValue _writer_write(tlTask* task, tlArgs* args) {
     trace("");
+    tlWriter* writer = tlWriterCast(tlArgsTarget(args));
+    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
+    if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
+    if (!buffer || !tlLockIsOwner(tlLockAs(buffer), task)) TL_THROW("expected a locked Buffer");
 
     tl_buf* buf = buffer->buf;
     if (canread(buf) <= 0) TL_THROW("write: failed: buffer empty");
 
-    ev_io* ev = &file->ev;
-    int len = write(ev->fd, readbuf(buf), canread(buf));
+    int len = write(writer->ev->fd, readbuf(buf), canread(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
-        TL_THROW("%d: write: failed: %s", ev->fd, strerror(errno));
+        TL_THROW("%d: write: failed: %s", writer->ev->fd, strerror(errno));
     }
     didread(buf, len);
     return tlINT(len);
-}
-
-static tlValue _file_write(tlTask* task, tlArgs* args) {
-    trace("");
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
-    if (!file) TL_THROW("expected a File");
-    if (!buffer) TL_THROW("expected a Buffer");
-    return tlLockAquireResuming(task, tlLockAs(buffer), resumeFileWrite, args);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {
@@ -288,6 +314,7 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
 
 // TODO return multiple, socket and peer address
 static void accept_cb(ev_io* ev, int revents) {
+    /*
     tlFile* file = tlFileFrom(ev);
     tlTask* task = file->lock.owner;
     assert(task);
@@ -311,6 +338,7 @@ static void accept_cb(ev_io* ev, int revents) {
     }
     ev_io_stop(ev);
     //if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
+    */
 }
 
 static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
@@ -625,20 +653,22 @@ static void io_cb(ev_io *ev, int revents) {
     if (revents & EV_READ) {
         trace("CANREAD");
         assert(file->reader);
-        tlMessage* msg = tlMessageAs(file->reader);
+        assert(file->reader->msg);
+        tlMessage* msg = tlMessageAs(file->reader->msg);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
         vm->iowaiting -= 1;
-        file->reader = null;
+        file->reader->msg = null;
         ev->events &= ~EV_READ;
         tlMessageReply(msg, null);
     }
     if (revents & EV_WRITE) {
         trace("CANWRITE");
         assert(file->writer);
-        tlMessage* msg = tlMessageAs(file->writer);
+        assert(file->writer->msg);
+        tlMessage* msg = tlMessageAs(file->writer->msg);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
         vm->iowaiting -= 1;
-        file->writer = null;
+        file->writer->msg = null;
         ev->events &= ~EV_WRITE;
         tlMessageReply(msg, null);
     }
@@ -648,16 +678,20 @@ static void io_cb(ev_io *ev, int revents) {
 static tlValue _io_waitread(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
 
-    tlFile* file = tlFileOrSocketCast(tlArgsGet(args, 0));
-    if (!file) TL_THROW("expected a File");
+    tlReader* reader = tlReaderCast(tlArgsGet(args, 0));
+    if (!reader) TL_THROW("expected a Reader");
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expect a Msg");
+    tlTask* sender = tlMessageGetSender(msg);
+    if (!tlLockIsOwner(tlLockAs(reader), sender)) TL_THROW("expected a locked Reader");
 
-    file->reader = msg;
+    // TODO make use of this ...
+    assert(reader->lock.owner == msg->sender);
+    assert(msg->sender->value == msg);
+    reader->msg = msg;
 
-    ev_io* ev = &file->ev;
-    ev->events |= EV_READ;
-    ev_io_start(&file->ev);
+    reader->ev->events |= EV_READ;
+    ev_io_start(reader->ev);
 
     vm->iowaiting += 1;
     return tlNull;
@@ -666,16 +700,17 @@ static tlValue _io_waitread(tlTask* task, tlArgs* args) {
 static tlValue _io_waitwrite(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
 
-    tlFile* file = tlFileOrSocketCast(tlArgsGet(args, 0));
-    if (!file) TL_THROW("expected a File");
+    tlWriter* writer = tlWriterCast(tlArgsGet(args, 0));
+    if (!writer) TL_THROW("expected a Writer");
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expect a Msg");
+    tlTask* sender = tlMessageGetSender(msg);
+    if (!tlLockIsOwner(tlLockAs(writer), sender)) TL_THROW("expected a locked Writer");
 
-    file->reader = msg;
+    writer->msg = msg;
 
-    ev_io* ev = &file->ev;
-    ev->events |= EV_WRITE;
-    ev_io_start(&file->ev);
+    writer->ev->events |= EV_WRITE;
+    ev_io_start(writer->ev);
 
     vm->iowaiting += 1;
     return tlNull;
@@ -768,18 +803,26 @@ static const tlNativeCbs __evio_natives[] = {
 };
 
 void evio_init() {
+    _tlReaderClass.map = tlClassMapFrom(
+        "read", _reader_read,
+        null
+    );
+    _tlWriterClass.map = tlClassMapFrom(
+        "write", _writer_write,
+        null
+    );
     _tlFileClass.toText = fileToText;
     _tlFileClass.map = tlClassMapFrom(
         "close", _file_close,
-        "read", _file_read,
-        "write", _file_write,
+        "reader", _file_reader,
+        "writer", _file_writer,
         null
     );
     _tlSocketClass.toText = fileToText;
     _tlSocketClass.map = tlClassMapFrom(
         "close", _file_close,
-        "read", _file_read,
-        "write", _file_write,
+        "reader", _file_reader,
+        "writer", _file_writer,
         null
     );
     _tlServerSocketClass.toText = fileToText;

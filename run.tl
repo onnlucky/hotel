@@ -6,17 +6,19 @@ io = _io_queue.input
 !(
     sock = _Socket_connect("127.0.0.1", 80)
     buf = _Buffer_new()
-    with(buf, sock): (
+    reader = sock.reader
+    writer = sock.writer
+    with(buf, reader, writer): (
         buf.write "GET / HTTP/1.0\r\n\r\n"
         loop: (
             if buf.canread == 0: break
-            len = sock.write buf
-            if len == null: io.waitwrite sock
+            len = writer.write buf
+            if len == null: io.waitwrite writer
         )
         loop: (
-            len = sock.read buf
+            len = reader.read buf
             if len: break
-            if len == null: io.waitread sock
+            if len == null: io.waitread reader
         )
         print buf.read
     )
