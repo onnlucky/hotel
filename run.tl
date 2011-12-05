@@ -3,6 +3,24 @@
 _io_queue = _io_init()
 io = _io_queue.input
 
+// how a real socket could look ... need some more ... ahum modules ...
+Socket = {
+    write: (v ->
+        buf = Buffer.toBuffer(v)
+        reader = @reader
+        with(buf, reader): (
+            loop = (written ->
+                if buf.canread == 0: break
+                len = writer.write buf
+                if len == null: throw "Error: Closed"
+                if len == 0: io.waitwrite writer
+                goto loop(written + len)
+            )
+            return loop(0)
+        )
+    )
+}
+
 !(
     sock = _Socket_connect("127.0.0.1", 80)
     buf = _Buffer_new()
@@ -24,7 +42,7 @@ io = _io_queue.input
     )
 )
 
-//!(io.wait 2000; print "DONE")
+!(io.wait 2000; print "DONE")
 
 // main task will drop into loop
 loop: (

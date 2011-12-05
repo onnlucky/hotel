@@ -1,10 +1,9 @@
 # TODO
 
-allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
-do buffer.with: and file.writer.with: like things to lock them and allow atomicity if wanted
-do higher level lib around low level io/runloop
+start simple module system ... add files/sockets/servers first
 
-start simple module system ...
+add a "static" layer, where the symbol table, gc, and mainloops+locks live
+allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
