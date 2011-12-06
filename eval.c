@@ -245,8 +245,7 @@ INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* frame, tlCal
     return call;
 }
 
-
-// lookups potentially need to run hotel code (not yet though)
+// lookups potentially need to run hotel code, so we can pause from here
 INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     if (name == s_return) {
         tlValue fn = tlReturnNew(task, tlEnvGetArgs(env));
@@ -263,9 +262,16 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         return tlTaskPauseResuming(task, resumeNewContinuation, null);
     }
     tlValue v = tlEnvGet(task, env, name);
-    if (!v) TL_THROW("undefined '%s'", tl_str(name));
     trace("%s -> %s", tl_str(name), tl_str(v));
-    return v;
+    if (v) return v;
+
+    tlVm* vm = tlTaskGetVm(task);
+    if (vm->resolve) {
+        // TODO ideally, we would load things only once, and without races etc ...
+        // use a tlLazy or what?
+        return tlEval(task, tlCallFrom(task, vm->resolve, name, null));
+    }
+    TL_THROW("undefined '%s'", tl_str(name));
 }
 
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
@@ -482,8 +488,19 @@ INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue _res) {
     tlEnv* env = frame->env;
     trace("%p -- %d [%d]", frame, pc, code->head.size);
 
+    // TODO this is broken and weird, how about eval constructs the CodeFrame itself ...
     // for _eval, it needs to "fish" up the env again, if is_eval we write it to worker
     bool is_eval = task->worker->evalArgs == env->args;
+
+    // lookup and others can pause/resume the task, in those cases _res is a tlCall
+    if (tlCallIs(_res)) {
+        trace("%p resume with call: %p", frame, task->value);
+        _res = applyCall(task, tlCallAs(_res));
+        if (!_res) {
+            if (is_eval) task->worker->evalEnv = env;
+            return tlTaskPauseAttach(task, frame);
+        }
+    }
 
     // set value from any pause/resume
     task->value = _res;
@@ -669,6 +686,14 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeCatch, args);
 }
 
+// install a global resolver, used to load modules
+INTERNAL tlValue _resolve(tlTask* task, tlArgs* args) {
+    tlVm* vm = tlTaskGetVm(task);
+    if (vm->resolve) TL_THROW("already set _resolve: %s", tl_str(vm->resolve));
+    vm->resolve = tlArgsMapGet(args, s_block);
+    return tlNull;
+}
+
 // TODO not so sure about this, user objects which return something on .call are also callable ...
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
@@ -809,8 +834,11 @@ static const tlNativeCbs __eval_natives[] = {
     { "_parse", _parse },
     { "_eval", _eval },
     { "_with_lock", _with_lock },
+
     { "_backtrace", _backtrace },
     { "_catch", _catch },
+    { "_resolve", _resolve },
+
     { "_object_send", _object_send },
     { "_Text_cat", _Text_cat },
     { "_List_clone", _List_clone },

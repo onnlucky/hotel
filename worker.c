@@ -32,6 +32,7 @@ struct tlVm {
     a_val iowaiting;
 
     tlEnv* globals;
+    tlValue resolve;
 
     // for when we run multithreaded
     pthread_mutex_t* lock;

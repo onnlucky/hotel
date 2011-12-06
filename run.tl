@@ -1,12 +1,14 @@
 // sketch of new infrastructure ...
 
+env = Env.current
 _resolve: (name ->
-    print "resolving: $name"
-    //_catch: e -> print "loader: $e"
-    //_parse(_textFromFile(name))
+    _catch: e -> print "loader: $e"
+    filename = name.toText.cat(".tl")
+    file = _textFromFile(filename)
+    code = _parse(file, filename)
+    code(env)
 )
-
-foobar
+return helloworld
 
 /*
 load = (name ->

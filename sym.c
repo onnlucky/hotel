@@ -95,6 +95,10 @@ tlSym tlSymFromText(tlTask* task, tlText* text) {
     return sym;
 }
 
+INTERNAL tlValue _sym_toText(tlTask* task, tlArgs* args) {
+    return tlTextFromSym(tlArgsTarget(args));
+}
+
 void tl_register_global(const char* name, tlValue v) {
     assert(globals);
     tlSYM(name);
@@ -151,17 +155,19 @@ static int strequals(void *left, void *right) {
 }
 static void strfree(void *str) { }
 
-const char* _SymToText(tlValue v, char* buf, int size) {
+const char* symToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Symbol@%p #%s>", v, tlTextData(_TEXT_FROM_SYM(v))); return buf;
 }
 static tlClass _tlSymClass = {
     .name = "Symbol",
-    .toText = _SymToText,
+    .toText = symToText,
 };
 
 static void sym_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
+    globals = lhashmap_new(strequals, strhash, strfree);
+
     s_continuation = tlSYM("continuation");
     s_continue = tlSYM("continue");
     s_args   = tlSYM("args");
@@ -182,6 +188,9 @@ static void sym_init() {
     s_Map_update = tlSYM("_Map_update");
     s_Map_inherit = tlSYM("_Map_inherit");
 
-    globals = lhashmap_new(strequals, strhash, strfree);
+    _tlSymClass.map = tlClassMapFrom(
+        "toText", _sym_toText,
+        null
+    );
 }
 
