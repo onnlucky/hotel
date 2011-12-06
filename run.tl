@@ -1,5 +1,25 @@
 // sketch of new infrastructure ...
 
+_resolve: (name ->
+    print "resolving: $name"
+    //_catch: e -> print "loader: $e"
+    //_parse(_textFromFile(name))
+)
+
+foobar
+
+/*
+load = (name ->
+    _parse(_textFromFile(name), name)(Env.current)
+)
+io = load("helloworld.tl")
+print io
+
+/*
+io = load("boot.tl")
+io.run
+
+
 _io_queue = _io_init()
 io = _io_queue.input
 

@@ -195,7 +195,7 @@ INTERNAL tlValue resumeWithLock(tlTask* task, tlFrame* _frame, tlValue _res, tlE
     if (!res) return tlTaskPauseAttach(task, frame);
     return resumeWithUnlock(task, (tlFrame*)frame, res, null);
 }
-INTERNAL tlValue _with(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _with_lock(tlTask* task, tlArgs* args) {
     trace("");
     tlValue block = tlArgsMapGet(args, s_block);
     if (!block) TL_THROW("with expects a block");

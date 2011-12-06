@@ -741,6 +741,38 @@ static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* e
     return res;
 }
 
+static tlValue _textFromFile(tlTask* task, tlArgs* args) {
+    tlText* file = tlTextCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a file name");
+    tl_buf* buf = tlbuf_new_from_file(tlTextData(file));
+    if (!buf) TL_THROW("unable to read file: '%s'", tlTextData(file));
+
+    tlbuf_write_uint8(buf, 0);
+    return tlTextFromTake(null, tlbuf_free_get(buf), 0);
+}
+
+static tlValue _parse(tlTask* task, tlArgs* args) {
+    tlText* code = tlTextCast(tlArgsGet(args, 0));
+    if (!code) TL_THROW("expected a Text");
+    tlText* name = tlTextCast(tlArgsGet(args, 1));
+    if (!name) name = tlTextEmpty();
+
+    tlCode* body = tlCodeAs(tlParse(task, code));
+    trace("parsed: %s", tl_str(body));
+    if (!body) return null;
+    return body;
+}
+
+static tlValue runCode(tlTask* task, tlValue _fn, tlArgs* args) {
+    tlCode* body = tlCodeCast(_fn);
+    if (!body) TL_THROW("expected Code");
+    tlEnv* env = tlEnvCast(tlArgsGet(args, 0));
+    if (!env) TL_THROW("expected an Env");
+
+    tlClosure* fn = tlClosureNew(task, body, env);
+    return tlEval(task, tlCallFrom(task, fn, null));
+}
+
 // TODO setting worker->evalArgs doesn't work, instead build own CodeFrame, that works ...
 static tlValue _eval(tlTask* task, tlArgs* args) {
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
@@ -773,7 +805,10 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
 }
 
 static const tlNativeCbs __eval_natives[] = {
-    { "with", _with },
+    { "_textFromFile", _textFromFile },
+    { "_parse", _parse },
+    { "_eval", _eval },
+    { "_with_lock", _with_lock },
     { "_backtrace", _backtrace },
     { "_catch", _catch },
     { "_object_send", _object_send },
@@ -788,6 +823,7 @@ static const tlNativeCbs __eval_natives[] = {
 static void eval_init() {
     tl_register_natives(__eval_natives);
 
+    // TODO call into run for some of these ...
     _tlCallClass.call = callCall;
     _tlClosureClass.call = callClosure;
     _tlClosureClass.run = runClosure;
@@ -796,5 +832,6 @@ static void eval_init() {
         null
     );
     _tlThunkClass.call = callThunk;
+    _tlCodeClass.run = runCode;
 }
 

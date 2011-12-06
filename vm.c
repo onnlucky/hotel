@@ -6,6 +6,8 @@
 #include "llib/lhashmap.c"
 #include "llib/lqueue.c"
 
+#include "buf.c"
+
 #include "value.c"
 #include "text.c"
 #include "sym.c"
@@ -31,7 +33,6 @@
 #include "controlflow.c"
 
 // extras
-#include "buf.c"
 #include "buffer.c"
 #include "evio.c"
 
