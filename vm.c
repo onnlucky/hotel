@@ -30,6 +30,7 @@
 #include "error.c"
 
 #include "var.c"
+#include "mutablemap.c"
 #include "controlflow.c"
 
 // extras
@@ -163,6 +164,7 @@ void tl_init() {
     queue_init();
 
     var_init();
+    mutablemap_init();
     controlflow_init();
     object_init();
     vm_init();
@@ -181,6 +183,7 @@ tlVm* tlVmNew() {
     env_vm_default(vm);
     task_vm_default(vm);
     queue_vm_default(vm);
+    mutablemap_vm_default(vm);
     return vm;
 }
 

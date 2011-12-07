@@ -1,5 +1,11 @@
 // sketch of new infrastructure ...
 
+map = Map.new
+print map.get(#foobar)
+print map.set(#foobar, 42)
+print map.get(#foobar)
+
+/*
 env = Env.current
 _resolve: (name ->
     _catch: e -> print "loader: $e"

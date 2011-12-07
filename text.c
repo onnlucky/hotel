@@ -1,3 +1,4 @@
+// author: Onne Gorter, license: MIT (see license.txt)
 // simple text type, wraps a char array with size and tag
 
 #include "trace-off.h"
