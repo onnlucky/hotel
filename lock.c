@@ -191,13 +191,13 @@ INTERNAL tlValue resumeWithLock(tlTask* task, tlFrame* _frame, tlValue _res, tlE
         }
     }
     frame->frame.resumecb = resumeWithUnlock;
-    tlValue res = tlEval(task, tlCallFrom(task, tlArgsMapGet(args, s_block), null));
+    tlValue res = tlEval(task, tlCallFrom(task, tlArgsBlock(args), null));
     if (!res) return tlTaskPauseAttach(task, frame);
     return resumeWithUnlock(task, (tlFrame*)frame, res, null);
 }
 INTERNAL tlValue _with_lock(tlTask* task, tlArgs* args) {
     trace("");
-    tlValue block = tlArgsMapGet(args, s_block);
+    tlValue block = tlArgsBlock(args);
     if (!block) TL_THROW("with expects a block");
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlLock* lock = tlLockCast(tlArgsGet(args, i));

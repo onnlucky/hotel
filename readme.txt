@@ -71,6 +71,15 @@ syntax for branches:
   | false -> ...
   | true -> ...
 
+# not so nice:
+
+args.block(42) will not execute block ... it will ignore the fact block is callable
+args.block.call(42) will ignore param; why actually?
+@ is not a word ... for method(42, this=something)
+block: (arg ->
+    return // returns way too much, should return block ... do => for functions, -> for block?
+)
+
 # hotel - a programming language
 
 Hotel is a programming language. Its main focus is to make everything in the language highlevel,

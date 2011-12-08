@@ -12,7 +12,7 @@
 
 // if (no else)
 INTERNAL tlValue _if(tlTask* task, tlArgs* args) {
-    tlValue block = tlArgsMapGet(args, s_block);
+    tlValue block = tlArgsBlock(args);
     if (!block) TL_THROW("if expects a block");
     tlValue cond = tlArgsGet(args, 0);
     if (!cond) return tlNull;
@@ -36,7 +36,7 @@ INTERNAL tlValue resumeMatch(tlTask* task, tlFrame* frame, tlValue res, tlError*
     return tlTaskJump(task, frame->caller, res);
 }
 INTERNAL tlValue _match(tlTask* task, tlArgs* args) {
-    tlValue block = tlArgsMapGet(args, s_block);
+    tlValue block = tlArgsBlock(args);
     if (!block) TL_THROW("match expectes a block");
     tlValue cond = tlArgsGet(args, 0);
     if (!cond) return tlNull;

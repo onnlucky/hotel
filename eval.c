@@ -676,7 +676,7 @@ INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
 // install a catch handler (bit primitive like this)
 INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     tlArgs* args = tlArgsAs(res);
-    tlValue handler = tlArgsMapGet(args, s_block);
+    tlValue handler = tlArgsBlock(args);
     trace("%p.handler = %s", _frame->caller, tl_str(handler));
     CodeFrame* frame = CodeFrameAs(_frame->caller);
     frame->handler = handler;
@@ -690,7 +690,7 @@ INTERNAL tlValue _catch(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _resolve(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
     if (vm->resolve) TL_THROW("already set _resolve: %s", tl_str(vm->resolve));
-    vm->resolve = tlArgsMapGet(args, s_block);
+    vm->resolve = tlArgsBlock(args);
     return tlNull;
 }
 

@@ -1,4 +1,9 @@
+// author: Onne Gorter, license: MIT (see license.txt)
 // args, passed to all functions, contains the evaluated values (call is the unevaluated args)
+//
+// TODO ideally, add block directly in struct
+// TODO make most of these "flags", saves space
+// TODO remove fn ... should be possible
 
 #include "trace-off.h"
 
@@ -33,8 +38,9 @@ tlArgs* tlArgsNew(tlTask* task, tlList* list, tlMap* map) {
     return args;
 }
 
-tlValue tlArgsTarget(tlArgs* args) { return args->target; }
-tlValue tlArgsMsg(tlArgs* args) { return args->msg; }
+tlValue tlArgsTarget(tlArgs* args) { assert(tlArgsIs(args)); return args->target; }
+tlValue tlArgsMsg(tlArgs* args) { assert(tlArgsIs(args)); return args->msg; }
+tlValue tlArgsFn(tlArgs* args) { assert(tlArgsIs(args)); return args->fn; }
 
 int tlArgsSize(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -43,10 +49,6 @@ int tlArgsSize(tlArgs* args) {
 int tlArgsMapSize(tlArgs* args) {
     assert(tlArgsIs(args));
     return tlMapSize(args->map);
-}
-tlValue tlArgsFn(tlArgs* args) {
-    assert(tlArgsIs(args));
-    return args->fn;
 }
 tlList* tlArgsList(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -64,6 +66,10 @@ tlValue tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
     return tlMapGetSym(args->map, name);
 }
+tlValue tlArgsBlock(tlArgs* args) {
+    assert(tlArgsIs(args));
+    return tlArgsMapGet(args, s_block);
+}
 
 void tlArgsSetFn_(tlArgs* args, tlValue fn) {
     assert(tlArgsIs(args));
@@ -79,17 +85,33 @@ void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
     tlMapSetSym_(args->map, name, v);
 }
 
-static tlValue _ArgsSize(tlTask* task, tlArgs* args) {
+static tlValue _args_size(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlINT(tlArgsSize(as));
 }
-static tlValue _ArgsMap(tlTask* task, tlArgs* args) {
+static tlValue _args_get(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    if (!as) TL_THROW("Expected a args object");
+    int at = tl_int_or(tlArgsGet(args, 0), -1);
+    if (at == -1) TL_THROW("Expected an index");
+    tlValue res = tlArgsGet(as, at);
+    if (!res) return tlUndefined;
+    return res;
+}
+static tlValue _args_block(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    if (!as) TL_THROW("Expected a args object");
+    tlValue res = tlArgsBlock(as);
+    if (!res) return tlUndefined;
+    return res;
+}
+static tlValue _args_map(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlArgsMap(as);
 }
-static tlValue _ArgsNames(tlTask* task, tlArgs* args) {
+static tlValue _args_names(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlArgsMap(as);
@@ -107,9 +129,11 @@ static tlClass _tlArgsClass = {
 
 static void args_init() {
     _tlArgsClass.map = tlClassMapFrom(
-            "size", _ArgsSize,
-            "map", _ArgsMap,
-            "names", _ArgsNames,
+            "size", _args_size,
+            "get", _args_get,
+            "block", _args_block,
+            "map", _args_map,
+            "names", _args_names,
             null
     );
     v_args_empty = tlArgsNew(null, null, null);

@@ -1,27 +1,41 @@
 // sketch of new infrastructure ...
 
-map = Map.new
-print map.get(#foobar)
-print map.set(#foobar, 42)
-print map.get(#foobar)
-
-/*
-env = Env.current
-_resolve: (name ->
-    _catch: e -> print "loader: $e"
-    filename = name.toText.cat(".tl")
-    file = _textFromFile(filename)
-    code = _parse(file, filename)
-    code(env)
+_each_index = (->
+    if not args.block: _throw "each expects a block"
+    var $at = -1; size = this.size; block = args.block
+    loop: (
+        $at += 1
+        if $at >= size: break
+        block(this.get($at))
+    )
+    block(42)
 )
-return helloworld
+_each_index(this=[1, 2, 3]): (n->print n)
 
-/*
-load = (name ->
-    _parse(_textFromFile(name), name)(Env.current)
+_env = Env.current
+_loaded = Map.new
+_resolve block=(name ->
+    res = _loaded.get(name)
+    if res == _loaded: _throw "Undefined: '$name'"
+    if res != undefined: return res
+    _catch: (e ->
+        _loaded.set(name, _loaded)
+        _throw "Undefined: '$name'"
+    )
+    //Task.env.path.each: (path ->
+    file = "$(name.toText).tl"
+    //if not _isReadableFile(file): continue
+    res = _parse(_textFromFile(file), file)(_env)
+    _loaded.set(name, res)
 )
-io = load("helloworld.tl")
-print io
+
+print "here"
+print test
+print test.foobar
+print test.foobar
+print test.foobar
+print "DONE"
+return 42
 
 /*
 io = load("boot.tl")
