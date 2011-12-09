@@ -43,10 +43,10 @@ struct tlTask {
     tlValue waitFor;   // what this task is blocked on
 
     tlValue value;     // current value
+    tlError* error;    // current error (throwing or done)
     tlFrame* frame;    // current frame (== top of stack or current continuation)
 
     // TODO remove these in favor a some flags
-    tlValue error;     // if task is in an error state, this is the value (throwing)
     tlTaskState state; // state it is currently in
 };
 
@@ -128,6 +128,7 @@ INTERNAL tlValue tlTaskJump(tlTask* task, tlFrame* frame, tlValue res) {
 
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
+INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error);
 
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
@@ -137,6 +138,13 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
     assert(task->state == TL_STATE_READY);
     task->worker = worker;
     task->state = TL_STATE_RUN;
+
+    if (task->error) {
+        assert(tlErrorIs(task->error));
+        assert(!task->value);
+        tlTaskRunThrow(task, task->error);
+        return;
+    }
 
     while (task->state == TL_STATE_RUN) {
         tlValue res = task->value;
@@ -263,9 +271,8 @@ bool tlTaskIsDone(tlTask* task) {
 }
 tlError* tlTaskGetError(tlTask* task) {
     assert(tlTaskIsDone(task));
-    return tlErrorAs(task->error);
+    return task->error;
 }
-
 tlValue tlTaskGetValue(tlTask* task) {
     assert(tlTaskIsDone(task));
     return tlFirst(task->value);
@@ -337,22 +344,28 @@ void tlTaskStart(tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-// TODO if error, make sure to communicate that too ...
+void tlTaskCopyValue(tlTask* task, tlTask* other) {
+    print("take value: %s, error: %s", tl_str(other->value), tl_str(other->error));
+    assert(task->value || task->error);
+    assert(!(task->value && task->error));
+    task->value = other->value;
+    task->error = other->error;
+}
+
 INTERNAL void signalWaiters(tlTask* task) {
     assert(tlTaskIsDone(task));
     tlValue waiting = A_PTR(a_swap(A_VAR(task->waiting), null));
     if (!waiting) return;
     if (tlTaskIs(waiting)) {
-        tlTask* waiter = tlTaskAs(waiting);
-        waiter->value = task->value;
-        tlTaskReady(waiter);
+        tlTaskCopyValue(tlTaskAs(waiting), task);
+        tlTaskReady(tlTaskAs(waiting));
         return;
     }
     tlWaitQueue* queue = tlWaitQueueAs(waiting);
     while (true) {
         tlTask* waiter = tlWaitQueueGet(queue);
         if (!waiter) return;
-        waiter->value = task->value;
+        tlTaskCopyValue(waiter, task);
         tlTaskReady(waiter);
     }
 }
@@ -436,14 +449,11 @@ INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
     if (!other) TL_THROW("expected a Task");
     trace("task.wait: %s", tl_str(other));
 
-    // already done
-    // TODO not thread safe this way ...
-    if (other->state == TL_STATE_DONE) {
-        return other->value;
-    }
-    if (other->state == TL_STATE_ERROR) {
-        // TODO throw the error instead
-        return tlNull;
+    if (tlTaskIsDone(other)) {
+        tlTaskCopyValue(task, other);
+        if (task->error) return tlTaskRunThrow(task, task->error);
+        assert(task->value);
+        return task->value;
     }
 
     trace("!! parking");
@@ -499,8 +509,9 @@ static tlMap* taskClass;
 static void task_init() {
     tl_register_natives(__task_natives);
     _tlTaskClass.map = tlClassMapFrom(
+        "isDone", _task_isDone,
         "wait", _task_wait,
-        "done", _task_isDone,
+        "value", _task_wait,
         null
     );
     taskClass = tlClassMapFrom(
