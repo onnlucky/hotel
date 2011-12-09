@@ -1,6 +1,6 @@
 # TODO
 
-start simple module system ... add files/sockets/servers first
+make run.tl into boot.tl, start standard library, add -boot option, pass all others to boot
 
 add a "static" layer, where the symbol table, gc, and mainloops+locks live
 allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
@@ -46,7 +46,6 @@ implement lvalue assignment: mutable.field = fn()
 
 implement defer (add defer[] to tlCodeRun) or something ...
 
-bring back a boot.tl library
 implement serializing tlValue's to disk
 
 optimize: compiler should add all local names to code->envnames and env should use this ...

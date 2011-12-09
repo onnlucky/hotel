@@ -3,6 +3,11 @@
 // 2. run the requests file(s) or start a repl
 // 3. drop into the io runloop, exiting when no tasks are left
 
+while = (&cond, block ->
+    loop = -> if cond(): block(); goto loop()
+    loop()
+)
+
 // this is here, so the io lib can use it ...
 _io_queue = _io_init()
 _io = _io_queue.input
@@ -15,12 +20,14 @@ _resolve block=(name ->
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
+    file = "$(name.toText).tl"
     _catch: (e ->
+        print "error: '$file': $e"
         _loaded.set(name, _loaded)
         _throw "Undefined: '$name'"
     )
     //Task.env.path.each: (path ->
-    file = "$(name.toText).tl"
+    print "trying: '$file' ..."
     //if not _isReadableFile(file): continue
     res = _parse(_textFromFile(file), file)(_env)
     _loaded.set(name, res)
