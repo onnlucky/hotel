@@ -232,23 +232,36 @@ INTERNAL void tlTaskSetWorker(tlTask* task, tlWorker* worker) {
     task->worker = worker;
 }
 
-typedef struct TaskEvalFrame {
-    tlFrame frame;
-    tlValue value;
-} TaskEvalFrame;
-
-INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     if (err) return null;
-    return tlEval(task, ((TaskEvalFrame*)_frame)->value);
+    return tlEval(task, task->value);
 }
-
 void tlTaskEval(tlTask* task, tlValue v) {
     assert(tlTaskIs(task));
     trace("on %s eval %s", tl_str(task), tl_str(v));
 
-    TaskEvalFrame* frame = tlFrameAlloc(task, resumeTaskEval, sizeof(TaskEvalFrame));
-    frame->value = v;
-    task->value = tlNull;
+    task->frame = tlFrameAlloc(task, resumeTaskEval, sizeof(tlTask));
+    task->value = v;
+}
+
+typedef struct TaskEvalArgsFnFrame {
+    tlFrame frame;
+    tlValue fn;
+    tlArgs* as;
+} TaskEvalArgsFnFrame;
+
+INTERNAL tlValue resumeTaskEvalArgsFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (err) return null;
+    TaskEvalArgsFnFrame* frame = (TaskEvalArgsFnFrame*)_frame;
+    return tlEvalArgsFn(task, frame->as, frame->fn);
+}
+void tlTaskEvalArgsFn(tlTask* task, tlArgs* as, tlValue fn) {
+    assert(tlTaskIs(task));
+    trace("on %s eval %s args: %s", tl_str(task), tl_str(fn), tl_str(as));
+
+    TaskEvalArgsFnFrame* frame = tlFrameAlloc(task, resumeTaskEvalArgsFn, sizeof(TaskEvalArgsFnFrame));
+    frame->fn = fn;
+    frame->as = as;
     task->frame = (tlFrame*)frame;
 }
 
@@ -345,7 +358,7 @@ void tlTaskStart(tlTask* task) {
 }
 
 void tlTaskCopyValue(tlTask* task, tlTask* other) {
-    print("take value: %s, error: %s", tl_str(other->value), tl_str(other->error));
+    trace("take value: %s, error: %s", tl_str(other->value), tl_str(other->error));
     assert(task->value || task->error);
     assert(!(task->value && task->error));
     task->value = other->value;

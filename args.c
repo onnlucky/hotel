@@ -76,7 +76,7 @@ void tlArgsSetFn_(tlArgs* args, tlValue fn) {
     assert(!args->fn);
     args->fn = fn;
 }
-void tlArgsSetAt_(tlArgs* args, int at, tlValue v) {
+void tlArgsSet_(tlArgs* args, int at, tlValue v) {
     assert(tlArgsIs(args));
     tlListSet_(args->list, at, v);
 }

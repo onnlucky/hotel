@@ -231,16 +231,16 @@ static void vm_init() {
     tl_register_global("system", system);
 }
 
-tlTask* tlVmEvalFile(tlVm* vm, tlText* file) {
+tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as) {
     tl_buf* buf = tlbuf_new_from_file(tlTextData(file));
     if (!buf) fatal("cannot read file: %s", tl_str(file));
 
     tlbuf_write_uint8(buf, 0);
     tlText* code = tlTextFromTake(null, tlbuf_free_get(buf), 0);
-    return tlVmEvalCode(vm, code);
+    return tlVmEvalCode(vm, code, as);
 }
 
-tlTask* tlVmEvalCode(tlVm* vm, tlText* code) {
+tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as) {
     tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(vm);
     vm->main = task;
@@ -252,8 +252,7 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code) {
     trace("PARSED");
 
     tlClosure* fn = tlClosureNew(task, body, vm->globals);
-    tlCall* call = tlCallFrom(task, fn, null);
-    tlTaskEval(task, call);
+    tlTaskEvalArgsFn(task, as, fn);
     tlTaskStart(task);
 
     trace("RUNNING");

@@ -6,11 +6,27 @@
 int main(int argc, char** argv) {
     tl_init();
 
-    if (argc < 2) fatal("no file to run");
+    const char* boot = "boot.tl";
+    tlArgs* args = null;
+
+    if (argc >= 2 && !strcmp(argv[1], "--noboot")) {
+        if (argc < 3) fatal("no file to run");
+        boot = argv[2];
+
+        args = tlArgsNew(null, tlListNew(null, argc - 3), null);
+        for (int i = 3; i < argc; i++) {
+            tlArgsSet_(args, i - 3, tlTEXT(argv[i]));
+        }
+    } else {
+        args = tlArgsNew(null, tlListNew(null, argc - 1), null);
+        for (int i = 1; i < argc; i++) {
+            tlArgsSet_(args, i - 1, tlTEXT(argv[i]));
+        }
+    }
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
-    tlTask* maintask = tlVmEvalFile(vm, tlTEXT(argv[1]));
+    tlTask* maintask = tlVmEvalFile(vm, tlTEXT(boot), args);
 
     tlValue err = tlTaskGetError(maintask);
     if (err) {

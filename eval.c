@@ -258,7 +258,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
         return fn;
     }
     if (name == s_continuation) {
-        trace("pausing for continuation: %p", frame);
+        trace("pausing for continuation");
         return tlTaskPauseResuming(task, resumeNewContinuation, null);
     }
     tlValue v = tlEnvGet(task, env, name);
@@ -346,7 +346,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
             named++;
         } else {
             trace("(frame) ARGS: %d = %s", at - named, tl_str(v));
-            tlArgsSetAt_(args, at - named, v);
+            tlArgsSet_(args, at - named, v);
         }
         at++;
     }
@@ -388,7 +388,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
             named++;
         } else {
             trace("ARGS: %d = %s", at - named, tl_str(v));
-            tlArgsSetAt_(args, at - named, v);
+            tlArgsSet_(args, at - named, v);
         }
     }
     trace("ARGS DONE");
@@ -652,6 +652,7 @@ tlValue tlEval(tlTask* task, tlValue v) {
     return v;
 }
 tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn) {
+    trace("%s %s", tl_str(fn), tl_str(args));
     assert(tlCallableIs(fn));
     args->fn = fn;
     return evalArgs(task, args);

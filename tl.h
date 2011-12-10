@@ -304,13 +304,13 @@ tlValue tlParse(tlTask* task, tlText* text);
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlValue v);
 tlTask* tlVmEvalCall(tlVm* vm, tlValue fn, ...);
-tlTask* tlVmEvalCode(tlVm* vm, tlText* code);
-tlTask* tlVmEvalFile(tlVm* vm, tlText* file);
+tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as);
+tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as);
 
 // setup a single task to eval something, returns immedately
 tlValue tlEval(tlTask* task, tlValue v);
 tlValue tlEvalCall(tlTask* task, tlValue fn, ...);
-tlTask* tlEvalCode(tlVm* vm, tlText* code);
+tlTask* tlEvalCode(tlVm* vm, tlText* code, tlArgs* as);
 
 // reading status from tasks
 bool tlTaskIsDone(tlTask* task);
@@ -359,6 +359,10 @@ tlValue tlTaskThrowTake(tlTask* task, char* str);
 #define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(task, strdup(_s)); } while (0)
 
 // args
+tlArgs* tlArgsNew(tlTask* task, tlList* list, tlMap* map);
+void tlArgsSet_(tlArgs* args, int at, tlValue v);
+void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v);
+
 tlValue tlArgsTarget(tlArgs* args);
 tlSym tlArgsMsg(tlArgs* args);
 
