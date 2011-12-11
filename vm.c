@@ -188,6 +188,10 @@ tlVm* tlVmNew() {
 }
 
 void tlVmDelete(tlVm* vm) {
+    GC_gcollect();
+    GC_gcollect();
+    GC_gcollect();
+    GC_gcollect();
     free(vm);
 }
 

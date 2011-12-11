@@ -137,15 +137,25 @@ static tlWriter* tlWriterNew(tlTask* task, ev_io* ev) {
     return writer;
 }
 
+void close_ev_io(void* _file, void* data) {
+    tlFile* file = tlFileOrSocketAs(_file);
+    ev_io_stop(&file->ev);
+    close(file->ev.fd);
+    //print(">>>> CLOSED: %d <<<<", file->ev.fd);
+}
+
 static tlFile* tlFileNew(tlTask* task, int fd) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
     ev_io_init(&file->ev, io_cb, fd, 0);
+    // file->reader points back to file ... a harmless cycle, but we need the no_order
+    GC_REGISTER_FINALIZER_NO_ORDER(file, close_ev_io, null, null, null);
     trace("open: %p %d", file, fd);
     return file;
 }
 static tlSocket* tlSocketNew(tlTask* task, int fd) {
     tlSocket *sock = tlAlloc(task, tlSocketClass, sizeof(tlSocket));
     ev_io_init(&sock->ev, io_cb, fd, 0);
+    GC_REGISTER_FINALIZER_NO_ORDER(sock, close_ev_io, null, null, null);
     return sock;
 }
 static tlServerSocket* tlServerSocketNew(tlTask* task, int fd) {
@@ -850,9 +860,11 @@ void evio_init() {
     tl_register_global("_File_RDONLY",   tlINT(O_RDONLY));
     tl_register_global("_File_WRONLY",   tlINT(O_WRONLY));
     tl_register_global("_File_RDWR",     tlINT(O_RDWR));
+
     tl_register_global("_File_APPEND",   tlINT(O_APPEND));
-    tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
     tl_register_global("_File_CREAT",    tlINT(O_CREAT));
+    tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
+    tl_register_global("_File_EXCL",     tlINT(O_EXCL));
 
     tlSet* keys = tlSetNew(null, 12);
     _s_dev = tlSYM("dev");

@@ -14,6 +14,7 @@ _io = _io_queue.input
 
 // unresolved names will call this, for auto module loading
 // TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
+// TODO besides, need to have a dedicated task for this, to prevent races
 _env = Env.current
 _loaded = Map.new
 _resolve block=(name ->
@@ -22,14 +23,13 @@ _resolve block=(name ->
     if res != undefined: return res
     file = "$(name.toText).tl"
     _catch: (e ->
-        print "error: '$file': $e"
+        print "error loading: '$file': $e"
         _loaded.set(name, _loaded)
         _throw "Undefined: '$name'"
     )
-    //Task.env.path.each: (path ->
-    print "trying: '$file' ..."
-    //if not _isReadableFile(file): continue
+    //print "trying: '$file' ..."
     res = _parse(_textFromFile(file), file)(_env)
+    //print "res: $res"
     _loaded.set(name, res)
 )
 

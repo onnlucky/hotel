@@ -8,7 +8,7 @@
 #define HAVE_BOEHMGC
 
 // if set use debug and such
-#define HAVE_DEBUG
+//#define HAVE_DEBUG
 
 // if set use internal asserts
 #define HAVE_ASSERT

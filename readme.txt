@@ -1,7 +1,5 @@
 # TODO
 
-make run.tl into boot.tl, start standard library, add -boot option, pass all others to boot
-
 add a "static" layer, where the symbol table, gc, and mainloops+locks live
 allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
 
