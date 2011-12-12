@@ -226,6 +226,8 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
     int len = write(writer->ev->fd, readbuf(buf), canread(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
+        // TODO for EINPROGRESS on connect(); but only if not UDP?
+        if (errno == ENOTCONN) return tlNull;
         TL_THROW("%d: write: failed: %s", writer->ev->fd, strerror(errno));
     }
     didread(buf, len);
@@ -894,6 +896,8 @@ void evio_init() {
 
     _statMap = tlMapNew(null, keys);
     tlMapToObject_(_statMap);
+
+    signal(SIGPIPE, SIG_IGN);
 
     ev_default_loop(0);
     ev_async_init(&loop_interrupt, async_cb);

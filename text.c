@@ -115,6 +115,12 @@ INTERNAL tlValue _Text_cat(tlTask* task, tlArgs* args) {
     return tlTextFromTake(task, data, size);
 }
 
+INTERNAL tlValue _text_toText(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    return text;
+}
+
 INTERNAL tlValue _text_size(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -208,6 +214,7 @@ static tlClass _tlTextClass = {
 
 static void text_init() {
     _tlTextClass.map = tlClassMapFrom(
+            "toText", _text_toText,
             "size", _text_size,
             "startsWith", _text_startsWith,
             "endsWith", _text_endsWith,

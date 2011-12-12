@@ -1,17 +1,21 @@
 # TODO
 
+fix ServerSocket ...
+start http library based on io library ...
+implement print in user code, or have it call toText properly ...
+when unwinding stacks, resources need to be release, always, also when jumping/continuations
+continuations should not be allowed to jump if it was moved off-stack (lock/unlock problems)
+
 add a "static" layer, where the symbol table, gc, and mainloops+locks live
 allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
 
+add {{ foo }} as sugar for { foo: foo } so modules just do {{ publicFn1, publicFn2, ... }}
+
 idea: private using @, not _ ... and make class a private
 also classes have @name property, when writing, drop the class pointer in favor of just the @name
-
-when unwinding stacks, resources need to be release, always, also when jumping/continuations
-tlFrame needs to know own size, and when copy-on-write is set, should mark its caller as such
-all tlClass need to describe their own size? would make sense
 
 add @method arg, arg
 instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
@@ -23,8 +27,14 @@ start preparing a first release:
 * clean up and comment eval.c maybe remove some of it to run.c oid
 
 syntax change: do symbols using 'symbol
+fix return from blocks, how about -> for block => for function wich allows return?
+Or break with value ... ?
 
-think about special inherited task local *Env* of sorts, for stdout, error modes, etc ... ? yes, for dynamically scoped stuff
+think about special inherited task local *Env*:
+* for stdin/stdout/stderr
+* for cwd
+* for module resolving path
+* for error mode (report on stdout or throw on waiter/value)
 
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs

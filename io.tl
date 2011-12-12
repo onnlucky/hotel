@@ -1,11 +1,49 @@
 // io library
 
-readFull = (file ->
+Buffer = {
+    new: -> { buf: _Buffer_new(), class: this.class }
+    toBuffer: (v ->
+        // TODO this makes the class sortof "final"
+        try: if v.class == this.class: return v
+        buf = _Buffer_new()
+        buf.write v.toText
+        return { buf: buf, class: this.class }
+    )
+    class: {
+        size: -> this.buf.size
+        canread: -> this.buf.canread
+        canwrite: -> this.buf.canwrite
+        write: (v ->
+            try: if v.class == this.class: return this.buf.writebuf v
+            this.buf.write v.toText
+        )
+        read: (v ->
+            try: if v.class == this.class: return v.write this
+            return this.buf.read
+        )
+        toText: -> return this.buf.read
+    }
+}
+
+readSome = (file, buf ->
+    if not buf.class == Buffer.class: throw "Expected a Buffer"
     reader = file.reader
-    buf = _Buffer_new()
-    _with_lock(buf, reader): (
+    _with_lock(buf.buf, reader): (
         loop: (
-            len = reader.read buf
+            len = reader.read buf.buf
+            print "readSome: len: $len"
+            if len == null: _io.waitread reader
+            if len: break
+        )
+    )
+    return buf
+)
+readFull = (file, buf ->
+    if not buf.class == Buffer.class: throw "Expected a Buffer"
+    reader = file.reader
+    _with_lock(buf.buf, reader): (
+        loop: (
+            len = reader.read buf.buf
             if len == 0: break
             if len == null: _io.waitread reader
         )
@@ -13,65 +51,41 @@ readFull = (file ->
     // TODO should be able to return just the buffer, if that behaves a lot like Texts
     return buf.read
 )
-writeFull = (file, value ->
+writeFull = (file, val ->
     writer = file.writer
-    buf = _Buffer_new()
-    buf.write value
-    _with_lock(buf, writer): (
+    buf = Buffer.toBuffer(val)
+    _with_lock(buf.buf, writer): (
         loop: (
             if buf.canread == 0: break
-            len = writer.write buf
+            len = writer.write buf.buf
             if len == null: _io.waitwrite writer
         )
     )
 )
 
-File = {
-    call: (name -> { name: name, class: this.class })
+Stream = {
+    new: file -> { file: file, class: this.class }
     class: {
-        read: -> readFull(_File_open(this.name, _File_RDONLY))
-        write: v -> writeFull(_File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT), v)
+        read: (buf -> readSome(this.file, buf or Buffer.new))
+        write: (val -> writeFull(this.file, Buffer.toBuffer(val)))
     }
 }
 
-return { File: File }
+File = {
+    call: (name -> { name: name, class: this.class })
+    class: {
+        read: (buf -> readFull(_File_open(this.name, _File_RDONLY), buf or Buffer.new))
+        write: val -> writeFull(_File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT), Buffer.toBuffer(val))
+        open: -> Stream.new(_File_open(this.name, _File_RDRW+_File_TRUNC+File_CREAT))
+    }
+}
 
-/*
 Socket = {
-    write: (v ->
-        buf = Buffer.toBuffer(v)
-        reader = @reader
-        with(buf, reader): (
-            loop = (written ->
-                if buf.canread == 0: break
-                len = writer.write buf
-                if len == null: throw "Error: Closed"
-                if len == 0: io.waitwrite writer
-                goto loop(written + len)
-            )
-            return loop(0)
-        )
+    open: (address, port ->
+        ip = _Socket_resolve(address)
+        Stream.new(_Socket_connect(ip, port))
     )
 }
 
-test = (->
-    sock = _Socket_connect("127.0.0.1", 80)
-    buf = _Buffer_new()
-    reader = sock.reader
-    writer = sock.writer
-    with(buf, reader, writer): (
-        buf.write "GET / HTTP/1.0\r\n\r\n"
-        loop: (
-            if buf.canread == 0: break
-            len = writer.write buf
-            if len == null: io.waitwrite writer
-        )
-        loop: (
-            len = reader.read buf
-            if len: break
-            if len == null: io.waitread reader
-        )
-        print buf.read
-    )
-)
+return { Buffer: Buffer, Stream: Stream, File: File, Socket: Socket }
 

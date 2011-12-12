@@ -1,11 +1,28 @@
 // boot.tl
-// 1. initialize into full std lib
+// 1. initialize into full std lib (some of it is in controlflow.c)
 // 2. run the requests file(s) or start a repl
 // 3. drop into the io runloop, exiting when no tasks are left
 
-while = (&cond, block ->
-    loop = -> if cond(): block(); goto loop()
-    loop()
+// TODO print false or true -> is error because false becomes function call (parser error)
+or = (left, &right ->
+    if not left: return right()
+    return left
+)
+and = (left, &right ->
+    if left: return right()
+    return left
+)
+while = (&cond ->
+    block = args.block or throw "Expects a block"
+    loop: (
+        if not cond(): break
+        block()
+    )
+)
+try = ( ->
+    if not args.block: throw "Expects a block"
+    _catch: return null
+    args.block.call()
 )
 
 // this is here, so the io lib can use it ...
@@ -38,7 +55,7 @@ runmain = (as ->
     if as.size == 0: return repl.run
 
     file = as.get(0)
-    _catch: e -> _throw "Unable to run: '$file': $e"
+    _catch: e -> _throw "Error in: '$file': $e"
     return _parse(_textFromFile(file), file)(_env)
 
     // TODO do this instead ...
