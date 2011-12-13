@@ -68,6 +68,7 @@ Stream = {
     class: {
         read: (buf -> readSome(this.file, buf or Buffer.new))
         write: (val -> writeFull(this.file, Buffer.toBuffer(val)))
+        close: -> this.file.close
     }
 }
 
@@ -84,6 +85,19 @@ Socket = {
     open: (address, port ->
         ip = _Socket_resolve(address)
         Stream.new(_Socket_connect(ip, port))
+    )
+    listen: (port ->
+        block = args.block
+        if not block: throw "expected a block"
+        file = _ServerSocket_listen(port)
+        reader = file.reader
+        loop: (
+            conn = _with_lock(reader): (
+                _io.waitread reader
+                reader.accept()
+            )
+            block(Stream.new(conn))
+        )
     )
 }
 

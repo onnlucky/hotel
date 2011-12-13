@@ -2,8 +2,6 @@
 
 // TODO use O_CLOEXEC if available; set FD_CLOEXEC otherwise
 // TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
-// TODO thread safety when we want to run multiple workers and a ev loop thread ... how?
-// TODO a loop per vm? and make this more like a "plugin"?
 
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
@@ -33,7 +31,6 @@ static int nonblock(int fd) {
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
     return 0;
 }
-
 /*
 static int nosigpipe(int fd) {
     if (fcntl(fd, F_SETNOSIGPIPE, 1) < 0) return -1;
@@ -50,18 +47,25 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlReader);
 TL_REF_TYPE(tlWriter);
 
 struct tlReader {
     tlLock lock;
-    ev_io* ev;
-    tlMessage* msg; // TODO remove, lock->owner == sender
 };
 struct tlWriter {
     tlLock lock;
-    ev_io* ev;
-    tlMessage* msg; // TODO remove ...
+};
+// TODO how thread save is tlFile like this? does it need to be?
+struct tlFile {
+    tlHead head;
+    ev_io ev;
+    tlReader reader;
+    tlWriter writer;
+};
+static tlClass _tlFileClass = {
+    .name = "File",
 };
 static tlClass _tlReaderClass = {
     .name = "Reader",
@@ -71,101 +75,38 @@ static tlClass _tlWriterClass = {
     .name = "Writer",
     .locked = true,
 };
+tlClass* tlFileClass = &_tlFileClass;
 tlClass* tlReaderClass = &_tlReaderClass;
 tlClass* tlWriterClass = &_tlWriterClass;
 
-TL_REF_TYPE(tlFile);
-TL_REF_TYPE(tlSocket);
-TL_REF_TYPE(tlServerSocket);
-
-struct tlFile {
-    tlHead head;
-    ev_io ev;
-    tlReader* reader;
-    tlWriter* writer;
-};
-struct tlSocket {
-    tlHead head;
-    ev_io ev;
-    tlReader* reader;
-    tlWriter* writer;
-};
-struct tlServerSocket {
-    tlLock lock;
-    ev_io ev;
-};
-static tlClass _tlFileClass = {
-    .name = "File",
-};
-static tlClass _tlSocketClass = {
-    .name = "Socket",
-};
-static tlClass _tlServerSocketClass = {
-    .name = "ServerSocket",
-    .locked = true,
-};
-tlClass* tlFileClass = &_tlFileClass;
-tlClass* tlSocketClass = &_tlSocketClass;
-tlClass* tlServerSocketClass = &_tlServerSocketClass;
-
-static tlFile* tlFileOrSocketAs(tlValue v) {
-    assert(tlFileIs(v)||tlSocketIs(v)); return (tlFile*)v;
+static tlFile* tlFileFromEv(ev_io *ev) {
+    return tlFileAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
 }
-static tlFile* tlFileOrSocketCast(tlValue v) {
-    return (tlFileIs(v)||tlSocketIs(v))?(tlFile*)v:null;
+static tlFile* tlFileFromReader(tlReader* reader) {
+    return tlFileAs(((char*)reader) - ((unsigned long)&((tlFile*)0)->reader));
 }
-
-static tlFile* tlFileFrom(ev_io *ev) {
-    return tlFileOrSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
-}
-static tlSocket* tlSocketFrom(ev_io *ev) {
-    return tlSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
-}
-static tlServerSocket* tlServerSocketFrom(ev_io *ev) {
-    return tlServerSocketAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
-}
-
-static tlReader* tlReaderNew(tlTask* task, ev_io* ev) {
-    tlReader* reader = tlAlloc(task, tlReaderClass, sizeof(tlReader));
-    reader->ev = ev;
-    return reader;
-}
-
-static tlWriter* tlWriterNew(tlTask* task, ev_io* ev) {
-    tlWriter* writer = tlAlloc(task, tlWriterClass, sizeof(tlWriter));
-    writer->ev = ev;
-    return writer;
+static tlFile* tlFileFromWriter(tlWriter* writer) {
+    return tlFileAs(((char*)writer) - ((unsigned long)&((tlFile*)0)->writer));
 }
 
 void close_ev_io(void* _file, void* data) {
-    tlFile* file = tlFileOrSocketAs(_file);
-    ev_io_stop(&file->ev);
+    tlFile* file = tlFileAs(_file);
     close(file->ev.fd);
     //print(">>>> CLOSED: %d <<<<", file->ev.fd);
 }
-
 static tlFile* tlFileNew(tlTask* task, int fd) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
+    file->reader.lock.head.klass = tlReaderClass;
+    file->writer.lock.head.klass = tlWriterClass;
     ev_io_init(&file->ev, io_cb, fd, 0);
-    // file->reader points back to file ... a harmless cycle, but we need the no_order
-    GC_REGISTER_FINALIZER_NO_ORDER(file, close_ev_io, null, null, null);
+    GC_REGISTER_FINALIZER(file, close_ev_io, null, null, null);
     trace("open: %p %d", file, fd);
     return file;
 }
-static tlSocket* tlSocketNew(tlTask* task, int fd) {
-    tlSocket *sock = tlAlloc(task, tlSocketClass, sizeof(tlSocket));
-    ev_io_init(&sock->ev, io_cb, fd, 0);
-    GC_REGISTER_FINALIZER_NO_ORDER(sock, close_ev_io, null, null, null);
-    return sock;
-}
-static tlServerSocket* tlServerSocketNew(tlTask* task, int fd) {
-    tlServerSocket *sock = tlAlloc(task, tlServerSocketClass, sizeof(tlServerSocket));
-    ev_io_init(&sock->ev, io_cb, fd, 0);
-    return sock;
-}
 
+// TODO broken ... not thread safe ... or almost
 static tlValue _file_close(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
 
     ev_io *ev = &file->ev;
@@ -178,19 +119,16 @@ static tlValue _file_close(tlTask* task, tlArgs* args) {
 }
 
 static tlValue _file_reader(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-
-    if (file->reader) return file->reader;
-    return file->reader = tlReaderNew(task, &file->ev);
+    if (file->reader.lock.head.klass) return &file->reader;
+    return tlNull;
 }
-
 static tlValue _file_writer(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
+    tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-
-    if (file->writer) return file->writer;
-    return file->writer = tlWriterNew(task, &file->ev);
+    if (file->writer.lock.head.klass) return &file->writer;
+    return tlNull;
 }
 
 static tlValue _reader_read(tlTask* task, tlArgs* args) {
@@ -200,14 +138,17 @@ static tlValue _reader_read(tlTask* task, tlArgs* args) {
     if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     if (!buffer || !tlLockIsOwner(tlLockAs(buffer), task)) TL_THROW("expected a locked Buffer");
 
+    tlFile* file = tlFileFromReader(reader);
+    assert(tlFileIs(file));
+
     tl_buf* buf = buffer->buf;
     tlbuf_autogrow(buf);
     if (canwrite(buf) <= 0) TL_THROW("read: failed: buffer full");
 
-    int len = read(reader->ev->fd, writebuf(buf), canwrite(buf));
+    int len = read(file->ev.fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
-        TL_THROW("%d: read: failed: %s", reader->ev->fd, strerror(errno));
+        TL_THROW("%d: read: failed: %s", file->ev.fd, strerror(errno));
     }
     didwrite(buf, len);
     return tlINT(len);
@@ -220,18 +161,41 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
     if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
     if (!buffer || !tlLockIsOwner(tlLockAs(buffer), task)) TL_THROW("expected a locked Buffer");
 
+    tlFile* file = tlFileFromWriter(writer);
+    assert(tlFileIs(file));
+
     tl_buf* buf = buffer->buf;
     if (canread(buf) <= 0) TL_THROW("write: failed: buffer empty");
 
-    int len = write(writer->ev->fd, readbuf(buf), canread(buf));
+    int len = write(file->ev.fd, readbuf(buf), canread(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
         // TODO for EINPROGRESS on connect(); but only if not UDP?
         if (errno == ENOTCONN) return tlNull;
-        TL_THROW("%d: write: failed: %s", writer->ev->fd, strerror(errno));
+        TL_THROW("%d: write: failed: %s", file->ev.fd, strerror(errno));
     }
     didread(buf, len);
     return tlINT(len);
+}
+
+static tlValue _reader_accept(tlTask* task, tlArgs* args) {
+    trace("")
+    tlReader* reader = tlReaderCast(tlArgsTarget(args));
+    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+    tlFile* file = tlFileFromReader(reader);
+    assert(tlFileIs(file));
+
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    socklen_t len = sizeof(sockaddr);
+    int fd = accept(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    if (fd < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
+        TL_THROW("%d: accept: failed: %s", file->ev.fd, strerror(errno));
+    }
+
+    if (nonblock(fd) < 0) TL_THROW("accept: nonblock failed: %s", strerror(errno));
+    return tlFileNew(task, fd);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {
@@ -273,7 +237,7 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 1), -1);
     if (port < 0) TL_THROW("expected a port");
 
-    trace("tcp_open: %s:%d", tl_str(address), port);
+    print("tcp_open: %s:%d", tl_str(address), port);
 
     struct in_addr ip;
     if (!inet_aton(tlTextData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
@@ -293,7 +257,7 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
     if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
 
     if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
-    return tlSocketNew(task, fd);
+    return tlFileNew(task, fd);
 }
 
 // TODO make backlog configurable
@@ -321,59 +285,9 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
     if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
 
     listen(fd, 128); // backlog, configurable?
-    return tlServerSocketNew(task, fd);
+    return tlFileNew(task, fd);
 }
 
-// TODO return multiple, socket and peer address
-static void accept_cb(ev_io* ev, int revents) {
-    /*
-    tlFile* file = tlFileFrom(ev);
-    tlTask* task = file->lock.owner;
-    assert(task);
-    trace("accept_cb: %p %d", file, ev->fd);
-
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    socklen_t len = sizeof(sockaddr);
-    int fd = accept(ev->fd, (struct sockaddr *)&sockaddr, &len);
-    if (fd < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            ev_io_start(ev); trace("tcp_accept: EAGAIN || EWOULDBLOCK"); return;
-        }
-        TL_THROW_SET("tcp_accept: failed: %s", strerror(errno));
-    } else {
-        if (nonblock(fd) < 0) {
-            TL_THROW_SET("tcp_accept: nonblock failed: %s", strerror(errno));
-        } else {
-            task->value = tlSocketNew(task, fd);
-        }
-    }
-    ev_io_stop(ev);
-    //if (task->state == TL_STATE_IOWAIT) tlTaskReady(task);
-    */
-}
-
-static tlValue _SocketAccept(tlTask* task, tlArgs* args) {
-    tlFile* file = tlFileOrSocketCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
-
-    /*
-    ev_io *ev = &file->ev;
-    trace("tcp_accept: %p %d", file, ev->fd);
-    ev->cb = accept_cb;
-
-    int revents = ev_clear_pending(ev);
-    if (revents & EV_READ) { read_cb(ev, revents); return task->value; }
-    // TODO return null on throw ...
-
-    ev->events = EV_READ;
-    ev_io_start(ev);
-    tlTaskWaitIo(task);
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
-    */
-    fatal("not implemented");
-    return tlNull;
-}
 
 // ** paths **
 
@@ -650,7 +564,7 @@ static tlValue _Child_run(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
-    tlFile* file = tlFileOrSocketAs(v);
+    tlFile* file = tlFileAs(v);
     tlClass* klass = tl_class(file);
     snprintf(buf, size, "<%s@%d>", klass->name, file->ev.fd);
     return buf;
@@ -661,26 +575,24 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
 
 static void io_cb(ev_io *ev, int revents) {
     trace("io_cb: %p", ev);
-    tlFile* file = tlFileFrom(ev);
+    tlFile* file = tlFileFromEv(ev);
     if (revents & EV_READ) {
         trace("CANREAD");
-        assert(file->reader);
-        assert(file->reader->msg);
-        tlMessage* msg = tlMessageAs(file->reader->msg);
-        tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
+        assert(file->reader.lock.head.klass);
+        assert(file->reader.lock.owner);
+        tlMessage* msg = tlMessageAs(file->reader.lock.owner->value);
+        tlVm* vm = tlTaskGetVm(file->reader.lock.owner);
         vm->iowaiting -= 1;
-        file->reader->msg = null;
         ev->events &= ~EV_READ;
         tlMessageReply(msg, null);
     }
     if (revents & EV_WRITE) {
         trace("CANWRITE");
-        assert(file->writer);
-        assert(file->writer->msg);
-        tlMessage* msg = tlMessageAs(file->writer->msg);
+        assert(file->writer.lock.head.klass);
+        assert(file->writer.lock.owner);
+        tlMessage* msg = tlMessageAs(file->writer.lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
         vm->iowaiting -= 1;
-        file->writer->msg = null;
         ev->events &= ~EV_WRITE;
         tlMessageReply(msg, null);
     }
@@ -697,13 +609,14 @@ static tlValue _io_waitread(tlTask* task, tlArgs* args) {
     tlTask* sender = tlMessageGetSender(msg);
     if (!tlLockIsOwner(tlLockAs(reader), sender)) TL_THROW("expected a locked Reader");
 
-    // TODO make use of this ...
+    tlFile* file = tlFileFromReader(reader);
+    assert(tlFileIs(file));
+
     assert(reader->lock.owner == msg->sender);
     assert(msg->sender->value == msg);
-    reader->msg = msg;
 
-    reader->ev->events |= EV_READ;
-    ev_io_start(reader->ev);
+    file->ev.events |= EV_READ;
+    ev_io_start(&file->ev);
 
     vm->iowaiting += 1;
     return tlNull;
@@ -719,10 +632,14 @@ static tlValue _io_waitwrite(tlTask* task, tlArgs* args) {
     tlTask* sender = tlMessageGetSender(msg);
     if (!tlLockIsOwner(tlLockAs(writer), sender)) TL_THROW("expected a locked Writer");
 
-    writer->msg = msg;
+    tlFile* file = tlFileFromWriter(writer);
+    assert(tlFileIs(file));
 
-    writer->ev->events |= EV_WRITE;
-    ev_io_start(writer->ev);
+    assert(writer->lock.owner == msg->sender);
+    assert(msg->sender->value == msg);
+
+    file->ev.events |= EV_WRITE;
+    ev_io_start(&file->ev);
 
     vm->iowaiting += 1;
     return tlNull;
@@ -817,6 +734,7 @@ static const tlNativeCbs __evio_natives[] = {
 void evio_init() {
     _tlReaderClass.map = tlClassMapFrom(
         "read", _reader_read,
+        "accept", _reader_accept,
         null
     );
     _tlWriterClass.map = tlClassMapFrom(
@@ -828,19 +746,6 @@ void evio_init() {
         "close", _file_close,
         "reader", _file_reader,
         "writer", _file_writer,
-        null
-    );
-    _tlSocketClass.toText = fileToText;
-    _tlSocketClass.map = tlClassMapFrom(
-        "close", _file_close,
-        "reader", _file_reader,
-        "writer", _file_writer,
-        null
-    );
-    _tlServerSocketClass.toText = fileToText;
-    _tlServerSocketClass.map = tlClassMapFrom(
-        "close", _file_close,
-        "accept", _SocketAccept,
         null
     );
     _tlDirClass.map = tlClassMapFrom(
