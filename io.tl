@@ -91,7 +91,7 @@ Server = {
             block = args.block; if not block: _throw "serve expects a block"
             loop: (
                 client = this.accept
-                block(client) //; client.close
+                block(client); client.close
             )
         )
     }

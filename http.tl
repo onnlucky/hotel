@@ -3,9 +3,9 @@
 HttpConnection = (conn ->
     _Object_new {
         _req: null, _didhead: false, _didend: false
-        _type: "text/text"
-        _in: _Buffer_new()
-        _body: _Buffer_new()
+        _type: "text/plain"
+        _in: io.Buffer.new
+        _body: io.Buffer.new
         setContentType: (type ->
             if @_didhead: _throw "Already send headers"
             @_type = type
@@ -34,7 +34,7 @@ HttpConnection = (conn ->
         )
         _sendheaders: (ending ->
             @_didhead = true
-            headers = _Buffer_new()
+            headers = io.Buffer.new()
             headers.write "HTTP/1.0 200 Ok\r\n"
             if @_type: headers.write "Content-Type: $(@_type)\r\n"
             if ending: headers.write "Content-Length: $(@_body.canread)\r\n"
@@ -48,7 +48,7 @@ HttpConnection = (conn ->
 )
 
 Server = {
-    new: (port -> { sock: io.Socket.listen(8080), class: this.class })
+    new: (port -> { sock: io.Socket.listen(port), class: this.class })
     class: {
         close: -> this.sock.close
         serve: (->

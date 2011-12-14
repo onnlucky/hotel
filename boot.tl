@@ -13,7 +13,7 @@ and = (left, &right ->
     return left
 )
 while = (&cond ->
-    block = args.block or _throw "while expects a block"
+    block = args.block; if not block: _throw "while expects a block"
     loop: (
         if not cond(): break
         block()
