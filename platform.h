@@ -40,6 +40,8 @@
 #define strdup(s) GC_STRDUP((s))
 #else
 #define GC_INIT()
+#define GC_REGISTER_FINALIZER(a1, a2, a3, a4, a5)
+#define GC_gcollect()
 #endif
 
 #ifdef HAVE_THREADS

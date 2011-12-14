@@ -1,6 +1,6 @@
 // lock is the "base" class for all mutable things, objects, files, buffers and more
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 bool tlLockIs(tlValue v) {
     return tl_class(v)->locked;
@@ -37,7 +37,7 @@ INTERNAL tlValue lockEnqueue(tlTask* task, tlLock* lock, tlFrame* frame) {
     assert(tlLockIs(lock));
 
     // make the task wait and enqueue it
-    task->frame = frame;
+    task->stack = frame;
     tlValue deadlock = tlTaskWaitFor(task, lock);
     if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
     lqueue_put(&lock->wait_q, &task->entry);
@@ -68,11 +68,13 @@ INTERNAL tlValue lockEvalSend(tlTask* task, tlLock* lock, tlArgs* args);
 
 INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("%s", tl_str(res));
+    if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     return lockEvalSend(task, tlLockAs(tlArgsTarget(args)), args);
 }
 INTERNAL tlValue resumeReceiveEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     trace("%s", tl_str(res));
+    if (!res) return null;
     frame->resumecb = resumeReceive;
     return lockEnqueue(task, tlLockAs(tlArgsAs(res)->target), frame);
 }
@@ -118,11 +120,13 @@ typedef struct AquireFrame {
 INTERNAL tlValue resumeAquire(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     // here we own the lock, now we can resume our given frame
     trace("");
+    if (!res) return null;
     AquireFrame* frame = (AquireFrame*)_frame;
     return lockAquire(task, frame->lock, frame->resumecb, frame->res);
 }
 INTERNAL tlValue resumeAquireEnqueue(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     trace("");
+    if (!res) return null;
     _frame->resumecb = resumeAquire;
     return lockEnqueue(task, ((AquireFrame*)_frame)->lock, _frame);
 }
@@ -176,7 +180,8 @@ INTERNAL tlValue resumeWithUnlock(tlTask* task, tlFrame* _frame, tlValue res, tl
     }
     return res;
 }
-INTERNAL tlValue resumeWithLock(tlTask* task, tlFrame* _frame, tlValue _res, tlError* err) {
+INTERNAL tlValue resumeWithLock(tlTask* task, tlFrame* _frame, tlValue _res, tlError* _err) {
+    if (!_res) fatal("cannot handle this ... must unlock ...");
     WithFrame* frame = (WithFrame*)_frame;
     tlArgs* args = frame->args;
     trace("%s", tl_str(args));
@@ -206,6 +211,6 @@ INTERNAL tlValue _with_lock(tlTask* task, tlArgs* args) {
     }
     WithFrame* frame = tlFrameAlloc(task, resumeWithLock, sizeof(WithFrame));
     frame->args = args;
-    return resumeWithLock(task, (tlFrame*)frame, null, null);
+    return resumeWithLock(task, (tlFrame*)frame, tlNull, null);
 }
 

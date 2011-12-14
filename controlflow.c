@@ -31,9 +31,9 @@ INTERNAL tlValue _continue(tlTask* task, tlArgs* args) {
 // match (produced by compiler, if cond is true, execute block and exit parent body)
 INTERNAL tlValue resumeMatch(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     if (!res) return null;
-    frame = frame->caller; // our parent codeblock
+    frame = frame->caller; // our parent codeblock; we wish to unwind that one too ...
     assert(CodeFrameIs(frame));
-    return tlTaskJump(task, frame->caller, res);
+    return tlTaskSetStack(task, frame->caller, res);
 }
 INTERNAL tlValue _match(tlTask* task, tlArgs* args) {
     tlValue block = tlArgsBlock(args);
@@ -60,10 +60,10 @@ typedef struct LoopFrame {
 } LoopFrame;
 
 INTERNAL tlValue resumeLoop(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) {
-        if (tlErrorValue(err) == s_break) return tlNull;
-        if (tlErrorValue(err) != s_continue) return null;
-    }
+    if (err && tlErrorValue(err) == s_break) return tlNull;
+    if (err && tlErrorValue(err) != s_continue) return null;
+    if (!err && !res) return null;
+
     LoopFrame* frame = (LoopFrame*)_frame;
 again:;
     res = tlEval(task, tlCallFrom(task, frame->block, null));
@@ -145,6 +145,7 @@ INTERNAL tlValue tlReturnNew(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsGet(args, 0)));
     tlArgs* targetargs = tlReturnAs(tlArgsFn(args))->targetargs;
@@ -157,7 +158,7 @@ INTERNAL tlValue resumeReturn(tlTask* task, tlFrame* frame, tlValue res, tlError
     // we have just reified the stack, now find our frame
     frame = lexicalFunctionFrame(frame, targetargs);
     trace("%p", frame);
-    if (frame) return tlTaskJump(task, frame->caller, res);
+    if (frame) return tlTaskStackUnwind(task, frame->caller, res);
     return res;
 }
 INTERNAL tlValue ReturnRun(tlTask* task, tlValue fn, tlArgs* args) {
@@ -190,10 +191,12 @@ typedef struct GotoFrame {
 } GotoFrame;
 
 INTERNAL tlValue resumeGotoEval(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (!res) return null;
     // now it is business as usual
     return tlEval(task, res);
 }
 INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (!res) return null;
     tlCall* call = tlCallAs(res);
     trace("RESUME GOTO(%d)", tlCallSize(call));
     tlArgs* targetargs = tlGotoAs(tlCallGetFn(call))->args;
@@ -209,9 +212,10 @@ INTERNAL tlValue resumeGoto(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     trace("JUMPING: %p", caller);
 
     // now create a stack which does not involve our frame
-    tlTaskPauseResuming(task, resumeGotoEval, null);
-    tlTaskPauseAttach(task, caller);
-    return tlTaskJump(task, task->worker->top, tlCallGet(call, 0));
+    tlTaskStackUnwind(task, caller, tlNull);           // unwind upto our caller
+    tlTaskPauseResuming(task, resumeGotoEval, tlNull); // put a resume frame on top
+    tlTaskPauseAttach(task, caller);                   // attach the caller
+    return tlTaskSetStack(task, task->worker->top, tlCallGet(call, 0)); // again, the resume frame
 }
 INTERNAL tlValue GotoCallFn(tlTask* task, tlCall* call) {
     trace("GOTO(%d)", tlCallSize(call));
@@ -233,7 +237,8 @@ tlClass* tlContinuationClass = &_tlContinuationClass;
 INTERNAL tlValue resumeContinuation(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     tlArgs* args = tlArgsAs(res);
     tlContinuation* cont = tlContinuationAs(tlArgsFn(args));
-    return tlTaskJump(task, cont->frame, tlResultFromArgsPrepend(task, cont, args));
+    fatal("broken");
+    return tlTaskSetStack(task, cont->frame, tlResultFromArgsPrepend(task, cont, args));
 }
 INTERNAL tlValue ContinuationRun(tlTask* task, tlValue fn, tlArgs* args) {
     trace("CONTINUATION(%d)", tlArgsSize(args));

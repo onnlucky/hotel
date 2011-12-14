@@ -179,7 +179,7 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
 }
 
 static tlValue _reader_accept(tlTask* task, tlArgs* args) {
-    trace("")
+    trace("");
     tlReader* reader = tlReaderCast(tlArgsTarget(args));
     if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     tlFile* file = tlFileFromReader(reader);
@@ -367,10 +367,10 @@ typedef struct tlDirEachFrame {
 } tlDirEachFrame;
 
 static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) {
-        if (tlErrorValue(err) == s_break) return tlNull;
-        if (tlErrorValue(err) != s_continue) return null;
-    }
+    if (err && tlErrorValue(err) == s_break) return tlNull;
+    if (err && tlErrorValue(err) != s_continue) return null;
+    if (!err && !res) return null;
+
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
 again:;
     struct dirent dp;
@@ -464,6 +464,7 @@ static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
 }
 
 static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (!res) return null;
     tlChild* child = tlChildAs(res);
     frame->resumecb = null;
     fatal("not implemented");

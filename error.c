@@ -34,7 +34,7 @@ INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue res, tlError*
     res = tlArgsGet(res, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
-    task->frame = task->frame->caller;
+    task->stack = frame->caller;
     return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
 }
 INTERNAL tlValue _throw(tlTask* task, tlArgs* args) {

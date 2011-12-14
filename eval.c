@@ -202,7 +202,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
 
 INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) return null;
+    if (!res) return null;
     ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
     return run_activate_call(task, frame, frame->call, frame->env, res);
 }
@@ -258,7 +258,7 @@ INTERNAL tlValue lookup(tlTask* task, tlEnv* env, tlSym name) {
     }
     if (name == s_continuation) {
         trace("pausing for continuation");
-        return tlTaskPauseResuming(task, resumeNewContinuation, null);
+        return tlTaskPauseResuming(task, resumeNewContinuation, tlNull);
     }
     tlValue v = tlEnvGet(task, env, name);
     trace("%s -> %s", tl_str(name), tl_str(v));
@@ -291,7 +291,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
 
 // when call->fn is a call itself
 INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) return null;
+    if (!res) return null;
     CallFnFrame* frame = (CallFnFrame*)_frame;
     return applyCall(task, tlCallCopySetFn(task, frame->call, res));
 }
@@ -395,7 +395,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
 }
 
 INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    if (err) return null;
+    if (!res) return null;
     return evalCall2(task, (CallFrame*)frame, res);
 }
 
@@ -412,6 +412,7 @@ INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError*
         // doing it this way means this codeblock is over ... we might let the handler decide that
         return tlEval(task, call);
     }
+    if (!res) return null;
 
     // TODO this should be done for all Frames everywhere ... but ... for now
     // TODO keep should trickle down to frame->caller now too ... oeps
@@ -586,7 +587,7 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
 }
 
 INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) return null;
+    if (!res) return null;
     return evalArgs(task, tlArgsAs(res));
 }
 
@@ -666,15 +667,17 @@ tlValue tlEvalArgsTarget(tlTask* task, tlArgs* args, tlValue target, tlValue fn)
 
 // print a generic backtrace
 INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    if (!res) return null;
     print_backtrace(frame->caller);
     return tlNull;
 }
 INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
-    return tlTaskPauseResuming(task, resumeBacktrace, null);
+    return tlTaskPauseResuming(task, resumeBacktrace, tlNull);
 }
 
 // install a catch handler (bit primitive like this)
 INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     tlValue handler = tlArgsBlock(args);
     trace("%p.handler = %s", _frame->caller, tl_str(handler));
@@ -759,6 +762,7 @@ typedef struct EvalFrame {
 } EvalFrame;
 
 static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    if (!res) return null;
     trace("resuming");
     EvalFrame* frame = (EvalFrame*)_frame;
     assert(task->worker->evalEnv);
