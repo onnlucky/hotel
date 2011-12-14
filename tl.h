@@ -299,7 +299,7 @@ void tlVmDelete(tlVm* vm);
 
 // ** running code **
 // parsing
-tlValue tlParse(tlTask* task, tlText* text);
+tlValue tlParse(tlTask* task, tlText* text, tlText* file);
 
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlValue v);

@@ -28,6 +28,8 @@ static tlSym s_text;
 typedef struct ParseContext {
     tlTask* task;
     tlText* text;
+    tlText* file;
+    int line;
     int at;
     int current_indent;
     int indents[100];
@@ -407,7 +409,7 @@ object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs
        | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
  items = i:item eom is:items   { $$ = tlListPrepend(TASK, L(is), i); }
        | i:item                { $$ = tlListFrom1(TASK, i) }
-  item = n:name _":"__ v:expr  { $$ = tlListFrom2(TASK, n, v); }
+  item = n:name _":"__ v:expr  { $$ = tlListFrom2(TASK, n, v); try_name(n, v); }
 
   list = "["__ is:litems __"]" { $$ = list_activate(L(is)); }
        | "["__"]"              { $$ = list_activate(tlListEmpty()); }
@@ -454,8 +456,8 @@ slcomment = "//" (!nl .)*
   eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.) __
  peosfull = _ (nl | ":" | ";" | "}" | ")" | "]" | slcomment nle | !.) __
       eom = _ (nl | "," | slcomment nle) __
-       nl = "\n" | "\r\n" | "\r"
-      nle = "\n" | "\r\n" | "\r" | !.
+       nl = "\n" | "\r\n" | "\r" { yyxvar->line += 1; }
+      nle = nl | !.
        sp = [ \t]
         _ = (sp | icomment)*
        __ = (sp | nl | comment)*
@@ -498,7 +500,7 @@ bool check_indent(void* data) {
     return peek_indent(G) == find_indent(G);
 }
 
-tlValue tlParse(tlTask* task, tlText* text) {
+tlValue tlParse(tlTask* task, tlText* text, tlText* file) {
     trace("\n----PARSING----\n%s----", tl_str(text));
 
     if (!s_object_send) {
@@ -529,7 +531,9 @@ tlValue tlParse(tlTask* task, tlText* text) {
     }
 
     ParseContext data;
+    data.file = file;
     data.at = 0;
+    data.line = 0;
     data.text = text;
     data.current_indent = 0;
     data.indents[0] = 0;

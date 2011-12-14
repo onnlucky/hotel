@@ -183,7 +183,6 @@ static tlEnv* CodeFrameGetEnv(tlFrame* frame) {
 }
 
 INTERNAL void print_backtrace(tlFrame* frame) {
-    print("BACKTRACE:");
     while (frame) {
         if (CodeFrameIs(frame)) {
             tlSym name = CodeFrameAs(frame)->code->name;
@@ -783,7 +782,7 @@ static tlValue _parse(tlTask* task, tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 1));
     if (!name) name = tlTextEmpty();
 
-    tlCode* body = tlCodeAs(tlParse(task, code));
+    tlCode* body = tlCodeAs(tlParse(task, code, name));
     trace("parsed: %s", tl_str(body));
     if (!body) return null;
     return body;
@@ -808,7 +807,7 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
     tlText* code = tlTextCast(tlArgsGet(args, 1));
     if (!code) TL_THROW("expected a Text");
 
-    tlCode* body = tlCodeAs(tlParse(task, code));
+    tlCode* body = tlCodeAs(tlParse(task, code, tlTEXT("eval")));
     trace("parsed: %s", tl_str(body));
     if (!body) return null;
 

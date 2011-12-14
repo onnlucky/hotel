@@ -80,6 +80,7 @@ Server = {
             _with_lock(reader): (
                 loop: (
                     conn = reader.accept()
+                    // TODO this return breaks things ... returns should unwind stack with "error"
                     if conn: return Stream.new(conn)
                     _io.waitread reader
                 )

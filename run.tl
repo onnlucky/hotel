@@ -1,4 +1,4 @@
-io.Socket.listen(8080).serve: (conn ->
+io.Socket.listen(9999).serve: (conn ->
     conn.write "hello world!"
 )
 

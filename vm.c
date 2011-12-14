@@ -251,7 +251,7 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as) {
     vm->running = true;
 
     // TODO if no success, task should have exception
-    tlCode* body = tlCodeCast(tlParse(task, code));
+    tlCode* body = tlCodeCast(tlParse(task, code, tlTEXT("!!unknown!!")));
     if (!body) return task;
     trace("PARSED");
 

@@ -12,6 +12,8 @@ struct tlError {
     tlFrame* stack;
 };
 
+void tlErrorPrint(tlError* err);
+
 INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack) {
     trace("%s", tl_str(value));
     assert(task); assert(value); assert(stack);
@@ -19,6 +21,7 @@ INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack) {
     err->value = value;
     err->task = task;
     err->stack = stack;
+    tlErrorPrint(err);
     return err;
 }
 tlValue tlErrorValue(tlError* err) {
@@ -38,6 +41,11 @@ INTERNAL tlValue _throw(tlTask* task, tlArgs* args) {
     trace("");
     task->value = args;
     return tlTaskPause(task, tlFrameAlloc(task, resumeThrow, sizeof(tlFrame)));
+}
+
+void tlErrorPrint(tlError* err) {
+    print("Error task=%s, value=%s", tl_str(err->task), tl_str(err->value));
+    print_backtrace(err->stack);
 }
 
 // TODO full stack?
