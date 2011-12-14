@@ -1,7 +1,5 @@
 // hotel http library
 
-// bring upto date with new io library
-
 HttpConnection = (conn ->
     _Object_new {
         _req: null, _didhead: false, _didend: false
@@ -49,14 +47,20 @@ HttpConnection = (conn ->
     }
 )
 
-HttpServer = {
-    new: (port, block ->
-        socket = _ServerSocket_listen(8080)
-        while true: (
-            client = socket.accept
-            conn = HttpConnection(client)
-            !block(conn); conn.end
+Server = {
+    new: (port -> { sock: io.Socket.listen(8080), class: this.class })
+    class: {
+        close: -> this.sock.close
+        serve: (->
+            block = args.block; if not block: _throw "expect a block"
+            loop: (
+                client = this.sock.accept
+                conn = HttpConnection(client)
+                block(conn); conn.end
+            )
         )
-    )
+    }
 }
+
+return { Server: Server }
 

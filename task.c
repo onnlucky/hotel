@@ -269,6 +269,7 @@ INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack);
 
 INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     task->frame = task->frame->caller;
+    //print_backtrace(task->frame);
     return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
 }
 tlValue tlTaskThrow(tlTask* task, tlValue err) {

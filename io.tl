@@ -26,7 +26,7 @@ Buffer = {
 }
 
 readSome = (file, buf ->
-    if not buf.class == Buffer.class: throw "Expected a Buffer"
+    if not buf.class == Buffer.class: _throw "Expected a Buffer"
     reader = file.reader
     _with_lock(buf.buf, reader): (
         loop: (
@@ -39,7 +39,7 @@ readSome = (file, buf ->
     return buf
 )
 readFull = (file, buf ->
-    if not buf.class == Buffer.class: throw "Expected a Buffer"
+    if not buf.class == Buffer.class: _throw "Expected a Buffer"
     reader = file.reader
     _with_lock(buf.buf, reader): (
         loop: (
@@ -72,6 +72,30 @@ Stream = {
     }
 }
 
+Server = {
+    new: file -> { file: file, class: this.class }
+    class: {
+        accept: (->
+            reader = this.file.reader
+            _with_lock(reader): (
+                loop: (
+                    conn = reader.accept()
+                    if conn: return Stream.new(conn)
+                    _io.waitread reader
+                )
+            )
+        )
+        close: -> this.file.cose
+        serve: (->
+            block = args.block; if not block: _throw "serve expects a block"
+            loop: (
+                client = this.accept
+                block(client) //; client.close
+            )
+        )
+    }
+}
+
 File = {
     call: (name -> { name: name, class: this.class })
     class: {
@@ -87,17 +111,7 @@ Socket = {
         Stream.new(_Socket_connect(ip, port))
     )
     listen: (port ->
-        block = args.block
-        if not block: throw "expected a block"
-        file = _ServerSocket_listen(port)
-        reader = file.reader
-        loop: (
-            conn = _with_lock(reader): (
-                _io.waitread reader
-                reader.accept()
-            )
-            block(Stream.new(conn))
-        )
+        Server.new(_ServerSocket_listen(port))
     )
 }
 

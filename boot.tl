@@ -13,14 +13,14 @@ and = (left, &right ->
     return left
 )
 while = (&cond ->
-    block = args.block or throw "Expects a block"
+    block = args.block or _throw "while expects a block"
     loop: (
         if not cond(): break
         block()
     )
 )
 try = ( ->
-    if not args.block: throw "Expects a block"
+    if not args.block: _throw "try expects a block"
     _catch: return null
     args.block.call()
 )

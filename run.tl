@@ -1,13 +1,9 @@
-!io.Socket.listen 8080: (conn ->
-    print conn.read.toText
-    conn.close
+io.Socket.listen(8080).serve: (conn ->
+    conn.write "hello world!"
 )
 
-stream = io.Socket.open("www.google.com", 80)
-stream.write "GET / HTTP/1.0\r\n\r\n"
-print stream.read.toText
-
-print io.File("run.tl").read
-io.File("test.txt").write "HELLO WORLD!"
-io.File("test.txt").read
+/*
+http.Server.new(8080).serve: (conn ->
+    conn.write "hello world!"
+)
 
