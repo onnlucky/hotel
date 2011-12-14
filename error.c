@@ -21,7 +21,7 @@ INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack) {
     err->value = value;
     err->task = task;
     err->stack = stack;
-    tlErrorPrint(err);
+    //tlErrorPrint(err);
     return err;
 }
 tlValue tlErrorValue(tlError* err) {

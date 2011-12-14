@@ -90,8 +90,8 @@ static tlFile* tlFileFromWriter(tlWriter* writer) {
 }
 
 void close_ev_io(void* _file, void* data) {
-    tlFile* file = tlFileAs(_file);
-    close(file->ev.fd);
+    //tlFile* file = tlFileAs(_file);
+    //close(file->ev.fd);
     //print(">>>> CLOSED: %d <<<<", file->ev.fd);
 }
 static tlFile* tlFileNew(tlTask* task, int fd) {

@@ -129,7 +129,7 @@ INTERNAL tlValue tlTaskSetStack(tlTask* task, tlFrame* frame, tlValue res) {
 }
 INTERNAL tlValue tlTaskStackUnwind(tlTask* task, tlFrame* upto, tlValue res) {
     trace("SAFE: unwind stack upto: %p", upto);
-    print_backtrace(task->stack);
+    //print_backtrace(task->stack);
     tlFrame* frame = task->stack;
     task->stack = null;
     while (frame != upto) {
