@@ -31,11 +31,13 @@ latch = Latch(2)
 
 doTheFoo = (->
     //print "STARTING..."
-    sleep random(10)
+    //var $count = random(10)
+    //loop: Task.yield; $count -= 1; if $count <= 0: break
     //print "ENTERING..."
     latch.enter
     //print "WORKING..."
-    sleep random(100)
+    //var $count = random(100)
+    //loop: Task.yield; $count -= 1; if $count <= 0: break
     //print "WORK ALMOST DONE..."
     latch.exit
     //print "DONE..."
@@ -48,6 +50,8 @@ doTheFoo = (->
 !doTheFoo
 !doTheFoo
 !doTheFoo
-!doTheFoo
+Task.yield
+doTheFoo
+Task.yield
 
 return null

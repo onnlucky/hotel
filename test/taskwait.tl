@@ -1,9 +1,10 @@
-x = !sleep 10; 42
-print x.done
+x = !Task.yield; 42
+print x.isDone
 print x.wait
 
-x = !sleep 10; 42
-sleep 20
-print x.done
+x = !Task.yield; 42
+Task.yield
+Task.yield
+print x.isDone
 print x.wait
 

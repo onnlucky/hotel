@@ -1,4 +1,7 @@
-!sleep 30; print 30
-!sleep 20; print 20
-!sleep 10; print 10
+!Task.yield; Task.yield; print 30
+!Task.yield; print 20
+!print 10
+
+Task.yield; Task.yield; Task.yield; Task.yield; Task.yield; Task.yield
 return
+
