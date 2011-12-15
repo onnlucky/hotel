@@ -68,7 +68,10 @@ Stream = {
     class: {
         read: (buf -> readSome(this.file, buf or Buffer.new))
         write: (val -> writeFull(this.file, Buffer.toBuffer(val)))
-        close: -> this.file.close
+        close: (->
+            if this.file.isClosed: return
+            _with_lock(this.file.reader, this.file.writer): this.file.close
+        )
     }
 }
 

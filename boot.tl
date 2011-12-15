@@ -72,7 +72,6 @@ loop: (
     Task.yield
     loop: (
         msg = _io_queue.poll
-        if msg: print "MSG:", msg.name
         (
             _match(msg == null): break
             _match(msg.name == #waitread): _io_waitread msg.get(0), msg

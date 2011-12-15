@@ -90,9 +90,9 @@ static tlFile* tlFileFromWriter(tlWriter* writer) {
 }
 
 void close_ev_io(void* _file, void* data) {
-    //tlFile* file = tlFileAs(_file);
-    //close(file->ev.fd);
-    //print(">>>> CLOSED: %d <<<<", file->ev.fd);
+    tlFile* file = tlFileAs(_file);
+    if (file->ev.fd) close(file->ev.fd);
+    trace(">>>> CLOSED FILE: %d <<<<", file->ev.fd);
 }
 static tlFile* tlFileNew(tlTask* task, int fd) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
@@ -104,17 +104,27 @@ static tlFile* tlFileNew(tlTask* task, int fd) {
     return file;
 }
 
-// TODO broken ... not thread safe ... or almost
+static tlValue _file_isClosed(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
+    return tlBOOL(file->ev.fd < 0);
+}
+
 static tlValue _file_close(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
+    if (!tlLockIsOwner(tlLockAs(&file->reader), task)) TL_THROW("expected a locked Reader");
+    if (!tlLockIsOwner(tlLockAs(&file->writer), task)) TL_THROW("expected a locked Writer");
 
-    ev_io *ev = &file->ev;
+    // already closed
+    if (file->ev.fd < 0) return tlNull;
+
     trace("close: %p %d", file, ev->fd);
-    ev_io_stop(ev);
+    ev_io_stop(&file->ev);
 
-    int r = close(ev->fd);
+    int r = close(file->ev.fd);
     if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
+    file->ev.fd = -1;
     return tlNull;
 }
 
@@ -141,6 +151,8 @@ static tlValue _reader_read(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
 
+    if (file->ev.fd < 0) TL_THROW("read: already closed");
+
     tl_buf* buf = buffer->buf;
     tlbuf_autogrow(buf);
     if (canwrite(buf) <= 0) TL_THROW("read: failed: buffer full");
@@ -164,6 +176,8 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileFromWriter(writer);
     assert(tlFileIs(file));
 
+    if (file->ev.fd < 0) TL_THROW("write: already closed");
+
     tl_buf* buf = buffer->buf;
     if (canread(buf) <= 0) TL_THROW("write: failed: buffer empty");
 
@@ -184,6 +198,8 @@ static tlValue _reader_accept(tlTask* task, tlArgs* args) {
     if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
+
+    if (file->ev.fd < 0) TL_THROW("accept: already closed");
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -744,6 +760,7 @@ void evio_init() {
     );
     _tlFileClass.toText = fileToText;
     _tlFileClass.map = tlClassMapFrom(
+        "isClosed", _file_isClosed,
         "close", _file_close,
         "reader", _file_reader,
         "writer", _file_writer,
