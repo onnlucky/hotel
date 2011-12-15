@@ -11,6 +11,7 @@ Buffer = {
     )
     class: {
         size: -> this.buf.size
+        find: v -> this.buf.find v.toText
         canread: -> this.buf.canread
         canwrite: -> this.buf.canwrite
         write: (v ->
@@ -31,7 +32,6 @@ readSome = (file, buf ->
     _with_lock(buf.buf, reader): (
         loop: (
             len = reader.read buf.buf
-            print "readSome: len: $len"
             if len == null: _io.waitread reader
             if len: break
         )

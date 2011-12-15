@@ -1,9 +1,18 @@
-io.Socket.listen(9999).serve: (conn ->
-    conn.write "HTTP/1.0 200 Ok\r\n\r\n"
-    conn.write "hello world!"
-)
+
+Counter = _Object_new {
+    count: 0
+    hit: -> @count = @count + 1
+}
 
 http.Server.new(9999).serve: (conn ->
-    conn.write "hello world!"
+    nr = Counter.hit
+    print "REQ: $(nr)", conn.req.size
+    sleep seconds 1
+    conn.setContentType("text/html")
+    conn.write "<html>\n<head><title>YO!</title></head>\n<body>"
+    conn.write "<p>Hi there; you are number: $(nr); thanks!</p>"
+    conn.write "</body>\n</html>\n"
+    conn.end
+    print "DONE: $(nr)"
 )
 

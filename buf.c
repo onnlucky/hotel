@@ -128,6 +128,13 @@ uint32_t tlbuf_read_uint32(tl_buf* buf) {
     return r;
 }
 
+int tlbuf_find(tl_buf* buf, const char* text, int len) {
+    const char* begin = readbuf(buf);
+    char* at = strnstr(begin, text, max(canread(buf), len));
+    if (!at) return -1;
+    return at - begin;
+}
+
 // TODO check file size and check if we read all in end
 tl_buf* tlbuf_new_from_file(const char* file) {
     trace("file: %s", file);

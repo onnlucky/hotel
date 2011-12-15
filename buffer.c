@@ -47,6 +47,20 @@ INTERNAL tlValue _buffer_write(tlTask* task, tlArgs* args) {
     return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));
 }
 
+INTERNAL tlValue _buffer_find(tlTask* task, tlArgs* args) {
+    tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
+    if (!buffer) TL_THROW("expected a Buffer");
+    tl_buf* buf = buffer->buf;
+    assert(buf);
+
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+
+    int i = tlbuf_find(buf, tlTextData(text), tlTextSize(text));
+    if (i < 0) return tlNull;
+    return tlINT(i);
+}
+
 INTERNAL tlValue _Buffer_new(tlTask* task, tlArgs* args) {
     return tlBufferNew(task);
 }
@@ -57,6 +71,7 @@ static void buffer_init() {
             "read", _buffer_read,
             "canwrite", _buffer_canwrite,
             "write", _buffer_write,
+            "find", _buffer_find,
             null
     );
 }
