@@ -12,22 +12,20 @@ bug: tlCallableIs does not know complex user objects, just try and catch not cal
 bug: { x: 42, x: runtime } is error due to duplicate x
 
 add {{ foo }} as sugar for { foo: foo } so modules just do {{ publicFn1, publicFn2, ... }}
+do private using $: { public: 42, $private: -1 } accessed just by $private ...
+use * for vars; like this: x = var 0; *x += 1 ... add .increment/decrement and such to var
+syntax change: do symbols using 'symbol
 
-idea: private using @, not _ ... and make class a private
-also classes have @name property, when writing, drop the class pointer in favor of just the @name
+fix return from blocks, how about -> for block => for function wich allows return?
+Or/and break with value ... ?
 
 add @method arg, arg
-instead of hotel, lets call it volley? .vl? as in task volley ... tvl? or just tl?
 instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
 
 start preparing a first release:
 * every file, new coding style, stamp with license, remove any commented code
 * use gcov to remove any unused code or add tests for them (larger parts...)
 * clean up and comment eval.c maybe remove some of it to run.c oid
-
-syntax change: do symbols using 'symbol
-fix return from blocks, how about -> for block => for function wich allows return?
-Or break with value ... ?
 
 think about special inherited task local *Env*:
 * for stdin/stdout/stderr

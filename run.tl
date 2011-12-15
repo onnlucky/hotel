@@ -12,7 +12,6 @@ http.Server.new(9999).serve: (conn ->
     conn.write "<html>\n<head><title>YO!</title></head>\n<body>"
     conn.write "<p>Hi there; you are number: $(nr); thanks!</p>"
     conn.write "</body>\n</html>\n"
-    conn.end
     print "DONE: $(nr)"
 )
 
