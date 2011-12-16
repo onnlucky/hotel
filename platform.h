@@ -181,7 +181,7 @@ static inline char* strndup(const char* s, size_t n) {
 }
 #endif
 #ifdef PLATFORM_LINUX
-char *strnstr(const char *s1, const char *s2, size_t len) {
+static inline char *strnstr(const char *s1, const char *s2, size_t len) {
    size_t l1 = len, l2;
 
    l2 = strlen(s2);

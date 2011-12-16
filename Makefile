@@ -68,7 +68,12 @@ install: tl.h libtl.a tl
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
 	cp tl.h $(INCDIR)/
-	cp -r modules/ $(MODDIR)/
+	cp -r modules/* $(MODDIR)/
+uninstall:
+	rm -rf $(BINDIR)/tl
+	rm -rf $(LIBDIR)/libtl.a
+	rm -rf $(INCDIR)/tl.h
+	rm -rf $(MODDIR)
 
-.PHONY: run test clean distclean install
+.PHONY: run test clean distclean install uninstall
 
