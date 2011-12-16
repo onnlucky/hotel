@@ -540,18 +540,19 @@ static tlValue _child_err(tlTask* task, tlArgs* args) {
 // TODO we should also set nonblocking to pipes right?
 static tlValue _io_launch(tlTask* task, tlArgs* args) {
     // TODO failure of .call() construct ...
-    args = tlArgsAs(tlArgsGet(args, 0));
-    char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
-    for (int i = 0; i < tlArgsSize(args); i++) {
-        tlText* text = tlTextCast(tlArgsGet(args, i));
+    tlList* as = tlListCast(tlArgsGet(args, 0));
+    if (!as) TL_THROW("expected a List");
+    char** argv = malloc(sizeof(char*) * (tlListSize(as) + 1));
+    for (int i = 0; i < tlListSize(as); i++) {
+        tlText* text = tlTextCast(tlListGet(as, i));
         if (!text) {
             free(argv);
             TL_THROW("expected a Text");
         }
         argv[i] = (char*)tlTextData(text);
     }
-    argv[tlArgsSize(args)] = 0;
-    trace("launch: %s [%d]", argv[0], tlArgsSize(args) - 1);
+    argv[tlListSize(as)] = 0;
+    trace("launch: %s [%d]", argv[0], tlListSize(as) - 1);
 
     int _in[2];
     int _out[2];
@@ -572,6 +573,7 @@ static tlValue _io_launch(tlTask* task, tlArgs* args) {
             free(argv);
             return null;
         }
+        nonblock(_in[1]); nonblock(_out[0]); nonblock(_err[0]);
         tlChild* child = tlChildNew(task, pid, _in[1], _out[0], _err[0]);
         return child;
     }

@@ -117,21 +117,47 @@ Socket = {
     )
 }
 
+// TODO extend Text.class with this ...
+_text_split = (text, on ->
+    onlen = on.size
+    loop = (start, at, list->
+        if text.startsWith(on, at): (
+            goto(loop(at + onlen, at + onlen, list.add(text.slice(start, at))))
+        )
+        if text.size <= at: (
+            return list.add(text.slice(start, at))
+        )
+        goto(loop(start, at + 1, list))
+    )
+    return loop(0, 0, [])
+)
+
 Process = {
-    run: (->
-        check = try: args.names.noerror
+    run: (cmd ->
+        list = _text_split(cmd, " ")
+        //check = try: args.names.noerror
         // no stdin, no stdin, no stderr, joined stdin/stderr
-        child = _io.launch args, false, false, false, true
+        child = _io.launch list, false, false, false, true
         buf = Buffer.new
         out = Stream.new(child.out)
         // Task.yield is needed: otherwise we will read 0 all the time and not drop
         // into the mainloop ... so isRunning can turn false
         while child.isRunning: out.read buf; Task.yield
+
         r = child.wait
-        if r != 0 and check: _throw "Error"
+        if r != 0: _throw "Error: process: $r $(list.get(0)) $(list.size)"
         return buf.read
     )
 }
 
-return { Buffer: Buffer, Stream: Stream, File: File, Socket: Socket, Process: Process }
+chdir = (dir -> _io_chdir dir)
+
+return {
+    Buffer: Buffer
+    Stream: Stream
+    File: File
+    Socket: Socket
+    Process: Process
+    chdir: chdir
+}
 
