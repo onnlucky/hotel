@@ -91,8 +91,11 @@ static tlFile* tlFileFromWriter(tlWriter* writer) {
 
 void close_ev_io(void* _file, void* data) {
     tlFile* file = tlFileAs(_file);
-    if (file->ev.fd) close(file->ev.fd);
-    trace(">>>> CLOSED FILE: %d <<<<", file->ev.fd);
+    if (file->ev.fd < 0) return;
+    int r = close(file->ev.fd);
+    if (r) warning("%d: error: gc close file: %s", file->ev.fd, strerror(errno));
+    trace(">>>> GC CLOSED FILE: %d <<<<", file->ev.fd);
+    file->ev.fd = -1;
 }
 static tlFile* tlFileNew(tlTask* task, int fd) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
@@ -119,8 +122,8 @@ static tlValue _file_close(tlTask* task, tlArgs* args) {
     // already closed
     if (file->ev.fd < 0) return tlNull;
 
-    trace("close: %p %d", file, ev->fd);
-    ev_io_stop(&file->ev);
+    trace("close: %p %d", file, file->ev.fd);
+    //ev_io_stop(&file->ev);
 
     int r = close(file->ev.fd);
     if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
@@ -159,10 +162,11 @@ static tlValue _reader_read(tlTask* task, tlArgs* args) {
 
     int len = read(file->ev.fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) { trace("EGAIN"); return tlNull; }
         TL_THROW("%d: read: failed: %s", file->ev.fd, strerror(errno));
     }
     didwrite(buf, len);
+    trace("write: %d %d", file->ev.fd, len);
     return tlINT(len);
 }
 
@@ -189,6 +193,7 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
         TL_THROW("%d: write: failed: %s", file->ev.fd, strerror(errno));
     }
     didread(buf, len);
+    trace("read: %d %d", file->ev.fd, len);
     return tlINT(len);
 }
 
@@ -206,11 +211,12 @@ static tlValue _reader_accept(tlTask* task, tlArgs* args) {
     socklen_t len = sizeof(sockaddr);
     int fd = accept(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
     if (fd < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) return tlNull;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) { trace("EAGAIN"); return tlNull; }
         TL_THROW("%d: accept: failed: %s", file->ev.fd, strerror(errno));
     }
 
     if (nonblock(fd) < 0) TL_THROW("accept: nonblock failed: %s", strerror(errno));
+    trace("accept: %d %d", file->ev.fd, fd);
     return tlFileNew(task, fd);
 }
 
@@ -300,7 +306,7 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
     int r = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
 
-    listen(fd, 128); // backlog, configurable?
+    listen(fd, 1024); // backlog, configurable?
     return tlFileNew(task, fd);
 }
 
@@ -634,8 +640,8 @@ static tlValue _io_waitread(tlTask* task, tlArgs* args) {
 
     file->ev.events |= EV_READ;
     ev_io_start(&file->ev);
-
     vm->iowaiting += 1;
+
     return tlNull;
 }
 
@@ -657,14 +663,15 @@ static tlValue _io_waitwrite(tlTask* task, tlArgs* args) {
 
     file->ev.events |= EV_WRITE;
     ev_io_start(&file->ev);
-
     vm->iowaiting += 1;
+
     return tlNull;
 }
 
 static void timer_cb(ev_timer* timer, int revents) {
     trace("timer_cb: %p", timer);
     tlVm* vm = tlTaskGetVm(tlMessageGetSender(tlMessageAs(timer->data)));
+    ev_timer_stop(timer);
     vm->iowaiting -= 1;
     tlMessageReply(tlMessageAs(timer->data), null);
     free(timer);
@@ -684,6 +691,7 @@ static tlValue _io_wait(tlTask* task, tlArgs* args) {
     ev_timer_init(timer, timer_cb, ms, 0);
     ev_timer_start(timer);
     vm->iowaiting += 1;
+
     return tlNull;
 }
 
@@ -715,10 +723,10 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
         ev_run(EVRUN_ONCE);
     } else {
         if (vm->tasks - vm->iowaiting > 1) {
-            trace("checking for events");
+            trace("checking for events: %zd %zd", vm->tasks, vm->iowaiting);
             ev_run(EVRUN_NOWAIT);
         } else {
-            trace("blocking for events");
+            trace("blocking for events: %zd %zd", vm->tasks, vm->iowaiting);
             ev_run(EVRUN_ONCE);
         }
     }

@@ -1,7 +1,7 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // a native and language level message queue
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 TL_REF_TYPE(tlQueue);
 static tlClass _tlQueueClass = { .name = "MsgQueue" };

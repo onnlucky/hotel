@@ -33,10 +33,9 @@ readSome = (file, buf ->
         loop: (
             len = reader.read buf.buf
             if len == null: _io.waitread reader
-            if len: break
+            if len: return buf, len
         )
     )
-    return buf
 )
 readFull = (file, buf ->
     if not buf.class == Buffer.class: _throw "Expected a Buffer"
@@ -83,7 +82,6 @@ Server = {
             _with_lock(reader): (
                 loop: (
                     conn = reader.accept()
-                    // TODO this return breaks things ... returns should unwind stack with "error"
                     if conn: return Stream.new(conn)
                     _io.waitread reader
                 )

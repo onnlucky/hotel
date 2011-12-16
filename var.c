@@ -1,6 +1,6 @@
 // a mutable variable, basically a locked object but no queue since all operations are atomic
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 static tlClass _tlVarClass = {
     .name = "Var"

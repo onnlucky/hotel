@@ -1,6 +1,6 @@
 // object type, a fully mutable map accessed like an object
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 static tlClass _tlObjectClass = { .name = "Object", .locked = true };
 tlClass* tlObjectClass = &_tlObjectClass;

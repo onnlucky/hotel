@@ -14,10 +14,10 @@ HttpConnection = (conn ->
             // read and parse until headers are complete
             if @_req: return @_req
             loop: (
-                if @_in.canread > 2048: _throw "REQUEST TOO LONG"
+                if @_in.canread > 2048: print @_in.read; conn.close; _throw "REQUEST TOO LONG"
                 if @_in.find("\r\n\r\n"): break
                 if @_in.find("\n\n"): break
-                len = conn.read @_in
+                _, len = conn.read @_in
                 if len == 0: _throw "IO ERROR"
             )
             @_req = @_in.read
@@ -59,6 +59,7 @@ Server = {
                 client = this.sock.accept
                 conn = HttpConnection(client)
                 !block(conn); conn.end
+                Task.yield
             )
         )
     }
