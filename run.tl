@@ -9,7 +9,7 @@ var $at = "init"
     conn.setContentType "text/html"
     conn.write "<p>now: $($at)"
     if $fail: conn.write "<p><b>failed</b>: $($fail.at)"
-    if $good: conn.write "<p>good: $($good)"
+    if $good: conn.write "<p>last build:<pre>$($good)</pre>"
 )
 
 run = (cmd ->
@@ -33,8 +33,10 @@ loop: (
         run "git pull --force"
         run "make"
         run "./tl test/fib.tl"
-        $good = run "git log --oneline -n1"
+        $good = run "git log -n1"
+        $fail = null
     )
+    $at = "waiting"
     sleep minutes 5
 )
 

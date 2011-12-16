@@ -304,6 +304,7 @@ tlValue tlParse(tlTask* task, tlText* text, tlText* file);
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlValue v);
 tlTask* tlVmEvalCall(tlVm* vm, tlValue fn, ...);
+tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as);
 tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as);
 

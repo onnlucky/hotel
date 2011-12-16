@@ -6,6 +6,7 @@
 *.dylib
 *.dSYM
 
+boot_tl.h
 parser.c
 tl
 

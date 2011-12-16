@@ -6,7 +6,7 @@
 int main(int argc, char** argv) {
     tl_init();
 
-    const char* boot = "boot.tl";
+    const char* boot = null;
     tlArgs* args = null;
 
     if (argc >= 2 && !strcmp(argv[1], "--noboot")) {
@@ -26,7 +26,9 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
-    tlTask* maintask = tlVmEvalFile(vm, tlTEXT(boot), args);
+    tlTask* maintask;
+    if (boot) maintask = tlVmEvalFile(vm, tlTEXT(boot), args);
+    else maintask = tlVmEvalBoot(vm, args);
 
     tlValue err = tlTaskGetError(maintask);
     if (err) {

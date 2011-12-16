@@ -2,6 +2,7 @@
 
 #include "tl.h"
 #include "platform.h"
+#include "boot_tl.h"
 
 #include "llib/lhashmap.c"
 #include "llib/lqueue.c"
@@ -38,9 +39,11 @@
 #include "evio.c"
 
 // super extra
-#include "http.c"
+//#include "http.c"
 
 #include "trace-off.h"
+
+tlText* tl_boot_code;
 
 static tlValue _out(tlTask* task, tlArgs* args) {
     trace("out(%d)", tlArgsSize(args));
@@ -172,7 +175,7 @@ void tl_init() {
     buffer_init();
     evio_init();
 
-    http_init();
+    tl_boot_code = tlTextFromStatic((const char*)boot_tl, boot_tl_len);
 }
 
 tlVm* tlVmNew() {
@@ -242,6 +245,10 @@ tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as) {
     tlbuf_write_uint8(buf, 0);
     tlText* code = tlTextFromTake(null, tlbuf_free_get(buf), 0);
     return tlVmEvalCode(vm, code, as);
+}
+
+tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as) {
+    return tlVmEvalCode(vm, tl_boot_code, as);
 }
 
 tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as) {

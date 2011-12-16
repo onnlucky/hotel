@@ -1,4 +1,4 @@
-CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g $(CFLAGS) -Ihttp-parser
+CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g $(CFLAGS)
 ifeq ($(VALGRIND),1)
 TOOL=valgrind -q --track-origins=yes
 endif
@@ -6,17 +6,17 @@ endif
 all: tl
 
 run: tl
-	$(TOOL) ./tl run.tl
+	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
 
 test: tl
 	cd test && ./run.sh
 
+boot_tl.h: boot.tl
+	xxd -i boot.tl > boot_tl.h
+
 greg/greg:
 	git clone git://github.com/onnlucky/greg.git
 	cd greg && git checkout 8bc002c0f640c2d93bb9d9dc965d61df8caf4cf4 && make
-
-http-parser/http_parser.c:
-	git clone git://github.com/onnlucky/http-parser.git
 
 parser.c: parser.g greg/greg
 	greg/greg -o parser.c parser.g
@@ -42,30 +42,33 @@ ifneq ($(BOEHM),)
 endif
 	ar -s libtl.a
 
-vm.o: *.c *.h llib/lqueue.* llib/lhashmap.* Makefile http-parser/http_parser.c
+vm.o: *.c *.h llib/lqueue.* llib/lhashmap.* Makefile boot_tl.h
 	$(CC) $(CFLAGS) -Ilibgc/libatomic_ops/src vm.c -c
 
 tl: libtl.a tl.c
 	$(CC) $(CFLAGS) tl.c -o tl libtl.a -lm -lpthread
 
 clean:
-	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM
+	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h
 	$(MAKE) -C graphics clean
 distclean: clean
-	rm -rf greg/ libgc/ http-parser/
+	rm -rf greg/ libgc/
 dist-clean: distclean
 
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib
 INCDIR:=$(DESTDIR)$(PREFIX)/include
+MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
 install: tl.h libtl.a tl
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
 	mkdir -p $(INCDIR)
+	mkdir -p $(MODDIR)
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
 	cp tl.h $(INCDIR)/
+	cp -r modules/ $(MODDIR)/
 
 .PHONY: run test clean distclean install
 

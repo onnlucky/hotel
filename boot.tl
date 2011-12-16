@@ -41,11 +41,12 @@ days    = (d -> d * 1000 * 60 * 60 * 24)
 // TODO besides, need to have a dedicated task for this, to prevent races
 _env = Env.current
 _loaded = Map.new
+_module_path = _io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl"
 _resolve block=(name ->
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
-    file = "$(name.toText).tl"
+    file = "$(_module_path)/$(name.toText).tl"
     _catch: (e ->
         print "error loading: '$file': $e"
         _loaded.set(name, _loaded)

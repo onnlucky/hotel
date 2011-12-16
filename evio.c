@@ -46,6 +46,13 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     }
     return tlNull;
 }
+static tlValue _io_getenv(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    const char* c = getenv(tlTextData(text));
+    if (!c) return tlNull;
+    return tlTextFromCopy(null, c, 0);
+}
 
 TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlReader);
@@ -740,6 +747,7 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
 
 static const tlNativeCbs __evio_natives[] = {
     { "_io_chdir", _io_chdir },
+    { "_io_getenv", _io_getenv },
     { "_File_open", _File_open },
     { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
