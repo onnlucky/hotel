@@ -166,7 +166,7 @@ static tlValue _reader_read(tlTask* task, tlArgs* args) {
         TL_THROW("%d: read: failed: %s", file->ev.fd, strerror(errno));
     }
     didwrite(buf, len);
-    trace("write: %d %d", file->ev.fd, len);
+    trace("read: %d %d", file->ev.fd, len);
     return tlINT(len);
 }
 
@@ -193,7 +193,7 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
         TL_THROW("%d: write: failed: %s", file->ev.fd, strerror(errno));
     }
     didread(buf, len);
-    trace("read: %d %d", file->ev.fd, len);
+    trace("write: %d %d", file->ev.fd, len);
     return tlINT(len);
 }
 
@@ -425,7 +425,8 @@ TL_REF_TYPE(tlChild);
 struct tlChild {
     tlLock lock;
     ev_child ev;
-    lqueue wait_q; // notice we don't need need the concurrent list here, but tasks can enter these
+    lqueue wait_q; // maybe use a queue instead, or do what tlTask does ... ?
+    tlValue res; // the result code
     tlValue in;
     tlValue out;
     tlValue err;
@@ -466,11 +467,15 @@ static void child_cb(ev_child *ev, int revents) {
     tlChild* child = tlChildFrom(ev);
     trace("!! !! !!child_cb: %p", ev);
     ev_child_stop(ev);
+    child->res = tlINT(WEXITSTATUS(child->ev.rstatus));
 
+    tlVm* vm = null;
     while (true) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&child->wait_q));
         if (!task) return;
-        task->value = tlINT(WEXITSTATUS(child->ev.rstatus));
+        if (!vm) vm = tlTaskGetVm(task);
+        vm->iowaiting -= 1;
+        task->value = child->res;
         tlTaskReady(task);
     }
 }
@@ -488,58 +493,54 @@ static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
 static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
     if (!res) return null;
     tlChild* child = tlChildAs(res);
+    if (child->res) return child->res;
+
+    // TODO not thread save ... needs mutex ...
+    tlVm* vm = tlTaskGetVm(task);
+    vm->iowaiting += 1;
+
     frame->resumecb = null;
-    fatal("not implemented");
-    //tlTaskWaitIo(task);
+    tlTaskWaitFor(task, null);
     lqueue_put(&child->wait_q, &task->entry);
     return tlTaskNotRunning;
 }
-static tlValue _child_running(tlTask* task, tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
-    return tlBOOL(ev_is_active(&child->ev));
-}
-static tlValue _ChildWait(tlTask* task, tlArgs* args) {
+static tlValue _child_wait(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     trace("child_wait: %d", child->ev.pid);
 
-    if (!ev_is_active(&child->ev)) { // already exited
-        assert(kill(child->ev.pid, 0) == -1);
-        return tlINT(WEXITSTATUS(child->ev.rstatus));
-    }
+    if (child->res) return child->res;
     return tlTaskPauseResuming(task, resumeChildWait, child);
 }
-
-static tlValue _ChildIn(tlTask* task, tlArgs* args) {
+static tlValue _child_running(tlTask* task, tlArgs* args) {
+    tlChild* child = tlChildCast(tlArgsTarget(args));
+    if (!child) TL_THROW("expected a Child");
+    return tlBOOL(child->res == 0);
+}
+static tlValue _child_in(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     if (tlIntIs(child->in)) child->in = tlFileNew(task, tl_int(child->in));
     return child->in;
 }
-static tlValue _ChildOut(tlTask* task, tlArgs* args) {
+static tlValue _child_out(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     if (tlIntIs(child->out)) child->out = tlFileNew(task, tl_int(child->out));
     return child->out;
 }
-static tlValue _ChildErr(tlTask* task, tlArgs* args) {
+static tlValue _child_err(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     if (tlIntIs(child->err)) child->err = tlFileNew(task, tl_int(child->err));
     return child->err;
 }
 
-static tlValue _ChildStatus(tlTask* task, tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
-    trace("child_status: %d, status: %d", child->ev.pid, child->ev.rstatus);
-    return tlINT(WEXITSTATUS(child->ev.rstatus));
-}
-
 // TODO do we want to reset signal handlers in child too?
 // TODO we should also set nonblocking to pipes right?
-static tlValue _Child_run(tlTask* task, tlArgs* args) {
+static tlValue _io_launch(tlTask* task, tlArgs* args) {
+    // TODO failure of .call() construct ...
+    args = tlArgsAs(tlArgsGet(args, 0));
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlText* text = tlTextCast(tlArgsGet(args, i));
@@ -550,6 +551,7 @@ static tlValue _Child_run(tlTask* task, tlArgs* args) {
         argv[i] = (char*)tlTextData(text);
     }
     argv[tlArgsSize(args)] = 0;
+    trace("launch: %s [%d]", argv[0], tlArgsSize(args) - 1);
 
     int _in[2];
     int _out[2];
@@ -743,8 +745,9 @@ static const tlNativeCbs __evio_natives[] = {
     { "_ServerSocket_listen", _ServerSocket_listen },
     { "_Path_stat", _Path_stat },
     { "_Dir_open", _Dir_open },
+
     { "_Child_exec", _Child_exec },
-    { "_Child_run", _Child_run },
+    { "_io_launch", _io_launch },
 
     { "_io_wait", _io_wait },
     { "_io_waitread", _io_waitread },
@@ -780,12 +783,11 @@ void evio_init() {
         null
     );
     _tlChildClass.map = tlClassMapFrom(
-        "running", _child_running,
-        "wait", _ChildWait,
-        "status", _ChildStatus,
-        "in", _ChildIn,
-        "out", _ChildOut,
-        "err", _ChildErr,
+        "isRunning", _child_running,
+        "wait", _child_wait,
+        "in", _child_in,
+        "out", _child_out,
+        "err", _child_err,
         null
     );
 

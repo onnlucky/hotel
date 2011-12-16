@@ -60,7 +60,7 @@ int tlbuf_grow(tl_buf* buf) {
 #define canwrite(buf) (buf->size - buf->writepos)
 
 void tlbuf_autogrow(tl_buf* buf) {
-    if (canread(buf) < 1024) tlbuf_grow(buf);
+    if (canwrite(buf) < 1024) tlbuf_grow(buf);
     assert(canwrite(buf) >= 1024);
 }
 

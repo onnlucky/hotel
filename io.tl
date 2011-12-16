@@ -117,5 +117,21 @@ Socket = {
     )
 }
 
-return { Buffer: Buffer, Stream: Stream, File: File, Socket: Socket }
+Process = {
+    run: (->
+        check = try: args.names.noerror
+        // no stdin, no stdin, no stderr, joined stdin/stderr
+        child = _io.launch args, false, false, false, true
+        buf = Buffer.new
+        out = Stream.new(child.out)
+        // Task.yield is needed: otherwise we will read 0 all the time and not drop
+        // into the mainloop ... so isRunning can turn false
+        while child.isRunning: out.read buf; Task.yield
+        r = child.wait
+        if r != 0 and check: _throw "Error"
+        return buf.read
+    )
+}
+
+return { Buffer: Buffer, Stream: Stream, File: File, Socket: Socket, Process: Process }
 

@@ -84,6 +84,7 @@ loop: (
             _match(msg.name == #waitread): _io_waitread msg.get(0), msg
             _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
             _match(msg.name == #wait): _io_wait msg.get(0), msg
+            _match(msg.name == #launch): msg.reply(_io_launch(msg.get(0)))
             _nomatch
         )
     )
