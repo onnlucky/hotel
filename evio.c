@@ -266,7 +266,7 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 1), -1);
     if (port < 0) TL_THROW("expected a port");
 
-    print("tcp_open: %s:%d", tl_str(address), port);
+    trace("tcp_open: %s:%d", tl_str(address), port);
 
     struct in_addr ip;
     if (!inet_aton(tlTextData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
@@ -481,7 +481,7 @@ static void child_cb(ev_child *ev, int revents) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&child->wait_q));
         if (!task) return;
         if (!vm) vm = tlTaskGetVm(task);
-        vm->iowaiting -= 1;
+        vm->waitevent -= 1;
         task->value = child->res;
         tlTaskReady(task);
     }
@@ -504,7 +504,7 @@ static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlErro
 
     // TODO not thread save ... needs mutex ...
     tlVm* vm = tlTaskGetVm(task);
-    vm->iowaiting += 1;
+    vm->waitevent += 1;
 
     frame->resumecb = null;
     tlTaskWaitFor(task, null);
@@ -544,42 +544,71 @@ static tlValue _child_err(tlTask* task, tlArgs* args) {
 }
 
 // TODO do we want to reset signal handlers in child too?
-// TODO we should also set nonblocking to pipes right?
 static tlValue _io_launch(tlTask* task, tlArgs* args) {
-    // TODO failure of .call() construct ...
+    static int null_fd;
+    if (!null_fd) {
+        null_fd = open("/dev/null", O_RDWR);
+        if (null_fd < 0) fatal("unable to open(/dev/null): %s", strerror(errno));
+    }
     tlList* as = tlListCast(tlArgsGet(args, 0));
     if (!as) TL_THROW("expected a List");
     char** argv = malloc(sizeof(char*) * (tlListSize(as) + 1));
     for (int i = 0; i < tlListSize(as); i++) {
         tlText* text = tlTextCast(tlListGet(as, i));
-        if (!text) {
-            free(argv);
-            TL_THROW("expected a Text");
-        }
+        if (!text) { free(argv); TL_THROW("expected a Text"); }
         argv[i] = (char*)tlTextData(text);
     }
     argv[tlListSize(as)] = 0;
-    trace("launch: %s [%d]", argv[0], tlListSize(as) - 1);
 
-    int _in[2];
-    int _out[2];
-    int _err[2];
-    if (pipe(_in) || pipe(_out) || pipe(_err)) {
+    bool want_in = tl_bool_or(tlArgsGet(args, 1), true);
+    bool want_out = tl_bool_or(tlArgsGet(args, 2), true);
+    bool want_err = tl_bool_or(tlArgsGet(args, 3), true);
+    bool join_err = tl_bool_or(tlArgsGet(args, 4), false);
+    trace("launch: %s [%d] %d,%d,%d,%d", argv[0], tlListSize(as) - 1,
+            want_in, want_out, want_err, join_err);
+
+    int _in[2] = {-1, -1};
+    int _out[2] = {-1, -1};
+    int _err[2] = {-1, -1};
+    // create all the stdin/stdout/stderr fds; bail and cleanup if anything is wrong
+    errno = 0;
+    do {
+        if (want_in) { if (pipe(_in)) break; } else {
+            if ((_in[0] = dup(null_fd)) < 0) break;
+            if ((_in[1] = dup(null_fd)) < 0) break;
+        }
+        if (want_out) { if (pipe(_out)) break; } else {
+            if ((_out[0] = dup(null_fd)) < 0) break;
+            if ((_out[1] = dup(null_fd)) < 0) break;
+        }
+        if (want_err) { if (pipe(_err)) break; } else {
+        } if (join_err) {
+            assert(_err[0] == -1 && _err[1] == -1);
+            if ((_err[0] = dup(_out[0])) < 0) break;
+            if ((_err[1] = dup(_out[1])) < 0) break;
+        } else {
+            assert(_err[0] == -1 && _err[1] == -1);
+            if ((_err[0] = dup(null_fd)) < 0) break;
+            if ((_err[1] = dup(null_fd)) < 0) break;
+        }
+        assert(_in[0] >= 0 && _in[1] >= 0);
+        assert(_out[0] >= 0 && _out[1] >= 0);
+        assert(_err[0] >= 0 && _err[1] >= 0);
+    } while (false);
+    int pid = -1;
+    if (!errno) pid = fork();
+    if (errno) {
         TL_THROW_SET("child exec: failed: %s", strerror(errno));
-        close(_in[0]); close(_in[1]); close(_out[0]); close(_out[1]); close(_err[0]); close(_err[1]);
+        close(_in[0]); close(_in[1]);
+        close(_out[0]); close(_out[1]);
+        close(_err[0]); close(_err[1]);
         free(argv);
         return null;
     }
-
-    int pid = fork();
+    assert(pid >= 0);
     if (pid) {
-        // parent
-        if (close(_in[0]) || close(_out[1]) || close(_err[1])) {
-            TL_THROW_SET("child exec: failed: %s", strerror(errno));
-            close(_in[0]); close(_in[1]); close(_out[0]); close(_out[1]); close(_err[0]); close(_err[1]);
-            free(argv);
-            return null;
-        }
+        // parent; no error checking ... there would be nothing we could do
+        close(_in[0]); close(_out[1]); close(_err[1]);
         nonblock(_in[1]); nonblock(_out[0]); nonblock(_err[0]);
         tlChild* child = tlChildNew(task, pid, _in[1], _out[0], _err[0]);
         return child;
@@ -616,7 +645,7 @@ static void io_cb(ev_io *ev, int revents) {
         assert(file->reader.lock.owner);
         tlMessage* msg = tlMessageAs(file->reader.lock.owner->value);
         tlVm* vm = tlTaskGetVm(file->reader.lock.owner);
-        vm->iowaiting -= 1;
+        vm->waitevent -= 1;
         ev->events &= ~EV_READ;
         tlMessageReply(msg, null);
     }
@@ -626,7 +655,7 @@ static void io_cb(ev_io *ev, int revents) {
         assert(file->writer.lock.owner);
         tlMessage* msg = tlMessageAs(file->writer.lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
-        vm->iowaiting -= 1;
+        vm->waitevent -= 1;
         ev->events &= ~EV_WRITE;
         tlMessageReply(msg, null);
     }
@@ -651,7 +680,7 @@ static tlValue _io_waitread(tlTask* task, tlArgs* args) {
 
     file->ev.events |= EV_READ;
     ev_io_start(&file->ev);
-    vm->iowaiting += 1;
+    vm->waitevent += 1;
 
     return tlNull;
 }
@@ -674,7 +703,7 @@ static tlValue _io_waitwrite(tlTask* task, tlArgs* args) {
 
     file->ev.events |= EV_WRITE;
     ev_io_start(&file->ev);
-    vm->iowaiting += 1;
+    vm->waitevent += 1;
 
     return tlNull;
 }
@@ -683,7 +712,7 @@ static void timer_cb(ev_timer* timer, int revents) {
     trace("timer_cb: %p", timer);
     tlVm* vm = tlTaskGetVm(tlMessageGetSender(tlMessageAs(timer->data)));
     ev_timer_stop(timer);
-    vm->iowaiting -= 1;
+    vm->waitevent -= 1;
     tlMessageReply(tlMessageAs(timer->data), null);
     free(timer);
 }
@@ -701,7 +730,7 @@ static tlValue _io_wait(tlTask* task, tlArgs* args) {
     timer->data = msg;
     ev_timer_init(timer, timer_cb, ms, 0);
     ev_timer_start(timer);
-    vm->iowaiting += 1;
+    vm->waitevent += 1;
 
     return tlNull;
 }
@@ -720,10 +749,13 @@ static tlValue _io_init(tlTask* task, tlArgs* args) {
 
 static tlValue _io_haswaiting(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
-    assert(vm->iowaiting >= 0);
-    trace("IO HAS WAITING: %zd <<<<<", vm->iowaiting);
-    if (vm->iowaiting > 0) return tlTrue;
-    if (a_get(&vm->tasks) > 1) return tlTrue;
+    assert(vm->waitevent >= 0);
+    trace("IO HAS WAITING: %zd %zd %zd", vm->tasks, vm->runnable, vm->waitevent);
+    if (vm->waitevent > 0) return tlTrue;
+    // TODO should not be "> 1" but "> runloops"
+    // TODO is this thread safe? I think so ...
+    // if the runloops are the only tasks, no other task can be spawned
+    if (a_get(&vm->runnable) > 1) return tlTrue;
     return tlFalse;
 }
 
@@ -733,11 +765,11 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
         trace("blocking for events");
         ev_run(EVRUN_ONCE);
     } else {
-        if (vm->tasks - vm->iowaiting > 1) {
-            trace("checking for events: %zd %zd", vm->tasks, vm->iowaiting);
+        if (a_get(&vm->runnable) > 1) {
+            trace("checking for events: %zd %zd %zd", vm->tasks, vm->runnable, vm->waitevent);
             ev_run(EVRUN_NOWAIT);
         } else {
-            trace("blocking for events: %zd %zd", vm->tasks, vm->iowaiting);
+            trace("blocking for events: %zd %zd %zd", vm->tasks, vm->runnable, vm->waitevent);
             ev_run(EVRUN_ONCE);
         }
     }

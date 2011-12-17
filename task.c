@@ -348,10 +348,8 @@ tlValue tlTaskWaitFor(tlTask* task, tlValue on) {
         return deadlock;
     }
 
-    if (!tlWorkerIsBound(task->worker)) {
-        task->worker = vm->waiter;
-    }
-    a_inc(&vm->waiting);
+    if (!tlWorkerIsBound(task->worker)) task->worker = vm->waiter;
+    a_dec(&vm->runnable);
     return null;
 }
 
@@ -362,7 +360,7 @@ void tlTaskReady(tlTask* task) {
     assert(task->stack);
     tlVm* vm = tlTaskGetVm(task);
     task->waitFor = null;
-    a_dec(&vm->waiting);
+    a_inc(&vm->runnable);
     task->state = TL_STATE_READY;
     if (tlWorkerIsBound(task->worker)) {
         tlWorkerSignal(task->worker);
@@ -379,6 +377,7 @@ void tlTaskStart(tlTask* task) {
     assert(task->stack);
     tlVm* vm = tlTaskGetVm(task);
     a_inc(&vm->tasks);
+    a_inc(&vm->runnable);
     task->worker = null;
     task->state = TL_STATE_READY;
     lqueue_put(&vm->run_q, &task->entry);
@@ -418,9 +417,11 @@ INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
     task->stack = null;
     task->value = null;
     task->error = error;
+    assert(task->state = TL_STATE_RUN);
     task->state = TL_STATE_ERROR;
     tlVm* vm = tlTaskGetVm(task);
     a_dec(&vm->tasks);
+    a_dec(&vm->runnable);
     task->worker = vm->waiter;
     signalWaiters(task);
     signalVm(task);
@@ -431,9 +432,11 @@ INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
     task->stack = null;
     task->value = res;
     task->error = null;
+    assert(task->state = TL_STATE_RUN);
     task->state = TL_STATE_DONE;
     tlVm* vm = tlTaskGetVm(task);
     a_dec(&vm->tasks);
+    a_dec(&vm->runnable);
     task->worker = vm->waiter;
     signalWaiters(task);
     signalVm(task);

@@ -9,6 +9,7 @@ INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag
 // creating tagged values
 tlValue tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
 int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
+int tl_bool_or(tlValue v, bool d) { if (!v) return d; return tl_bool(v); }
 
 tlValue tlINT(int i) { return (tlValue)((intptr_t)i << 2 | 1); }
 int tl_int(tlValue v) {

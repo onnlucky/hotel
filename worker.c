@@ -26,10 +26,10 @@ struct tlVm {
     bool running;
     tlTask* main;
 
-    // task counts: total, waiting or in io
+    // task counts: total, runnable or waiting on a runloop event
     a_val tasks;
-    a_val waiting;
-    a_val iowaiting;
+    a_val runnable;
+    a_val waitevent; // external events ...
 
     tlEnv* globals;
     tlValue resolve;

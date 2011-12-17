@@ -14,7 +14,8 @@ ioloop = (->
                 _match(msg.name == #waitread): _io_waitread msg.get(0), msg
                 _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
                 _match(msg.name == #wait): _io_wait msg.get(0), msg
-                _match(msg.name == #launch): msg.reply(_io_launch(msg.get(0)))
+                _match(msg.name == #launch): msg.reply(_io_launch(
+                        msg.get(0), msg.get(1), msg.get(2), msg.get(3), msg.get(4)))
                 _nomatch
             )
         )
@@ -158,18 +159,20 @@ _text_split = (text, on ->
 Process = {
     run: (cmd ->
         list = _text_split(cmd, " ")
-        //check = try: args.names.noerror
+        check = try: not args.names.error
         // no stdin, no stdin, no stderr, joined stdin/stderr
-        child = _io.launch list, false, false, false, true
+        child = _io.launch list, false, true, false, true
         buf = Buffer.new
         out = Stream.new(child.out)
         // Task.yield is needed: otherwise we will read 0 all the time and not drop
         // into the mainloop ... so isRunning can turn false
-        while child.isRunning: out.read buf; Task.yield
-
+        loop: (
+            _, len = out.read buf
+            if len == 0: break
+        )
         r = child.wait
-        if r != 0: _throw "Error: process: $r $(list.get(0)) $(list.size)"
-        return buf.read
+        if r != 0 and check: _throw "Error: process: $r $(list.get(0)) $(list.size)"
+        return buf.read, r
     )
 }
 
