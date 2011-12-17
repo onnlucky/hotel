@@ -7,6 +7,7 @@ do errors with nice backtraces per file etc, and per task ...
 
 add a "static" layer, where the symbol table, gc, and mainloops+locks live
 allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
+what about close() and stat(); they might still block or eintr ... do them on yet another thread?
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 bug: { x: 42, x: runtime } is error due to duplicate x
@@ -23,7 +24,7 @@ add @method arg, arg
 instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
 
 start preparing a first release:
-* every file, new coding style, stamp with license, remove any commented code
+* stamp every file with license/author
 * use gcov to remove any unused code or add tests for them (larger parts...)
 * clean up and comment eval.c maybe remove some of it to run.c oid
 
@@ -32,6 +33,9 @@ think about special inherited task local *Env*:
 * for cwd
 * for module resolving path
 * for error mode (report on stdout or throw on waiter/value)
+
+module lookup: should be in a task, should try sender path, then all module paths
+but module lookup should not be automatic but maybe sys.io.chdir
 
 add send as code primitive: target, msg, args, instead of _object_send
 add op as code primitive: op, lhs, rhs

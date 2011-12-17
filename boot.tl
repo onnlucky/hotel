@@ -25,10 +25,6 @@ try = ( ->
     args.block.call()
 )
 
-// this is here, so the io lib can use it ...
-_io_queue = _io_init()
-_io = _io_queue.input
-
 // TODO should not sleep in ms, but need float ... should also add Time module
 sleep = (ms -> _io.wait ms)
 seconds = (s -> s * 1000)
@@ -75,23 +71,8 @@ runmain = (as ->
 )
 main = !runmain(args)
 
-// the main task will drop into the event loop
-loop: (
-    Task.yield
-    loop: (
-        msg = _io_queue.poll
-        (
-            _match(msg == null): break
-            _match(msg.name == #waitread): _io_waitread msg.get(0), msg
-            _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
-            _match(msg.name == #wait): _io_wait msg.get(0), msg
-            _match(msg.name == #launch): msg.reply(_io_launch(msg.get(0)))
-            _nomatch
-        )
-    )
-    if not _io_haswaiting(): break
-    _io_run
-)
+// this will only return when there are no more tasks to run
+io.ioloop
 
 // we are done ... return status of main task (will throw if main task is in error)
 return main.value

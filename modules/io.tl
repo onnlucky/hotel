@@ -1,5 +1,28 @@
 // io library
 
+_io_queue = _io_init()
+_io = _io_queue.input
+
+// the boot task will call this
+ioloop = (->
+    loop: (
+        Task.yield
+        loop: (
+            msg = _io_queue.poll
+            (
+                _match(msg == null): break
+                _match(msg.name == #waitread): _io_waitread msg.get(0), msg
+                _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
+                _match(msg.name == #wait): _io_wait msg.get(0), msg
+                _match(msg.name == #launch): msg.reply(_io_launch(msg.get(0)))
+                _nomatch
+            )
+        )
+        if not _io_haswaiting(): break
+        _io_run
+    )
+)
+
 Buffer = {
     new: -> { buf: _Buffer_new(), class: this.class }
     toBuffer: (v ->
@@ -159,5 +182,6 @@ return {
     Socket: Socket
     Process: Process
     chdir: chdir
+    ioloop: ioloop
 }
 
