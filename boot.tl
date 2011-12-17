@@ -26,7 +26,7 @@ try = ( ->
 )
 
 // TODO should not sleep in ms, but need float ... should also add Time module
-sleep = (ms -> _io.wait ms)
+sleep = (ms -> io.wait ms)
 seconds = (s -> s * 1000)
 minutes = (m -> m * 1000 * 60)
 hours   = (h -> m * 1000 * 60 * 60)

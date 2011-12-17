@@ -177,6 +177,7 @@ Process = {
 }
 
 chdir = (dir -> _io_chdir dir)
+wait = (ms -> _io.wait ms)
 
 return {
     Buffer: Buffer
@@ -185,6 +186,7 @@ return {
     Socket: Socket
     Process: Process
     chdir: chdir
+    wait: wait
     ioloop: ioloop
 }
 
