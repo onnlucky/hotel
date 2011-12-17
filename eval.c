@@ -307,6 +307,7 @@ INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn) {
     return applyCall(task, tlCallCopySetFn(task, call, res));
 }
 
+// we eval every internal call, and result in an tlArgs in the end
 INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
     trace2("%p", frame);
 
@@ -337,7 +338,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
     //print("AT: %d, NAMED: %d, SKIPPED: %d", at, named, skipped);
 
     if (frame->count & 0x80000000) {
-        tlValue v = _res;
+        tlValue v = tlFirst(_res);
         tlSym name = tlCallGetName(call, at);
         if (name) {
             trace("(frame) ARGS: %s = %s", tl_str(name), tl_str(v));
@@ -381,6 +382,7 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
                 return tlTaskPauseAttach(task, frame);
             }
         }
+        v = tlFirst(v);
         if (name) {
             trace("ARGS: %s = %s", tl_str(name), tl_str(v));
             tlArgsMapSet_(args, name, v);
