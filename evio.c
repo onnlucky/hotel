@@ -104,11 +104,12 @@ void close_ev_io(void* _file, void* data) {
     trace(">>>> GC CLOSED FILE: %d <<<<", file->ev.fd);
     file->ev.fd = -1;
 }
-static tlFile* tlFileNew(tlTask* task, int fd) {
+static tlFile* tlFileNew(tlTask* task, int fd, bool isSocket) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
     file->reader.lock.head.klass = tlReaderClass;
     file->writer.lock.head.klass = tlWriterClass;
     ev_io_init(&file->ev, io_cb, fd, 0);
+    file->ev.data = (void*)(intptr_t)isSocket;
     GC_REGISTER_FINALIZER(file, close_ev_io, null, null, null);
     trace("open: %p %d", file, fd);
     return file;
@@ -132,7 +133,12 @@ static tlValue _file_close(tlTask* task, tlArgs* args) {
     trace("close: %p %d", file, file->ev.fd);
     //ev_io_stop(&file->ev);
 
-    int r = close(file->ev.fd);
+    int r;
+    if (file->ev.data) {
+        r = shutdown(file->ev.fd, SHUT_WR);
+        if (r < 0) TL_THROW("shutdown: failed: %s", strerror(errno));
+    }
+    r = close(file->ev.fd);
     if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
     file->ev.fd = -1;
     return tlNull;
@@ -224,7 +230,7 @@ static tlValue _reader_accept(tlTask* task, tlArgs* args) {
 
     if (nonblock(fd) < 0) TL_THROW("accept: nonblock failed: %s", strerror(errno));
     trace("accept: %d %d", file->ev.fd, fd);
-    return tlFileNew(task, fd);
+    return tlFileNew(task, fd, true);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {
@@ -237,13 +243,15 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
 
     int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
     if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
-    return tlFileNew(task, fd);
+    return tlFileNew(task, fd, false);
 }
 
 static tlValue _File_from(tlTask* task, tlArgs* args) {
     tlInt fd = tlIntCast(tlArgsGet(args, 0));
     if (!fd) TL_THROW("espected a file descriptor");
-    return tlFileNew(task, tl_int(fd));
+    int r = nonblock(tl_int(fd));
+    if (r) TL_THROW("_File_from: failed: %s", strerror(errno));
+    return tlFileNew(task, tl_int(fd), false);
 }
 
 
@@ -286,7 +294,7 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
     if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
 
     if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
-    return tlFileNew(task, fd);
+    return tlFileNew(task, fd, true);
 }
 
 // TODO make backlog configurable
@@ -314,7 +322,7 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
     if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
 
     listen(fd, 1024); // backlog, configurable?
-    return tlFileNew(task, fd);
+    return tlFileNew(task, fd, false);
 }
 
 
@@ -527,19 +535,19 @@ static tlValue _child_running(tlTask* task, tlArgs* args) {
 static tlValue _child_in(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
-    if (tlIntIs(child->in)) child->in = tlFileNew(task, tl_int(child->in));
+    if (tlIntIs(child->in)) child->in = tlFileNew(task, tl_int(child->in), false);
     return child->in;
 }
 static tlValue _child_out(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
-    if (tlIntIs(child->out)) child->out = tlFileNew(task, tl_int(child->out));
+    if (tlIntIs(child->out)) child->out = tlFileNew(task, tl_int(child->out), false);
     return child->out;
 }
 static tlValue _child_err(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
-    if (tlIntIs(child->err)) child->err = tlFileNew(task, tl_int(child->err));
+    if (tlIntIs(child->err)) child->err = tlFileNew(task, tl_int(child->err), false);
     return child->err;
 }
 
