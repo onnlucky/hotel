@@ -460,7 +460,7 @@ static tlValue _DirEach(tlTask* task, tlArgs* args) {
 
 // does a exec after closing all fds and resetting signals etc
 static void launch(char** argv) {
-    // set stdin/stdout/stderr to blocking
+    // set stdin/stdout/stderr to blocking (just incase)
     setblock(0); setblock(1); setblock(2);
 
     // close all fds
@@ -468,10 +468,10 @@ static void launch(char** argv) {
     if (max < 0) max = 50000;
     for (int i = 3; i < max; i++) close(i); // by lack of anything better ...
 
-    // reset signal handlers
-    for (int i = 1; i < 31; i++) {
+    // reset signal handlers; again, by lack of anything better ...
+    for (int i = 1; i < 63; i++) {
         sig_t sig = signal(i, SIG_DFL);
-        if (sig == SIG_ERR) warning("reset signal %d: %s", i, strerror(errno));
+        if (sig == SIG_ERR) trace("reset signal %d: %s", i, strerror(errno));
     }
 
     // actually launch
