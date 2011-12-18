@@ -20,7 +20,7 @@ HttpConnection = (conn ->
                 _, len = conn.read @_in
                 if len == 0: _throw "IO ERROR"
             )
-            @_req = @_in.read
+            @_req = httpparser.request(@_in.read)
         )
         end: (-> if not @_didend: @_didend = true; @flush(true); conn.close)
         write: (text ->

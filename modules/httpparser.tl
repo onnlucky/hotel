@@ -1,6 +1,10 @@
-// a url parser
+// http request and url parser
 DEBUG=false
 trace = (in, &msg -> if DEBUG: print in.pos, msg())
+
+lower = "abcdefghijklmnopqrstuvwxyz"
+upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+numbers = "0123456789"
 
 // TODO should be a class/object but class needs constructor and constructor needs class ...
 input = (text, pos, value -> {
@@ -16,6 +20,7 @@ input = (text, pos, value -> {
 )
 
 parse = (text, parser ->
+    _catch: e -> _throw "syntax error"
     in = parser(input(text, 0, null))
     if not in.end: _throw "expected end of input"
     return in.value
@@ -80,7 +85,7 @@ parseHost = (in ->
 )
 parsePort = (in ->
     in = parseChar(in, ":".char)
-    port = parseMany(in, parseChars, "0123456789")
+    port = parseMany(in, parseChars, numbers)
     port.set(_int_parse(port.value.toChar))
 )
 parsePath = (in ->
@@ -101,7 +106,9 @@ parseFragment = (in ->
     fragment.set(fragment.value.toChar)
 )
 parseUrl = (in ->
+    trace(in, "parseUrl")
     type = parseOptional(in, parseType)
+    trace(type, "TYPE: $(type.value)")
     host = parseOptional(type, parseHost)
     port = parseOptional(host, parsePort)
     path = parsePath(port)
@@ -116,5 +123,48 @@ parseUrl = (in ->
         fragment: fragment.value
     })
 )
-print parse("foo/foo?bar=;::", parseUrl).path
+parseSpaces = (in ->
+    parseManyOne(in, parseChars, "\t ")
+)
+parseNewline = (in ->
+    trace(in, "parseNewline")
+    try: return parseText(in, "\r\n")
+    try: return parseText(in, "\n\r")
+    try: return parseText(in, "\n")
+    parseText(in, "\r")
+)
+parseHeader = (in ->
+    trace(in, "parseHeader")
+    key = parseManyOne(in, parseNotChars, ":\r\n")
+    colon = parseChar(key, ":".char)
+    sp = parseOptional(colon, parseSpaces)
+    value = parseManyOne(sp, parseNotChars, "\r\n")
+    nl = parseNewline(value)
+    trace(nl, "KEY: $(key.value.toChar) VALUE: $(value.value.toChar)")
+    nl.set({
+        key: key.value.toChar
+        value: value.value.toChar
+    })
+)
+parseHttpRequest = (in ->
+    method = parseManyOne(in, parseChars, upper)
+    method = method.set(method.value.toChar)
+    sp = parseSpaces(method)
+    url = parseUrl(sp)
+    sp = parseSpaces(url)
+    http = parseText(sp, "HTTP/1.")
+    trace(http, "HTTP: $(http.value)")
+    number = parseChars(http, numbers)
+    nl = parseNewline(number)
+    headers = parseMany(nl, parseHeader)
+    nl = parseNewline(headers)
+    nl.set({
+        method: method.value
+        url: url.value
+        version: "1.$(number.value)"
+        headers: headers
+    })
+)
+
+{ request: (text -> parse(text, parseHttpRequest)) }
 
