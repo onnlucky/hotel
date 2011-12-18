@@ -1,5 +1,10 @@
 # TODO
 
+add better readme
+move source into vm/ subdirectory
+simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?
+implement a_var based on libatomic_ops ...
+
 what about tasks.stop, ... should be workable
 what about "deamon tasks" ... how can that work? maybe those don't go into io waiting?
 
