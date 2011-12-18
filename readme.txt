@@ -1,5 +1,8 @@
 # TODO
 
+what about tasks.stop, ... should be workable
+what about "deamon tasks" ... how can that work? maybe those don't go into io waiting?
+
 now that we unwind all stack frames, continuations must work differently ...
 
 implement print in user code, or have it call toText properly ...

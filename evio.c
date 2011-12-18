@@ -42,7 +42,7 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
     if (chdir(tlTextData(text))) {
-        TL_THROW("%s", strerror(errno));
+        TL_THROW("chdir: %s", strerror(errno));
     }
     return tlNull;
 }
@@ -104,12 +104,11 @@ void close_ev_io(void* _file, void* data) {
     trace(">>>> GC CLOSED FILE: %d <<<<", file->ev.fd);
     file->ev.fd = -1;
 }
-static tlFile* tlFileNew(tlTask* task, int fd, bool isSocket) {
+static tlFile* tlFileNew(tlTask* task, int fd) {
     tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
     file->reader.lock.head.klass = tlReaderClass;
     file->writer.lock.head.klass = tlWriterClass;
     ev_io_init(&file->ev, io_cb, fd, 0);
-    file->ev.data = (void*)(intptr_t)isSocket;
     GC_REGISTER_FINALIZER(file, close_ev_io, null, null, null);
     trace("open: %p %d", file, fd);
     return file;
@@ -253,7 +252,7 @@ static tlValue _reader_accept(tlTask* task, tlArgs* args) {
 
     if (nonblock(fd) < 0) TL_THROW("accept: nonblock failed: %s", strerror(errno));
     trace("accept: %d %d", file->ev.fd, fd);
-    return tlFileNew(task, fd, true);
+    return tlFileNew(task, fd);
 }
 
 static tlValue _File_open(tlTask* task, tlArgs* args) {
@@ -266,7 +265,7 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
 
     int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
     if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
-    return tlFileNew(task, fd, false);
+    return tlFileNew(task, fd);
 }
 
 static tlValue _File_from(tlTask* task, tlArgs* args) {
@@ -274,7 +273,7 @@ static tlValue _File_from(tlTask* task, tlArgs* args) {
     if (!fd) TL_THROW("espected a file descriptor");
     int r = nonblock(tl_int(fd));
     if (r) TL_THROW("_File_from: failed: %s", strerror(errno));
-    return tlFileNew(task, tl_int(fd), false);
+    return tlFileNew(task, tl_int(fd));
 }
 
 
@@ -317,7 +316,7 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
     if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
 
     if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
-    return tlFileNew(task, fd, true);
+    return tlFileNew(task, fd);
 }
 
 // TODO make backlog configurable
@@ -345,7 +344,7 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
     if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
 
     listen(fd, 1024); // backlog, configurable?
-    return tlFileNew(task, fd, false);
+    return tlFileNew(task, fd);
 }
 
 
@@ -459,26 +458,6 @@ static tlValue _DirEach(tlTask* task, tlArgs* args) {
 
 // ** child processes **
 
-TL_REF_TYPE(tlChild);
-struct tlChild {
-    tlLock lock;
-    ev_child ev;
-    lqueue wait_q; // maybe use a queue instead, or do what tlTask does ... ?
-    tlValue res; // the result code
-    tlValue in;
-    tlValue out;
-    tlValue err;
-};
-tlClass _tlChildClass = {
-    .name = "Child",
-    .locked = true,
-};
-tlClass* tlChildClass = &_tlChildClass;
-
-static tlChild* tlChildFrom(ev_child *ev) {
-    return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
-}
-
 // does a exec after closing all fds and resetting signals etc
 static void launch(char** argv) {
     // set stdin/stdout/stderr to blocking
@@ -521,9 +500,30 @@ static tlValue _io_exec(tlTask* task, tlArgs* args) {
     TL_THROW("oeps: %s", strerror(errno));
 }
 
+// TODO don't really need the lock, unless we would like to do in/out/err lazy again
+TL_REF_TYPE(tlChild);
+struct tlChild {
+    tlLock lock;
+    ev_child ev;
+    lqueue wait_q; // maybe use a queue instead, or do what tlTask does ... ?
+    tlValue res; // the result code
+    tlValue in;
+    tlValue out;
+    tlValue err;
+};
+tlClass _tlChildClass = {
+    .name = "Child",
+    .locked = true,
+};
+tlClass* tlChildClass = &_tlChildClass;
+
+static tlChild* tlChildFrom(ev_child *ev) {
+    return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
+}
+
 static void child_cb(ev_child *ev, int revents) {
     tlChild* child = tlChildFrom(ev);
-    trace("!! !! !!child_cb: %p", ev);
+    trace("%p", ev);
     ev_child_stop(ev);
     child->res = tlINT(WEXITSTATUS(child->ev.rstatus));
 
@@ -542,9 +542,10 @@ static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
     tlChild* child = tlAlloc(task, tlChildClass, sizeof(tlChild));
     ev_child_init(&child->ev, child_cb, pid, 0);
     ev_child_start(&child->ev);
-    child->in = tlINT(in);
-    child->out = tlINT(out);
-    child->err = tlINT(err);
+    // we can do this lazily ... but then we need a finalizer to close fds
+    child->in = tlFileNew(task, in);
+    child->out = tlFileNew(task, out);
+    child->err = tlFileNew(task, err);
     return child;
 }
 
@@ -567,6 +568,7 @@ static tlValue _child_wait(tlTask* task, tlArgs* args) {
     if (!child) TL_THROW("expected a Child");
     trace("child_wait: %d", child->ev.pid);
 
+    // TODO use a_var and this will be thread safe ... (child_cb)
     if (child->res) return child->res;
     return tlTaskPauseResuming(task, resumeChildWait, child);
 }
@@ -578,23 +580,21 @@ static tlValue _child_running(tlTask* task, tlArgs* args) {
 static tlValue _child_in(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
-    if (tlIntIs(child->in)) child->in = tlFileNew(task, tl_int(child->in), false);
     return child->in;
 }
 static tlValue _child_out(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
-    if (tlIntIs(child->out)) child->out = tlFileNew(task, tl_int(child->out), false);
     return child->out;
 }
 static tlValue _child_err(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
-    if (tlIntIs(child->err)) child->err = tlFileNew(task, tl_int(child->err), false);
     return child->err;
 }
 
-// TODO do we want to reset signal handlers in child too?
+// launch a child process
+// TODO allow passing in an tlFile as in/out/err ...
 static tlValue _io_launch(tlTask* task, tlArgs* args) {
     static int null_fd;
     if (!null_fd) {
@@ -799,7 +799,7 @@ static tlValue _io_init(tlTask* task, tlArgs* args) {
 static tlValue _io_haswaiting(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
     assert(vm->waitevent >= 0);
-    trace("IO HAS WAITING: %zd %zd %zd", vm->tasks, vm->runnable, vm->waitevent);
+    trace("tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
     if (vm->waitevent > 0) return tlTrue;
     // TODO should not be "> 1" but "> runloops"
     // TODO is this thread safe? I think so ...
@@ -815,10 +815,12 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
         ev_run(EVRUN_ONCE);
     } else {
         if (a_get(&vm->runnable) > 1) {
-            trace("checking for events: %zd %zd %zd", vm->tasks, vm->runnable, vm->waitevent);
+            trace("checking for events; tasks=%zd, run=%zd, io=%zd",
+                    vm->tasks, vm->runnable, vm->waitevent);
             ev_run(EVRUN_NOWAIT);
         } else {
-            trace("blocking for events: %zd %zd %zd", vm->tasks, vm->runnable, vm->waitevent);
+            trace("blocking for events; tasks=%zd, run=%zd, io=%zd",
+                    vm->tasks, vm->runnable, vm->waitevent);
             ev_run(EVRUN_ONCE);
         }
     }
@@ -849,6 +851,12 @@ static const tlNativeCbs __evio_natives[] = {
     { "_io_init", _io_init },
     { 0, 0 }
 };
+
+
+void evio_exit() {
+    trace("cleanup");
+    setblock(0); setblock(1); setblock(2);
+}
 
 void evio_init() {
     _tlReaderClass.map = tlClassMapFrom(
@@ -924,6 +932,8 @@ void evio_init() {
     tlMapToObject_(_statMap);
 
     signal(SIGPIPE, SIG_IGN);
+    nonblock(0); nonblock(1); nonblock(2);
+    atexit(evio_exit);
 
     ev_default_loop(0);
     ev_async_init(&loop_interrupt, async_cb);

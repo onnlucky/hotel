@@ -179,6 +179,10 @@ Process = {
 chdir = (dir -> _io_chdir dir)
 wait = (ms -> _io.wait ms)
 
+stdin = Stream.new(_File_from(0));
+stdout = Stream.new(_File_from(1));
+stderr = Stream.new(_File_from(2));
+
 return {
     Buffer: Buffer
     Stream: Stream
@@ -188,5 +192,7 @@ return {
     chdir: chdir
     wait: wait
     ioloop: ioloop
+
+    stdin: stdin, stdout: stdout, stderr: stderr
 }
 
