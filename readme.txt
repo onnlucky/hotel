@@ -1,5 +1,10 @@
 # TODO
 
+create a tlTTY for stdin/stdout/stderr, handle nonblock and atomic /dev/null open
+* if 0,1,2 are not tty, set to nonblock
+* if multiple threads; don't care, just block
+* otherwise, set to nonblock just before read, and back just after read
+
 add better readme
 move source into vm/ subdirectory
 simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?

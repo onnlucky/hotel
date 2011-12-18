@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DEBUG="--enable-gc-debug"
+DEBUG="--enable-gc-debug --enable-gc-assertions"
 #NOTHREADS="--disable-threads"
 THREADS="--enable-threads=posix --enable-thread-local-alloc --enable-parallel-mark"
 if ! cd libgc; then

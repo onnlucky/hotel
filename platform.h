@@ -33,6 +33,7 @@
 #ifdef HAVE_BOEHMGC
 #include "libgc/include/gc.h"
 #define malloc(n) GC_MALLOC(n)
+#define malloc_atomic(n) GC_MALLOC_ATOMIC(n)
 #define calloc(m,n) GC_MALLOC((m)*(n))
 #define free(p) GC_FREE(p)
 #define realloc(p,n) GC_REALLOC((p),(n))
@@ -42,6 +43,7 @@
 #define GC_INIT()
 #define GC_REGISTER_FINALIZER(a1, a2, a3, a4, a5)
 #define GC_gcollect()
+#define malloc_atomic malloc
 #endif
 
 #ifdef HAVE_THREADS

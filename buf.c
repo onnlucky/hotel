@@ -17,7 +17,7 @@ struct tl_buf {
 
 tl_buf* tlbuf_new() {
     tl_buf* buf = calloc(1, sizeof(tl_buf));
-    buf->data = malloc(SIZE);
+    buf->data = malloc_atomic(SIZE);
     buf->size = SIZE;
     buf->autogrow = true;
 
