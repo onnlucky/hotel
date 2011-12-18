@@ -125,6 +125,18 @@ static tlValue _random(tlTask* task, tlArgs* args) {
     trace("RND: %d", res);
     return tlINT(res);
 }
+static tlValue _int_parse(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expect a text");
+    int base = tl_int_or(tlArgsGet(args, 1), 10);
+    if (base < 2 || base > 36) TL_THROW("invalid base");
+    const char* begin = tlTextData(text);
+    char* end;
+    long long res = strtol(begin, &end, base);
+    if (end == begin) return tlNull;
+    if (res >= TL_MIN_INT && res <= TL_MAX_INT) return tlINT(res);
+    return tlNull;
+}
 
 static void vm_init();
 
@@ -226,6 +238,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "mod",  _mod },
 
     { "random", _random },
+    { "_int_parse", _int_parse },
 
     { "_Buffer_new", _Buffer_new },
 

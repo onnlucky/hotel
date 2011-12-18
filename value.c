@@ -111,6 +111,18 @@ tlClass* tlNullClass = &_tlNullClass;
 tlClass* tlBoolClass = &_tlBoolClass;
 tlClass* tlIntClass = &_tlIntClass;
 
+static tlValue _int_toChar(tlTask* task, tlArgs* args) {
+    int c = tl_int(tlArgsTarget(args));
+    if (c < 0) TL_THROW("negative numbers cannot be a char");
+    if (c > 255) TL_THROW("utf8 not yet supported");
+    const char buf[] = { c, 0 };
+    return tlTextFromCopy(task, buf, 1);
+}
+
 static void value_init() {
+    _tlIntClass.map = tlClassMapFrom(
+        "toChar", _int_toChar,
+        null
+    );
 }
 

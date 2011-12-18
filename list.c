@@ -282,6 +282,24 @@ INTERNAL tlValue _list_slice(tlTask* task, tlArgs* args) {
     return tlListSlice(task, list, first, last);
 }
 
+// TODO by lack of better name; akin to int.toChar ...
+INTERNAL tlValue _list_toChar(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    if (!list) TL_THROW("Expected a list");
+
+    int size = tlListSize(list);
+    char* buf = malloc_atomic(size + 1);
+    assert(buf);
+    for (int i = 0; i < size; i++) {
+        int ch = tl_int_or(tlListGet(list, i), -1);
+        if (ch < 0) { free(buf); TL_THROW("not a list of characters"); }
+        if (ch > 255) { free(buf); TL_THROW("utf8 not yet supported"); }
+        buf[i] = ch;
+    }
+    buf[size] = 0;
+    return tlTextFromTake(task, buf, size);
+}
+
 // TODO eval: { "_list_clone", _list_clone },
 static tlClass _tlListClass = {
     .name = "List",
@@ -294,6 +312,7 @@ static void list_init() {
             "set", _list_set,
             "add", _list_add,
             "slice", _list_slice,
+            "toChar", _list_toChar,
             //"search", _ListSearch,
             null
     );

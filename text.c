@@ -37,7 +37,7 @@ tlText* tlTextFromCopy(tlTask* task, const char* s, int len) {
     trace("%s", s);
     if (len <= 0) len = strlen(s);
     //assert(len < TL_MAX_INT);
-    char *data = malloc(len + 1);
+    char *data = malloc_atomic(len + 1);
     if (!data) return null;
     memcpy(data, s, len + 1);
     return tlTextFromTake(task, data, len);
@@ -55,7 +55,7 @@ int tlTextSize(tlText* text) {
 
 tlText* tlTextSub(tlTask* task, tlText* from, int first, int size) {
     if (tlTextSize(from) == size) return from;
-    char* data = malloc(size + 1);
+    char* data = malloc_atomic(size + 1);
     if (!data) return null;
     memcpy(data, from->data + first, size);
     data[size] = 0;
@@ -65,7 +65,7 @@ tlText* tlTextSub(tlTask* task, tlText* from, int first, int size) {
 
 tlText* tlTextCat(tlTask* task, tlText* left, tlText* right) {
     int size = tlTextSize(left) + tlTextSize(right);
-    char* data = malloc(size + 1);
+    char* data = malloc_atomic(size + 1);
     if (!data) return null;
     memcpy(data, left->data, tlTextSize(left));
     memcpy(data + tlTextSize(left), right->data, tlTextSize(right));
@@ -93,7 +93,7 @@ INTERNAL tlValue _Text_cat(tlTask* task, tlArgs* args) {
         }
     }
 
-    char* data = malloc(size + 1);
+    char* data = malloc_atomic(size + 1);
     if (!data) return null;
     size = 0;
     for (int i = 0; i < argc; i++) {
@@ -147,6 +147,18 @@ INTERNAL tlValue _text_cat(tlTask* task, tlArgs* args) {
     if (!add) TL_THROW("arg must be a Text");
 
     return tlTextCat(task, text, add);
+}
+
+INTERNAL tlValue _text_char(tlTask* task, tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+
+    int at = tl_int_or(tlArgsGet(args, 0), 0);
+    int size = tlTextSize(text);
+    if (at < 0) at = size + at;
+    if (!(at >=0 && at < size)) return tlNull;
+    return tlINT(text->data[at]);
 }
 
 INTERNAL tlValue _text_slice(tlTask* task, tlArgs* args) {
@@ -220,6 +232,7 @@ static void text_init() {
             "endsWith", _text_endsWith,
             "search", _text_search,
 
+            "char", _text_char,
             "slice", _text_slice,
             "cat", _text_cat,
             null

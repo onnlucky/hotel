@@ -1,5 +1,8 @@
 # TODO
 
+classes + objects should not close environments so quickly ... how to handle all this
+see parser example, it cannot be factored into class + object, because class must construct itself
+
 create a tlTTY for stdin/stdout/stderr, handle nonblock and atomic /dev/null open
 * if 0,1,2 are not tty, set to nonblock
 * if multiple threads; don't care, just block
