@@ -1,6 +1,6 @@
 // ** basic io functions in hotel **
 
-// TODO use O_CLOEXEC if available; set FD_CLOEXEC otherwise
+// TODO use runloop mutex to protect open() like syscalls in order to do CLOEXEC if available
 // TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
 
 #define EV_STANDALONE 1
