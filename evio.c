@@ -31,12 +31,12 @@ static int nonblock(int fd) {
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
     return 0;
 }
-/*
-static int nosigpipe(int fd) {
-    if (fcntl(fd, F_SETNOSIGPIPE, 1) < 0) return -1;
+static int setblock(int fd) {
+    int flags = 0;
+    if ((flags = fcntl(fd, F_GETFL, 0)) < 0) return -1;
+    if (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) < 0) return -1;
     return 0;
 }
-*/
 
 static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
@@ -133,12 +133,7 @@ static tlValue _file_close(tlTask* task, tlArgs* args) {
     trace("close: %p %d", file, file->ev.fd);
     //ev_io_stop(&file->ev);
 
-    int r;
-    if (file->ev.data) {
-        r = shutdown(file->ev.fd, SHUT_WR);
-        if (r < 0) TL_THROW("shutdown: failed: %s", strerror(errno));
-    }
-    r = close(file->ev.fd);
+    int r = close(file->ev.fd);
     if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
     file->ev.fd = -1;
     return tlNull;
@@ -157,6 +152,20 @@ static tlValue _file_writer(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlValue _reader_close(tlTask* task, tlArgs* args) {
+    trace("");
+    tlReader* reader = tlReaderCast(tlArgsTarget(args));
+    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+
+    tlFile* file = tlFileFromReader(reader);
+    assert(tlFileIs(file));
+
+    // we ignore errors or already closed ...
+    if (file->ev.fd < 0) return tlNull;
+    int r = shutdown(file->ev.fd, SHUT_RD);
+    if (r) trace("error in shutdown: %s", strerror(errno));
+    return tlNull;
+}
 static tlValue _reader_read(tlTask* task, tlArgs* args) {
     trace("");
     tlReader* reader = tlReaderCast(tlArgsTarget(args));
@@ -183,6 +192,20 @@ static tlValue _reader_read(tlTask* task, tlArgs* args) {
     return tlINT(len);
 }
 
+static tlValue _writer_close(tlTask* task, tlArgs* args) {
+    trace("");
+    tlWriter* writer = tlWriterCast(tlArgsTarget(args));
+    if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
+
+    tlFile* file = tlFileFromWriter(writer);
+    assert(tlFileIs(file));
+
+    // we ignore errors or already closed ...
+    if (file->ev.fd < 0) return tlNull;
+    int r = shutdown(file->ev.fd, SHUT_WR);
+    if (r) trace("error in shutdown: %s", strerror(errno));
+    return tlNull;
+}
 static tlValue _writer_write(tlTask* task, tlArgs* args) {
     trace("");
     tlWriter* writer = tlWriterCast(tlArgsTarget(args));
@@ -456,10 +479,31 @@ static tlChild* tlChildFrom(ev_child *ev) {
     return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
 }
 
+// does a exec after closing all fds and resetting signals etc
+static void launch(char** argv) {
+    // set stdin/stdout/stderr to blocking
+    setblock(0); setblock(1); setblock(2);
+
+    // close all fds
+    int max = getdtablesize();
+    if (max < 0) max = 50000;
+    for (int i = 3; i < max; i++) close(i); // by lack of anything better ...
+
+    // reset signal handlers
+    for (int i = 1; i < 31; i++) {
+        sig_t sig = signal(i, SIG_DFL);
+        if (sig == SIG_ERR) warning("reset signal %d: %s", i, strerror(errno));
+    }
+
+    // actually launch
+    errno = 0;
+    execvp(argv[0], argv);
+    warning("execvp failed: %s", strerror(errno));
+    _exit(255);
+}
+
 // exec ... replaces current process, stopping hotel effectively
-// TODO do we want to close file descriptors?
-// TODO do we want to reset signal handlers?
-static tlValue _Child_exec(tlTask* task, tlArgs* args) {
+static tlValue _io_exec(tlTask* task, tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlText* text = tlTextCast(tlArgsGet(args, i));
@@ -471,11 +515,10 @@ static tlValue _Child_exec(tlTask* task, tlArgs* args) {
     }
     argv[tlArgsSize(args)] = 0;
 
-    execvp(argv[0], argv);
+    launch(argv);
 
-    // if we get here, something went wrong
-    free(argv);
-    TL_THROW("Process.exec: failed: %s", strerror(errno));
+    // this cannot happen, as launch does exit
+    TL_THROW("oeps: %s", strerror(errno));
 }
 
 static void child_cb(ev_child *ev, int revents) {
@@ -626,12 +669,10 @@ static tlValue _io_launch(tlTask* task, tlArgs* args) {
     dup2(_in[0], 0);
     dup2(_out[1], 1);
     dup2(_err[1], 2);
-    int max = getdtablesize();
-    if (max < 0) max = 50000;
-    for (int i = 3; i < max; i++) close(i); // by lack of anything better ...
-    execvp(argv[0], argv);
-    warning("tl run failed: %s", strerror(errno));
-    _exit(255);
+
+    launch(argv);
+    // cannot happen, launch does exit
+    TL_THROW("oeps: %s", strerror(errno));
 }
 
 INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
@@ -796,7 +837,7 @@ static const tlNativeCbs __evio_natives[] = {
     { "_Path_stat", _Path_stat },
     { "_Dir_open", _Dir_open },
 
-    { "_Child_exec", _Child_exec },
+    { "_io_exec", _io_exec },
     { "_io_launch", _io_launch },
 
     { "_io_wait", _io_wait },
@@ -813,10 +854,12 @@ void evio_init() {
     _tlReaderClass.map = tlClassMapFrom(
         "read", _reader_read,
         "accept", _reader_accept,
+        "close", _reader_close,
         null
     );
     _tlWriterClass.map = tlClassMapFrom(
         "write", _writer_write,
+        "close", _writer_close,
         null
     );
     _tlFileClass.toText = fileToText;
