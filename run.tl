@@ -33,6 +33,7 @@ input = (text, pos, value -> {
         error: val -> _throw this.set(val)
     }
 )
+// TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
 rule = (fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4))))
 
 parse = (parser, text ->
@@ -49,6 +50,8 @@ pOptional = rule((in, parser ->
     _catch: e -> trace(in, "ERROR: $e"); return in.set(null)
     in = parser(in)
 ))
+// TODO this rule is not very useful because it does not allow for semantic actions
+// TODO should return [value] ... instead
 pAnd = rule((in ->
     var $res = in
     var $i = 1

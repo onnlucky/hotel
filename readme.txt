@@ -1,7 +1,7 @@
 # TODO
 
+finish lesstext parser ...
 add time module
-start parser, rework the httpparser.tl
 
 classes + objects should not close environments so quickly ... how to handle all this
 see parser example, it cannot be factored into class + object, because class must construct itself
