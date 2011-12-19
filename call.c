@@ -76,6 +76,14 @@ tlCall* tlCallValueIterSet_(tlCall* call, int i, tlValue v) {
     tlCallSet_(call, i - 1, v);
     return call;
 }
+// TODO this should be FromList ... below FromPairs ...
+tlCall* tlCallFromListNormal(tlTask* task, tlValue fn, tlList* list) {
+    int size = tlListSize(list);
+    tlCall* call = tlCallNew(task, size, false);
+    call->fn = fn;
+    for (int i = 0; i < size; i++) tlCallValueIterSet_(call, i + 1, tlListGet(list, i));
+    return call;
+}
 tlCall* tlCallFrom(tlTask* task, ...) {
     va_list ap;
     int size = 0;

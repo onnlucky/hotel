@@ -799,9 +799,11 @@ static tlValue runCode(tlTask* task, tlValue _fn, tlArgs* args) {
     if (!body) TL_THROW("expected Code");
     tlEnv* env = tlEnvCast(tlArgsGet(args, 0));
     if (!env) TL_THROW("expected an Env");
+    tlList* as = tlListCast(tlArgsGet(args, 1));
+    if (!as) as = tlListEmpty();
 
     tlClosure* fn = tlClosureNew(task, body, env);
-    return tlEval(task, tlCallFrom(task, fn, null));
+    return tlEval(task, tlCallFromListNormal(task, fn, as));
 }
 
 // TODO setting worker->evalArgs doesn't work, instead build own CodeFrame, that works ...

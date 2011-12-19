@@ -119,9 +119,17 @@ static tlValue _int_toChar(tlTask* task, tlArgs* args) {
     return tlTextFromCopy(task, buf, 1);
 }
 
+static tlValue _int_toText(tlTask* task, tlArgs* args) {
+    int c = tl_int(tlArgsTarget(args));
+    char buf[255];
+    int len = snprintf(buf, sizeof(buf), "%d", c);
+    return tlTextFromCopy(task, buf, len);
+}
+
 static void value_init() {
     _tlIntClass.map = tlClassMapFrom(
         "toChar", _int_toChar,
+        "toText", _int_toText,
         null
     );
 }

@@ -116,6 +116,16 @@ static tlValue _args_names(tlTask* task, tlArgs* args) {
     if (!as) TL_THROW("Expected a args object");
     return tlArgsMap(as);
 }
+static tlValue _args_slice(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    if (!as) TL_THROW("Expected a args object");
+
+    tlList* list = as->list;
+    int size = tlListSize(list);
+    int first = tl_int_or(tlArgsGet(args, 0), 0);
+    int last = tl_int_or(tlArgsGet(args, 1), size);
+    return tlListSlice(task, list, first, last);
+}
 
 const char* _ArgsToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
@@ -134,6 +144,7 @@ static void args_init() {
             "block", _args_block,
             "map", _args_map,
             "names", _args_names,
+            "slice", _args_slice,
             null
     );
     v_args_empty = tlArgsNew(null, null, null);

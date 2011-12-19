@@ -1,6 +1,20 @@
 // http request and url parser
+
+// TODO figure out way to get this into List by boot.tl
+_list_join = (ls, sep ->
+    if ls.size == 0: return ""
+
+    var $res = ls.get(0).toText
+    var $i = 1
+    while $i < ls.size: (
+        $res = $res.cat(sep).cat(ls.get($i).toText)
+        $i += 1
+    )
+    return $res
+)
+
 DEBUG=false
-trace = (in, &msg -> if DEBUG: print in.pos, msg())
+trace = (in, &msg -> if DEBUG: print in.pos, in.item, msg())
 
 lower = "abcdefghijklmnopqrstuvwxyz"
 upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -31,9 +45,31 @@ parse = (parser, text ->
 )
 
 pOptional = rule((in, parser ->
-    trace(in, "parseOptional")
+    trace(in, "pOptional")
     _catch: e -> trace(in, "ERROR: $e"); return in.set(null)
     in = parser(in)
+))
+pAnd = rule((in ->
+    var $res = in
+    var $i = 1
+    loop: (
+        parser = args.get($i)
+        if not parser: trace(in, "pAnd: done $($i)"); return $res
+        trace(in, "pAnd: $($i) of $(args.size)")
+        $i += 1
+        $res = parser($res)
+    )
+))
+pOr = rule((in ->
+    var $i = 0
+    while $i < args.size - 1: (
+        $i += 1
+        _catch: e -> trace(in, "ERROR: $e")
+        trace(in, "pOr: try $($i) of $(args.size)")
+        return args.get($i)(in)
+    )
+    trace(in, "no alternatives ...")
+    in.error("no alternative")
 ))
 _pmany = (in, parser, res ->
     trace(in, "_pmany")
@@ -42,26 +78,28 @@ _pmany = (in, parser, res ->
     goto _pmany(in, parser, res.add(in.value))
 )
 pMany = rule((in, parser ->
-    trace(in, "parseMany")
+    trace(in, "pMany")
     _pmany(in, parser, [])
 ))
 pManyOne = rule((in, parser ->
-    trace(in, "parseManyOne")
+    trace(in, "pManyOne")
     in = parser(in)
     _pmany(in, parser, [in.value])
 ))
 pChar = rule((in, ch ->
-    trace(in, "parseChar: $(in.item.toChar) == $(ch.toChar)")
+    trace(in, "pChar: $(in.item) == $(ch)")
     if in.item == ch: return in.next(ch)
     in.error(ch.toChar)
 ))
 pChars = rule((in, chars ->
-    trace(in, "parseChars: $(in.item.toChar) in $(chars)")
+    trace(in, "pChars: $(in.item) in $(chars)")
+    if not in.item: in.error(chars)
     if chars.search(in.item.toChar): return in.next(in.item)
     in.error(chars)
 ))
 pNotChars = rule((in, chars ->
-    trace(in, "parseNotChars: $(in.item.toChar) not in $(chars)")
+    trace(in, "pNotChars: $(in.item) not in $(chars)")
+    if not in.item: in.error("not $chars")
     if chars.search(in.item.toChar): return in.error("not $chars")
     in.next(in.item)
 ))
@@ -70,103 +108,53 @@ pText = rule((in, text ->
     if in.text.startsWith(text, in.pos): return input(in.text, in.pos + text.size, text)
     in.error(text)
 ))
-
-// URL PARSING
-parseType = (in ->
-    type = pManyOne(pNotChars(":/?# \n\r"))(in).do: v -> v.toChar
-    pChar(":".char)(type).set(type.value)
+parseEnd = (in ->
+    trace(in, "pEnd $(in.end), $(in.item)")
+    if in.end: return in
+    in.error("end of input")
 )
-parseHost = (in ->
-    in = pOptional(pText("//"))(in)
-    if not in.value: (
-        // TODO this is cheating ... just a bit ...
-        colon = in.text.search(":")
-        slash = in.text.search("/")
-        if not colon: return in
-        if slash and slash > colon: return in
-    )
-    host = pManyOne(pNotChars(":/?#;& \t\n\r"))(in).do: v -> v.toChar
-)
-parsePort = (in ->
-    in = pChar(":".char)(in)
-    port = pMany(pChars(numbers))(in).do: v -> v.toChar
-)
-parsePath = (in ->
-    path = pMany(pNotChars("?# \t\n\r"))(in).do: v -> v.toChar
-    text = path.value
-    if text.size == 0: return path.set("/")
-    if text.char != "/".char: return path.set("/$(text)")
-    return path
-)
-parseQuery = (in ->
-    in = pChar("?".char)(in)
-    query = pMany(pNotChars("# \t\n\r"))(in).do: v -> v.toChar
-)
-parseFragment = (in ->
-    in = pChar("#".char)(in)
-    fragment = pMany(pNotChars(" \r\n\t"))(in).do: v -> v.toChar
-)
-parseUrl = (in ->
-    trace(in, "parseUrl")
-    type = pOptional(parseType)(in)
-    trace(type, "TYPE: $(type.value)")
-    host = pOptional(parseHost)(type)
-    port = pOptional(parsePort)(host)
-    path = parsePath(port)
-    query = pOptional(parseQuery)(path)
-    fragment = pOptional(parseFragment)(query)
-    fragment.set({
-        type: type.value
-        host: host.value
-        port: port.value
-        path: path.value
-        query: query.value
-        fragment: fragment.value
-    })
-)
-parseSpaces = (in ->
-    pManyOne(pChars("\t "))(in)
-)
+parseSpace = (in -> pChars(" \t")(in))
+parseWhitespace = (in -> pChars(" \t\n\r")(in))
 parseNewline = (in ->
-    trace(in, "parseNewline")
     try: return pText("\r\n")(in)
     try: return pText("\n\r")(in)
     try: return pText("\n")(in)
     pText("\r")(in)
 )
-parseHeader = (in ->
-    trace(in, "parseHeader")
-    key = pManyOne(pNotChars(":\r\n"))(in).do: v -> v.toChar
-    colon = parseChar(key, ":".char)
-    sp = pOptional(parseSpaces)(colon)
-    value = pManyOne(parseNotChars("\r\n"))(sp).do: v -> v.toChar
-    nl = parseNewline(value)
-    trace(nl, "KEY: $(key.value) VALUE: $(value.value)")
-    nl.set({
-        key: key.value
-        value: value.value
-    })
-)
-parseHttpRequest = (in ->
-    method = pManyOne(pChars(upper))(in).do: v -> v.toChar
-    trace(method, "METHOD: $(method.value)")
-    sp = parseSpaces(method)
-    url = parseUrl(sp)
-    sp = parseSpaces(url)
-    http = pText("HTTP/1.")(sp)
-    trace(http, "HTTP: $(http.value)")
-    version = pChars(numbers)(http).do: v -> "1.$(v.toChar)"
-    nl = parseNewline(version)
-    headers = pMany(parseHeader)(nl)
-    nl = parseNewline(headers)
-    nl.set({
-        method: method.value
-        url: url.value
-        version: version.value
-        headers: headers
-    })
+
+// DOC PARSING
+
+doCmd = (cmd, text ->
+    if cmd == "title": return "<h1>$text</h1>"
+    "<$cmd>$text</$cmd>"
 )
 
-var $x = 0
-while $x < 100: $x += 1; print parse(parseHttpRequest, "GET /index.html HTTP/1.1\r\n\r\n").url.path
+parseLine = (in ->
+    line = pManyOne(pNotChars("\r\n"))(in).do: v -> v.toChar
+    nl = pOr(parseNewline,parseEnd)(line).set(line.value)
+)
+parsePara = (in ->
+    lines = pManyOne(parseLine)(in)
+    nl = pOr(parseNewline, parseEnd)(lines).set("<p>\n$(_list_join(lines.value, "\n"))\n</p>")
+)
+parseCmd = (in ->
+    trace(in, "parseCmd")
+    in = pChar("/".char)(in)
+    cmd = pManyOne(pNotChars(": \t\r\n"))(in).do: v -> v.toChar
+    in = pChar(":".char)(cmd)
+    in = pMany(parseSpace)(in)
+    text = parseLine(in)
+    text.set(doCmd(cmd.value, text.value))
+)
+parseBlock = (in ->
+    res = pOr(parseCmd, parsePara)(in)
+    pMany(parseWhitespace)(res).set(res.value)
+)
+parseDoc = (in ->
+    in = pMany(parseWhitespace)(in)
+    pMany(parseBlock)(in)
+)
+
+text = io.File(args.get(0)).read
+_list_join(parse(parseDoc, text), "\n")
 

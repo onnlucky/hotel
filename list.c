@@ -207,14 +207,23 @@ tlList* tlListCat(tlTask* task, tlList* left, tlList* right) {
     return nlist;
 }
 
-tlList* tlListSlice(tlTask* task, tlList* list, int begin, int end) {
-    int size = end - begin;
-    if (size < 0) size = 0;
-    if (size > list->head.size) size = list->head.size;
-    tlList* nlist = tlListNew(task, size);
+INTERNAL tlList* tlListSlice(tlTask* task, tlList* list, int first, int last) {
+    int size = tlListSize(list);
+    trace("%d %d %d", first, last, size);
+    if (first < 0) first = size + first;
+    if (first < 0) return tlListEmpty();
+    if (first >= size) return tlListEmpty();
+    if (last <= 0) last = size + last;
+    if (last < first) return tlListEmpty();
 
-    for (int i = 0; i < size; i++) {
-        nlist->data[i] = list->data[begin + i];
+    int len = last - first;
+    trace("%d %d %d (size: %d)", first, last, len, size);
+    if (len < 0) len = 0;
+    if (len > list->head.size) len = list->head.size;
+    tlList* nlist = tlListNew(task, len);
+
+    for (int i = 0; i < len; i++) {
+        nlist->data[i] = list->data[first + i];
     }
     return nlist;
 }
@@ -270,15 +279,6 @@ INTERNAL tlValue _list_slice(tlTask* task, tlArgs* args) {
     int size = tlListSize(list);
     int first = tl_int_or(tlArgsGet(args, 0), 0);
     int last = tl_int_or(tlArgsGet(args, 1), size);
-
-    trace("%d %d %d", first, last, size);
-    if (first < 0) first = size + first;
-    if (first < 0) return tlListEmpty();
-    if (first >= size) return tlListEmpty();
-    if (last <= 0) last = size + last;
-    if (last < first) return tlListEmpty();
-
-    trace("%d %d %d", first, last, size);
     return tlListSlice(task, list, first, last);
 }
 

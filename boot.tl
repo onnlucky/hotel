@@ -60,14 +60,7 @@ runmain = (as ->
 
     file = as.get(0)
     _catch: e -> _throw "Error in: '$file': $e"
-    return _parse(_textFromFile(file), file)(_env)
-
-    // TODO do this instead ...
-    as.each: (arg ->
-        file = "$arg.tl"
-        catch: e -> _throw "Unable to run: '$file': $e"
-        _parse(_textFromFile(file), file)(_env)
-    )
+    return _parse(_textFromFile(file), file)(_env, as.slice(1))
 )
 main = !runmain(args)
 
