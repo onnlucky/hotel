@@ -1,7 +1,10 @@
 # TODO
 
 finish lesstext parser ...
+
+upgrade httpparser module, add httpresponse
 add time module
+add /trigger to autobuilder ... wouldn't that be nice!
 
 classes + objects should not close environments so quickly ... how to handle all this
 see parser example, it cannot be factored into class + object, because class must construct itself
