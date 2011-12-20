@@ -67,8 +67,17 @@ static tlValue _not(tlTask* task, tlArgs* args) {
     return tlBOOL(!tl_bool(tlArgsGet(args, 0)));
 }
 static tlValue _eq(tlTask* task, tlArgs* args) {
-    trace("%p === %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(tlArgsGet(args, 0) == tlArgsGet(args, 1));
+    trace("%p == %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
+    tlValue left = tlArgsGet(args, 0);
+    tlValue right = tlArgsGet(args, 1);
+    if (left == right) return tlTrue;
+    tlClass* leftClass = tl_class(left);
+    tlClass* rightClass = tl_class(right);
+    if (leftClass != rightClass) return tlFalse;
+    if (leftClass == tlTextClass) return tlTextEquals(tlTextAs(left), tlTextAs(right));
+    // TODO do map here too? and others?
+    //if (leftClass == tlListClass) return tlListEquals(tlListAs(left), tlListAs(right));
+    return tlFalse;
 }
 static tlValue _neq(tlTask* task, tlArgs* args) {
     trace("%p !== %p", tlArgsGet(args, 0), tlArgsGet(args, 1));

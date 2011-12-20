@@ -53,6 +53,11 @@ int tlTextSize(tlText* text) {
     return text->len;
 }
 
+tlValue tlTextEquals(tlText* left, tlText* right) {
+    if (tlTextSize(left) != tlTextSize(right)) return tlFalse;
+    return tlBOOL(strcmp(tlTextData(left), tlTextData(right)) == 0);
+}
+
 tlText* tlTextSub(tlTask* task, tlText* from, int first, int size) {
     if (tlTextSize(from) == size) return from;
     char* data = malloc_atomic(size + 1);
