@@ -1,8 +1,5 @@
 // http request and url parser
 
-"echo hello world!".split.join(", ")
-
-/*
 DEBUG=false
 trace = (in, &msg -> if DEBUG: print in.pos, in.item, msg())
 
@@ -128,7 +125,7 @@ parseLine = (in ->
 )
 parsePara = (in ->
     lines = pManyOne(parseLine)(in)
-    nl = pOr(parseNewline, parseEnd)(lines).set("<p>\n$(_list_join(lines.value, "\n"))\n</p>")
+    nl = pOr(parseNewline, parseEnd)(lines).set("<p>\n$(lines.value.join("\n"))\n</p>")
 )
 parseCmd = (in ->
     trace(in, "parseCmd")
@@ -149,5 +146,5 @@ parseDoc = (in ->
 )
 
 text = io.File(args.get(0)).read
-_list_join(parse(parseDoc, text), "\n")
+parse(parseDoc, text).join("\n")
 
