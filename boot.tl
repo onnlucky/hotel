@@ -25,6 +25,34 @@ try = ( ->
     args.block.call()
 )
 
+// TODO should have special boot places for text, list and such
+_install(Text.class, #split, (split = (on ->
+    on = (on) or " " // TODO this is weird in the parser; hence the braces
+    onlen = on.size
+    loop = (start, at, list->
+        if this.startsWith(on, at): (
+            goto(loop(at + onlen, at + onlen, list.add(this.slice(start, at))))
+        )
+        if this.size <= at: (
+            return list.add(this.slice(start, at))
+        )
+        goto(loop(start, at + 1, list))
+    )
+    return loop(0, 0, [])
+)))
+_install(List.class, #join, (join = (sep ->
+    if this.size == 0: return ""
+    sep = (sep) or ""
+
+    var $res = this.get(0).toText
+    var $i = 1
+    while $i < this.size: (
+        $res = $res.cat(sep).cat(this.get($i).toText)
+        $i += 1
+    )
+    return $res
+)))
+
 // TODO should not sleep in ms, but need float ... should also add Time module
 sleep = (ms -> io.wait ms)
 seconds = (s -> s * 1000)

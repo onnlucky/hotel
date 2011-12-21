@@ -229,19 +229,27 @@ static tlClass _tlTextClass = {
     .toText = textToText,
 };
 
+static tlSym s_class;
 static void text_init() {
-    _tlTextClass.map = tlClassMapFrom(
-            "toText", _text_toText,
-            "size", _text_size,
-            "startsWith", _text_startsWith,
-            "endsWith", _text_endsWith,
-            "search", _text_search,
-
-            "char", _text_char,
-            "slice", _text_slice,
-            "cat", _text_cat,
-            null
-    );
     _tl_emptyText = tlTEXT("");
+    _tlTextClass.map = tlClassMapFrom(
+        "toText", _text_toText,
+        "size", _text_size,
+        "startsWith", _text_startsWith,
+        "endsWith", _text_endsWith,
+        "search", _text_search,
+        "char", _text_char,
+        "slice", _text_slice,
+        "cat", _text_cat,
+        "split", null,
+        null
+    );
+    tlMap* constructor = tlClassMapFrom(
+        "call", _Text_cat,
+        "class", null,
+        null
+    );
+    tlMapSetSym_(constructor, s_class, _tlTextClass.map);
+    tl_register_global("Text", constructor);
 }
 

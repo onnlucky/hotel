@@ -168,7 +168,7 @@ tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...) {
     va_start(ap, fn1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        tlNativeCb fn = va_arg(ap, tlNativeCb); assert(fn);
+        va_arg(ap, tlNativeCb);
         size++;
     }
     va_end(ap);
@@ -189,7 +189,7 @@ tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...) {
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
         tlNativeCb fn = va_arg(ap, tlNativeCb);
-        tlMapSetSym_(map, tlSYM(n), tlNATIVE(fn, n));
+        if (fn) tlMapSetSym_(map, tlSYM(n), tlNATIVE(fn, n));
     }
     va_end(ap);
 

@@ -837,6 +837,19 @@ static tlValue _eval(tlTask* task, tlArgs* args) {
     return res;
 }
 
+INTERNAL tlValue _install(tlTask* task, tlArgs* args) {
+    trace("install: %s", tl_str(tlArgsGet(args, 0)));
+    tlMap* map = tlMapFromObjectCast(tlArgsGet(args, 0));
+    if (!map) TL_THROW("expected a Map");
+    tlSym sym = tlSymCast(tlArgsGet(args, 1));
+    if (!sym) TL_THROW("expected a Sym");
+    tlValue val = tlArgsGet(args, 2);
+    if (!val) TL_THROW("expected a Value");
+    // TODO some safety here?
+    tlMapSetSym_(map, sym, val);
+    return tlNull;
+}
+
 static const tlNativeCbs __eval_natives[] = {
     { "_textFromFile", _textFromFile },
     { "_parse", _parse },
@@ -853,6 +866,9 @@ static const tlNativeCbs __eval_natives[] = {
     { "_Map_clone", _Map_clone },
     { "_Map_update", _Map_update },
     { "_Map_inherit", _Map_inherit },
+
+    { "_install", _install },
+
     { 0, 0 }
 };
 

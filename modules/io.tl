@@ -141,24 +141,9 @@ Socket = {
     )
 }
 
-// TODO extend Text.class with this ...
-_text_split = (text, on ->
-    onlen = on.size
-    loop = (start, at, list->
-        if text.startsWith(on, at): (
-            goto(loop(at + onlen, at + onlen, list.add(text.slice(start, at))))
-        )
-        if text.size <= at: (
-            return list.add(text.slice(start, at))
-        )
-        goto(loop(start, at + 1, list))
-    )
-    return loop(0, 0, [])
-)
-
 Process = {
     run: (cmd ->
-        list = _text_split(cmd, " ")
+        list = cmd.split
         check = try: not args.names.error
         // no stdin, no stdin, no stderr, joined stdin/stderr
         child = _io.launch list, false, true, false, true

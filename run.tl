@@ -1,18 +1,8 @@
 // http request and url parser
 
-// TODO figure out way to get this into List by boot.tl
-_list_join = (ls, sep ->
-    if ls.size == 0: return ""
+"echo hello world!".split.join(", ")
 
-    var $res = ls.get(0).toText
-    var $i = 1
-    while $i < ls.size: (
-        $res = $res.cat(sep).cat(ls.get($i).toText)
-        $i += 1
-    )
-    return $res
-)
-
+/*
 DEBUG=false
 trace = (in, &msg -> if DEBUG: print in.pos, in.item, msg())
 

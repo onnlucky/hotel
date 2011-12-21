@@ -306,16 +306,24 @@ static tlClass _tlListClass = {
 };
 
 static void list_init() {
-    _tlListClass.map = tlClassMapFrom(
-            "size", _list_size,
-            "get", _list_get,
-            "set", _list_set,
-            "add", _list_add,
-            "slice", _list_slice,
-            "toChar", _list_toChar,
-            //"search", _ListSearch,
-            null
-    );
     _tl_emptyList = tlAlloc(null, tlListClass, sizeof(tlList));
+    _tlListClass.map = tlClassMapFrom(
+        "size", _list_size,
+        "get", _list_get,
+        "set", _list_set,
+        "add", _list_add,
+        "slice", _list_slice,
+        "toChar", _list_toChar,
+        //"search", _ListSearch,
+        "join", null,
+        null
+    );
+    tlMap* constructor = tlClassMapFrom(
+        //"call", _List_cat,
+        "class", null,
+        null
+    );
+    tlMapSetSym_(constructor, s_class, _tlListClass.map);
+    tl_register_global("List", constructor);
 }
 
