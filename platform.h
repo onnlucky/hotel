@@ -29,6 +29,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <execinfo.h>
+#include <sys/time.h>
 
 #ifdef HAVE_BOEHMGC
 #include "libgc/include/gc.h"

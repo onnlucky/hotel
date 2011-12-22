@@ -37,6 +37,7 @@
 // extras
 #include "buffer.c"
 #include "evio.c"
+#include "time.c"
 
 // super extra
 //#include "http.c"
@@ -195,6 +196,7 @@ void tl_init() {
 
     buffer_init();
     evio_init();
+    time_init();
 
     tl_boot_code = tlTextFromStatic((const char*)boot_tl, boot_tl_len);
 }
