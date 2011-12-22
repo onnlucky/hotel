@@ -23,6 +23,12 @@ static tlSym _s_blocks;
 static tlSym _s_atime;
 static tlSym _s_mtime;
 
+static tlMap* _usageMap;
+static tlSym _s_cpu;
+static tlSym _s_mem;
+static tlSym _s_pid;
+static tlSym _s_gcs;
+
 static void io_cb(ev_io *ev, int revents);
 
 static int nonblock(int fd) {
@@ -38,13 +44,15 @@ static int setblock(int fd) {
     return 0;
 }
 
-static tlValue _io_chdir(tlTask* task, tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
-    if (chdir(tlTextData(text))) {
-        TL_THROW("chdir: %s", strerror(errno));
-    }
-    return tlNull;
+static tlValue _io_getrusage(tlTask* task, tlArgs* args) {
+    tlMap *res = tlAllocClone(task, _usageMap, sizeof(tlMap));
+    struct rusage use;
+    getrusage(RUSAGE_SELF, &use);
+    tlMapSetSym_(res, _s_cpu, tlINT(use.ru_utime.tv_sec + use.ru_stime.tv_sec));
+    tlMapSetSym_(res, _s_mem, tlINT(use.ru_maxrss));
+    tlMapSetSym_(res, _s_pid, tlINT(getpid()));
+    tlMapSetSym_(res, _s_gcs, tlINT(GC_gc_no));
+    return res;
 }
 static tlValue _io_getenv(tlTask* task, tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
@@ -52,6 +60,14 @@ static tlValue _io_getenv(tlTask* task, tlArgs* args) {
     const char* c = getenv(tlTextData(text));
     if (!c) return tlNull;
     return tlTextFromCopy(null, c, 0);
+}
+static tlValue _io_chdir(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    if (chdir(tlTextData(text))) {
+        TL_THROW("chdir: %s", strerror(errno));
+    }
+    return tlNull;
 }
 
 TL_REF_TYPE(tlFile);
@@ -271,8 +287,8 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
 static tlValue _File_from(tlTask* task, tlArgs* args) {
     tlInt fd = tlIntCast(tlArgsGet(args, 0));
     if (!fd) TL_THROW("espected a file descriptor");
-    int r = nonblock(tl_int(fd));
-    if (r) TL_THROW("_File_from: failed: %s", strerror(errno));
+    //int r = nonblock(tl_int(fd));
+    //if (r) TL_THROW("_File_from: failed: %s", strerror(errno));
     return tlFileNew(task, tl_int(fd));
 }
 
@@ -829,8 +845,9 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
 }
 
 static const tlNativeCbs __evio_natives[] = {
-    { "_io_chdir", _io_chdir },
+    { "_io_getrusage", _io_getrusage },
     { "_io_getenv", _io_getenv },
+    { "_io_chdir", _io_chdir },
     { "_File_open", _File_open },
     { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
@@ -902,38 +919,35 @@ void evio_init() {
     tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
     tl_register_global("_File_EXCL",     tlINT(O_EXCL));
 
+    // for stat syscall
     tlSet* keys = tlSetNew(null, 12);
-    _s_dev = tlSYM("dev");
-    _s_ino = tlSYM("ino");
-    _s_mode = tlSYM("mode");
-    _s_nlink = tlSYM("nlink");
-    _s_uid = tlSYM("uid");
-    _s_gid = tlSYM("gid");
-    _s_rdev = tlSYM("rdev");
-    _s_size = tlSYM("size");
-    _s_blksize = tlSYM("blksize");
-    _s_blocks = tlSYM("blocks");
-    _s_atime = tlSYM("atime");
-    _s_mtime = tlSYM("mtime");
-    tlSetAdd_(keys, _s_dev);
-    tlSetAdd_(keys, _s_ino);
-    tlSetAdd_(keys, _s_mode);
-    tlSetAdd_(keys, _s_nlink);
-    tlSetAdd_(keys, _s_uid);
-    tlSetAdd_(keys, _s_gid);
-    tlSetAdd_(keys, _s_rdev);
-    tlSetAdd_(keys, _s_size);
-    tlSetAdd_(keys, _s_blksize);
-    tlSetAdd_(keys, _s_blocks);
-    tlSetAdd_(keys, _s_atime);
-    tlSetAdd_(keys, _s_mtime);
-
+    _s_dev = tlSYM("dev"); tlSetAdd_(keys, _s_dev);
+    _s_ino = tlSYM("ino"); tlSetAdd_(keys, _s_ino);
+    _s_mode = tlSYM("mode"); tlSetAdd_(keys, _s_mode);
+    _s_nlink = tlSYM("nlink"); tlSetAdd_(keys, _s_nlink);
+    _s_uid = tlSYM("uid"); tlSetAdd_(keys, _s_uid);
+    _s_gid = tlSYM("gid"); tlSetAdd_(keys, _s_gid);
+    _s_rdev = tlSYM("rdev"); tlSetAdd_(keys, _s_rdev);
+    _s_size = tlSYM("size"); tlSetAdd_(keys, _s_size);
+    _s_blksize = tlSYM("blksize"); tlSetAdd_(keys, _s_blksize);
+    _s_blocks = tlSYM("blocks"); tlSetAdd_(keys, _s_blocks);
+    _s_atime = tlSYM("atime"); tlSetAdd_(keys, _s_atime);
+    _s_mtime = tlSYM("mtime"); tlSetAdd_(keys, _s_mtime);
     _statMap = tlMapNew(null, keys);
     tlMapToObject_(_statMap);
 
+    // for rusage syscall
+    keys = tlSetNew(null, 4);
+    _s_cpu = tlSYM("cpu"); tlSetAdd_(keys, _s_cpu);
+    _s_mem = tlSYM("mem"); tlSetAdd_(keys, _s_mem);
+    _s_pid = tlSYM("pid"); tlSetAdd_(keys, _s_pid);
+    _s_gcs = tlSYM("gcs"); tlSetAdd_(keys, _s_gcs);
+    _usageMap = tlMapNew(null, keys);
+    tlMapToObject_(_usageMap);
+
     signal(SIGPIPE, SIG_IGN);
-    nonblock(0); nonblock(1); nonblock(2);
-    atexit(evio_exit);
+    //nonblock(0); nonblock(1); nonblock(2);
+    //atexit(evio_exit);
 
     ev_default_loop(0);
     ev_async_init(&loop_interrupt, async_cb);
