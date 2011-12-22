@@ -14,65 +14,70 @@ input = (text, pos, value -> {
         item: text.char(pos)
         end: -> this.pos >= this.text.size
         set: val -> input(this.text, this.pos, val)
+        do: (block -> this.set(block(this.value)))
         next: val -> input(this.text, this.pos + 1, val)
         error: val -> _throw this.set(val)
     }
 )
+rule = (fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4))))
 
-parse = (text, parser ->
-    _catch: e -> _throw "syntax error"
-    in = parser(input(text, 0, null))
-    if not in.end: _throw "expected end of input"
-    return in.value
+parse = (parser, text ->
+    out = (
+        _catch: e -> _throw "syntax error"
+        parser(input(text, 0, null))
+    )
+    if not out.end: _throw "expected end of input"
+    return out.value
 )
-parseOptional = (in, parser, a1, a2, a3 ->
-    trace(in, "parseOptional")
+
+pOptional = rule((in, parser ->
+    trace(in, "pOptional")
     _catch: e -> trace(in, "ERROR: $e"); return in.set(null)
-    in = parser(in, a1, a2, a3)
-)
-_pmany = (in, parser, res, a1, a2, a3 ->
+    in = parser(in)
+))
+_pmany = (in, parser, res ->
     trace(in, "_pmany")
     _catch: e -> trace(in, "ERROR: $e"); return in.set(res)
-    in = parser(in, a1, a2, a3)
-    goto _pmany(in, parser, res.add(in.value), a1, a2, a3)
+    in = parser(in)
+    goto _pmany(in, parser, res.add(in.value))
 )
-parseMany = (in, parser, a1, a2, a3 ->
-    trace(in, "parseMany")
-    _pmany(in, parser, [], a1, a2, a3)
-)
-parseManyOne = (in, parser, a1, a2, a3 ->
-    trace(in, "parseManyOne")
-    in = parser(in, a1, a2, a3)
-    _pmany(in, parser, [in.value], a1, a2, a3)
-)
-parseChar = (in, ch ->
-    trace(in, "parseChar: $(in.item.toChar) == $(ch.toChar)")
+pMany = rule((in, parser ->
+    trace(in, "pMany")
+    _pmany(in, parser, [])
+))
+pManyOne = rule((in, parser ->
+    trace(in, "pManyOne")
+    in = parser(in)
+    _pmany(in, parser, [in.value])
+))
+pChar = rule((in, ch ->
+    trace(in, "pChar: $(in.item.toChar) == $(ch.toChar)")
     if in.item == ch: return in.next(ch)
     in.error(ch.toChar)
-)
-parseChars = (in, chars ->
-    trace(in, "parseChars: $(in.item.toChar) in $(chars)")
+))
+pChars = rule((in, chars ->
+    trace(in, "pChars: $(in.item.toChar) in $(chars)")
     if chars.search(in.item.toChar): return in.next(in.item)
     in.error(chars)
-)
-parseNotChars = (in, chars ->
-    trace(in, "parseNotChars: $(in.item.toChar) not in $(chars)")
+))
+pNotChars = rule((in, chars ->
+    trace(in, "pNotChars: $(in.item.toChar) not in $(chars)")
     if chars.search(in.item.toChar): return in.error("not $chars")
     in.next(in.item)
-)
-parseText = (in, text ->
-    trace(in, "parseText: $(text)")
+))
+pText = rule((in, text ->
+    trace(in, "pText: $(text)")
     if in.text.startsWith(text, in.pos): return input(in.text, in.pos + text.size, text)
     in.error(text)
-)
+))
 
 // URL PARSING
 parseType = (in ->
-    type = parseManyOne(in, parseNotChars, "./?#=&:; \t\n\r")
-    parseChar(type, ":".char).set(type.value.toChar)
+    type = pManyOne(pNotChars(":/?# \n\r"))(in).do: v -> v.toChar
+    pChar(":".char)(type).set(type.value)
 )
 parseHost = (in ->
-    in = parseOptional(in, parseText, "//")
+    in = pOptional(pText("//"))(in)
     if not in.value: (
         // TODO this is cheating ... just a bit ...
         colon = in.text.search(":")
@@ -80,40 +85,36 @@ parseHost = (in ->
         if not colon: return in
         if slash and slash > colon: return in
     )
-    host = parseManyOne(in, parseNotChars, ":/?#;& \t\n\r")
-    host.set(host.value.toChar)
+    host = pManyOne(pNotChars(":/?#;& \t\n\r"))(in).do: v -> v.toChar
 )
 parsePort = (in ->
-    in = parseChar(in, ":".char)
-    port = parseMany(in, parseChars, numbers)
-    port.set(_int_parse(port.value.toChar))
+    in = pChar(":".char)(in)
+    port = pMany(pChars(numbers))(in).do: v -> v.toChar
 )
 parsePath = (in ->
-    path = parseMany(in, parseNotChars, "?# \t\n\r")
-    text = path.value.toChar
+    path = pMany(pNotChars("?# \t\n\r"))(in).do: v -> v.toChar
+    text = path.value
     if text.size == 0: return path.set("/")
     if text.char != "/".char: return path.set("/$(text)")
-    path.set(text)
+    return path
 )
 parseQuery = (in ->
-    in = parseChar(in, "?".char)
-    query = parseMany(in, parseNotChars, "# \t\n\r")
-    query.set(query.value.toChar)
+    in = pChar("?".char)(in)
+    query = pMany(pNotChars("# \t\n\r"))(in).do: v -> v.toChar
 )
 parseFragment = (in ->
-    in = parseChar(in, "#".char)
-    fragment = parseMany(in, parseNotChars, " \r\n\t")
-    fragment.set(fragment.value.toChar)
+    in = pChar("#".char)(in)
+    fragment = pMany(pNotChars(" \r\n\t"))(in).do: v -> v.toChar
 )
 parseUrl = (in ->
     trace(in, "parseUrl")
-    type = parseOptional(in, parseType)
+    type = pOptional(parseType)(in)
     trace(type, "TYPE: $(type.value)")
-    host = parseOptional(type, parseHost)
-    port = parseOptional(host, parsePort)
+    host = pOptional(parseHost)(type)
+    port = pOptional(parsePort)(host)
     path = parsePath(port)
-    query = parseOptional(path, parseQuery)
-    fragment = parseOptional(query, parseFragment)
+    query = pOptional(parseQuery)(path)
+    fragment = pOptional(parseFragment)(query)
     fragment.set({
         type: type.value
         host: host.value
@@ -124,47 +125,47 @@ parseUrl = (in ->
     })
 )
 parseSpaces = (in ->
-    parseManyOne(in, parseChars, "\t ")
+    pManyOne(pChars("\t "))(in)
 )
 parseNewline = (in ->
     trace(in, "parseNewline")
-    try: return parseText(in, "\r\n")
-    try: return parseText(in, "\n\r")
-    try: return parseText(in, "\n")
-    parseText(in, "\r")
+    try: return pText("\r\n")(in)
+    try: return pText("\n\r")(in)
+    try: return pText("\n")(in)
+    pText("\r")(in)
 )
 parseHeader = (in ->
     trace(in, "parseHeader")
-    key = parseManyOne(in, parseNotChars, ":\r\n")
-    colon = parseChar(key, ":".char)
-    sp = parseOptional(colon, parseSpaces)
-    value = parseManyOne(sp, parseNotChars, "\r\n")
+    key = pManyOne(pNotChars(":\r\n"))(in).do: v -> v.toChar
+    colon = pChar(":".char)(key)
+    sp = pOptional(parseSpaces)(colon)
+    value = pManyOne(pNotChars("\r\n"))(sp).do: v -> v.toChar
     nl = parseNewline(value)
-    trace(nl, "KEY: $(key.value.toChar) VALUE: $(value.value.toChar)")
+    trace(nl, "KEY: $(key.value) VALUE: $(value.value)")
     nl.set({
-        key: key.value.toChar
-        value: value.value.toChar
+        key: key.value
+        value: value.value
     })
 )
 parseHttpRequest = (in ->
-    method = parseManyOne(in, parseChars, upper)
-    method = method.set(method.value.toChar)
+    method = pManyOne(pChars(upper))(in).do: v -> v.toChar
+    trace(method, "METHOD: $(method.value)")
     sp = parseSpaces(method)
     url = parseUrl(sp)
     sp = parseSpaces(url)
-    http = parseText(sp, "HTTP/1.")
+    http = pText("HTTP/1.")(sp)
     trace(http, "HTTP: $(http.value)")
-    number = parseChars(http, numbers)
-    nl = parseNewline(number)
-    headers = parseMany(nl, parseHeader)
+    version = pChars(numbers)(http).do: v -> "1.$(v.toChar)"
+    nl = parseNewline(version)
+    headers = pMany(parseHeader)(nl)
     nl = parseNewline(headers)
     nl.set({
         method: method.value
         url: url.value
-        version: "1.$(number.value)"
+        version: version.value
         headers: headers
     })
 )
 
-{ request: (text -> parse(text, parseHttpRequest)) }
+{ request: (text -> parse(parseHttpRequest, text)) }
 
