@@ -68,7 +68,7 @@ const char* tl_str(tlValue v) {
         trace("init buffers for output");
         _str_buf_at = 0;
         _str_bufs = calloc(_BUF_COUNT, sizeof(_str_buf));
-        for (int i = 0; i < _BUF_COUNT; i++) _str_bufs[i] = malloc(_BUF_SIZE);
+        for (int i = 0; i < _BUF_COUNT; i++) _str_bufs[i] = malloc_atomic(_BUF_SIZE);
     }
     _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
     _str_buf = _str_bufs[_str_buf_at];

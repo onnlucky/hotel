@@ -29,7 +29,7 @@ INTERNAL tlValue _buffer_read(tlTask* task, tlArgs* args) {
     assert(buf);
 
     trace("canread: %d", canread(buf));
-    char* data = malloc(canread(buf) + 1);
+    char* data = malloc_atomic(canread(buf) + 1);
     int last = tlbuf_read(buf, data, canread(buf));
     data[last] = 0;
     return tlTextFromTake(task, data, last);
