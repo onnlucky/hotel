@@ -1,5 +1,7 @@
 // lock is the "base" class for all mutable things, objects, files, buffers and more
 
+// TODO the "owner" part of this lock is not needed, the lqueue->head is perfectly good as the owner
+
 #include "trace-off.h"
 
 bool tlLockIs(tlValue v) {
@@ -85,6 +87,7 @@ tlValue evalSendLocked(tlTask* task, tlArgs* args) {
 
     if (tlLockIsOwner(lock, task)) return evalSend(task, args);
 
+    // if the lock is taken and there are tasks in the queue, there is never a point that owner == null
     if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
         // failed to own lock; pause current task, and enqueue it
         return tlTaskPauseResuming(task, resumeReceiveEnqueue, args);
