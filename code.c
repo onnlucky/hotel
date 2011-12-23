@@ -8,6 +8,8 @@ tlClass* tlCodeClass = &_tlCodeClass;
 struct tlCode {
     tlHead head;
     tlInt flags;
+    tlText* file;
+    tlInt line;
     tlSym name;
     tlList* argnames;
     tlMap* argdefaults;
@@ -19,12 +21,14 @@ void debugcode(tlCode* code);
 tlCode* tlCodeNew(tlTask* task, int size) {
     return tlAllocWithFields(task, tlCodeClass, sizeof(tlCode), size);
 }
-tlCode* tlCodeFrom(tlTask* task, tlList* ops) {
+tlCode* tlCodeFrom(tlTask* task, tlList* ops, tlText* file, tlInt line) {
     int size = tlListSize(ops);
     tlCode* code = tlCodeNew(task, size);
     for (int i = 0; i < size; i++) {
         code->ops[i] = tlListGet(ops, i);
     }
+    code->file = file;
+    code->line = line;
     return code;
 }
 void tlCodeSetIsBlock_(tlCode* code, bool isblock) {
@@ -33,8 +37,11 @@ void tlCodeSetIsBlock_(tlCode* code, bool isblock) {
 bool tlCodeIsBlock(tlCode* code) {
     return code->flags == tlOne;
 }
-void tlCodeSetName_(tlCode* code, tlSym name) {
+void tlCodeSetInfo_(tlCode* code, tlText* file, tlInt line, tlSym name) {
+    assert(!code->name);
     code->name = name;
+    code->file = file;
+    code->line = line;
 }
 /*
 void tlCodeSetOps_(tlCode* code, tlList* ops) {

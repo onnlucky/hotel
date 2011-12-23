@@ -268,21 +268,21 @@ tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as) {
 
     tlbuf_write_uint8(buf, 0);
     tlText* code = tlTextFromTake(null, tlbuf_free_get(buf), 0);
-    return tlVmEvalCode(vm, code, as);
+    return tlVmEvalCode(vm, code, file, as);
 }
 
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as) {
-    return tlVmEvalCode(vm, tl_boot_code, as);
+    return tlVmEvalCode(vm, tl_boot_code, tlTEXT("<boot>"), as);
 }
 
-tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as) {
+tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as) {
     tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(vm);
     vm->main = task;
     vm->running = true;
 
     // TODO if no success, task should have exception
-    tlCode* body = tlCodeCast(tlParse(task, code, tlTEXT("!!unknown!!")));
+    tlCode* body = tlCodeCast(tlParse(task, code, file));
     if (!body) return task;
     trace("PARSED");
 

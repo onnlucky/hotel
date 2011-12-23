@@ -12,8 +12,6 @@ struct tlError {
     tlFrame* stack;
 };
 
-void tlErrorPrint(tlError* err);
-
 INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack) {
     trace("%s", tl_str(value));
     assert(task); assert(value); assert(stack);

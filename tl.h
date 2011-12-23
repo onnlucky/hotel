@@ -305,7 +305,7 @@ tlValue tlParse(tlTask* task, tlText* text, tlText* file);
 tlTask* tlVmEval(tlVm* vm, tlValue v);
 tlTask* tlVmEvalCall(tlVm* vm, tlValue fn, ...);
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as);
-tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlArgs* as);
+tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as);
 
 // setup a single task to eval something, returns immedately
@@ -320,6 +320,7 @@ tlValue tlTaskGetValue(tlTask* task);
 
 // reading errors
 tlValue tlErrorValue(tlError* error);
+void tlErrorPrint(tlError* err);
 
 // invoking toText, almost same as tlEvalCode("v.toText")
 tlText* tlToText(tlTask* task, tlValue v);

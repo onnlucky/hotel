@@ -87,7 +87,7 @@ runmain = (as ->
     if as.size == 0: return repl.run
 
     file = as.get(0)
-    _catch: e -> _throw "Error in: '$file': $e"
+    //_catch: e -> _throw "Error in: '$file': $e"
     return _parse(_textFromFile(file), file)(_env, as.slice(1))
 )
 main = !runmain(args)

@@ -52,10 +52,10 @@ bool check_indent(void* data);
 #define YY_XTYPE ParseContext*
 #define YY_INPUT(buf, len, max, cx) { len = writesome(cx, buf, max); }
 
-void try_name(tlSym name, tlValue v) {
+void try_name(tlSym name, tlValue v, ParseContext* cx) {
     if (tlActiveIs(v)) v = tl_value(v);
     if (tlCodeIs(v)) {
-        tlCodeSetName_(tlCodeAs(v), name);
+        tlCodeSetInfo_(tlCodeAs(v), cx->file, tlINT(cx->line), name);
     }
     assert(tlSymIs(name));
 }
@@ -169,6 +169,8 @@ static char* unescape(const char* s) {
 }
 
 #define TASK yyxvar->task
+#define FILE yyxvar->file
+#define LINE tlINT(yyxvar->line)
 #define L(l) tlListAs(l)
 
 //#define YY_DEBUG
@@ -176,11 +178,11 @@ static char* unescape(const char* s) {
 
 %}
 
- start = hashbang b:body __ !.   { $$ = b; try_name(s_main, b); }
+ start = hashbang b:body __ !.   { $$ = b; try_name(s_main, b, yyxvar); }
 hashbang = __ "#"_"!" (!nl .)* nle __
          | __
 
-  body = ts:stms           { $$ = tlCodeFrom(TASK, ts); }
+  body = ts:stms           { $$ = tlCodeFrom(TASK, ts, FILE, LINE); }
 
   stms = t:stm (eos t2:stm { t = tlListCat(TASK, L(t), L(t2)); }
                |eos)*      { $$ = t }
@@ -226,8 +228,8 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(TASK, L(as), n); }
                  ));
              }
 
-singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n, null); try_name(n, e); }
-             | n:name    _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, n, null); try_name(n, e); }
+singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n, null); try_name(n, e, yyxvar); }
+             | n:name    _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, n, null); try_name(n, e, yyxvar); }
  multiassign = ns:anames _"="__ e:bpexpr { $$ = tlListFrom(TASK, e, tlCollectFromList_(L(ns)), null); }
     noassign = e:selfapply  { $$ = tlListFrom1(TASK, e); }
              | e:bpexpr     { $$ = tlListFrom1(TASK, e); }
@@ -242,7 +244,7 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
            $$ = b;
        }
        | ts:stmsnl &ssepend {
-           b = tlCodeFrom(TASK, ts);
+           b = tlCodeFrom(TASK, ts, FILE, LINE);
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
@@ -252,7 +254,7 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
            $$ = b;
        }
        | as:fargs _"->"_ ts:stmsnl &ssepend {
-           b = tlCodeFrom(TASK, ts);
+           b = tlCodeFrom(TASK, ts, FILE, LINE);
            tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
            $$ = b;
        }
@@ -409,7 +411,7 @@ object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs
        | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
  items = i:item eom is:items   { $$ = tlListPrepend(TASK, L(is), i); }
        | i:item                { $$ = tlListFrom1(TASK, i) }
-  item = n:name _":"__ v:expr  { $$ = tlListFrom2(TASK, n, v); try_name(n, v); }
+  item = n:name _":"__ v:expr  { $$ = tlListFrom2(TASK, n, v); try_name(n, v, yyxvar); }
 
   list = "["__ is:litems __"]" { $$ = list_activate(L(is)); }
        | "["__"]"              { $$ = list_activate(tlListEmpty()); }
@@ -446,7 +448,7 @@ number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
   name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tlSymFromCopy(TASK, yytext, 0); }
 
 slcomment = "//" (!nl .)*
- icomment = "/*" (!"*/" .)* ("*/"|!.)
+ icomment = "/*" (!"*/" (nl|.))* ("*/"|!.)
   comment = (slcomment nle | icomment)
 
      ssep = _ ";" _
@@ -456,7 +458,7 @@ slcomment = "//" (!nl .)*
   eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.) __
  peosfull = _ (nl | ":" | ";" | "}" | ")" | "]" | slcomment nle | !.) __
       eom = _ (nl | "," | slcomment nle) __
-       nl = "\n" | "\r\n" | "\r" { yyxvar->line += 1; }
+       nl = ("\n" | "\r\n" | "\r") { yyxvar->line += 1; }
       nle = nl | !.
        sp = [ \t]
         _ = (sp | icomment)*
@@ -533,7 +535,7 @@ tlValue tlParse(tlTask* task, tlText* text, tlText* file) {
     ParseContext data;
     data.file = file;
     data.at = 0;
-    data.line = 0;
+    data.line = 1;
     data.text = text;
     data.current_indent = 0;
     data.indents[0] = 0;

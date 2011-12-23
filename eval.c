@@ -185,9 +185,15 @@ static tlEnv* CodeFrameGetEnv(tlFrame* frame) {
 INTERNAL void print_backtrace(tlFrame* frame) {
     while (frame) {
         if (CodeFrameIs(frame)) {
-            tlSym name = CodeFrameAs(frame)->code->name;
-            if (name) print("%p  %s", frame, tl_str(name));
-            else print("%p  <anon>", frame);
+            tlCode* code = CodeFrameAs(frame)->code;
+            if (code->name) {
+                tlText* n = tlTextFromSym(code->name);
+                print("%p  %s (%s:%s)", frame, tl_str(n), tl_str(code->file), tl_str(code->line));
+            } else if (code->file) {
+                print("%p  <anon> (%s:%s)", frame, tl_str(code->file), tl_str(code->line));
+            } else {
+                print("%p  <anon>", frame);
+            }
         } else {
             print("%p  <native>", frame);
         }

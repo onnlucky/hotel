@@ -5,12 +5,12 @@ tlValue tl_active(tlValue value);
 tlValue tl_value(tlValue active);
 
 tlCode* tlCodeNew(tlTask* task, int size);
-tlCode* tlCodeFrom(tlTask* task, tlList* ops);
+tlCode* tlCodeFrom(tlTask* task, tlList* ops, tlText* file, tlInt line);
 
 void tlCodeSetIsBlock_(tlCode* code, bool isblock);
 bool tlCodeIsBlock(tlCode* code);
 
-void tlCodeSetName_(tlCode* code, tlSym name);
+void tlCodeSetInfo_(tlCode* code, tlText* file, tlInt line, tlSym name);
 void tlCodeSetArgs_(tlTask* task, tlCode* code, tlList* args);
 void tlCodeSetOps_(tlCode* code, tlList* ops);
 
