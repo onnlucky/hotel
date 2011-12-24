@@ -40,8 +40,8 @@ bool tlCodeIsBlock(tlCode* code) {
 void tlCodeSetInfo_(tlCode* code, tlText* file, tlInt line, tlSym name) {
     assert(!code->name);
     code->name = name;
-    code->file = file;
-    code->line = line;
+    if (!code->file) code->file = file;
+    if (!code->line )code->line = line;
 }
 /*
 void tlCodeSetOps_(tlCode* code, tlList* ops) {

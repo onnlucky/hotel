@@ -182,7 +182,7 @@ static char* unescape(const char* s) {
 hashbang = __ "#"_"!" (!nl .)* nle __
          | __
 
-  body = ts:stms           { $$ = tlCodeFrom(TASK, ts, FILE, LINE); }
+  body = l:line ts:stms    { $$ = tlCodeFrom(TASK, ts, FILE, l); }
 
   stms = t:stm (eos t2:stm { t = tlListCat(TASK, L(t), L(t2)); }
                |eos)*      { $$ = t }
@@ -243,8 +243,8 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
-       | ts:stmsnl &ssepend {
-           b = tlCodeFrom(TASK, ts, FILE, LINE);
+       | l:line ts:stmsnl &ssepend {
+           b = tlCodeFrom(TASK, ts, FILE, l);
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
@@ -253,8 +253,8 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
            tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
            $$ = b;
        }
-       | as:fargs _"->"_ ts:stmsnl &ssepend {
-           b = tlCodeFrom(TASK, ts, FILE, LINE);
+       | as:fargs _"->"_ l:line ts:stmsnl &ssepend {
+           b = tlCodeFrom(TASK, ts, FILE, l);
            tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
            $$ = b;
        }
@@ -463,6 +463,8 @@ slcomment = "//" (!nl .)*
        sp = [ \t]
         _ = (sp | icomment)*
        __ = (sp | nl | comment)*
+
+    line = { $$ = tlINT(yyxvar->line); }
 
 %%
 
