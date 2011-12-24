@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-DEBUG="--enable-gc-debug --enable-gc-assertions"
+CFLAGS="-g -O3"
+#DEBUG="--enable-gc-debug --enable-gc-assertions"
 #NOTHREADS="--disable-threads"
 THREADS="--enable-threads=posix --enable-thread-local-alloc --enable-parallel-mark"
 if ! cd libgc; then
@@ -17,7 +18,7 @@ if ! cd libatomic_ops; then
 else
     cd ..
 fi
-./configure $DEBUG $NOTHREADS $THREADS
+CFLAGS="$CFLAGS" ./configure $DEBUG $NOTHREADS $THREADS
 make
 rm -rf objs
 mkdir objs
