@@ -158,6 +158,8 @@ static char* unescape(const char* s) {
                 case 'n': t[j] = '\n'; break;
                 case 'r': t[j] = '\r'; break;
                 case 't': t[j] = '\t'; break;
+                case '"': t[j] = '"'; break;
+                case '$': t[j] = '$'; break;
                 default: j--; break;
             }
         } else {
@@ -436,7 +438,7 @@ number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
        | '"'  t:stext '"' { $$ = t }
        | '"' ts:ctext '"' { $$ = tlCallFromList(TASK, tl_active(s_Text_cat), L(ts)); }
 
- stext = < (!"$" !"\"" .)+ > { $$ = tlTextFromTake(TASK, unescape(yytext), 0); }
+ stext = < ("\\$" | "\\\"" | "\\\\" | !"$" !"\"" .)+ > { $$ = tlTextFromTake(TASK, unescape(yytext), 0); }
  ptext = "$("_ e:paren _")"  { $$ = e }
        | "$("_ b:body  _")"  { tlCodeSetIsBlock_(b, true); $$ = tlCallFrom(TASK, tl_active(b), null); }
        | "$" l:lookup        { $$ = l }
