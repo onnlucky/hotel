@@ -1,10 +1,14 @@
-// http request and url parser
-
-DEBUG=false
+DEBUG=true
 trace = (in, &msg -> if DEBUG: print in.pos, in.item, msg())
+DEBUG2=true
+trace2 = (in, &msg ->
+    if DEBUG2: print in.pos, in.item, msg()
+    return in
+)
 
 lower = "abcdefghijklmnopqrstuvwxyz"
 upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+letters = lower.cat(upper)
 numbers = "0123456789"
 
 // TODO should be a class/object but class needs constructor and constructor needs class ...
@@ -21,24 +25,31 @@ input = (text, pos, value -> {
     }
 )
 // TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
-rule = (fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4))))
+rule = (fn -> (a1, a2, a3, a4, a5, a6, a7, a8, a9 -> (in -> fn(in, a1, a2, a3, a4, a5, a6, a7, a8, a9))))
 
 parse = (parser, text ->
     out = (
-        _catch: e -> _throw "syntax error"
+        //_catch: e -> _throw "syntax error"
         parser(input(text, 0, null))
     )
     if not out.end: _throw "expected end of input"
     return out.value
 )
-
+pNot = rule((in, parser ->
+    trace(in, "pNot")
+    out = (
+        _catch: e -> trace(in, "pNot: OK: $(e)"); return in
+        parser(in)
+    )
+    trace(out, "pNot: Error")
+    _throw out
+))
 pOptional = rule((in, parser ->
     trace(in, "pOptional")
     _catch: e -> trace(in, "ERROR: $e"); return in.set(null)
     in = parser(in)
 ))
-// TODO this rule is not very useful because it does not allow for semantic actions
-// TODO should return [value] ... instead
+// returns only last result; make subrule if semantic actions are needed
 pAnd = rule((in ->
     var $res = in
     var $i = 1
@@ -51,12 +62,14 @@ pAnd = rule((in ->
     )
 ))
 pOr = rule((in ->
-    var $i = 0
-    while $i < args.size - 1: (
+    var $i = 1
+    loop: (
+        parser = args.get($i)
+        if not parser: break
+        trace(in, "pOr: $($i)")
         $i += 1
         _catch: e -> trace(in, "ERROR: $e")
-        trace(in, "pOr: try $($i) of $(args.size)")
-        return args.get($i)(in)
+        return parser(in)
     )
     trace(in, "no alternatives ...")
     in.error("no alternative")
@@ -103,8 +116,8 @@ parseEnd = (in ->
     if in.end: return in
     in.error("end of input")
 )
+parseWs = (in -> trace(in, "."); pMany(pChars(" \t\n\r"))(in))
 parseSpace = (in -> pChars(" \t")(in))
-parseWhitespace = (in -> pChars(" \t\n\r")(in))
 parseNewline = (in ->
     try: return pText("\r\n")(in)
     try: return pText("\n\r")(in)
@@ -112,39 +125,125 @@ parseNewline = (in ->
     pText("\r")(in)
 )
 
-// DOC PARSING
+// PARSER PARSER
 
-doCmd = (cmd, text ->
-    if cmd == "title": return "<h1>$text</h1>"
-    "<$cmd>$text</$cmd>"
+// . parser . end
+parseOuter = (in ->
+    trace2(in, "outer")
+    in = parseWs(in)
+    parser = parseParser(in)
+    in = parseWs(parser)
+    parseEnd(in)
+)
+// parser: "parser" ."{". rs=rule* ."}" -> Parser.{ rules: rs }
+parseParser = (in ->
+    trace2(in, "parser")
+    in = pText("parser")(in)
+    in = parseWs(in)
+    in = pText("{")(in)
+    in = parseWs(in)
+    rules = pMany(parseRule)(in)
+    in = parseWs(rules)
+    in = pText("}")(in)
+    trace2(in, "<< parser: $(rules.value.size)")
+)
+//rule: n=name .":". t=or .              -> Rule.{ name: n, term: t }
+parseRule = (in ->
+    trace2(in, ">> rule")
+    name = parseName(in)
+    in = parseWs(name)
+    in = pText(":")(in)
+    in = parseWs(in)
+    term = parseOr(in)
+    in = parseWs(term)
+    trace2(in, "<< rule: $(name.value)")
+)
+//act: "->". (!"\n" _)*
+parseAct = (in ->
+    trace2(in, ">> action")
+    in = parseWs(in)
+    in = pText("->")(in)
+    in = parseWs(in)
+    cs = pMany(pNotChars("\n\r"))(in).do: v -> v.toChar
+    trace2(cs, "<< action")
+)
+//or: h=and rs=(."|". and)*          -> Or.{ terms: h + rs }
+parseOr = (in ->
+    trace2(in, ">> or")
+    h = parseAnd(in)
+    rs= pMany(pAnd(parseWs, pText("|"), parseWs, parseAnd))(h)
+    trace2(rs, "<< or")
+)
+//and: h=named rs=(" ". named)* . a:act? -> And.{ terms: h + rs, act: a }
+parseAnd = (in ->
+    trace2(in, ">> AND >> AND >> AND >>")
+    h = parseNamed(in)
+    rs = pMany(pAnd(parseWs, parseNamed))(h)
+    a = pOptional(parseAct)(rs)
+    trace2(a, "<< AND << AND << AND <<")
+)
+//named: n=name "=" t=post              -> Bind.{ name: n, term: t }
+//     | post
+parseNamed = (in ->
+    trace2(in, ">> named")
+    a1 = in -> n = parseName(in); in = pText("=")(n); t = parsePost(in)
+    in = pOr(a1, parsePost)(in)
+    trace2(in, "<< named")
+)
+//post: "!" term | term "*" | term "+" | term
+parsePost = (in ->
+    trace2(in, ">> post")
+    a1 = in -> in = pText("!")(in); parseTerm(in).set("!!!")
+    a2 = in -> term = parseTerm(in); pText("*")(term).set("***")
+    a3 = in -> term = parseTerm(in); pText("+")(term).set("+++")
+    in = pOr(a1, a2, a3, parseTerm)(in)
+    trace2(in, "<< post: $(in.value)")
+)
+//term: "(". or .")" | "." | "_" | name | text
+parseTerm = (in ->
+    trace2(in, ">> term")
+    a1 = (in ->
+        in = pText("(")(in);
+        trace2(in, ">> paren >> PAREN >> PAREN >>")
+        _catch: e -> print "!! !! SYNTAX ERROR::", e, ":: !! !!"
+        in = parseWs(in);
+        t=parseOr(in);
+        in = parseWs(t);
+        in = pText(")")(in)
+        trace2(in, "3 << paren << PAREN << PAREN <<")
+    )
+    a2 = in -> pText(".")(in)
+    a3 = in -> pText("_")(in)
+    a4 = in -> in = parseName(in); pNot(pChar(":".char))(in)
+    in = pOr(a1, a2, a3, a4, parseText)(in)
+    trace2(in, "<< term: $(in.value)")
+)
+//text: "\"" escape* "\""
+parseText = (in ->
+    trace2(in, "text")
+    in = pText("\"")(in)
+    cs = pMany(parseEscape)(in)
+    pText("\"")(cs)
+)
+//escape: "\\\"" | "\\n" | "\\r" | "\\t" | "\\\\" | !"\"" _
+parseEscape = (in ->
+    trace2(in, "escape")
+    a1 = in -> pText("\\\"")(in).set("\"".char)
+    a2 = in -> pText("\\n")(in).set("\n".char)
+    a3 = in -> pText("\\r")(in).set("\r".char)
+    a4 = in -> pText("\\t")(in).set("\t".char)
+    a5 = in -> pText("\\\\")(in).set("\\".char)
+    a6 = in -> pNotChars("\"")(in)
+    pOr(a1, a2, a3, a4, a5, a6)(in)
+)
+//name: letters*
+parseName = (in ->
+    trace2(in, ">> name")
+    in = pManyOne(pChars(letters))(in)//.do: v -> v.toChar
+    trace2(in, "<< name: $(in.value)")
 )
 
-parseLine = (in ->
-    line = pManyOne(pNotChars("\r\n"))(in).do: v -> v.toChar
-    nl = pOr(parseNewline,parseEnd)(line).set(line.value)
-)
-parsePara = (in ->
-    lines = pManyOne(parseLine)(in)
-    nl = pOr(parseNewline, parseEnd)(lines).set("<p>\n$(lines.value.join("\n"))\n</p>")
-)
-parseCmd = (in ->
-    trace(in, "parseCmd")
-    in = pChar("/".char)(in)
-    cmd = pManyOne(pNotChars(": \t\r\n"))(in).do: v -> v.toChar
-    in = pChar(":".char)(cmd)
-    in = pMany(parseSpace)(in)
-    text = parseLine(in)
-    text.set(doCmd(cmd.value, text.value))
-)
-parseBlock = (in ->
-    res = pOr(parseCmd, parsePara)(in)
-    pMany(parseWhitespace)(res).set(res.value)
-)
-parseDoc = (in ->
-    in = pMany(parseWhitespace)(in)
-    pMany(parseBlock)(in)
-)
-
-text = io.File(args.get(0)).read
-parse(parseDoc, text).join("\n")
+text = io.File("parser.tl").read
+parse(parseOuter, text)
+//parse(parseParser, "parser{a:b c:a}")
 
