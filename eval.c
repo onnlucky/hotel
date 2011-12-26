@@ -171,8 +171,6 @@ tlValue tlFirst(tlValue v) {
     return tlNull;
 }
 
-INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err);
-static bool CodeFrameIs(tlFrame* frame) { return frame && frame->resumecb == resumeCode; }
 static CodeFrame* CodeFrameAs(tlFrame* frame) {
     assert(CodeFrameIs(frame));
     return (CodeFrame*)frame;
@@ -407,6 +405,9 @@ INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlError* 
     return evalCall2(task, (CallFrame*)frame, res);
 }
 
+INTERNAL tlValue stopCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+    return res;
+}
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue res);
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
     CodeFrame* frame = (CodeFrame*)_frame;

@@ -10,6 +10,8 @@
 // TODO instead of jumping (return, goto, continuation), lets unwind the stack without values
 //      gives frames a change to release locks and run defers
 
+#include "trace-on.h"
+
 // if (no else)
 INTERNAL tlValue _if(tlTask* task, tlArgs* args) {
     tlValue block = tlArgsBlock(args);
@@ -107,6 +109,7 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
     while (frame) {
         if (CodeFrameIs(frame)) {
             CodeFrame* cframe = CodeFrameAs(frame);
+            trace("cframe: %p.args: %p == %p", cframe, cframe->env->args, targetargs);
             if (cframe->env->args == targetargs) {
                 if (!tlCodeIsBlock(cframe->code)) {
                     trace("found enclosing function: %p.caller: %p", frame, frame->caller);
@@ -114,9 +117,7 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
                 } else {
                     trace("found enclosing block: %p.caller: %p", frame, frame->caller);
                     lastblock = frame;
-                    tlEnv* env = cframe->env->parent;
-                    if (env) targetargs = env->args;
-                    else targetargs = null;
+                    targetargs = tlEnvGetArgs(cframe->env->parent);
                 }
             }
         }

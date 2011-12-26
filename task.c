@@ -236,8 +236,15 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
         }
         // returning null, but by tlTaskPause, means the error has been handled too
         if (task->stack) {
-            // fixup the stack by skipping our frame
-            tlTaskPauseAttach(task, frame->caller);
+            // fixup the stack by remove the current frame
+            if (CodeFrameIs(frame)) {
+                // code frames need te be found by return/goto etc ...
+                frame->resumecb = stopCode;
+                assert(CodeFrameIs(frame));
+            } else {
+                frame = frame->caller;
+            }
+            tlTaskPauseAttach(task, frame);
             task->stack = task->worker->top;
             return tlTaskJumping;
         }

@@ -18,3 +18,9 @@ tlFrame* tlFrameSetResume(tlTask* task, tlFrame* frame, tlResumeCb cb) {
 
 tlValue tlTaskPauseAttach(tlTask* task, void* frame);
 
+INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err);
+INTERNAL tlValue stopCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err);
+static bool CodeFrameIs(tlFrame* frame) {
+    return frame && (frame->resumecb == resumeCode || frame->resumecb == stopCode);
+}
+
