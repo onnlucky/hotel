@@ -1,132 +1,61 @@
-# TODO
+/title: Hotel - A Programming language
+/author: Onne Gorter
 
-finish lesstext parser ...
+/h1: Overview
 
-upgrade httpparser module, add httpresponse
-add /trigger to autobuilder ... wouldn't that be nice!
+Hotel is a dynamic programming languages, it borrows from functional languages
+and has concurrency build in. Language wise, it is inpsired a lot by javascript
+and ruby and a little bit by erlang and ocaml.
 
-classes + objects should not close environments so quickly ... how to handle all this
-see parser example, it cannot be factored into class + object, because class must construct itself
+/h1: High Level
 
-create a tlTTY for stdin/stdout/stderr, handle nonblock and atomic /dev/null open
-* if 0,1,2 are not tty, set to nonblock
-* if multiple threads; don't care, just block
-* otherwise, set to nonblock just before read, and back just after read
+Hotel's main goal is to enable high level programming. Hotel is itself a high
+level language, but it also enables creating "more higher" levels. It can claim
+to do this because it solves a very important problem holding other languages
+back: global effects. Hotel simply does not have them.
 
-add better readme
-move source into vm/ subdirectory
-simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?
-implement a_var based on libatomic_ops ...
+Why is this important? Any kind of global effect cannot be isolated. You can
+put them inside of functions or objects, but that is just a convenience, it
+does not create an abstraction; an higher level. You still have to document the
+effect, and handle that function or object as special. Effectively you must
+create usage patterns around the global effects, in order not to create
+interference.
 
-what about tasks.stop, ... should be workable
-what about "deamon tasks" ... how can that work? maybe those don't go into io waiting?
+What are these global effects? Usually, doing io (files/network), loading
+modules, threads (if they share), blocking, resources, singletons and (mutable)
+globals.
 
-now that we unwind all stack frames, continuations must work differently ...
+Hotel does not permit any of these. More specifically, it allows all of them,
+but in such a way they do not have global effects. Hotel only affords two
+global effects:
+1. computation takes time and memory;
+2. blocking a computation waiting for the outside world (io).
+The first is assumed to be available in abundance, and thus not a problem in
+the common case. The second is a tradeoff, not allowing blocking is also a
+global effect. But blocking makes io the same as a computational heavy
+algorithm, you document that fact, and allow the programmer to choose its
+impact by making it easy to do the io (or heavy computation) in the background.
 
-implement print in user code, or have it call toText properly ...
-do errors with nice backtraces per file etc, and per task ...
+Note, usually (pure) functional programming is put forward as a solution to the
+above problem. But it cannot be, because it does not allow you to hide side
+effects, thus the side effects become global effects. Pointed out clearly,
+which is a good thing. But it disallows creating abstractions around side
+effects, any abstraction are merely conveniences.
 
-add a "static" layer, where the symbol table, gc, and mainloops+locks live
-allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) handle when to exit...
-what about close() and stat(); they might still block or eintr ... do them on yet another thread?
 
-bug: tlCallableIs does not know complex user objects, just try and catch not callable?
-bug: { x: 42, x: runtime } is error due to duplicate x
+/h1: Hotel - The Name
 
-add {{ foo }} as sugar for { foo: foo } so modules just do {{ publicFn1, publicFn2, ... }}
-do private using $: { public: 42, $private: -1 } accessed just by $private ...
-use * for vars; like this: x = var 0; *x += 1 ... add .increment/decrement and such to var
-syntax change: do symbols using 'symbol
-
-fix return from blocks, how about -> for block => for function wich allows return?
-Or/and break with value ... ?
-
-add @method arg, arg
-instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
-
-start preparing a first release:
-* stamp every file with license/author
-* use gcov to remove any unused code or add tests for them (larger parts...)
-* clean up and comment eval.c maybe remove some of it to run.c oid
-
-think about special inherited task local *Env*:
-* for stdin/stdout/stderr
-* for cwd
-* for module resolving path
-* for error mode (report on stdout or throw on waiter/value)
-
-module lookup: should be in a task, should try sender path, then all module paths
-but module lookup should not be automatic but maybe sys.io.chdir
-
-add send as code primitive: target, msg, args, instead of _object_send
-add op as code primitive: op, lhs, rhs
-
-add methods vs functions, methods try to bind a this dynamically ... helps with actors too
-example: function = ( -> ); method = ( @, -> )
-
-implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
-add task.stop to kill it by error? java ThreadDeath how do we do it safely?
-add finalizers to tasks: report errors if nobody else reads them
-add finalizers to opened files: closed the fds
-
-add default arguments using print = (sep=" ", end="\n")->{...} etc ...
-implement collector: x, *rest = multiple_return()
-implement splay: return(a1, a2, *list) by return.call(a1 :: a2 :: list)
-implement lvalue assignment: mutable.field = fn()
-
-implement defer (add defer[] to tlCodeRun) or something ...
-
-implement serializing tlValue's to disk
-
-optimize: compiler should add all local names to code->envnames and env should use this ...
-optimize: compiler can shortcut writing/referencing local names to just indexes into locals.
-optimize: remove tlHead in favor of just a tlClass ... use last 3 bits as flags
-optimize: tlFrame can use 3 bits from resumecb too ...
-optimize: tlArgs (and tlCall) can be reworked more lean and simpler
-
-# missing
-
-operators (well, the real ones)
-classes (well, syntax for them and super and such ...)
-class loaders for overriding/extending known classes
-modules
-c-based modules
-lazy evaluation (call by need)
-finalizers
-default arguments
-splays on either side
-complex lhs assigns
-syntax for branches:
-  | false -> ...
-  | true -> ...
-
-# not so nice:
-
-args.block(42) will not execute block ... it will ignore the fact block is callable
-args.block.call(42) will ignore param; why actually?
-@ is not a word ... for method(42, this=something)
-block: (arg ->
-    return // returns way too much, should return block ... do => for functions, -> for block?
-)
-
-# hotel - a programming language
-
-Hotel is a programming language. Its main focus is to make everything in the language highlevel,
-firstclass and simple. If the language can do something for you, you don't have to. In its design
-it is heavily influenced by the "scripting" languages: javascript, ruby, etc. but different:
-1. The default is immutable;
-2. modules and environments can be mixed and matched;
-3. there are no threads, instead there are tasks and actors.
-
-Why go throught all that trouble? Because this way, regardless of any design decision library writers make, you can build your applications the way it bests suits you. Even in the face of blocking APIs or callback based APIs or library dependecies mutually exclusive to yours or to other libraries.
-
-It is called hotel for a reason. You came here to solve your problem. Hotel does the chores and is here to service you.
+It is called hotel for a reason. You came here to solve your problem. Hotel,
+the programming language, does the chores and housekeeping for you. So you can
+focus on the problem at hand.
 
 hotel |hōˈtel|
 noun
-1 an establishment providing accommodations, meals, and other services for travelers and tourists.
-2 a code word representing the letter H, used in radio communication.
-3 a programming language providing many services for programmers and developers.
+1. an establishment providing accommodations, meals, and other services for
+   travelers and tourists.
+2. a code word representing the letter H, used in radio communication.
+3. a programming language providing many services for programmers and
+   developers.
 
 
 # syntax design
