@@ -1,4 +1,4 @@
-#include "../platform.h"
+#include "../vm/platform.h"
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
 /*
