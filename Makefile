@@ -18,7 +18,7 @@ $(LIBGC):
 	./libgc.sh
 
 boot_tl.h: boot/boot.tl
-	xxd -i boot/boot.tl boot_tl.h
+	cd boot && xxd -i boot.tl ../boot_tl.h
 
 greg/greg:
 	git clone git://github.com/onnlucky/greg.git
