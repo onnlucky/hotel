@@ -103,7 +103,7 @@ void debugcode(tlCode* code) {
     print("name: %s", tl_str(code->name));
     print("argnames: %p", code->argnames);
     print("argdefaults: %p", code->argdefaults);
-    for (int i = 0; i < code->head.size - 4; i++) {
+    for (int i = 0; i < code->head.size; i++) {
         tlValue op = code->ops[i];
         print("%3d: %s%s", i, tlActiveIs(op)?"!":"", tl_str(op));
         if (tlActiveIs(op)) {

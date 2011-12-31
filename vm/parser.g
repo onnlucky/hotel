@@ -11,8 +11,8 @@
 
 #include "trace-off.h"
 
-static tlValue sa_object_send, sa_this_send;
-static tlSym s_object_send;
+static tlValue sa_send, sa_try_send, sa_this_send;
+static tlSym s_send, s_try_send;
 static tlSym s_Text_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
 static tlSym s_Var_new, s_var_get, s_var_set;
 static tlSym s_this, s_this_get, s_this_set, s_this_send;
@@ -124,7 +124,7 @@ tlValue set_target(tlValue on, tlValue target) {
         tlCall* call = tlCallAs(on);
         tlValue fn = tlCallGetFn(call);
 
-        if (fn == sa_object_send) {
+        if (fn == sa_send || fn == sa_try_send) {
             tlValue oop = tlCallGet(call, 0);
             if (!oop) {
                 tlCallSet_(call, 0, target);
@@ -305,22 +305,25 @@ bpexpr = v:value t:ptail _":"_ b:block {
        | v:value t:ptail &peosfull { $$ = call_activate(set_target(t, v)); }
        | e:expr                    { $$ = call_activate(e); }
 
+   met = "." { $$ = sa_send; }
+       | "?" { $$ = sa_try_send; }
+
 # // TODO add [] and oop.method: and oop.method arg1: ... etc
  ptail = _!"(" as:pcargs {
            trace("primary args");
            $$ = tlCallFromList(TASK, null, as);
        }
-       | _"."_ n:name _"("__ as:cargs __")" t:ptail {
+       | _ m:met _ n:name _"("__ as:cargs __")" t:ptail {
            trace("primary method + args()");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_object_send, null, n, as));
+           $$ = set_target(t, tlCallSendFromList(TASK, m, null, n, as));
        }
-       | _"."_ n:name _ as:pcargs {
+       | _ m:met _ n:name _ as:pcargs {
            trace("primary method + args");
-           $$ = tlCallSendFromList(TASK, sa_object_send, null, n, as);
+           $$ = tlCallSendFromList(TASK, m, null, n, as);
        }
-       | _"."_ n:name t:ptail {
+       | _ m:met _ n:name t:ptail {
            trace("primary method");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_object_send, null, n, tlListEmpty()));
+           $$ = set_target(t, tlCallSendFromList(TASK, m, null, n, tlListEmpty()));
        }
        | _ {
            trace("no tail");
@@ -331,17 +334,17 @@ bpexpr = v:value t:ptail _":"_ b:block {
            trace("function args");
            $$ = set_target(t, tlCallFromList(TASK, null, as));
        }
-       | _"."_ n:name _"("__ as:cargs __")" t:tail {
+       | _ m:met _ n:name _"("__ as:cargs __")" t:tail {
            trace("method args()");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_object_send, null, n, as));
+           $$ = set_target(t, tlCallSendFromList(TASK, sa_send, null, n, as));
        }
-       | _"."_ n:name t:tail {
+       | _ m:met _ n:name t:tail {
            trace("method");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_object_send, null, n, tlListEmpty()));
+           $$ = set_target(t, tlCallSendFromList(TASK, sa_send, null, n, tlListEmpty()));
        }
        | _"["__ e:expr __"]" t:tail {
            trace("array get");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_object_send, null, s_get, as));
+           $$ = set_target(t, tlCallSendFromList(TASK, sa_send, null, s_get, as));
        }
        | _ {
            trace("no tail");
@@ -509,10 +512,12 @@ bool check_indent(void* data) {
 tlValue tlParse(tlTask* task, tlText* text, tlText* file) {
     trace("\n----PARSING----\n%s----", tl_str(text));
 
-    if (!s_object_send) {
-        s_object_send = tlSYM("_object_send");
+    if (!s_send) {
+        s_send = tlSYM("_send");
+        s_try_send = tlSYM("_try_send");
         s_this_send = tlSYM("_this_send");
-        sa_object_send = tl_active(s_object_send);
+        sa_send = tl_active(s_send);
+        sa_try_send = tl_active(s_try_send);
         sa_this_send = tl_active(s_this_send);
         s_Text_cat = tlSYM("_Text_cat");
         s_List_clone = tlSYM("_List_clone");

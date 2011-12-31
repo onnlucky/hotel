@@ -16,6 +16,8 @@ create a tlTTY for stdin/stdout/stderr, handle nonblock and atomic /dev/null ope
 simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?
 implement a_var based on libatomic_ops ...
 
+fix foo?bar to only catch local undefined
+
 what about tasks.stop, ... should be workable
 what about "deamon tasks" ... how can that work? maybe those don't go into io waiting?
 

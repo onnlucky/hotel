@@ -737,10 +737,10 @@ INTERNAL tlValue evalSend(tlTask* task, tlArgs* args) {
     TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
 }
 
-// TODO this should be like tlCall, not a tlCall invoking _object_send ...
-INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _send(tlTask* task, tlArgs* args) {
     tlValue target = tlArgsGet(args, 0);
     tlValue msg = tlArgsGet(args, 1);
+    if (!target || !msg) TL_THROW("internal error: bad _send");
 
     trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
 
@@ -751,8 +751,34 @@ INTERNAL tlValue _object_send(tlTask* task, tlArgs* args) {
     nargs->map = args->map;
 
     tlClass* klass = tl_class(target);
+    assert(klass);
     if (klass->locked) return evalSendLocked(task, nargs);
     return evalSend(task, nargs);
+}
+INTERNAL tlValue resumeTrySend(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+    // trysend catches any error and ignores it ...
+    // TODO it should only catch locally thrown undefined errors ... in the future
+    return tlUndefined;
+}
+INTERNAL tlValue _try_send(tlTask* task, tlArgs* args) {
+    tlValue target = tlArgsGet(args, 0);
+    tlValue msg = tlArgsGet(args, 1);
+    if (!target || !msg) TL_THROW("internal error: bad _try_send");
+
+    trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
+
+    tlArgs* nargs = tlArgsNew(task, null, null);
+    nargs->target = target;
+    nargs->msg = msg;
+    nargs->list = tlListSlice(task, args->list, 2, tlListSize(args->list));
+    nargs->map = args->map;
+
+    tlClass* klass = tl_class(target);
+    assert(klass);
+    if (klass->locked) return evalSendLocked(task, nargs);
+    tlValue res = evalSend(task, nargs);
+    if (res) return res;
+    return tlTaskPauseAttach(task, tlFrameAlloc(task, resumeTrySend, sizeof(tlFrame)));
 }
 
 // implement fn.call ... pretty generic
@@ -867,7 +893,9 @@ static const tlNativeCbs __eval_natives[] = {
     { "_catch", _catch },
     { "_resolve", _resolve },
 
-    { "_object_send", _object_send },
+    { "_send", _send },
+    { "_try_send", _try_send },
+
     { "_Text_cat", _Text_cat },
     { "_List_clone", _List_clone },
     { "_Map_clone", _Map_clone },
