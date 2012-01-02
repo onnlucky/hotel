@@ -28,7 +28,7 @@ typedef enum {
     TL_STATE_RUN,       // running
     TL_STATE_WAIT,      // waiting in a lock or task queue
     TL_STATE_DONE,      // task is done, others can read its value
-    TL_STATE_ERROR,     // task is done, value is actually an error
+    TL_STATE_ERROR,     // task is done, value is actually an throw
 } tlTaskState;
 
 static tlClass _tlTaskClass;
@@ -43,7 +43,7 @@ struct tlTask {
     tlValue waitFor;   // what this task is blocked on
 
     tlValue value;     // current value
-    tlError* error;    // current error (throwing or done)
+    tlValue throw;     // current throw (throwing or done)
     tlFrame* stack;    // current frame (== top of stack or current continuation)
 
     // TODO remove these in favor a some flags
@@ -151,7 +151,7 @@ INTERNAL tlValue tlTaskStackUnwind(tlTask* task, tlFrame* upto, tlValue res) {
 
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
-INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error);
+INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue throw);
 
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
@@ -162,10 +162,10 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
     task->worker = worker;
     task->state = TL_STATE_RUN;
 
-    if (task->error) {
-        assert(tlErrorIs(task->error));
+    if (task->throw) {
+        assert(tlErrorIs(task->throw));
         assert(!task->value);
-        tlTaskRunThrow(task, task->error);
+        tlTaskRunThrow(task, task->throw);
         return;
     }
 
@@ -213,8 +213,9 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
 }
 
 // when a task is in an error state it will throw it until somebody handles it
-INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
+INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
     trace("");
+    assert(thrown);
     assert(task->state == TL_STATE_RUN);
     assert(task->stack);
 
@@ -225,16 +226,16 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
     tlValue res = null;
     while (frame) {
         assert(task->state == TL_STATE_RUN);
-        if (frame->resumecb) res = frame->resumecb(task, frame, null, error);
-        trace("!! error frame: %p handled? %p || %p", frame, res, task->stack);
-        // returning a regular result means the error has been handled
+        if (frame->resumecb) res = frame->resumecb(task, frame, null, thrown);
+        trace("!! throw frame: %p handled? %p || %p", frame, res, task->stack);
+        // returning a regular result means the throw has been handled
         assert(res != tlTaskNotRunning && res != tlTaskJumping);
         if (res) {
             task->value = res;
             task->stack = frame->caller;
             return tlTaskJumping;
         }
-        // returning null, but by tlTaskPause, means the error has been handled too
+        // returning null, but by tlTaskPause, means the throw has been handled too
         if (task->stack) {
             // fixup the stack by remove the current frame
             if (CodeFrameIs(frame)) {
@@ -250,8 +251,8 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlError* error) {
         }
         frame = frame->caller;
     }
-    warning("uncaught exception: %s", tl_str(error));
-    return tlTaskError(task, error);
+    warning("uncaught exception: %s", tl_str(thrown));
+    return tlTaskError(task, thrown);
 }
 
 tlTask* tlTaskNew(tlVm* vm) {
@@ -266,8 +267,8 @@ INTERNAL void tlTaskSetWorker(tlTask* task, tlWorker* worker) {
     task->worker = worker;
 }
 
-INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
-    if (err) return null;
+INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+    if (!res) return null;
     return tlEval(task, task->value);
 }
 void tlTaskEval(tlTask* task, tlValue v) {
@@ -284,8 +285,8 @@ typedef struct TaskEvalArgsFnFrame {
     tlArgs* as;
 } TaskEvalArgsFnFrame;
 
-INTERNAL tlValue resumeTaskEvalArgsFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err) return null;
+INTERNAL tlValue resumeTaskEvalArgsFn(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
+    if (!res) return null;
     TaskEvalArgsFnFrame* frame = (TaskEvalArgsFnFrame*)_frame;
     return tlEvalArgsFn(task, frame->as, frame->fn);
 }
@@ -301,9 +302,11 @@ void tlTaskEvalArgsFn(tlTask* task, tlArgs* as, tlValue fn) {
 
 INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack);
 
-INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+    if (!res) return null;
     task->stack = frame->caller;
-    return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
+    //tlError* err = tlErrorNew(task, res, frame->caller);
+    return tlTaskRunThrow(task, res);
 }
 tlValue tlTaskThrow(tlTask* task, tlValue err) {
     trace("throw: %s", tl_str(err));
@@ -316,9 +319,9 @@ tlValue tlTaskThrowTake(tlTask* task, char* str) {
 bool tlTaskIsDone(tlTask* task) {
     return task->state == TL_STATE_DONE || task->state == TL_STATE_ERROR;
 }
-tlError* tlTaskGetError(tlTask* task) {
+tlValue tlTaskGetThrowValue(tlTask* task) {
     assert(tlTaskIsDone(task));
-    return task->error;
+    return task->throw;
 }
 tlValue tlTaskGetValue(tlTask* task) {
     assert(tlTaskIsDone(task));
@@ -391,11 +394,11 @@ void tlTaskStart(tlTask* task) {
 }
 
 void tlTaskCopyValue(tlTask* task, tlTask* other) {
-    trace("take value: %s, error: %s", tl_str(other->value), tl_str(other->error));
-    assert(task->value || task->error);
-    assert(!(task->value && task->error));
+    trace("take value: %s, throw: %s", tl_str(other->value), tl_str(other->throw));
+    assert(task->value || task->throw);
+    assert(!(task->value && task->throw));
     task->value = other->value;
-    task->error = other->error;
+    task->throw = other->throw;
 }
 
 INTERNAL void signalWaiters(tlTask* task) {
@@ -419,11 +422,11 @@ INTERNAL void signalVm(tlTask* task) {
     if (tlTaskGetVm(task)->main == task) tlVmStop(tlTaskGetVm(task));
 }
 
-INTERNAL tlValue tlTaskError(tlTask* task, tlValue error) {
-    trace("%s error: %s", tl_str(task), tl_str(error));
+INTERNAL tlValue tlTaskError(tlTask* task, tlValue throw) {
+    trace("%s throw: %s", tl_str(task), tl_str(throw));
     task->stack = null;
     task->value = null;
-    task->error = error;
+    task->throw = throw;
     assert(task->state = TL_STATE_RUN);
     task->state = TL_STATE_ERROR;
     tlVm* vm = tlTaskGetVm(task);
@@ -438,7 +441,7 @@ INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
     trace("%s done: %s", tl_str(task), tl_str(res));
     task->stack = null;
     task->value = res;
-    task->error = null;
+    task->throw = null;
     assert(task->state = TL_STATE_RUN);
     task->state = TL_STATE_DONE;
     tlVm* vm = tlTaskGetVm(task);
@@ -465,7 +468,7 @@ INTERNAL tlValue _Task_current(tlTask* task, tlArgs* args) {
     return task;
 }
 
-INTERNAL tlValue resumeBindToThread(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeBindToThread(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     tlTaskWaitFor(task, null);
     frame->resumecb = null;
     task->worker = tlWorkerNewBind(tlTaskGetVm(task), task);
@@ -478,7 +481,7 @@ INTERNAL tlValue _Task_bindToThread(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeBindToThread, tlNull);
 }
 
-INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     tlTaskWaitFor(task, null);
     frame->resumecb = null;
     tlTaskReady(task);
@@ -501,7 +504,7 @@ INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
 
     if (tlTaskIsDone(other)) {
         tlTaskCopyValue(task, other);
-        if (task->error) return tlTaskRunThrow(task, task->error);
+        if (task->throw) return tlTaskRunThrow(task, task->throw);
         assert(task->value);
         return task->value;
     }

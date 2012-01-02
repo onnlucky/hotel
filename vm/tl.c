@@ -30,10 +30,10 @@ int main(int argc, char** argv) {
     if (boot) maintask = tlVmEvalFile(vm, tlTEXT(boot), args);
     else maintask = tlVmEvalBoot(vm, args);
 
-    tlValue err = tlTaskGetError(maintask);
-    if (err) {
-        //printf("%s\n", tl_str(err));
-        tlErrorPrint(err);
+    tlValue throw = tlTaskGetThrowValue(maintask);
+    if (throw) {
+        if (tlErrorIs(throw)) tlErrorPrint(tlErrorAs(throw));
+        else printf("%s\n", tl_str(throw));
         return 1;
     }
     tlValue v = tlTaskGetValue(maintask);

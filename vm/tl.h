@@ -315,7 +315,7 @@ tlTask* tlEvalCode(tlVm* vm, tlText* code, tlArgs* as);
 
 // reading status from tasks
 bool tlTaskIsDone(tlTask* task);
-tlError* tlTaskGetError(tlTask* task);
+tlValue tlTaskGetThrowValue(tlTask* task);
 tlValue tlTaskGetValue(tlTask* task);
 
 // reading errors
@@ -344,7 +344,10 @@ tlVm* tlTaskGetVm(tlTask* task);
 
 // stack reification
 // native frame activation/resume signature
-typedef tlValue(*tlResumeCb)(tlTask*, tlFrame*, tlValue, tlError*);
+// if res is set, a call returned a regular result
+// otherwise, if throw is set, a call has thrown a value (likely a tlError)
+// if both are null, we are "unwinding" the stack for a jump (return/continuation ...)
+typedef tlValue(*tlResumeCb)(tlTask* task, tlFrame* frame, tlValue res, tlValue throw);
 // pause task to reify stack
 tlValue tlTaskPause(tlTask* task, void* frame);
 tlValue tlTaskPauseAttach(tlTask* task, void* frame);

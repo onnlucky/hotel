@@ -26,7 +26,7 @@
 // implemented in controlflow.c
 INTERNAL tlValue tlReturnNew(tlTask* task, tlArgs* args);
 INTERNAL tlValue tlGotoNew(tlTask* task, tlArgs* args);
-INTERNAL tlValue resumeNewContinuation(tlTask* task, tlFrame* frame, tlValue res, tlError* err);
+INTERNAL tlValue resumeNewContinuation(tlTask* task, tlFrame* frame, tlValue res, tlValue throw);
 
 // var.c
 tlValue tlVarSet(tlVar*, tlValue);
@@ -205,7 +205,7 @@ INTERNAL tlValue applyCall(tlTask* task, tlCall* call);
 INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env);
 INTERNAL tlValue run_activate_call(tlTask* task, ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
 
-INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeActivateCall(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     if (!res) return null;
     ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
     return run_activate_call(task, frame, frame->call, frame->env, res);
@@ -294,7 +294,7 @@ INTERNAL tlValue run_activate(tlTask* task, tlValue v, tlEnv* env) {
 }
 
 // when call->fn is a call itself
-INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeCallFn(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     if (!res) return null;
     CallFnFrame* frame = (CallFnFrame*)_frame;
     return applyCall(task, tlCallCopySetFn(task, frame->call, res));
@@ -400,24 +400,24 @@ INTERNAL tlArgs* evalCall2(tlTask* task, CallFrame* frame, tlValue _res) {
     return args;
 }
 
-INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeCall(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     return evalCall2(task, (CallFrame*)frame, res);
 }
 
-INTERNAL tlValue stopCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue stopCode(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     return res;
 }
 INTERNAL tlValue evalCode2(tlTask* task, CodeFrame* frame, tlValue res);
-INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     CodeFrame* frame = (CodeFrame*)_frame;
-    if (err) {
+    if (throw) {
         tlClosure* handler = frame->handler;
         if (!handler) return null;
 
         tlCall* call = tlCallNew(task, 1, null);
         tlCallSetFn_(call, handler);
-        tlCallSet_(call, 0, err);
+        tlCallSet_(call, 0, throw);
         // doing it this way means this codeblock is over ... we might let the handler decide that
         return tlEval(task, call);
     }
@@ -595,7 +595,7 @@ INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call) {
     return evalCall2(task, frame, null);
 }
 
-INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeEvalCall(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     if (!res) return null;
     return evalArgs(task, tlArgsAs(res));
 }
@@ -675,7 +675,7 @@ tlValue tlEvalArgsTarget(tlTask* task, tlArgs* args, tlValue target, tlValue fn)
 
 
 // print a generic backtrace
-INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeBacktrace(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     print_backtrace(frame->caller);
     return tlNull;
@@ -685,7 +685,7 @@ INTERNAL tlValue _backtrace(tlTask* task, tlArgs* args) {
 }
 
 // install a catch handler (bit primitive like this)
-INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeCatch(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     tlValue handler = tlArgsBlock(args);
@@ -755,7 +755,7 @@ INTERNAL tlValue _send(tlTask* task, tlArgs* args) {
     if (klass->locked) return evalSendLocked(task, nargs);
     return evalSend(task, nargs);
 }
-INTERNAL tlValue resumeTrySend(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeTrySend(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     // trysend catches any error and ignores it ...
     // TODO it should only catch locally thrown undefined errors ... in the future
     return tlUndefined;
@@ -796,7 +796,7 @@ typedef struct EvalFrame {
     tlVar* var;
 } EvalFrame;
 
-static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+static tlValue resumeEval(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     if (!res) return null;
     trace("resuming");
     EvalFrame* frame = (EvalFrame*)_frame;

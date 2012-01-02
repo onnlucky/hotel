@@ -441,10 +441,10 @@ typedef struct tlDirEachFrame {
     tlValue* block;
 } tlDirEachFrame;
 
-static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
-    if (err && tlErrorValue(err) == s_break) return tlNull;
-    if (err && tlErrorValue(err) != s_continue) return null;
-    if (!err && !res) return null;
+static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
+    if (throw && throw == s_break) return tlNull;
+    if (throw && throw != s_continue) return null;
+    if (!throw && !res) return null;
 
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
 again:;
@@ -565,7 +565,7 @@ static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
     return child;
 }
 
-static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     tlChild* child = tlChildAs(res);
     if (child->res) return child->res;

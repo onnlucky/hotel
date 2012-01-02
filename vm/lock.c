@@ -57,7 +57,7 @@ typedef struct ReleaseFrame {
     tlLock* lock;
 } ReleaseFrame;
 
-INTERNAL tlValue resumeRelease(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeRelease(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     trace("");
     lockScheduleNext(task, tlLockAs(((ReleaseFrame*)_frame)->lock));
     return res;
@@ -68,13 +68,13 @@ INTERNAL tlValue resumeRelease(tlTask* task, tlFrame* _frame, tlValue res, tlErr
 INTERNAL tlValue evalSend(tlTask* task, tlArgs* args);
 INTERNAL tlValue lockEvalSend(tlTask* task, tlLock* lock, tlArgs* args);
 
-INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeReceive(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     trace("%s", tl_str(res));
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     return lockEvalSend(task, tlLockAs(tlArgsTarget(args)), args);
 }
-INTERNAL tlValue resumeReceiveEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeReceiveEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     trace("%s", tl_str(res));
     if (!res) return null;
     frame->resumecb = resumeReceive;
@@ -120,14 +120,14 @@ typedef struct AquireFrame {
     tlValue res;
 } AquireFrame;
 
-INTERNAL tlValue resumeAquire(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeAquire(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     // here we own the lock, now we can resume our given frame
     trace("");
     if (!res) return null;
     AquireFrame* frame = (AquireFrame*)_frame;
     return lockAquire(task, frame->lock, frame->resumecb, frame->res);
 }
-INTERNAL tlValue resumeAquireEnqueue(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeAquireEnqueue(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     trace("");
     if (!res) return null;
     _frame->resumecb = resumeAquire;
@@ -171,7 +171,7 @@ typedef struct WithFrame {
     tlArgs* args;
 } WithFrame;
 
-INTERNAL tlValue resumeWithUnlock(tlTask* task, tlFrame* _frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeWithUnlock(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
     WithFrame* frame = (WithFrame*)_frame;
     tlArgs* args = frame->args;
     trace("%s", tl_str(args));
@@ -183,7 +183,7 @@ INTERNAL tlValue resumeWithUnlock(tlTask* task, tlFrame* _frame, tlValue res, tl
     }
     return res;
 }
-INTERNAL tlValue resumeWithLock(tlTask* task, tlFrame* _frame, tlValue _res, tlError* _err) {
+INTERNAL tlValue resumeWithLock(tlTask* task, tlFrame* _frame, tlValue _res, tlValue _throw) {
     if (!_res) fatal("cannot handle this ... must unlock ...");
     WithFrame* frame = (WithFrame*)_frame;
     tlArgs* args = frame->args;

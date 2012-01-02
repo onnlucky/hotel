@@ -97,7 +97,7 @@ static tlValue _Env_new(tlTask* task, tlArgs* args) {
 
 static bool CodeFrameIs(tlFrame*);
 static tlEnv* CodeFrameGetEnv(tlFrame*);
-static tlValue resumeEnvCurrent(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+static tlValue resumeEnvCurrent(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     while (frame) {
         if (CodeFrameIs(frame)) return CodeFrameGetEnv(frame);

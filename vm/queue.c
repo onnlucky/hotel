@@ -64,11 +64,11 @@ tlTask* tlMessageGetSender(tlMessage* msg) {
     return msg->sender;
 }
 
-INTERNAL tlValue resumeReply(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeReply(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     return task->value;
 }
-INTERNAL tlValue resumeEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeEnqueue(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     tlArgs* args = tlArgsAs(res);
     tlQueue* queue = tlQueueInputAs(tlArgsTarget(args))->queue;
     tlMessage* msg = tlMessageNew(task, args);
@@ -87,7 +87,7 @@ INTERNAL tlValue queueInputReceive(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeEnqueue, args);
 }
 
-INTERNAL tlValue resumeGet(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeGet(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     tlArgs* args = tlArgsAs(res);
     tlQueue* queue = tlQueueCast(tlArgsTarget(args));
     trace("queue.get 2: %s", tl_str(queue));

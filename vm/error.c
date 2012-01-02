@@ -26,14 +26,16 @@ tlValue tlErrorValue(tlError* err) {
     assert(tlErrorIs(err));
     return err->value;
 }
-INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue res, tlError* err) {
+INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
+    if (!res) return null;
     assert(task->value == res && tlArgsIs(res));
     res = tlArgsGet(res, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
     task->stack = frame->caller;
-    return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
+    //return tlTaskRunThrow(task, tlErrorNew(task, res, frame->caller));
+    return tlTaskRunThrow(task, res);
 }
 INTERNAL tlValue _throw(tlTask* task, tlArgs* args) {
     trace("");
