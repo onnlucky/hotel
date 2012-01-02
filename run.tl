@@ -11,6 +11,7 @@ upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 letters = lower.cat(upper)
 numbers = "0123456789"
 
+Input = { foo: true }
 // TODO should be a class/object but class needs constructor and constructor needs class ...
 input = (text, pos, value -> {
         text: text
@@ -22,6 +23,7 @@ input = (text, pos, value -> {
         do: (block -> this.set(block(this.value)))
         next: val -> input(this.text, this.pos + 1, val)
         error: val -> _throw this.set(val)
+        class: Input
     }
 )
 // TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
@@ -29,7 +31,10 @@ rule = (fn -> (a1, a2, a3, a4, a5, a6, a7, a8, a9 -> (in -> fn(in, a1, a2, a3, a
 
 parse = (parser, text ->
     out = (
-        //_catch: e -> _throw "syntax error"
+        _catch: (e ->
+            if e?class == Input: _throw "syntax error: ".cat(e.value)
+            _throw e
+        )
         parser(input(text, 0, null))
     )
     if not out.end: _throw "expected end of input"
@@ -38,7 +43,10 @@ parse = (parser, text ->
 pNot = rule((in, parser ->
     trace(in, "pNot")
     out = (
-        _catch: e -> trace(in, "pNot: OK: $(e)"); return in
+        _catch: (e ->
+            if e?class == Input: trace(in, "pNot: OK: $(e)"); return in
+            _throw e
+        )
         parser(in)
     )
     trace(out, "pNot: Error")
@@ -46,7 +54,10 @@ pNot = rule((in, parser ->
 ))
 pOptional = rule((in, parser ->
     trace(in, "pOptional")
-    _catch: e -> trace(in, "ERROR: $e"); return in.set(null)
+    _catch: (e ->
+        if e?class == Input: trace(in, "ERROR: $e"); return in.set(null)
+        _throw e
+    )
     in = parser(in)
 ))
 // returns only last result; make subrule if semantic actions are needed
@@ -68,7 +79,10 @@ pOr = rule((in ->
         if not parser: break
         trace(in, "pOr: $($i)")
         $i += 1
-        _catch: e -> trace(in, "ERROR: $e")
+        _catch: (e ->
+            trace(in, "ERROR: $e")
+            if e?class != Input: _throw e
+        )
         return parser(in)
     )
     trace(in, "no alternatives ...")
@@ -76,7 +90,10 @@ pOr = rule((in ->
 ))
 _pmany = (in, parser, res ->
     trace(in, "_pmany")
-    _catch: e -> trace(in, "ERROR: $e"); return in.set(res)
+    _catch: (e ->
+        if e?class == Input: trace(in, "ERROR: $e"); return in.set(res)
+        _throw e
+    )
     in = parser(in)
     goto _pmany(in, parser, res.add(in.value))
 )
