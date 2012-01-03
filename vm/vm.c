@@ -18,6 +18,7 @@
 
 // evaluator internals
 #include "frame.c"
+#include "error.c"
 #include "args.c"
 #include "call.c"
 #include "worker.c"
@@ -28,7 +29,6 @@
 #include "code.c"
 #include "env.c"
 #include "eval.c"
-#include "error.c"
 
 #include "var.c"
 #include "mutablemap.c"

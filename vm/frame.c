@@ -17,10 +17,14 @@ tlFrame* tlFrameSetResume(tlTask* task, tlFrame* frame, tlResumeCb cb) {
 }
 
 tlValue tlTaskPauseAttach(tlTask* task, void* frame);
+tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb cb, tlValue res);
+INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue throw);
 
 INTERNAL tlValue resumeCode(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw);
 INTERNAL tlValue stopCode(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw);
 static bool CodeFrameIs(tlFrame* frame) {
     return frame && (frame->resumecb == resumeCode || frame->resumecb == stopCode);
 }
+
+INTERNAL void tlFrameGetInfo(tlFrame* frame, tlText** file, tlText** function, tlInt* line);
 

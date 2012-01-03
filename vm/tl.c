@@ -32,8 +32,7 @@ int main(int argc, char** argv) {
 
     tlValue throw = tlTaskGetThrowValue(maintask);
     if (throw) {
-        if (tlErrorIs(throw)) tlErrorPrint(tlErrorAs(throw));
-        else printf("%s\n", tl_str(throw));
+        printf("%s\n", tl_str(throw));
         return 1;
     }
     tlValue v = tlTaskGetValue(maintask);

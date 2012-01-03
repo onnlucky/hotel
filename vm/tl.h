@@ -166,7 +166,6 @@ TL_REF_TYPE(tlValueObject);
 TL_REF_TYPE(tlCall);
 TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlResult);
-TL_REF_TYPE(tlError);
 
 TL_REF_TYPE(tlEnv);
 TL_REF_TYPE(tlFrame);
@@ -318,10 +317,6 @@ bool tlTaskIsDone(tlTask* task);
 tlValue tlTaskGetThrowValue(tlTask* task);
 tlValue tlTaskGetValue(tlTask* task);
 
-// reading errors
-tlValue tlErrorValue(tlError* error);
-void tlErrorPrint(tlError* err);
-
 // invoking toText, almost same as tlEvalCode("v.toText")
 tlText* tlToText(tlTask* task, tlValue v);
 
@@ -381,7 +376,7 @@ tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 tlValue tlFirst(tlValue v);
 tlValue tlResultGet(tlValue v, int at);
 // returning multiple results from native functions
-tlResult* tlResultNewFrom(tlTask* task, ...);
+tlResult* tlResultFrom(tlTask* task, ...);
 
 // allocate values
 void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);

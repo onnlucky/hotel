@@ -151,7 +151,6 @@ INTERNAL tlValue tlTaskStackUnwind(tlTask* task, tlFrame* upto, tlValue res) {
 
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
-INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue throw);
 
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
@@ -163,7 +162,6 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
     task->state = TL_STATE_RUN;
 
     if (task->throw) {
-        assert(tlErrorIs(task->throw));
         assert(!task->value);
         tlTaskRunThrow(task, task->throw);
         return;
@@ -300,12 +298,9 @@ void tlTaskEvalArgsFn(tlTask* task, tlArgs* as, tlValue fn) {
     task->stack = (tlFrame*)frame;
 }
 
-INTERNAL tlError* tlErrorNew(tlTask* task, tlValue value, tlFrame* stack);
-
 INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     task->stack = frame->caller;
-    //tlError* err = tlErrorNew(task, res, frame->caller);
     return tlTaskRunThrow(task, res);
 }
 tlValue tlTaskThrow(tlTask* task, tlValue err) {
@@ -467,8 +462,16 @@ INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
 INTERNAL tlValue _Task_current(tlTask* task, tlArgs* args) {
     return task;
 }
+INTERNAL tlValue resumeStacktrace(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+    if (!res) return null;
+    return tlStackTraceNew(task, frame->caller);
+}
+INTERNAL tlValue _Task_stacktrace(tlTask* task, tlArgs* args) {
+    return tlTaskPauseResuming(task, resumeStacktrace, tlNull);
+}
 
 INTERNAL tlValue resumeBindToThread(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+    if (!res) return null;
     tlTaskWaitFor(task, null);
     frame->resumecb = null;
     task->worker = tlWorkerNewBind(tlTaskGetVm(task), task);
@@ -569,6 +572,7 @@ static void task_init() {
     );
     taskClass = tlClassMapFrom(
         "current", _Task_current,
+        "stacktrace", _Task_stacktrace,
         "yield", _Task_yield,
         "bindToThread", _Task_bindToThread,
         null

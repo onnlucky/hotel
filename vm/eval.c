@@ -32,6 +32,10 @@ INTERNAL tlValue resumeNewContinuation(tlTask* task, tlFrame* frame, tlValue res
 tlValue tlVarSet(tlVar*, tlValue);
 tlValue tlVarGet(tlVar*);
 
+static tlText* _t_unknown;
+static tlText* _t_anon;
+static tlText* _t_native;
+
 // various internal structures
 static tlClass _tlClosureClass = { .name = "Function" };
 tlClass* tlClosureClass = &_tlClosureClass;
@@ -146,6 +150,7 @@ tlResult* tlResultFrom(tlTask* task, ...) {
     for (int i = 0; i < size; i++) res->data[i] = va_arg(ap, tlValue);
     va_end(ap);
 
+    print("RESULTS: %d", size);
     return res;
 }
 void tlResultSet_(tlResult* res, int at, tlValue v) {
@@ -178,6 +183,23 @@ static CodeFrame* CodeFrameAs(tlFrame* frame) {
 static tlEnv* CodeFrameGetEnv(tlFrame* frame) {
     assert(CodeFrameIs(frame));
     return ((CodeFrame*)frame)->env;
+}
+
+INTERNAL void tlFrameGetInfo(tlFrame* frame, tlText** file, tlText** function, tlInt* line) {
+    assert(file); assert(function); assert(line);
+    if (CodeFrameIs(frame)) {
+        tlCode* code = CodeFrameAs(frame)->code;
+        *file = code->file;
+        *function = (code->name)?tlTextFromSym(code->name):null;
+        *line = code->line;
+        if (!(*file)) *file = _t_unknown;
+        if (!(*function)) *function = _t_anon;
+        if (!(*line)) *line = tlZero;
+    } else {
+        *file = tlTextEmpty();
+        *function = _t_native;
+        *line = tlZero;
+    }
 }
 
 INTERNAL void print_backtrace(tlFrame* frame) {
@@ -908,6 +930,10 @@ static const tlNativeCbs __eval_natives[] = {
 };
 
 static void eval_init() {
+    _t_unknown = tlTEXT("<unknown>");
+    _t_anon = tlTEXT("<anon>");
+    _t_native = tlTEXT("<native>");
+
     tl_register_natives(__eval_natives);
 
     // TODO call into run for some of these ...
