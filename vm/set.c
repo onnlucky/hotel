@@ -29,6 +29,10 @@ tlSet* tlSetNew(tlTask* task, int size) {
     return tlAllocWithFields(task, tlSetClass, sizeof(tlSet), size);
 }
 
+tlValue tlSetGet(tlSet* set, int at) {
+    return set->data[at];
+}
+
 tlSet* tlSetCopy(tlTask* task, tlSet* set, int size) {
     assert(tlSetIs(set));
     assert(size >= 0 || size == -1);
@@ -99,6 +103,20 @@ int tlSetAdd_(tlSet* set, tlValue key) {
     return at;
 }
 
+static tlValue _set_get(tlTask* task, tlArgs* args) {
+    tlSet* set = tlSetCast(tlArgsTarget(args));
+    if (!set) TL_THROW("expected a Set");
+    int at = tl_int_or(tlArgsGet(args, 0), -1);
+    if (at < 0 || at >= tlSetSize(set)) return tlNull;
+    tlValue res = tlSetGet(set, at);
+    return (res)?res:tlNull;
+}
+static tlValue _set_size(tlTask* task, tlArgs* args) {
+    tlSet* set = tlSetCast(tlArgsTarget(args));
+    if (!set) TL_THROW("expected a Set");
+    return tlINT(tlSetSize(set));
+}
+
 static tlClass _tlSetClass = {
     .name = "Set",
 };
@@ -106,5 +124,10 @@ tlClass* tlSetClass = &_tlSetClass;
 
 static void set_init() {
     _tl_set_empty = tlSetNew(null, 0);
+    _tlSetClass.map = tlClassMapFrom(
+        "get", _set_get,
+        "size", _set_size,
+        null
+    );
 }
 

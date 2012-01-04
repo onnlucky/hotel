@@ -1,3 +1,8 @@
+obj = {x:42, y: 40, x: 222}
+set = _Map_keys(obj)
+print set.get(0), set.get(1), set.get(2)
+
+/*
 DEBUG=true
 trace = (in, &msg -> if DEBUG: print in.pos, in.item, msg())
 DEBUG2=true

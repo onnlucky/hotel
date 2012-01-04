@@ -242,6 +242,12 @@ static tlValue _Map_inherit(tlTask* task, tlArgs* args) {
     map->head.klass = klass;
     return map;
 }
+static tlValue _Map_keys(tlTask* task, tlArgs* args) {
+    trace("");
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
+    return map->keys;
+}
 static tlValue _map_size(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
@@ -330,11 +336,11 @@ static tlClass _tlValueObjectClass = {
 
 static void map_init() {
     _tlMapClass.map = tlClassMapFrom(
-            "size", _map_size,
-            "get", _map_get,
-            "set", _map_set,
-            "toObject", _map_toObject,
-            null
+        "size", _map_size,
+        "get", _map_get,
+        "set", _map_set,
+        "toObject", _map_toObject,
+        null
     );
     _tl_emptyMap = tlMapNew(null, null);
 }

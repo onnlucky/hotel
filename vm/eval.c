@@ -923,6 +923,7 @@ static const tlNativeCbs __eval_natives[] = {
     { "_Map_clone", _Map_clone },
     { "_Map_update", _Map_update },
     { "_Map_inherit", _Map_inherit },
+    { "_Map_keys", _Map_keys },
 
     { "_install", _install },
 
