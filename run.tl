@@ -150,7 +150,7 @@ parseOuter = (in ->
     in = parseWs(in)
     parser = parseParser(in)
     in = parseWs(parser)
-    parseEnd(in)
+    parseEnd(in).set(parser.value)
 )
 // parser: "parser" ."{". rs=rule* ."}" -> Parser.{ rules: rs }
 parseParser = (in ->
@@ -161,7 +161,7 @@ parseParser = (in ->
     in = parseWs(in)
     rules = pMany(parseRule)(in)
     in = parseWs(rules)
-    in = pText("}")(in)
+    in = pText("}")(in).set({ type: #Parser, rules: rules.value })
     trace2(in, "<< parser: $(rules.value.size)")
 )
 //rule: n=name .":". t=or .              -> Rule.{ name: n, term: t }
@@ -172,7 +172,7 @@ parseRule = (in ->
     in = pText(":")(in)
     in = parseWs(in)
     term = parseOr(in)
-    in = parseWs(term)
+    in = parseWs(term).set({ type: #Rule, name: name.value, term: term.value })
     trace2(in, "<< rule: $(name.value)")
 )
 //act: "->". (!"\n" _)*

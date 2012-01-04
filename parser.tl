@@ -1,16 +1,27 @@
-parser { name: ls=letters+ post: "!" term | term "*" | term "+" | term
-  escape: "\\\"" | "\\n" | "\\r" | "\\t" | "\\\\" | !"\"" _
-    text: "\"" escape* "\""
-    term: "(". or .")"
-        | "."
-        | "_"
-        | name
-        | text
-   named: n=name "=" t=post              -> Bind.{ name: n, term: t }
+parser {
+    name: ls=letters+ -> ls.join
+  escape: "\\\""      -> "\""
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\\\"      -> "\\"
+        | !"\"" l=_   -> l.toChar
+    text: "\"" ts=escape* "\""            -> ts.join
+
+    term: "(". s=or .")"                  -> s
+        | "."                             -> { type: #Ws }
+        | "_"                             -> { type: #Any }
+        | n=name                          -> { type: #Call, rule: n }
+        | t=text                          -> { type: #Text, text: t }
+    post: "!" t=term                      -> { type: #Not, term: t }
+        | t=term "*"                      -> { type: #Star, term: t }
+        | t=term "+"                      -> { type: #Plus, term: t }
+        | term
+   named: n=name "=" t=post               -> { type: #Bind, name: n, term: t }
         | post
-     and: h=named rs=(" ". named)* a=act -> And.{ terms: h + rs, act: a }
-      or: h=and rs=(."|". and)*          -> Or.{ terms: h + rs }
-    rule: n=name .":". t=or              -> Rule.{ name: n, term: t }
-  parser: ."parser" ."{". rs=rule* ."}". -> Parser.{ rules: rs }
+     and: h=named rs=(" ". named)* .a=act -> { type: #And, terms: [h].cat(rs), act: a }
+      or: h=and rs=(."|". and)*           -> { type: #Or, terms: [h].cat(rs) }
+    rule: n=name .":". t=or               -> { type: #Rule, name: n, term: t }
+  parser: ."parser" ."{". rs=rule* ."}".  -> { type: #Parser, rules: rs }
 }
 
