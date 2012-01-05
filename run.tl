@@ -1,6 +1,41 @@
-obj = {x:42, y: 40, x: 222}
-set = _Map_keys(obj)
-print set.get(0), set.get(1), set.get(2)
+print isBool(true)
+
+/*
+obj = {x:42, y: 40, z:{ foo: #bar }}
+
+toJSON = (x, buf ->
+    print "toJSON", x, buf
+    (
+        _match(isBool(x)): buf.write(x.toText)
+        _match(not x): buf.write("null")
+        _match(isNumber(x)): buf.write(x.toText)
+        _match(isSym(x)): buf.write("\"", x.toText, "\"")
+        _match(isText(x)): buf.write("\"", x, "\"")
+        _match(isList(x)): (
+            if x.size == 0: return buf.write("[]")
+            if x.size == 1: return buf.write("[", x.get(0), "]")
+            buf.write("[\n")
+            x.each: v -> buf.write(v, ",")
+            buf.write("]")
+        )
+        _match(isObject(x)): (
+            keys = _Map_keys(x)
+            if keys.size == 0: return buf.write("{}")
+            buf.write("{\n")
+            keys.each: (key ->
+                buf.write("\"", key.toText, "\":")
+                toJSON(x.get(key), buf)
+                buf.write(",\n")
+            )
+            buf.write("}")
+        )
+        _nomatch()
+    )
+)
+
+buf = io.Buffer.new
+toJSON(obj, buf)
+print buf.read
 
 /*
 DEBUG=true

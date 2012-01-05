@@ -6,6 +6,9 @@ INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags 
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
 
+static tlText* _t_true;
+static tlText* _t_false;
+
 // creating tagged values
 tlValue tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
 int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
@@ -111,6 +114,11 @@ tlClass* tlNullClass = &_tlNullClass;
 tlClass* tlBoolClass = &_tlBoolClass;
 tlClass* tlIntClass = &_tlIntClass;
 
+static tlValue _bool_toText(tlTask* task, tlArgs* args) {
+    bool b = tl_bool(tlArgsTarget(args));
+    if (b) return _t_true;
+    return _t_false;
+}
 static tlValue _int_toChar(tlTask* task, tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     if (c < 0) TL_THROW("negative numbers cannot be a char");
@@ -127,6 +135,12 @@ static tlValue _int_toText(tlTask* task, tlArgs* args) {
 }
 
 static void value_init() {
+    _t_true = tlTEXT("true");
+    _t_false = tlTEXT("false");
+    _tlBoolClass.map = tlClassMapFrom(
+        "toText", _bool_toText,
+        null
+    );
     _tlIntClass.map = tlClassMapFrom(
         "toChar", _int_toChar,
         "toText", _int_toText,
