@@ -134,9 +134,40 @@ static tlValue _int_toText(tlTask* task, tlArgs* args) {
     return tlTextFromCopy(task, buf, len);
 }
 
+static tlValue _isBool(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
+}
+static tlValue _isNumber(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlIntIs(tlArgsGet(args, 0)));
+}
+static tlValue _isSym(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlSymIs(tlArgsGet(args, 0)));
+}
+static tlValue _isText(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlTextIs(tlArgsGet(args, 0)));
+}
+static tlValue _isList(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlListIs(tlArgsGet(args, 0)));
+}
+static tlValue _isObject(tlTask* task, tlArgs* args) {
+    tlValue v = tlArgsGet(args, 0);
+    return tlBOOL(tlMapIs(v)||tlValueObjectIs(v));
+}
+
+static const tlNativeCbs __value_natives[] = {
+    { "isBool", _isBool },
+    { "isNumber", _isNumber },
+    { "isSym", _isSym },
+    { "isText", _isText },
+    { "isList", _isList },
+    { "isObject", _isObject },
+    { 0, 0 }
+};
+
 static void value_init() {
     _t_true = tlTEXT("true");
     _t_false = tlTEXT("false");
+    tl_register_natives(__value_natives);
     _tlBoolClass.map = tlClassMapFrom(
         "toText", _bool_toText,
         null

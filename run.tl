@@ -1,6 +1,3 @@
-print isBool(true)
-
-/*
 obj = {x:42, y: 40, z:{ foo: #bar }}
 
 toJSON = (x, buf ->
