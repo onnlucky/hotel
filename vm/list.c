@@ -315,6 +315,7 @@ static void list_init() {
         "slice", _list_slice,
         "toChar", _list_toChar,
         //"search", _ListSearch,
+        "each", null,
         "join", null,
         null
     );

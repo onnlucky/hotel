@@ -40,6 +40,17 @@ _install(Text.class, #split, (split = (on ->
     )
     return loop(0, 0, [])
 )))
+_install(List.class, #each, (each = (fn ->
+    block = (args.block) or fn
+    if not block: _throw "each expects a block or fn"
+    len = this.size
+    loop = (at ->
+        if at >= len: return
+        block(this.get(at))
+        goto(loop(at + 1))
+    )
+    loop(0)
+)))
 _install(List.class, #join, (join = (sep ->
     if this.size == 0: return ""
     sep = (sep) or ""

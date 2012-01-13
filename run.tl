@@ -1,4 +1,5 @@
 obj = {x:42, y: 40, z:{ foo: #bar }}
+obj = [1, 2, 3]
 
 toJSON = (x, buf ->
     print "toJSON", x, buf
@@ -10,9 +11,9 @@ toJSON = (x, buf ->
         _match(isText(x)): buf.write("\"", x, "\"")
         _match(isList(x)): (
             if x.size == 0: return buf.write("[]")
-            if x.size == 1: return buf.write("[", x.get(0), "]")
-            buf.write("[\n")
-            x.each: v -> buf.write(v, ",")
+            if x.size == 1: return buf.write("["); buf.write(x.get(0)); buf.write("]")
+            buf.write("[")
+            x.each: v -> buf.write(v); buf.write(",")
             buf.write("]")
         )
         _match(isObject(x)): (
