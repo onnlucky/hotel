@@ -24,8 +24,20 @@ try = ( ->
     _catch: return null
     args.block.call()
 )
+_each = (fn ->
+    block = (args.block) or fn
+    if not block: _throw "each expects a block or fn"
+    len = this.size
+    loop = (at ->
+        if at >= len: return
+        block(this.get(at))
+        goto(loop(at + 1))
+    )
+    loop(0)
+)
 
 // TODO should have special boot places for text, list and such
+_install(Text.class, #each, _each)
 _install(Text.class, #split, (split = (on ->
     on = (on) or " " // TODO this is weird in the parser; hence the braces
     onlen = on.size
@@ -40,17 +52,8 @@ _install(Text.class, #split, (split = (on ->
     )
     return loop(0, 0, [])
 )))
-_install(List.class, #each, (each = (fn ->
-    block = (args.block) or fn
-    if not block: _throw "each expects a block or fn"
-    len = this.size
-    loop = (at ->
-        if at >= len: return
-        block(this.get(at))
-        goto(loop(at + 1))
-    )
-    loop(0)
-)))
+_install(Set.class, #each, _each)
+_install(List.class, #each, _each)
 _install(List.class, #join, (join = (sep ->
     if this.size == 0: return ""
     sep = (sep) or ""

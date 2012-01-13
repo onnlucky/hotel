@@ -241,6 +241,7 @@ static void text_init() {
         "char", _text_char,
         "slice", _text_slice,
         "cat", _text_cat,
+        "each", null,
         "split", null,
         null
     );

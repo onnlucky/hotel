@@ -1,29 +1,29 @@
-obj = {x:42, y: 40, z:{ foo: #bar }}
-obj = [1, 2, 3]
+obj = {x:42, y: 40, z:{ foo: #bar }, test: "hello world",a : [undefined, null]}
+//obj = [1, 2, 3]
 
 toJSON = (x, buf ->
-    print "toJSON", x, buf
     (
-        _match(isBool(x)): buf.write(x.toText)
+        print "toJSON", x, buf
+        _match(isBool(x)): buf.write(x)
         _match(not x): buf.write("null")
-        _match(isNumber(x)): buf.write(x.toText)
-        _match(isSym(x)): buf.write("\"", x.toText, "\"")
-        _match(isText(x)): buf.write("\"", x, "\"")
+        _match(isNumber(x)): buf.write(x)
+        _match(isSym(x)): buf.write("'"); buf.write(x); buf.write("'")
+        _match(isText(x)): buf.write("\""); buf.write(x); buf.write("\"")
         _match(isList(x)): (
             if x.size == 0: return buf.write("[]")
             if x.size == 1: return buf.write("["); buf.write(x.get(0)); buf.write("]")
             buf.write("[")
-            x.each: v -> buf.write(v); buf.write(",")
+            x.each: v -> toJSON(v, buf); buf.write(", ")
             buf.write("]")
         )
         _match(isObject(x)): (
             keys = _Map_keys(x)
             if keys.size == 0: return buf.write("{}")
-            buf.write("{\n")
+            buf.write("{")
             keys.each: (key ->
-                buf.write("\"", key.toText, "\":")
-                toJSON(x.get(key), buf)
-                buf.write(",\n")
+                buf.write("\""); buf.write(key.toText); buf.write("\": ")
+                toJSON(_Map_get(x, key), buf)
+                buf.write(", ")
             )
             buf.write("}")
         )

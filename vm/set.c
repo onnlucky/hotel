@@ -125,9 +125,18 @@ tlClass* tlSetClass = &_tlSetClass;
 static void set_init() {
     _tl_set_empty = tlSetNew(null, 0);
     _tlSetClass.map = tlClassMapFrom(
-        "get", _set_get,
         "size", _set_size,
+        //"has", _set_has,
+        "get", _set_get,
+        "each", null,
         null
     );
+    tlMap* constructor = tlClassMapFrom(
+        //"call", _Set_from,
+        "class", null,
+        null
+    );
+    tlMapSetSym_(constructor, s_class, _tlSetClass.map);
+    tl_register_global("Set", constructor);
 }
 
