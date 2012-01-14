@@ -1,9 +1,6 @@
-obj = {x:42, y: 40, z:{ foo: #bar }, test: "hello world",a : [undefined, null]}
-//obj = [1, 2, 3]
-
-toJSON = (x, buf ->
-    (
-        print "toJSON", x, buf
+inspect = (x ->
+    // TODO escape Text and Sym
+    toJSON = (x, indent, buf -> (
         _match(isBool(x)): buf.write(x)
         _match(not x): buf.write("null")
         _match(isNumber(x)): buf.write(x)
@@ -11,34 +8,37 @@ toJSON = (x, buf ->
         _match(isText(x)): buf.write("\""); buf.write(x); buf.write("\"")
         _match(isList(x)): (
             if x.size == 0: return buf.write("[]")
-            if x.size == 1: return buf.write("["); buf.write(x.get(0)); buf.write("]")
-            buf.write("[")
-            x.each: v -> toJSON(v, buf); buf.write(", ")
+            if x.size == 1: buf.write("["); toJSON(x.get(0), indent.cat(" "), buf); buf.write("]"); return
+            buf.write("[\n")
+            x.each: v -> buf.write(indent); toJSON(v, indent.cat(" "), buf); buf.write(",\n")
+            //buf.rewind(2)
+            buf.write(indent)
             buf.write("]")
         )
         _match(isObject(x)): (
             keys = _Map_keys(x)
             if keys.size == 0: return buf.write("{}")
-            buf.write("{")
+            buf.write("{\n")
             keys.each: (key ->
+                buf.write(indent)
                 buf.write("\""); buf.write(key.toText); buf.write("\": ")
-                toJSON(_Map_get(x, key), buf)
-                buf.write(", ")
+                toJSON(_Map_get(x, key), indent.cat(" "), buf)
+                buf.write(",\n")
             )
+            //buf.rewind(2)
+            buf.write(indent)
             buf.write("}")
         )
         _nomatch()
-    )
+    ))
+    buf = io.Buffer.new
+    toJSON(x, "", buf)
+    buf.read
 )
 
-buf = io.Buffer.new
-toJSON(obj, buf)
-print buf.read
-
-/*
-DEBUG=true
+DEBUG=false
 trace = (in, &msg -> if DEBUG: print in.pos, in.item, msg())
-DEBUG2=true
+DEBUG2=false
 trace2 = (in, &msg ->
     if DEBUG2: print in.pos, in.item, msg()
     return in
@@ -202,7 +202,7 @@ parseParser = (in ->
     in = pText("}")(in).set({ type: #Parser, rules: rules.value })
     trace2(in, "<< parser: $(rules.value.size)")
 )
-//rule: n=name .":". t=or .              -> Rule.{ name: n, term: t }
+//rule: n=name .":". t=or               -> { type: #Rule, name: n, term: t }
 parseRule = (in ->
     trace2(in, ">> rule")
     name = parseName(in)
@@ -222,39 +222,52 @@ parseAct = (in ->
     cs = pMany(pNotChars("\n\r"))(in).do: v -> v.toChar
     trace2(cs, "<< action")
 )
-//or: h=and rs=(."|". and)*          -> Or.{ terms: h + rs }
+//or: h=and rs=(."|". and)*           -> { type: #Or, terms: [h].cat(rs) }
 parseOr = (in ->
     trace2(in, ">> or")
     h = parseAnd(in)
-    rs= pMany(pAnd(parseWs, pText("|"), parseWs, parseAnd))(h)
-    trace2(rs, "<< or")
+    rs = pMany(pAnd(parseWs, pText("|"), parseWs, parseAnd))(h)
+    in = rs.set({ type: #Or, terms: [h.value].cat(rs.value) })
+    trace2(in, "<< or")
 )
-//and: h=named rs=(" ". named)* . a:act? -> And.{ terms: h + rs, act: a }
+//and: h=named rs=(" ". named)* .a=act -> { type: #And, terms: [h].cat(rs), act: a }
 parseAnd = (in ->
     trace2(in, ">> AND >> AND >> AND >>")
     h = parseNamed(in)
     rs = pMany(pAnd(parseWs, parseNamed))(h)
     a = pOptional(parseAct)(rs)
-    trace2(a, "<< AND << AND << AND <<")
+    in = a.set({ type: #And, terms: [h.value].cat(rs.value), act: a.value })
+    trace2(in, "<< AND << AND << AND <<")
 )
-//named: n=name "=" t=post              -> Bind.{ name: n, term: t }
+//named: n=name "=" t=post               -> { type: #Bind, name: n, term: t }
 //     | post
 parseNamed = (in ->
     trace2(in, ">> named")
-    a1 = in -> n = parseName(in); in = pText("=")(n); t = parsePost(in)
+    a1 = (in ->
+        n = parseName(in)
+        in = pText("=")(n)
+        parsePost(in).do: v -> { type: #Bind, name: n.value, term: v }
+    )
     in = pOr(a1, parsePost)(in)
     trace2(in, "<< named")
 )
-//post: "!" term | term "*" | term "+" | term
+//post: "!" t=term                      -> { type: #Not, term: t }
+//    | t=term "*"                      -> { type: #Star, term: t }
+//    | t=term "+"                      -> { type: #Plus, term: t }
+//    | term
 parsePost = (in ->
     trace2(in, ">> post")
-    a1 = in -> in = pText("!")(in); parseTerm(in).set("!!!")
-    a2 = in -> term = parseTerm(in); pText("*")(term).set("***")
-    a3 = in -> term = parseTerm(in); pText("+")(term).set("+++")
+    a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type: #Not, term: v }
+    a2 = in -> term = parseTerm(in); pText("*")(term).set({ type: #Star, term: term.value })
+    a3 = in -> term = parseTerm(in); pText("+")(term).set({ type: #Plus, term: term.value })
     in = pOr(a1, a2, a3, parseTerm)(in)
     trace2(in, "<< post: $(in.value)")
 )
-//term: "(". or .")" | "." | "_" | name | text
+//term: "(". s=or .")"                  -> s
+//    | "."                             -> { type: #Ws }
+//    | "_"                             -> { type: #Any }
+//    | n=name !":"                     -> { type: #Call, rule: n }
+//    | t=text                          -> { type: #Text, text: t }
 parseTerm = (in ->
     trace2(in, ">> term")
     a1 = (in ->
@@ -264,41 +277,42 @@ parseTerm = (in ->
         in = parseWs(in);
         t=parseOr(in);
         in = parseWs(t);
-        in = pText(")")(in)
+        in = pText(")")(in).set(t.value)
         trace2(in, "3 << paren << PAREN << PAREN <<")
     )
-    a2 = in -> pText(".")(in)
-    a3 = in -> pText("_")(in)
-    a4 = in -> in = parseName(in); pNot(pChar(":".char))(in)
-    in = pOr(a1, a2, a3, a4, parseText)(in)
+    a2 = in -> pText(".")(in).set({ type: #Ws })
+    a3 = in -> pText("_")(in).set({ type: #Any })
+    a4 = in -> n = parseName(in); pNot(pChar(":".char))(n).set({ type: #Call, rule: n.value })
+    a5 = in -> parseText(in).do: v -> { type: #Text, text: v }
+    in = pOr(a1, a2, a3, a4, a5)(in)
     trace2(in, "<< term: $(in.value)")
 )
 //text: "\"" escape* "\""
 parseText = (in ->
     trace2(in, "text")
     in = pText("\"")(in)
-    cs = pMany(parseEscape)(in)
-    pText("\"")(cs)
+    cs = pMany(parseEscape)(in).do: v -> v.join
+    pText("\"")(cs).set(cs.value)
 )
 //escape: "\\\"" | "\\n" | "\\r" | "\\t" | "\\\\" | !"\"" _
 parseEscape = (in ->
     trace2(in, "escape")
-    a1 = in -> pText("\\\"")(in).set("\"".char)
-    a2 = in -> pText("\\n")(in).set("\n".char)
-    a3 = in -> pText("\\r")(in).set("\r".char)
-    a4 = in -> pText("\\t")(in).set("\t".char)
-    a5 = in -> pText("\\\\")(in).set("\\".char)
-    a6 = in -> pNotChars("\"")(in)
+    a1 = in -> pText("\\\"")(in).set("\"")
+    a2 = in -> pText("\\n")(in).set("\n")
+    a3 = in -> pText("\\r")(in).set("\r")
+    a4 = in -> pText("\\t")(in).set("\t")
+    a5 = in -> pText("\\\\")(in).set("\\")
+    a6 = in -> pNotChars("\"")(in).do: v -> v.toChar
     pOr(a1, a2, a3, a4, a5, a6)(in)
 )
-//name: letters*
+//name: ls=letters+ -> ls.join
 parseName = (in ->
     trace2(in, ">> name")
-    in = pManyOne(pChars(letters))(in)//.do: v -> v.toChar
+    in = pManyOne(pChars(letters))(in).do: v -> v.toChar
     trace2(in, "<< name: $(in.value)")
 )
 
 text = io.File("parser.tl").read
-parse(parseOuter, text)
+inspect(parse(parseOuter, text))
 //parse(parseParser, "parser{a:b c:a}")
 

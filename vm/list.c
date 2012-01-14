@@ -272,6 +272,13 @@ INTERNAL tlValue _list_add(tlTask* task, tlArgs* args) {
     if (!val || val == tlUndefined) val = tlNull;
     return tlListAppend(task, list, val);
 }
+INTERNAL tlValue _list_cat(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    if (!list) TL_THROW("Expected a list");
+    tlList* l1 = tlListCast(tlArgsGet(args, 0));
+    if (!l1) TL_THROW("Expected a list");
+    return tlListCat(task, list, l1);
+}
 INTERNAL tlValue _list_slice(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -312,6 +319,7 @@ static void list_init() {
         "get", _list_get,
         "set", _list_set,
         "add", _list_add,
+        "cat", _list_cat,
         "slice", _list_slice,
         "toChar", _list_toChar,
         //"search", _ListSearch,
