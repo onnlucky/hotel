@@ -265,7 +265,7 @@ parsePost = (in ->
     in = pOr(a1, a2, a3, a4, parseTerm)(in)
     trace2(in, "<< post: $(in.value)")
 )
-//term: "(". s=or .")"                  -> s
+//term: "(". t=or .")"                  -> { type: #Sub, term: t }
 //    | "."                             -> { type: #Ws }
 //    | "_"                             -> { type: #Any }
 //    | n=name !":"                     -> { type: #Call, rule: n }
@@ -279,7 +279,7 @@ parseTerm = (in ->
         in = parseWs(in);
         t=parseOr(in);
         in = parseWs(t);
-        in = pText(")")(in).set(t.value)
+        in = pText(")")(in).set({ type: #Sub, term: t.value })
         trace2(in, "3 << paren << PAREN << PAREN <<")
     )
     a2 = in -> pText(".")(in).set({ type: #Ws })
@@ -323,6 +323,7 @@ ast = parse(parseOuter, text)
 emit = (r, buf, ind, name ->
     _match(r.type == #Or): goto emitOr r, buf, ind
     _match(r.type == #And): goto emitAnd r, buf, ind
+    _match(r.type == #Sub): goto emitSub r, buf, ind
     _match(r.type == #Not): goto emitNot r, buf, ind
     _match(r.type == #Opt): goto emitOpt r, buf, ind
     _match(r.type == #Star): goto emitStar r, buf, ind
@@ -340,7 +341,7 @@ emitAny = (r, buf, ind ->
     buf.write("pAny(_in)\n")
 )
 emitWs = (r, buf, ind ->
-    buf.write("pWs(_in)\n")
+    buf.write("rule_ws(_in)\n")
 )
 emitText = (r, buf, ind ->
     buf.write("pText(_in, \"$(r.text.escape)\")\n")
@@ -372,6 +373,11 @@ emitPlus = (r, buf, ind ->
     emit r.term, buf, ind.cat("  ")
     buf.write("$(ind)  ))\n")
 )
+emitSub = (r, buf, ind ->
+    buf.write("(_in ->\n")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  )(_in)\n")
+)
 emitOr = (r, buf, ind ->
     if r.terms.size == 0: return
     if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
@@ -383,12 +389,11 @@ emitOr = (r, buf, ind ->
         buf.write("$(ind)  )\n")
     )
 
-    buf.write("$(ind)  pOr(")
+    buf.write("$(ind)  pOr(_in")
     $n = 0
     r.terms.each: (r ->
-        if $n > 0: buf.write(", ")
         alt = "_a$($n += 1)"
-        buf.write("$alt")
+        buf.write(", $alt")
     )
     buf.write(")\n")
 )
@@ -409,13 +414,14 @@ emitAnd = (r, buf, ind ->
 emitRule = (r, buf ->
     name = r.name
     buf.write("rule_$name = (_in ->\n")
+    buf.write("  trace(_in, \"rule_$name\")\n")
     emit r.term, buf, ""
     buf.write(")\n")
 )
 
 buf = io.Buffer.new
 buf.write(io.File("prules.tl").read)
-buf.write("\n# --- parser ---\n\n")
+buf.write("\n// --- parser ---\n\n")
 var $hasstart = false
 ast.rules.each: (r ->
     if r.name == "start": $hasstart = true

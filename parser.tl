@@ -1,5 +1,5 @@
 parser {
-    name: ls=letters+ -> ls.join
+    name: ls=alpha+  -> ls.join
   escape: "\\\""      -> "\""
         | "\\n"       -> "\n"
         | "\\r"       -> "\r"
@@ -7,6 +7,8 @@ parser {
         | "\\\\"      -> "\\"
         | !"\"" l=_   -> l.toChar
     text: "\"" ts=escape* "\""             -> ts.join
+
+     act: "->" ts=(!"\n" _)                -> ts.join
 
     term: "(". s=or .")"                   -> s
         | "."                              -> { type: #Ws }
@@ -23,6 +25,6 @@ parser {
      and: h=named rs=(" ". named)* .a=act? -> { type: #And, terms: [h].cat(rs), act: a }
       or: h=and rs=(."|". and)*            -> { type: #Or, terms: [h].cat(rs) }
     rule: n=name .":". t=or                -> { type: #Rule, name: n, term: t }
-  parser: ."parser" ."{". rs=rule* ."}".   -> { type: #Parser, rules: rs }
+   start: ."parser" ."{". rs=rule* ."}".   -> { type: #Parser, rules: rs }
 }
 

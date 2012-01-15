@@ -278,6 +278,7 @@ static void text_init() {
         "endsWith", _text_endsWith,
         "search", _text_search,
         "char", _text_char,
+        "get", _text_char,
         "slice", _text_slice,
         "cat", _text_cat,
         "escape", _text_escape,
