@@ -91,12 +91,11 @@ int tlbuf_read(tl_buf* buf, char* to, int count) {
     return len;
 }
 int tlbuf_write(tl_buf* buf, const char* from, int count) {
-    int len = canwrite(buf);
-    if (len > count) len = count;
-    memcpy(writebuf(buf), from, len);
-    buf->writepos += len;
+    while (canwrite(buf) < count) tlbuf_grow(buf);
+    memcpy(writebuf(buf), from, count);
+    buf->writepos += count;
     check(buf);
-    return len;
+    return count;
 }
 int tlbuf_write_uint8(tl_buf* buf, const char b) {
     return tlbuf_write(buf, &b, 1);
