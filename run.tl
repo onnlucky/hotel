@@ -414,8 +414,8 @@ emitRule = (r, buf ->
 
 buf = io.Buffer.new
 buf.write(ast.before)
-buf.write("\n// --- prules.tl ---\n")
-buf.write(io.File("prules.tl").read)
+buf.write("\n// --- parserbase.tl ---\n")
+buf.write(io.File("parserbase.tl").read)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: (r ->
@@ -425,10 +425,8 @@ ast.rules.each: (r ->
 start = (if $hasstart: "start") or ast.rules.get(0).name
 buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
 buf.write("\n// ---\n")
-print buf.canread, ast.after.size
 buf.write(ast.after)
-print buf.canread
 
 io.File("out.tl").write(buf)
-print "written 'out.tl' using 'out-test.tl' as input"
+print "written 'out.tl'"
 

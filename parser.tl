@@ -27,7 +27,7 @@ parserParser = parser {
     rule: .n=name .":". t=or           -> { type: #Rule, name: n, term: t }
   parser: n=name ."="."parser"."{"
           rs=rule*
-          ."}".                        -> { n: n, rs: rs }
+          ."}"                         -> { n: n, rs: rs }
    start: b=(!(name ."="."parser"."{") _)*
           p=parser
           a=_*                         -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
@@ -123,8 +123,8 @@ ast = parserParser(io.File(args.get(0)).read)
 
 buf = io.Buffer.new
 buf.write(ast.before)
-buf.write("\n// --- prules.tl ---\n")
-buf.write(io.File("prules.tl").read)
+buf.write("\n// --- parserbase.tl ---\n")
+buf.write(io.File("parserbase.tl").read)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: (r ->
