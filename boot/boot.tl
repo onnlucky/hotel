@@ -67,6 +67,43 @@ _install(List.class, #join, (join = (sep ->
     return $res
 )))
 
+inspect = (x ->
+    toJSON = (x, indent, buf -> (
+        _match(isBool(x)): buf.write(x)
+        _match(not x): buf.write("null")
+        _match(isNumber(x)): buf.write(x)
+        _match(isSym(x)): buf.write("'"); buf.write(x.toText.escape); buf.write("'")
+        _match(isText(x)): buf.write("\""); buf.write(x.escape); buf.write("\"")
+        _match(isList(x)): (
+            if x.size == 0: return buf.write("[]")
+            if x.size == 1: buf.write("["); toJSON(x.get(0), indent.cat(" "), buf); buf.write("]"); return
+            buf.write("[\n")
+            x.each: v -> buf.write(indent); toJSON(v, indent.cat(" "), buf); buf.write(",\n")
+            //buf.rewind(2)
+            buf.write(indent)
+            buf.write("]")
+        )
+        _match(isObject(x)): (
+            keys = _Map_keys(x)
+            if keys.size == 0: return buf.write("{}")
+            buf.write("{\n")
+            keys.each: (key ->
+                buf.write(indent)
+                buf.write("\""); buf.write(key.toText); buf.write("\": ")
+                toJSON(_Map_get(x, key), indent.cat(" "), buf)
+                buf.write(",\n")
+            )
+            //buf.rewind(2)
+            buf.write(indent)
+            buf.write("}")
+        )
+        _nomatch()
+    ))
+    buf = io.Buffer.new
+    toJSON(x, "", buf)
+    buf.read
+)
+
 // TODO should not sleep in ms, but need float ... should also add Time module
 sleep = (ms -> io.wait ms)
 seconds = (s -> s * 1000)
