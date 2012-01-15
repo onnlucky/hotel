@@ -1,5 +1,5 @@
 parser {
-    name: ls=alpha+  -> ls.join
+    name: ls=alpha+   -> ls.toChar
   escape: "\\\""      -> "\""
         | "\\n"       -> "\n"
         | "\\r"       -> "\r"
@@ -8,12 +8,12 @@ parser {
         | !"\"" l=_   -> l.toChar
     text: "\"" ts=escape* "\""             -> ts.join
 
-     act: "->" ts=(!"\n" _)                -> ts.join
+     act: "->" ts=(!"\n" _)*               -> ts.toChar
 
-    term: "(". s=or .")"                   -> s
+    term: "(". t=or .")"                   -> { type: #Sub, term: t }
         | "."                              -> { type: #Ws }
         | "_"                              -> { type: #Any }
-        | n=name                           -> { type: #Call, rule: n }
+        | n=name !":"                      -> { type: #Call, rule: n }
         | t=text                           -> { type: #Text, text: t }
     post: "!" t=term                       -> { type: #Not, term: t }
         | t=term "*"                       -> { type: #Star, term: t }
@@ -22,9 +22,9 @@ parser {
         | term
    named: n=name "=" t=post                -> { type: #Bind, name: n, term: t }
         | post
-     and: h=named rs=(" ". named)* .a=act? -> { type: #And, terms: [h].cat(rs), act: a }
+     and: h=named rs=(.named)* .a=act?     -> { type: #And, terms: [h].cat(rs), act: a }
       or: h=and rs=(."|". and)*            -> { type: #Or, terms: [h].cat(rs) }
-    rule: n=name .":". t=or                -> { type: #Rule, name: n, term: t }
+    rule: .n=name .":". t=or               -> { type: #Rule, name: n, term: t }
    start: ."parser" ."{". rs=rule* ."}".   -> { type: #Parser, rules: rs }
 }
 
