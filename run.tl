@@ -128,6 +128,11 @@ pText = rule((in, text ->
     if in.text.startsWith(text, in.pos): return input(in.text, in.pos + text.size, text)
     in.error(text)
 ))
+parseAny = (in ->
+    trace(in, "parseAny")
+    if in.end: in.error("any")
+    in.next(in.item)
+)
 parseEnd = (in ->
     trace(in, "pEnd $(in.end), $(in.item)")
     if in.end: return in
@@ -145,23 +150,48 @@ parseNewline = (in ->
 // PARSER PARSER
 
 // . parser . end
-parseOuter = (in ->
-    trace2(in, "outer")
-    in = parseWs(in)
-    parser = parseParser(in)
-    in = parseWs(parser)
-    parseEnd(in).set(parser.value)
+//start: b=(!(name ."="."parser"."{") _)*
+//       p=parser
+//       a=_*                         -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+parseStart = (in ->
+    trace2(in, "start")
+    before = pMany(pAnd(
+      pNot((in ->
+        in = parseName(in)
+        in = parseWs(in)
+        in = pText("=")(in)
+        in = parseWs(in)
+        in = pText("parser")(in)
+        in = parseWs(in)
+        in = pText("{")(in)
+      )),
+      parseAny
+    ))(in).do: v -> v.toChar
+    parser = parseParser(before)
+    after = pMany(parseAny)(parser).do: v -> v.toChar
+    after.set({
+        name: parser.value.n
+        rules: parser.value.rs
+        before: before.value
+        after: after.value
+    })
 )
-// parser: "parser" ."{". rs=rule* ."}" -> Parser.{ rules: rs }
+//parser: n=name ."="."parser"."{"
+//        rs=rule*
+//        ."}".                        -> { n: n, rs: rs }
 parseParser = (in ->
     trace2(in, "parser")
+    name = parseName(in)
+    in = parseWs(name)
+    in = pText("=")(in)
+    in = parseWs(in)
     in = pText("parser")(in)
     in = parseWs(in)
     in = pText("{")(in)
     in = parseWs(in)
     rules = pMany(parseRule)(in)
     in = parseWs(rules)
-    in = pText("}")(in).set({ type: #Parser, rules: rules.value })
+    in = pText("}")(in).set({ n: name.value, rs: rules.value })
     trace2(in, "<< parser: $(rules.value.size)")
 )
 //rule: n=name .":". t=or               -> { type: #Rule, name: n, term: t }
@@ -277,7 +307,7 @@ parseName = (in ->
 )
 
 text = io.File("parser.tl").read
-ast = parse(parseOuter, text)
+ast = parse(parseStart, text)
 //print inspect(ast)
 
 
@@ -359,6 +389,7 @@ emitOr = (r, buf, ind ->
     )
     buf.write(")\n")
 )
+
 emitAnd = (r, buf, ind ->
     var $n = 0
     r.terms.each: (r ->
@@ -382,18 +413,21 @@ emitRule = (r, buf ->
 )
 
 buf = io.Buffer.new
+buf.write(ast.before)
+buf.write("\n// --- prules.tl ---\n")
 buf.write(io.File("prules.tl").read)
-buf.write("\n// --- parser ---\n\n")
+buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: (r ->
     if r.name == "start": $hasstart = true
     emitRule r, buf
 )
 start = (if $hasstart: "start") or ast.rules.get(0).name
-buf.write("parse = text -> pStart(rule_$start, text)\n")
-
-// TEST
-buf.write("inspect parse(io.File(\"out-test.tl\").read)\n")
+buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
+buf.write("\n// ---\n")
+print buf.canread, ast.after.size
+buf.write(ast.after)
+print buf.canread
 
 io.File("out.tl").write(buf)
 print "written 'out.tl' using 'out-test.tl' as input"
