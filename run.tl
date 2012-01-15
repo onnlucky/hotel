@@ -254,13 +254,15 @@ parseNamed = (in ->
 //post: "!" t=term                      -> { type: #Not, term: t }
 //    | t=term "*"                      -> { type: #Star, term: t }
 //    | t=term "+"                      -> { type: #Plus, term: t }
+//    | t=term "?"                      -> { type: #Opt, term: t }
 //    | term
 parsePost = (in ->
     trace2(in, ">> post")
     a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type: #Not, term: v }
     a2 = in -> term = parseTerm(in); pText("*")(term).set({ type: #Star, term: term.value })
     a3 = in -> term = parseTerm(in); pText("+")(term).set({ type: #Plus, term: term.value })
-    in = pOr(a1, a2, a3, parseTerm)(in)
+    a4 = in -> term = parseTerm(in); pText("?")(term).set({ type: #Opt, term: term.value })
+    in = pOr(a1, a2, a3, a4, parseTerm)(in)
     trace2(in, "<< post: $(in.value)")
 )
 //term: "(". s=or .")"                  -> s
@@ -313,6 +315,118 @@ parseName = (in ->
 )
 
 text = io.File("parser.tl").read
-inspect(parse(parseOuter, text))
-//parse(parseParser, "parser{a:b c:a}")
+ast = parse(parseOuter, text)
+//print inspect(ast)
+
+
+// ** emitting a new parser **
+emit = (r, buf, ind, name ->
+    _match(r.type == #Or): goto emitOr r, buf, ind
+    _match(r.type == #And): goto emitAnd r, buf, ind
+    _match(r.type == #Not): goto emitNot r, buf, ind
+    _match(r.type == #Opt): goto emitOpt r, buf, ind
+    _match(r.type == #Star): goto emitStar r, buf, ind
+    _match(r.type == #Plus): goto emitPlus r, buf, ind
+
+    _match(r.type == #Call): goto emitCall r, buf, ind
+    _match(r.type == #Bind): goto emitBind r, buf, ind, name
+    _match(r.type == #Text): goto emitText r, buf, ind
+    _match(r.type == #Ws): goto emitWs r, buf
+    _match(r.type == #Any): goto emitAny r, buf
+    _match(true): _throw "Error emit: $(r.type)"
+    _nomatch
+)
+emitAny = (r, buf, ind ->
+    buf.write("pAny(_in)\n")
+)
+emitWs = (r, buf, ind ->
+    buf.write("pWs(_in)\n")
+)
+emitText = (r, buf, ind ->
+    buf.write("pText(_in, \"$(r.text.escape)\")\n")
+)
+emitBind = (r, buf, ind, vn ->
+    emit r.term, buf, ind
+    buf.write("$(ind)  $(r.name) = $vn\n")
+)
+emitCall = (r, buf, ind ->
+    buf.write("rule_$(r.rule)(_in)\n")
+)
+emitNot = (r, buf, ind ->
+    buf.write("$("")pNot(_in, (_in ->\n$(ind)    ")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  ))\n")
+)
+emitOpt = (r, buf, ind ->
+    buf.write("$("")pOpt(_in, (_in ->\n$(ind)    ")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  ))\n")
+)
+emitStar = (r, buf, ind ->
+    buf.write("$("")pStar(_in, (_in ->\n$(ind)    ")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  ))\n")
+)
+emitPlus = (r, buf, ind ->
+    buf.write("$("")pPlus(_in, (_in ->\n$(ind)    ")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  ))\n")
+)
+emitOr = (r, buf, ind ->
+    if r.terms.size == 0: return
+    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
+    var $n = 0
+    r.terms.each: (r ->
+        alt = "_a$($n += 1)"
+        buf.write("$(ind)  $alt = (_in ->\n")
+        emit r, buf, ind.cat("  ")
+        buf.write("$(ind)  )\n")
+    )
+
+    buf.write("$(ind)  pOr(")
+    $n = 0
+    r.terms.each: (r ->
+        if $n > 0: buf.write(", ")
+        alt = "_a$($n += 1)"
+        buf.write("$alt")
+    )
+    buf.write(")\n")
+)
+emitAnd = (r, buf, ind ->
+    var $n = 0
+    r.terms.each: (r ->
+        name = "_v$($n += 1)"
+        buf.write("$(ind)  _in, $(name) = ")
+        emit r, buf, ind, name
+    )
+    if r.act: (
+        name = "_v$($n += 1)"
+        buf.write("$(ind)  $name = ($(r.act))\n")
+    )
+    buf.write("$(ind)  return _in, _v$($n)\n")
+)
+
+emitRule = (r, buf ->
+    name = r.name
+    buf.write("rule_$name = (_in ->\n")
+    emit r.term, buf, ""
+    buf.write(")\n")
+)
+
+buf = io.Buffer.new
+buf.write(io.File("prules.tl").read)
+buf.write("\n# --- parser ---\n\n")
+var $hasstart = false
+ast.rules.each: (r ->
+    if r.name == "start": $hasstart = true
+    emitRule r, buf
+)
+start = (if $hasstart: "start") or ast.rules.get(0).name
+buf.write("parse = text -> pStart(rule_$start, text)\n")
+
+// TEST
+buf.write("parse(io.File(\"out-test.tl\").read)\n")
+
+io.File("out.tl").write(buf)
+print "written 'out.tl' using 'out-test.tl' as input"
 
