@@ -1,4 +1,4 @@
-DEBUG=true
+DEBUG=false
 trace = (in, &msg -> if DEBUG: print in.pos, in.text.slice(in.pos, in.pos + 10).escape, "--", msg())
 
 WS = " \t\n\r"

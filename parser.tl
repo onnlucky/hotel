@@ -8,7 +8,7 @@ parser {
         | !"\"" l=_   -> l.toChar
     text: "\"" ts=escape* "\""             -> ts.join
 
-     act: "->" ts=(!"\n" _)*               -> ts.toChar
+     act: "->". ts=(!"\n" _)*              -> ts.toChar
 
     term: "(". t=or .")"                   -> { type: #Sub, term: t }
         | "."                              -> { type: #Ws }
