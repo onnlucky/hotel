@@ -181,6 +181,7 @@ INTERNAL tlValue _text_slice(tlTask* task, tlArgs* args) {
     if (first >= size) return tlTextEmpty();
     if (last <= 0) last = size + last;
     if (last < first) return tlTextEmpty();
+    if (last >= size) last = size;
 
     trace("%d %d (%s)%d", first, last, text->data, size);
 
