@@ -187,6 +187,45 @@ INTERNAL tlValue _text_slice(tlTask* task, tlArgs* args) {
     return tlTextSub(task, text, first, last - first);
 }
 
+static inline char escape(char c) {
+    switch (c) {
+        case '\0': return '0';
+        case '\t': return 't';
+        case '\n': return 'n';
+        case '\r': return 'r';
+        case '"': return '"';
+        case '\\': return '\\';
+        default:
+            assert(c >= 32);
+            return 0;
+    }
+}
+
+INTERNAL tlValue _text_escape(tlTask* task, tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    const char* data = tlTextData(text);
+    int size = tlTextSize(text);
+    int slashes = 0;
+    for (int i = 0; i < size; i++) if (escape(data[i])) slashes++;
+    if (slashes == 0) return text;
+
+    char* ndata = malloc(size + slashes + 1);
+    int j = 0;
+    for (int i = 0; i < size; i++, j++) {
+        char c;
+        if ((c = escape(data[i]))) {
+            ndata[j++] = '\\';
+            ndata[j] = c;
+        } else {
+            ndata[j] = data[i];
+        }
+    }
+    assert(size + slashes == j);
+    return tlTextFromTake(task, ndata, j);
+}
+
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
 INTERNAL tlValue _text_startsWith(tlTask* task, tlArgs* args) {
@@ -241,6 +280,7 @@ static void text_init() {
         "char", _text_char,
         "slice", _text_slice,
         "cat", _text_cat,
+        "escape", _text_escape,
         "each", null,
         "split", null,
         null
