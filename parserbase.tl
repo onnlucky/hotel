@@ -38,7 +38,10 @@ pNot = (in, parser ->
     trace(in, "pNot")
     in = (
         _catch: (e ->
-            if e?t == #p: return in, null
+            if e?t == #p: (
+                if e?noreturn: _throw e
+                return in, null
+            )
             _throw e
         )
         parser(in)
@@ -48,7 +51,10 @@ pNot = (in, parser ->
 pOpt = (in, parser ->
     trace(in, "pOpt")
     _catch: (e ->
-        if e?t == #p: return in, null
+        if e?t == #p: (
+            if e?noreturn: _throw e
+            return in, null
+        )
         _throw e
     )
     parser(in)
@@ -56,7 +62,10 @@ pOpt = (in, parser ->
 _pmany = (in, parser, res ->
     trace(in, "_pmany: $(res.size)")
     _catch: (e ->
-        if e?t == #p: return in, res
+        if e?t == #p: (
+            if e?noreturn: _throw e
+            return in, res
+        )
         _throw e
     )
     in, v = parser(in)
@@ -71,22 +80,27 @@ pPlus = (in, parser ->
     in, v = parser(in)
     _pmany(in, parser, [v])
 )
-pOr = (in ->
-    var $i = 1
+pOr = (name, nr, in ->
+    var $i = 3
+    // TODO instead of just one, collect all alternatives
+    var $err = null
     loop: (
         parser = args.get($i)
         if not parser: break
         trace(in, "pOr: $($i)")
         $i += 1
         _catch: (e ->
-            trace(in, "ERROR: $e")
+            trace(in, "ERROR: $e NoReturn: $($nr)")
             if e?t != #p: _throw e
+            if $nr: _throw { t: #p, in: e.in, noreturn: true, msg: ($nr) or name }
+            if e?noreturn: $err = e
         )
         // TODO return parser(in) should work somehow ...
         in, v = parser(in)
         return in, v
     )
     trace(in, "pOr: no alternatives")
+    if $err: _throw $err
     // TODO add rule name here ...
     _throw { t: #p, in: in }
 )
@@ -95,6 +109,7 @@ pStart = (rule, text ->
     in, v = (
         _catch: (e ->
             if e?t != #p: _throw e
+            if e?msg: _throw "SyntaxError: near $(e.in.pos); expected a $(e.msg)"
             _throw "SyntaxError: near $(e.in.pos)"
         )
         rule({text: text, pos: 0 })

@@ -20,7 +20,8 @@ parserParser = parser {
         | t=term "+"                   -> { type: #Plus, term: t }
         | t=term "?"                   -> { type: #Opt, term: t }
         | term
-   named: n=name "=" t=post            -> { type: #Bind, name: n, term: t }
+   named: n=name "=" @"term"  t=post   -> { type: #Bind, name: n, term: t }
+        | "@" t=text                   -> { type: #NoReturn, msg: t }
         | post
      and: h=named rs=(.named)* .a=act? -> { type: #And, terms: [h].cat(rs), act: a }
       or: h=and rs=(."|". and)*        -> { type: #Or, terms: [h].cat(rs) }
@@ -43,6 +44,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
+    _match(r.type == #NoReturn): buf.write("_in\n$(ind)  \$_nr = \"$(r.msg.escape)\"\n")
     _match(r.type == #Call): buf.write("rule_$(r.rule)(_in)\n")
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = $name\n")
     _match(r.type == #Text): buf.write("pText(_in, \"$(r.text.escape)\")\n")
@@ -71,30 +73,7 @@ emitPlus = (r, buf, ind ->
     emit r.term, buf, ind.cat("  ")
     buf.write("$(ind)  ))\n")
 )
-emitSub = (r, buf, ind ->
-    buf.write("(_in ->\n")
-    emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  )(_in)\n")
-)
-emitOr = (r, buf, ind ->
-    if r.terms.size == 0: return
-    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
-    var $n = 0
-    r.terms.each: (r ->
-        alt = "_a$($n += 1)"
-        buf.write("$(ind)  $alt = (_in ->\n")
-        emit r, buf, ind.cat("  ")
-        buf.write("$(ind)  )\n")
-    )
 
-    buf.write("$(ind)  pOr(_in")
-    $n = 0
-    r.terms.each: (r ->
-        alt = "_a$($n += 1)"
-        buf.write(", $alt")
-    )
-    buf.write(")\n")
-)
 emitAnd = (r, buf, ind ->
     var $n = 0
     r.terms.each: (r ->
@@ -108,11 +87,30 @@ emitAnd = (r, buf, ind ->
     )
     buf.write("$(ind)  return _in, _v$($n)\n")
 )
+emitOr = (r, buf, ind ->
+    if r.terms.size == 0: return
+    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
 
+    buf.write("$(ind)  pOr(_name, _nr, _in\n")
+    r.terms.each: (r ->
+        buf.write("$(ind)    ,(_in ->\n")
+        emit r, buf, ind.cat("    ")
+        buf.write("$(ind)     )\n")
+    )
+    buf.write("$(ind)  )\n")
+)
+
+emitSub = (r, buf, ind ->
+    buf.write("(_in ->\n")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  )(_in)\n")
+)
 emitRule = (r, buf ->
     name = r.name
     buf.write("rule_$name = (_in ->\n")
     buf.write("  trace(_in, \"rule_$name\")\n")
+    buf.write("  _name = \"$name\"\n")
+    buf.write("  var \$_nr = null\n")
     emit r.term, buf, ""
     buf.write(")\n")
 )

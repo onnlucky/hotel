@@ -231,7 +231,8 @@ parseAnd = (in ->
     in = a.set({ type: #And, terms: [h.value].cat(rs.value), act: a.value })
     trace2(in, "<< AND << AND << AND <<")
 )
-//named: n=name "=" t=post               -> { type: #Bind, name: n, term: t }
+//named: n=name "=" t=post             -> { type: #Bind, name: n, term: t }
+//     | "@" t=text                    -> { type: #NoReturn, msg: t }
 //     | post
 parseNamed = (in ->
     trace2(in, ">> named")
@@ -240,7 +241,11 @@ parseNamed = (in ->
         in = pText("=")(n)
         parsePost(in).do: v -> { type: #Bind, name: n.value, term: v }
     )
-    in = pOr(a1, parsePost)(in)
+    a2 = (in ->
+        in = pText("@")(in)
+        parseText(in).do: v -> { type: #NoReturn, msg: v }
+    )
+    in = pOr(a1, a2, parsePost)(in)
     trace2(in, "<< named")
 )
 //post: "!" t=term                      -> { type: #Not, term: t }
@@ -321,6 +326,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
+    _match(r.type == #NoReturn): goto emitNoReturn r, buf, ind
     _match(r.type == #Call): goto emitCall r, buf, ind
     _match(r.type == #Bind): goto emitBind r, buf, ind, name
     _match(r.type == #Text): goto emitText r, buf, ind
@@ -345,6 +351,9 @@ emitBind = (r, buf, ind, vn ->
 emitCall = (r, buf, ind ->
     buf.write("rule_$(r.rule)(_in)\n")
 )
+emitNoReturn = (r, buf, ind ->
+    buf.write("_in\n$(ind)  \$_nr = \"$(r.msg.escape)\"\n")
+)
 emitNot = (r, buf, ind ->
     buf.write("$("")pNot(_in, (_in ->\n$(ind)    ")
     emit r.term, buf, ind.cat("  ")
@@ -365,31 +374,6 @@ emitPlus = (r, buf, ind ->
     emit r.term, buf, ind.cat("  ")
     buf.write("$(ind)  ))\n")
 )
-emitSub = (r, buf, ind ->
-    buf.write("(_in ->\n")
-    emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  )(_in)\n")
-)
-emitOr = (r, buf, ind ->
-    if r.terms.size == 0: return
-    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
-    var $n = 0
-    r.terms.each: (r ->
-        alt = "_a$($n += 1)"
-        buf.write("$(ind)  $alt = (_in ->\n")
-        emit r, buf, ind.cat("  ")
-        buf.write("$(ind)  )\n")
-    )
-
-    buf.write("$(ind)  pOr(_in")
-    $n = 0
-    r.terms.each: (r ->
-        alt = "_a$($n += 1)"
-        buf.write(", $alt")
-    )
-    buf.write(")\n")
-)
-
 emitAnd = (r, buf, ind ->
     var $n = 0
     r.terms.each: (r ->
@@ -403,11 +387,30 @@ emitAnd = (r, buf, ind ->
     )
     buf.write("$(ind)  return _in, _v$($n)\n")
 )
+emitOr = (r, buf, ind ->
+    if r.terms.size == 0: return
+    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
 
+    buf.write("$(ind)  pOr(_name, _nr, _in\n")
+    r.terms.each: (r ->
+        buf.write("$(ind)    ,(_in ->\n")
+        emit r, buf, ind.cat("    ")
+        buf.write("$(ind)     )\n")
+    )
+    buf.write("$(ind)  )\n")
+)
+
+emitSub = (r, buf, ind ->
+    buf.write("(_in ->\n")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$(ind)  )(_in)\n")
+)
 emitRule = (r, buf ->
     name = r.name
     buf.write("rule_$name = (_in ->\n")
     buf.write("  trace(_in, \"rule_$name\")\n")
+    buf.write("  _name = \"$name\"\n")
+    buf.write("  var \$_nr = null\n")
     emit r.term, buf, ""
     buf.write(")\n")
 )
