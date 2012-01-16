@@ -63,6 +63,7 @@ _pmany = (in, parser, res ->
     trace(in, "_pmany: $(res.size)")
     _catch: (e ->
         if e?t == #p: (
+            trace(in, "_pmany: << $(res.size), noreturn: $(e?noreturn)")
             if e?noreturn: _throw e
             return in, res
         )
@@ -82,38 +83,59 @@ pPlus = (in, parser ->
 )
 pOr = (name, nr, in ->
     var $i = 3
-    // TODO instead of just one, collect all alternatives
+    // TODO instead of just the last one, collect all alternatives
     var $err = null
     loop: (
         parser = args.get($i)
         if not parser: break
-        trace(in, "pOr: $($i)")
+        trace(in, "pOr: $name: $($i)")
         $i += 1
         _catch: (e ->
             trace(in, "ERROR: $e NoReturn: $($nr)")
             if e?t != #p: _throw e
-            if $nr: _throw { t: #p, in: e.in, noreturn: true, msg: ($nr) or name }
+            if $nr: (
+                if e?noreturn: _throw e
+                _throw { t: #p, in: e.in, noreturn: true, msg: $nr }
+            )
             if e?noreturn: $err = e
         )
         // TODO return parser(in) should work somehow ...
         in, v = parser(in)
+        trace(in, "pOr: $name <<")
         return in, v
     )
-    trace(in, "pOr: no alternatives")
+    trace(in, "pOr: $name: no alternatives")
     if $err: _throw $err
-    // TODO add rule name here ...
-    _throw { t: #p, in: in }
+    _throw { t: #p, in: in, msg: "a $name" }
+)
+
+lineFromPos = (text, pos ->
+    // TODO bit inefficient ... but works
+    lines = text.slice(0, pos).split("\n")
+    var $last = lines.size - 1
+    loop: (
+        if $last < 0: return 1
+        line = lines.get($last)
+        // TODO use strip ...
+        if line/*.strip*/.size == 0: $last -= 1; continue
+        return $last + 1, line.size + 1
+    )
 )
 
 pStart = (rule, text ->
     in, v = (
         _catch: (e ->
             if e?t != #p: _throw e
-            if e?msg: _throw "SyntaxError: near $(e.in.pos); expected a $(e.msg)"
-            _throw "SyntaxError: near $(e.in.pos)"
+            line, char = lineFromPos(e.in.text, e.in.pos)
+            if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
+            _throw "SyntaxError: on line $line col $char"
         )
         rule({text: text, pos: 0 })
     )
-    if in.pos < in.text.size: _throw "SyntaxError: expected EOF near $(in.pos)"
+    if in.pos < in.text.size: (
+        line = lineFromPos(e.in.text, e.in.pos)
+        _throw "SyntaxError: expected end of input on line $line col $char"
+    )
     return v
 )
+

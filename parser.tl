@@ -6,32 +6,33 @@ parserParser = parser {
         | "\\t"       -> "\t"
         | "\\\\"      -> "\\"
         | !"\"" l=_   -> l.toChar
-    text: "\"" ts=escape* "\""         -> ts.join
+    text: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
 
-     act: "->". ts=(!"\n" _)*          -> ts.toChar
+     act: "->". ts=(!"\n" _)*             -> ts.toChar
 
-    term: "(". t=or .")"               -> { type: #Sub, term: t }
-        | "."                          -> { type: #Ws }
-        | "_"                          -> { type: #Any }
-        | n=name !":"                  -> { type: #Call, rule: n }
-        | t=text                       -> { type: #Text, text: t }
-    post: "!" t=term                   -> { type: #Not, term: t }
-        | t=term "*"                   -> { type: #Star, term: t }
-        | t=term "+"                   -> { type: #Plus, term: t }
-        | t=term "?"                   -> { type: #Opt, term: t }
+    term: "(". t=or @"a closing ')'" .")" -> { type: #Sub, term: t }
+        | "."                             -> { type: #Ws }
+        | "_"                             -> { type: #Any }
+        | n=name !":"                     -> { type: #Call, rule: n }
+        | t=text                          -> { type: #Text, text: t }
+    post: "!" @"a term" t=term            -> { type: #Not, term: t }
+        | t=term "*"                      -> { type: #Star, term: t }
+        | t=term "+"                      -> { type: #Plus, term: t }
+        | t=term "?"                      -> { type: #Opt, term: t }
         | term
-   named: n=name "=" @"term"  t=post   -> { type: #Bind, name: n, term: t }
-        | "@" t=text                   -> { type: #NoReturn, msg: t }
+   named: n=name "=" @"a term"  t=post    -> { type: #Bind, name: n, term: t }
+        | "@" t=text                      -> { type: #NoReturn, msg: t }
         | post
-     and: h=named rs=(.named)* .a=act? -> { type: #And, terms: [h].cat(rs), act: a }
-      or: h=and rs=(."|". and)*        -> { type: #Or, terms: [h].cat(rs) }
-    rule: .n=name .":". t=or           -> { type: #Rule, name: n, term: t }
+     and: h=named rs=(.named)* .a=act?    -> { type: #And, terms: [h].cat(rs), act: a }
+      or: @"some terms"
+          h=and rs=(."|". and)*           -> { type: #Or, terms: [h].cat(rs) }
+    rule: .n=name @":" .":". t=or         -> { type: #Rule, name: n, term: t }
   parser: n=name ."="."parser"."{"
           rs=rule*
-          ."}"                         -> { n: n, rs: rs }
+          @"a closing '}'" ."}"           -> { n: n, rs: rs }
    start: b=(!(name ."="."parser"."{") _)*
           p=parser
-          a=_*                         -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+          a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
 }
 
 // emitting
@@ -109,8 +110,16 @@ emitRule = (r, buf ->
     name = r.name
     buf.write("rule_$name = (_in ->\n")
     buf.write("  trace(_in, \"rule_$name\")\n")
+    // TODO only if has a pOr
     buf.write("  _name = \"$name\"\n")
     buf.write("  var \$_nr = null\n")
+    // TODO only if rule has a noreturn
+    buf.write("  _catch: (e ->\n")
+    buf.write("    if e?t != #p: _throw e\n")
+    buf.write("    if e?noreturn: _throw e\n")
+    buf.write("    if \$_nr: _throw { t:#p, in: e.in, noreturn: true, msg: \$_nr }\n")
+    buf.write("    _throw e\n")
+    buf.write("  )\n")
     emit r.term, buf, ""
     buf.write(")\n")
 )

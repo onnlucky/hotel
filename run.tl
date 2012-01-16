@@ -409,8 +409,16 @@ emitRule = (r, buf ->
     name = r.name
     buf.write("rule_$name = (_in ->\n")
     buf.write("  trace(_in, \"rule_$name\")\n")
+    // TODO only if has a pOr
     buf.write("  _name = \"$name\"\n")
     buf.write("  var \$_nr = null\n")
+    // TODO only if rule has a noreturn
+    buf.write("  _catch: (e ->\n")
+    buf.write("    if e?t != #p: _throw e\n")
+    buf.write("    if e?noreturn: _throw e\n")
+    buf.write("    if \$_nr: _throw { t:#p, in: e.in, noreturn: true, msg: \$_nr }\n")
+    buf.write("    _throw e\n")
+    buf.write("  )\n")
     emit r.term, buf, ""
     buf.write(")\n")
 )
