@@ -336,11 +336,11 @@ bpexpr = v:value t:ptail _":"_ b:block {
        }
        | _ m:met _ n:name _"("__ as:cargs __")" t:tail {
            trace("method args()");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_send, null, n, as));
+           $$ = set_target(t, tlCallSendFromList(TASK, m, null, n, as));
        }
        | _ m:met _ n:name t:tail {
            trace("method");
-           $$ = set_target(t, tlCallSendFromList(TASK, sa_send, null, n, tlListEmpty()));
+           $$ = set_target(t, tlCallSendFromList(TASK, m, null, n, tlListEmpty()));
        }
        | _"["__ e:expr __"]" t:tail {
            trace("array get");
