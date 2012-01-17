@@ -116,8 +116,7 @@ lineFromPos = (text, pos ->
     loop: (
         if $last < 0: return 1
         line = lines.get($last)
-        // TODO use strip ...
-        if line/*.strip*/.size == 0: $last -= 1; continue
+        if line.strip.size == 0: $last -= 1; continue
         return $last + 1, line.size + 1
     )
 )

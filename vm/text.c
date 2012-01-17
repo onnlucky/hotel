@@ -227,6 +227,33 @@ INTERNAL tlValue _text_escape(tlTask* task, tlArgs* args) {
     return tlTextFromTake(task, ndata, j);
 }
 
+INTERNAL tlValue _text_strip(tlTask* task, tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+
+    if (tlTextSize(text) == 0) return text;
+    const char* data = tlTextData(text);
+    int len = tlTextSize(text);
+    int left = 0;
+    int right = len; // assuming zero byte at end
+
+    while (left < right && data[left] <= 32) left++;
+    while (right > left && data[right] <= 32) right--;
+    right++; // always a zero byte
+
+    trace("%d %d", left, right);
+    if (left == len) return _tl_emptyText;
+    if (left == 0 && right == len) return text;
+
+    int size = right - left;
+    assert(size > 0 && size < tlTextSize(text));
+    char* ndata = malloc(size + 1);
+    memcpy(ndata, data + left, size);
+    ndata[size] = 0;
+    return tlTextFromTake(task, ndata, size);
+}
+
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
 INTERNAL tlValue _text_startsWith(tlTask* task, tlArgs* args) {
@@ -283,6 +310,7 @@ static void text_init() {
         "slice", _text_slice,
         "cat", _text_cat,
         "escape", _text_escape,
+        "strip", _text_strip,
         "each", null,
         "split", null,
         null
