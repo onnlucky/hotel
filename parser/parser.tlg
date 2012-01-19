@@ -1,0 +1,16 @@
+parse = parser {
+
+nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ";" | "," | "(" | ")" | "{" | "}"
+   ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
+
+     num: n=numr               -> n.reduce((l, r -> l * 10 + r))
+    numr: n=numeric "_" b=numr -> b.prepend(n - 48)
+        | n=numeric b=numr     -> b.prepend(n - 48)
+        | n=numeric            -> [n - 48]
+
+   start: num | ident
+}
+
+print parse("42_000")
+print parse("xx")
+
