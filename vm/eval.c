@@ -925,6 +925,7 @@ static const tlNativeCbs __eval_natives[] = {
     { "_Map_inherit", _Map_inherit },
     { "_Map_keys", _Map_keys },
     { "_Map_get", _Map_get },
+    { "_Map_set", _Map_set },
 
     { "_install", _install },
 

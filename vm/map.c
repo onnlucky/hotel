@@ -258,6 +258,16 @@ static tlValue _Map_get(tlTask* task, tlArgs* args) {
     if (!res) return tlUndefined;
     return res;
 }
+static tlValue _Map_set(tlTask* task, tlArgs* args) {
+    trace("");
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
+    tlSym key = tlSymCast(tlArgsGet(args, 1));
+    if (!key) TL_THROW("Expected a symbol");
+    tlValue val = tlArgsGet(args, 2);
+    if (!val) TL_THROW("Expected a value");
+    return tlMapSet(task, map, key, val);
+}
 static tlValue _map_size(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
