@@ -130,8 +130,8 @@ ast = parserParser(io.File(args.get(0)).read)
 
 buf = io.Buffer.new
 buf.write(ast.before)
-buf.write("\n// --- parserbase.tl ---\n")
-buf.write(io.File("parserbase.tl").read)
+buf.write("\n// --- tlmeta-base.tl ---\n")
+buf.write(io.File("tlmeta-base.tl").read)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: (r ->

@@ -5,7 +5,8 @@ WS = " \t\n\r"
 LOWER = "abcdefghijklmnopqrstuvwxyz"
 UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 ALPHA = LOWER.cat(UPPER)
-NUMBER = "0123456789"
+NUMERIC = "0123456789"
+ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
 pAny = (in ->
     trace(in, "pAny")
@@ -18,20 +19,12 @@ pText = (in, text ->
     if in.text.startsWith(text, in.pos): return { text: in.text, pos: in.pos + text.size }, text
     _throw { t: #p, in: in }
 )
-
-rule_alpha = (in ->
-    trace(in, "rule_alpha")
+pChar = (in, text ->
+    trace(in, "pChar: $text")
     c = in.text.get(in.pos)
     if not c: _throw { t: #p, in: in }
-    if ALPHA.search(c.toChar): return { text: in.text, pos: in.pos + 1 }, c
+    if text.search(c.toChar): return { text: in.text, pos: in.pos + 1 }, c
     _throw { t: #p, in: in }
-)
-rule_ws = (in ->
-    trace(in, "rule_ws")
-    c = in.text.get(in.pos)
-    if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
-    return in, null
 )
 
 pNot = (in, parser ->
@@ -136,5 +129,21 @@ pStart = (rule, text ->
         _throw "SyntaxError: expected end of input on line $line col $char"
     )
     return v
+)
+
+rule_line = (in -> return in, lineFromPos(in.text, in.pos))
+
+rule_lower = (in -> pChar(in, LOWER))
+rule_upper = (in -> pChar(in, UPPER))
+rule_alpha = (in -> pChar(in, ALPHA))
+rule_numeric = (in -> pChar(in, NUMERIC))
+rule_alphanumeric = (in -> pChar(in, ALPHANUMERIC))
+
+rule_ws = (in ->
+    trace(in, "rule_ws")
+    c = in.text.get(in.pos)
+    if not c: return in, null
+    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    return in, null
 )
 

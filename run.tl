@@ -311,7 +311,7 @@ parseName = (in ->
     trace2(in, "<< name: $(in.value)")
 )
 
-text = io.File("parser.tl").read
+text = io.File("tlmeta.tlp").read
 ast = parse(parseStart, text)
 //print inspect(ast)
 
@@ -425,8 +425,8 @@ emitRule = (r, buf ->
 
 buf = io.Buffer.new
 buf.write(ast.before)
-buf.write("\n// --- parserbase.tl ---\n")
-buf.write(io.File("parserbase.tl").read)
+buf.write("\n// --- tlmeta-base.tl ---\n")
+buf.write(io.File("tlmeta-base.tl").read)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: (r ->
@@ -438,6 +438,6 @@ buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
 buf.write("\n// ---\n")
 buf.write(ast.after)
 
-io.File("out.tl").write(buf)
-print "written 'out.tl'"
+io.File("tlmeta.tl").write(buf)
+print "written 'tlmeta.tl'"
 
