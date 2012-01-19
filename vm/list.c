@@ -272,6 +272,13 @@ INTERNAL tlValue _list_add(tlTask* task, tlArgs* args) {
     if (!val || val == tlUndefined) val = tlNull;
     return tlListAppend(task, list, val);
 }
+INTERNAL tlValue _list_prepend(tlTask* task, tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    if (!list) TL_THROW("Expected a list");
+    tlValue val = tlArgsGet(args, 0);
+    if (!val || val == tlUndefined) val = tlNull;
+    return tlListPrepend(task, list, val);
+}
 INTERNAL tlValue _list_cat(tlTask* task, tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -319,12 +326,15 @@ static void list_init() {
         "get", _list_get,
         "set", _list_set,
         "add", _list_add,
+        "prepend", _list_prepend,
         "cat", _list_cat,
         "slice", _list_slice,
         "toChar", _list_toChar,
         //"search", _ListSearch,
         "each", null,
         "join", null,
+        "map", null,
+        "reduce", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(

@@ -66,6 +66,33 @@ _install(List.class, #join, (join = (sep ->
     )
     return $res
 )))
+_install(List.class, #reduce, (reduce = (fn ->
+    block = (args.block) or fn
+    if not block: _throw "reduce expects a block or fn"
+    if this.size == 0: return null
+    if this.size == 1: return this.get(0)
+
+    var $i = 1
+    var $res = this.get(0)
+    while $i < this.size: (
+        $res = block($res, this.get($i))
+        $i += 1
+    )
+    return $res
+)))
+_install(List.class, #map, (map = (fn ->
+    block = (args.block) or fn
+    if not block: _throw "map expects a block or fn"
+    if this.size == 0: return this
+
+    res = _List_unsafe(this.size)
+
+    var $i = 0
+    while $i < this.size: (
+        _list_set(res, $i, block(this.get($i)))
+        $i += 1
+    )
+)))
 
 inspect = (x ->
     toJSON = (x, indent, buf -> (
