@@ -125,7 +125,7 @@ pStart = (rule, text ->
         rule({text: text, pos: 0 })
     )
     if in.pos < in.text.size: (
-        line = lineFromPos(e.in.text, e.in.pos)
+        line, char = lineFromPos(in.text, in.pos)
         _throw "SyntaxError: expected end of input on line $line col $char"
     )
     return v
