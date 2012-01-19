@@ -1,16 +1,36 @@
+set_target = (call, fn ->
+    if not call.target: return _Map_set(call, #target, fn)
+    _Map_set(call, #target, set_target(call.target, fn))
+)
+
 parse = parser {
 
-nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ";" | "," | "(" | ")" | "{" | "}"
+nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]"
    ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
 
-     num: n=numr               -> n.reduce((l, r -> l * 10 + r))
+     num: n=numr "." f=numr    -> n.reduce((l, r -> l * 10 + r)) + 1 / f.reduce((l, r -> l * 10 + r))
+        | n=numr               -> n.reduce((l, r -> l * 10 + r))
+        | "." f=numr           -> 1 / f.reduce((l, r -> l * 10 + r))
     numr: n=numeric "_" b=numr -> b.prepend(n - 48)
         | n=numeric b=numr     -> b.prepend(n - 48)
         | n=numeric            -> [n - 48]
 
-   start: num | ident
+   value: "(". c=call .")"     -> c
+        | n=ident              -> { type: #ref, name: n }
+        | num
+
+    tail: ."(".")" (
+            t=tail             -> set_target(t, { type: #call, target: null, as: [] })
+            | .                -> { type: #call, target: null, as: [] }
+        )
+        | ."[". e=expr ."]"    -> { type: #send, target: null, msg: #get, as: [e] }
+    call: fn=value t=tail      -> set_target(t, fn)
+
+   expr: call | value
+  start: .e=expr.              -> e
 }
 
-print parse("42_000")
-print parse("xx")
+//print inspect parse("3112")
+//print inspect parse("xx-foo")
+print inspect parse("foo()[0]")
 
