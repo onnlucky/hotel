@@ -131,6 +131,12 @@ pStart = (rule, text ->
     return v
 )
 
+rule_end = (in ->
+    c = in.text.get(in.pos)
+    if c: throw { t: #p, in: in }
+    return in, null
+)
+
 rule_line = (in -> return in, lineFromPos(in.text, in.pos))
 
 rule_lower = (in -> pChar(in, LOWER))

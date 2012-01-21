@@ -9,10 +9,12 @@ parserParser = parser {
     text: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
 
      act: "->". ts=(!"\n" _)*             -> ts.toChar
+    cond: "?"."(". ts=(!")" _)* ")"       -> ts.toChar
 
     term: "(". t=or @"a closing ')'" .")" -> { type: #Sub, term: t }
         | "."                             -> { type: #Ws }
         | "_"                             -> { type: #Any }
+        | c=cond                          -> { type: #Cond, act: c }
         | n=name !":"                     -> { type: #Call, rule: n }
         | t=text                          -> { type: #Text, text: t }
     post: "!" @"a term" t=term            -> { type: #Not, term: t }
@@ -45,7 +47,9 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
+    _match(r.type == #Cond): buf.write("_in\n$(ind)  if not ($(r.act)): _throw { t: #p, in: _in }")
     _match(r.type == #NoReturn): buf.write("_in\n$(ind)  \$_nr = \"$(r.msg.escape)\"\n")
+
     _match(r.type == #Call): buf.write("rule_$(r.rule)(_in)\n")
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = $name\n")
     _match(r.type == #Text): buf.write("pText(_in, \"$(r.text.escape)\")\n")

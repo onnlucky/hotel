@@ -127,10 +127,16 @@ pStart = (rule, text ->
         rule({text: text, pos: 0 })
     )
     if in.pos < in.text.size: (
-        line = lineFromPos(in.text, in.pos)
+        line, char = lineFromPos(in.text, in.pos)
         _throw "SyntaxError: expected end of input on line $line col $char"
     )
     return v
+)
+
+rule_end = (in ->
+    c = in.text.get(in.pos)
+    if c: throw { t: #p, in: in }
+    return in, null
 )
 
 rule_line = (in -> return in, lineFromPos(in.text, in.pos))
@@ -261,6 +267,34 @@ rule_act = (_in ->
   _v4 = (ts.toChar)
   return _in, _v4
 )
+rule_cond = (_in ->
+  trace(_in, "rule_cond")
+  _name = "cond"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  _in, _v1 = pText(_in, "?")
+  _in, _v2 = rule_ws(_in)
+  _in, _v3 = pText(_in, "(")
+  _in, _v4 = rule_ws(_in)
+  _in, _v5 = pStar(_in, (_in ->
+    (_in ->
+      _in, _v1 = pNot(_in, (_in ->
+        pText(_in, ")")
+      ))
+      _in, _v2 = pAny(_in)
+      return _in, _v2
+    )(_in)
+  ))
+  ts = _v5
+  _in, _v6 = pText(_in, ")")
+  _v7 = (ts.toChar)
+  return _in, _v7
+)
 rule_term = (_in ->
   trace(_in, "rule_term")
   _name = "term"
@@ -292,6 +326,12 @@ rule_term = (_in ->
     ,(_in ->
       _in, _v1 = pText(_in, "_")
       _v2 = ({ type: #Any })
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = rule_cond(_in)
+      c = _v1
+      _v2 = ({ type: #Cond, act: c })
       return _in, _v2
      )
     ,(_in ->
@@ -553,7 +593,9 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
+    _match(r.type == #Cond): buf.write("_in\n$(ind)  if not ($(r.act)): _throw { t: #p, in: _in }")
     _match(r.type == #NoReturn): buf.write("_in\n$(ind)  \$_nr = \"$(r.msg.escape)\"\n")
+
     _match(r.type == #Call): buf.write("rule_$(r.rule)(_in)\n")
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = $name\n")
     _match(r.type == #Text): buf.write("pText(_in, \"$(r.text.escape)\")\n")
