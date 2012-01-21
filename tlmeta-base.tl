@@ -133,7 +133,7 @@ pStart = (rule, text ->
 
 rule_end = (in ->
     c = in.text.get(in.pos)
-    if c: throw { t: #p, in: in }
+    if c: _throw { t: #p, in: in }
     return in, null
 )
 

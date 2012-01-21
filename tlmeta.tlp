@@ -1,4 +1,12 @@
 parserParser = parser {
+
+       sp: " " | "\t"
+       nl: "\r\n" | "\n\r" | "\n" | "\r"
+slcomment: "//" (!nl _)*
+ icomment: "/*" (!"*/" _)* ("*/"|end)
+  comment: (slcomment (nl|end) | icomment)
+       ws: (sp | nl | comment)*
+
     name: ls=alpha+   -> ls.toChar
   escape: "\\\""      -> "\""
         | "\\n"       -> "\n"

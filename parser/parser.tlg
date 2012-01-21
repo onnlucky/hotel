@@ -2,17 +2,27 @@ set_target = (call, fn ->
     if not call.target: return _Map_set(call, #target, fn)
     _Map_set(call, #target, set_target(call.target, fn))
 )
+add_block = (call, block ->
+    if not block: return call
+    print "BLOCK!"
+    return call
+)
 
 parse = parser {
-     end: !_
       sp: " " | "\t"
       nl: "\r\n" | "\n\r" | "\n" | "\r"
-      ws: sp*
-    wsnl: (sp | nl)*
+
+slcomment: "//" (!nl _)*
+ icomment: "/*" (!"*/" _)* ("*/"|end)
+  comment: (slcomment (nl|end) | icomment)
+
+      ws: (sp | icomment)*
+    wsnl: (sp | nl | comment)*
+
    sepnl: ("," | nl) wsnl
    eostm: (";" | nl | end | !(!")") | !(!"}") !(!"]")) wsnl
 
-nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]"
+nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
    ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
 
     sign: "-" -> -1
@@ -62,14 +72,18 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ";" | "," | "(" | ")" | "{" | "
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
+   block: ":".stm
+
 selfcall: fn=ident                          -> { type: #call, target: fn, args: [] }
-    expr: call | value
-     stm: e=topcall                      .eostm -> e
-        | e=selfcall                     .eostm -> e
+    expr: call
+        | value
+     stm: e=topcall .b=block?            .eostm -> add_block(e, b)
+        | e=selfcall .b=block?           .eostm -> add_block(e, b)
+        | e=call .b=block?               .eostm -> add_block(e, b)
         | e=expr     @"end of statement" .eostm -> e
 
    start: .e=stm.                               -> e
 }
 
-print inspect parse("print.call() foo.bar 10, 20")
+print inspect parse("loop(bar): test")
 

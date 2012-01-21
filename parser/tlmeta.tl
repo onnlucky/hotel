@@ -135,7 +135,7 @@ pStart = (rule, text ->
 
 rule_end = (in ->
     c = in.text.get(in.pos)
-    if c: throw { t: #p, in: in }
+    if c: _throw { t: #p, in: in }
     return in, null
 )
 
@@ -157,6 +157,178 @@ rule_ws = (in ->
 
 
 // --- parser ---
+rule_sp = (_in ->
+  trace(_in, "rule_sp")
+  _name = "sp"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  pOr(_name, _nr, _in
+    ,(_in ->
+      _in, _v1 = pText(_in, " ")
+      return _in, _v1
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\t")
+      return _in, _v1
+     )
+  )
+)
+rule_nl = (_in ->
+  trace(_in, "rule_nl")
+  _name = "nl"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  pOr(_name, _nr, _in
+    ,(_in ->
+      _in, _v1 = pText(_in, "\r\n")
+      return _in, _v1
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\n\r")
+      return _in, _v1
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\n")
+      return _in, _v1
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\r")
+      return _in, _v1
+     )
+  )
+)
+rule_slcomment = (_in ->
+  trace(_in, "rule_slcomment")
+  _name = "slcomment"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  _in, _v1 = pText(_in, "//")
+  _in, _v2 = pStar(_in, (_in ->
+    (_in ->
+      _in, _v1 = pNot(_in, (_in ->
+        rule_nl(_in)
+      ))
+      _in, _v2 = pAny(_in)
+      return _in, _v2
+    )(_in)
+  ))
+  return _in, _v2
+)
+rule_icomment = (_in ->
+  trace(_in, "rule_icomment")
+  _name = "icomment"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  _in, _v1 = pText(_in, "/*")
+  _in, _v2 = pStar(_in, (_in ->
+    (_in ->
+      _in, _v1 = pNot(_in, (_in ->
+        pText(_in, "*/")
+      ))
+      _in, _v2 = pAny(_in)
+      return _in, _v2
+    )(_in)
+  ))
+  _in, _v3 = (_in ->
+    pOr(_name, _nr, _in
+      ,(_in ->
+        _in, _v1 = pText(_in, "*/")
+        return _in, _v1
+       )
+      ,(_in ->
+        _in, _v1 = rule_end(_in)
+        return _in, _v1
+       )
+    )
+  )(_in)
+  return _in, _v3
+)
+rule_comment = (_in ->
+  trace(_in, "rule_comment")
+  _name = "comment"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  _in, _v1 = (_in ->
+    pOr(_name, _nr, _in
+      ,(_in ->
+        _in, _v1 = rule_slcomment(_in)
+        _in, _v2 = (_in ->
+          pOr(_name, _nr, _in
+            ,(_in ->
+              _in, _v1 = rule_nl(_in)
+              return _in, _v1
+             )
+            ,(_in ->
+              _in, _v1 = rule_end(_in)
+              return _in, _v1
+             )
+          )
+        )(_in)
+        return _in, _v2
+       )
+      ,(_in ->
+        _in, _v1 = rule_icomment(_in)
+        return _in, _v1
+       )
+    )
+  )(_in)
+  return _in, _v1
+)
+rule_ws = (_in ->
+  trace(_in, "rule_ws")
+  _name = "ws"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  _in, _v1 = pStar(_in, (_in ->
+    (_in ->
+      pOr(_name, _nr, _in
+        ,(_in ->
+          _in, _v1 = rule_sp(_in)
+          return _in, _v1
+         )
+        ,(_in ->
+          _in, _v1 = rule_nl(_in)
+          return _in, _v1
+         )
+        ,(_in ->
+          _in, _v1 = rule_comment(_in)
+          return _in, _v1
+         )
+      )
+    )(_in)
+  ))
+  return _in, _v1
+)
 rule_name = (_in ->
   trace(_in, "rule_name")
   _name = "name"
