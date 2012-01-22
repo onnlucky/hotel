@@ -414,6 +414,74 @@ rule_text = (_in ->
   _v5 = (ts.join)
   return _in, _v5
 )
+rule_cscape = (_in ->
+  trace(_in, "rule_cscape")
+  _name = "cscape"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  pOr(_name, _nr, _in
+    ,(_in ->
+      _in, _v1 = pText(_in, "\\]")
+      _v2 = ("]")
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\\n")
+      _v2 = ("\n")
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\\r")
+      _v2 = ("\r")
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\\t")
+      _v2 = ("\t")
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = pText(_in, "\\\\")
+      _v2 = ("\\")
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = pNot(_in, (_in ->
+        pText(_in, "]")
+      ))
+      _in, _v2 = pAny(_in)
+      l = _v2
+      _v3 = (l.toChar)
+      return _in, _v3
+     )
+  )
+)
+rule_char = (_in ->
+  trace(_in, "rule_char")
+  _name = "char"
+  var $_nr = null
+  _catch: (e ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if $_nr: _throw { t:#p, in: e.in, noreturn: true, msg: $_nr }
+    _throw e
+  )
+  _in, _v1 = pText(_in, "[")
+  _in, _v2 = pStar(_in, (_in ->
+    rule_cscape(_in)
+  ))
+  ts = _v2
+  _in, _v3 = _in
+  $_nr = "closing ']'"
+  _in, _v4 = pText(_in, "]")
+  _v5 = (ts.join)
+  return _in, _v5
+)
 rule_act = (_in ->
   trace(_in, "rule_act")
   _name = "act"
@@ -519,6 +587,12 @@ rule_term = (_in ->
       _in, _v1 = rule_text(_in)
       t = _v1
       _v2 = ({ type: #Text, text: t })
+      return _in, _v2
+     )
+    ,(_in ->
+      _in, _v1 = rule_char(_in)
+      t = _v1
+      _v2 = ({ type: #Char, text: t })
       return _in, _v2
      )
   )
@@ -771,6 +845,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Call): buf.write("rule_$(r.rule)(_in)\n")
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = $name\n")
     _match(r.type == #Text): buf.write("pText(_in, \"$(r.text.escape)\")\n")
+    _match(r.type == #Char): buf.write("pChar(_in, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws):   buf.write("rule_ws(_in)\n")
     _match(r.type == #Any):  buf.write("pAny(_in)\n")
     _match(true): _throw "InternalError emit unknown: $(r.type)"

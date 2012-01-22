@@ -1,7 +1,7 @@
 # TODO
 
+remove "foo $(...)" interpolation, do "foo" ... instead ...
 add tlBackTrace and implement throw that does _throw { stack: _Stack_new } ... oid
-finish lesstext parser ...
 
 upgrade httpparser module, add httpresponse
 add /trigger to autobuilder ... wouldn't that be nice!

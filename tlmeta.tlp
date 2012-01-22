@@ -16,6 +16,14 @@ slcomment: "//" (!nl _)*
         | !"\"" l=_   -> l.toChar
     text: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
 
+  cscape: "\\]"       -> "]"
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\\\"      -> "\\"
+        | !"]" l=_    -> l.toChar
+    char: "[" ts=cscape* @"closing ']'" "]"      -> ts.join
+
      act: "->". ts=(!"\n" _)*             -> ts.toChar
     cond: "?"."(". ts=(!")" _)* ")"       -> ts.toChar
 
@@ -25,6 +33,7 @@ slcomment: "//" (!nl _)*
         | c=cond                          -> { type: #Cond, act: c }
         | n=name !":"                     -> { type: #Call, rule: n }
         | t=text                          -> { type: #Text, text: t }
+        | t=char                          -> { type: #Char, text: t }
     post: "!" @"a term" t=term            -> { type: #Not, term: t }
         | t=term "*"                      -> { type: #Star, term: t }
         | t=term "+"                      -> { type: #Plus, term: t }
@@ -61,6 +70,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Call): buf.write("rule_$(r.rule)(_in)\n")
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = $name\n")
     _match(r.type == #Text): buf.write("pText(_in, \"$(r.text.escape)\")\n")
+    _match(r.type == #Char): buf.write("pChar(_in, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws):   buf.write("rule_ws(_in)\n")
     _match(r.type == #Any):  buf.write("pAny(_in)\n")
     _match(true): _throw "InternalError emit unknown: $(r.type)"

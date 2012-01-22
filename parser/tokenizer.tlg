@@ -1,0 +1,75 @@
+rule_pos = in -> return in, in.pos
+
+tokenize = parser {
+
+       sp: " " | "\t"
+       nl: "\r\n" | "\n\r" | "\n" | "\r"
+       ws: sp*
+
+// TODO now multiline comments continue statements including topcalls and expressions
+// TODO also now we don't allow nested comments ...
+slcomment: "//" (!nl _)*
+ icomment: "/*" (!"*/" _)* ("*/"|end)
+  comment: (slcomment | icomment)
+
+  escape: "\\\""      -> "\""
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\\\"      -> "\\"
+        | !"\"" l=_   -> l.toChar
+    text: "\"" ts=escape* "\"" -> ts.join
+
+  nonopr: " " | "\n" | "\r" | "\t"                         | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "\"" | "'" | "#"
+nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | "=" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "\"" | "'" | "#"
+
+    opls: !"#" rs=(!nonopr !alphanumeric _)+ -> rs.toChar
+      op: o=opls -> o
+    name: n=(alpha|[_]) rs=(!nonident _)* -> rs.prepend(n).toChar
+     sym: "#" rs=(!nonident _)*           -> rs.toChar
+     ref: d=_ n=name         -> n
+
+     num: s=sign n=numr                   -> s * n.reduce((l, r -> l * 10 + r))
+    sign: "-"  -> -1
+        | "+"  ->  1
+        | !end ->  0
+    numr: n=numeric "_" b=numr            -> b.prepend(n - 48)
+        | n=numeric b=numr                -> b.prepend(n - 48)
+        | n=numeric                       -> [n - 48]
+
+   token: p=pos (
+              "("               -> { type: "(", pos: p }
+            | ")"               -> { type: ")", pos: p }
+            | "["               -> { type: "[", pos: p }
+            | "]"               -> { type: "]", pos: p }
+            | "{"               -> { type: "{", pos: p }
+            | "}"               -> { type: "}", pos: p }
+            | ";"               -> { type: ";", pos: p }
+            | ","               -> { type: ",", pos: p }
+            | "=" !op           -> { type: "=", pos: p }
+            | "." !op           -> { type: ".", pos: p }
+            | "!" !op           -> { type: "!", pos: p }
+            | ":" !op           -> { type: ":", pos: p }
+            | comment           -> { type: #comment, pos: p }
+            | s=sym             -> { type: #sym, pos: p, val: s }
+            | t=text            -> { type: #text, pos: p, val: t }
+            | n=name            -> { type: #name, pos: p, val: n }
+            | n=num             -> { type: #num, pos: p, val: n }
+            | o=op  !(!nonopr)  -> { type: #op, pos: p, val: o }
+            | n=ref             -> { type: #ref, pos: p, val: n }
+            | rs=(!sp !nl _)+   -> print("ERR:", rs.toChar); { type: #error, pos: p, val: rs.toChar }
+        )
+
+indentsp: " "  r=indentsp -> r + 1
+        | "\t" r=indentsp -> r + 4
+        | .               -> 0
+  indent: v=indentsp p=pos                         -> { type: #indent, val: v }
+
+    line: !end i=indent ts=(. !nl token)* .(nl|end) -> ts.prepend(i)
+   start: ls=line* end                              -> ls.reduce((l, r -> l.cat(r)))
+}
+
+print "STARTING"
+//print inspect tokenize("foo +  ")
+print inspect tokenize(io.File("tlmeta.tl").read)
+
