@@ -17,7 +17,7 @@ pAny = (in ->
 pText = (in, text ->
     trace(in, "pText: $text")
     if in.text.startsWith(text, in.pos): return { text: in.text, pos: in.pos + text.size }, text
-    _throw { t: #p, in: in }
+    _throw { t: #p, in: in, msg: text }
 )
 pChar = (in, text ->
     trace(in, "pChar: $text")
@@ -74,14 +74,16 @@ pPlus = (in, parser ->
     in, v = parser(in)
     _pmany(in, parser, [v])
 )
-pOr = (name, nr, in ->
-    var $i = 3
+pOr = (name, in ->
+    var $i = 2
     // TODO instead of just the last one, collect all alternatives
+    var $nr = null
     var $err = null
     loop: (
         parser = args.get($i)
         if not parser: break
         trace(in, "pOr: $name: $($i)")
+        $nr = null
         $i += 1
         _catch: (e ->
             trace(in, "ERROR: $e NoReturn: $($nr)")
@@ -92,14 +94,20 @@ pOr = (name, nr, in ->
             )
             if e?noreturn: $err = e
         )
-        // TODO return parser(in) should work somehow ...
-        in, v = parser(in)
+        in, v = parser(nr, in)
         trace(in, "pOr: $name <<")
         return in, v
     )
     trace(in, "pOr: $name: no alternatives")
     if $err: _throw $err
     _throw { t: #p, in: in, msg: "a $name" }
+)
+
+pHandle = (e, nr ->
+    if e?t != #p: _throw e
+    if e?noreturn: _throw e
+    if nr: _throw { t:#p, in: e.in, noreturn: true, msg: nr }
+    _throw e
 )
 
 lineFromPos = (text, pos ->

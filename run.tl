@@ -317,7 +317,7 @@ ast = parse(parseStart, text)
 
 
 // ** emitting a new parser **
-emit = (r, buf, ind, name ->
+emit = (r, buf, ind ->
     _match(r.type == #Or): goto emitOr r, buf, ind
     _match(r.type == #And): goto emitAnd r, buf, ind
     _match(r.type == #Sub): goto emitSub r, buf, ind
@@ -328,97 +328,84 @@ emit = (r, buf, ind, name ->
 
     _match(r.type == #NoReturn): goto emitNoReturn r, buf, ind
     _match(r.type == #Call): goto emitCall r, buf, ind
-    _match(r.type == #Bind): goto emitBind r, buf, ind, name
+    _match(r.type == #Bind): goto emitBind r, buf, ind
     _match(r.type == #Text): goto emitText r, buf, ind
-    _match(r.type == #Ws): goto emitWs r, buf
-    _match(r.type == #Any): goto emitAny r, buf
+    _match(r.type == #Ws): goto emitWs r, buf, ind
+    _match(r.type == #Any): goto emitAny r, buf, ind
     _match(true): _throw "Error emit: $(r.type)"
     _nomatch
 )
 emitAny = (r, buf, ind ->
-    buf.write("pAny(_in)\n")
+    buf.write("$ind  _in, _v = pAny(_in)\n")
 )
 emitWs = (r, buf, ind ->
-    buf.write("rule_ws(_in)\n")
+    buf.write("$ind  _in, _v = rule_ws(_in)\n")
 )
 emitText = (r, buf, ind ->
-    buf.write("pText(_in, \"$(r.text.escape)\")\n")
+    buf.write("$ind  _in, _v = pText(_in, \"$(r.text.escape)\")\n")
 )
-emitBind = (r, buf, ind, vn ->
+emitBind = (r, buf, ind ->
     emit r.term, buf, ind
-    buf.write("$(ind)  $(r.name) = $vn\n")
+    buf.write("$(ind)  $(r.name) = _v\n")
 )
 emitCall = (r, buf, ind ->
-    buf.write("rule_$(r.rule)(_in)\n")
+    buf.write("$ind  _in, _v = rule_$(r.rule)(_in)\n")
 )
 emitNoReturn = (r, buf, ind ->
-    buf.write("_in\n$(ind)  \$_nr = \"$(r.msg.escape)\"\n")
+    buf.write("$ind  \$_nr = \"$(r.msg.escape)\"\n")
 )
 emitNot = (r, buf, ind ->
-    buf.write("$("")pNot(_in, (_in ->\n$(ind)    ")
+    buf.write("$ind  _in, _v = pNot(_in, (_in ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  ))\n")
+    buf.write("$ind  ))\n")
 )
 emitOpt = (r, buf, ind ->
-    buf.write("$("")pOpt(_in, (_in ->\n$(ind)    ")
+    buf.write("$ind  _in, _v = pOpt(_in, (_in ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  ))\n")
+    buf.write("$ind  ))\n")
 )
 emitStar = (r, buf, ind ->
-    buf.write("$("")pStar(_in, (_in ->\n$(ind)    ")
+    buf.write("$ind  _in, _v = pStar(_in, (_in ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  ))\n")
+    buf.write("$ind  ))\n")
 )
 emitPlus = (r, buf, ind ->
-    buf.write("$("")pPlus(_in, (_in ->\n$(ind)    ")
+    buf.write("$ind  _in, _v = pPlus(_in, (_in ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  ))\n")
+    buf.write("$ind  ))\n")
 )
 emitAnd = (r, buf, ind ->
     var $n = 0
-    r.terms.each: (r ->
-        name = "_v$($n += 1)"
-        buf.write("$(ind)  _in, $(name) = ")
-        emit r, buf, ind, name
-    )
-    if r.act: (
-        name = "_v$($n += 1)"
-        buf.write("$(ind)  $name = ($(r.act))\n")
-    )
-    buf.write("$(ind)  return _in, _v$($n)\n")
+    // TODO maybe collect all binds, and "call" r.act
+    r.terms.each: r -> emit r, buf, ind
+    if r.act: buf.write("$ind  _v = ($(r.act))\n")
+    buf.write("$ind  return _in, _v\n")
 )
 emitOr = (r, buf, ind ->
     if r.terms.size == 0: return
     if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
 
-    buf.write("$(ind)  pOr(_name, _nr, _in\n")
+    buf.write("$ind  _in, _v = pOr(_name, _in\n")
     r.terms.each: (r ->
-        buf.write("$(ind)    ,(_in ->\n")
+        buf.write("$ind    ,(_nr, _in ->\n")
         emit r, buf, ind.cat("    ")
-        buf.write("$(ind)     )\n")
+        buf.write("$ind     )\n")
     )
-    buf.write("$(ind)  )\n")
+    buf.write("$ind  )\n")
 )
 
 emitSub = (r, buf, ind ->
-    buf.write("(_in ->\n")
+    buf.write("$ind  _in, _v = (_in ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$(ind)  )(_in)\n")
+    buf.write("$ind  )(_in)\n")
 )
 emitRule = (r, buf ->
     name = r.name
     buf.write("rule_$name = (_in ->\n")
-    buf.write("  trace(_in, \"rule_$name\")\n")
-    // TODO only if has a pOr
-    buf.write("  _name = \"$name\"\n")
     buf.write("  var \$_nr = null\n")
-    // TODO only if rule has a noreturn
-    buf.write("  _catch: (e ->\n")
-    buf.write("    if e?t != #p: _throw e\n")
-    buf.write("    if e?noreturn: _throw e\n")
-    buf.write("    if \$_nr: _throw { t:#p, in: e.in, noreturn: true, msg: \$_nr }\n")
-    buf.write("    _throw e\n")
-    buf.write("  )\n")
+    buf.write("  _catch: e -> pHandle(e, \$_nr)\n")
+    buf.write("  trace(_in, \"rule_$name\")\n")
+    buf.write("  _name = \"$name\"\n")
     emit r.term, buf, ""
     buf.write(")\n")
 )
