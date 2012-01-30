@@ -326,33 +326,14 @@ emit = (r, buf, ind ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
-    _match(r.type == #NoReturn): goto emitNoReturn r, buf, ind
-    _match(r.type == #Call): goto emitCall r, buf, ind
-    _match(r.type == #Bind): goto emitBind r, buf, ind
-    _match(r.type == #Text): goto emitText r, buf, ind
-    _match(r.type == #Ws): goto emitWs r, buf, ind
-    _match(r.type == #Any): goto emitAny r, buf, ind
+    _match(r.type == #NoReturn): buf.write("$ind  \$_nr = \"$(r.msg.escape)\"\n")
+    _match(r.type == #Call): buf.write("$ind  _in, _v = rule_$(r.rule)(_in)\n")
+    _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v\n")
+    _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, \"$(r.text.escape)\")\n")
+    _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in)\n")
+    _match(r.type == #Any): buf.write("$ind  _in, _v = pAny(_in)\n")
     _match(true): _throw "Error emit: $(r.type)"
     _nomatch
-)
-emitAny = (r, buf, ind ->
-    buf.write("$ind  _in, _v = pAny(_in)\n")
-)
-emitWs = (r, buf, ind ->
-    buf.write("$ind  _in, _v = rule_ws(_in)\n")
-)
-emitText = (r, buf, ind ->
-    buf.write("$ind  _in, _v = pText(_in, \"$(r.text.escape)\")\n")
-)
-emitBind = (r, buf, ind ->
-    emit r.term, buf, ind
-    buf.write("$(ind)  $(r.name) = _v\n")
-)
-emitCall = (r, buf, ind ->
-    buf.write("$ind  _in, _v = rule_$(r.rule)(_in)\n")
-)
-emitNoReturn = (r, buf, ind ->
-    buf.write("$ind  \$_nr = \"$(r.msg.escape)\"\n")
 )
 emitNot = (r, buf, ind ->
     buf.write("$ind  _in, _v = pNot(_in, (_in ->\n")
@@ -393,7 +374,6 @@ emitOr = (r, buf, ind ->
     )
     buf.write("$ind  )\n")
 )
-
 emitSub = (r, buf, ind ->
     buf.write("$ind  _in, _v = (_in ->\n")
     emit r.term, buf, ind.cat("  ")

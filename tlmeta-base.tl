@@ -90,6 +90,7 @@ pOr = (name, in ->
             if e?t != #p: _throw e
             if $nr: (
                 if e?noreturn: _throw e
+                if $err: _throw $err
                 _throw { t: #p, in: e.in, noreturn: true, msg: $nr }
             )
             if e?noreturn: $err = e

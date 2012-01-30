@@ -1,4 +1,5 @@
 set_target = (call, fn ->
+    if not call: return fn
     if not call.target: return _Map_set(call, #target, fn)
     _Map_set(call, #target, set_target(call.target, fn))
 )
@@ -39,27 +40,15 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 
     args: a=expr as=(.sepnl expr)*          -> as.prepend(a)
         | .                                 -> []
-    tail: "(". as=args .")" (
-            t=tail                          -> set_target(t, { type: #call, target: null, args: [as] })
-            | .                             -> { type: #call, target: null, args: [as] }
-        )
-        | "[". l=expr? .":". r=expr? ."]" (
-            t=tail                          -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
-            | .                             -> { type: #send, target: null, msg: #slice, args: [l, r] }
-        )
-        | "[". e=expr ."]" (
-            t=tail                          -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
-            | .                             -> { type: #send, target: null, msg: #get, args: [e] }
-        )
-        | "." n=ident "(". as=args .")" (
-            t=tail                          -> set_target(t, { type: #send, target: null, msg: n, args: as })
-            | .                             -> { type: #send, target: null, msg: n, args: as }
-        )
-        | "." n=ident (
-            t=tail                          -> set_target(t, { type: #send, target: null, msg: n, args: [] })
-            | .                             -> { type: #send, target: null, msg: n, args: [], topcall: true }
-        )
-    call: fn=value t=tail                   -> set_target(t, fn)
+
+    tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: [as] })
+        | "[". l=expr? .":". @"a closing ']'" r=expr? ."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
+        | "[". @"a closing ']'" e=expr ."]" t=tail                -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
+        | "." n=ident "(". @"a closing ')'" as=args .")" t=tail   -> set_target(t, { type: #send, target: null, msg: n, args: as })
+        | "." @"a message" n=ident t=tail                         -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
+        | .                                                       -> null
+
+    call: fn=value t=tail                                         -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg" wsnl expr)* -> as.prepend(a)
  topcall: !"(" fn=ident sp. !"(" (
@@ -85,5 +74,5 @@ selfcall: fn=ident                          -> { type: #call, target: fn, args: 
    start: .e=stm.                               -> e
 }
 
-print inspect parse("loop(bar): test")
+print inspect parse("loop[bar:10,](test,) ")
 
