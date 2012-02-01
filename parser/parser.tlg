@@ -20,8 +20,9 @@ slcomment: "//" (!nl _)*
       ws: (sp | icomment)*
     wsnl: (sp | nl | comment)*
 
-   sepnl: ("," | nl) wsnl
-   eostm: (";" | nl | end | !(!")") | !(!"}") !(!"]")) wsnl
+   sepnl: . ("," | nl) wsnl
+   eosnl: . (";" | nl) wsnl
+   eostm: . (";" | nl | end | !(!")") | !(!"}") !(!"]")) wsnl
 
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
    ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
@@ -38,7 +39,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | n=ident                           -> { type: #ref, name: n }
         | num
 
-    args: a=expr as=(.sepnl expr)*          -> as.prepend(a)
+    args: a=expr as=(sepnl expr)*          -> as.prepend(a)
         | .                                 -> []
 
     tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: [as] })
@@ -66,13 +67,15 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 selfcall: fn=ident                          -> { type: #call, target: fn, args: [] }
     expr: call
         | value
-     stm: e=topcall .b=block?            .eostm -> add_block(e, b)
-        | e=selfcall .b=block?           .eostm -> add_block(e, b)
-        | e=call .b=block?               .eostm -> add_block(e, b)
-        | e=expr     @"end of statement" .eostm -> e
+     stm: e=topcall .b=block?            &eostm -> add_block(e, b)
+        | e=selfcall .b=block?           &eostm -> add_block(e, b)
+        | e=call .b=block?               &eostm -> add_block(e, b)
+        | e=expr     @"end of statement" &eostm -> e
 
-   start: .e=stm.                               -> e
+    stms: t=stm ts=(eosnl+ stm)*                -> ts.prepend(t)
+
+   start: . e=stms .                            -> e
 }
 
-print inspect parse("loop[bar:10,](test,) ")
+print inspect parse("42; 43")
 

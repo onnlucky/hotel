@@ -41,6 +41,11 @@ pNot = (in, parser ->
     )
     _throw { t: #p, in: in }
 )
+pAhead = (in, parser ->
+    trace(in, "pAhead")
+    in2 = parser(in)
+    return in
+)
 pOpt = (in, parser ->
     trace(in, "pOpt")
     _catch: (e ->

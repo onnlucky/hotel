@@ -35,6 +35,7 @@ slcomment: "//" (!nl _)*
         | t=text                          -> { type: #Text, text: t }
         | t=char                          -> { type: #Char, text: t }
     post: "!" @"a term" t=term            -> { type: #Not, term: t }
+        | "&" @"a term" t=term            -> { type: #Ahead, term: t }
         | t=term "*"                      -> { type: #Star, term: t }
         | t=term "+"                      -> { type: #Plus, term: t }
         | t=term "?"                      -> { type: #Opt, term: t }
@@ -60,6 +61,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #And): goto emitAnd r, buf, ind
     _match(r.type == #Sub): goto emitSub r, buf, ind
     _match(r.type == #Not): goto emitNot r, buf, ind
+    _match(r.type == #Ahead): goto emitAhead r, buf, ind
     _match(r.type == #Opt): goto emitOpt r, buf, ind
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
@@ -78,6 +80,11 @@ emit = (r, buf, ind, name ->
 )
 emitNot = (r, buf, ind ->
     buf.write("$ind  _in, _v = pNot(_in, (_in ->\n")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$ind  ))\n")
+)
+emitAhead = (r, buf, ind ->
+    buf.write("$ind  _in, _v = pAhead(_in, (_in ->\n")
     emit r.term, buf, ind.cat("  ")
     buf.write("$ind  ))\n")
 )

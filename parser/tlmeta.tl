@@ -43,6 +43,11 @@ pNot = (in, parser ->
     )
     _throw { t: #p, in: in }
 )
+pAhead = (in, parser ->
+    trace(in, "pAhead")
+    in2 = parser(in)
+    return in
+)
 pOpt = (in, parser ->
     trace(in, "pOpt")
     _catch: (e ->
@@ -92,6 +97,7 @@ pOr = (name, in ->
             if e?t != #p: _throw e
             if $nr: (
                 if e?noreturn: _throw e
+                if $err: _throw $err
                 _throw { t: #p, in: e.in, noreturn: true, msg: $nr }
             )
             if e?noreturn: $err = e
@@ -547,6 +553,14 @@ rule_post = (_in ->
       return _in, _v
      )
     ,(_nr, _in ->
+      _in, _v = pText(_in, "&")
+      $_nr = "a term"
+      _in, _v = rule_term(_in)
+      t = _v
+      _v = ({ type: #Ahead, term: t })
+      return _in, _v
+     )
+    ,(_nr, _in ->
       _in, _v = rule_term(_in)
       t = _v
       _in, _v = pText(_in, "*")
@@ -730,6 +744,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #And): goto emitAnd r, buf, ind
     _match(r.type == #Sub): goto emitSub r, buf, ind
     _match(r.type == #Not): goto emitNot r, buf, ind
+    _match(r.type == #Ahead): goto emitAhead r, buf, ind
     _match(r.type == #Opt): goto emitOpt r, buf, ind
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
@@ -748,6 +763,11 @@ emit = (r, buf, ind, name ->
 )
 emitNot = (r, buf, ind ->
     buf.write("$ind  _in, _v = pNot(_in, (_in ->\n")
+    emit r.term, buf, ind.cat("  ")
+    buf.write("$ind  ))\n")
+)
+emitAhead = (r, buf, ind ->
+    buf.write("$ind  _in, _v = pAhead(_in, (_in ->\n")
     emit r.term, buf, ind.cat("  ")
     buf.write("$ind  ))\n")
 )
