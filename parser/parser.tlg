@@ -75,8 +75,8 @@ selfcall: fn=ident                          -> { type: #call, target: fn, args: 
 
     stms: t=stm ts=(.";". stm)*                -> ts.prepend(t)
 
-    body: wsnl c=column ts=stms ?(print c; 1)
-          tss=(wsnl cc=column ?(cc >= c) stms ?(print cc; 1))*   -> tss.prepend(ts)
+    body: wsnl c=column ts=stms
+          tss=(wsnl cc=column ?(cc >= c) stms)*   -> tss.prepend(ts)
 
    start: b=body wsnl end -> b
 }

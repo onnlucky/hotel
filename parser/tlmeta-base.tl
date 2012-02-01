@@ -119,8 +119,9 @@ pHandle = (e, nr ->
 colFromPos = (text, pos ->
     var $col = 0
     loop: (
-        if pos - $col < 0: print "!OL:", pos; return pos
-        if text.startsWith("\n", pos - $col): print "COL:", $col; return $col
+        at = pos - $col - 1
+        if at < 0: return pos
+        if text.startsWith("\n", at): return $col
         $col += 1
     )
 )
