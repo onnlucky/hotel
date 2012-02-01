@@ -154,6 +154,7 @@ rule_end = (in ->
 )
 
 rule_line = (in -> return in, lineFromPos(in.text, in.pos))
+rule_column = (in -> line, col = lineFromPos(in.text, in.pos); print("COL:", col); return in, col)
 
 rule_lower = (in -> pChar(in, LOWER))
 rule_upper = (in -> pChar(in, UPPER))
@@ -749,7 +750,7 @@ emit = (r, buf, ind, name ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
-    _match(r.type == #Cond): buf.write("$ind  if not ($(r.act)): _throw { t: #p, in: _in }")
+    _match(r.type == #Cond): buf.write("$ind  if not ($(r.act)): _throw { t: #p, in: _in }\n")
     _match(r.type == #NoReturn): buf.write("$ind  \$_nr = \"$(r.msg.escape)\"\n")
 
     _match(r.type == #Call): buf.write("$ind  _in, _v = rule_$(r.rule)(_in)\n")

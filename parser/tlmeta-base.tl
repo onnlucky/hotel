@@ -116,6 +116,14 @@ pHandle = (e, nr ->
     _throw e
 )
 
+colFromPos = (text, pos ->
+    var $col = 0
+    loop: (
+        if pos - $col < 0: print "!OL:", pos; return pos
+        if text.startsWith("\n", pos - $col): print "COL:", $col; return $col
+        $col += 1
+    )
+)
 lineFromPos = (text, pos ->
     // TODO bit inefficient ... but works
     lines = text.slice(0, pos).split("\n")
@@ -152,6 +160,7 @@ rule_end = (in ->
 )
 
 rule_line = (in -> return in, lineFromPos(in.text, in.pos))
+rule_column = (in -> return in, colFromPos(in.text, in.pos))
 
 rule_lower = (in -> pChar(in, LOWER))
 rule_upper = (in -> pChar(in, UPPER))
