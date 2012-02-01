@@ -5,8 +5,7 @@ set_target = (call, fn ->
 )
 add_block = (call, block ->
     if not block: return call
-    print "BLOCK!"
-    return call
+    _Map_set(call, #block, block)
 )
 
 parse = parser {
@@ -21,8 +20,9 @@ slcomment: "//" (!nl _)*
     wsnl: (sp | nl | comment)*
 
    sepnl: . ("," | nl) wsnl
+     eos: . ";" .
    eosnl: . (";" | nl) wsnl
-   eostm: . (";" | nl | end | !(!")") | !(!"}") !(!"]")) wsnl
+   eostm: . (";" | nl | end | ")" | "}" | "]") wsnl
 
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
    ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
@@ -35,12 +35,13 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | n=numeric b=numr     -> b.prepend(n - 48)
         | n=numeric            -> [n - 48]
 
-   value: "(".@"closing ')'" c=stm .")"     -> c
-        | n=ident                           -> { type: #ref, name: n }
+   value: "(". c=stm .")"                          -> c
+        | "(".@"closing ')'" wsnl ts=stms wsnl ")" -> ts
+        | n=ident                                  -> { type: #ref, name: n }
         | num
 
-    args: a=expr as=(sepnl expr)*          -> as.prepend(a)
-        | .                                 -> []
+    args: a=expr as=(sepnl expr)*             -> as.prepend(a)
+        | .                                   -> []
 
     tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: [as] })
         | "[". l=expr? .":". @"a closing ']'" r=expr? ."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
@@ -62,7 +63,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
-   block: ":".stm
+   block: ":". body
 
 selfcall: fn=ident                          -> { type: #call, target: fn, args: [] }
     expr: call
@@ -72,10 +73,13 @@ selfcall: fn=ident                          -> { type: #call, target: fn, args: 
         | e=call .b=block?               &eostm -> add_block(e, b)
         | e=expr     @"end of statement" &eostm -> e
 
-    stms: t=stm ts=(eosnl+ stm)*                -> ts.prepend(t)
+    stms: t=stm ts=(.";". stm)*                -> ts.prepend(t)
 
-   start: . e=stms .                            -> e
+    body: wsnl c=column ts=stms ?(print c; 1)
+          tss=(wsnl cc=column ?(cc >= c) stms ?(print cc; 1))*   -> tss.prepend(ts)
+
+   start: b=body wsnl end -> b
 }
 
-print inspect parse("42; 43")
+print inspect parse(io.File("test-input.tl").read)
 
