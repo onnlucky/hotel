@@ -8,6 +8,24 @@ add_block = (call, block ->
     _Map_set(call, #block, block)
 )
 
+var $current_indent = -1
+begin_body = (indent ->
+    print("begin-body?", indent)
+    if indent <= $current_indent: return false
+    $current_indent = indent
+    return true
+)
+in_body = (indent, i ->
+    print("in-body", indent)
+    $current_indent = indent
+    return indent <= i
+)
+end_body = (indent ->
+    print("end-body", indent)
+    assert indent == $current_indent
+    return true
+)
+
 parse = parser {
       sp: " " | "\t"
       nl: "\r\n" | "\n\r" | "\n" | "\r"
@@ -75,8 +93,8 @@ selfcall: fn=ident                          -> { type: #call, target: fn, args: 
 
     stms: t=stm ts=(.";". stm)*                -> ts.prepend(t)
 
-    body: wsnl c=column ts=stms
-          tss=(wsnl cc=column ?(cc >= c) stms)*   -> tss.prepend(ts)
+    body: wsnl c=column ?(begin_body c) ts=stms
+          tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts)
 
    start: b=body wsnl end -> b
 }
