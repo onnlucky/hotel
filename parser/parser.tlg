@@ -53,7 +53,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | n=numeric            -> [n - 48]
 
    value: "(". c=stm .")"                          -> c
-        | "(".@"closing ')'" wsnl ts=stms wsnl ")" -> ts
+        | "(".@"closing ')'" wsnl b=body wsnl ")"  -> ts
         | function
         | n=ident                                  -> { type: #ref, name: n }
         | num
@@ -112,10 +112,10 @@ selfcall: fn=ident                             -> { type: #call, target: fn, arg
         | ":" wsnl "{" wsnl b=body wsnl "}"     -> b
         | ":" wsnl @"a function or a block" bodynl
 
-    body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts)
+    body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts).reduce((l, r -> l.cat(r)))
 
   bodynl: c=column ?(begin_body c) ts=stms
-          tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts)
+          tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce((l, r -> l.cat(r)))
 
    start: wsnl b=body wsnl end -> b
 }
