@@ -8,21 +8,20 @@ add_block = (call, block ->
     _Map_set(call, #block, block)
 )
 
-var $current_indent = -1
+var $current_indent = [0]
 begin_body = (indent ->
     print("begin-body?", indent)
-    if indent <= $current_indent: return false
-    $current_indent = indent
+    if indent <= $current_indent.get(0): return false
+    $current_indent = $current_indent.prepend(indent)
     return true
 )
 in_body = (indent, i ->
     print("in-body", indent)
-    $current_indent = indent
     return indent <= i
 )
 end_body = (indent ->
     print("end-body", indent)
-    assert indent == $current_indent
+    $current_indent = $current_indent.slice(1)
     return true
 )
 
@@ -40,7 +39,7 @@ slcomment: "//" (!nl _)*
    sepnl: . ("," | nl) wsnl
      eos: . ";" .
    eosnl: . (";" | nl) wsnl
-   eostm: . (";" | nl | end | ")" | "}" | "]") wsnl
+   eostm: . (";" | nl | end | ")" | "}" | "]")
 
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
    ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
@@ -55,6 +54,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 
    value: "(". c=stm .")"                          -> c
         | "(".@"closing ')'" wsnl ts=stms wsnl ")" -> ts
+        | function
         | n=ident                                  -> { type: #ref, name: n }
         | num
 
@@ -81,22 +81,43 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
-   block: ":". body
+function: "{" wsnl as=fargs wsnl "->" wsnl
+              @"a closing '}'" b=body wsnl "}" -> { type: #fn, args: as, body: b }
+   fargs: a=farg wsnl "," wsnl as=fargs        -> as.prepend(a)
+        | a=farg                               -> [a]
+        | .                                    -> []
+    farg: "&&" n=ident                         -> { type: #collectlazy, name: n }
+        | "**" n=ident                         -> { type: #collecteager, name: n }
+        | "&" n=ident                          -> { type: #lazy, name: n }
+        | n=ident                              -> { type: #eager, name: n }
 
-selfcall: fn=ident                          -> { type: #call, target: fn, args: [] }
+selfcall: fn=ident                             -> { type: #call, target: fn, args: [] }
     expr: call
         | value
-     stm: e=topcall .b=block?            &eostm -> add_block(e, b)
+
+     rhs: e=topcall .b=block?            &eostm -> add_block(e, b)
         | e=selfcall .b=block?           &eostm -> add_block(e, b)
         | e=call .b=block?               &eostm -> add_block(e, b)
         | e=expr     @"end of statement" &eostm -> e
 
-    stms: t=stm ts=(.";". stm)*                -> ts.prepend(t)
+   slots: a=slot as=(.",". slot)*               -> as.prepend(a)
+    slot: n=ident
 
-    body: wsnl c=column ?(begin_body c) ts=stms
+     stm: s=slots ."=" wsnl e=rhs               -> { type: #put, slots: s, value: e }
+        | rhs
+
+    stms: t=stm ts=(.";".@"statement" stm)*     -> ts.prepend(t)
+
+   block: ":" wsnl function
+        | ":" wsnl "{" wsnl b=body wsnl "}"     -> b
+        | ":" wsnl @"a function or a block" bodynl
+
+    body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts)
+
+  bodynl: c=column ?(begin_body c) ts=stms
           tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts)
 
-   start: b=body wsnl end -> b
+   start: wsnl b=body wsnl end -> b
 }
 
 print inspect parse(io.File("test-input.tl").read)
