@@ -7,20 +7,28 @@ add_block = (call, block ->
     if not block: return call
     _Map_set(call, #block, block)
 )
+not_reserved = (name ->
+    if name == "null": return false
+    if name == "undefined": return false
+    if name == "true": return false
+    if name == "false": return false
+    if name == "not": return false
+    if name == "and": return false
+    if name == "or": return false
+    if name == "xor": return false
+    return true
+)
 
 var $current_indent = [0]
 begin_body = (indent ->
-    print("begin-body?", indent)
     if indent <= $current_indent.get(0): return false
     $current_indent = $current_indent.prepend(indent)
     return true
 )
 in_body = (indent, i ->
-    print("in-body", indent)
     return indent <= i
 )
 end_body = (indent ->
-    print("end-body", indent)
     $current_indent = $current_indent.slice(1)
     return true
 )
@@ -40,9 +48,13 @@ slcomment: "//" (!nl _)*
      eos: . ";" .
    eosnl: . (";" | nl) wsnl
    eostm: . (";" | nl | end | ")" | "}" | "]")
+  eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]")
 
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
-   ident: n=alpha rs=(!nonident _)* -> rs.prepend(n).toChar
+    name: n=alpha rs=(!nonident _)*  -> rs.prepend(n).toChar
+   ident: n=name ?(not_reserved n) -> n
+
+      op: "or" | "and" | "not"
 
     sign: "-" -> -1
         | "+" ->  1
@@ -57,6 +69,17 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | function
         | n=ident                                  -> { type: #ref, name: n }
         | num
+        | "true"                                   -> true
+        | "false"                                  -> false
+        | "null"                                   -> { type: #value, value: #null }
+        | "undefined"                              -> { type: #value, value: #undefined }
+
+   oplog: v=opnot . vs=("or"  wsnl r=opnot     -> { type: #call, target: #or, args: [r] }
+                       |"and" wsnl r=opnot     -> { type: #call, target: #or, args: [r] }
+                       |"xor" wsnl r=opnot     -> { type: #call, target: #xor, args: [r] }
+                       )*                      -> { type: #somebinops, args: vs.prepend(v) }
+   opnot: "not" wsnl r=value                    -> { type: #call, target: #not, args: [r] }
+        | value
 
     args: a=expr as=(sepnl expr)*             -> as.prepend(a)
         | .                                   -> []
@@ -66,13 +89,13 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | "[". @"a closing ']'" e=expr ."]" t=tail                -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
         | "." n=ident "(". @"a closing ')'" as=args .")" t=tail   -> set_target(t, { type: #send, target: null, msg: n, args: as })
         | "." @"a message" n=ident t=tail                         -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
-        | .                                                       -> null
+        | &eoexpr                                                 -> null
 
     call: fn=value t=tail                                         -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg" wsnl expr)* -> as.prepend(a)
- topcall: !"(" fn=ident sp. !"(" (
-            a=topcall                       -> { type: #call, target: fn, args: [a] }
+ topcall: !"(" fn=ident sp. !"(" !op (
+              a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
         // certain calls can be used as topcall, e.g. print.call debug.inspect 42
@@ -93,7 +116,7 @@ function: "{" wsnl as=fargs wsnl "->" wsnl
 
 selfcall: fn=ident                             -> { type: #call, target: fn, args: [] }
     expr: call
-        | value
+        | oplog
 
      rhs: e=topcall .b=block?            &eostm -> add_block(e, b)
         | e=selfcall .b=block?           &eostm -> add_block(e, b)
