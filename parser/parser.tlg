@@ -47,8 +47,8 @@ slcomment: "//" (!nl _)*
    sepnl: . ("," | nl) wsnl
      eos: . ";" .
    eosnl: . (";" | nl) wsnl
-   eostm: . (";" | nl | end | ")" | "}" | "]")
-  eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]")
+   eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
+  eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
 
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
     name: n=alpha rs=(!nonident _)*  -> rs.prepend(n).toChar
@@ -64,9 +64,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | n=numeric b=numr     -> b.prepend(n - 48)
         | n=numeric            -> [n - 48]
 
-   value: "(". c=stm .")"                          -> c
-        | "(".@"closing ')'" wsnl b=body wsnl ")"  -> ts
-        | function
+   value: function
         | n=ident                                  -> { type: #ref, name: n }
         | num
         | "true"                                   -> true
@@ -74,11 +72,39 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | "null"                                   -> { type: #value, value: #null }
         | "undefined"                              -> { type: #value, value: #undefined }
 
-   oplog: v=opnot . vs=("or"  wsnl r=opnot     -> { type: #call, target: #or, args: [r] }
-                       |"and" wsnl r=opnot     -> { type: #call, target: #or, args: [r] }
-                       |"xor" wsnl r=opnot     -> { type: #call, target: #xor, args: [r] }
-                       )*                      -> { type: #somebinops, args: vs.prepend(v) }
-   opnot: "not" wsnl r=value                    -> { type: #call, target: #not, args: [r] }
+    expr: oplog
+
+   oplog: l=opnot .("or"  wsnl r=oplog       -> { type: #call, target: #or,  args: [l, r] }
+                   |"and" wsnl r=oplog       -> { type: #call, target: #and, args: [l, r] }
+                   |"xor" wsnl r=oplog       -> { type: #call, target: #xor, args: [l, r] }
+                   | .                       -> l
+                   )
+   opnot: "not" wsnl r=opcmp                 -> { type: #call, target: #not, args: [r] }
+        | opcmp
+   opcmp: l=opadd .("<=" wsnl r=opcmp        -> { type: #call, target: #lte, args: [l, r] }
+                   |"<"  wsnl r=opcmp        -> { type: #call, target: #lt,  args: [l, r] }
+                   |">=" wsnl r=opcmp        -> { type: #call, target: #gte, args: [l, r] }
+                   |">"  wsnl r=opcmp        -> { type: #call, target: #gt,  args: [l, r] }
+                   |"==" wsnl r=opcmp        -> { type: #call, target: #eq,  args: [l, r] }
+                   |"!=" wsnl r=opcmp        -> { type: #call, target: #neq, args: [l, r] }
+                   | .                       -> l
+                   )
+   opadd: l=opmul .("+" wsnl r=opadd         -> { type: #call, target: #add, args: [l, r] }
+                   |"-" wsnl r=opadd         -> { type: #call, target: #sub, args: [l, r] }
+                   | .                       -> l
+                   )
+   opmul: l=oppow .("*" wsnl r=opmul         -> { type: #call, target: #mul, args: [l, r] }
+                   |"/" wsnl r=opmul         -> { type: #call, target: #div, args: [l, r] }
+                   |"%" wsnl r=opmul         -> { type: #call, target: #mod, args: [l, r] }
+                   | .                       -> l
+                   )
+   oppow: l=paren .("^" wsnl r=oppow         -> { type: #call, target: #pow, args: [l, r] }
+                   | .                       -> l
+                   )
+
+   paren: "(". c=stm .")"                          -> c
+        | "(".@"closing ')'" wsnl b=body wsnl ")"  -> ts
+        | call
         | value
 
     args: a=expr as=(sepnl expr)*             -> as.prepend(a)
@@ -89,9 +115,9 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | "[". @"a closing ']'" e=expr ."]" t=tail                -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
         | "." n=ident "(". @"a closing ')'" as=args .")" t=tail   -> set_target(t, { type: #send, target: null, msg: n, args: as })
         | "." @"a message" n=ident t=tail                         -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
-        | &eoexpr                                                 -> null
+        | .                                                       -> null
 
-    call: fn=value t=tail                                         -> set_target(t, fn)
+    call: fn=value t=tail ?(t)                                    -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg" wsnl expr)* -> as.prepend(a)
  topcall: !"(" fn=ident sp. !"(" !op (
@@ -115,8 +141,6 @@ function: "{" wsnl as=fargs wsnl "->" wsnl
         | n=ident                              -> { type: #eager, name: n }
 
 selfcall: fn=ident                             -> { type: #call, target: fn, args: [] }
-    expr: call
-        | oplog
 
      rhs: e=topcall .b=block?            &eostm -> add_block(e, b)
         | e=selfcall .b=block?           &eostm -> add_block(e, b)
