@@ -1,13 +1,13 @@
-set_target = (call, fn ->
+set_target = { call, fn ->
     if not call: return fn
     if not call.target: return _Map_set(call, #target, fn)
     _Map_set(call, #target, set_target(call.target, fn))
-)
-add_block = (call, block ->
+}
+add_block = { call, block ->
     if not block: return call
     _Map_set(call, #block, block)
-)
-not_reserved = (name ->
+}
+not_reserved = { name ->
     if name == "null": return false
     if name == "undefined": return false
     if name == "true": return false
@@ -17,21 +17,21 @@ not_reserved = (name ->
     if name == "or": return false
     if name == "xor": return false
     return true
-)
+}
 
 var $current_indent = [0]
-begin_body = (indent ->
+begin_body = { indent ->
     if indent <= $current_indent.get(0): return false
     $current_indent = $current_indent.prepend(indent)
     return true
-)
-in_body = (indent, i ->
+}
+in_body = { indent, i ->
     return indent <= i
-)
-end_body = (indent ->
+}
+end_body = { indent ->
     $current_indent = $current_indent.slice(1)
     return true
-)
+}
 
 parse = parser {
       sp: " " | "\t"
