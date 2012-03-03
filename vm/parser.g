@@ -237,11 +237,8 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
              | e:bpexpr     { $$ = tlListFrom1(TASK, e); }
 
 
- block = b:fn {
-           tlCodeSetIsBlock_(b, true);
-           $$ = b;
-       }
-       | "("__ b:body __ ")" {
+ block = fn
+       | "{"__ b:body __ "}" {
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
@@ -251,13 +248,24 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(TASK, tl_active(e), n,
            $$ = b;
        }
 
-    fn = "(" __ as:fargs __"->"__ b:body __ ")" {
+    fn = "{" __ as:fargs __"->"__ b:body __ "}" {
            tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
+           $$ = b;
+       }
+       | "{" __ as:fargs __"=>"__ b:body __ "}" {
+           tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
+           tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
        | as:fargs _"->"_ l:line ts:stmsnl &ssepend {
            b = tlCodeFrom(TASK, ts, FILE, l);
            tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
+           $$ = b;
+       }
+       | as:fargs _"=>"_ l:line ts:stmsnl &ssepend {
+           b = tlCodeFrom(TASK, ts, FILE, l);
+           tlCodeSetArgs_(TASK, tlCodeAs(b), L(as));
+           tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
 

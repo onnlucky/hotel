@@ -1,20 +1,20 @@
-if = cond, block -> bool(cond, block, (->))()
+if = cond, block -> bool(cond, block, {->})()
 
-Variable = (v ->
+Variable = {v ->
     queue = MsgQueue.new
     !(
-        loop = (v ->
+        loop = {v ->
             msg = queue.get
             if msg.name == #get: msg.reply v; goto loop v
             if msg.name == #set: msg.reply msg.get(0); goto loop msg.get(0)
             print("ERROR: unknown message:", msg.name)
             msg.reply
             goto loop v
-        )
+        }
         loop(v)
     )
     return queue.input
-)
+}
 
 x = Variable(0)
 out("get: ", x.get, "\n")
