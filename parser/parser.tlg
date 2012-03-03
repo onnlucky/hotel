@@ -50,16 +50,32 @@ slcomment: "//" (!nl _)*
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
 
-nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/"
+nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/" | "\"" | "'"
     name: n=alpha rs=(!nonident _)*  -> rs.prepend(n).toChar
    ident: n=name ?(not_reserved n) -> n
 
       op: "or" | "and" | "not"
 
+  escape: "\\\""      -> "\""
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\\\"      -> "\\"
+        | !"\"" l=_   -> l.toChar
+   stext: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
+
+   embed: !stext e=paren                  -> { type: #call, target: #_Text_ToText, args: [e] }
+    text: l=stext (rss=(.e=embed .t=stext -> [e, t]
+                       |.e=embed          -> [e]
+                       |.t=stext          -> [t]
+                       )+                 -> { type: #call, target: #_Text_Cat, args: rss.reduce({l, r -> l.cat(r)}).prepend(l) }
+                  | .                     -> l
+                  )
+
     sign: "-" -> -1
         | "+" ->  1
         | .   ->  1
-     num: s=sign n=numr        -> s * n.reduce((l, r -> l * 10 + r))
+     num: s=sign n=numr        -> s * n.reduce({l, r -> l * 10 + r})
     numr: n=numeric "_" b=numr -> b.prepend(n - 48)
         | n=numeric b=numr     -> b.prepend(n - 48)
         | n=numeric            -> [n - 48]
@@ -67,6 +83,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
    value: function
         | n=ident                                  -> { type: #ref, name: n }
         | num
+        | text
         | "true"                                   -> true
         | "false"                                  -> false
         | "null"                                   -> { type: #value, value: #null }
