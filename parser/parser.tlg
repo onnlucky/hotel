@@ -127,7 +127,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
     args: a=expr as=(sepnl expr)*             -> as.prepend(a)
         | .                                   -> []
 
-    tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: [as] })
+    tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: as })
         | "[". l=expr? .":". @"a closing ']'" r=expr? ."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
         | "[". @"a closing ']'" e=expr ."]" t=tail                -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
         | "." n=ident "(". @"a closing ')'" as=args .")" t=tail   -> set_target(t, { type: #send, target: null, msg: n, args: as })

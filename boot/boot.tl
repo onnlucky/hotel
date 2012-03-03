@@ -95,34 +95,37 @@ _install(List.class, #map, (map = { fn ->
 }))
 
 inspect = { x ->
-    toJSON = { x, indent, buf -> (
-        _match(isBool(x)): buf.write(x)
-        _match(not x): buf.write("null")
-        _match(isNumber(x)): buf.write(x)
-        _match(isSym(x)): buf.write("'"); buf.write(x.toText.escape); buf.write("'")
-        _match(isText(x)): buf.write("\""); buf.write(x.escape); buf.write("\"")
+    toJSON = { x, indent, buf, inlist -> (
+        _match(isBool(x)): buf.write(x); return false
+        _match(not x): buf.write("null"); return false
+        _match(isNumber(x)): buf.write(x); return false
+        _match(isSym(x)): buf.write("#"); buf.write(x.toText.escape); return false
+        _match(isText(x)): buf.write("\""); buf.write(x.escape); buf.write("\""); return false
         _match(isList(x)): (
-            if x.size == 0: return buf.write("[]")
-            if x.size == 1: buf.write("["); toJSON(x.get(0), indent.cat(" "), buf); buf.write("]"); return
-            buf.write("[\n")
-            x.each: v -> buf.write(indent); toJSON(v, indent.cat(" "), buf); buf.write(",\n")
-            //buf.rewind(2)
-            buf.write(indent)
-            buf.write("]")
+            if x.size == 0: buf.write("[]"); return false
+            if indent.size > 0: buf.write("\n")
+            x.each: { v ->
+                buf.write(indent); buf.write("- ");
+                nl = toJSON(v, indent.cat(" "), buf, true);
+                if not nl: buf.write("\n")
+            }
+            return true
         )
         _match(isObject(x)): (
             keys = _Map_keys(x)
-            if keys.size == 0: return buf.write("{}")
-            buf.write("{\n")
+            if keys.size == 0: buf.write("{}"); return false
+            if (not inlist and indent.size > 0): buf.write("\n")
+            indent = bool(inlist, indent.cat(" "), indent)
+            var $first = true
             keys.each: { key =>
-                buf.write(indent)
-                buf.write("\""); buf.write(key.toText); buf.write("\": ")
-                toJSON(_Map_get(x, key), indent.cat(" "), buf)
-                buf.write(",\n")
+                if not inlist: buf.write(indent)
+                if inlist: if not $first: buf.write(indent)
+                buf.write(key.toText); buf.write(": ")
+                nl = toJSON(_Map_get(x, key), indent.cat(" "), buf)
+                if not nl: buf.write("\n")
+                $first = false
             }
-            //buf.rewind(2)
-            buf.write(indent)
-            buf.write("}")
+            return true
         )
         _nomatch()
     )}
