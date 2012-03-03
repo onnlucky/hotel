@@ -1,67 +1,67 @@
 // hotel http library
 
-HttpConnection = (conn ->
+HttpConnection = { conn ->
     _Object_new {
         _req: null, _didhead: false, _didend: false
         _type: "text/plain"
         _in: io.Buffer.new
         _body: io.Buffer.new
-        setContentType: (type ->
+        setContentType: { type ->
             if @_didhead: _throw "Already send headers"
             @_type = type
-        )
-        req: (->
+        }
+        req: { ->
             // read and parse until headers are complete
             if @_req: return @_req
-            loop: (
+            loop: {
                 if @_in.canread > 2048: print @_in.read; conn.close; _throw "REQUEST TOO LONG"
                 if @_in.find("\r\n\r\n"): break
                 if @_in.find("\n\n"): break
                 _, len = conn.read @_in
                 if len == 0: _throw "IO ERROR"
-            )
+            }
             @_req = httpparser.request(@_in.read)
-        )
-        end: (-> if not @_didend: @_didend = true; @flush(true); conn.close)
-        write: (text ->
+        }
+        end: { -> if not @_didend: @_didend = true; @flush(true); conn.close }
+        write: { text ->
             if @_didend: _throw "Already Ended Response"
             @_body.write text
-        )
-        flush: (ending ->
+        }
+        flush: { ending ->
             if not @_didhead: @_sendheaders(ending)
-            while @_body.canread > 0: (
+            while @_body.canread > 0: {
                 len = conn.write @_body
                 if len == 0: _throw "IO ERROR"
-            )
-        )
-        _sendheaders: (ending ->
+            }
+        }
+        _sendheaders: { ending ->
             @_didhead = true
             headers = io.Buffer.new()
             headers.write "HTTP/1.0 200 Ok\r\n"
             if @_type: headers.write "Content-Type: $(@_type)\r\n"
             if ending: headers.write "Content-Length: $(@_body.canread)\r\n"
             headers.write "\r\n"
-            while headers.canread > 0: (
+            while headers.canread > 0: {
                 len = conn.write headers
                 if len == 0: _throw "IO ERROR"
-            )
-        )
+            }
+        }
     }
-)
+}
 
 Server = {
-    new: (port -> { sock: io.Socket.listen(port), class: this.class })
+    new: { port -> { sock: io.Socket.listen(port), class: this.class }}
     class: {
         close: -> this.sock.close
-        serve: (->
+        serve: { ->
             block = args.block; if not block: _throw "expect a block"
-            loop: (
+            loop: {
                 client = this.sock.accept
                 conn = HttpConnection(client)
                 !block(conn); conn.end
                 Task.yield
-            )
-        )
+            }
+        }
     }
 }
 

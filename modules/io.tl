@@ -4,10 +4,10 @@ _io_queue = _io_init()
 _io = _io_queue.input
 
 // the boot task will call this
-ioloop = (->
-    loop: (
+ioloop = { ->
+    loop: {
         Task.yield
-        loop: (
+        loop: {
             msg = _io_queue.poll
             (
                 _match(msg == null): break
@@ -18,151 +18,149 @@ ioloop = (->
                         msg.get(0), msg.get(1), msg.get(2), msg.get(3), msg.get(4)))
                 _nomatch
             )
-        )
+        }
         if not _io_haswaiting(): break
         _io_run
-    )
-)
+    }
+}
 
 Buffer = {
     new: -> { buf: _Buffer_new(), class: this.class }
-    toBuffer: (v ->
+    toBuffer: { v ->
         // TODO this makes the class sortof "final"
         try: if v.class == this.class: return v
         buf = _Buffer_new()
         buf.write v.toText
         return { buf: buf, class: this.class }
-    )
+    }
     class: {
         size: -> this.buf.size
         find: v -> this.buf.find v.toText
         canread: -> this.buf.canread
         canwrite: -> this.buf.canwrite
-        write: (v ->
+        write: { v ->
             try: if v.class == this.class: return this.buf.writebuf v
             this.buf.write v.toText
-        )
-        read: (v ->
+        }
+        read: { v ->
             try: if v.class == this.class: return v.write this
             return this.buf.read
-        )
+        }
         toText: -> return this.buf.read
     }
 }
 
-readSome = (file, buf ->
+readSome = { file, buf ->
     if not buf.class == Buffer.class: _throw "Expected a Buffer"
     reader = file.reader
-    _with_lock(buf.buf, reader): (
-        loop: (
+    _with_lock(buf.buf, reader): {
+        loop: {
             len = reader.read buf.buf
             if len == null: _io.waitread reader
             if len: return buf, len
-        )
-    )
-)
-readFull = (file, buf ->
+        }
+    }
+}
+readFull = { file, buf ->
     if not buf.class == Buffer.class: _throw "Expected a Buffer"
     reader = file.reader
-    _with_lock(buf.buf, reader): (
-        loop: (
+    _with_lock(buf.buf, reader): {
+        loop: {
             len = reader.read buf.buf
             if len == 0: break
             if len == null: _io.waitread reader
-        )
-    )
+        }
+    }
     // TODO should be able to return just the buffer, if that behaves a lot like Texts
     return buf.read
-)
-writeFull = (file, val ->
+}
+writeFull = { file, val ->
     writer = file.writer
     buf = Buffer.toBuffer(val)
-    _with_lock(buf.buf, writer): (
-        loop: (
+    _with_lock(buf.buf, writer): {
+        loop: {
             if buf.canread == 0: break
             len = writer.write buf.buf
             if len == null: _io.waitwrite writer
-        )
-    )
-)
+        }
+    }
+}
 
 Stream = {
     new: file -> { file: file, class: this.class }
     class: {
-        read: (buf -> readSome(this.file, buf or Buffer.new))
-        write: (val -> writeFull(this.file, Buffer.toBuffer(val)))
-        close: (->
+        read: buf -> readSome(this.file, buf or Buffer.new)
+        write: val -> writeFull(this.file, Buffer.toBuffer(val))
+        close: { ->
             if this.file.isClosed: return
             _with_lock(this.file.reader, this.file.writer): this.file.close
-        )
+        }
     }
 }
 
 Server = {
     new: file -> { file: file, class: this.class }
     class: {
-        accept: (->
+        accept: { ->
             reader = this.file.reader
-            _with_lock(reader): (
-                loop: (
+            _with_lock(reader): {
+                loop: {
                     conn = reader.accept()
                     if conn: return Stream.new(conn)
                     _io.waitread reader
-                )
-            )
-        )
+                }
+            }
+        }
         close: -> this.file.cose
-        serve: (->
+        serve: { ->
             block = args.block; if not block: _throw "serve expects a block"
-            loop: (
+            loop: {
                 client = this.accept
                 block(client); client.close
-            )
-        )
+            }
+        }
     }
 }
 
 File = {
-    call: (name -> { name: name, class: this.class })
+    call: name -> { name: name, class: this.class }
     class: {
-        read: (buf -> readFull(_File_open(this.name, _File_RDONLY), buf or Buffer.new))
+        read: buf -> readFull(_File_open(this.name, _File_RDONLY), buf or Buffer.new)
         write: val -> writeFull(_File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT), Buffer.toBuffer(val))
         open: -> Stream.new(_File_open(this.name, _File_RDRW+_File_TRUNC+File_CREAT))
     }
 }
 
 Socket = {
-    open: (address, port ->
+    open: { address, port ->
         ip = _Socket_resolve(address)
         Stream.new(_Socket_connect(ip, port))
-    )
-    listen: (port ->
+    }
+    listen: { port ->
         Server.new(_ServerSocket_listen(port))
-    )
+    }
 }
 
 Process = {
-    run: (cmd ->
+    run: { cmd ->
         list = cmd.split
         check = try: not args.names.error
         // no stdin, no stdin, no stderr, joined stdin/stderr
         child = _io.launch list, false, true, false, true
         buf = Buffer.new
         out = Stream.new(child.out)
-        // Task.yield is needed: otherwise we will read 0 all the time and not drop
-        // into the mainloop ... so isRunning can turn false
-        loop: (
+        loop: {
             _, len = out.read buf
             if len == 0: break
-        )
+        }
         r = child.wait
         if r != 0 and check: _throw "Error: process: $r $(list.get(0)) $(list.size)"
         return buf.read, r
-    )
+    }
 }
 
-chdir = (dir -> _io_chdir dir)
-wait = (ms -> _io.wait ms)
+chdir = dir -> _io_chdir dir
+wait = ms -> _io.wait ms
 
 stdin = Stream.new(_File_from(0));
 stdout = Stream.new(_File_from(1));
