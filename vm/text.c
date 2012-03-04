@@ -125,7 +125,11 @@ INTERNAL tlValue _text_toText(tlTask* task, tlArgs* args) {
     if (!text) TL_THROW("this must be a Text");
     return text;
 }
-
+INTERNAL tlValue _text_toSym(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    return tlSymFromText(task, text);
+}
 INTERNAL tlValue _text_size(tlTask* task, tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -301,6 +305,7 @@ static void text_init() {
     _tl_emptyText = tlTEXT("");
     _tlTextClass.map = tlClassMapFrom(
         "toText", _text_toText,
+        "toSym", _text_toSym,
         "size", _text_size,
         "startsWith", _text_startsWith,
         "endsWith", _text_endsWith,
