@@ -44,7 +44,6 @@ slcomment: "//" (!nl _)*
       ws: (sp | icomment)*
     wsnl: (sp | nl | comment)*
 
-   sepnl: . ("," | nl) wsnl
      eos: . (";" | nl) wsnl
      eov: . ("," | nl) wsnl
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
@@ -55,7 +54,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
     name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
    ident: n=name ?(not_reserved n) -> n.toSym
 
-      op: "or" | "and" | "not"
+      op: "or" | "and"
 
 // ---- TEXT ----
 
@@ -72,14 +71,14 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
                        |.e=embed          -> [e]
                        |.t=stext          -> [t]
                        )+                 -> { type: #call, target: #_Text_Cat, args: rss.reduce({l, r -> l.cat(r)}).prepend(l) }
-                  | .                     -> l
+                  | pass                  -> l
                   )
 
 // ---- NUMBERS ----
 
-    sign: "-" -> -1
-        | "+" ->  1
-        | .   ->  1
+    sign: "-"  -> -1
+        | "+"  ->  1
+        | pass ->  1
      num: s=sign n=numr        -> s * n.reduce({l, r -> l * 10 + r})
     numr: n=numeric "_" b=numr -> b.prepend(n - 48)
         | n=numeric b=numr     -> b.prepend(n - 48)
@@ -119,7 +118,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
    oplog: l=opnot .("or"  wsnl r=oplog       -> { type: #call, target: #or,  args: [l, r] }
                    |"and" wsnl r=oplog       -> { type: #call, target: #and, args: [l, r] }
                    |"xor" wsnl r=oplog       -> { type: #call, target: #xor, args: [l, r] }
-                   | .                       -> l
+                   | pass                    -> l
                    )
    opnot: "not" wsnl r=opcmp                 -> { type: #call, target: #not, args: [r] }
         | opcmp
@@ -129,19 +128,19 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
                    |">"  wsnl r=opcmp        -> { type: #call, target: #gt,  args: [l, r] }
                    |"==" wsnl r=opcmp        -> { type: #call, target: #eq,  args: [l, r] }
                    |"!=" wsnl r=opcmp        -> { type: #call, target: #neq, args: [l, r] }
-                   | .                       -> l
+                   | pass                    -> l
                    )
    opadd: l=opmul .("+" wsnl r=opadd         -> { type: #call, target: #add, args: [l, r] }
                    |"-" wsnl r=opadd         -> { type: #call, target: #sub, args: [l, r] }
-                   | .                       -> l
+                   | pass                    -> l
                    )
    opmul: l=oppow .("*" wsnl r=opmul         -> { type: #call, target: #mul, args: [l, r] }
                    |"/" wsnl r=opmul         -> { type: #call, target: #div, args: [l, r] }
                    |"%" wsnl r=opmul         -> { type: #call, target: #mod, args: [l, r] }
-                   | .                       -> l
+                   | pass                    -> l
                    )
    oppow: l=paren .("^" wsnl r=oppow         -> { type: #call, target: #pow, args: [l, r] }
-                   | .                       -> l
+                   | pass                    -> l
                    )
 
    paren: "(". c=stm .")"                          -> c
@@ -149,20 +148,20 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | call
         | value
 
-    args: a=expr as=(sepnl expr)*             -> as.prepend(a)
-        | .                                   -> []
+    args: a=expr as=(eov expr)*             -> as.prepend(a)
+        | pass                              -> []
 
     tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: as })
         | "[". l=expr? .":". @"a closing ']'" r=expr? ."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
         | "[". @"a closing ']'" e=expr ."]" t=tail                -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
         | "." n=ident "(". @"a closing ')'" as=args .")" t=tail   -> set_target(t, { type: #send, target: null, msg: n, args: as })
         | "." @"a message" n=ident t=tail                         -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
-        | .                                                       -> null
+        | pass                                                    -> null
 
     call: fn=value t=tail ?(t)                                    -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg" wsnl expr)* -> as.prepend(a)
- topcall: !"(" fn=ident sp. !"(" !op (
+ topcall: fn=ident sp. !"(" (
               a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
@@ -177,7 +176,7 @@ function: "{" wsnl as=fargs wsnl "->" wsnl @"a closing '}'"
           "}"                                  -> { type: #fn, args: as, body: b }
    fargs: a=farg wsnl "," wsnl as=fargs        -> as.prepend(a)
         | a=farg                               -> [a]
-        | .                                    -> []
+        | pass                                 -> []
     farg: "&&" n=ident                         -> { type: #collectlazy, name: n }
         | "**" n=ident                         -> { type: #collecteager, name: n }
         | "&" n=ident                          -> { type: #lazy, name: n }
@@ -191,7 +190,12 @@ selfcall: fn=ident                             -> { type: #call, target: fn, arg
         | e=expr     @"end of statement" &eostm -> e
 
    slots: a=slot as=(.",". slot)*               -> as.prepend(a)
-    slot: n=ident                               -> { type: #assign, target: n }
+    xlot: n=ident                               -> { type: #assign, target: n }
+
+    slot: "@" n=ident                           -> { type: #selfassign, target: n }
+        | "\$" n=ident                          -> { type: #varassign, target: n }
+        | "var"."\$" n=ident                    -> { type: #varcreate, target: n }
+        | n=ident                               -> { type: #assign, target: n }
 
      stm: as=slots ."=" wsnl e=rhs              -> [e].cat(as)
         | e=rhs                                 -> [e]
@@ -208,7 +212,7 @@ selfcall: fn=ident                             -> { type: #call, target: fn, arg
           tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
 
 bodyempty: body
-         | .    -> []
+         | pass    -> []
 
    start: wsnl b=bodyempty wsnl end -> b
 }
