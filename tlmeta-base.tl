@@ -83,7 +83,6 @@ pOr = { name, in ->
     var $i = 2
     // TODO instead of just the last one, collect all alternatives
     var $nr = null
-    var $err = null
     loop: {
         parser = args.get($i)
         if not parser: break
@@ -93,19 +92,14 @@ pOr = { name, in ->
         _catch: { e =>
             trace(in, "ERROR: $e NoReturn: $($nr)")
             if e?t != #p: _throw e
-            if $nr: (
-                if e?noreturn: _throw e
-                if $err: _throw $err
-                _throw { t: #p, in: e.in, noreturn: true, msg: $nr }
-            )
-            if e?noreturn: $err = e
+            if e?noreturn: _throw e
+            if $nr: _throw { t: #p, in: e.in, noreturn: true, msg: $nr }
         }
         in, v = parser(nr, in)
         trace(in, "pOr: $name <<")
         return in, v
     }
     trace(in, "pOr: $name: no alternatives")
-    if $err: _throw $err
     _throw { t: #p, in: in, msg: "a $name" }
 }
 

@@ -1,13 +1,12 @@
 parser.tl: parser.tlg tlmeta.tl tlmeta-base.tl
 	tl tlmeta.tl parser.tlg parser.tl
 
-tokenizer.tl: tokenizer.tlg tlmeta.tl tlmeta-base.tl
-	tl tlmeta.tl tokenizer.tlg tokenizer.tl
+test.tl: test.tlg tlmeta.tl tlmeta-base.tl
+	tl tlmeta.tl test.tlg test.tl
 
-run: tokenizer.tl parser.tl
-	#tl tokenizer.tl
+run: parser.tl test.tl
 	tl parser.tl
 
 clean:
-	rm -rf parser.tl tokenizer.tl
+	rm -rf parser.tl test.tl
 
