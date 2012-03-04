@@ -102,8 +102,11 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 
 // ---- PARSER ----
 
+    this: "@" n=ident -> { type: #self, name: n }
+
    value: function
         | ident
+        | this
         | num | text
         | object | map | list
         | "true"                                   -> true

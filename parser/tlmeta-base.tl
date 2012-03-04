@@ -8,8 +8,12 @@ ALPHA = LOWER.cat(UPPER)
 NUMERIC = "0123456789"
 ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
-pAny = { in ->
-    trace(in, "pAny")
+rule_pass = { in ->
+    trace(in, "pass")
+    return in
+}
+rule_any = { in ->
+    trace(in, "any")
     c = in.text.get(in.pos)
     if not c: _throw { t: #p, in: in }
     return { text: in.text, pos: in.pos + 1 }, c
@@ -26,7 +30,6 @@ pChar = { in, text ->
     if text.search(c.toChar): return { text: in.text, pos: in.pos + 1 }, c
     _throw { t: #p, in: in }
 }
-
 pNot = { in, parser ->
     trace(in, "pNot")
     in = (

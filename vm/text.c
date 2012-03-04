@@ -199,6 +199,7 @@ static inline char escape(char c) {
         case '\n': return 'n';
         case '\r': return 'r';
         case '"': return '"';
+        case '$': return '$';
         case '\\': return '\\';
         default:
             assert(c >= 32);

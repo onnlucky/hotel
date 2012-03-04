@@ -331,7 +331,7 @@ emit = { r, buf, ind ->
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v\n")
     _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in)\n")
-    _match(r.type == #Any): buf.write("$ind  _in, _v = pAny(_in)\n")
+    _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in)\n")
     _match(true): _throw "Error emit: $(r.type)"
     _nomatch
 }

@@ -10,8 +10,12 @@ ALPHA = LOWER.cat(UPPER)
 NUMERIC = "0123456789"
 ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
-pAny = { in ->
-    trace(in, "pAny")
+rule_pass = { in ->
+    trace(in, "pass")
+    return in
+}
+rule_any = { in ->
+    trace(in, "any")
     c = in.text.get(in.pos)
     if not c: _throw { t: #p, in: in }
     return { text: in.text, pos: in.pos + 1 }, c
@@ -28,7 +32,6 @@ pChar = { in, text ->
     if text.search(c.toChar): return { text: in.text, pos: in.pos + 1 }, c
     _throw { t: #p, in: in }
 }
-
 pNot = { in, parser ->
     trace(in, "pNot")
     in = (
@@ -226,7 +229,7 @@ rule_slcomment = {_in ->
       _in, _v = pNot(_in, {_in ->
         _in, _v = rule_nl(_in)
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       return _in, _v
     }(_in)
   })
@@ -243,7 +246,7 @@ rule_icomment = {_in ->
       _in, _v = pNot(_in, {_in ->
         _in, _v = pText(_in, "*/")
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       return _in, _v
     }(_in)
   })
@@ -356,6 +359,11 @@ rule_escape = {_in ->
       return _in, _v
      }
     ,{_nr, _in ->
+      _in, _v = pText(_in, "\\\$")
+      _v = ("\$")
+      return _in, _v
+     }
+    ,{_nr, _in ->
       _in, _v = pText(_in, "\\\\")
       _v = ("\\")
       return _in, _v
@@ -364,7 +372,7 @@ rule_escape = {_in ->
       _in, _v = pNot(_in, {_in ->
         _in, _v = pText(_in, "\"")
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       l = _v
       _v = (l.toChar)
       return _in, _v
@@ -413,6 +421,11 @@ rule_cscape = {_in ->
       return _in, _v
      }
     ,{_nr, _in ->
+      _in, _v = pText(_in, "\\\$")
+      _v = ("\$")
+      return _in, _v
+     }
+    ,{_nr, _in ->
       _in, _v = pText(_in, "\\\\")
       _v = ("\\")
       return _in, _v
@@ -421,7 +434,7 @@ rule_cscape = {_in ->
       _in, _v = pNot(_in, {_in ->
         _in, _v = pText(_in, "]")
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       l = _v
       _v = (l.toChar)
       return _in, _v
@@ -455,7 +468,7 @@ rule_act = {_in ->
       _in, _v = pNot(_in, {_in ->
         _in, _v = pText(_in, "\n")
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       return _in, _v
     }(_in)
   })
@@ -477,7 +490,7 @@ rule_cond = {_in ->
       _in, _v = pNot(_in, {_in ->
         _in, _v = pText(_in, ")")
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       return _in, _v
     }(_in)
   })
@@ -723,7 +736,7 @@ rule_start = {_in ->
           return _in, _v
         }(_in)
       })
-      _in, _v = pAny(_in)
+      _in, _v = rule_any(_in)
       return _in, _v
     }(_in)
   })
@@ -731,7 +744,7 @@ rule_start = {_in ->
   _in, _v = rule_parser(_in)
   p = _v
   _in, _v = pStar(_in, {_in ->
-    _in, _v = pAny(_in)
+    _in, _v = rule_any(_in)
   })
   a = _v
   _v = ({ before: b.toChar, after: a.toChar, rules: p.rs, name: p.n })
@@ -761,7 +774,7 @@ emit = { r, buf, ind, name ->
     _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, \"$(r.text.escape)\")\n")
     _match(r.type == #Char): buf.write("$ind  _in, _v = pChar(_in, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in)\n")
-    _match(r.type == #Any): buf.write("$ind  _in, _v = pAny(_in)\n")
+    _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in)\n")
     _match(true): _throw "InternalError emit unknown: $(r.type)"
     _nomatch
 }
