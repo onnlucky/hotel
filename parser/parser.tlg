@@ -45,16 +45,19 @@ slcomment: "//" (!nl _)*
     wsnl: (sp | nl | comment)*
 
    sepnl: . ("," | nl) wsnl
-     eos: . ";" .
-   eosnl: . (";" | nl) wsnl
+     eos: . (";" | nl) wsnl
+     eov: . ("," | nl) wsnl
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
 
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/" | "\"" | "'"
-    name: n=alpha rs=(!nonident _)*  -> rs.prepend(n).toChar
-   ident: n=name ?(not_reserved n) -> n
+   first: [_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
+    name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
+   ident: n=name ?(not_reserved n) -> n.toSym
 
       op: "or" | "and" | "not"
+
+// ---- TEXT ----
 
   escape: "\\\""      -> "\""
         | "\\n"       -> "\n"
@@ -72,6 +75,8 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
                   | .                     -> l
                   )
 
+// ---- NUMBERS ----
+
     sign: "-" -> -1
         | "+" ->  1
         | .   ->  1
@@ -80,10 +85,27 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
         | n=numeric b=numr     -> b.prepend(n - 48)
         | n=numeric            -> [n - 48]
 
+// ---- OBJECT, MAP AND LIST ----
+
+  object: "{" wsnl is=items wsnl @"a closing '}'" "}" -> { type: #OBJECT }
+        | "{" wsnl @"a closing '}'" "}"               -> { type: #OBJECT }
+     map: "[" wsnl is=items wsnl @"a closing ']'" "]" -> { type: #OBJECT }
+        | "[" wsnl ":" wsnl @"a closing ']'" "]"      -> { type: #OBJECT }
+   items: i=item eov wsnl is=items
+        | i=item
+    item: n=name .@"a ':'" ":" wsnl @"a value" v=expr
+
+    list: "[" wsnl is=litems @"a closing ']'" wsnl "]" -> { type: #LIST }
+        | "[" wsnl @"a closing ']'" "]"                -> { type: #LIST }
+  litems: v=expr eov wsnl is=litems
+        | v=expr
+
+// ---- PARSER ----
+
    value: function
-        | n=ident                                  -> { type: #ref, name: n }
-        | num
-        | text
+        | ident
+        | num | text
+        | object | map | list
         | "true"                                   -> true
         | "false"                                  -> false
         | "null"                                   -> { type: #value, value: #null }
@@ -147,8 +169,9 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
-function: "{" wsnl as=fargs wsnl "->" wsnl
-              @"a closing '}'" b=body wsnl "}" -> { type: #fn, args: as, body: b }
+function: "{" wsnl as=fargs wsnl "->" wsnl @"a closing '}'"
+                b=bodyempty wsnl
+          "}"                                  -> { type: #fn, args: as, body: b }
    fargs: a=farg wsnl "," wsnl as=fargs        -> as.prepend(a)
         | a=farg                               -> [a]
         | .                                    -> []
@@ -165,23 +188,26 @@ selfcall: fn=ident                             -> { type: #call, target: fn, arg
         | e=expr     @"end of statement" &eostm -> e
 
    slots: a=slot as=(.",". slot)*               -> as.prepend(a)
-    slot: n=ident
+    slot: n=ident                               -> { type: #assign, target: n }
 
-     stm: s=slots ."=" wsnl e=rhs               -> { type: #put, slots: s, value: e }
-        | rhs
+     stm: as=slots ."=" wsnl e=rhs              -> [e].cat(as)
+        | e=rhs                                 -> [e]
 
-    stms: t=stm ts=(.";".@"statement" stm)*     -> ts.prepend(t)
+    stms: t=stm ts=(.";".@"statement" stm)*     -> ts.prepend(t).reduce({l, r -> l.cat(r)})
 
    block: ":" wsnl function
         | ":" wsnl "{" wsnl b=body wsnl "}"     -> b
         | ":" wsnl @"a function or a block" bodynl
 
-    body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts).reduce((l, r -> l.cat(r)))
+    body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
 
   bodynl: c=column ?(begin_body c) ts=stms
-          tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce((l, r -> l.cat(r)))
+          tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
 
-   start: wsnl b=body wsnl end -> b
+bodyempty: body
+         | .    -> []
+
+   start: wsnl b=bodyempty wsnl end -> b
 }
 
 print inspect parse(io.File("test-input.tl").read)
