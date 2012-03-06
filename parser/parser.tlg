@@ -86,34 +86,38 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{" wsnl is=items wsnl @"a closing '}'" "}" -> { type: #OBJECT }
-        | "{" wsnl @"a closing '}'" "}"               -> { type: #OBJECT }
-     map: "[" wsnl is=items wsnl @"a closing ']'" "]" -> { type: #OBJECT }
-        | "[" wsnl ":" wsnl @"a closing ']'" "]"      -> { type: #OBJECT }
-   items: i=item eov wsnl is=items
-        | i=item
-    item: n=name .@"a ':'" ":" wsnl @"a value" v=expr
+  object: "{" wsnl is=items wsnl @"a closing '}'" "}" -> { type: #object, items: is }
+        | "{" wsnl @"a closing '}'" "}"               -> { type: #object, items: [] }
+     map: "[" wsnl is=items wsnl @"a closing ']'" "]" -> { type: #map, items: is }
+        | "[" wsnl ":" wsnl @"a closing ']'" "]"      -> { type: #map, items: [] }
+   items: i=item eov wsnl is=items                    -> is.prepend(i)
+        | i=item                                      -> [i]
+    item: n=name .@"a ':'" ":" wsnl @"a value" v=expr -> { key: n, value: v }
 
-    list: "[" wsnl is=litems @"a closing ']'" wsnl "]" -> { type: #LIST }
-        | "[" wsnl @"a closing ']'" "]"                -> { type: #LIST }
-  litems: v=expr eov wsnl is=litems
-        | v=expr
+    list: "[" wsnl is=litems @"a closing ']'" wsnl "]" -> { type: #list, items: is }
+        | "[" wsnl @"a closing ']'" "]"                -> { type: #list, items: [] }
+  litems: i=expr eov wsnl is=litems                    -> is.prepend(i)
+        | i=expr                                       -> [i]
 
 // ---- PARSER ----
 
     this: "@" n=ident -> { type: #self, name: n }
+  symbol: "#" n=ident -> { type: #sym, name: n }
 
    value: function
         | ident
         | this
         | num | text
-        | object | map | list
+        | list | object | map
+        | symbol
         | "true"                                   -> true
         | "false"                                  -> false
         | "null"                                   -> { type: #value, value: #null }
         | "undefined"                              -> { type: #value, value: #undefined }
 
-    expr: oplog
+// TODO this is a bit cludgy ...
+    expr: "!"!"=" b=bodynl                         -> { type: #call, target: #vm_task, args: [b] }
+        | oplog
 
    oplog: l=opnot .("or"  wsnl r=oplog       -> { type: #call, target: #or,  args: [l, r] }
                    |"and" wsnl r=oplog       -> { type: #call, target: #and, args: [l, r] }
@@ -143,24 +147,22 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
                    | pass                    -> l
                    )
 
-   paren: "(". c=stm .")"                          -> c
-        | "(".@"closing ')'" wsnl b=body wsnl ")"  -> ts
+   paren: "(".. c=stm ..")"                  -> c
+        | "(".. @"closing ')'" b=body ..")"  -> b
         | call
-        | value
 
     args: a=expr as=(eov expr)*             -> as.prepend(a)
         | pass                              -> []
 
-    tail: "(". @"a closing ')'" as=args .")" t=tail               -> set_target(t, { type: #call, target: null, args: as })
-        | "[". l=expr? .":". @"a closing ']'" r=expr? ."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
-        | "[". @"a closing ']'" e=expr ."]" t=tail                -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
-        | "." n=ident "(". @"a closing ')'" as=args .")" t=tail   -> set_target(t, { type: #send, target: null, msg: n, args: as })
-        | "." @"a message" n=ident t=tail                         -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
-        | pass                                                    -> null
+    tail: "(".. @"a closing ')'" as=args ..")" t=tail                 -> set_target(t, { type: #call, target: null, args: as })
+        | "[".. l=expr? ..":".. @"a closing ']'" r=expr? .."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
+        | "[".. @"a closing ']'" e=expr .."]" t=tail                  -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
+        | "." n=ident "(".. @"a closing ')'" as=args ..")" t=tail     -> set_target(t, { type: #send, target: null, msg: n, args: as })
+        | "." @"a message" n=ident t=tail                             -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
+        | pass                                                        -> null
+    call: fn=value t=tail                                             -> set_target(t, fn)
 
-    call: fn=value t=tail ?(t)                                    -> set_target(t, fn)
-
- topargs: a=expr as=(.","@"arg" wsnl expr)* -> as.prepend(a)
+ topargs: a=expr as=(.","@"arg".. expr)* -> as.prepend(a)
  topcall: fn=ident sp. !"(" (
               a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
