@@ -176,3 +176,11 @@ rule_ws = { in, nr ->
     return in, null
 }
 
+rule_wsnl = { in ->
+    trace(in, "rule_ws")
+    c = in.text.get(in.pos)
+    if not c: return in, null
+    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    return in, null
+}
+

@@ -30,6 +30,7 @@ slcomment: "//" (!nl _)*
     cond: "?"."(". ts=(!")" _)* ")"       -> ts.toChar
 
     term: "(". t=or @"a closing ')'" .")" -> { type: #Sub, term: t }
+        | ".."                            -> { type: #Wsnl }
         | "."                             -> { type: #Ws }
         | "_"                             -> { type: #Any }
         | c=cond                          -> { type: #Cond, act: c }
@@ -76,6 +77,7 @@ emit = { r, buf, ind, name ->
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
     _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
+    _match(r.type == #Wsnl): buf.write("$ind  _in, _v = rule_wsnl(_in, _nr)\n")
     _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
     _match(true): _throw "InternalError emit unknown: $(r.type)"
     _nomatch

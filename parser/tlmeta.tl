@@ -178,6 +178,14 @@ rule_ws = { in, nr ->
     return in, null
 }
 
+rule_wsnl = { in ->
+    trace(in, "rule_ws")
+    c = in.text.get(in.pos)
+    if not c: return in, null
+    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    return in, null
+}
+
 
 // --- parser ---
 rule_sp = {_in, _nr ->
@@ -488,6 +496,10 @@ rule_term = {_in, _nr ->
       _in, _v = pAct(_in, ({ type: #Sub, term: t }))
      }
     ,{_in, _nr ->
+      _in, _v = pText(_in, _nr, "..")
+      _in, _v = pAct(_in, ({ type: #Wsnl }))
+     }
+    ,{_in, _nr ->
       _in, _v = pText(_in, _nr, ".")
       _in, _v = pAct(_in, ({ type: #Ws }))
      }
@@ -730,6 +742,7 @@ emit = { r, buf, ind, name ->
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
     _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
+    _match(r.type == #Wsnl): buf.write("$ind  _in, _v = rule_wsnl(_in, _nr)\n")
     _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
     _match(true): _throw "InternalError emit unknown: $(r.type)"
     _nomatch
