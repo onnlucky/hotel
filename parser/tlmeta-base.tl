@@ -1,5 +1,7 @@
 DEBUG=false
-trace = { in, &msg -> if DEBUG: print in.pos, in.text.slice(in.pos, in.pos + 10).escape, "--", msg() }
+DEBUG2=false
+trace = { in, &msg -> if DEBUG: print in.pos, in.text.escape.slice(in.pos, in.pos + 10), "--", msg() }
+trace2 = { in, &msg -> if DEBUG2: print in.pos, in.text.escape.slice(in.pos, in.pos + 10), "--", msg() }
 
 WS = " \t\n\r"
 LOWER = "abcdefghijklmnopqrstuvwxyz"
@@ -8,110 +10,116 @@ ALPHA = LOWER.cat(UPPER)
 NUMERIC = "0123456789"
 ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
-rule_pass = { in ->
-    trace(in, "pass")
+advance = { in, adv -> { text: in.text, pos: in.pos + adv }}
+error = { in, nr, msg ->
+    if nr: _throw { t: #p, in: in, msg: nr, noreturn: true }
+    _throw {t: #p, in: in, msg: msg }
+}
+
+rule_pass = { in, nr ->
+    trace2(in, "pass")
     return in
 }
-rule_any = { in ->
-    trace(in, "any")
+rule_any = { in, nr ->
+    trace2(in, "any")
     c = in.text.get(in.pos)
-    if not c: _throw { t: #p, in: in }
-    return { text: in.text, pos: in.pos + 1 }, c
+    if not c: error(in, nr, "eof")
+    return advance(in, 1), c
 }
-pText = { in, text ->
-    trace(in, "pText: $text")
-    if in.text.startsWith(text, in.pos): return { text: in.text, pos: in.pos + text.size }, text
-    _throw { t: #p, in: in, msg: text }
-}
-pChar = { in, text ->
-    trace(in, "pChar: $text")
+rule_end = { in, nr ->
+    trace2(in, "end")
     c = in.text.get(in.pos)
-    if not c: _throw { t: #p, in: in }
-    if text.search(c.toChar): return { text: in.text, pos: in.pos + 1 }, c
-    _throw { t: #p, in: in }
+    if c: error(in, nr, "end")
+    return in, null
 }
-pNot = { in, parser ->
-    trace(in, "pNot")
+pText = { in, nr, text ->
+    trace(in, " >>  TRY \"$(text.escape)\"")
+    if in.text.startsWith(text, in.pos): {
+        trace(in, " << !OK!");
+        return advance(in, text.size), text
+    }
+    trace(in, " << FAIL");
+    error(in, nr, text)
+}
+pChar = { in, nr, text ->
+    trace2(in, "pChar: $text")
+    c = in.text.get(in.pos)
+    if not c: error(in, nr, "[$text]")
+    if text.search(c.toChar): return advance(in, 1), c
+    error(in, nr, "[$text]")
+}
+pNot = { in, nr, parser ->
+    trace2(in, "pNot")
     in = (
         _catch: { e =>
-            if e?t == #p: (
-                if e?noreturn: _throw e
-                return in, null
-            )
-            _throw e
+            if e?t != #p: _throw e
+            if e?noreturn: _throw e
+            return in, null
         }
         parser(in)
     )
-    _throw { t: #p, in: in }
+    error(in, nr, "not")
 }
-pAhead = { in, parser ->
-    trace(in, "pAhead")
-    in2 = parser(in)
+pAhead = { in, nr, parser ->
+    trace2(in, "pAhead")
+    in2 = parser(in, nr)
     return in
 }
-pOpt = { in, parser ->
-    trace(in, "pOpt")
+pOpt = { in, nr, parser ->
+    trace2(in, "pOpt")
     _catch: { e =>
-        if e?t == #p: (
-            if e?noreturn: _throw e
-            return in, null
-        )
-        _throw e
+        if e?t != #p: _throw e
+        return in, null
     }
     parser(in)
 }
 _pmany = { in, parser, res ->
-    trace(in, "_pmany: $(res.size)")
-    _catch: { e ->
-        if e?t == #p: (
-            trace(in, "_pmany: << $(res.size), noreturn: $(e?noreturn)")
-            if e?noreturn: _throw e
-            return in, res
-        )
-        _throw e
+    trace2(in, "_pmany: $(res.size)")
+    _catch: { e =>
+        if e?t != #p: _throw e
+        if e?noreturn: _throw e
+        trace2(in, " << pStar|pPlus");
+        return in, res
     }
     in, v = parser(in)
     goto _pmany(in, parser, res.add(v))
 }
-pStar = { in, parser ->
-    trace(in, "pStar")
+pStar = { in, nr, parser ->
+    trace2(in, " >> pStar")
     _pmany(in, parser, [])
 }
-pPlus = { in, parser ->
-    trace(in, "pPlus")
-    in, v = parser(in)
+pPlus = { in, nr, parser ->
+    trace2(in, " >> pPlus")
+    in, v = parser(in, nr)
     _pmany(in, parser, [v])
 }
-pOr = { name, in ->
-    var $i = 2
+pOr = { in, nr, name ->
+    var $i = 3
     // TODO instead of just the last one, collect all alternatives
-    var $nr = null
     loop: {
         parser = args.get($i)
         if not parser: break
-        trace(in, "pOr: $name: $($i)")
-        $nr = null
+        trace2(in, "pOr: $name: $($i)")
         $i += 1
         _catch: { e =>
-            trace(in, "ERROR: $e NoReturn: $($nr)")
             if e?t != #p: _throw e
             if e?noreturn: _throw e
-            if $nr: _throw { t: #p, in: e.in, noreturn: true, msg: $nr }
         }
-        in, v = parser(nr, in)
-        trace(in, "pOr: $name <<")
+        in, v = parser(in)
+        trace2(in, "pOr: $name <<")
         return in, v
     }
-    trace(in, "pOr: $name: no alternatives")
-    _throw { t: #p, in: in, msg: "a $name" }
+    trace2(in, "pOr: $name: no alternatives")
+    error(in, nr, "a $name")
 }
 
-pHandle = { e, nr ->
+pHandle = { e, nr, name ->
     if e?t != #p: _throw e
+    trace2(e.in, " << FAIL: $name")
     if e?noreturn: _throw e
-    if nr: _throw { t:#p, in: e.in, noreturn: true, msg: nr }
-    _throw e
+    error(e.in, nr, e.msg)
 }
+pAct = { in, v -> return in, v }
 
 colFromPos = { text, pos ->
     var $col = 0
@@ -151,23 +159,17 @@ pStart = { rule, text ->
     return v
 }
 
-rule_end = { in ->
-    c = in.text.get(in.pos)
-    if c: _throw { t: #p, in: in }
-    return in, null
-}
-
 rule_line = in -> return in, lineFromPos(in.text, in.pos)
 rule_column = in -> return in, colFromPos(in.text, in.pos)
 
-rule_lower = in -> pChar(in, LOWER)
-rule_upper = in -> pChar(in, UPPER)
-rule_alpha = in -> pChar(in, ALPHA)
-rule_numeric = in -> pChar(in, NUMERIC)
-rule_alphanumeric = in -> pChar(in, ALPHANUMERIC)
+rule_lower = in, nr -> pChar(in, nr, LOWER)
+rule_upper = in, nr -> pChar(in, nr, UPPER)
+rule_alpha = in, nr -> pChar(in, nr, ALPHA)
+rule_numeric = in, nr -> pChar(in, nr, NUMERIC)
+rule_alphanumeric = in, nr -> pChar(in, nr, ALPHANUMERIC)
 
-rule_ws = { in ->
-    trace(in, "rule_ws")
+rule_ws = { in, nr ->
+    trace2(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
     if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
