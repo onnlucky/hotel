@@ -115,7 +115,7 @@ pOr = { in, nr, name ->
 
 pHandle = { e, nr, name ->
     if e?t != #p: _throw e
-    trace2(e.in, " << FAIL: $name")
+    trace(e.in, " << FAIL $name")
     if e?noreturn: _throw e
     error(e.in, nr, e.msg)
 }

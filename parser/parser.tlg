@@ -209,7 +209,7 @@ selfcall: fn=ident                             -> { type: #call, target: fn, arg
      stm: as=slots ."=" wsnl e=rhs              -> [e].cat(as)
         | e=rhs                                 -> [e]
 
-    stms: t=stm ts=(.";".@"statement" stm)*     -> ts.prepend(t).reduce({l, r -> l.cat(r)})
+    stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).reduce({l, r -> l.cat(r)})
 
    block: ":" wsnl function
         | ":" wsnl "{" wsnl @"a closing '}'" b=body wsnl "}"     -> b
