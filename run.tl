@@ -311,10 +311,9 @@ parseName = { in ->
     trace2(in, "<< name: $(in.value)")
 }
 
-text = io.File("tlmeta.tlp").read
+text = io.File("tlmeta.tlg").read
 ast = parse(parseStart, text)
 //print inspect(ast)
-
 
 // ** emitting a new parser **
 emit = { r, buf, ind ->
@@ -326,32 +325,32 @@ emit = { r, buf, ind ->
     _match(r.type == #Star): goto emitStar r, buf, ind
     _match(r.type == #Plus): goto emitPlus r, buf, ind
 
-    _match(r.type == #NoReturn): buf.write("$ind  \$_nr = \"$(r.msg.escape)\"\n")
-    _match(r.type == #Call): buf.write("$ind  _in, _v = rule_$(r.rule)(_in)\n")
+    _match(r.type == #NoReturn): buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
+    _match(r.type == #Call): buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
     _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v\n")
-    _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, \"$(r.text.escape)\")\n")
-    _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in)\n")
-    _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in)\n")
-    _match(true): _throw "Error emit: $(r.type)"
+    _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
+    _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
+    _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
+    _match(true): _throw "InternalError emit unknown: $(r.type)"
     _nomatch
 }
 emitNot = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pNot(_in, {_in ->\n")
+    buf.write("$ind  _in, _v = pNot(_in, _nr, {_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
     buf.write("$ind  })\n")
 }
 emitOpt = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pOpt(_in, {_in ->\n")
+    buf.write("$ind  _in, _v = pOpt(_in, _nr, {_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
     buf.write("$ind  })\n")
 }
 emitStar = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pStar(_in, {_in ->\n")
+    buf.write("$ind  _in, _v = pStar(_in, _nr, {_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
     buf.write("$ind  })\n")
 }
 emitPlus = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pPlus(_in, {_in ->\n")
+    buf.write("$ind  _in, _v = pPlus(_in, _nr, {_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
     buf.write("$ind  })\n")
 }
@@ -359,34 +358,34 @@ emitAnd = { r, buf, ind ->
     var $n = 0
     // TODO maybe collect all binds, and "call" r.act
     r.terms.each: r -> emit r, buf, ind
-    if r.act: buf.write("$ind  _v = ($(r.act))\n")
-    buf.write("$ind  return _in, _v\n")
+    if r.act: buf.write("$ind  _in, _v = pAct(_in, ($(r.act)))\n")
 }
 emitOr = { r, buf, ind ->
     if r.terms.size == 0: return
     if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
 
-    buf.write("$ind  _in, _v = pOr(_name, _in\n")
+    buf.write("$ind  _in, _v = pOr(_in, _nr, _name\n")
     r.terms.each: { r =>
-        buf.write("$ind    ,{_nr, _in ->\n")
+        buf.write("$ind    ,{_in, _nr ->\n")
         emit r, buf, ind.cat("    ")
         buf.write("$ind     }\n")
     }
     buf.write("$ind  )\n")
 }
 emitSub = { r, buf, ind ->
-    buf.write("$ind  _in, _v = {_in ->\n")
+    buf.write("$ind  _in, _v = {_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  }(_in)\n")
+    buf.write("$ind  }(_in, _nr)\n")
 }
 emitRule = { r, buf ->
     name = r.name
-    buf.write("rule_$name = {_in ->\n")
-    buf.write("  var \$_nr = null\n")
-    buf.write("  _catch: e -> pHandle(e, \$_nr)\n")
-    buf.write("  trace(_in, \"rule_$name\")\n")
+    buf.write("rule_$name = {_in, _nr ->\n")
+    buf.write("  _catch: e -> pHandle(e, _nr, \"$name\")\n")
+    buf.write("  trace(_in, \" >>  TRY $name\", _nr)\n")
     buf.write("  _name = \"$name\"\n")
     emit r.term, buf, ""
+    buf.write("  trace(_in, \" << !OK! $name\")\n")
+    buf.write("  return _in, _v\n")
     buf.write("}\n")
 }
 
