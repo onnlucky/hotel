@@ -7,16 +7,18 @@ add_block = { call, block ->
     if not block: return call
     _Map_set(call, #block, block)
 }
-not_reserved = { name ->
+nvalue = { name ->
     if name == "null": return false
     if name == "undefined": return false
     if name == "true": return false
     if name == "false": return false
+    return true
+}
+nreserved = { name ->
     if name == "not": return false
     if name == "and": return false
     if name == "or": return false
-    if name == "xor": return false
-    return true
+    return nvalue(name)
 }
 
 var $current_indent = [0]
@@ -52,7 +54,8 @@ slcomment: "//" (!nl _)*
 nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/" | "\"" | "'"
    first: [_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
     name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
-   ident: n=name ?(not_reserved n) -> n.toSym
+   ident: n=name ?(nvalue n) -> n.toSym
+reference: n=name ?(nreserved n) -> n.toSym
 
       op: "or" | "and"
 
@@ -102,14 +105,13 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 // ---- PARSER ----
 
     this: "@" n=ident -> { type: #self, name: n }
-  symbol: "#" n=ident -> { type: #sym, name: n }
+  symbol: "#" n=name  -> {type: #sym, name: n }
 
    value: function
         | ident
         | this
-        | num | text
+        | num | symbol | text
         | list | object | map
-        | symbol
         | "true"                                   -> true
         | "false"                                  -> false
         | "null"                                   -> { type: #value, value: #null }
@@ -121,7 +123,6 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
 
    oplog: l=opnot .("or"  wsnl r=oplog       -> { type: #call, target: #or,  args: [l, r] }
                    |"and" wsnl r=oplog       -> { type: #call, target: #and, args: [l, r] }
-                   |"xor" wsnl r=oplog       -> { type: #call, target: #xor, args: [l, r] }
                    | pass                    -> l
                    )
    opnot: "not" wsnl r=opcmp                 -> { type: #call, target: #not, args: [r] }
@@ -163,7 +164,7 @@ nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "
     call: fn=value t=tail                                             -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg".. expr)* -> as.prepend(a)
- topcall: fn=ident sp. !"(" (
+ topcall: fn=reference sp. !"(" (
               a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
@@ -191,7 +192,7 @@ function: "{" wsnl as=fargs wsnl "->" wsnl @"a closing '}'"
         | "&" n=ident                          -> { type: #lazy, name: n }
         | n=ident                              -> { type: #eager, name: n }
 
-selfcall: fn=ident                             -> { type: #call, target: fn, args: [] }
+selfcall: fn=reference                         -> { type: #call, target: fn, args: [] }
 
      rhs: e=topcall .b=block?            &eostm -> add_block(e, b)
         | e=selfcall .b=block?           &eostm -> add_block(e, b)
