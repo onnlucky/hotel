@@ -51,13 +51,17 @@ slcomment: "//" (!nl _)*
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
 
-nonident: " " | "\n" | "\r" | "\t" | "." | "!" | ":" | ";" | "," | "(" | ")" | "{" | "}" | "[" | "]" | "/" | "\"" | "'"
+   punct: [ \t\n\r.!:;,=(){}[\]"']
+nonident: punct | "/" | "\\" | "<" | ">"
    first: [_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
     name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
    ident: n=name ?(nvalue n) -> n.toSym
 reference: n=name ?(nreserved n) -> n.toSym
 
-      op: "or" | "and"
+ opchars: rs=(!first !punct !"//" _)+ -> rs.toChar
+      op: "or"                        -> #or
+        | "and"                       -> #and
+        | n=opchars                   -> n.toSym
 
 // ---- TEXT ----
 
@@ -149,29 +153,31 @@ reference: n=name ?(nreserved n) -> n.toSym
                    | pass                    -> l
                    )
 
-   paren: "(".. c=stm ..")"                  -> c
+        // the first is an optimization of the second
+   paren: "(".. c=stm ..")"                  -> bool(c.size == 1, c.get(0), c)
         | "(".. @"closing ')'" b=body ..")"  -> b
         | call
 
     args: a=expr as=(eov expr)*             -> as.prepend(a)
         | pass                              -> []
 
-    tail: "(".. @"a closing ')'" as=args ..")" t=tail                 -> set_target(t, { type: #call, target: null, args: as })
-        | "[".. l=expr? ..":".. @"a closing ']'" r=expr? .."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
-        | "[".. @"a closing ']'" e=expr .."]" t=tail                  -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
-        | "." n=ident "(".. @"a closing ')'" as=args ..")" t=tail     -> set_target(t, { type: #send, target: null, msg: n, args: as })
-        | "." @"a message" n=ident t=tail                             -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
-        | pass                                                        -> null
-    call: fn=value t=tail                                             -> set_target(t, fn)
+        // the ws is in front, because the empty tail should not eat whitespace, which might be significant
+    tail: ."(".. @"a closing ')'" as=args ..")" t=tail                 -> set_target(t, { type: #call, target: null, args: as })
+        | ."[".. l=expr? ..":".. @"a closing ']'" r=expr? .."]" t=tail -> set_target(t, { type: #send, target: null, msg: #slice, args: [l, r] })
+        | ."[".. @"a closing ']'" e=expr .."]" t=tail                  -> set_target(t, { type: #send, target: null, msg: #get, args: [e] })
+        | .".". n=ident ."(".. @"a closing ')'" as=args ..")" t=tail    -> set_target(t, { type: #send, target: null, msg: n, args: as })
+        | .".". @"a message" n=ident t=tail                             -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
+        | pass                                                          -> null
+    call: fn=value t=tail                                              -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg".. expr)* -> as.prepend(a)
- topcall: fn=reference sp. !"(" (
+ topcall: fn=reference sp .!"(" (
               a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
         // certain calls can be used as topcall, e.g. print.call debug.inspect 42
-        | !"(" fn=call ?(fn?topcall) sp. !"(" (
-            a=topcall                       -> { type: #call, target: fn, args: [a] }
+        | &reference fn=call ?(fn?topcall) sp .!"(" (
+              a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
@@ -201,20 +207,22 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
         | e=expr     @"end of statement" &eostm -> e
 
    slots: a=slot as=(.",". slot)*               -> as.prepend(a)
-    xlot: n=ident                               -> { type: #assign, target: n }
+    slot: "@" n=ident                           -> { type: #selfassign, name: n }
+        | "\$" n=ident                          -> { type: #varassign, name: n }
+        | "var"."\$" n=ident                    -> { type: #varcreate, name: n }
+        | n=ident                               -> { type: #assign, name: n }
 
-    slot: "@" n=ident                           -> { type: #selfassign, target: n }
-        | "\$" n=ident                          -> { type: #varassign, target: n }
-        | "var"."\$" n=ident                    -> { type: #varcreate, target: n }
-        | n=ident                               -> { type: #assign, target: n }
-
-     stm: as=slots ."=" wsnl e=rhs              -> [e].cat(as)
+     stm: "\$" n=ident .o=op."=".. e=rhs        -> [{ type: #call, fn: o, args: [{ type: #varref, name: n}, e]}, { type: #varassign, name: n }]
+        | "@"  n=ident .o=op."=".. e=rhs        -> [{ type: #call, fn: o, args: [{ type: #selfref, name: n}, e]}, { type: #selfassign, name: n }]
+        | as=slots          ."=".. e=rhs        -> [e].cat(as)
         | e=rhs                                 -> [e]
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).reduce({l, r -> l.cat(r)})
 
-   block: ":".. ?(print "YES"; 1) @"a function or a block" (
-             function
+   block: ":".. @"a block or function" (
+           // this first one is needed, otherwise bodynl will produce paren at a very high indent
+             "("..@"a closing ')'" b=body ..")"           -> b
+           | function
            | "{"..@"a closing '}'" b=body .."}"           -> b
            | bodynl
            )
