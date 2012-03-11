@@ -52,19 +52,19 @@ slcomment: "//" (!nl _)*
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
 
    punct: [ \t\n\r.!:;,=(){}[\]"']
+  letter: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
 nonident: punct | "/" | "\\" | "<" | ">" | "^"
-   first: [_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]
+   first: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
     name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
    ident: n=name ?(nvalue n) -> n.toSym
 reference: n=name ?(nreserved n) -> n.toSym
 
- opchars: rs=(!first !punct !"//" _)+ -> rs.toChar
+ opchars: rs=(!letter !punct !"//" _)+ -> rs.toChar
    binop: "or"                        -> #or
         | "and"                       -> #and
-        //| "not"                       -> #not
         // TODO test n for ^, ~ and others (non binops)
         | !"@" !"$" !"->" n=opchars   -> n.toSym
-  textop: "or" | "and"
+  textop: "or" | "and" | "not"
 
 // ---- TEXT ----
 
@@ -96,18 +96,18 @@ reference: n=name ?(nreserved n) -> n.toSym
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{" wsnl is=items wsnl @"a closing '}'" "}" -> { type: #object, items: is }
-        | "{" wsnl @"a closing '}'" "}"               -> { type: #object, items: [] }
-     map: "[" wsnl is=items wsnl @"a closing ']'" "]" -> { type: #map, items: is }
-        | "[" wsnl ":" wsnl @"a closing ']'" "]"      -> { type: #map, items: [] }
-   items: i=item eov wsnl is=items                    -> is.prepend(i)
-        | i=item                                      -> [i]
-    item: n=name .@"a ':'" ":" wsnl @"a value" v=expr -> { key: n, value: v }
+  object: "{".. is=items @"a closing '}'" .."}"   -> { type: #object, items: is }
+        | "{"..@"a closing '}'" "}"               -> { type: #object, items: [] }
+     map: "[".. is=items @"a closing ']'" .."]"   -> { type: #map, items: is }
+        | "["..":" @"a closing ']'" .."]"         -> { type: #map, items: [] }
+   items: i=item eov.. is=items                   -> is.prepend(i)
+        | i=item                                  -> [i]
+    item: n=name .@"a ':'" ":"..@"a value" v=expr -> { key: n, value: v }
 
-    list: "[" wsnl is=litems @"a closing ']'" wsnl "]" -> { type: #list, items: is }
-        | "[" wsnl @"a closing ']'" "]"                -> { type: #list, items: [] }
-  litems: i=expr eov wsnl is=litems                    -> is.prepend(i)
-        | i=expr                                       -> [i]
+    list: "[".. is=litems @"a closing ']'" .."]"  -> { type: #list, items: is }
+        | "[".."]"                                -> { type: #list, items: [] }
+  litems: i=expr !":" eov.. is=litems             -> is.prepend(i)
+        | i=expr !":"                             -> [i]
 
 // ---- PARSER ----
 
@@ -157,9 +157,10 @@ reference: n=name ?(nreserved n) -> n.toSym
                    )
 
         // the first is an optimization of the second
-   paren: "(".. c=stm ..")"                  -> bool(c.size == 1, c.get(0), c)
-        | "(".. @"closing ')'" b=body ..")"  -> b
+   paren: "(".. c=stm ..")"                 t=tail -> set_target(t, bool(c.size == 1, c.get(0), c))
+        | "(".. @"closing ')'" b=body ..")" t=tail -> set_target(t, b)
         | call
+    call: fn=value t=tail                          -> set_target(t, fn)
 
     args: a=expr as=(eov expr)*             -> as.prepend(a)
         | pass                              -> []
@@ -171,7 +172,6 @@ reference: n=name ?(nreserved n) -> n.toSym
         | .".". n=ident ."(".. @"a closing ')'" as=args ..")" t=tail    -> set_target(t, { type: #send, target: null, msg: n, args: as })
         | .".". @"a message" n=ident t=tail                             -> set_target(t, { type: #send, target: null, msg: n, args: [], topcall: true })
         | pass                                                          -> null
-    call: fn=value t=tail                                              -> set_target(t, fn)
 
  topargs: a=expr as=(.","@"arg".. expr)* -> as.prepend(a)
  topcall: fn=reference sp. !"(" !binop (
