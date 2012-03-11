@@ -69,6 +69,7 @@ pOpt = { in, nr, parser ->
     trace2(in, "pOpt")
     _catch: { e =>
         if e?t != #p: _throw e
+        if e?noreturn: _throw e
         return in, null
     }
     parser(in)

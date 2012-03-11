@@ -105,11 +105,12 @@ reference: n=name ?(nreserved n) -> n.toSym
 // ---- PARSER ----
 
     this: "@" n=ident -> { type: #self, name: n }
+  varref: "\$" n=ident -> { type: #varref, name: n }
   symbol: "#" n=name  -> {type: #sym, name: n }
 
    value: function
         | ident
-        | this
+        | this | varref
         | num | symbol | text
         | list | object | map
         | "true"                                   -> true
@@ -174,14 +175,14 @@ reference: n=name ?(nreserved n) -> n.toSym
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
-function: "{" wsnl as=fargs wsnl "->" wsnl @"a closing '}'"
-                b=bodyempty wsnl
-          "}"                                  -> { type: #fn, args: as, body: b }
-           | "{" wsnl as=fargs wsnl "=>" wsnl @"a closing '}'"
-                b=bodyempty wsnl
-          "}"                                  -> { type: #block, args: as, body: b }
-           | as=fargs ."->" wsnl b=bodynl      -> { type: #fn, args: as, body: b }
-           | as=fargs ."=>" wsnl b=bodynl      -> { type: #block, args: as, body: b }
+function: "{".. as=fargs .."->"..@"a closing '}'"
+                b=bodyempty
+          .."}"                                   -> { type: #fn, args: as, body: b }
+        | "{".. as=fargs .."=>"..@"a closing '}'"
+                b=bodyempty
+          .."}"                                   -> { type: #block, args: as, body: b }
+        | as=fargs ."->".. b=bodynl               -> { type: #fn, args: as, body: b }
+        | as=fargs ."=>".. b=bodynl               -> { type: #block, args: as, body: b }
 
 
    fargs: a=farg wsnl "," wsnl as=fargs        -> as.prepend(a)
@@ -212,9 +213,11 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).reduce({l, r -> l.cat(r)})
 
-   block: ":" wsnl function
-        | ":" wsnl "{" wsnl @"a closing '}'" b=body wsnl "}"     -> b
-        | ":" wsnl @"a function or a block" bodynl
+   block: ":".. ?(print "YES"; 1) @"a function or a block" (
+             function
+           | "{"..@"a closing '}'" b=body .."}"           -> b
+           | bodynl
+           )
 
     body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
 
