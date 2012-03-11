@@ -105,8 +105,8 @@ inspect = { x ->
             if x.size == 0: buf.write("[]"); return false
             if indent.size > 0: buf.write("\n")
             x.each: { v ->
-                buf.write(indent); buf.write("- ");
-                nl = toJSON(v, indent.cat(" "), buf, true);
+                buf.write(indent); buf.write("- ")
+                nl = toJSON(v, indent.cat(" "), buf, true)
                 if not nl: buf.write("\n")
             }
             return true
