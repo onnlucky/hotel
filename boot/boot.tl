@@ -152,11 +152,16 @@ _install(Text.class, #eval, (_eval_ = { ->
 _env = Env.current
 _loaded = Map.new
 _module_path = _io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl"
+_fileForModule = { name ->
+    file = "$(_module_path)/$name"
+    if _Path_stat(file).ino != 0: return file
+    return name
+}
 _resolve: { name ->
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
-    file = "$(_module_path)/$(name.toText).tl"
+    file = _fileForModule("$(name.toText).tl")
     _catch: { e =>
         print "error loading: '$file': $e"
         _loaded.set(name, _loaded)
