@@ -159,7 +159,6 @@ Process = {
     }
 }
 
-chdir = dir -> _io_chdir dir
 wait = ms -> _io.wait ms
 
 stdin = Stream.new(_File_from(0))
@@ -172,10 +171,13 @@ return {
     File: File
     Socket: Socket
     Process: Process
-    chdir: chdir
     wait: wait
     ioloop: ioloop
 
     stdin: stdin, stdout: stdout, stderr: stderr
+
+    chdir: _io_chdir
+    mkdir: _io_mkdir
+    rmdir: _io_rmdir
 }
 

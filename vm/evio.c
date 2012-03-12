@@ -389,7 +389,13 @@ static tlValue _Path_stat(tlTask* task, tlArgs* args) {
 
     struct stat buf;
     int r = stat(tlTextData(name), &buf);
-    if (r == -1) TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
+    if (r == -1) {
+        if (errno == ENOENT || errno == ENOTDIR) {
+            bzero(&buf, sizeof(buf));
+        } else {
+            TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
+        }
+    }
 
     tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap));
     tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
