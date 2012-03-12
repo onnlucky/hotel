@@ -69,6 +69,23 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     }
     return tlNull;
 }
+static tlValue _io_mkdir(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    int perms = 0777;
+    if (mkdir(tlTextData(text), perms)) {
+        TL_THROW("mkdir: %s", strerror(errno));
+    }
+    return tlNull;
+}
+static tlValue _io_rmdir(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    if (rmdir(tlTextData(text))) {
+        TL_THROW("rmdir: %s", strerror(errno));
+    }
+    return tlNull;
+}
 
 TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlReader);
@@ -847,7 +864,13 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
 static const tlNativeCbs __evio_natives[] = {
     { "_io_getrusage", _io_getrusage },
     { "_io_getenv", _io_getenv },
+
     { "_io_chdir", _io_chdir },
+    { "_io_mkdir", _io_mkdir },
+    { "_io_rmdir", _io_rmdir },
+    //{ "_io_unlink", _io_unlink },
+    //{ "_io_rename", _io_rename },
+
     { "_File_open", _File_open },
     { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
