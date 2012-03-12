@@ -141,6 +141,11 @@ minutes = m -> m * 1000 * 60
 hours   = h -> m * 1000 * 60 * 60
 days    = d -> d * 1000 * 60 * 60 * 24
 
+eval = { text -> _parse(text)(Env.current) }
+_install(Text.class, #eval, (_eval_ = { ->
+    eval(this)
+}))
+
 // unresolved names will call this, for auto module loading
 // TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
 // TODO besides, need to have a dedicated task for this, to prevent races
