@@ -948,6 +948,11 @@ void evio_init() {
     tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
     tl_register_global("_File_EXCL",     tlINT(O_EXCL));
 
+    tl_register_global("_Stat_IFMT", tlINT(S_IFMT));
+    tl_register_global("_Stat_IFREG", tlINT(S_IFREG));
+    tl_register_global("_Stat_IFDIR", tlINT(S_IFDIR));
+    tl_register_global("_Stat_IFLNK", tlINT(S_IFLNK));
+
     // for stat syscall
     tlSet* keys = tlSetNew(null, 12);
     _s_dev = tlSYM("dev"); tlSetAdd_(keys, _s_dev);

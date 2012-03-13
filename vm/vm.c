@@ -128,6 +128,27 @@ static tlValue _mod(tlTask* task, tlArgs* args) {
     trace("MOD: %d", res);
     return tlINT(res);
 }
+static tlValue _binand(tlTask* task, tlArgs* args) {
+    int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
+    trace("BIN AND: %d", res);
+    return tlINT(res);
+}
+static tlValue _binor(tlTask* task, tlArgs* args) {
+    int res = tl_int(tlArgsGet(args, 0)) | tl_int(tlArgsGet(args, 1));
+    trace("BIN OR: %d", res);
+    return tlINT(res);
+}
+static tlValue _binxor(tlTask* task, tlArgs* args) {
+    int res = tl_int(tlArgsGet(args, 0)) ^ tl_int(tlArgsGet(args, 1));
+    trace("BIN XOR: %d", res);
+    return tlINT(res);
+}
+static tlValue _binnot(tlTask* task, tlArgs* args) {
+    int res = ~tl_int(tlArgsGet(args, 0));
+    trace("BIN NOT: %d", res);
+    return tlINT(res);
+}
+
 static tlValue _random(tlTask* task, tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);
@@ -247,6 +268,11 @@ static const tlNativeCbs __vm_natives[] = {
     { "mul",  _mul },
     { "div",  _div },
     { "mod",  _mod },
+
+    { "binand",  _binand },
+    { "binor",  _binor },
+    { "binxor",  _binxor },
+    { "binnot",  _binnot },
 
     { "random", _random },
     { "_int_parse", _int_parse },
