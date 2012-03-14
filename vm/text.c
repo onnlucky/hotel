@@ -319,6 +319,7 @@ static void text_init() {
         "strip", _text_strip,
         "each", null,
         "split", null,
+        "replace", null,
         "eval", null,
         null
     );

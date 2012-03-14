@@ -52,6 +52,14 @@ _install(Text.class, #split, (split = { on ->
     }
     return loop(0, 0, [])
 }))
+_install(Text.class, #replace, (replace = { from, to ->
+    at = this.search(from)
+    if at == -1: return this
+
+    before = this.slice(0, at)
+    after = this.slice(at + from.size)
+    return "$before$to$after"
+}))
 _install(Set.class, #each, _each)
 _install(List.class, #each, _each)
 _install(List.class, #join, (join = { sep ->
