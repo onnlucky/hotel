@@ -98,6 +98,9 @@ tlSym tlSymFromText(tlTask* task, tlText* text) {
 INTERNAL tlValue _sym_toText(tlTask* task, tlArgs* args) {
     return tlTextFromSym(tlArgsTarget(args));
 }
+INTERNAL tlValue _sym_toSym(tlTask* task, tlArgs* args) {
+    return tlArgsTarget(args);
+}
 
 void tl_register_global(const char* name, tlValue v) {
     assert(globals);
@@ -190,6 +193,7 @@ static void sym_init() {
 
     _tlSymClass.map = tlClassMapFrom(
         "toText", _sym_toText,
+        "toSym", _sym_toSym,
         null
     );
 }
