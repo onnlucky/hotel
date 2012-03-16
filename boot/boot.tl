@@ -142,6 +142,12 @@ inspect = { x ->
     buf.read
 }
 
+// TODO should report line number and such of testcase ...
+test = { ->
+    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e
+    args.block.call
+}
+
 // TODO should not sleep in ms, but need float ... should also add Time module
 sleep =   ms -> io.wait ms
 seconds = s -> s * 1000
