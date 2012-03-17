@@ -131,6 +131,35 @@ File = {
     }
 }
 
+Dir = {
+    call: name -> { name: name, class: this.class }
+    class: {
+        each: { fn ->
+            block = (args.block) or fn
+            if not block: _throw "each expects a block or fn"
+            _Dir_open(this.name).each(block=block)
+        }
+    }
+}
+
+Path = {
+    call: name -> { name: name, class: this.class, _stat: _Var_new() }
+    class: {
+        stat: { ->
+            if not _var_get(this._stat): _var_set(this._stat, _Path_stat(this.name))
+            _var_get(this._stat)
+        }
+        exists: -> this.stat.ino != 0
+        isFile: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFREG
+        isDir:  -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFDIR
+        isLink: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFLNK
+        asFile: -> File(this.name)
+        asDir:  -> Dir(this.name)
+        create: -> _io_mkdir(this.name)
+        delete: -> _io_rmdir(this.name)
+    }
+}
+
 Socket = {
     open: { address, port ->
         ip = _Socket_resolve(address)
@@ -159,7 +188,6 @@ Process = {
     }
 }
 
-chdir = dir -> _io_chdir dir
 wait = ms -> _io.wait ms
 
 stdin = Stream.new(_File_from(0))
@@ -170,12 +198,14 @@ return {
     Buffer: Buffer
     Stream: Stream
     File: File
+    Dir: Dir
+    Path: Path
     Socket: Socket
     Process: Process
-    chdir: chdir
     wait: wait
     ioloop: ioloop
 
     stdin: stdin, stdout: stdout, stderr: stderr
+    chdir: _io_chdir
 }
 

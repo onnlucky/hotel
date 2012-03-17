@@ -69,6 +69,23 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     }
     return tlNull;
 }
+static tlValue _io_mkdir(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    int perms = 0777;
+    if (mkdir(tlTextData(text), perms)) {
+        TL_THROW("mkdir: %s", strerror(errno));
+    }
+    return tlNull;
+}
+static tlValue _io_rmdir(tlTask* task, tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+    if (rmdir(tlTextData(text))) {
+        TL_THROW("rmdir: %s", strerror(errno));
+    }
+    return tlNull;
+}
 
 TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlReader);
@@ -372,7 +389,13 @@ static tlValue _Path_stat(tlTask* task, tlArgs* args) {
 
     struct stat buf;
     int r = stat(tlTextData(name), &buf);
-    if (r == -1) TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
+    if (r == -1) {
+        if (errno == ENOENT || errno == ENOTDIR) {
+            bzero(&buf, sizeof(buf));
+        } else {
+            TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
+        }
+    }
 
     tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap));
     tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
@@ -847,7 +870,13 @@ static tlValue _io_run(tlTask* task, tlArgs* args) {
 static const tlNativeCbs __evio_natives[] = {
     { "_io_getrusage", _io_getrusage },
     { "_io_getenv", _io_getenv },
+
     { "_io_chdir", _io_chdir },
+    { "_io_mkdir", _io_mkdir },
+    { "_io_rmdir", _io_rmdir },
+    //{ "_io_unlink", _io_unlink },
+    //{ "_io_rename", _io_rename },
+
     { "_File_open", _File_open },
     { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
@@ -918,6 +947,11 @@ void evio_init() {
     tl_register_global("_File_CREAT",    tlINT(O_CREAT));
     tl_register_global("_File_TRUNC",    tlINT(O_TRUNC));
     tl_register_global("_File_EXCL",     tlINT(O_EXCL));
+
+    tl_register_global("_Stat_IFMT", tlINT(S_IFMT));
+    tl_register_global("_Stat_IFREG", tlINT(S_IFREG));
+    tl_register_global("_Stat_IFDIR", tlINT(S_IFDIR));
+    tl_register_global("_Stat_IFLNK", tlINT(S_IFLNK));
 
     // for stat syscall
     tlSet* keys = tlSetNew(null, 12);

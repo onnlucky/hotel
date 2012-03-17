@@ -52,6 +52,14 @@ _install(Text.class, #split, (split = { on ->
     }
     return loop(0, 0, [])
 }))
+_install(Text.class, #replace, (replace = { from, to ->
+    at = this.search(from)
+    if at == -1: return this
+
+    before = this.slice(0, at)
+    after = this.slice(at + from.size)
+    return "$before$to$after"
+}))
 _install(Set.class, #each, _each)
 _install(List.class, #each, _each)
 _install(List.class, #join, (join = { sep ->
@@ -134,6 +142,12 @@ inspect = { x ->
     buf.read
 }
 
+// TODO should report line number and such of testcase ...
+test = { ->
+    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e
+    args.block.call
+}
+
 // TODO should not sleep in ms, but need float ... should also add Time module
 sleep =   ms -> io.wait ms
 seconds = s -> s * 1000
@@ -141,17 +155,27 @@ minutes = m -> m * 1000 * 60
 hours   = h -> m * 1000 * 60 * 60
 days    = d -> d * 1000 * 60 * 60 * 24
 
+eval = { text -> _parse(text)(Env.current) }
+_install(Text.class, #eval, (_eval_ = { ->
+    eval(this)
+}))
+
 // unresolved names will call this, for auto module loading
 // TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
 // TODO besides, need to have a dedicated task for this, to prevent races
 _env = Env.current
 _loaded = Map.new
 _module_path = _io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl"
+_fileForModule = { name ->
+    file = "$(_module_path)/$name"
+    if _Path_stat(file).ino != 0: return file
+    return name
+}
 _resolve: { name ->
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
-    file = "$(_module_path)/$(name.toText).tl"
+    file = _fileForModule("$(name.toText).tl")
     _catch: { e =>
         print "error loading: '$file': $e"
         _loaded.set(name, _loaded)
