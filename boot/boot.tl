@@ -54,7 +54,7 @@ _install(Text.class, #split, (split = { on ->
 }))
 _install(Text.class, #replace, (replace = { from, to ->
     at = this.search(from)
-    if at == -1: return this
+    if not at: return this
 
     before = this.slice(0, at)
     after = this.slice(at + from.size)

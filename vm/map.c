@@ -273,6 +273,11 @@ static tlValue _map_size(tlTask* task, tlArgs* args) {
     if (!map) TL_THROW("Expected a map");
     return tlINT(tlMapSize(map));
 }
+static tlValue _map_keys(tlTask* task, tlArgs* args) {
+    tlMap* map = tlMapCast(tlArgsTarget(args));
+    if (!map) TL_THROW("Expected a map");
+    return tlMapKeySet(map);
+}
 static tlValue _map_get(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
@@ -359,6 +364,7 @@ static void map_init() {
         "size", _map_size,
         "get", _map_get,
         "set", _map_set,
+        "keys", _map_keys,
         "toObject", _map_toObject,
         null
     );
