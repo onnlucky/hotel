@@ -110,6 +110,22 @@ static tlValue _Env_current(tlTask* task, tlArgs* args) {
     return tlTaskPauseResuming(task, resumeEnvCurrent, tlNull);
 }
 
+static tlValue resumeEnvLocalObject(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+    trace("");
+    while (frame) {
+        if (CodeFrameIs(frame)) {
+            tlEnv* env = CodeFrameGetEnv(frame);
+            return tlMapToObject_(env->map);
+        }
+        frame = frame->caller;
+    }
+    return tlNull;
+}
+static tlValue _Env_localObject(tlTask* task, tlArgs* args) {
+    trace("");
+    return tlTaskPauseResuming(task, resumeEnvLocalObject, tlNull);
+}
+
 static tlMap* envClass;
 static void env_init() {
     _tlEnvClass.map = tlClassMapFrom(
@@ -119,6 +135,7 @@ static void env_init() {
     envClass = tlClassMapFrom(
         "new", _Env_new,
         "current", _Env_current,
+        "localObject", _Env_localObject,
         null
     );
 }

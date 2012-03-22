@@ -7,6 +7,7 @@
 // default includes
 #define _GNU_SOURCE
 #include <string.h>
+#include <math.h>
 #include <strings.h>
 #include <stdint.h>
 #include <stdio.h>

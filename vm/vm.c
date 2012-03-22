@@ -148,7 +148,11 @@ static tlValue _binnot(tlTask* task, tlArgs* args) {
     trace("BIN NOT: %d", res);
     return tlINT(res);
 }
-
+static tlValue _sqrt(tlTask* task, tlArgs* args) {
+    int res = sqrt(tl_int(tlArgsGet(args, 0)));
+    trace("SQRT: %d", res);
+    return tlINT(res);
+}
 static tlValue _random(tlTask* task, tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);
@@ -274,6 +278,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "binxor",  _binxor },
     { "binnot",  _binnot },
 
+    { "sqrt", _sqrt },
     { "random", _random },
     { "_int_parse", _int_parse },
 
