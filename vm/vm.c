@@ -31,6 +31,7 @@
 #include "eval.c"
 
 #include "var.c"
+#include "array.c"
 #include "mutablemap.c"
 #include "controlflow.c"
 
@@ -215,6 +216,7 @@ void tl_init() {
 
     var_init();
     mutablemap_init();
+    array_init();
     controlflow_init();
     object_init();
     vm_init();
@@ -235,6 +237,7 @@ tlVm* tlVmNew() {
     task_vm_default(vm);
     queue_vm_default(vm);
     mutablemap_vm_default(vm);
+    array_vm_default(vm);
     return vm;
 }
 

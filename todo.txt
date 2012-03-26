@@ -1,5 +1,15 @@
 # TODO
 
+rename List -> Array, and Text -> String; Map -> Table why? because that gives users those very useful names back
+rename tlClass to tlMethods or such, and tlType so every value has a type which might have methods ...
+
+add objects using:
+  Square = Object { width, height ->
+    methods {
+      area: -> this.width * this.height
+    }
+  }
+
 remove "foo $(...)" interpolation, do "foo" ... instead ...
 add tlBackTrace and implement throw that does _throw { stack: _Stack_new } ... oid
 
