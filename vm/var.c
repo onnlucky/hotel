@@ -2,9 +2,7 @@
 
 #include "trace-off.h"
 
-static tlClass _tlVarClass = {
-    .name = "Var"
-};
+static tlClass _tlVarClass = { .name = "Var" };
 tlClass* tlVarClass = &_tlVarClass;
 
 struct tlVar {
@@ -44,7 +42,22 @@ static const tlNativeCbs __var_natives[] = {
     { 0, 0 }
 };
 
-INTERNAL void var_init() {
+static tlMap* varClass;
+static void var_init() {
+    _tlVarClass.map = tlClassMapFrom(
+        "get", _var_get,
+        "set", _var_set,
+        null
+    );
+    varClass = tlClassMapFrom(
+        "new", _Var_new,
+        null
+    );
+    // TODO remove this in favor of Var.new etc ...
     tl_register_natives(__var_natives);
+}
+
+static void var_vm_default(tlVm* vm) {
+   tlVmGlobalSet(vm, tlSYM("Var"), varClass);
 }
 

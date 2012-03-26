@@ -51,7 +51,9 @@ static tlValue _io_getrusage(tlTask* task, tlArgs* args) {
     tlMapSetSym_(res, _s_cpu, tlINT(use.ru_utime.tv_sec + use.ru_stime.tv_sec));
     tlMapSetSym_(res, _s_mem, tlINT(use.ru_maxrss));
     tlMapSetSym_(res, _s_pid, tlINT(getpid()));
+#ifdef HAVE_GC
     tlMapSetSym_(res, _s_gcs, tlINT(GC_gc_no));
+#endif
     return res;
 }
 static tlValue _io_getenv(tlTask* task, tlArgs* args) {

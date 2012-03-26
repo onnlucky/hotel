@@ -236,6 +236,7 @@ tlVm* tlVmNew() {
     env_vm_default(vm);
     task_vm_default(vm);
     queue_vm_default(vm);
+    var_vm_default(vm);
     mutablemap_vm_default(vm);
     array_vm_default(vm);
     return vm;

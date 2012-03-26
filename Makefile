@@ -2,6 +2,10 @@ CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CFLAGS)
 ifeq ($(VALGRIND),1)
 TOOL=valgrind -q --track-origins=yes
 endif
+ifeq ($(GDB),1)
+TOOL=gdb --args
+endif
+
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
 LIBGC:=libgc/objs/libgc.a
