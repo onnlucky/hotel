@@ -32,7 +32,7 @@
 
 #include "var.c"
 #include "array.c"
-#include "mutablemap.c"
+#include "hashmap.c"
 #include "controlflow.c"
 
 // extras
@@ -215,8 +215,8 @@ void tl_init() {
     queue_init();
 
     var_init();
-    mutablemap_init();
     array_init();
+    hashmap_init();
     controlflow_init();
     object_init();
     vm_init();
@@ -237,8 +237,8 @@ tlVm* tlVmNew() {
     task_vm_default(vm);
     queue_vm_default(vm);
     var_vm_default(vm);
-    mutablemap_vm_default(vm);
     array_vm_default(vm);
+    hashmap_vm_default(vm);
     return vm;
 }
 

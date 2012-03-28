@@ -164,7 +164,7 @@ _install(Text.class, #eval, (_eval_ = { ->
 // TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
 // TODO besides, need to have a dedicated task for this, to prevent races
 _env = Env.current
-_loaded = Map.new
+_loaded = HashMap.new
 _module_path = _io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl"
 _fileForModule = { name ->
     file = "$(_module_path)/$name"
