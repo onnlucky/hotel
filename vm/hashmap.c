@@ -46,12 +46,44 @@ INTERNAL tlValue _hashmap_set(tlTask* task, tlArgs* args) {
     lhashmap_putif(map->map, (void*)tlSymData(key), val, LHASHMAP_IGNORE);
     return val?val:tlNull;
 }
+INTERNAL tlValue _hashmap_has(tlTask* task, tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    if (!map) TL_THROW("expected a Map");
+    tlValue key = tlSymCast(tlArgsGet(args, 0));
+    if (!key) TL_THROW("expected a Symbol");
+
+    tlValue val = lhashmap_get(map->map, tlSymData(key));
+    trace("%s == %s", tl_str(key), tl_str(val));
+    if (!val) return tlFalse;
+    return tlTrue;
+}
+INTERNAL tlValue _hashmap_del(tlTask* task, tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    if (!map) TL_THROW("expected a Map");
+    tlValue key = tlSymCast(tlArgsGet(args, 0));
+    if (!key) TL_THROW("expected a Symbol");
+
+    tlValue val = lhashmap_putif(map->map, (void*)tlSymData(key), null, LHASHMAP_IGNORE);
+    trace("%s == %s", tl_str(key), tl_str(val));
+    if (!val) return tlUndefined;
+    return val;
+}
+INTERNAL tlValue _hashmap_size(tlTask* task, tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    if (!map) TL_THROW("expected a Map");
+
+    int size = lhashmap_size(map->map);
+    return tlINT(size);
+}
 
 static tlMap* hashmapClass;
 void hashmap_init() {
     _tlHashMapClass.map = tlClassMapFrom(
         "get", _hashmap_get,
         "set", _hashmap_set,
+        "has", _hashmap_has,
+        "del", _hashmap_del,
+        "size", _hashmap_size,
         null
     );
     hashmapClass = tlClassMapFrom(
