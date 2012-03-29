@@ -16,12 +16,25 @@ struct tlStackTrace {
 };
 
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
-INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack) {
-    trace("stack %p", stack);
+INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
+    if (skip < 0) skip = 0;
+    trace("stack: %p, skip: %d", stack, skip);
     assert(task);
 
+    tlFrame* start = null;
+    for (tlFrame* frame = stack; frame; frame = frame->caller) {
+        if (CodeFrameIs(frame)) {
+            if (skip--) continue;
+            start = frame;
+            break;
+        }
+    }
+
     int size = 0;
-    for (tlFrame* frame = stack; frame; frame = frame->caller) size++;
+    for (tlFrame* frame = start; frame; frame = frame->caller) {
+        //if (!CodeFrameIs(frame)) continue;
+        size++;
+    }
     trace("size %d", size);
 
     tlStackTrace* trace =
@@ -29,7 +42,8 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack) {
     trace->size = size;
     trace->task = task;
     int at = 0;
-    for (tlFrame* frame = stack; frame; frame = frame->caller) {
+    for (tlFrame* frame = start; frame; frame = frame->caller) {
+        //if (!CodeFrameIs(frame)) continue;
         tlText* file;
         tlText* function;
         tlInt line;
@@ -52,6 +66,7 @@ INTERNAL tlValue _stackTrace_get(tlTask* task, tlArgs* args) {
     if (!trace) TL_THROW("expected a StackTrace");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0 || at >= trace->size) return tlNull;
+    at *= 3;
     trace("%d -- %s %s %s ..", at,
             tl_str(trace->entries[at]), tl_str(trace->entries[at + 1]), tl_str(trace->entries[at + 2]));
     assert(trace->entries[at]);

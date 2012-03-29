@@ -150,7 +150,7 @@ tlResult* tlResultFrom(tlTask* task, ...) {
     for (int i = 0; i < size; i++) res->data[i] = va_arg(ap, tlValue);
     va_end(ap);
 
-    print("RESULTS: %d", size);
+    trace("RESULTS: %d", size);
     return res;
 }
 void tlResultSet_(tlResult* res, int at, tlValue v) {

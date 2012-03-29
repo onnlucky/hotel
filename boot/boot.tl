@@ -101,6 +101,40 @@ _install(List.class, #map, (map = { fn ->
         $i += 1
     }
 }))
+_install(Array.class, #join, (join = { sep ->
+    if this.size == 0: return ""
+    sep = (sep) or ""
+
+    var $res = this.get(0).toText
+    var $i = 1
+    while $i < this.size: {
+        $res = $res.cat(sep).cat(this.get($i).toText)
+        $i += 1
+    }
+    return $res
+}))
+
+Error = {
+    call: { msg ->
+        stack = Task.stacktrace(1)
+        args.map.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
+    }
+    class: {
+        throw: { -> _throw this }
+        toString: { ->
+            ls = Array.new
+            ls.add "Error: ", this.msg, "\n"
+            x = Var.new 0
+            loop: {
+                file, fn, line = this.stack.get($x)
+                if not file: break
+                ls.add "  at ", file, ":", line, " ", fn, "\n"
+                $x += 1
+            }
+            return ls.join
+        }
+    }
+}
 
 inspect = { x ->
     toJSON = { x, indent, buf, inlist -> (

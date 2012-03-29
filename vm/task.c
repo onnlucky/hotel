@@ -464,10 +464,11 @@ INTERNAL tlValue _Task_current(tlTask* task, tlArgs* args) {
 }
 INTERNAL tlValue resumeStacktrace(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
-    return tlStackTraceNew(task, frame->caller);
+    int skip = tl_int_or(tlArgsGet(res, 0), 0);
+    return tlStackTraceNew(task, frame->caller, skip);
 }
 INTERNAL tlValue _Task_stacktrace(tlTask* task, tlArgs* args) {
-    return tlTaskPauseResuming(task, resumeStacktrace, tlNull);
+    return tlTaskPauseResuming(task, resumeStacktrace, args);
 }
 
 INTERNAL tlValue resumeBindToThread(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {

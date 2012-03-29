@@ -156,12 +156,15 @@ static void array_init() {
         //"popFront", _array_popFront,
         "remove", _array_remove,
         "insert", _array_insert,
+        "join", null,
         null
     );
     arrayClass = tlClassMapFrom(
         "new", _Array_new,
+        "class", null,
         null
     );
+    tlMapSetSym_(arrayClass, s_class, _tlArrayClass.map);
 }
 
 static void array_vm_default(tlVm* vm) {
