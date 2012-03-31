@@ -14,7 +14,7 @@ static tlClass _GraphicsClass = {
 };
 tlClass* GraphicsClass = &_GraphicsClass;
 
-static tlValue _circle(tlTask* task, tlArgs* args) {
+static tlValue _circle(tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_t* cr = g->cairo;
     int x = tl_int_or(tlArgsGet(args, 0), 0);
@@ -27,7 +27,7 @@ static tlValue _circle(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static tlValue _rgb(tlTask* task, tlArgs* args) {
+static tlValue _rgb(tlArgs* args) {
     Graphics* gr = GraphicsAs(tlArgsTarget(args));
     cairo_t* cr = gr->cairo;
     float r = tl_int_or(tlArgsGet(args, 0), 0)/255.0;
@@ -43,10 +43,10 @@ void graphicsDelete(Graphics* g) {
     if (g->surface) { cairo_surface_destroy(g->surface); g->surface = null; }
 }
 
-Graphics* graphicsSizeTo(tlTask* task, Graphics* g, int width, int height) {
+Graphics* graphicsSizeTo(Graphics* g, int width, int height) {
     if (!g) {
         print("new graphics; width: %d, height: %d", width, height);
-        g = tlAlloc(task, GraphicsClass, sizeof(Graphics));
+        g = tlAlloc(GraphicsClass, sizeof(Graphics));
     }
     if (g->cairo) { cairo_destroy(g->cairo); g->cairo = null; }
     if (!g->surface || cairo_image_surface_get_width(g->surface) != width
@@ -68,8 +68,8 @@ void graphicsDrawOn(Graphics* g, cairo_t* cr) {
     cairo_fill_extents(cr, null, null, null, null);
 }
 
-static tlValue _Graphics_new(tlTask* task, tlArgs* args) {
-    return graphicsSizeTo(task, null, 0, 0);
+static tlValue _Graphics_new(tlArgs* args) {
+    return graphicsSizeTo(null, 0, 0);
 }
 
 void graphics_init(tlVm* vm) {

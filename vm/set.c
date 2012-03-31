@@ -25,15 +25,15 @@ void tlSetAssert(tlSet* set) {
 #endif
 }
 
-tlSet* tlSetNew(tlTask* task, int size) {
-    return tlAllocWithFields(task, tlSetClass, sizeof(tlSet), size);
+tlSet* tlSetNew(int size) {
+    return tlAllocWithFields(tlSetClass, sizeof(tlSet), size);
 }
 
 tlValue tlSetGet(tlSet* set, int at) {
     return set->data[at];
 }
 
-tlSet* tlSetCopy(tlTask* task, tlSet* set, int size) {
+tlSet* tlSetCopy(tlSet* set, int size) {
     assert(tlSetIs(set));
     assert(size >= 0 || size == -1);
     trace("%d", size);
@@ -43,7 +43,7 @@ tlSet* tlSetCopy(tlTask* task, tlSet* set, int size) {
 
     if (size == 0) return _tl_set_empty;
 
-    tlSet* nset = tlSetNew(task, size);
+    tlSet* nset = tlSetNew(size);
 
     if (osize > size) osize = size;
     memcpy(nset->data, set->data, sizeof(tlValue) * osize);
@@ -71,14 +71,14 @@ int tlSetIndexof(tlSet* set, tlValue key) {
     return at;
 }
 
-tlSet* tlSetAdd(tlTask* task, tlSet* set, tlValue key, int* at) {
+tlSet* tlSetAdd(tlSet* set, tlValue key, int* at) {
     trace();
     *at = tlSetIndexof(set, key);
     if (key == null || *at >= 0) return set;
 
     trace("adding key: %s", tl_str(key));
     int size = tlSetSize(set);
-    tlSet* nset = tlSetNew(task, size + 1);
+    tlSet* nset = tlSetNew(size + 1);
 
     int i = 0;
     for (; i < size && set->data[i] > key; i++) nset->data[i] = set->data[i];
@@ -103,7 +103,7 @@ int tlSetAdd_(tlSet* set, tlValue key) {
     return at;
 }
 
-static tlValue _set_get(tlTask* task, tlArgs* args) {
+static tlValue _set_get(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
     if (!set) TL_THROW("expected a Set");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
@@ -111,7 +111,7 @@ static tlValue _set_get(tlTask* task, tlArgs* args) {
     tlValue res = tlSetGet(set, at);
     return (res)?res:tlNull;
 }
-static tlValue _set_size(tlTask* task, tlArgs* args) {
+static tlValue _set_size(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
     if (!set) TL_THROW("expected a Set");
     return tlINT(tlSetSize(set));
@@ -123,7 +123,7 @@ static tlClass _tlSetClass = {
 tlClass* tlSetClass = &_tlSetClass;
 
 static void set_init() {
-    _tl_set_empty = tlSetNew(null, 0);
+    _tl_set_empty = tlSetNew(0);
     _tlSetClass.map = tlClassMapFrom(
         "size", _set_size,
         //"has", _set_has,

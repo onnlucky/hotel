@@ -16,9 +16,10 @@ struct tlStackTrace {
 };
 
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
-INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
+INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     if (skip < 0) skip = 0;
     trace("stack: %p, skip: %d", stack, skip);
+    tlTask* task = tlTaskCurrent();
     assert(task);
 
     tlFrame* start = null;
@@ -38,7 +39,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     trace("size %d", size);
 
     tlStackTrace* trace =
-            tlAllocWithFields(task, tlStackTraceClass, sizeof(tlStackTraceClass), size*3);
+            tlAllocWithFields(tlStackTraceClass, sizeof(tlStackTraceClass), size*3);
     trace->size = size;
     trace->task = task;
     int at = 0;
@@ -61,7 +62,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     return trace;
 }
 
-INTERNAL tlValue _stackTrace_get(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _stackTrace_get(tlArgs* args) {
     tlStackTrace* trace = tlStackTraceCast(tlArgsTarget(args));
     if (!trace) TL_THROW("expected a StackTrace");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
@@ -72,21 +73,20 @@ INTERNAL tlValue _stackTrace_get(tlTask* task, tlArgs* args) {
     assert(trace->entries[at]);
     assert(trace->entries[at + 1]);
     assert(trace->entries[at + 2]);
-    return tlResultFrom(task,
-            trace->entries[at], trace->entries[at + 1], trace->entries[at + 2], null);
+    return tlResultFrom(trace->entries[at], trace->entries[at + 1], trace->entries[at + 2], null);
 }
 
-INTERNAL tlValue resumeThrow(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlValue resumeThrow(tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     if (!res) return null;
     res = tlArgsGet(res, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
-    return tlTaskRunThrow(task, res);
+    return tlTaskRunThrow(tlTaskCurrent(), res);
 }
-INTERNAL tlValue _throw(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _throw(tlArgs* args) {
     trace("");
-    return tlTaskPauseResuming(task, resumeThrow, args);
+    return tlTaskPauseResuming(resumeThrow, args);
 }
 
 // TODO put in full stack?

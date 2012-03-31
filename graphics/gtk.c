@@ -4,7 +4,7 @@
 //#include <tl.h>
 
 #if 0
-static tlValue _circle(tlTask* task, tlFun* fn, tlMap* args) {
+static tlValue _circle(tlFun* fn, tlMap* args) {
     cairo_t *cr = tl_data(tlvm_global_get(tlvm_from_task(task), tlSYM("graphics")));
     int x = tl_int(tlmaps_get_int(args, 0));
     int y = tl_int(tlmaps_get_int(args, 1));

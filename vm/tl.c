@@ -13,12 +13,12 @@ int main(int argc, char** argv) {
         if (argc < 3) fatal("no file to run");
         boot = argv[2];
 
-        args = tlArgsNew(null, tlListNew(null, argc - 3), null);
+        args = tlArgsNew(tlListNew(argc - 3), null);
         for (int i = 3; i < argc; i++) {
             tlArgsSet_(args, i - 3, tlTEXT(argv[i]));
         }
     } else {
-        args = tlArgsNew(null, tlListNew(null, argc - 1), null);
+        args = tlArgsNew(tlListNew(argc - 1), null);
         for (int i = 1; i < argc; i++) {
             tlArgsSet_(args, i - 1, tlTEXT(argv[i]));
         }

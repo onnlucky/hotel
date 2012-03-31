@@ -2,9 +2,9 @@
 
 #include "trace-off.h"
 
-INTERNAL tlValue _call(tlTask* task, tlArgs* args);
-INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
-INTERNAL tlArgs* evalCallFn(tlTask* task, tlCall* call, tlCall* fn);
+INTERNAL tlValue _call(tlArgs* args);
+INTERNAL tlArgs* evalCall(tlCall* call);
+INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn);
 
 static tlClass _tlNativeClass;
 tlClass* tlNativeClass = &_tlNativeClass;
@@ -15,8 +15,8 @@ struct tlNative {
     tlSym name;
 };
 
-tlNative* tlNativeNew(tlTask* task, tlNativeCb native, tlSym name) {
-    tlNative* fn = tlAlloc(task, tlNativeClass, sizeof(tlNative));
+tlNative* tlNativeNew(tlNativeCb native, tlSym name) {
+    tlNative* fn = tlAlloc(tlNativeClass, sizeof(tlNative));
     fn->native = native;
     fn->name = name;
     return fn;
@@ -26,7 +26,7 @@ tlSym tlNativeName(tlNative* fn) {
     return tlSymAs(fn->name);
 }
 tlNative* tlNATIVE(tlNativeCb cb, const char* n) {
-    return tlNativeNew(null, cb, tlSYM(n));
+    return tlNativeNew(cb, tlSYM(n));
 }
 
 static tlClass _tlCallClass;
@@ -40,8 +40,8 @@ struct tlCall {
     //tlList* named;
     //tlSet* names;
 };
-tlCall* tlCallNew(tlTask* task, int argc, bool keys) {
-    tlCall* call = tlAllocWithFields(task, tlCallClass, sizeof(tlCall), argc + (keys?2:0));
+tlCall* tlCallNew(int argc, bool keys) {
+    tlCall* call = tlAllocWithFields(tlCallClass, sizeof(tlCall), argc + (keys?2:0));
     if (keys) tlflag_set(call, TL_FLAG_HASKEYS);
     return call;
 }
@@ -77,40 +77,41 @@ tlCall* tlCallValueIterSet_(tlCall* call, int i, tlValue v) {
     return call;
 }
 // TODO this should be FromList ... below FromPairs ...
-tlCall* tlCallFromListNormal(tlTask* task, tlValue fn, tlList* list) {
+tlCall* tlCallFromListNormal(tlValue fn, tlList* list) {
     int size = tlListSize(list);
-    tlCall* call = tlCallNew(task, size, false);
+    tlCall* call = tlCallNew(size, false);
     call->fn = fn;
     for (int i = 0; i < size; i++) tlCallValueIterSet_(call, i + 1, tlListGet(list, i));
     return call;
 }
-tlCall* tlCallFrom(tlTask* task, ...) {
+tlCall* tlCallFrom(tlValue v1, ...) {
     va_list ap;
     int size = 0;
 
-    va_start(ap, task);
-    for (tlValue v = va_arg(ap, tlValue); v; v = va_arg(ap, tlValue)) size++;
+    va_start(ap, v1);
+    for (tlValue v = v1; v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
 
-    tlCall* call = tlCallNew(task, size - 1, false);
+    tlCall* call = tlCallNew(size - 1, false);
 
-    va_start(ap, task);
-    for (int i = 0; i < size; i++) tlCallValueIterSet_(call, i, va_arg(ap, tlValue));
+    va_start(ap, v1);
+    int i = 0;
+    for (tlValue v = v1; v; v = va_arg(ap, tlValue), i++) tlCallValueIterSet_(call, i, v);
     va_end(ap);
     return call;
 }
-tlCall* tlCallCopy(tlTask* task, tlCall* o) {
+tlCall* tlCallCopy(tlCall* o) {
     trace("%s", tl_str(o));
-    tlCall* call = tlAllocClone(task, o, sizeof(tlCall));
+    tlCall* call = tlAllocClone(o, sizeof(tlCall));
     trace("%s", tl_str(call));
     assert(tlflag_isset(o, TL_FLAG_HASKEYS) == tlflag_isset(call, TL_FLAG_HASKEYS));
     assert(tlCallSize(o) == tlCallSize(call));
     assert(tlCallGetFn(o) == tlCallGetFn(call));
     return call;
 }
-tlCall* tlCallCopySetFn(tlTask* task, tlCall* o, tlValue fn) {
+tlCall* tlCallCopySetFn(tlCall* o, tlValue fn) {
     trace("%s %s", tl_str(o), tl_str(fn));
-    tlCall* call = tlCallCopy(task, o);
+    tlCall* call = tlCallCopy(o);
     call->fn = fn;
     return call;
 }
@@ -135,7 +136,7 @@ bool tlCallNamesContains(tlCall* call, tlSym name) {
     tlSet* nameset = call->data[call->head.size - 1];
     return tlSetIndexof(nameset, name) >= 0;
 }
-tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args) {
+tlCall* tlCallFromList(tlValue fn, tlList* args) {
     int size = tlListSize(args);
     int namecount = 0;
 
@@ -149,8 +150,8 @@ tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args) {
     }
     if (namecount > 0) {
         trace("args with keys: %d", namecount);
-        names = tlListNew(task, size);
-        nameset = tlSetNew(task, namecount);
+        names = tlListNew(size);
+        nameset = tlSetNew(namecount);
         for (int i = 0; i < size; i += 2) {
             tlValue name = tlListGet(args, i);
             tlListSet_(names, i / 2, name);
@@ -159,7 +160,7 @@ tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args) {
         }
     }
 
-    tlCall* call = tlCallNew(task, size/2, namecount > 0);
+    tlCall* call = tlCallNew(size/2, namecount > 0);
     tlCallSetFn_(call, fn);
     for (int i = 1; i < size; i += 2) {
         tlCallSet_(call, i / 2, tlListGet(args, i));
@@ -175,7 +176,7 @@ tlCall* tlCallFromList(tlTask* task, tlValue fn, tlList* args) {
 
 
 // TODO share code here ... almost same as above
-tlCall* tlCallSendFromList(tlTask* task, tlValue fn, tlValue oop, tlValue msg, tlList* args) {
+tlCall* tlCallSendFromList(tlValue fn, tlValue oop, tlValue msg, tlList* args) {
     assert(fn);
     assert(tlSymIs(msg));
     int size = tlListSize(args);
@@ -191,8 +192,8 @@ tlCall* tlCallSendFromList(tlTask* task, tlValue fn, tlValue oop, tlValue msg, t
     }
     if (namecount > 0) {
         trace("args with keys: %d size: %d", namecount, size);
-        names = tlListNew(task, size + 2);
-        nameset = tlSetNew(task, namecount);
+        names = tlListNew(size + 2);
+        nameset = tlSetNew(namecount);
         for (int i = 0; i < size; i += 2) {
             tlValue name = tlListGet(args, i);
             tlListSet_(names, 2 + i / 2, name);
@@ -201,7 +202,7 @@ tlCall* tlCallSendFromList(tlTask* task, tlValue fn, tlValue oop, tlValue msg, t
         }
     }
 
-    tlCall* call = tlCallNew(task, size/2 + 2, namecount > 0);
+    tlCall* call = tlCallNew(size/2 + 2, namecount > 0);
     tlCallSetFn_(call, fn);
     tlCallSet_(call, 0, oop);
     tlCallSet_(call, 1, msg);
@@ -217,31 +218,31 @@ tlCall* tlCallSendFromList(tlTask* task, tlValue fn, tlValue oop, tlValue msg, t
     return call;
 }
 
-tlCall* tlCallAddBlock(tlTask* task, tlValue _call, tlCode* block) {
+tlCall* tlCallAddBlock(tlValue _call, tlCode* block) {
     if (!tlCallIs(_call)) {
-        return tlCallFromList(task, _call, tlListFrom2(task, s_block, block));
+        return tlCallFromList(_call, tlListFrom2(s_block, block));
     }
     tlCall* call = tlCallAs(_call);
     int size = tlCallSize(call) + 1;
     tlList* names = null;
     tlSet* nameset = null;
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) {
-        names = tlListNew(task, size);
-        nameset = tlSetNew(task, 1);
+        names = tlListNew(size);
+        nameset = tlSetNew(1);
         tlListSet_(names, size - 1, s_block);
         tlSetAdd_(nameset, s_block);
     } else {
         tlList* oldnames = call->data[call->head.size - 2];
-        names = tlListAppend(task, oldnames, tlListGet(oldnames, tlListSize(oldnames) - 1));
+        names = tlListAppend(oldnames, tlListGet(oldnames, tlListSize(oldnames) - 1));
         names->data[tlListSize(names) - 2] = s_block;
         int at;
-        nameset = tlSetAdd(task, call->data[call->head.size - 1], s_block, &at);
+        nameset = tlSetAdd(call->data[call->head.size - 1], s_block, &at);
         trace("%d .. %d", tlListSize(names), tlSetSize(nameset));
         for (int i = 0; i < tlListSize(names); i++) {
             trace("%d: %s", i, tl_str(names->data[i]));
         }
     }
-    tlCall* ncall = tlCallNew(task, size, true);
+    tlCall* ncall = tlCallNew(size, true);
     ncall->fn = call->fn;
     for (int i = 0; i < size - 1; i++) {
         ncall->data[i] = call->data[i];
@@ -260,8 +261,8 @@ const char* nativeToText(tlValue v, char* buf, int size) {
 const char* callToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Call@%p: %d>", v, tlCallSize(v)); return buf;
 }
-static tlValue nativeRun(tlTask* task, tlValue fn, tlArgs* args) {
-    return tlNativeAs(fn)->native(task, args);
+static tlValue nativeRun(tlValue fn, tlArgs* args) {
+    return tlNativeAs(fn)->native(args);
 }
 
 static tlClass _tlNativeClass = {

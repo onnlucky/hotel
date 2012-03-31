@@ -222,19 +222,19 @@ const char* tlTextData(tlText* text);
 tlText* tlTextEmpty();
 
 tlText* tlTextFromStatic(const char* s, int len);
-tlText* tlTextFromCopy(tlTask* task, const char* s, int len);
-tlText* tlTextFromTake(tlTask* task, char* s, int len);
+tlText* tlTextFromCopy(const char* s, int len);
+tlText* tlTextFromTake(char* s, int len);
 
-tlText* tlTextCat(tlTask* task, tlText* lhs, tlText* rhs);
-tlText* tlTextSub(tlTask* task, tlText* from, int first, int size);
+tlText* tlTextCat(tlText* lhs, tlText* rhs);
+tlText* tlTextSub(tlText* from, int first, int size);
 
 
 // ** symbols **
 tlSym tlSymFromStatic(const char* s, int len);
-tlSym tlSymFromCopy(tlTask* task, const char* s, int len);
-tlSym tlSymFromTake(tlTask* task, char* s, int len);
+tlSym tlSymFromCopy(const char* s, int len);
+tlSym tlSymFromTake(char* s, int len);
 
-tlSym tlSymFromText(tlTask* task, tlText* text);
+tlSym tlSymFromText(tlText* text);
 tlText* tlTextFromSym(tlSym s);
 const char* tlSymData(tlSym sym);
 
@@ -245,20 +245,20 @@ int tlListIsEmpty(tlList* list);
 tlValue tlListGet(tlList* list, int at);
 
 tlList* tlListEmpty();
-tlList* tlListNew(tlTask* task, int size);
-tlList* tlListFrom1(tlTask* task, tlValue v);
-tlList* tlListFrom2(tlTask* task, tlValue v1, tlValue v2);
-tlList* tlListFrom(tlTask* task, ... /*tlValue*/);
+tlList* tlListNew(int size);
+tlList* tlListFrom1(tlValue v);
+tlList* tlListFrom2(tlValue v1, tlValue v2);
+tlList* tlListFrom(tlValue v1, ... /*tlValue*/);
 
-tlList* tlListCopy(tlTask* task, tlList* from, int newsize);
-tlList* tlListAppend(tlTask* task, tlList* list, tlValue v);
-tlList* tlListAppend2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
-tlList* tlListPrepend(tlTask* task, tlList* list, tlValue v);
-tlList* tlListPrepend2(tlTask* task, tlList* list, tlValue v1, tlValue v2);
-tlList* tlListSet(tlTask* task, tlList* list, int at, tlValue v);
-tlList* tlListCat(tlTask*, tlList* lhs, tlList* rhs);
-tlList* tlListSub(tlTask* task, tlList* list, int first, int size);
-tlList* tlListSplice(tlTask* task, tlList* list, int first, int size);
+tlList* tlListCopy(tlList* from, int newsize);
+tlList* tlListAppend(tlList* list, tlValue v);
+tlList* tlListAppend2(tlList* list, tlValue v1, tlValue v2);
+tlList* tlListPrepend(tlList* list, tlValue v);
+tlList* tlListPrepend2(tlList* list, tlValue v1, tlValue v2);
+tlList* tlListSet(tlList* list, int at, tlValue v);
+tlList* tlListCat(tlList* lhs, tlList* rhs);
+tlList* tlListSub(tlList* list, int first, int size);
+tlList* tlListSplice(tlList* list, int first, int size);
 
 void tlListSet_(tlList* list, int at, tlValue v);
 
@@ -277,18 +277,18 @@ void tlMapSetSym_(tlMap* map, tlSym key, tlValue v);
 tlMap* tlMapToObject_(tlMap* map);
 
 tlMap* tlMapEmpty();
-tlMap* tlMapNew(tlTask* task, tlSet* keys);
-tlMap* tlMapCopy(tlTask* task, tlMap* map);
-tlMap* tlMapFrom1(tlTask* task, tlValue key, tlValue v);
-tlMap* tlMapFrom(tlTask* task, ... /*tlValue, tlValue*/);
-tlMap* tlMapFromMany(tlTask* task, tlValue vs[], int len /*multiple of 2*/);
-tlMap* tlMapFromList(tlTask* task, tlList* ls);
-tlMap* tlMapFromPairs(tlTask* task, tlList* ls);
+tlMap* tlMapNew(tlSet* keys);
+tlMap* tlMapCopy(tlMap* map);
+tlMap* tlMapFrom1(tlValue key, tlValue v);
+tlMap* tlMapFrom(tlValue v1, ... /*tlValue, tlValue*/);
+tlMap* tlMapFromMany(tlValue vs[], int len /*multiple of 2*/);
+tlMap* tlMapFromList(tlList* ls);
+tlMap* tlMapFromPairs(tlList* ls);
 
-tlValue tlMapGet(tlTask* task, tlMap* map, tlValue key);
-tlMap* tlMapSet(tlTask* task, tlMap* map, tlValue key, tlValue v);
-tlMap* tlMapDel(tlTask* task, tlMap* map, tlValue key);
-tlMap* tlMapJoin(tlTask* task, tlMap* lhs, tlMap* rhs);
+tlValue tlMapGet(tlMap* map, tlValue key);
+tlMap* tlMapSet(tlMap* map, tlValue key, tlValue v);
+tlMap* tlMapDel(tlMap* map, tlValue key);
+tlMap* tlMapJoin(tlMap* lhs, tlMap* rhs);
 
 
 // ** creating and running vms **
@@ -301,8 +301,12 @@ void tlVmDelete(tlVm* vm);
 
 
 // ** running code **
+
+// get the current task
+tlTask* tlTaskCurrent();
+
 // parsing
-tlValue tlParse(tlTask* task, tlText* text, tlText* file);
+tlValue tlParse(tlText* text, tlText* file);
 
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlValue v);
@@ -312,8 +316,8 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as);
 
 // setup a single task to eval something, returns immedately
-tlValue tlEval(tlTask* task, tlValue v);
-tlValue tlEvalCall(tlTask* task, tlValue fn, ...);
+tlValue tlEval(tlValue v);
+tlValue tlEvalCall(tlValue fn, ...);
 tlTask* tlEvalCode(tlVm* vm, tlText* code, tlArgs* as);
 
 // reading status from tasks
@@ -322,15 +326,15 @@ tlValue tlTaskGetThrowValue(tlTask* task);
 tlValue tlTaskGetValue(tlTask* task);
 
 // invoking toText, almost same as tlEvalCode("v.toText")
-tlText* tlToText(tlTask* task, tlValue v);
+tlText* tlToText(tlValue v);
 
 
 // ** extending hotel with native functions **
 
 // native functions signature
-typedef tlValue(*tlNativeCb)(tlTask*, tlArgs*);
+typedef tlValue(*tlNativeCb)(tlArgs*);
 tlNative* tlNATIVE(tlNativeCb cb, const char* name);
-tlNative* tlNativeNew(tlTask* task, tlNativeCb cb, tlSym name);
+tlNative* tlNativeNew(tlNativeCb cb, tlSym name);
 
 // bulk create native functions and globals (don't overuse these)
 typedef struct { const char* name; tlNativeCb cb; } tlNativeCbs;
@@ -339,31 +343,31 @@ void tl_register_global(const char* name, tlValue v);
 
 // task management
 tlTask* tlTaskNew(tlVm* vm);
-tlVm* tlTaskGetVm(tlTask* task);
+tlVm* tlTaskGetVm();
 
 // stack reification
 // native frame activation/resume signature
 // if res is set, a call returned a regular result
 // otherwise, if throw is set, a call has thrown a value (likely a tlError)
 // if both are null, we are "unwinding" the stack for a jump (return/continuation ...)
-typedef tlValue(*tlResumeCb)(tlTask* task, tlFrame* frame, tlValue res, tlValue throw);
+typedef tlValue(*tlResumeCb)(tlFrame* frame, tlValue res, tlValue throw);
 // pause task to reify stack
-tlValue tlTaskPause(tlTask* task, void* frame);
-tlValue tlTaskPauseAttach(tlTask* task, void* frame);
-tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb resume, tlValue res);
+tlValue tlTaskPause(void* frame);
+tlValue tlTaskPauseAttach(void* frame);
+tlValue tlTaskPauseResuming(tlResumeCb resume, tlValue res);
 // mark task as waiting
-tlValue tlTaskWaitFor(tlTask* task, tlValue on);
-void tlTaskWaitIo(tlTask* task);
+tlValue tlTaskWaitFor(tlValue on);
+void tlTaskWaitIo();
 // mark task as ready, will add to run queue, might be picked up immediately
-void tlTaskReady(tlTask* task);
+void tlTaskReady();
 
 // throw errors
-tlValue tlTaskThrowTake(tlTask* task, char* str);
-#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(task, strdup(_s)); } while (0)
-#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(task, strdup(_s)); } while (0)
+tlValue tlTaskThrowTake(char* str);
+#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(strdup(_s)); } while (0)
+#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(strdup(_s)); } while (0)
 
 // args
-tlArgs* tlArgsNew(tlTask* task, tlList* list, tlMap* map);
+tlArgs* tlArgsNew(tlList* list, tlMap* map);
 void tlArgsSet_(tlArgs* args, int at, tlValue v);
 void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v);
 
@@ -380,35 +384,36 @@ tlValue tlArgsMapGet(tlArgs* args, tlSym name);
 tlValue tlFirst(tlValue v);
 tlValue tlResultGet(tlValue v, int at);
 // returning multiple results from native functions
-tlResult* tlResultFrom(tlTask* task, ...);
+tlResult* tlResultFrom(tlValue v1, ...);
 
 // allocate values
-void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes);
-void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc);
-void* tlAllocClone(tlTask* task, tlValue v, size_t bytes);
-tlFrame* tlAllocFrame(tlTask* task, tlResumeCb resume, size_t bytes);
+void* tlAlloc(tlClass* klass, size_t bytes);
+void* tlAllocWithFields(tlClass* klass, size_t bytes, int fieldc);
+void* tlAllocClone(tlValue v, size_t bytes);
+tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
 
 // create objects with only native functions (to use as classes)
 tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...);
 
 
 // ** environment (scope) **
-tlEnv* tlEnvNew(tlTask* task, tlEnv* parent);
-tlValue tlEnvGet(tlTask* task, tlEnv* env, tlSym key);
-tlEnv* tlEnvSet(tlTask* task, tlEnv* env, tlSym key, tlValue v);
+tlEnv* tlEnvNew(tlEnv* parent);
+tlValue tlEnvGet(tlEnv* env, tlSym key);
+tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlValue v);
 
 tlEnv* tlVmGlobalEnv(tlVm* vm);
 
+tlWorker* tlWorkerCurrent();
+
 tlWorker* tlWorkerNew(tlVm* vm);
 void tlWorkerDelete(tlWorker* worker);
-tlWorker* tlTaskWorker(tlTask* task);
 
 // when creating your own worker, run this ... (not implemented yet)
 void tlWorkerRun(tlWorker* worker);
 
 // todo too low level?
-tlValue tlEvalArgsFn(tlTask* task, tlArgs* args, tlValue fn);
-tlValue tlEvalArgsTarget(tlTask* task, tlArgs* args, tlValue target, tlValue fn);
+tlValue tlEvalArgsFn(tlArgs* args, tlValue fn);
+tlValue tlEvalArgsTarget(tlArgs* args, tlValue target, tlValue fn);
 
 typedef struct tlLock tlLock;
 
@@ -418,9 +423,9 @@ tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
-typedef tlValue(*tlCallFn)(tlTask* task, tlCall* args);
-typedef tlValue(*tlRunFn)(tlTask* task, tlValue fn, tlArgs* args);
-typedef tlValue(*tlSendFn)(tlTask* task, tlArgs* args);
+typedef tlValue(*tlCallFn)(tlCall* args);
+typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
+typedef tlValue(*tlSendFn)(tlArgs* args);
 
 // a class describes a hotel value for most fields null is perfectly fine
 struct tlClass {

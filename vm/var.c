@@ -13,20 +13,20 @@ struct tlVar {
 tlValue tlVarGet(tlVar* var) { return var->value; }
 tlValue tlVarSet(tlVar* var, tlValue v) { var->value = v; return v; }
 
-INTERNAL tlValue _Var_new(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _Var_new(tlArgs* args) {
     trace("");
-    tlVar* var = tlAlloc(task, tlVarClass, sizeof(tlVar));
+    tlVar* var = tlAlloc(tlVarClass, sizeof(tlVar));
     var->value = tlArgsGet(args, 0);
     return var;
 }
-INTERNAL tlValue _var_get(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _var_get(tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
     if (!var->value) return tlNull;
     return var->value;
 }
-INTERNAL tlValue _var_set(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _var_set(tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");

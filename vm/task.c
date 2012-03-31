@@ -9,14 +9,14 @@
 //
 // If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 INTERNAL tlValue tlresult_get(tlValue v, int at);
-INTERNAL tlArgs* evalCall(tlTask* task, tlCall* call);
+INTERNAL tlArgs* evalCall(tlCall* call);
 INTERNAL void print_backtrace(tlFrame*);
 
-tlResult* tlresult_new(tlTask* task, tlArgs* args);
-tlResult* tlresult_new_skip(tlTask* task, tlArgs* args);
+tlResult* tlresult_new(tlArgs* args);
+tlResult* tlresult_new_skip(tlArgs* args);
 void tlresult_set_(tlResult* res, int at, tlValue v);
 
 bool tlLockIs(tlValue v);
@@ -74,8 +74,8 @@ struct tlWaitQueue {
     tlHead head;
     lqueue wait_q;
 };
-tlWaitQueue* tlWaitQueueNew(tlTask* task) {
-    return tlAlloc(task, tlWaitQueueClass, sizeof(tlWaitQueue));
+tlWaitQueue* tlWaitQueueNew() {
+    return tlAlloc(tlWaitQueueClass, sizeof(tlWaitQueue));
 }
 void tlWaitQueueAdd(tlWaitQueue* queue, tlTask* task) {
     lqueue_put(&queue->wait_q, &task->entry);
@@ -91,10 +91,11 @@ void assert_backtrace(tlFrame* frame) {
     if (frame) fatal("STACK CORRUPTED");
 }
 
-tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
-    assert(_frame);
+tlValue tlTaskPauseAttach(void* _frame) {
+    tlTask* task = tlTaskCurrent();
     assert(task->worker);
     assert(task->worker->top);
+    assert(_frame);
     tlFrame* frame = tlFrameAs(_frame);
     //trace("> %p.caller = %p", task->stack, frame);
     task->stack->caller = frame;
@@ -103,7 +104,8 @@ tlValue tlTaskPauseAttach(tlTask* task, void* _frame) {
     return null;
 }
 
-tlValue tlTaskPause(tlTask* task, void* _frame) {
+tlValue tlTaskPause(void* _frame) {
+    tlTask* task = tlTaskCurrent();
     assert(task->worker);
     tlFrame* frame = tlFrameAs(_frame);
     assert(frame);
@@ -114,20 +116,23 @@ tlValue tlTaskPause(tlTask* task, void* _frame) {
     return null;
 }
 
-tlValue tlTaskPauseResuming(tlTask* task, tlResumeCb cb, tlValue res) {
+tlValue tlTaskPauseResuming(tlResumeCb cb, tlValue res) {
+    tlTask* task = tlTaskCurrent();
+    assert(res);
     task->value = res;
-    assert(task->value);
-    return tlTaskPause(task, tlFrameAlloc(task, cb, sizeof(tlFrame)));
+    return tlTaskPause(tlFrameAlloc(cb, sizeof(tlFrame)));
 }
 
-INTERNAL tlValue tlTaskSetStack(tlTask* task, tlFrame* frame, tlValue res) {
+INTERNAL tlValue tlTaskSetStack(tlFrame* frame, tlValue res) {
+    tlTask* task = tlTaskCurrent();
     trace("UNSAFE: set stack: %p", frame);
     task->stack = frame;
     task->value = res;
     assert(task->value);
     return tlTaskJumping;
 }
-INTERNAL tlValue tlTaskStackUnwind(tlTask* task, tlFrame* upto, tlValue res) {
+INTERNAL tlValue tlTaskStackUnwind(tlFrame* upto, tlValue res) {
+    tlTask* task = tlTaskCurrent();
     trace("SAFE: unwind stack upto: %p", upto);
     //print_backtrace(task->stack);
     tlFrame* frame = task->stack;
@@ -136,7 +141,7 @@ INTERNAL tlValue tlTaskStackUnwind(tlTask* task, tlFrame* upto, tlValue res) {
         assert(frame); // upto must be in our stack
         trace("UNWINDING: %p.resumecb: %p", frame, frame->resumecb);
         if (frame->resumecb) {
-            tlValue _res = frame->resumecb(task, frame, null, null);
+            tlValue _res = frame->resumecb(frame, null, null);
             assert(_res != tlTaskJumping && _res != tlTaskNotRunning);
             assert(!_res); // we don't want to see normal returns
             assert(!task->stack); // we don't want to see a stack being created
@@ -152,13 +157,34 @@ INTERNAL tlValue tlTaskStackUnwind(tlTask* task, tlFrame* upto, tlValue res) {
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
 
+static tlTask* tl_task_current;
+
+void tlWorkerBind(tlWorker* worker, tlTask* task) {
+    assert(task);
+    assert(task->worker != worker);
+    task->worker = worker;
+    tl_task_current = task;
+}
+void tlWorkerUnbind(tlWorker* worker, tlTask* task) {
+    assert(task);
+    //assert(task->worker);
+    //assert(task->worker == task->worker->vm->waiter);
+    tl_task_current = null;
+}
+tlTask* tlTaskCurrent() {
+    assert(tl_task_current);
+    assert(tlTaskIs(tl_task_current));
+    assert(tl_task_current->worker);
+    return tl_task_current;
+}
+
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
 // at that point any other worker could aready have picked up this task
-INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
+INTERNAL void tlTaskRun(tlTask* task) {
     trace(">>> running %s <<<", tl_str(task));
+    assert(tlTaskCurrent() == task);
     assert(task->state == TL_STATE_READY);
-    task->worker = worker;
     task->state = TL_STATE_RUN;
 
     if (task->throw) {
@@ -177,7 +203,7 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
         while (frame && res) {
             assert(task->state == TL_STATE_RUN);
             //trace("!!frame: %p - %s", frame, tl_str(res));
-            if (frame->resumecb) res = frame->resumecb(task, frame, res, null);
+            if (frame->resumecb) res = frame->resumecb(frame, res, null);
             if (!res) break;
             if (res == tlTaskNotRunning) return;
             if (res == tlTaskJumping) {
@@ -214,6 +240,7 @@ INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker) {
 INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
     trace("");
     assert(thrown);
+    assert(tlTaskCurrent() == task);
     assert(task->state == TL_STATE_RUN);
     assert(task->stack);
 
@@ -224,7 +251,7 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
     tlValue res = null;
     while (frame) {
         assert(task->state == TL_STATE_RUN);
-        if (frame->resumecb) res = frame->resumecb(task, frame, null, thrown);
+        if (frame->resumecb) res = frame->resumecb(frame, null, thrown);
         trace("!! throw frame: %p handled? %p || %p", frame, res, task->stack);
         // returning a regular result means the throw has been handled
         assert(res != tlTaskNotRunning && res != tlTaskJumping);
@@ -243,7 +270,7 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
             } else {
                 frame = frame->caller;
             }
-            tlTaskPauseAttach(task, frame);
+            tlTaskPauseAttach(frame);
             task->stack = task->worker->top;
             return tlTaskJumping;
         }
@@ -254,26 +281,22 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
 }
 
 tlTask* tlTaskNew(tlVm* vm) {
-    tlTask* task = tlAlloc(null, tlTaskClass, sizeof(tlTask));
+    tlTask* task = tlAlloc(tlTaskClass, sizeof(tlTask));
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
     trace("new %s", tl_str(task));
     return task;
 }
 
-INTERNAL void tlTaskSetWorker(tlTask* task, tlWorker* worker) {
-    task->worker = worker;
-}
-
-INTERNAL tlValue resumeTaskEval(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlValue resumeTaskEval(tlFrame* frame, tlValue res, tlValue throw) {
+    tlTask* task = tlTaskCurrent();
     if (!res) return null;
-    return tlEval(task, task->value);
+    return tlEval(task->value);
 }
 void tlTaskEval(tlTask* task, tlValue v) {
-    assert(tlTaskIs(task));
     trace("on %s eval %s", tl_str(task), tl_str(v));
 
-    task->stack = tlFrameAlloc(task, resumeTaskEval, sizeof(tlTask));
+    task->stack = tlFrameAlloc(resumeTaskEval, sizeof(tlTask));
     task->value = v;
 }
 
@@ -283,32 +306,33 @@ typedef struct TaskEvalArgsFnFrame {
     tlArgs* as;
 } TaskEvalArgsFnFrame;
 
-INTERNAL tlValue resumeTaskEvalArgsFn(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlValue resumeTaskEvalArgsFn(tlFrame* _frame, tlValue res, tlValue throw) {
     if (!res) return null;
     TaskEvalArgsFnFrame* frame = (TaskEvalArgsFnFrame*)_frame;
-    return tlEvalArgsFn(task, frame->as, frame->fn);
+    return tlEvalArgsFn(frame->as, frame->fn);
 }
-void tlTaskEvalArgsFn(tlTask* task, tlArgs* as, tlValue fn) {
-    assert(tlTaskIs(task));
+void tlTaskEvalArgsFn(tlArgs* as, tlValue fn) {
+    tlTask* task = tlTaskCurrent();
     trace("on %s eval %s args: %s", tl_str(task), tl_str(fn), tl_str(as));
 
-    TaskEvalArgsFnFrame* frame = tlFrameAlloc(task, resumeTaskEvalArgsFn, sizeof(TaskEvalArgsFnFrame));
+    TaskEvalArgsFnFrame* frame = tlFrameAlloc(resumeTaskEvalArgsFn, sizeof(TaskEvalArgsFnFrame));
     frame->fn = fn;
     frame->as = as;
     task->stack = (tlFrame*)frame;
 }
 
-INTERNAL tlValue resumeTaskThrow(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlValue resumeTaskThrow(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
+    tlTask* task = tlTaskCurrent();
     task->stack = frame->caller;
     return tlTaskRunThrow(task, res);
 }
-tlValue tlTaskThrow(tlTask* task, tlValue err) {
+tlValue tlTaskThrow(tlValue err) {
     trace("throw: %s", tl_str(err));
-    return tlTaskPauseResuming(task, resumeTaskThrow, err);
+    return tlTaskPauseResuming(resumeTaskThrow, err);
 }
-tlValue tlTaskThrowTake(tlTask* task, char* str) {
-    return tlTaskThrow(task, tlTextFromTake(task, str, 0));
+tlValue tlTaskThrowTake(char* str) {
+    return tlTaskThrow(tlTextFromTake(str, 0));
 }
 
 bool tlTaskIsDone(tlTask* task) {
@@ -339,7 +363,8 @@ INTERNAL tlValue checkDeadlock(tlTask* task, tlValue on) {
     return checkDeadlock(task, other->waitFor);
 }
 
-tlValue tlTaskWaitFor(tlTask* task, tlValue on) {
+tlValue tlTaskWaitFor(tlValue on) {
+    tlTask* task = tlTaskCurrent();
     trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
     assert(task->state == TL_STATE_RUN);
@@ -448,32 +473,34 @@ INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res) {
     return tlTaskNotRunning;
 }
 
-INTERNAL tlValue _Task_new(tlTask* task, tlArgs* args) {
-    assert(task && task->worker && task->worker->vm);
+INTERNAL tlValue _Task_new(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    assert(task->worker && task->worker->vm);
 
     tlValue v = tlArgsGet(args, 0);
     tlTask* ntask = tlTaskNew(tlTaskGetVm(task));
 
-    if (tlCallableIs(v)) v = tlCallFrom(ntask, v, null);
+    if (tlCallableIs(v)) v = tlCallFrom(v, null);
     tlTaskEval(ntask, v);
     tlTaskStart(ntask);
     return ntask;
 }
-INTERNAL tlValue _Task_current(tlTask* task, tlArgs* args) {
-    return task;
+INTERNAL tlValue _Task_current(tlArgs* args) {
+    return tlTaskCurrent();
 }
-INTERNAL tlValue resumeStacktrace(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlValue resumeStacktrace(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     int skip = tl_int_or(tlArgsGet(res, 0), 0);
-    return tlStackTraceNew(task, frame->caller, skip);
+    return tlStackTraceNew(frame->caller, skip);
 }
-INTERNAL tlValue _Task_stacktrace(tlTask* task, tlArgs* args) {
-    return tlTaskPauseResuming(task, resumeStacktrace, args);
+INTERNAL tlValue _Task_stacktrace(tlArgs* args) {
+    return tlTaskPauseResuming(resumeStacktrace, args);
 }
 
-INTERNAL tlValue resumeBindToThread(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlValue resumeBindToThread(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
-    tlTaskWaitFor(task, null);
+    tlTask* task = tlTaskCurrent();
+    tlTaskWaitFor(null);
     frame->resumecb = null;
     task->worker = tlWorkerNewBind(tlTaskGetVm(task), task);
     assert(tlWorkerIsBound(task->worker));
@@ -481,27 +508,28 @@ INTERNAL tlValue resumeBindToThread(tlTask* task, tlFrame* frame, tlValue res, t
     return tlTaskNotRunning;
 }
 // launch a dedicated thread for this task
-INTERNAL tlValue _Task_bindToThread(tlTask* task, tlArgs* args) {
-    return tlTaskPauseResuming(task, resumeBindToThread, tlNull);
+INTERNAL tlValue _Task_bindToThread(tlArgs* args) {
+    return tlTaskPauseResuming(resumeBindToThread, tlNull);
 }
 
-INTERNAL tlValue resumeYield(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
-    tlTaskWaitFor(task, null);
+INTERNAL tlValue resumeYield(tlFrame* frame, tlValue res, tlValue throw) {
+    tlTaskWaitFor(null);
     frame->resumecb = null;
-    tlTaskReady(task);
+    tlTaskReady(tlTaskCurrent());
     return tlTaskNotRunning;
 }
-INTERNAL tlValue _Task_yield(tlTask* task, tlArgs* args) {
-    return tlTaskPauseResuming(task, resumeYield, tlNull);
+INTERNAL tlValue _Task_yield(tlArgs* args) {
+    return tlTaskPauseResuming(resumeYield, tlNull);
 }
 
-INTERNAL tlValue _task_isDone(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _task_isDone(tlArgs* args) {
     tlTask* other = tlTaskCast(tlArgsTarget(args));
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
 
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
-INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _task_wait(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlTask* other = tlTaskCast(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.wait: %s", tl_str(other));
@@ -514,7 +542,7 @@ INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
     }
 
     trace("!! parking");
-    tlValue deadlock = tlTaskWaitFor(task, other);
+    tlValue deadlock = tlTaskWaitFor(other);
     if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
 
     tlValue already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), null));
@@ -523,7 +551,7 @@ INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
         if (queue) {
             tlWaitQueueAdd(queue, task);
         } else {
-            queue = tlWaitQueueNew(task);
+            queue = tlWaitQueueNew();
             tlWaitQueue* otherqueue = A_PTR(
                     a_swap_if(A_VAR(other->waiting), A_VAL(queue), A_VAL_NB(already_waiting)));
             if (otherqueue != already_waiting) queue = tlWaitQueueAs(otherqueue);
@@ -533,7 +561,7 @@ INTERNAL tlValue _task_wait(tlTask* task, tlArgs* args) {
         // TODO try again!
     }
     trace("!! >> WAITING << !!");
-    return tlTaskPause(task, tlFrameAlloc(task, null, sizeof(tlFrame)));
+    return tlTaskPause(tlFrameAlloc(null, sizeof(tlFrame)));
 }
 
 INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {

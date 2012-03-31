@@ -15,28 +15,28 @@ struct tlEnv {
     tlMap* map;
 };
 
-tlEnv* tlEnvNew(tlTask* task, tlEnv* parent) {
+tlEnv* tlEnvNew(tlEnv* parent) {
     trace("env new; parent: %p", parent);
-    tlEnv* env = tlAlloc(task, tlEnvClass, sizeof(tlEnv));
+    tlEnv* env = tlAlloc(tlEnvClass, sizeof(tlEnv));
     env->parent = parent;
     env->map = _tl_emptyMap;
     return env;
 }
 
-tlEnv* tlEnvCopy(tlTask* task, tlEnv* env) {
+tlEnv* tlEnvCopy(tlEnv* env) {
     trace("env copy: %p, parent: %p", env, env->parent);
-    tlEnv* nenv = tlEnvNew(task, env->parent);
+    tlEnv* nenv = tlEnvNew(env->parent);
     nenv->args = env->args;
     nenv->map = env->map;
     return nenv;
 }
 
-tlEnv* tlEnvSetArgs(tlTask* task, tlEnv* env, tlArgs* args) {
+tlEnv* tlEnvSetArgs(tlEnv* env, tlArgs* args) {
     if (!tlflag_isset(env, TL_FLAG_CLOSED)) {
         env->args = args;
         return env;
     }
-    env = tlEnvCopy(task, env);
+    env = tlEnvCopy(env);
     env->args = args;
     return env;
 }
@@ -54,7 +54,7 @@ void tlEnvCloseCaptures(tlEnv* env) {
 void tlEnvCaptured(tlEnv* env) {
     tlflag_set(env, TL_FLAG_CAPTURED);
 }
-tlValue tlEnvGet(tlTask* task, tlEnv* env, tlSym key) {
+tlValue tlEnvGet(tlEnv* env, tlSym key) {
     if (!env) {
         return tl_global(key);
         return null;
@@ -67,37 +67,37 @@ tlValue tlEnvGet(tlTask* task, tlEnv* env, tlSym key) {
         tlValue v = tlMapGetSym(env->map, key);
         if (v) return v;
     }
-    return tlEnvGet(task, env->parent, key);
+    return tlEnvGet(env->parent, key);
 }
 
-tlEnv* tlEnvSet(tlTask* task, tlEnv* env, tlSym key, tlValue v) {
+tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlValue v) {
     assert(tlEnvIs(env));
     trace("%p.set %s = %s", env, tl_str(key), tl_str(v));
 
     if (tlflag_isset(env, TL_FLAG_CLOSED)) {
-        env = tlEnvCopy(task, env);
+        env = tlEnvCopy(env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     } else if (tlMapGetSym(env->map, key)) {
-        env = tlEnvCopy(task, env);
+        env = tlEnvCopy(env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     }
 
-    env->map = tlMapSet(task, env->map, key, v);
+    env->map = tlMapSet(env->map, key, v);
     return env;
 }
 
-static tlValue _env_size(tlTask* task, tlArgs* args) {
+static tlValue _env_size(tlArgs* args) {
     tlEnv* env = tlEnvAs(tlArgsTarget(args));
     return tlINT(tlMapSize(env->map));
 }
-static tlValue _Env_new(tlTask* task, tlArgs* args) {
+static tlValue _Env_new(tlArgs* args) {
     tlEnv* parent = tlEnvCast(tlArgsGet(args, 0));
-    return tlEnvNew(task, parent);
+    return tlEnvNew(parent);
 }
 
 static bool CodeFrameIs(tlFrame*);
 static tlEnv* CodeFrameGetEnv(tlFrame*);
-static tlValue resumeEnvCurrent(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+static tlValue resumeEnvCurrent(tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     while (frame) {
         if (CodeFrameIs(frame)) return CodeFrameGetEnv(frame);
@@ -105,12 +105,12 @@ static tlValue resumeEnvCurrent(tlTask* task, tlFrame* frame, tlValue res, tlVal
     }
     return tlNull;
 }
-static tlValue _Env_current(tlTask* task, tlArgs* args) {
+static tlValue _Env_current(tlArgs* args) {
     trace("");
-    return tlTaskPauseResuming(task, resumeEnvCurrent, tlNull);
+    return tlTaskPauseResuming(resumeEnvCurrent, tlNull);
 }
 
-static tlValue resumeEnvLocalObject(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+static tlValue resumeEnvLocalObject(tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     while (frame) {
         if (CodeFrameIs(frame)) {
@@ -121,9 +121,9 @@ static tlValue resumeEnvLocalObject(tlTask* task, tlFrame* frame, tlValue res, t
     }
     return tlNull;
 }
-static tlValue _Env_localObject(tlTask* task, tlArgs* args) {
+static tlValue _Env_localObject(tlArgs* args) {
     trace("");
-    return tlTaskPauseResuming(task, resumeEnvLocalObject, tlNull);
+    return tlTaskPauseResuming(resumeEnvLocalObject, tlNull);
 }
 
 static tlMap* envClass;

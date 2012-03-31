@@ -11,7 +11,9 @@
 #include "trace-on.h"
 
 INTERNAL tlTask* tlTaskFromEntry(lqentry* entry);
-INTERNAL void tlTaskRun(tlTask* task, tlWorker* worker);
+INTERNAL void tlTaskRun(tlTask* task);
+INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task);
+INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task);
 INTERNAL bool tlVmIsRunning(tlVm* vm);
 INTERNAL void tlVmWaitSignal(tlVm* vm);
 
@@ -88,20 +90,24 @@ void tlWorkerSignal(tlWorker* worker) {
     pthread_cond_signal(worker->signal);
 }
 
+
 // this will run a bound task until that task is done, waiting if necesairy (or the vm has stopped)
 void tlWorkerRunBound(tlWorker* worker) {
     assert(tlWorkerIs(worker));
     assert(tlVmIs(worker->vm));
+
     tlVm* vm = worker->vm;
     tlTask* task = tlTaskAs(worker->task);
+    tlWorkerBind(worker, task);
 
     while (tlVmIsRunning(vm)) {
         trace("running: %s", tl_str(task));
-        tlTaskRun(task, worker);
+        tlTaskRun(task);
         if (tlTaskIsDone(task)) break;
         trace("waiting on signal: %s", tl_str(task));
         pthread_cond_wait(worker->signal, worker->lock);
     }
+    tlWorkerUnbind(worker, task);
 
     trace("done: %s", tl_str(worker));
     return;
@@ -153,7 +159,9 @@ void tlWorkerRunBlocking(tlWorker* worker) {
     while (tlVmIsRunning(vm)) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&vm->run_q));
         if (!task) { tlVmWaitSignal(vm); continue; }
-        tlTaskRun(task, worker);
+        tlWorkerBind(worker, task);
+        tlTaskRun(task);
+        tlWorkerUnbind(worker, task);
     }
     trace("done: %s", tl_str(worker));
 }
@@ -201,13 +209,15 @@ void tlWorkerRun(tlWorker* worker) {
     while (tlVmIsRunning(vm)) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&vm->run_q));
         if (!task) break;
-        tlTaskRun(task, worker);
+        tlWorkerBind(worker, task);
+        tlTaskRun(task);
+        tlWorkerUnbind(worker, task);
     }
     trace("done: %s", tl_str(worker));
 }
 
 tlWorker* tlWorkerNew(tlVm* vm) {
-    tlWorker* worker = tlAlloc(null, tlWorkerClass, sizeof(tlWorker));
+    tlWorker* worker = tlAlloc(tlWorkerClass, sizeof(tlWorker));
     worker->vm = vm;
     return worker;
 }

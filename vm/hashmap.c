@@ -15,16 +15,16 @@ struct tlHashMap {
     LHashMap* map;
 };
 
-tlHashMap* tlHashMapNew(tlTask* task) {
-    tlHashMap* map = tlAlloc(task, tlHashMapClass, sizeof(tlHashMap));
+tlHashMap* tlHashMapNew() {
+    tlHashMap* map = tlAlloc(tlHashMapClass, sizeof(tlHashMap));
     map->map = lhashmap_new(strequals, strhash, strfree);
     return map;
 }
-INTERNAL tlValue _HashMap_new(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _HashMap_new(tlArgs* args) {
     // TODO take a map
-    return tlHashMapNew(task);
+    return tlHashMapNew();
 }
-INTERNAL tlValue _hashmap_get(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _hashmap_get(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
     tlValue key = tlSymCast(tlArgsGet(args, 0));
@@ -35,7 +35,7 @@ INTERNAL tlValue _hashmap_get(tlTask* task, tlArgs* args) {
     if (!val) return tlUndefined;
     return val;
 }
-INTERNAL tlValue _hashmap_set(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _hashmap_set(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
     tlValue key = tlSymCast(tlArgsGet(args, 0));
@@ -46,7 +46,7 @@ INTERNAL tlValue _hashmap_set(tlTask* task, tlArgs* args) {
     lhashmap_putif(map->map, (void*)tlSymData(key), val, LHASHMAP_IGNORE);
     return val?val:tlNull;
 }
-INTERNAL tlValue _hashmap_has(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _hashmap_has(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
     tlValue key = tlSymCast(tlArgsGet(args, 0));
@@ -57,7 +57,7 @@ INTERNAL tlValue _hashmap_has(tlTask* task, tlArgs* args) {
     if (!val) return tlFalse;
     return tlTrue;
 }
-INTERNAL tlValue _hashmap_del(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _hashmap_del(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
     tlValue key = tlSymCast(tlArgsGet(args, 0));
@@ -68,7 +68,7 @@ INTERNAL tlValue _hashmap_del(tlTask* task, tlArgs* args) {
     if (!val) return tlUndefined;
     return val;
 }
-INTERNAL tlValue _hashmap_size(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _hashmap_size(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
 

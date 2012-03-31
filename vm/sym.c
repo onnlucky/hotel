@@ -70,20 +70,20 @@ tlSym tlSymFromStatic(const char* s, int len) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlSymFromText(null, tlTextFromStatic(s, len));
+    return tlSymFromText(tlTextFromStatic(s, len));
 }
 
-tlSym tlSymFromCopy(tlTask* task, const char* s, int len) {
+tlSym tlSymFromCopy(const char* s, int len) {
     assert(s);
     assert(symbols);
     trace("#%s", s);
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlSymFromText(task, tlTextFromCopy(task, s, len));
+    return tlSymFromText(tlTextFromCopy(s, len));
 }
 
-tlSym tlSymFromText(tlTask* task, tlText* text) {
+tlSym tlSymFromText(tlText* text) {
     assert(tlTextIs(text));
     assert(symbols);
     trace("#%s", tl_str(text));
@@ -95,10 +95,10 @@ tlSym tlSymFromText(tlTask* task, tlText* text) {
     return sym;
 }
 
-INTERNAL tlValue _sym_toText(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _sym_toText(tlArgs* args) {
     return tlTextFromSym(tlArgsTarget(args));
 }
-INTERNAL tlValue _sym_toSym(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _sym_toSym(tlArgs* args) {
     return tlArgsTarget(args);
 }
 
@@ -111,7 +111,7 @@ void tl_register_global(const char* name, tlValue v) {
 void tl_register_natives(const tlNativeCbs* cbs) {
     for (int i = 0; cbs[i].name; i++) {
         tlSym name = tlSYM(cbs[i].name);
-        tlNative* fn = tlNativeNew(null, cbs[i].cb, name);
+        tlNative* fn = tlNativeNew(cbs[i].cb, name);
         lhashmap_putif(globals, (void*)cbs[i].name, fn, LHASHMAP_IGNORE);
     }
 }

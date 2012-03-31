@@ -31,7 +31,7 @@ static tlClass _AppClass = {
 tlClass* AppClass = &_AppClass;
 static App* shared;
 
-static tlValue App_shared(tlTask* task, tlArgs* args) {
+static tlValue App_shared(tlArgs* args) {
     ns_init();
     assert(shared);
     return shared;
@@ -49,9 +49,9 @@ static tlClass _WindowClass = {
 };
 tlClass* WindowClass = &_WindowClass;
 
-static tlValue _Window_new(tlTask* task, tlArgs* args) {
+static tlValue _Window_new(tlArgs* args) {
     ns_init();
-    Window* window = tlAlloc(task, WindowClass, sizeof(Window));
+    Window* window = tlAlloc(WindowClass, sizeof(Window));
     window->nswindow = [[HotelWindow alloc]
             initWithContentRect: NSMakeRect(0, 0, 200, 200)
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
@@ -65,24 +65,24 @@ static tlValue _Window_new(tlTask* task, tlArgs* args) {
     return window;
 }
 
-static tlValue _window_show(tlTask* task, tlArgs* args) {
+static tlValue _window_show(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     [window->nswindow makeKeyAndOrderFront: nil];
     return tlNull;
 }
-static tlValue _window_hide(tlTask* task, tlArgs* args) {
+static tlValue _window_hide(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     [window->nswindow orderOut: nil];
     return tlNull;
 }
-static tlValue _window_graphics(tlTask* task, tlArgs* args) {
+static tlValue _window_graphics(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     NSRect frame = [[window->nswindow contentView] frame];
     Graphics* buf = A_PTR(a_swap(A_VAR(window->buf), null));
-    Graphics* g = graphicsSizeTo(task, buf, frame.size.width, frame.size.height);
+    Graphics* g = graphicsSizeTo(buf, frame.size.width, frame.size.height);
     return g;
 }
-static tlValue _window_draw(tlTask* task, tlArgs* args) {
+static tlValue _window_draw(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     Graphics* buf = GraphicsCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("expected a buffer");
@@ -95,7 +95,7 @@ static tlValue _window_draw(tlTask* task, tlArgs* args) {
             performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
     return tlNull;
 }
-static tlValue _window_setTitle(tlTask* task, tlArgs* args) {
+static tlValue _window_setTitle(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (text) {
@@ -103,7 +103,7 @@ static tlValue _window_setTitle(tlTask* task, tlArgs* args) {
     }
     return tlNull;
 }
-static tlValue _window_frame(tlTask* task, tlArgs* args) {
+static tlValue _window_frame(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     int height = 0;
     NSScreen* screen = [window->nswindow screen];
@@ -112,17 +112,16 @@ static tlValue _window_frame(tlTask* task, tlArgs* args) {
     NSRect vframe = [[window->nswindow contentView] frame];
     int y = height - wframe.origin.y - vframe.size.height;
     if (y < 0) y = 0;
-    return tlResultNewFrom(task,
-            tlINT(wframe.origin.x), tlINT(y),
+    return tlResultNewFrom(tlINT(wframe.origin.x), tlINT(y),
             tlINT(vframe.size.width), tlINT(vframe.size.height), null);
 }
-static tlValue _window_mouse(tlTask* task, tlArgs* args) {
+static tlValue _window_mouse(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     int height = 0;
     NSScreen* screen = [window->nswindow screen];
     if (screen) height = [screen frame].size.height;
     NSPoint point = [NSEvent mouseLocation];
-    return tlResultNewFrom(task, tlINT(point.x), tlINT(height - point.y), null);
+    return tlResultNewFrom(tlINT(point.x), tlINT(height - point.y), null);
 }
 
 @implementation HotelWindow
@@ -215,7 +214,7 @@ static void ns_init() {
     pthread_cond_wait(&cocoa_start, &cocoa);
     pthread_mutex_unlock(&cocoa);
 
-    shared = tlAlloc(null, AppClass, sizeof(App));
+    shared = tlAlloc(AppClass, sizeof(App));
     shared->app = NSApp;
 }
 

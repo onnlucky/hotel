@@ -21,18 +21,18 @@ struct tlArgs {
 
 static tlArgs* v_args_empty;
 
-tlArgs* tlArgsNewNames(tlTask* task, int size, tlSet* names) {
+tlArgs* tlArgsNewNames(int size, tlSet* names) {
     if (!names) names = _tl_set_empty;
-    tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
-    args->list = tlListNew(task, size - tlSetSize(names));
-    args->map = tlMapNew(task, names);
+    tlArgs* args = tlAlloc(tlArgsClass, sizeof(tlArgs));
+    args->list = tlListNew(size - tlSetSize(names));
+    args->map = tlMapNew(names);
     return args;
 }
 
-tlArgs* tlArgsNew(tlTask* task, tlList* list, tlMap* map) {
+tlArgs* tlArgsNew(tlList* list, tlMap* map) {
     if (!list) list = _tl_emptyList;
     if (!map) map = _tl_emptyMap;
-    tlArgs* args = tlAlloc(task, tlArgsClass, sizeof(tlArgs));
+    tlArgs* args = tlAlloc(tlArgsClass, sizeof(tlArgs));
     args->list = list;
     args->map = map;
     return args;
@@ -85,12 +85,12 @@ void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
     tlMapSetSym_(args->map, name, v);
 }
 
-static tlValue _args_size(tlTask* task, tlArgs* args) {
+static tlValue _args_size(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlINT(tlArgsSize(as));
 }
-static tlValue _args_get(tlTask* task, tlArgs* args) {
+static tlValue _args_get(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
@@ -99,24 +99,24 @@ static tlValue _args_get(tlTask* task, tlArgs* args) {
     if (!res) return tlUndefined;
     return res;
 }
-static tlValue _args_block(tlTask* task, tlArgs* args) {
+static tlValue _args_block(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     tlValue res = tlArgsBlock(as);
     if (!res) return tlUndefined;
     return res;
 }
-static tlValue _args_map(tlTask* task, tlArgs* args) {
+static tlValue _args_map(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlArgsMap(as);
 }
-static tlValue _args_names(tlTask* task, tlArgs* args) {
+static tlValue _args_names(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlArgsMap(as);
 }
-static tlValue _args_slice(tlTask* task, tlArgs* args) {
+static tlValue _args_slice(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
 
@@ -124,7 +124,7 @@ static tlValue _args_slice(tlTask* task, tlArgs* args) {
     int size = tlListSize(list);
     int first = tl_int_or(tlArgsGet(args, 0), 0);
     int last = tl_int_or(tlArgsGet(args, 1), size);
-    return tlListSlice(task, list, first, last);
+    return tlListSlice(list, first, last);
 }
 
 const char* _ArgsToText(tlValue v, char* buf, int size) {
@@ -147,6 +147,6 @@ static void args_init() {
             "slice", _args_slice,
             null
     );
-    v_args_empty = tlArgsNew(null, null, null);
+    v_args_empty = tlArgsNew(null, null);
 }
 

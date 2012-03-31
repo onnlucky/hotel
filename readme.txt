@@ -126,7 +126,7 @@ call the evaluator. But they are by far the easiest to understand.
 In any scope, you register a tPRIM under a name, the tPRIM will need a function
 pointer. Optionally you can add more data elements.
 
-The function prototype looks as follows: `void name(tlTask* task, tlFun* fn, tlMap* args)`. Receiving the current task, a pointer back to the tlPRIM you created (from which you can retrieve the extra data elements), and a tlMap containing the arguments. You return values by tltask_return(), or tltask_throw().
+The function prototype looks as follows: `void name(tlFun* fn, tlMap* args)`. Receiving the current task, a pointer back to the tlPRIM you created (from which you can retrieve the extra data elements), and a tlMap containing the arguments. You return values by tltask_return(), or tltask_throw().
 
 There are some rules to adhere:
 * don't call tlcall_call() or friends
@@ -158,7 +158,7 @@ values should behave. This value is never visible at hotel level, unless you
 pass it there. The first time you are passed null (not tNull).
 
 a "simple" log function:
-  tValue _log(tlTask* task, tlFun* fn, tlMap* args, tlValue current) {
+  tValue _log(tlFun* fn, tlMap* args, tlValue current) {
       int i = 0;
       if (current) {
           i = tl_int(current);
@@ -174,7 +174,7 @@ a "simple" log function:
           if (!v) break;
 
           // tlvalue_toText will return null when it setup a call to the evaluator
-          tlValue v = tlvalue_toText(task, v);
+          tlValue v = tlvalue_toText(v);
           if (!v) return tlINT(i); // return our current state
       }
       // our function returns null

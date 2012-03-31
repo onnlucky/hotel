@@ -17,14 +17,14 @@ static tlSym _s_gmtoff;
 
 static tlMap* _timeMap;
 
-static tlValue _Time(tlTask* task, tlArgs* args) {
+static tlValue _Time(tlArgs* args) {
     struct timeval tv;
     gettimeofday(&tv, null);
     struct tm tm;
     localtime_r(&tv.tv_sec, &tm);
 
     // TODO add tv using a float ...
-    tlMap *res = tlAllocClone(task, _timeMap, sizeof(tlMap));
+    tlMap *res = tlAllocClone(_timeMap, sizeof(tlMap));
     tlMapSetSym_(res, _s_sec, tlINT(tm.tm_sec));
     tlMapSetSym_(res, _s_min, tlINT(tm.tm_min));
     tlMapSetSym_(res, _s_hour, tlINT(tm.tm_hour));
@@ -34,13 +34,13 @@ static tlValue _Time(tlTask* task, tlArgs* args) {
     tlMapSetSym_(res, _s_mday, tlINT(tm.tm_mday));
     tlMapSetSym_(res, _s_yday, tlINT(tm.tm_yday));
     tlMapSetSym_(res, _s_isdst, tlINT(tm.tm_isdst));
-    tlMapSetSym_(res, _s_zone, tlTextFromCopy(task, tm.tm_zone, 0));
+    tlMapSetSym_(res, _s_zone, tlTextFromCopy(tm.tm_zone, 0));
     tlMapSetSym_(res, _s_gmtoff, tlINT(tm.tm_gmtoff));
     return res;
 }
 
 static void time_init() {
-    tlSet* keys = tlSetNew(null, 11);
+    tlSet* keys = tlSetNew(11);
     _s_sec = tlSYM("sec"); tlSetAdd_(keys, _s_sec);
     _s_min = tlSYM("min"); tlSetAdd_(keys, _s_min);
     _s_hour = tlSYM("hour"); tlSetAdd_(keys, _s_hour);
@@ -52,7 +52,7 @@ static void time_init() {
     _s_isdst = tlSYM("isdst"); tlSetAdd_(keys, _s_isdst);
     _s_zone = tlSYM("zone"); tlSetAdd_(keys, _s_zone);
     _s_gmtoff = tlSYM("gmtoff"); tlSetAdd_(keys, _s_gmtoff);
-    _timeMap = tlMapNew(null, keys);
+    _timeMap = tlMapNew(keys);
     tlMapToObject_(_timeMap);
 
     tl_register_global("Time", tlNATIVE(_Time, "Time"));

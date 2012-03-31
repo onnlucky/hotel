@@ -18,17 +18,18 @@ struct tlCode {
 
 void debugcode(tlCode* code);
 
-tlCode* tlCodeNew(tlTask* task, int size) {
-    return tlAllocWithFields(task, tlCodeClass, sizeof(tlCode), size);
+tlCode* tlCodeNew(int size) {
+    return tlAllocWithFields(tlCodeClass, sizeof(tlCode), size);
 }
-tlCode* tlCodeFrom(tlTask* task, tlList* ops, tlText* file, tlInt line) {
+tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line) {
     int size = tlListSize(ops);
-    tlCode* code = tlCodeNew(task, size);
+    tlCode* code = tlCodeNew(size);
     for (int i = 0; i < size; i++) {
         code->ops[i] = tlListGet(ops, i);
     }
     code->file = file;
     code->line = line;
+    if_trace(debugcode(code));
     return code;
 }
 void tlCodeSetIsBlock_(tlCode* code, bool isblock) {
@@ -52,15 +53,15 @@ void tlCodeSetOps_(tlCode* code, tlList* ops) {
 }
 */
 // TODO filter out collects ...
-void tlCodeSetArgs_(tlTask* task, tlCode* code, tlList* args) {
+void tlCodeSetArgs_(tlCode* code, tlList* args) {
     trace("%d", tllist_size(args));
     // args = [name, default]*
     // output: name*, {name->default}
 
     int size = tlListSize(args);
-    tlMap* defaults = tlMapFromPairs(task, args);
+    tlMap* defaults = tlMapFromPairs(args);
 
-    tlList* names = tlListNew(task, size);
+    tlList* names = tlListNew(size);
     for (int i = 0; i < size; i++) {
         tlList* entry = tlListAs(tlListGet(args, i));
         tlSym name = tlSymAs(tlListGet(entry, 0));
@@ -69,10 +70,10 @@ void tlCodeSetArgs_(tlTask* task, tlCode* code, tlList* args) {
     code->argnames = names;
     code->argdefaults = defaults;
 }
-void tlCodeSetArgNameDefaults_(tlTask* task, tlCode* code, tlList* name_defaults) {
+void tlCodeSetArgNameDefaults_(tlCode* code, tlList* name_defaults) {
     int size = tlListSize(name_defaults);
-    tlList* names = tlListNew(task, size / 2);
-    //tlList* defaults = tllist_new(task, size / 2);
+    tlList* names = tlListNew(size / 2);
+    //tlList* defaults = tllist_new(size / 2);
     assert(size % 2 == 0);
 
     bool have_defaults = false;

@@ -27,7 +27,7 @@ int tl_int_or(tlValue v, int d) {
 }
 
 // creating value objects
-void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes) {
+void* tlAlloc(tlClass* klass, size_t bytes) {
     trace("ALLOC: %p %zd", v, bytes);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
@@ -35,7 +35,7 @@ void* tlAlloc(tlTask* task, tlClass* klass, size_t bytes) {
     head->keep = 1;
     return (void*)head;
 }
-void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc) {
+void* tlAllocWithFields(tlClass* klass, size_t bytes, int fieldc) {
     trace("ALLOC: %p %zd %d", v, bytes, fieldc);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
@@ -44,7 +44,7 @@ void* tlAllocWithFields(tlTask* task, tlClass* klass, size_t bytes, int fieldc) 
     head->keep = 1;
     return (void*)head;
 }
-void* tlAllocClone(tlTask* task, tlValue v, size_t bytes) {
+void* tlAllocClone(tlValue v, size_t bytes) {
     int fieldc = tl_head(v)->size;
     trace("CLONE: %p %zd %d", v, bytes, tl_head(v)->size);
     assert(bytes % sizeof(tlValue) == 0);
@@ -114,42 +114,42 @@ tlClass* tlNullClass = &_tlNullClass;
 tlClass* tlBoolClass = &_tlBoolClass;
 tlClass* tlIntClass = &_tlIntClass;
 
-static tlValue _bool_toText(tlTask* task, tlArgs* args) {
+static tlValue _bool_toText(tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
     if (b) return _t_true;
     return _t_false;
 }
-static tlValue _int_toChar(tlTask* task, tlArgs* args) {
+static tlValue _int_toChar(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     if (c < 0) TL_THROW("negative numbers cannot be a char");
     if (c > 255) TL_THROW("utf8 not yet supported");
     const char buf[] = { c, 0 };
-    return tlTextFromCopy(task, buf, 1);
+    return tlTextFromCopy(buf, 1);
 }
 
-static tlValue _int_toText(tlTask* task, tlArgs* args) {
+static tlValue _int_toText(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[255];
     int len = snprintf(buf, sizeof(buf), "%d", c);
-    return tlTextFromCopy(task, buf, len);
+    return tlTextFromCopy(buf, len);
 }
 
-static tlValue _isBool(tlTask* task, tlArgs* args) {
+static tlValue _isBool(tlArgs* args) {
     return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
 }
-static tlValue _isNumber(tlTask* task, tlArgs* args) {
+static tlValue _isNumber(tlArgs* args) {
     return tlBOOL(tlIntIs(tlArgsGet(args, 0)));
 }
-static tlValue _isSym(tlTask* task, tlArgs* args) {
+static tlValue _isSym(tlArgs* args) {
     return tlBOOL(tlSymIs(tlArgsGet(args, 0)));
 }
-static tlValue _isText(tlTask* task, tlArgs* args) {
+static tlValue _isText(tlArgs* args) {
     return tlBOOL(tlTextIs(tlArgsGet(args, 0)));
 }
-static tlValue _isList(tlTask* task, tlArgs* args) {
+static tlValue _isList(tlArgs* args) {
     return tlBOOL(tlListIs(tlArgsGet(args, 0)));
 }
-static tlValue _isObject(tlTask* task, tlArgs* args) {
+static tlValue _isObject(tlArgs* args) {
     tlValue v = tlArgsGet(args, 0);
     return tlBOOL(tlMapIs(v)||tlValueObjectIs(v));
 }

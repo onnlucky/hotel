@@ -14,11 +14,11 @@ struct tlArray {
     tlValue* data;
 };
 
-INTERNAL tlArray* tlArrayNew(tlTask* task) {
-    tlArray* array = tlAlloc(task, tlArrayClass, sizeof(tlArray));
+INTERNAL tlArray* tlArrayNew() {
+    tlArray* array = tlAlloc(tlArrayClass, sizeof(tlArray));
     return array;
 }
-INTERNAL tlArray* tlArrayAdd(tlTask* task, tlArray* array, tlValue v) {
+INTERNAL tlArray* tlArrayAdd(tlArray* array, tlValue v) {
     trace("add: %s.add %s -- %zd -- %zd", tl_str(array), tl_str(v), array->size, array->alloc);
     if (array->size == array->alloc) {
         if (!array->alloc) array->alloc = 8; else array->alloc *= 2;
@@ -28,14 +28,14 @@ INTERNAL tlArray* tlArrayAdd(tlTask* task, tlArray* array, tlValue v) {
     array->data[array->size++] = v;
     return array;
 }
-INTERNAL tlValue tlArrayPop(tlTask* task, tlArray* array) {
+INTERNAL tlValue tlArrayPop(tlArray* array) {
     if (array->size == 0) return tlUndefined;
     array->size--;
     tlValue v = array->data[array->size];
     array->data[array->size] = 0;
     return v;
 }
-INTERNAL tlValue tlArrayRemove(tlTask* task, tlArray* array, int i) {
+INTERNAL tlValue tlArrayRemove(tlArray* array, int i) {
     if (i < 0) return tlUndefined;
     if (i >= array->size) return tlUndefined;
     tlValue v = array->data[i];
@@ -46,9 +46,9 @@ INTERNAL tlValue tlArrayRemove(tlTask* task, tlArray* array, int i) {
 
     return v;
 }
-INTERNAL tlArray* tlArrayInsert(tlTask* task, tlArray* array, int i, tlValue v) {
+INTERNAL tlArray* tlArrayInsert(tlArray* array, int i, tlValue v) {
     if (i < 0) return array;
-    if (i == array->size) return tlArrayAdd(task, array, v);
+    if (i == array->size) return tlArrayAdd(array, v);
 
     int nsize;
     if (i > array->size) {
@@ -82,23 +82,23 @@ INTERNAL tlValue tlArrayGet(tlArray* array, int i) {
     if (i >= array->size) return tlUndefined;
     return array->data[i];
 }
-INTERNAL tlArray* tlArraySet(tlTask* task, tlArray* array, int i, tlValue v) {
+INTERNAL tlArray* tlArraySet(tlArray* array, int i, tlValue v) {
     if (i < 0) return tlUndefined;
-    if (i == array->size) return tlArrayAdd(task, array, v);
-    if (i > array->size) return tlArrayInsert(task, array, i, v);
+    if (i == array->size) return tlArrayAdd(array, v);
+    if (i > array->size) return tlArrayInsert(array, i, v);
     array->data[i] = v;
     return array;
 }
 
-INTERNAL tlValue _Array_new(tlTask* task, tlArgs* args) {
-    return tlArrayNew(task);
+INTERNAL tlValue _Array_new(tlArgs* args) {
+    return tlArrayNew();
 }
-INTERNAL tlValue _array_size(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_size(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     return tlINT(array->size);
 }
-INTERNAL tlValue _array_get(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_get(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
@@ -106,41 +106,41 @@ INTERNAL tlValue _array_get(tlTask* task, tlArgs* args) {
     tlValue v = tlArrayGet(array, tl_int(i));
     return v?v:tlNull;
 }
-INTERNAL tlValue _array_set(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_set(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    return tlArraySet(task, array, tl_int(i), tlArgsGet(args, 1));
+    return tlArraySet(array, tl_int(i), tlArgsGet(args, 1));
 }
-INTERNAL tlValue _array_add(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_add(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlValue v = tlArgsGet(args, i);
-        tlArrayAdd(task, array, v);
+        tlArrayAdd(array, v);
     }
     return array;
 }
-INTERNAL tlValue _array_pop(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_pop(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
-    tlValue v = tlArrayPop(task, array);
+    tlValue v = tlArrayPop(array);
     return v?v:tlNull;
 }
-INTERNAL tlValue _array_insert(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_insert(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    return tlArrayInsert(task, array, tl_int(i), tlArgsGet(args, 1));
+    return tlArrayInsert(array, tl_int(i), tlArgsGet(args, 1));
 }
-INTERNAL tlValue _array_remove(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _array_remove(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    tlValue v = tlArrayRemove(task, array, tl_int(i));
+    tlValue v = tlArrayRemove(array, tl_int(i));
     return v?v:tlNull;
 }
 

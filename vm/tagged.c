@@ -7,14 +7,14 @@ struct tlTagged {
     void* data[];
 };
 
-tlTagged* tltagged_new(tlTask* task, void* tag, int fields, int privs, tlFreeCb freecb) {
-    tlTagged* tagged = tltask_alloc_privs(task, TLTagged, sizeof(tlTagged), fields, privs, freecb);
+tlTagged* tltagged_new(void* tag, int fields, int privs, tlFreeCb freecb) {
+    tlTagged* tagged = tltask_alloc_privs(TLTagged, sizeof(tlTagged), fields, privs, freecb);
     tagged->task = task;
     tagged->tag = tag;
     return tagged;
 }
 
-bool tltagged_isvalid(tlTagged* tagged, tlTask* task, void* tag) {
+bool tltagged_isvalid(tlTagged* tagged, void* tag) {
     assert(tltagged_is(tagged));
     return tagged->task == task && tagged->tag == tag;
 }

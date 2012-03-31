@@ -44,8 +44,8 @@ static int setblock(int fd) {
     return 0;
 }
 
-static tlValue _io_getrusage(tlTask* task, tlArgs* args) {
-    tlMap *res = tlAllocClone(task, _usageMap, sizeof(tlMap));
+static tlValue _io_getrusage(tlArgs* args) {
+    tlMap *res = tlAllocClone(_usageMap, sizeof(tlMap));
     struct rusage use;
     getrusage(RUSAGE_SELF, &use);
     tlMapSetSym_(res, _s_cpu, tlINT(use.ru_utime.tv_sec + use.ru_stime.tv_sec));
@@ -56,14 +56,14 @@ static tlValue _io_getrusage(tlTask* task, tlArgs* args) {
 #endif
     return res;
 }
-static tlValue _io_getenv(tlTask* task, tlArgs* args) {
+static tlValue _io_getenv(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
     const char* c = getenv(tlTextData(text));
     if (!c) return tlNull;
-    return tlTextFromCopy(null, c, 0);
+    return tlTextFromCopy(c, 0);
 }
-static tlValue _io_chdir(tlTask* task, tlArgs* args) {
+static tlValue _io_chdir(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
     if (chdir(tlTextData(text))) {
@@ -71,7 +71,7 @@ static tlValue _io_chdir(tlTask* task, tlArgs* args) {
     }
     return tlNull;
 }
-static tlValue _io_mkdir(tlTask* task, tlArgs* args) {
+static tlValue _io_mkdir(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
     int perms = 0777;
@@ -80,7 +80,7 @@ static tlValue _io_mkdir(tlTask* task, tlArgs* args) {
     }
     return tlNull;
 }
-static tlValue _io_rmdir(tlTask* task, tlArgs* args) {
+static tlValue _io_rmdir(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
     if (rmdir(tlTextData(text))) {
@@ -139,8 +139,8 @@ void close_ev_io(void* _file, void* data) {
     trace(">>>> GC CLOSED FILE: %d <<<<", file->ev.fd);
     file->ev.fd = -1;
 }
-static tlFile* tlFileNew(tlTask* task, int fd) {
-    tlFile *file = tlAlloc(task, tlFileClass, sizeof(tlFile));
+static tlFile* tlFileNew(int fd) {
+    tlFile *file = tlAlloc(tlFileClass, sizeof(tlFile));
     file->reader.lock.head.klass = tlReaderClass;
     file->writer.lock.head.klass = tlWriterClass;
     ev_io_init(&file->ev, io_cb, fd, 0);
@@ -149,13 +149,14 @@ static tlFile* tlFileNew(tlTask* task, int fd) {
     return file;
 }
 
-static tlValue _file_isClosed(tlTask* task, tlArgs* args) {
+static tlValue _file_isClosed(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
     return tlBOOL(file->ev.fd < 0);
 }
 
-static tlValue _file_close(tlTask* task, tlArgs* args) {
+static tlValue _file_close(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
     if (!tlLockIsOwner(tlLockAs(&file->reader), task)) TL_THROW("expected a locked Reader");
@@ -173,20 +174,21 @@ static tlValue _file_close(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static tlValue _file_reader(tlTask* task, tlArgs* args) {
+static tlValue _file_reader(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
     if (file->reader.lock.head.klass) return &file->reader;
     return tlNull;
 }
-static tlValue _file_writer(tlTask* task, tlArgs* args) {
+static tlValue _file_writer(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
     if (file->writer.lock.head.klass) return &file->writer;
     return tlNull;
 }
 
-static tlValue _reader_close(tlTask* task, tlArgs* args) {
+static tlValue _reader_close(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     trace("");
     tlReader* reader = tlReaderCast(tlArgsTarget(args));
     if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
@@ -200,7 +202,8 @@ static tlValue _reader_close(tlTask* task, tlArgs* args) {
     if (r) trace("error in shutdown: %s", strerror(errno));
     return tlNull;
 }
-static tlValue _reader_read(tlTask* task, tlArgs* args) {
+static tlValue _reader_read(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     trace("");
     tlReader* reader = tlReaderCast(tlArgsTarget(args));
     tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
@@ -226,7 +229,8 @@ static tlValue _reader_read(tlTask* task, tlArgs* args) {
     return tlINT(len);
 }
 
-static tlValue _writer_close(tlTask* task, tlArgs* args) {
+static tlValue _writer_close(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     trace("");
     tlWriter* writer = tlWriterCast(tlArgsTarget(args));
     if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
@@ -240,7 +244,8 @@ static tlValue _writer_close(tlTask* task, tlArgs* args) {
     if (r) trace("error in shutdown: %s", strerror(errno));
     return tlNull;
 }
-static tlValue _writer_write(tlTask* task, tlArgs* args) {
+static tlValue _writer_write(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     trace("");
     tlWriter* writer = tlWriterCast(tlArgsTarget(args));
     tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
@@ -267,7 +272,8 @@ static tlValue _writer_write(tlTask* task, tlArgs* args) {
     return tlINT(len);
 }
 
-static tlValue _reader_accept(tlTask* task, tlArgs* args) {
+static tlValue _reader_accept(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     trace("");
     tlReader* reader = tlReaderCast(tlArgsTarget(args));
     if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
@@ -287,10 +293,10 @@ static tlValue _reader_accept(tlTask* task, tlArgs* args) {
 
     if (nonblock(fd) < 0) TL_THROW("accept: nonblock failed: %s", strerror(errno));
     trace("accept: %d %d", file->ev.fd, fd);
-    return tlFileNew(task, fd);
+    return tlFileNew(fd);
 }
 
-static tlValue _File_open(tlTask* task, tlArgs* args) {
+static tlValue _File_open(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a file name");
     trace("open: %s", tl_str(name));
@@ -300,32 +306,32 @@ static tlValue _File_open(tlTask* task, tlArgs* args) {
 
     int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
     if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
-    return tlFileNew(task, fd);
+    return tlFileNew(fd);
 }
 
-static tlValue _File_from(tlTask* task, tlArgs* args) {
+static tlValue _File_from(tlArgs* args) {
     tlInt fd = tlIntCast(tlArgsGet(args, 0));
     if (!fd) TL_THROW("espected a file descriptor");
     //int r = nonblock(tl_int(fd));
     //if (r) TL_THROW("_File_from: failed: %s", strerror(errno));
-    return tlFileNew(task, tl_int(fd));
+    return tlFileNew(tl_int(fd));
 }
 
 
 // ** sockets **
 
 // TODO this is a blocking call
-static tlValue _Socket_resolve(tlTask* task, tlArgs* args) {
+static tlValue _Socket_resolve(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a Text");
 
     struct hostent *hp = gethostbyname(tlTextData(name));
     if (!hp) return tlNull;
     if (!hp->h_addr_list[0]) return tlNull;
-    return tlTextFromTake(task, inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
+    return tlTextFromTake(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
 }
 
-static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
+static tlValue _Socket_connect(tlArgs* args) {
     tlText* address = tlTextCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a ip address");
     int port = tl_int_or(tlArgsGet(args, 1), -1);
@@ -351,11 +357,11 @@ static tlValue _Socket_connect(tlTask* task, tlArgs* args) {
     if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
 
     if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
-    return tlFileNew(task, fd);
+    return tlFileNew(fd);
 }
 
 // TODO make backlog configurable
-static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
+static tlValue _ServerSocket_listen(tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 0), -1);
     trace("tcp_listen: 0.0.0.0:%d", port);
 
@@ -379,13 +385,13 @@ static tlValue _ServerSocket_listen(tlTask* task, tlArgs* args) {
     if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
 
     listen(fd, 1024); // backlog, configurable?
-    return tlFileNew(task, fd);
+    return tlFileNew(fd);
 }
 
 
 // ** paths **
 
-static tlValue _Path_stat(tlTask* task, tlArgs* args) {
+static tlValue _Path_stat(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a name");
 
@@ -399,7 +405,7 @@ static tlValue _Path_stat(tlTask* task, tlArgs* args) {
         }
     }
 
-    tlMap *res = tlAllocClone(task, _statMap, sizeof(tlMap));
+    tlMap *res = tlAllocClone(_statMap, sizeof(tlMap));
     tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
     tlMapSetSym_(res, _s_ino, tlINT(buf.st_ino));
     tlMapSetSym_(res, _s_mode, tlINT(buf.st_mode));
@@ -426,21 +432,21 @@ tlClass _tlDirClass = {
 };
 tlClass* tlDirClass = &_tlDirClass;
 
-static tlDir* tlDirNew(tlTask* task, DIR* p) {
-    tlDir* dir = tlAlloc(task, tlDirClass, sizeof(tlDir));
+static tlDir* tlDirNew(DIR* p) {
+    tlDir* dir = tlAlloc(tlDirClass, sizeof(tlDir));
     dir->p = p;
     return dir;
 }
 
-static tlValue _Dir_open(tlTask* task, tlArgs* args) {
+static tlValue _Dir_open(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
     trace("opendir: %s", tl_str(name));
     DIR *p = opendir(tlTextData(name));
     if (!p) TL_THROW("opendir: failed: %s for: '%s'", strerror(errno), tl_str(name));
-    return tlDirNew(task, p);
+    return tlDirNew(p);
 }
 
-static tlValue _DirClose(tlTask* task, tlArgs* args) {
+static tlValue _DirClose(tlArgs* args) {
     tlDir* dir = tlDirCast(tlArgsTarget(args));
     if (!dir) TL_THROW("expected a Dir");
     trace("closedir: %p", dir);
@@ -448,7 +454,7 @@ static tlValue _DirClose(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static tlValue _DirRead(tlTask* task, tlArgs* args) {
+static tlValue _DirRead(tlArgs* args) {
     tlDir* dir = tlDirCast(tlArgsTarget(args));
     if (!dir) TL_THROW("expected a Dir");
 
@@ -457,7 +463,7 @@ static tlValue _DirRead(tlTask* task, tlArgs* args) {
     if (readdir_r(dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    return tlTextFromCopy(task, dp.d_name, 0);
+    return tlTextFromCopy(dp.d_name, 0);
 }
 
 typedef struct tlDirEachFrame {
@@ -466,7 +472,7 @@ typedef struct tlDirEachFrame {
     tlValue* block;
 } tlDirEachFrame;
 
-static tlValue resumeDirEach(tlTask* task, tlFrame* _frame, tlValue res, tlValue throw) {
+static tlValue resumeDirEach(tlFrame* _frame, tlValue res, tlValue throw) {
     if (throw && throw == s_break) return tlNull;
     if (throw && throw != s_continue) return null;
     if (!throw && !res) return null;
@@ -478,22 +484,22 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    res = tlEval(task, tlCallFrom(task, frame->block, tlTextFromCopy(task, dp.d_name, 0), null));
-    if (!res) return tlTaskPauseAttach(task, frame);
+    res = tlEval(tlCallFrom(frame->block, tlTextFromCopy(dp.d_name, 0), null));
+    if (!res) return tlTaskPauseAttach(frame);
     goto again;
     return tlNull;
 }
 
-static tlValue _DirEach(tlTask* task, tlArgs* args) {
+static tlValue _DirEach(tlArgs* args) {
     tlDir* dir = tlDirCast(tlArgsTarget(args));
     if (!dir) TL_THROW("expected a Dir");
     tlValue* block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) return tlNull;
 
-    tlDirEachFrame* frame = tlFrameAlloc(task, resumeDirEach, sizeof(tlDirEachFrame));
+    tlDirEachFrame* frame = tlFrameAlloc(resumeDirEach, sizeof(tlDirEachFrame));
     frame->dir = dir;
     frame->block = block;
-    return resumeDirEach(task, (tlValue)frame, tlNull, null);
+    return resumeDirEach((tlValue)frame, tlNull, null);
 }
 
 
@@ -523,7 +529,7 @@ static void launch(char** argv) {
 }
 
 // exec ... replaces current process, stopping hotel effectively
-static tlValue _io_exec(tlTask* task, tlArgs* args) {
+static tlValue _io_exec(tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlText* text = tlTextCast(tlArgsGet(args, i));
@@ -579,56 +585,57 @@ static void child_cb(ev_child *ev, int revents) {
     }
 }
 
-static tlChild* tlChildNew(tlTask* task, pid_t pid, int in, int out, int err) {
-    tlChild* child = tlAlloc(task, tlChildClass, sizeof(tlChild));
+static tlChild* tlChildNew(pid_t pid, int in, int out, int err) {
+    tlChild* child = tlAlloc(tlChildClass, sizeof(tlChild));
     ev_child_init(&child->ev, child_cb, pid, 0);
     ev_child_start(&child->ev);
     // we can do this lazily ... but then we need a finalizer to close fds
-    child->in = tlFileNew(task, in);
-    child->out = tlFileNew(task, out);
-    child->err = tlFileNew(task, err);
+    child->in = tlFileNew(in);
+    child->out = tlFileNew(out);
+    child->err = tlFileNew(err);
     return child;
 }
 
-static tlValue resumeChildWait(tlTask* task, tlFrame* frame, tlValue res, tlValue throw) {
+static tlValue resumeChildWait(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     tlChild* child = tlChildAs(res);
     if (child->res) return child->res;
 
     // TODO not thread save ... needs mutex ...
+    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     vm->waitevent += 1;
 
     frame->resumecb = null;
-    tlTaskWaitFor(task, null);
+    tlTaskWaitFor(null);
     lqueue_put(&child->wait_q, &task->entry);
     return tlTaskNotRunning;
 }
-static tlValue _child_wait(tlTask* task, tlArgs* args) {
+static tlValue _child_wait(tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     trace("child_wait: %d", child->ev.pid);
 
     // TODO use a_var and this will be thread safe ... (child_cb)
     if (child->res) return child->res;
-    return tlTaskPauseResuming(task, resumeChildWait, child);
+    return tlTaskPauseResuming(resumeChildWait, child);
 }
-static tlValue _child_running(tlTask* task, tlArgs* args) {
+static tlValue _child_running(tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     return tlBOOL(child->res == 0);
 }
-static tlValue _child_in(tlTask* task, tlArgs* args) {
+static tlValue _child_in(tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     return child->in;
 }
-static tlValue _child_out(tlTask* task, tlArgs* args) {
+static tlValue _child_out(tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     return child->out;
 }
-static tlValue _child_err(tlTask* task, tlArgs* args) {
+static tlValue _child_err(tlArgs* args) {
     tlChild* child = tlChildCast(tlArgsTarget(args));
     if (!child) TL_THROW("expected a Child");
     return child->err;
@@ -636,7 +643,7 @@ static tlValue _child_err(tlTask* task, tlArgs* args) {
 
 // launch a child process
 // TODO allow passing in an tlFile as in/out/err ...
-static tlValue _io_launch(tlTask* task, tlArgs* args) {
+static tlValue _io_launch(tlArgs* args) {
     static int null_fd;
     if (!null_fd) {
         null_fd = open("/dev/null", O_RDWR);
@@ -702,7 +709,7 @@ static tlValue _io_launch(tlTask* task, tlArgs* args) {
         // parent; no error checking ... there would be nothing we could do
         close(_in[0]); close(_out[1]); close(_err[1]);
         nonblock(_in[1]); nonblock(_out[0]); nonblock(_err[0]);
-        tlChild* child = tlChildNew(task, pid, _in[1], _out[0], _err[0]);
+        tlChild* child = tlChildNew(pid, _in[1], _out[0], _err[0]);
         return child;
     }
 
@@ -752,7 +759,8 @@ static void io_cb(ev_io *ev, int revents) {
     if (!ev->events) ev_io_stop(ev);
 }
 
-static tlValue _io_waitread(tlTask* task, tlArgs* args) {
+static tlValue _io_waitread(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
 
     tlReader* reader = tlReaderCast(tlArgsGet(args, 0));
@@ -775,7 +783,8 @@ static tlValue _io_waitread(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static tlValue _io_waitwrite(tlTask* task, tlArgs* args) {
+static tlValue _io_waitwrite(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
 
     tlWriter* writer = tlWriterCast(tlArgsGet(args, 0));
@@ -806,7 +815,8 @@ static void timer_cb(ev_timer* timer, int revents) {
     tlMessageReply(tlMessageAs(timer->data), null);
     free(timer);
 }
-static tlValue _io_wait(tlTask* task, tlArgs* args) {
+static tlValue _io_wait(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expect a Msg");
@@ -831,13 +841,14 @@ static void async_cb(ev_async* async, int revents) { }
 
 static void iointerrupt() { ev_async_send(&loop_interrupt); }
 
-static tlValue _io_init(tlTask* task, tlArgs* args) {
-    tlQueue* queue = tlQueueNew(task);
+static tlValue _io_init(tlArgs* args) {
+    tlQueue* queue = tlQueueNew();
     queue->signalcb = iointerrupt;
     return queue;
 }
 
-static tlValue _io_haswaiting(tlTask* task, tlArgs* args) {
+static tlValue _io_haswaiting(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     assert(vm->waitevent >= 0);
     trace("tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
@@ -849,7 +860,8 @@ static tlValue _io_haswaiting(tlTask* task, tlArgs* args) {
     return tlFalse;
 }
 
-static tlValue _io_run(tlTask* task, tlArgs* args) {
+static tlValue _io_run(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     if (vm->lock) {
         trace("blocking for events");
@@ -956,7 +968,7 @@ void evio_init() {
     tl_register_global("_Stat_IFLNK", tlINT(S_IFLNK));
 
     // for stat syscall
-    tlSet* keys = tlSetNew(null, 12);
+    tlSet* keys = tlSetNew(12);
     _s_dev = tlSYM("dev"); tlSetAdd_(keys, _s_dev);
     _s_ino = tlSYM("ino"); tlSetAdd_(keys, _s_ino);
     _s_mode = tlSYM("mode"); tlSetAdd_(keys, _s_mode);
@@ -969,16 +981,16 @@ void evio_init() {
     _s_blocks = tlSYM("blocks"); tlSetAdd_(keys, _s_blocks);
     _s_atime = tlSYM("atime"); tlSetAdd_(keys, _s_atime);
     _s_mtime = tlSYM("mtime"); tlSetAdd_(keys, _s_mtime);
-    _statMap = tlMapNew(null, keys);
+    _statMap = tlMapNew(keys);
     tlMapToObject_(_statMap);
 
     // for rusage syscall
-    keys = tlSetNew(null, 4);
+    keys = tlSetNew(4);
     _s_cpu = tlSYM("cpu"); tlSetAdd_(keys, _s_cpu);
     _s_mem = tlSYM("mem"); tlSetAdd_(keys, _s_mem);
     _s_pid = tlSYM("pid"); tlSetAdd_(keys, _s_pid);
     _s_gcs = tlSYM("gcs"); tlSetAdd_(keys, _s_gcs);
-    _usageMap = tlMapNew(null, keys);
+    _usageMap = tlMapNew(keys);
     tlMapToObject_(_usageMap);
 
     signal(SIGPIPE, SIG_IGN);

@@ -11,18 +11,18 @@ static tlClass _tlBufferClass = {
 };
 tlClass* tlBufferClass = &_tlBufferClass;
 
-tlBuffer* tlBufferNew(tlTask* task) {
-    tlBuffer* buf = tlAlloc(task, tlBufferClass, sizeof(tlBuffer));
+tlBuffer* tlBufferNew() {
+    tlBuffer* buf = tlAlloc(tlBufferClass, sizeof(tlBuffer));
     buf->buf = tlbuf_new();
     return buf;
 }
-INTERNAL tlValue _buffer_canread(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _buffer_canread(tlArgs* args) {
     return tlINT(canread(tlBufferAs(tlArgsTarget(args))->buf));
 }
-INTERNAL tlValue _buffer_canwrite(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _buffer_canwrite(tlArgs* args) {
     return tlINT(canwrite(tlBufferAs(tlArgsTarget(args))->buf));
 }
-INTERNAL tlValue _buffer_read(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _buffer_read(tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
     if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
@@ -32,10 +32,10 @@ INTERNAL tlValue _buffer_read(tlTask* task, tlArgs* args) {
     char* data = malloc_atomic(canread(buf) + 1);
     int last = tlbuf_read(buf, data, canread(buf));
     data[last] = 0;
-    return tlTextFromTake(task, data, last);
+    return tlTextFromTake(data, last);
 }
 
-INTERNAL tlValue _buffer_write(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _buffer_write(tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
     if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
@@ -47,7 +47,7 @@ INTERNAL tlValue _buffer_write(tlTask* task, tlArgs* args) {
     return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));
 }
 
-INTERNAL tlValue _buffer_find(tlTask* task, tlArgs* args) {
+INTERNAL tlValue _buffer_find(tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
     if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
@@ -61,8 +61,8 @@ INTERNAL tlValue _buffer_find(tlTask* task, tlArgs* args) {
     return tlINT(i);
 }
 
-INTERNAL tlValue _Buffer_new(tlTask* task, tlArgs* args) {
-    return tlBufferNew(task);
+INTERNAL tlValue _Buffer_new(tlArgs* args) {
+    return tlBufferNew();
 }
 
 static void buffer_init() {
