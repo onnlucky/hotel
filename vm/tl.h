@@ -303,7 +303,7 @@ void tlVmDelete(tlVm* vm);
 // ** running code **
 
 // get the current task
-tlTask* tlTaskCurrent();
+//tlTask* tlTaskCurrent();
 
 // parsing
 tlValue tlParse(tlText* text, tlText* file);

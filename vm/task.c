@@ -157,25 +157,20 @@ INTERNAL tlValue tlTaskStackUnwind(tlFrame* upto, tlValue res) {
 INTERNAL tlValue tlTaskDone(tlTask* task, tlValue res);
 INTERNAL tlValue tlTaskError(tlTask* task, tlValue res);
 
-static tlTask* tl_task_current;
-
-void tlWorkerBind(tlWorker* worker, tlTask* task) {
+INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task) {
+    trace("BIND: %s", tl_str(task));
     assert(task);
     assert(task->worker != worker);
     task->worker = worker;
     tl_task_current = task;
 }
-void tlWorkerUnbind(tlWorker* worker, tlTask* task) {
+INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task) {
+    trace("UNBIND: %s", tl_str(task));
     assert(task);
+    assert(tl_task_current == task);
     //assert(task->worker);
     //assert(task->worker == task->worker->vm->waiter);
     tl_task_current = null;
-}
-tlTask* tlTaskCurrent() {
-    assert(tl_task_current);
-    assert(tlTaskIs(tl_task_current));
-    assert(tl_task_current->worker);
-    return tl_task_current;
 }
 
 // after a worker has picked a task from the run queue, it will run it

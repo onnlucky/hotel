@@ -824,7 +824,6 @@ static tlValue _io_wait(tlArgs* args) {
     int millis = tl_int_or(tlArgsGet(args, 0), 1000);
     trace("sleep: %d", millis);
     float ms = millis / 1000.0;
-    ms = ms;
 
     ev_timer *timer = malloc(sizeof(ev_timer));
     timer->data = msg;

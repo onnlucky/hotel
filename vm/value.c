@@ -2,6 +2,14 @@
 
 #include "code.h"
 
+static tlTask* tl_task_current;
+static inline tlTask* tlTaskCurrent() {
+    assert(tl_task_current);
+    assert(tlTaskIs(tl_task_current));
+   // assert(tl_task_current->worker);
+    return tl_task_current;
+}
+
 INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
 INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }

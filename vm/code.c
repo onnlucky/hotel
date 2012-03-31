@@ -54,7 +54,7 @@ void tlCodeSetOps_(tlCode* code, tlList* ops) {
 */
 // TODO filter out collects ...
 void tlCodeSetArgs_(tlCode* code, tlList* args) {
-    trace("%d", tllist_size(args));
+    trace("%d", tlListSize(args));
     // args = [name, default]*
     // output: name*, {name->default}
 

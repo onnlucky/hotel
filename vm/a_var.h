@@ -35,7 +35,7 @@ static inline a_val a_sub(a_var var, a_val v) { return __sync_sub_and_fetch(var,
 static inline a_val a_or(a_var var, a_val v) { return __sync_or_and_fetch(var, v); }
 static inline a_val a_and(a_var var, a_val v) { return __sync_and_and_fetch(var, v); }
 static inline a_val a_xor(a_var var, a_val v) { return __sync_xor_and_fetch(var, v); }
-static inline a_val a_nand(a_var var, a_val v) { return __sync_nand_and_fetch(var, v); }
+//static inline a_val a_nand(a_var var, a_val v) { return __sync_nand_and_fetch(var, v); }
 
 // set the value of a atomic variable
 // returns the new value of the variable

@@ -10,7 +10,7 @@
 // TODO instead of jumping (return, goto, continuation), lets unwind the stack without values
 //      gives frames a change to release locks and run defers
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 // if (no else)
 INTERNAL tlValue _if(tlArgs* args) {
