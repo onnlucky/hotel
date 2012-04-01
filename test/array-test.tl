@@ -1,8 +1,8 @@
 ls = Array.new
 ls.insert(10, "hello world!")
-print ls.get(9)
-print ls.get(10)
-print ls.get(11)
+assert ls.get(9) == null
+assert ls.get(10) == "hello world!"
+assert ls.get(11) == undefined
 
 while ls.size > 0: ls.pop
 
@@ -14,10 +14,6 @@ while $x > 0: {
 ls.insert(1000, "auch")
 ls.insert(500, "hello")
 ls.insert(3, "world")
-
-print ls.get(501)
-print ls.get(3)
-print ls.size
 
 x = Var.new 10
 while $x > 0: {
@@ -39,5 +35,8 @@ while ls.size > 0: {
 }
 assert $seen_auch
 
-print ls.get(-100), ls.get(0), ls.get(1), ls.get(10000)
+assert ls.get(-100) == undefined
+assert ls.get(0) == undefined
+assert ls.get(1) == undefined
+assert ls.get(10000) == undefined
 
