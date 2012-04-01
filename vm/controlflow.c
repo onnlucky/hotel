@@ -224,6 +224,10 @@ INTERNAL tlValue GotoCallFn(tlCall* call) {
     return tlTaskPauseResuming(resumeGoto, call);
 }
 
+// though continuations work when uncommenting the fatal("broken"); below
+// they don't actually work ...
+// when jumping, they should unwind the stack to release all held locks
+// and jumping by restoring an unwound stack should not be allowed, because it will not properly aquire locks
 TL_REF_TYPE(tlContinuation);
 struct tlContinuation {
     tlHead head;
