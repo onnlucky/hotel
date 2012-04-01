@@ -10,6 +10,5 @@ boot_tl.h
 parser.c
 tl
 
-test/*.log
-test/*.out
+test/noboot/*.log
 

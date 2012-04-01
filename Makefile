@@ -16,7 +16,7 @@ run: tl
 	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
 
 test: tl
-	cd test && ./run.sh
+	cd test/noboot/ && ./run.sh
 
 $(LIBGC):
 	./libgc.sh
@@ -52,7 +52,7 @@ tl: libtl.a vm/tl.c
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread
 
 clean:
-	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h
+	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
 	$(MAKE) -C graphics clean
 distclean: clean
 	rm -rf greg/ libgc/
