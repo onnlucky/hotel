@@ -17,6 +17,7 @@ run: tl
 
 test: tl
 	cd test/noboot/ && ./run.sh
+	cd test/ && TL_MODULE_PATH=../modules $(TOOL) ../tl tester.tl
 
 $(LIBGC):
 	./libgc.sh

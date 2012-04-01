@@ -16,6 +16,9 @@ for i in *.tl; do
         echo "FAIL: $i"
     fi
 done
+for i in *.tl-skip; do
+    echo "SKIPPING: $i"
+done
 
 if (( FAIL > 0)); then
     echo "pass: $PASS"
