@@ -342,8 +342,8 @@ void tl_register_natives(const tlNativeCbs* cbs);
 void tl_register_global(const char* name, tlValue v);
 
 // task management
-tlTask* tlTaskNew(tlVm* vm);
-tlVm* tlTaskGetVm();
+tlTask* tlTaskNew(tlVm* vm, tlMap* locals);
+tlVm* tlTaskGetVm(tlTask* task);
 
 // stack reification
 // native frame activation/resume signature

@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <dirent.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/uio.h>

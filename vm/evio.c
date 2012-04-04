@@ -9,6 +9,8 @@
 
 #include "trace-on.h"
 
+static tlSym _s_cwd;
+
 static tlMap* _statMap;
 static tlSym _s_dev;
 static tlSym _s_ino;
@@ -28,6 +30,8 @@ static tlSym _s_cpu;
 static tlSym _s_mem;
 static tlSym _s_pid;
 static tlSym _s_gcs;
+
+tlText* tl_cwd;
 
 static void io_cb(ev_io *ev, int revents);
 
@@ -63,19 +67,62 @@ static tlValue _io_getenv(tlArgs* args) {
     if (!c) return tlNull;
     return tlTextFromCopy(c, 0);
 }
+
+// TODO normalize /../ and /./
+static tlText* path_join(tlText* lhs, tlText* rhs) {
+    if (!lhs) return rhs;
+    if (!rhs) return lhs;
+    const char* l = tlTextData(lhs);
+    const char* r = tlTextData(rhs);
+    if (r[0] == '/') return rhs;
+
+    int llen = strlen(l);
+    int rlen = strlen(r);
+    if (llen == 0) return rhs;
+    if (rlen == 0) return lhs;
+
+    char* buf = malloc(llen + 1 + rlen + 1);
+    strcat(buf, l);
+    strcat(buf + llen, "/");
+    strcat(buf + llen + 1, r);
+
+    return tlTextFromTake(buf, llen + 1 + rlen);
+}
+static tlText* cwd_join(tlText* path) {
+    tlTask* task = tlTaskCurrent();
+    tlText* cwd = null;
+    if (task->locals) cwd = tlTextCast(tlMapGetSym(task->locals, _s_cwd));
+    tlText* res = path_join(cwd, path);
+    return res;
+}
+
 static tlValue _io_chdir(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
-    if (chdir(tlTextData(text))) {
-        TL_THROW("chdir: %s", strerror(errno));
-    }
+
+    tlText* path = cwd_join(text);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("chdir: invalid cwd");
+
+    struct stat buf;
+    int r = stat(p, &buf);
+    if (r == -1) TL_THROW("chdir: %s", strerror(errno));
+    if (!(buf.st_mode & S_IFDIR)) TL_THROW("chdir: not a directory: %s", p);
+
+    tlTask* task = tlTaskCurrent();
+    task->locals = tlMapSet(task->locals, _s_cwd, path);
     return tlNull;
 }
 static tlValue _io_mkdir(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
+
+    tlText* path = cwd_join(text);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("mkdir: invalid cwd");
+
     int perms = 0777;
-    if (mkdir(tlTextData(text), perms)) {
+    if (mkdir(p, perms)) {
         TL_THROW("mkdir: %s", strerror(errno));
     }
     return tlNull;
@@ -83,8 +130,26 @@ static tlValue _io_mkdir(tlArgs* args) {
 static tlValue _io_rmdir(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
-    if (rmdir(tlTextData(text))) {
+
+    tlText* path = cwd_join(text);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("rmdir: invalid cwd");
+
+    if (rmdir(p)) {
         TL_THROW("rmdir: %s", strerror(errno));
+    }
+    return tlNull;
+}
+static tlValue _io_unlink(tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+
+    tlText* path = cwd_join(text);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("unlink: invalid cwd");
+
+    if (unlink(p)) {
+        TL_THROW("unlink: %s", strerror(errno));
     }
     return tlNull;
 }
@@ -304,8 +369,12 @@ static tlValue _File_open(tlArgs* args) {
     if (flags < 0) TL_THROW("expected flags");
     int perms = 0666;
 
-    int fd = open(tlTextData(name), flags|O_NONBLOCK, perms);
-    if (fd < 0) TL_THROW("file_open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
+    tlText* path = cwd_join(name);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("open: invalid cwd");
+
+    int fd = open(p, flags|O_NONBLOCK, perms);
+    if (fd < 0) TL_THROW("open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
     return tlFileNew(fd);
 }
 
@@ -395,8 +464,12 @@ static tlValue _Path_stat(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a name");
 
+    tlText* path = cwd_join(name);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("stat: invalid cwd");
+
     struct stat buf;
-    int r = stat(tlTextData(name), &buf);
+    int r = stat(p, &buf);
     if (r == -1) {
         if (errno == ENOENT || errno == ENOTDIR) {
             bzero(&buf, sizeof(buf));
@@ -441,9 +514,14 @@ static tlDir* tlDirNew(DIR* p) {
 static tlValue _Dir_open(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
     trace("opendir: %s", tl_str(name));
-    DIR *p = opendir(tlTextData(name));
-    if (!p) TL_THROW("opendir: failed: %s for: '%s'", strerror(errno), tl_str(name));
-    return tlDirNew(p);
+
+    tlText* path = cwd_join(name);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("opendir: invalid cwd");
+
+    DIR *dir = opendir(p);
+    if (!dir) TL_THROW("opendir: failed: %s for: '%s'", strerror(errno), tl_str(name));
+    return tlDirNew(dir);
 }
 
 static tlValue _DirClose(tlArgs* args) {
@@ -506,10 +584,7 @@ static tlValue _DirEach(tlArgs* args) {
 // ** child processes **
 
 // does a exec after closing all fds and resetting signals etc
-static void launch(char** argv) {
-    // set stdin/stdout/stderr to blocking (just incase)
-    setblock(0); setblock(1); setblock(2);
-
+static void launch(const char* cwd, char** argv) {
     // close all fds
     int max = getdtablesize();
     if (max < 0) max = 50000;
@@ -521,8 +596,14 @@ static void launch(char** argv) {
         if (sig == SIG_ERR) trace("reset signal %d: %s", i, strerror(errno));
     }
 
-    // actually launch
     errno = 0;
+
+    if (chdir(cwd)) {
+        warning("chdir failed: %s", strerror(errno));
+        _exit(255);
+    }
+
+    // actually launch
     execvp(argv[0], argv);
     warning("execvp failed: %s", strerror(errno));
     _exit(255);
@@ -541,7 +622,11 @@ static tlValue _io_exec(tlArgs* args) {
     }
     argv[tlArgsSize(args)] = 0;
 
-    launch(argv);
+    tlText* path = cwd_join(null);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("exec: invalid cwd");
+
+    launch(p, argv);
 
     // this cannot happen, as launch does exit
     TL_THROW("oeps: %s", strerror(errno));
@@ -649,7 +734,9 @@ static tlValue _io_launch(tlArgs* args) {
         null_fd = open("/dev/null", O_RDWR);
         if (null_fd < 0) fatal("unable to open(/dev/null): %s", strerror(errno));
     }
-    tlList* as = tlListCast(tlArgsGet(args, 0));
+    tlText* cwd = tlTextCast(tlArgsGet(args, 0));
+    if (!cwd) TL_THROW("expected a Text as cwd");
+    tlList* as = tlListCast(tlArgsGet(args, 1));
     if (!as) TL_THROW("expected a List");
     char** argv = malloc(sizeof(char*) * (tlListSize(as) + 1));
     for (int i = 0; i < tlListSize(as); i++) {
@@ -659,10 +746,10 @@ static tlValue _io_launch(tlArgs* args) {
     }
     argv[tlListSize(as)] = 0;
 
-    bool want_in = tl_bool_or(tlArgsGet(args, 1), true);
-    bool want_out = tl_bool_or(tlArgsGet(args, 2), true);
-    bool want_err = tl_bool_or(tlArgsGet(args, 3), true);
-    bool join_err = tl_bool_or(tlArgsGet(args, 4), false);
+    bool want_in = tl_bool_or(tlArgsGet(args, 2), true);
+    bool want_out = tl_bool_or(tlArgsGet(args, 3), true);
+    bool want_err = tl_bool_or(tlArgsGet(args, 4), true);
+    bool join_err = tl_bool_or(tlArgsGet(args, 5), false);
     trace("launch: %s [%d] %d,%d,%d,%d", argv[0], tlListSize(as) - 1,
             want_in, want_out, want_err, join_err);
 
@@ -718,7 +805,7 @@ static tlValue _io_launch(tlArgs* args) {
     dup2(_out[1], 1);
     dup2(_err[1], 2);
 
-    launch(argv);
+    launch(tlTextData(cwd), argv);
     // cannot happen, launch does exit
     TL_THROW("oeps: %s", strerror(errno));
 }
@@ -911,12 +998,6 @@ static const tlNativeCbs __evio_natives[] = {
     { 0, 0 }
 };
 
-
-void evio_exit() {
-    trace("cleanup");
-    setblock(0); setblock(1); setblock(2);
-}
-
 void evio_init() {
     _tlReaderClass.map = tlClassMapFrom(
         "read", _reader_read,
@@ -966,6 +1047,8 @@ void evio_init() {
     tl_register_global("_Stat_IFDIR", tlINT(S_IFDIR));
     tl_register_global("_Stat_IFLNK", tlINT(S_IFLNK));
 
+    _s_cwd = tlSYM("cwd");
+
     // for stat syscall
     tlSet* keys = tlSetNew(12);
     _s_dev = tlSYM("dev"); tlSetAdd_(keys, _s_dev);
@@ -992,9 +1075,11 @@ void evio_init() {
     _usageMap = tlMapNew(keys);
     tlMapToObject_(_usageMap);
 
+    char buf[MAXPATHLEN + 1];
+    char* cwd = getcwd(buf, sizeof(buf));
+    tl_cwd = tlTextFromCopy(cwd, 0);
+
     signal(SIGPIPE, SIG_IGN);
-    //nonblock(0); nonblock(1); nonblock(2);
-    //atexit(evio_exit);
 
     ev_default_loop(0);
     ev_async_init(&loop_interrupt, async_cb);

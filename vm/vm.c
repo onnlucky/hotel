@@ -239,6 +239,8 @@ tlVm* tlVmNew() {
     var_vm_default(vm);
     array_vm_default(vm);
     hashmap_vm_default(vm);
+
+    vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     return vm;
 }
 
@@ -312,7 +314,7 @@ tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as) {
 
 tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as) {
     tlWorker* worker = tlWorkerNew(vm);
-    tlTask* task = tlTaskNew(vm);
+    tlTask* task = tlTaskNew(vm, vm->locals);
     vm->main = task;
     vm->running = true;
 

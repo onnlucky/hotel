@@ -34,6 +34,7 @@ struct tlVm {
     a_val waitevent; // external events ...
 
     tlEnv* globals;
+    tlMap* locals; // default task locals
     tlValue resolve;
 
     // for when we run multithreaded

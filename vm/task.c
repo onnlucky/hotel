@@ -46,6 +46,7 @@ struct tlTask {
     tlValue throw;     // current throw (throwing or done)
     tlFrame* stack;    // current frame (== top of stack or current continuation)
 
+    tlMap* locals;     // task local storage, for cwd, stdout etc ...
     // TODO remove these in favor a some flags
     tlTaskState state; // state it is currently in
 };
@@ -275,10 +276,11 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
     return tlTaskError(task, thrown);
 }
 
-tlTask* tlTaskNew(tlVm* vm) {
+tlTask* tlTaskNew(tlVm* vm, tlMap* locals) {
     tlTask* task = tlAlloc(tlTaskClass, sizeof(tlTask));
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
+    task->locals = locals;
     trace("new %s", tl_str(task));
     return task;
 }
@@ -473,7 +475,7 @@ INTERNAL tlValue _Task_new(tlArgs* args) {
     assert(task->worker && task->worker->vm);
 
     tlValue v = tlArgsGet(args, 0);
-    tlTask* ntask = tlTaskNew(tlTaskGetVm(task));
+    tlTask* ntask = tlTaskNew(tlTaskGetVm(task), task->locals);
 
     if (tlCallableIs(v)) v = tlCallFrom(v, null);
     tlTaskEval(ntask, v);
@@ -491,7 +493,6 @@ INTERNAL tlValue resumeStacktrace(tlFrame* frame, tlValue res, tlValue throw) {
 INTERNAL tlValue _Task_stacktrace(tlArgs* args) {
     return tlTaskPauseResuming(resumeStacktrace, args);
 }
-
 INTERNAL tlValue resumeBindToThread(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     tlTask* task = tlTaskCurrent();
@@ -515,6 +516,9 @@ INTERNAL tlValue resumeYield(tlFrame* frame, tlValue res, tlValue throw) {
 }
 INTERNAL tlValue _Task_yield(tlArgs* args) {
     return tlTaskPauseResuming(resumeYield, tlNull);
+}
+INTERNAL tlValue _Task_locals(tlArgs* args) {
+    return tlTaskCurrent()->locals;
 }
 
 INTERNAL tlValue _task_isDone(tlArgs* args) {
@@ -596,6 +600,7 @@ static void task_init() {
     );
     taskClass = tlClassMapFrom(
         "current", _Task_current,
+        "locals", _Task_locals,
         "stacktrace", _Task_stacktrace,
         "yield", _Task_yield,
         "bindToThread", _Task_bindToThread,
