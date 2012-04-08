@@ -18,7 +18,7 @@ tlObject* tlObjectNew() {
 }
 INTERNAL tlValue _Object_new(tlArgs* args) {
     tlMap* map = (tlMap*)tlValueObjectCast(tlArgsGet(args, 0));
-    if (!map) TL_THROW("expected a Value Object");
+    if (!map) map = tlMapEmpty();
     tlObject* obj = tlObjectNew();
     obj->map = map;
     return obj;
