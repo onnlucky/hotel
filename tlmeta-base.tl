@@ -10,7 +10,7 @@ ALPHA = LOWER.cat(UPPER)
 NUMERIC = "0123456789"
 ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
-advance = { in, adv -> { text: in.text, pos: in.pos + adv }}
+advance = { in, adv -> { text: in.text, pos: in.pos + adv, oop: in.oop }}
 error = { in, nr, msg ->
     if nr: _throw { t: #p, in: in, msg: nr, noreturn: true }
     _throw {t: #p, in: in, msg: msg }
@@ -151,7 +151,7 @@ pStart = { rule, text ->
             if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
             _throw "SyntaxError: on line $line col $char"
         }
-        rule({text: text, pos: 0 })
+        rule({text: text, pos: 0, oop: _Object_new() })
     )
     if in.pos < in.text.size: {
         line, char = lineFromPos(in.text, in.pos)

@@ -135,6 +135,7 @@ emitRule = { r, buf ->
     buf.write("rule_$name = {_in, _nr ->\n")
     buf.write("  _catch: e -> pHandle(e, _nr, \"$name\")\n")
     buf.write("  trace(_in, \" >>  TRY $name\", _nr)\n")
+    buf.write("  this = _in.oop\n")
     buf.write("  _name = \"$name\"\n")
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")
