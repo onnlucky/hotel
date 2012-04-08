@@ -46,8 +46,8 @@ slcomment: "//" (!nl _)*
       ws: (sp | icomment)*
     wsnl: (sp | nl | comment)*
 
-     eos: . (";" | nl) wsnl
-     eov: . ("," | nl) wsnl
+     eos: . (";" | nl) ..
+     eov: . ("," | .."," | nl) ..
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
 
@@ -129,30 +129,30 @@ reference: n=name ?(nreserved n) -> n.toSym
     expr: "!"!"=" b=bodynl                         -> { type: #call, target: #vm_task, args: [b] }
         | oplog
 
-   oplog: l=opnot .("or"  wsnl r=oplog       -> { type: #call, target: #or,  args: [l, r] }
-                   |"and" wsnl r=oplog       -> { type: #call, target: #and, args: [l, r] }
+   oplog: l=opnot .("or"  .. r=oplog       -> { type: #call, target: #or,  args: [l, r] }
+                   |"and" .. r=oplog       -> { type: #call, target: #and, args: [l, r] }
                    | pass                    -> l
                    )
-   opnot: "not" wsnl r=opcmp                 -> { type: #call, target: #not, args: [r] }
+   opnot: "not" .. r=opcmp                 -> { type: #call, target: #not, args: [r] }
         | opcmp
-   opcmp: l=opadd .("<=" wsnl r=opcmp        -> { type: #call, target: #lte, args: [l, r] }
-                   |"<"  wsnl r=opcmp        -> { type: #call, target: #lt,  args: [l, r] }
-                   |">=" wsnl r=opcmp        -> { type: #call, target: #gte, args: [l, r] }
-                   |">"  wsnl r=opcmp        -> { type: #call, target: #gt,  args: [l, r] }
-                   |"==" wsnl r=opcmp        -> { type: #call, target: #eq,  args: [l, r] }
-                   |"!=" wsnl r=opcmp        -> { type: #call, target: #neq, args: [l, r] }
+   opcmp: l=opadd .("<=" .. r=opcmp        -> { type: #call, target: #lte, args: [l, r] }
+                   |"<"  .. r=opcmp        -> { type: #call, target: #lt,  args: [l, r] }
+                   |">=" .. r=opcmp        -> { type: #call, target: #gte, args: [l, r] }
+                   |">"  .. r=opcmp        -> { type: #call, target: #gt,  args: [l, r] }
+                   |"==" .. r=opcmp        -> { type: #call, target: #eq,  args: [l, r] }
+                   |"!=" .. r=opcmp        -> { type: #call, target: #neq, args: [l, r] }
                    | pass                    -> l
                    )
-   opadd: l=opmul .("+" wsnl r=opadd         -> { type: #call, target: #add, args: [l, r] }
-                   |"-" wsnl r=opadd         -> { type: #call, target: #sub, args: [l, r] }
+   opadd: l=opmul .("+" .. r=opadd         -> { type: #call, target: #add, args: [l, r] }
+                   |"-" .. r=opadd         -> { type: #call, target: #sub, args: [l, r] }
                    | pass                    -> l
                    )
-   opmul: l=oppow .("*" wsnl r=opmul         -> { type: #call, target: #mul, args: [l, r] }
-                   |"/" wsnl r=opmul         -> { type: #call, target: #div, args: [l, r] }
-                   |"%" wsnl r=opmul         -> { type: #call, target: #mod, args: [l, r] }
+   opmul: l=oppow .("*" .. r=opmul         -> { type: #call, target: #mul, args: [l, r] }
+                   |"/" .. r=opmul         -> { type: #call, target: #div, args: [l, r] }
+                   |"%" .. r=opmul         -> { type: #call, target: #mod, args: [l, r] }
                    | pass                    -> l
                    )
-   oppow: l=paren .("^" wsnl r=oppow         -> { type: #call, target: #pow, args: [l, r] }
+   oppow: l=paren .("^" .. r=oppow         -> { type: #call, target: #pow, args: [l, r] }
                    | pass                    -> l
                    )
 
@@ -195,7 +195,7 @@ function: "{".. as=fargs .."->"..@"a closing '}'"
         | as=fargs ."=>".. b=bodynl               -> { type: #block, args: as, body: b }
 
 
-   fargs: a=farg wsnl "," wsnl as=fargs        -> as.prepend(a)
+   fargs: a=farg .. "," .. as=fargs        -> as.prepend(a)
         | a=farg                               -> [a]
         | pass                                 -> []
     farg: "&&" n=ident                         -> { type: #collectlazy, name: n }
@@ -231,15 +231,15 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
            | bodynl
            )
 
-    body: ts=stms tss=(wsnl stms)* -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
+    body: ts=stms tss=(.. stms)* -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
 
   bodynl: c=column ?(begin_body c) ts=stms
-          tss=(wsnl cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
+          tss=(.. cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
 
 bodyempty: body
          | pass    -> []
 
-   start: wsnl b=bodyempty wsnl end -> b
+   start: .. b=bodyempty .. end -> b
 }
 
 print inspect parse(io.File(args.get(0)).read)
