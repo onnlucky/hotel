@@ -144,20 +144,23 @@ lineFromPos = { text, pos ->
 }
 
 pStart = { rule, text ->
-    in, v = (
-        _catch: { e ->
-            if e?t != #p: _throw e
-            line, char = lineFromPos(e.in.text, e.in.pos)
-            if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
-            _throw "SyntaxError: on line $line col $char"
+    oop = _Object_new()
+    _with_lock(oop): {
+        in, v = (
+            _catch: { e ->
+                if e?t != #p: _throw e
+                line, char = lineFromPos(e.in.text, e.in.pos)
+                if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
+                _throw "SyntaxError: on line $line col $char"
+            }
+            rule({text: text, pos: 0, oop: oop })
+        )
+        if in.pos < in.text.size: {
+            line, char = lineFromPos(in.text, in.pos)
+            _throw "SyntaxError: expected end of input on line $line col $char"
         }
-        rule({text: text, pos: 0, oop: _Object_new() })
-    )
-    if in.pos < in.text.size: {
-        line, char = lineFromPos(in.text, in.pos)
-        _throw "SyntaxError: expected end of input on line $line col $char"
+        return v
     }
-    return v
 }
 
 rule_line = in -> return in, lineFromPos(in.text, in.pos)
@@ -173,7 +176,7 @@ rule_ws = { in, nr ->
     trace2(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    if WS.search(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 }
 
@@ -181,7 +184,7 @@ rule_wsnl = { in ->
     trace(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    if WS.search(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 }
 
