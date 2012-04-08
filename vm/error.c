@@ -24,7 +24,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
 
     tlFrame* start = null;
     for (tlFrame* frame = stack; frame; frame = frame->caller) {
-        if (CodeFrameIs(frame)) {
+        if (tlCodeFrameIs(frame)) {
             if (skip--) continue;
             start = frame;
             break;
@@ -33,7 +33,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
 
     int size = 0;
     for (tlFrame* frame = start; frame; frame = frame->caller) {
-        //if (!CodeFrameIs(frame)) continue;
+        //if (!tlCodeFrameIs(frame)) continue;
         size++;
     }
     trace("size %d", size);
@@ -44,7 +44,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     trace->task = task;
     int at = 0;
     for (tlFrame* frame = start; frame; frame = frame->caller) {
-        //if (!CodeFrameIs(frame)) continue;
+        //if (!tlCodeFrameIs(frame)) continue;
         tlText* file;
         tlText* function;
         tlInt line;

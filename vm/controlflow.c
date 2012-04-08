@@ -34,7 +34,7 @@ INTERNAL tlValue _continue(tlArgs* args) {
 INTERNAL tlValue resumeMatch(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     frame = frame->caller; // our parent codeblock; we wish to unwind that one too ...
-    assert(CodeFrameIs(frame));
+    assert(tlCodeFrameIs(frame));
     return tlTaskSetStack(frame->caller, res);
 }
 INTERNAL tlValue _match(tlArgs* args) {
@@ -92,8 +92,8 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
     tlFrame* lastblock = null;
     trace("%p", frame);
     while (frame) {
-        if (CodeFrameIs(frame)) {
-            CodeFrame* cframe = CodeFrameAs(frame);
+        if (tlCodeFrameIs(frame)) {
+            tlCodeFrame* cframe = tlCodeFrameAs(frame);
             if (cframe->env->args == targetargs) {
                 if (!tlCodeIsBlock(cframe->code)) {
                     trace("found caller function: %p.caller: %p", frame, frame->caller);
@@ -107,8 +107,8 @@ INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
         frame = frame->caller;
     }
     while (frame) {
-        if (CodeFrameIs(frame)) {
-            CodeFrame* cframe = CodeFrameAs(frame);
+        if (tlCodeFrameIs(frame)) {
+            tlCodeFrame* cframe = tlCodeFrameAs(frame);
             trace("cframe: %p.args: %p == %p", cframe, cframe->env->args, targetargs);
             if (cframe->env->args == targetargs) {
                 if (!tlCodeIsBlock(cframe->code)) {

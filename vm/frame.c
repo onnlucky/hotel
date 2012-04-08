@@ -22,7 +22,7 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue throw);
 
 INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw);
 INTERNAL tlValue stopCode(tlFrame* _frame, tlValue res, tlValue throw);
-static bool CodeFrameIs(tlFrame* frame) {
+static bool tlCodeFrameIs(tlFrame* frame) {
     return frame && (frame->resumecb == resumeCode || frame->resumecb == stopCode);
 }
 

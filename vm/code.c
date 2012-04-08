@@ -9,6 +9,7 @@ struct tlCode {
     tlHead head;
     tlInt flags;
     tlText* file;
+    tlText* path;
     tlInt line;
     tlSym name;
     tlList* argnames;
@@ -27,7 +28,13 @@ tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line) {
     for (int i = 0; i < size; i++) {
         code->ops[i] = tlListGet(ops, i);
     }
-    code->file = file;
+    if (file) {
+        code->file = file;
+        code->path = tlTextFromCopy(dirname(strdup(tlTextData(file))), 0);
+    } else {
+        code->file = tlNull;
+        code->path = tlNull;
+    }
     code->line = line;
     if_trace(debugcode(code));
     return code;

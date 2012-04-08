@@ -88,14 +88,6 @@ typedef struct CallFrame {
     tlArgs* args;
 } CallFrame;
 
-typedef struct CodeFrame {
-    tlFrame frame;
-    tlCode* code;
-    tlEnv* env;
-    tlClosure* handler;
-    int pc;
-} CodeFrame;
-
 tlClosure* tlClosureNew(tlCode* code, tlEnv* env) {
     tlClosure* fn = tlAlloc(tlClosureClass, sizeof(tlClosure));
     fn->code = code;
@@ -140,7 +132,7 @@ tlResult* tlResultFrom(tlValue v1, ...) {
     va_list ap;
     int size = 0;
 
-    assert(false);
+    //assert(false);
     va_start(ap, v1);
     for (tlValue v = v1; v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
@@ -178,19 +170,19 @@ tlValue tlFirst(tlValue v) {
     return tlNull;
 }
 
-static CodeFrame* CodeFrameAs(tlFrame* frame) {
-    assert(CodeFrameIs(frame));
-    return (CodeFrame*)frame;
+static tlCodeFrame* tlCodeFrameAs(tlFrame* frame) {
+    assert(tlCodeFrameIs(frame));
+    return (tlCodeFrame*)frame;
 }
-static tlEnv* CodeFrameGetEnv(tlFrame* frame) {
-    assert(CodeFrameIs(frame));
-    return ((CodeFrame*)frame)->env;
+static tlEnv* tlCodeFrameGetEnv(tlFrame* frame) {
+    assert(tlCodeFrameIs(frame));
+    return ((tlCodeFrame*)frame)->env;
 }
 
 INTERNAL void tlFrameGetInfo(tlFrame* frame, tlText** file, tlText** function, tlInt* line) {
     assert(file); assert(function); assert(line);
-    if (CodeFrameIs(frame)) {
-        tlCode* code = CodeFrameAs(frame)->code;
+    if (tlCodeFrameIs(frame)) {
+        tlCode* code = tlCodeFrameAs(frame)->code;
         *file = code->file;
         *function = (code->name)?tlTextFromSym(code->name):null;
         *line = code->line;
@@ -206,8 +198,8 @@ INTERNAL void tlFrameGetInfo(tlFrame* frame, tlText** file, tlText** function, t
 
 INTERNAL void print_backtrace(tlFrame* frame) {
     while (frame) {
-        if (CodeFrameIs(frame)) {
-            tlCode* code = CodeFrameAs(frame)->code;
+        if (tlCodeFrameIs(frame)) {
+            tlCode* code = tlCodeFrameAs(frame)->code;
             if (code->name) {
                 tlText* n = tlTextFromSym(code->name);
                 print("%p  %s (%s:%s)", frame, tl_str(n), tl_str(code->file), tl_str(code->line));
@@ -296,7 +288,9 @@ INTERNAL tlValue lookup(tlEnv* env, tlSym name) {
     if (vm->resolve) {
         // TODO ideally, we would load things only once, and without races etc ...
         // use a tlLazy or what?
-        return tlEval(tlCallFrom(vm->resolve, name, null));
+        assert(tlWorkerCurrent());
+        assert(tlWorkerCurrent()->codeframe);
+        return tlEval(tlCallFrom(vm->resolve, name, tlWorkerCurrent()->codeframe->code->path, null));
     }
     TL_THROW("undefined '%s'", tl_str(name));
 }
@@ -432,9 +426,9 @@ INTERNAL tlValue resumeCall(tlFrame* frame, tlValue res, tlValue throw) {
 INTERNAL tlValue stopCode(tlFrame* _frame, tlValue res, tlValue throw) {
     return res;
 }
-INTERNAL tlValue evalCode2(CodeFrame* frame, tlValue res);
+INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue res);
 INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw) {
-    CodeFrame* frame = (CodeFrame*)_frame;
+    tlCodeFrame* frame = (tlCodeFrame*)_frame;
     if (throw) {
         tlClosure* handler = frame->handler;
         if (!handler) return null;
@@ -449,13 +443,13 @@ INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw) {
 
     // TODO this should be done for all Frames everywhere ... but ... for now
     // TODO keep should trickle down to frame->caller now too ... oeps
-    if (_frame->head.keep > 1) frame = tlAllocClone(frame, sizeof(CodeFrame));
+    if (_frame->head.keep > 1) frame = tlAllocClone(frame, sizeof(tlCodeFrame));
     return evalCode2(frame, res);
 }
 
 INTERNAL tlValue evalCode(tlArgs* args, tlClosure* fn) {
     trace("");
-    CodeFrame* frame = tlFrameAlloc(resumeCode, sizeof(CodeFrame));
+    tlCodeFrame* frame = tlFrameAlloc(resumeCode, sizeof(tlCodeFrame));
     frame->env = tlEnvCopy(fn->env);
     frame->code = fn->code;
 
@@ -514,15 +508,16 @@ INTERNAL tlValue evalArgs(tlArgs* args) {
 }
 
 // this is the main part of eval: running the "list" of "bytecode"
-INTERNAL tlValue evalCode2(CodeFrame* frame, tlValue _res) {
+INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
     tlTask* task = tlTaskCurrent();
+    task->worker->codeframe = frame;
     int pc = frame->pc;
 
     tlCode* code = frame->code;
     tlEnv* env = frame->env;
     trace("%p -- %d [%d]", frame, pc, code->head.size);
 
-    // TODO this is broken and weird, how about eval constructs the CodeFrame itself ...
+    // TODO this is broken and weird, how about eval constructs the tlCodeFrame itself ...
     // for _eval, it needs to "fish" up the env again, if is_eval we write it to worker
     bool is_eval = task->worker->evalArgs == env->args;
 
@@ -715,7 +710,7 @@ INTERNAL tlValue resumeCatch(tlFrame* _frame, tlValue res, tlValue throw) {
     tlArgs* args = tlArgsAs(res);
     tlValue handler = tlArgsBlock(args);
     trace("%p.handler = %s", _frame->caller, tl_str(handler));
-    CodeFrame* frame = CodeFrameAs(_frame->caller);
+    tlCodeFrame* frame = tlCodeFrameAs(_frame->caller);
     frame->handler = handler;
     return tlNull;
 }
@@ -865,7 +860,7 @@ static tlValue runCode(tlValue _fn, tlArgs* args) {
     return tlEval(tlCallFromListNormal(fn, as));
 }
 
-// TODO setting worker->evalArgs doesn't work, instead build own CodeFrame, that works ...
+// TODO setting worker->evalArgs doesn't work, instead build own tlCodeFrame, that works ...
 static tlValue _eval(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     tlVar* var = tlVarCast(tlArgsGet(args, 0));

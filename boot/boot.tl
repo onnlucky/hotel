@@ -122,7 +122,7 @@ Error = {
     }
     class: {
         throw: { -> _throw this }
-        toString: { ->
+        toText: { ->
             ls = Array.new
             ls.add "Error: ", this.msg, "\n"
             x = Var.new 0
@@ -201,24 +201,20 @@ _install(Text.class, #eval, (_eval_ = { ->
 _env = Env.current
 _loaded = HashMap.new
 _module_path = _io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl"
-_fileForModule = { name ->
+_fileForModule = { name, path ->
+    file = "$path/$name"
+    if _Path_stat(file).ino != 0: return file
     file = "$(_module_path)/$name"
     if _Path_stat(file).ino != 0: return file
-    return name
+    Error("Undefined: '$name'").throw
 }
-_resolve: { name ->
+_resolve: { name, path ->
+    //print "RESOLVING:", path, name
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
-    file = _fileForModule("$(name.toText).tl")
-    _catch: { e =>
-        print "error loading: '$file': $e"
-        _loaded.set(name, _loaded)
-        _throw "Undefined: '$name'"
-    }
-    //print "trying: '$file' ..."
+    file = _fileForModule("$(name.toText).tl", path)
     res = _parse(_textFromFile(file), file)(_env)
-    //print "res: $res"
     _loaded.set(name, res)
 }
 
@@ -226,8 +222,8 @@ _resolve: { name ->
 runmain = { as ->
     if as.size == 0: return repl.run
 
+    _catch: e -> e.toText
     file = as.get(0)
-    //_catch: e -> _throw "Error in: '$file': $e"
     return _parse(_textFromFile(file), file)(_env, as.slice(1))
 }
 main = !runmain(args)

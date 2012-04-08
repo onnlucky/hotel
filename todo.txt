@@ -1,5 +1,8 @@
 # TODO
 
+on error, if object, call toText on it ...
+add ls[item] syntax to leg parser
+
 rename List -> Array, and Text -> String; Map -> Table why? because that gives users those very useful names back
 rename tlClass to tlMethods or such, and tlType so every value has a type which might have methods ...
 

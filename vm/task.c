@@ -51,6 +51,10 @@ struct tlTask {
     tlTaskState state; // state it is currently in
 };
 
+tlWorker* tlWorkerCurrent() {
+    return tlTaskCurrent()->worker;
+}
+
 tlVm* tlTaskGetVm(tlTask* task) {
     assert(tlTaskIs(task));
     assert(task->worker);
@@ -259,10 +263,10 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
         // returning null, but by tlTaskPause, means the throw has been handled too
         if (task->stack) {
             // fixup the stack by remove the current frame
-            if (CodeFrameIs(frame)) {
+            if (tlCodeFrameIs(frame)) {
                 // code frames need te be found by return/goto etc ...
                 frame->resumecb = stopCode;
-                assert(CodeFrameIs(frame));
+                assert(tlCodeFrameIs(frame));
             } else {
                 frame = frame->caller;
             }

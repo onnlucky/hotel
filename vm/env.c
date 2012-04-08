@@ -95,12 +95,12 @@ static tlValue _Env_new(tlArgs* args) {
     return tlEnvNew(parent);
 }
 
-static bool CodeFrameIs(tlFrame*);
-static tlEnv* CodeFrameGetEnv(tlFrame*);
+static bool tlCodeFrameIs(tlFrame*);
+static tlEnv* tlCodeFrameGetEnv(tlFrame*);
 static tlValue resumeEnvCurrent(tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     while (frame) {
-        if (CodeFrameIs(frame)) return CodeFrameGetEnv(frame);
+        if (tlCodeFrameIs(frame)) return tlCodeFrameGetEnv(frame);
         frame = frame->caller;
     }
     return tlNull;
@@ -113,8 +113,8 @@ static tlValue _Env_current(tlArgs* args) {
 static tlValue resumeEnvLocalObject(tlFrame* frame, tlValue res, tlValue throw) {
     trace("");
     while (frame) {
-        if (CodeFrameIs(frame)) {
-            tlEnv* env = CodeFrameGetEnv(frame);
+        if (tlCodeFrameIs(frame)) {
+            tlEnv* env = tlCodeFrameGetEnv(frame);
             return tlMapToObject_(env->map);
         }
         frame = frame->caller;
