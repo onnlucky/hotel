@@ -101,6 +101,7 @@ _install(List.class, #map, (map = { fn ->
         $i += 1
     }
 }))
+_install(Array.class, #each, _each)
 _install(Array.class, #join, (join = { sep ->
     if this.size == 0: return ""
     sep = (sep) or ""

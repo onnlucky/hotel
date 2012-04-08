@@ -2,7 +2,7 @@
 
 #include "trace-on.h"
 
-static tlClass _tlArrayClass = { .name = "List", .locked = true };
+static tlClass _tlArrayClass = { .name = "Array", .locked = true };
 tlClass* tlArrayClass = &_tlArrayClass;
 
 TL_REF_TYPE(tlArray);
@@ -156,6 +156,7 @@ static void array_init() {
         //"popFront", _array_popFront,
         "remove", _array_remove,
         "insert", _array_insert,
+        "each", null,
         "join", null,
         null
     );
