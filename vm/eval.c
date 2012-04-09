@@ -309,6 +309,7 @@ INTERNAL tlValue run_activate(tlValue v, tlEnv* env) {
         return run_activate_call(null, tlCallAs(v), env, null);
     }
     assert(false);
+    return null;
 }
 
 // when call->fn is a call itself
@@ -644,7 +645,7 @@ INTERNAL tlValue applyCall(tlCall* call) {
     assert(call);
     trace("apply >> %p(%d) <<", call, tlCallSize(call));
 
-#ifdef HAVE_ASSERTS
+#ifdef HAVE_ASSERT
     for (int i = 0;; i++) {
         tlValue v = tlCallValueIter(call, i);
         if (!v) { assert(i >= tlCallSize(call)); break; }

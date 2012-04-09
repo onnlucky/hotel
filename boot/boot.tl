@@ -179,7 +179,7 @@ inspect = { x ->
 
 // TODO should report line number and such of testcase ...
 test = { ->
-    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e
+    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toText
     args.block.call
 }
 

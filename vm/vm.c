@@ -7,6 +7,8 @@
 #include "llib/lhashmap.c"
 #include "llib/lqueue.c"
 
+#include "debug.h"
+#include "debug.c"
 #include "buf.c"
 
 #include "value.c"
@@ -182,6 +184,9 @@ void tl_init() {
     tl_inited = true;
 
     GC_INIT();
+    signal(SIGSEGV, tlbacktrace_fatal);
+    signal(SIGBUS, tlbacktrace_fatal);
+    signal(SIGSYS, tlbacktrace_fatal);
 
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
