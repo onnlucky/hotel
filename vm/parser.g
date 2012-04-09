@@ -416,7 +416,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, nu
 
 
 object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs(L(is)))); }
-       | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlMapFromPairs(L(is)))); }
+       | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlMapEmpty())); }
    map = "["__ is:items __"]"  { $$ = map_activate(tlMapFromPairs(L(is))); }
        | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
  items = i:item eom is:items   { $$ = tlListPrepend(L(is), i); }
