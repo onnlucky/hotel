@@ -91,7 +91,7 @@ tlTask* tlWaitQueueGet(tlWaitQueue* queue) {
 
 
 void assert_backtrace(tlFrame* frame) {
-    int i = 100;
+    int i = 5000;
     while (i-- && frame) frame = frame->caller;
     if (frame) fatal("STACK CORRUPTED");
 }
