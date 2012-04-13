@@ -160,16 +160,19 @@ TL_REF_TYPE(tlWriter);
 
 struct tlReader {
     tlLock lock;
+    tlFile* file;
 };
 struct tlWriter {
     tlLock lock;
+    tlFile* file;
 };
 // TODO how thread save is tlFile like this? does it need to be?
 struct tlFile {
     tlHead head;
     ev_io ev;
-    tlReader reader;
-    tlWriter writer;
+    // cannot embed these, as pointers need to be 8 byte aligned
+    tlReader* reader;
+    tlWriter* writer;
 };
 static tlClass _tlFileClass = {
     .name = "File",
@@ -190,10 +193,12 @@ static tlFile* tlFileFromEv(ev_io *ev) {
     return tlFileAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
 }
 static tlFile* tlFileFromReader(tlReader* reader) {
-    return tlFileAs(((char*)reader) - ((unsigned long)&((tlFile*)0)->reader));
+    return reader->file;
+    //return tlFileAs(((char*)reader) - ((unsigned long)&((tlFile*)0)->reader));
 }
 static tlFile* tlFileFromWriter(tlWriter* writer) {
-    return tlFileAs(((char*)writer) - ((unsigned long)&((tlFile*)0)->writer));
+    return writer->file;
+    //return tlFileAs(((char*)writer) - ((unsigned long)&((tlFile*)0)->writer));
 }
 
 void close_ev_io(void* _file, void* data) {
@@ -206,10 +211,12 @@ void close_ev_io(void* _file, void* data) {
 }
 static tlFile* tlFileNew(int fd) {
     tlFile *file = tlAlloc(tlFileClass, sizeof(tlFile));
-    file->reader.lock.head.klass = tlReaderClass;
-    file->writer.lock.head.klass = tlWriterClass;
+    file->reader = tlAlloc(tlReaderClass, sizeof(tlReader));
+    file->reader->file = file;
+    file->writer = tlAlloc(tlWriterClass, sizeof(tlWriter));
+    file->writer->file = file;
     ev_io_init(&file->ev, io_cb, fd, 0);
-    GC_REGISTER_FINALIZER(file, close_ev_io, null, null, null);
+    GC_REGISTER_FINALIZER_NO_ORDER(file, close_ev_io, null, null, null);
     trace("open: %p %d", file, fd);
     return file;
 }
@@ -224,8 +231,8 @@ static tlValue _file_close(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (!tlLockIsOwner(tlLockAs(&file->reader), task)) TL_THROW("expected a locked Reader");
-    if (!tlLockIsOwner(tlLockAs(&file->writer), task)) TL_THROW("expected a locked Writer");
+    if (!tlLockIsOwner(tlLockAs(file->reader), task)) TL_THROW("expected a locked Reader");
+    if (!tlLockIsOwner(tlLockAs(file->writer), task)) TL_THROW("expected a locked Writer");
 
     // already closed
     if (file->ev.fd < 0) return tlNull;
@@ -242,13 +249,13 @@ static tlValue _file_close(tlArgs* args) {
 static tlValue _file_reader(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (file->reader.lock.head.klass) return &file->reader;
+    if (file->reader->lock.head.klass) return file->reader;
     return tlNull;
 }
 static tlValue _file_writer(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (file->writer.lock.head.klass) return &file->writer;
+    if (file->writer->lock.head.klass) return file->writer;
     return tlNull;
 }
 
@@ -825,19 +832,19 @@ static void io_cb(ev_io *ev, int revents) {
     tlFile* file = tlFileFromEv(ev);
     if (revents & EV_READ) {
         trace("CANREAD");
-        assert(file->reader.lock.head.klass);
-        assert(file->reader.lock.owner);
-        tlMessage* msg = tlMessageAs(file->reader.lock.owner->value);
-        tlVm* vm = tlTaskGetVm(file->reader.lock.owner);
+        assert(file->reader->lock.head.klass);
+        assert(file->reader->lock.owner);
+        tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
+        tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
         vm->waitevent -= 1;
         ev->events &= ~EV_READ;
         tlMessageReply(msg, null);
     }
     if (revents & EV_WRITE) {
         trace("CANWRITE");
-        assert(file->writer.lock.head.klass);
-        assert(file->writer.lock.owner);
-        tlMessage* msg = tlMessageAs(file->writer.lock.owner->value);
+        assert(file->writer->lock.head.klass);
+        assert(file->writer->lock.owner);
+        tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
         vm->waitevent -= 1;
         ev->events &= ~EV_WRITE;

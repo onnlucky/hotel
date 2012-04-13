@@ -39,6 +39,7 @@ void* tlAlloc(tlClass* klass, size_t bytes) {
     trace("ALLOC: %p %zd", v, bytes);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
+    assert((((intptr_t)head) & 0x7) == 0);
     head->klass = klass;
     head->keep = 1;
     return (void*)head;
@@ -47,6 +48,7 @@ void* tlAllocWithFields(tlClass* klass, size_t bytes, int fieldc) {
     trace("ALLOC: %p %zd %d", v, bytes, fieldc);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
+    assert((((intptr_t)head) & 0x7) == 0);
     head->size = fieldc;
     head->klass = klass;
     head->keep = 1;
@@ -57,6 +59,7 @@ void* tlAllocClone(tlValue v, size_t bytes) {
     trace("CLONE: %p %zd %d", v, bytes, tl_head(v)->size);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
+    assert((((intptr_t)head) & 0x7) == 0);
     head->flags = tl_head(v)->flags;
     head->type = tl_head(v)->type;
     head->size = fieldc;
