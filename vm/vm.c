@@ -238,6 +238,7 @@ tlVm* tlVmNew() {
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlEnvNew(null);
 
+    error_vm_default(vm);
     env_vm_default(vm);
     task_vm_default(vm);
     queue_vm_default(vm);

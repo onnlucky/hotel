@@ -1,5 +1,7 @@
 # TODO
 
+hook up tlArgumentError to TL_ERROR
+do class._name for error.toText: this.class._name ": " this.msg ...
 on error, if object, call toText on it ...
 add ls[item] syntax to leg parser
 

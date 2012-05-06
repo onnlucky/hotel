@@ -114,28 +114,28 @@ _install(Array.class, #join, (join = { sep ->
     }
     return $res
 }))
-
-Error = {
-    call: { msg ->
-        stack = Task.stacktrace(1)
-        args.map.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
-    }
-    class: {
-        throw: { -> _throw this }
-        toText: { ->
-            ls = Array.new
-            ls.add "Error: ", this.msg, "\n"
-            x = Var.new 0
-            loop: {
-                file, fn, line = this.stack.get($x)
-                if not file: break
-                ls.add "  at ", file, ":", line, " ", fn, "\n"
-                $x += 1
-            }
-            return ls.join
-        }
-    }
+_errorConstructor = { msg ->
+    stack = Task.stacktrace(1)
+    args.map.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
 }
+_install(Error, #call, _errorConstructor);
+_install(ArgumentError, #call, _errorConstructor);
+_install(UndefinedError, #call, _errorConstructor);
+_install(Error, #class, {
+    throw: { -> _throw this }
+    toText: { ->
+        ls = Array.new
+        ls.add "Error: ", this.msg, "\n"
+        x = Var.new 0
+        loop: {
+            file, fn, line = this.stack.get($x)
+            if not file: break
+            ls.add "  at ", file, ":", line, " ", fn, "\n"
+            $x += 1
+        }
+        return ls.join
+    }
+})
 
 inspect = { x ->
     toJSON = { x, indent, buf, inlist -> (

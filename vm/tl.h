@@ -361,6 +361,9 @@ void tlTaskWaitIo();
 // mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady();
 
+// throws value, if it is a map with a stack, it will be filled in witha stacktrace
+tlValue tlTaskThrow(tlValue err);
+
 // throw errors
 tlValue tlTaskThrowTake(char* str);
 #define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(strdup(_s)); } while (0)

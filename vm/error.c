@@ -2,6 +2,7 @@
 
 #include "trace-off.h"
 
+
 static tlClass _tlStackTraceClass;
 tlClass* tlStackTraceClass = &_tlStackTraceClass;
 
@@ -103,11 +104,47 @@ static const tlNativeCbs __error_natives[] = {
     { 0, 0 }
 };
 
+static tlMap* errorClass;
+static tlMap* undefinedErrorClass;
+static tlMap* argumentErrorClass;
+
 INTERNAL void error_init() {
     tl_register_natives(__error_natives);
     _tlStackTraceClass.map = tlClassMapFrom(
         "get", _stackTrace_get,
         null
     );
+    errorClass = tlClassMapFrom(
+        "call", null,
+        "class", null,
+        null
+    );
+    undefinedErrorClass = tlClassMapFrom(
+        "call", null,
+        "class", null,
+        null
+    );
+    argumentErrorClass = tlClassMapFrom(
+        "call", null,
+        "class", null,
+        null
+    );
+    tlMapSetSym_(undefinedErrorClass, s_class, errorClass);
+    tlMapSetSym_(argumentErrorClass, s_class, errorClass);
+}
+
+static void error_vm_default(tlVm* vm) {
+   tlVmGlobalSet(vm, tlSYM("Error"), errorClass);
+   tlVmGlobalSet(vm, tlSYM("UndefinedError"), undefinedErrorClass);
+   tlVmGlobalSet(vm, tlSYM("ArgumentError"), argumentErrorClass);
+}
+
+tlValue tlArgumentError(const char* msg) {
+    return tlTaskThrow(tlObjectFrom(
+        "msg", tlTextFromStatic(msg, 0),
+        "stack", null,
+        "class", argumentErrorClass,
+        null
+    ));
 }
 
