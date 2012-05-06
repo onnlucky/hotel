@@ -158,6 +158,7 @@ Path = {
         asDir:  -> Dir(this.name)
         create: -> _io_mkdir(this.name)
         delete: -> _io_rmdir(this.name)
+        unlink: -> _io_unlink(this.name)
     }
 }
 
@@ -208,5 +209,6 @@ return {
 
     stdin: stdin, stdout: stdout, stderr: stderr
     chdir: _io_chdir
+    getenv: _io_getenv
 }
 

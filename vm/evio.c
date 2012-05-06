@@ -140,6 +140,26 @@ static tlValue _io_rmdir(tlArgs* args) {
     }
     return tlNull;
 }
+static tlValue _io_rename(tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expected a Text");
+
+    tlText* path = cwd_join(text);
+    const char *p = tlTextData(path);
+    if (p[0] != '/') TL_THROW("rename: invalid cwd");
+
+    tlText* totext = tlTextCast(tlArgsGet(args, 1));
+    if (!totext) TL_THROW("expected a Text");
+
+    tlText* topath = cwd_join(totext);
+    const char *to_p = tlTextData(topath);
+    if (to_p[0] != '/') TL_THROW("rename: invalid cwd");
+
+    if (rename(p, to_p)) {
+        TL_THROW("rename: %s", strerror(errno));
+    }
+    return tlNull;
+}
 static tlValue _io_unlink(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
@@ -981,8 +1001,8 @@ static const tlNativeCbs __evio_natives[] = {
     { "_io_chdir", _io_chdir },
     { "_io_mkdir", _io_mkdir },
     { "_io_rmdir", _io_rmdir },
-    //{ "_io_unlink", _io_unlink },
-    //{ "_io_rename", _io_rename },
+    { "_io_rename", _io_rename },
+    { "_io_unlink", _io_unlink },
 
     { "_File_open", _File_open },
     { "_File_from", _File_from },
