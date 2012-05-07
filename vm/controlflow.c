@@ -228,6 +228,7 @@ INTERNAL tlValue GotoCallFn(tlCall* call) {
 // they don't actually work ...
 // when jumping, they should unwind the stack to release all held locks
 // and jumping by restoring an unwound stack should not be allowed, because it will not properly aquire locks
+// also we no longer refcount frames so no longer do copy-on-write
 TL_REF_TYPE(tlContinuation);
 struct tlContinuation {
     tlHead head;
@@ -258,7 +259,6 @@ INTERNAL tlValue resumeNewContinuation(tlFrame* frame, tlValue res, tlValue thro
     tlContinuation* cont = tlAlloc(tlContinuationKind, sizeof(tlContinuation));
     cont->frame = frame->caller;
     assert(cont->frame && cont->frame->resumecb == resumeCode);
-    cont->frame->head.keep++;
     trace("%s -> %s", tl_str(s_continuation), tl_str(cont));
     return cont;
 }

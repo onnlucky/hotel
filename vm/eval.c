@@ -441,10 +441,8 @@ INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw) {
         return tlEval(call);
     }
     if (!res) return null;
-
-    // TODO this should be done for all Frames everywhere ... but ... for now
-    // TODO keep should trickle down to frame->caller now too ... oeps
-    if (_frame->head.keep > 1) frame = tlAllocClone(frame, sizeof(tlCodeFrame));
+    // if frames become copy-on-write, here is the place to check it and clone instead of use
+    // but today, every frame is private to a task, and continuations are not allowed to jumped to if off-stack
     return evalCode2(frame, res);
 }
 

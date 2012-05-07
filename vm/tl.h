@@ -20,46 +20,17 @@ typedef struct tlKind tlKind;
 // common head of all ref values; values appear in memory at 8 byte alignments
 // thus pointers to values have 3 lowest bits set to 000
 typedef struct tlHead {
-    uint8_t flags;
-    uint8_t type;
+    uint8_t xxxflags;
     uint16_t size;
-    int32_t keep;
     tlKind* kind;
 } tlHead;
-
-// TODO remove ...
-// this is how all values look in memory
-typedef struct tlData {
-    tlHead head;
-    tlValue data[];
-} tlData;
-
-
-// TODO remove and simplify ... any value can handle its own privately
-// various flags we use; cannot mix freely <GC(2)|USER|USER | PRIV|FREE|PRIVCOUNT(2)>
-// if HASFREE is set, privfield[1] is free function
-static const uint8_t TL_FLAG_HASFREE  = 0x08;
-static const uint8_t TL_FLAG_HASPRIV  = 0x04;
-static inline int tl_privcount(tlValue v) { return 1 + (((tlHead*)v)->flags & 0x03); }
 
 // used for tlCall and tlArgs and tlMsg objects to indicate named params were passed in
 static const uint8_t TL_FLAG_HASKEYS  = 0x10;
 
-// used for tlMap to indicate it must act as object and not a map
-static const uint8_t TL_FLAG_ISOBJECT = 0x10;
-
 // used for tlEnv to indicate it was captured or closed
 static const uint8_t TL_FLAG_CAPTURED = 0x10;
 static const uint8_t TL_FLAG_CLOSED   = 0x20;
-
-// used by GC
-static const uint8_t TL_FLAG_GCMARK1    = 0x40;
-static const uint8_t TL_FLAG_GCMARK2    = 0x80;
-
-// usable by user on own values
-static const uint8_t TL_FLAG_1          = 0x10;
-static const uint8_t TL_FLAG_2          = 0x20;
-
 
 // small int, 31 or 63 bits, lowest bit is always 1
 static const tlValue tlZero = (tlHead*)((0 << 1)|1);
@@ -121,15 +92,6 @@ static inline tlSym tlSymAs(tlValue v) { assert(tlSymIs(v)); return (tlSym)v; }
 static inline tlSym tlSymCast(tlValue v) { return tlSymIs(v)?tlSymAs(v):0; }
 
 static inline tlHead* tl_head(tlValue v) { assert(tlRefIs(v)); return (tlHead*)v; }
-
-#define TL_TYPE(SMALL, CAPS) \
-typedef struct tl##CAPS tl##CAPS; \
-static inline bool tl##SMALL##_is(tlValue v) { \
-    return tlRefIs(v) && tl_head(v)->type == TL##CAPS; } \
-static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
-    assert(tl##SMALL##_is(v) || !v); return (tl##CAPS*)v; } \
-static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
-    return tl##SMALL##_is(v)?(tl##CAPS*)v:null; } \
 
 extern tlKind* tlIntKind;
 extern tlKind* tlSymKind;
@@ -445,7 +407,9 @@ struct tlKind {
     bool locked;       // if the object has a lock, the task will aqcuire the lock
 };
 
-// any non-value object will have to be protected from concurrect access
+// any non-value object will have to be protected from concurrent access
+// NOTE: if we keep all tasks in a global list, we can use 32 (16) bits for the task, and 32 bits as queue
+//       there was a paper about that; collapses 3 pointers into one and has better behavior
 struct tlLock {
     tlHead head;
     tlTask* owner;

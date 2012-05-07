@@ -10,9 +10,9 @@ static inline tlTask* tlTaskCurrent() {
     return tl_task_current;
 }
 
-INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->flags & flag; }
-INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->flags &= ~flag; }
-INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->flags |= flag; }
+INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->xxxflags & flag; }
+INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->xxxflags &= ~flag; }
+INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->xxxflags |= flag; }
 
 static tlText* _t_true;
 static tlText* _t_false;
@@ -41,7 +41,6 @@ void* tlAlloc(tlKind* kind, size_t bytes) {
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
     head->kind = kind;
-    head->keep = 1;
     return (void*)head;
 }
 void* tlAllocWithFields(tlKind* kind, size_t bytes, int fieldc) {
@@ -51,7 +50,6 @@ void* tlAllocWithFields(tlKind* kind, size_t bytes, int fieldc) {
     assert((((intptr_t)head) & 0x7) == 0);
     head->size = fieldc;
     head->kind = kind;
-    head->keep = 1;
     return (void*)head;
 }
 void* tlAllocClone(tlValue v, size_t bytes) {
@@ -60,11 +58,9 @@ void* tlAllocClone(tlValue v, size_t bytes) {
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
     assert((((intptr_t)head) & 0x7) == 0);
-    head->flags = tl_head(v)->flags;
-    head->type = tl_head(v)->type;
+    head->xxxflags = tl_head(v)->xxxflags;
     head->size = fieldc;
     head->kind = tl_kind(v);
-    head->keep = 1;
     memcpy((void*)head + sizeof(tlHead), v + sizeof(tlHead), bytes + fieldc*sizeof(tlValue) - sizeof(tlHead));
     return (void*)head;
 }
