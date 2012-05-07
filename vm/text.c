@@ -3,8 +3,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlTextClass;
-tlClass* tlTextClass = &_tlTextClass;
+static tlKind _tlTextKind;
+tlKind* tlTextKind = &_tlTextKind;
 
 static tlText* _tl_emptyText;
 
@@ -19,7 +19,7 @@ tlText* tlTextEmpty() { return _tl_emptyText; }
 
 tlText* tlTextFromStatic(const char* s, int len) {
     trace("%s", s);
-    tlText* text = tlAlloc(tlTextClass, sizeof(tlText));
+    tlText* text = tlAlloc(tlTextKind, sizeof(tlText));
     text->data = s;
     text->len = (len > 0)?len:strlen(s);
     return text;
@@ -27,7 +27,7 @@ tlText* tlTextFromStatic(const char* s, int len) {
 
 tlText* tlTextFromTake(char* s, int len) {
     trace("%s", s);
-    tlText* text = tlAlloc(tlTextClass, sizeof(tlText));
+    tlText* text = tlAlloc(tlTextKind, sizeof(tlText));
     text->data = s;
     text->len = (len > 0)?len:strlen(s);
     return text;
@@ -296,7 +296,7 @@ INTERNAL tlValue _text_endsWith(tlArgs* args) {
 INTERNAL const char* textToText(tlValue v, char* buf, int size) {
     return tlTextData(tlTextAs(v));
 }
-static tlClass _tlTextClass = {
+static tlKind _tlTextKind = {
     .name = "text",
     .toText = textToText,
 };
@@ -304,7 +304,7 @@ static tlClass _tlTextClass = {
 static tlSym s_class;
 static void text_init() {
     _tl_emptyText = tlTEXT("");
-    _tlTextClass.map = tlClassMapFrom(
+    _tlTextKind.map = tlClassMapFrom(
         "toText", _text_toText,
         "toSym", _text_toSym,
         "size", _text_size,
@@ -328,7 +328,7 @@ static void text_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlTextClass.map);
+    tlMapSetSym_(constructor, s_class, _tlTextKind.map);
     tl_register_global("Text", constructor);
 }
 

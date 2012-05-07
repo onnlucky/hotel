@@ -3,8 +3,8 @@
 #include "trace-off.h"
 
 
-static tlClass _tlStackTraceClass;
-tlClass* tlStackTraceClass = &_tlStackTraceClass;
+static tlKind _tlStackTraceKind;
+tlKind* tlStackTraceKind = &_tlStackTraceKind;
 
 TL_REF_TYPE(tlStackTrace);
 
@@ -40,7 +40,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     trace("size %d", size);
 
     tlStackTrace* trace =
-            tlAllocWithFields(tlStackTraceClass, sizeof(tlStackTraceClass), size*3);
+            tlAllocWithFields(tlStackTraceKind, sizeof(tlStackTraceKind), size*3);
     trace->size = size;
     trace->task = task;
     int at = 0;
@@ -94,7 +94,7 @@ INTERNAL tlValue _throw(tlArgs* args) {
 const char* stackTraceToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<StackTrace: %p>", v); return buf;
 }
-static tlClass _tlStackTraceClass = {
+static tlKind _tlStackTraceKind = {
     .name = "StackTrace",
     .toText = stackTraceToText,
 };
@@ -110,7 +110,7 @@ static tlMap* argumentErrorClass;
 
 INTERNAL void error_init() {
     tl_register_natives(__error_natives);
-    _tlStackTraceClass.map = tlClassMapFrom(
+    _tlStackTraceKind.map = tlClassMapFrom(
         "get", _stackTrace_get,
         null
     );

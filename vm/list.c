@@ -2,8 +2,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlListClass;
-tlClass* tlListClass = &_tlListClass;
+static tlKind _tlListKind;
+tlKind* tlListKind = &_tlListKind;
 
 struct tlList {
     tlHead head;
@@ -18,7 +18,7 @@ tlList* tlListNew(int size) {
     trace("%d", size);
     if (size == 0) return _tl_emptyList;
     assert(size > 0 && size < TL_MAX_DATA_SIZE);
-    tlList* list = tlAllocWithFields(tlListClass, sizeof(tlList), size);
+    tlList* list = tlAllocWithFields(tlListKind, sizeof(tlList), size);
     assert(list->head.size == size);
     assert(tlListSize(list) == size);
     return list;
@@ -318,13 +318,13 @@ INTERNAL tlValue _list_toChar(tlArgs* args) {
 }
 
 // TODO eval: { "_list_clone", _list_clone },
-static tlClass _tlListClass = {
+static tlKind _tlListKind = {
     .name = "List",
 };
 
 static void list_init() {
-    _tl_emptyList = tlAlloc(tlListClass, sizeof(tlList));
-    _tlListClass.map = tlClassMapFrom(
+    _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
+    _tlListKind.map = tlClassMapFrom(
         "size", _list_size,
         "get", _list_get,
         "set", _list_set,
@@ -345,7 +345,7 @@ static void list_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlListClass.map);
+    tlMapSetSym_(constructor, s_class, _tlListKind.map);
     tl_register_global("List", constructor);
 }
 

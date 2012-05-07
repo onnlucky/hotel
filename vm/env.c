@@ -4,8 +4,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlEnvClass = { .name = "Environment" };
-tlClass* tlEnvClass = &_tlEnvClass;
+static tlKind _tlEnvKind = { .name = "Environment" };
+tlKind* tlEnvKind = &_tlEnvKind;
 
 struct tlEnv {
     tlHead head;
@@ -17,7 +17,7 @@ struct tlEnv {
 
 tlEnv* tlEnvNew(tlEnv* parent) {
     trace("env new; parent: %p", parent);
-    tlEnv* env = tlAlloc(tlEnvClass, sizeof(tlEnv));
+    tlEnv* env = tlAlloc(tlEnvKind, sizeof(tlEnv));
     env->parent = parent;
     env->map = _tl_emptyMap;
     return env;
@@ -128,7 +128,7 @@ static tlValue _Env_localObject(tlArgs* args) {
 
 static tlMap* envClass;
 static void env_init() {
-    _tlEnvClass.map = tlClassMapFrom(
+    _tlEnvKind.map = tlClassMapFrom(
         "size", _env_size,
         null
     );

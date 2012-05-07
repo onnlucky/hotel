@@ -35,22 +35,22 @@ int tl_int_or(tlValue v, int d) {
 }
 
 // creating value objects
-void* tlAlloc(tlClass* klass, size_t bytes) {
+void* tlAlloc(tlKind* kind, size_t bytes) {
     trace("ALLOC: %p %zd", v, bytes);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
-    head->klass = klass;
+    head->kind = kind;
     head->keep = 1;
     return (void*)head;
 }
-void* tlAllocWithFields(tlClass* klass, size_t bytes, int fieldc) {
+void* tlAllocWithFields(tlKind* kind, size_t bytes, int fieldc) {
     trace("ALLOC: %p %zd %d", v, bytes, fieldc);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
     assert((((intptr_t)head) & 0x7) == 0);
     head->size = fieldc;
-    head->klass = klass;
+    head->kind = kind;
     head->keep = 1;
     return (void*)head;
 }
@@ -63,7 +63,7 @@ void* tlAllocClone(tlValue v, size_t bytes) {
     head->flags = tl_head(v)->flags;
     head->type = tl_head(v)->type;
     head->size = fieldc;
-    head->klass = tl_class(v);
+    head->kind = tl_kind(v);
     head->keep = 1;
     memcpy((void*)head + sizeof(tlHead), v + sizeof(tlHead), bytes + fieldc*sizeof(tlValue) - sizeof(tlHead));
     return (void*)head;
@@ -89,11 +89,11 @@ const char* tl_str(tlValue v) {
 
     if (tlActiveIs(v)) v = tl_value(v);
 
-    tlClass* klass = tl_class(v);
-    if (klass) {
-        tlToTextFn fn = klass->toText;
+    tlKind* kind = tl_kind(v);
+    if (kind) {
+        tlToTextFn fn = kind->toText;
         if (fn) return fn(v, _str_buf, _BUF_SIZE);
-        snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", klass->name, v);
+        snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", kind->name, v);
         return _str_buf;
     }
     snprintf(_str_buf, _BUF_SIZE, "<!! %p !!>", v);
@@ -101,10 +101,10 @@ const char* tl_str(tlValue v) {
 }
 
 static const char* undefinedToText(tlValue v, char* buf, int size) { return "undefined"; }
-static tlClass _tlUndefinedClass = { .name = "Undefined", .toText = undefinedToText };
+static tlKind _tlUndefinedKind = { .name = "Undefined", .toText = undefinedToText };
 
 static const char* nullToText(tlValue v, char* buf, int size) { return "null"; }
-static tlClass _tlNullClass = { .name = "Null", .toText = nullToText };
+static tlKind _tlNullKind = { .name = "Null", .toText = nullToText };
 
 static const char* boolToText(tlValue v, char* buf, int size) {
     switch ((intptr_t)v) {
@@ -113,17 +113,17 @@ static const char* boolToText(tlValue v, char* buf, int size) {
         default: return "<!! error !!>";
     }
 }
-static tlClass _tlBoolClass = { .name = "Bool", .toText = boolToText };
+static tlKind _tlBoolKind = { .name = "Bool", .toText = boolToText };
 
 static const char* intToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "%d", tl_int(v)); return buf;
 }
-static tlClass _tlIntClass = { .name = "Int", .toText = intToText };
+static tlKind _tlIntKind = { .name = "Int", .toText = intToText };
 
-tlClass* tlUndefinedClass = &_tlUndefinedClass;
-tlClass* tlNullClass = &_tlNullClass;
-tlClass* tlBoolClass = &_tlBoolClass;
-tlClass* tlIntClass = &_tlIntClass;
+tlKind* tlUndefinedKind = &_tlUndefinedKind;
+tlKind* tlNullKind = &_tlNullKind;
+tlKind* tlBoolKind = &_tlBoolKind;
+tlKind* tlIntKind = &_tlIntKind;
 
 static tlValue _bool_toText(tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
@@ -179,11 +179,11 @@ static void value_init() {
     _t_true = tlTEXT("true");
     _t_false = tlTEXT("false");
     tl_register_natives(__value_natives);
-    _tlBoolClass.map = tlClassMapFrom(
+    _tlBoolKind.map = tlClassMapFrom(
         "toText", _bool_toText,
         null
     );
-    _tlIntClass.map = tlClassMapFrom(
+    _tlIntKind.map = tlClassMapFrom(
         "toChar", _int_toChar,
         "toText", _int_toText,
         null

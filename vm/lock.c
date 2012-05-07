@@ -5,7 +5,7 @@
 #include "trace-off.h"
 
 bool tlLockIs(tlValue v) {
-    return tl_class(v)->locked;
+    return tl_kind(v)->locked;
 }
 tlLock* tlLockAs(tlValue v) {
     assert(tlLockIs(v)); return (tlLock*)v;

@@ -12,11 +12,11 @@ typedef void* tlValue;
 typedef tlValue tlSym;
 typedef tlValue tlInt;
 
-typedef struct tlClass tlClass;
+typedef struct tlKind tlKind;
 
 // TODO how well defined is the struct memory layout we embed pretty deep sometimes
 // TODO rework now that we have classes ... but into what?
-// TODO we actually have 3 bits in the class pointer ... just incase
+// TODO we actually have 3 bits in the kind pointer ... just incase
 // common head of all ref values; values appear in memory at 8 byte alignments
 // thus pointers to values have 3 lowest bits set to 000
 typedef struct tlHead {
@@ -24,7 +24,7 @@ typedef struct tlHead {
     uint8_t type;
     uint16_t size;
     int32_t keep;
-    tlClass* klass;
+    tlKind* kind;
 } tlHead;
 
 // TODO remove ...
@@ -131,31 +131,31 @@ static inline tl##CAPS* tl##SMALL##_as(tlValue v) { \
 static inline tl##CAPS* tl##SMALL##_cast(tlValue v) { \
     return tl##SMALL##_is(v)?(tl##CAPS*)v:null; } \
 
-extern tlClass* tlIntClass;
-extern tlClass* tlSymClass;
-extern tlClass* tlNullClass;
-extern tlClass* tlUndefinedClass;
-extern tlClass* tlBoolClass;
+extern tlKind* tlIntKind;
+extern tlKind* tlSymKind;
+extern tlKind* tlNullKind;
+extern tlKind* tlUndefinedKind;
+extern tlKind* tlBoolKind;
 
-static inline tlClass* tl_class(tlValue v) {
-    if (tlRefIs(v)) return tl_head(v)->klass;
-    if (tlIntIs(v)) return tlIntClass;
-    if (tlSymIs(v)) return tlSymClass;
+static inline tlKind* tl_kind(tlValue v) {
+    if (tlRefIs(v)) return tl_head(v)->kind;
+    if (tlIntIs(v)) return tlIntKind;
+    if (tlSymIs(v)) return tlSymKind;
     // assert(tlTagIs(v));
     switch ((intptr_t)v) {
-        case TL_UNDEFINED: return tlUndefinedClass;
-        case TL_NULL: return tlNullClass;
-        case TL_FALSE: return tlBoolClass;
-        case TL_TRUE: return tlBoolClass;
+        case TL_UNDEFINED: return tlUndefinedKind;
+        case TL_NULL: return tlNullKind;
+        case TL_FALSE: return tlBoolKind;
+        case TL_TRUE: return tlBoolKind;
         default: return null;
     }
 }
 
 #define TL_REF_TYPE(_T) \
 typedef struct _T _T; \
-extern tlClass* _T##Class; \
+extern tlKind* _T##Kind; \
 static inline bool _T##Is(tlValue v) { \
-    return tl_class(v) == _T##Class; } \
+    return tl_kind(v) == _T##Kind; } \
 static inline _T* _T##As(tlValue v) { \
     assert(_T##Is(v) || !v); return (_T*)v; } \
 static inline _T* _T##Cast(tlValue v) { \
@@ -390,8 +390,8 @@ tlValue tlResultGet(tlValue v, int at);
 tlResult* tlResultFrom(tlValue v1, ...);
 
 // allocate values
-void* tlAlloc(tlClass* klass, size_t bytes);
-void* tlAllocWithFields(tlClass* klass, size_t bytes, int fieldc);
+void* tlAlloc(tlKind* kind, size_t bytes);
+void* tlAllocWithFields(tlKind* kind, size_t bytes, int fieldc);
 void* tlAllocClone(tlValue v, size_t bytes);
 tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
 
@@ -430,9 +430,10 @@ typedef tlValue(*tlCallFn)(tlCall* args);
 typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
 typedef tlValue(*tlSendFn)(tlArgs* args);
 
-// a class describes a hotel value for most fields null is perfectly fine
-struct tlClass {
-    const char* name;  // general name of the class
+// a kind describes a hotel value for the vm (not at the language level)
+// fields with a null value is usually perfectly fine
+struct tlKind {
+    const char* name;  // general name of the value
     tlToTextFn toText; // a toText "printer" function
 
     tlCallFn call;     // if called as a function, before arguments are evaluated

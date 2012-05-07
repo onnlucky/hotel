@@ -2,11 +2,11 @@
 
 #include "trace-off.h"
 
-static tlClass _tlFrameClass;
-tlClass* tlFrameClass = &_tlFrameClass;
+static tlKind _tlFrameKind;
+tlKind* tlFrameKind = &_tlFrameKind;
 
 void* tlFrameAlloc(tlResumeCb cb, size_t bytes) {
-    tlFrame* frame = tlAlloc(tlFrameClass, bytes);
+    tlFrame* frame = tlAlloc(tlFrameKind, bytes);
     frame->resumecb = cb;
     return frame;
 }

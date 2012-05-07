@@ -31,8 +31,8 @@ typedef enum {
     TL_STATE_ERROR,     // task is done, value is actually an throw
 } tlTaskState;
 
-static tlClass _tlTaskClass;
-tlClass* tlTaskClass = &_tlTaskClass;
+static tlKind _tlTaskKind;
+tlKind* tlTaskKind = &_tlTaskKind;
 
 // TODO slim this one down ...
 struct tlTask {
@@ -73,14 +73,14 @@ INTERNAL tlTask* tlTaskFromEntry(lqentry* entry) {
 }
 
 TL_REF_TYPE(tlWaitQueue);
-static tlClass _tlWaitQueueClass = { .name = "WaitQueue" };
-tlClass* tlWaitQueueClass = &_tlWaitQueueClass;
+static tlKind _tlWaitQueueKind = { .name = "WaitQueue" };
+tlKind* tlWaitQueueKind = &_tlWaitQueueKind;
 struct tlWaitQueue {
     tlHead head;
     lqueue wait_q;
 };
 tlWaitQueue* tlWaitQueueNew() {
-    return tlAlloc(tlWaitQueueClass, sizeof(tlWaitQueue));
+    return tlAlloc(tlWaitQueueKind, sizeof(tlWaitQueue));
 }
 void tlWaitQueueAdd(tlWaitQueue* queue, tlTask* task) {
     lqueue_put(&queue->wait_q, &task->entry);
@@ -281,7 +281,7 @@ INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue thrown) {
 }
 
 tlTask* tlTaskNew(tlVm* vm, tlMap* locals) {
-    tlTask* task = tlAlloc(tlTaskClass, sizeof(tlTask));
+    tlTask* task = tlAlloc(tlTaskKind, sizeof(tlTask));
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
     task->locals = locals;
@@ -581,7 +581,7 @@ INTERNAL const char* _TaskToText(tlValue v, char* buf, int size) {
     return buf;
 }
 
-static tlClass _tlTaskClass = {
+static tlKind _tlTaskKind = {
     .name = "Task",
     .toText = _TaskToText,
 };
@@ -596,7 +596,7 @@ static tlMap* taskClass;
 
 static void task_init() {
     tl_register_natives(__task_natives);
-    _tlTaskClass.map = tlClassMapFrom(
+    _tlTaskKind.map = tlClassMapFrom(
         "isDone", _task_isDone,
         "wait", _task_wait,
         "value", _task_wait,

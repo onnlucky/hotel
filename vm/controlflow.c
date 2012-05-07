@@ -133,14 +133,14 @@ struct tlReturn {
     tlArgs* targetargs;
 };
 static tlValue ReturnRun(tlValue fn, tlArgs* args);
-static tlClass _tlReturnClass = {
+static tlKind _tlReturnKind = {
     .name = "Return",
     .run = ReturnRun,
 };
-tlClass* tlReturnClass = &_tlReturnClass;
+tlKind* tlReturnKind = &_tlReturnKind;
 
 INTERNAL tlValue tlReturnNew(tlArgs* args) {
-    tlReturn* ret = tlAlloc(tlReturnClass, sizeof(tlReturn));
+    tlReturn* ret = tlAlloc(tlReturnKind, sizeof(tlReturn));
     ret->targetargs = args;
     return ret;
 }
@@ -173,14 +173,14 @@ struct tlGoto {
     tlArgs* args;
 };
 static tlValue GotoCallFn(tlCall* call);
-static tlClass _tlGotoClass = {
+static tlKind _tlGotoKind = {
     .name = "Goto",
     .call = GotoCallFn,
 };
-tlClass* tlGotoClass = &_tlGotoClass;
+tlKind* tlGotoKind = &_tlGotoKind;
 
 INTERNAL tlValue tlGotoNew(tlArgs* args) {
-    tlGoto* go = tlAlloc(tlGotoClass, sizeof(tlGoto));
+    tlGoto* go = tlAlloc(tlGotoKind, sizeof(tlGoto));
     go->args = args;
     return go;
 }
@@ -234,11 +234,11 @@ struct tlContinuation {
     tlFrame* frame;
 };
 static tlValue ContinuationRun(tlValue fn, tlArgs* args);
-static tlClass _tlContinuationClass = {
+static tlKind _tlContinuationKind = {
     .name = "Continuation",
     .run = ContinuationRun,
 };
-tlClass* tlContinuationClass = &_tlContinuationClass;
+tlKind* tlContinuationKind = &_tlContinuationKind;
 
 INTERNAL tlValue resumeContinuation(tlFrame* _frame, tlValue res, tlValue throw) {
     tlArgs* args = tlArgsAs(res);
@@ -255,7 +255,7 @@ INTERNAL tlValue ContinuationRun(tlValue fn, tlArgs* args) {
 
 // called by eval.c when creating a continuation
 INTERNAL tlValue resumeNewContinuation(tlFrame* frame, tlValue res, tlValue throw) {
-    tlContinuation* cont = tlAlloc(tlContinuationClass, sizeof(tlContinuation));
+    tlContinuation* cont = tlAlloc(tlContinuationKind, sizeof(tlContinuation));
     cont->frame = frame->caller;
     assert(cont->frame && cont->frame->resumecb == resumeCode);
     cont->frame->head.keep++;

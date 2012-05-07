@@ -229,7 +229,7 @@ void tlWorkerRun(tlWorker* worker) {
 }
 
 tlWorker* tlWorkerNew(tlVm* vm) {
-    tlWorker* worker = tlAlloc(tlWorkerClass, sizeof(tlWorker));
+    tlWorker* worker = tlAlloc(tlWorkerKind, sizeof(tlWorker));
     worker->vm = vm;
     return worker;
 }

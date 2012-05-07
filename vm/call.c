@@ -6,8 +6,8 @@ INTERNAL tlValue _call(tlArgs* args);
 INTERNAL tlArgs* evalCall(tlCall* call);
 INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn);
 
-static tlClass _tlNativeClass;
-tlClass* tlNativeClass = &_tlNativeClass;
+static tlKind _tlNativeKind;
+tlKind* tlNativeKind = &_tlNativeKind;
 
 struct tlNative {
     tlHead head;
@@ -16,7 +16,7 @@ struct tlNative {
 };
 
 tlNative* tlNativeNew(tlNativeCb native, tlSym name) {
-    tlNative* fn = tlAlloc(tlNativeClass, sizeof(tlNative));
+    tlNative* fn = tlAlloc(tlNativeKind, sizeof(tlNative));
     fn->native = native;
     fn->name = name;
     return fn;
@@ -29,8 +29,8 @@ tlNative* tlNATIVE(tlNativeCb cb, const char* n) {
     return tlNativeNew(cb, tlSYM(n));
 }
 
-static tlClass _tlCallClass;
-tlClass* tlCallClass = &_tlCallClass;
+static tlKind _tlCallKind;
+tlKind* tlCallKind = &_tlCallKind;
 
 struct tlCall {
     tlHead head;
@@ -41,7 +41,7 @@ struct tlCall {
     //tlSet* names;
 };
 tlCall* tlCallNew(int argc, bool keys) {
-    tlCall* call = tlAllocWithFields(tlCallClass, sizeof(tlCall), argc + (keys?2:0));
+    tlCall* call = tlAllocWithFields(tlCallKind, sizeof(tlCall), argc + (keys?2:0));
     if (keys) tlflag_set(call, TL_FLAG_HASKEYS);
     return call;
 }
@@ -265,17 +265,17 @@ static tlValue nativeRun(tlValue fn, tlArgs* args) {
     return tlNativeAs(fn)->native(args);
 }
 
-static tlClass _tlNativeClass = {
+static tlKind _tlNativeKind = {
     .name = "Native",
     .toText = nativeToText,
     .run = nativeRun,
 };
-static tlClass _tlCallClass = {
+static tlKind _tlCallKind = {
     .name = "Call",
     .toText = callToText,
 };
 static void call_init() {
-    _tlNativeClass.map = tlClassMapFrom(
+    _tlNativeKind.map = tlClassMapFrom(
         "call", _call,
         null
     );

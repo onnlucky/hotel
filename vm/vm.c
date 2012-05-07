@@ -75,12 +75,12 @@ static tlValue _eq(tlArgs* args) {
     tlValue left = tlArgsGet(args, 0);
     tlValue right = tlArgsGet(args, 1);
     if (left == right) return tlTrue;
-    tlClass* leftClass = tl_class(left);
-    tlClass* rightClass = tl_class(right);
-    if (leftClass != rightClass) return tlFalse;
-    if (leftClass == tlTextClass) return tlTextEquals(tlTextAs(left), tlTextAs(right));
+    tlKind* leftKind = tl_kind(left);
+    tlKind* rightKind = tl_kind(right);
+    if (leftKind != rightKind) return tlFalse;
+    if (leftKind == tlTextKind) return tlTextEquals(tlTextAs(left), tlTextAs(right));
     // TODO do map here too? and others?
-    //if (leftClass == tlListClass) return tlListEquals(tlListAs(left), tlListAs(right));
+    //if (leftKind == tlListKind) return tlListEquals(tlListAs(left), tlListAs(right));
     return tlFalse;
 }
 static tlValue _neq(tlArgs* args) {
@@ -192,8 +192,8 @@ void tl_init() {
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
     assert(!tlSymIs(tlFalse));
     assert(!tlSymIs(tlTrue));
-    //assert(tl_class(tlTrue) == tlBoolClass);
-    //assert(tl_class(tlFalse) == tlBoolClass);
+    //assert(tl_kind(tlTrue) == tlBoolKind);
+    //assert(tl_kind(tlFalse) == tlBoolKind);
     assert(!tlArgsIs(0));
     assert(tlArgsAs(0) == 0);
 
@@ -234,7 +234,7 @@ void tl_init() {
 }
 
 tlVm* tlVmNew() {
-    tlVm* vm = tlAlloc(tlVmClass, sizeof(tlVm));
+    tlVm* vm = tlAlloc(tlVmKind, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlEnvNew(null);
 
@@ -392,12 +392,12 @@ void tlVmInitDefaultEnv(tlVm* vm) {
     tlVmGlobalSet(vm, tlNativeName(eval), eval);
 }
 
-static tlClass _tlVmClass = {
+static tlKind _tlVmKind = {
     .name = "Vm"
 };
-static tlClass _tlWorkerClass = {
+static tlKind _tlWorkerKind = {
     .name = "Worker"
 };
-tlClass* tlVmClass = &_tlVmClass;
-tlClass* tlWorkerClass = &_tlWorkerClass;
+tlKind* tlVmKind = &_tlVmKind;
+tlKind* tlWorkerKind = &_tlWorkerKind;
 

@@ -2,8 +2,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlVarClass = { .name = "Var" };
-tlClass* tlVarClass = &_tlVarClass;
+static tlKind _tlVarKind = { .name = "Var" };
+tlKind* tlVarKind = &_tlVarKind;
 
 struct tlVar {
     tlHead head;
@@ -15,7 +15,7 @@ tlValue tlVarSet(tlVar* var, tlValue v) { var->value = v; return v; }
 
 INTERNAL tlValue _Var_new(tlArgs* args) {
     trace("");
-    tlVar* var = tlAlloc(tlVarClass, sizeof(tlVar));
+    tlVar* var = tlAlloc(tlVarKind, sizeof(tlVar));
     var->value = tlArgsGet(args, 0);
     return var;
 }
@@ -44,7 +44,7 @@ static const tlNativeCbs __var_natives[] = {
 
 static tlMap* varClass;
 static void var_init() {
-    _tlVarClass.map = tlClassMapFrom(
+    _tlVarKind.map = tlClassMapFrom(
         "get", _var_get,
         "set", _var_set,
         null

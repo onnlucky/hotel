@@ -7,8 +7,8 @@
 
 TL_REF_TYPE(tlHashMap);
 
-static tlClass _tlHashMapClass = { .name = "Map" };
-tlClass* tlHashMapClass = &_tlHashMapClass;
+static tlKind _tlHashMapKind = { .name = "Map" };
+tlKind* tlHashMapKind = &_tlHashMapKind;
 
 struct tlHashMap {
     tlHead head;
@@ -16,7 +16,7 @@ struct tlHashMap {
 };
 
 tlHashMap* tlHashMapNew() {
-    tlHashMap* map = tlAlloc(tlHashMapClass, sizeof(tlHashMap));
+    tlHashMap* map = tlAlloc(tlHashMapKind, sizeof(tlHashMap));
     map->map = lhashmap_new(strequals, strhash, strfree);
     return map;
 }
@@ -78,7 +78,7 @@ INTERNAL tlValue _hashmap_size(tlArgs* args) {
 
 static tlMap* hashmapClass;
 void hashmap_init() {
-    _tlHashMapClass.map = tlClassMapFrom(
+    _tlHashMapKind.map = tlClassMapFrom(
         "get", _hashmap_get,
         "set", _hashmap_set,
         "has", _hashmap_has,

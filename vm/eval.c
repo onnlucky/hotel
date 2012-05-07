@@ -37,30 +37,30 @@ static tlText* _t_anon;
 static tlText* _t_native;
 
 // various internal structures
-static tlClass _tlClosureClass = { .name = "Function" };
-tlClass* tlClosureClass = &_tlClosureClass;
+static tlKind _tlClosureKind = { .name = "Function" };
+tlKind* tlClosureKind = &_tlClosureKind;
 struct tlClosure {
     tlHead head;
     tlCode* code;
     tlEnv* env;
 };
 
-static tlClass _tlThunkClass = { .name = "Thunk" };
-tlClass* tlThunkClass = &_tlThunkClass;
+static tlKind _tlThunkKind = { .name = "Thunk" };
+tlKind* tlThunkKind = &_tlThunkKind;
 struct tlThunk {
     tlHead head;
     tlValue value;
 };
 
-static tlClass _tlResultClass = { .name = "Result" };
-tlClass* tlResultClass = &_tlResultClass;
+static tlKind _tlResultKind = { .name = "Result" };
+tlKind* tlResultKind = &_tlResultKind;
 struct tlResult {
     tlHead head;
     tlValue data[];
 };
 
-static tlClass _tlCollectClass = { .name = "Collect" };
-tlClass* tlCollectClass = &_tlCollectClass;
+static tlKind _tlCollectKind = { .name = "Collect" };
+tlKind* tlCollectKind = &_tlCollectKind;
 struct tlCollect {
     tlHead head;
     tlValue data[];
@@ -89,23 +89,23 @@ typedef struct CallFrame {
 } CallFrame;
 
 tlClosure* tlClosureNew(tlCode* code, tlEnv* env) {
-    tlClosure* fn = tlAlloc(tlClosureClass, sizeof(tlClosure));
+    tlClosure* fn = tlAlloc(tlClosureKind, sizeof(tlClosure));
     fn->code = code;
     fn->env = tlEnvNew(env);
     return fn;
 }
 tlThunk* tlThunkNew(tlValue v) {
-    tlThunk* thunk = tlAlloc(tlThunkClass, sizeof(tlThunk));
+    tlThunk* thunk = tlAlloc(tlThunkKind, sizeof(tlThunk));
     thunk->value = v;
     return thunk;
 }
 tlCollect* tlCollectFromList_(tlList* list) {
-    list->head.klass = tlCollectClass;
+    list->head.kind = tlCollectKind;
     return tlCollectAs(list);
 }
 tlResult* tlResultFromArgs(tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAllocWithFields(tlResultClass, sizeof(tlResult), size);
+    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size);
     for (int i = 0; i < size; i++) {
         res->data[i] = tlArgsGet(args, i);
     }
@@ -113,7 +113,7 @@ tlResult* tlResultFromArgs(tlArgs* args) {
 }
 tlResult* tlResultFromArgsPrepend(tlValue first, tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAllocWithFields(tlResultClass, sizeof(tlResult), size + 1);
+    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size + 1);
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
         res->data[i + 1] = tlArgsGet(args, i);
@@ -122,7 +122,7 @@ tlResult* tlResultFromArgsPrepend(tlValue first, tlArgs* args) {
 }
 tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAllocWithFields(tlResultClass, sizeof(tlResult), size - 1);
+    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size - 1);
     for (int i = 1; i < size; i++) {
         res->data[i - 1] = tlArgsGet(args, i);
     }
@@ -137,7 +137,7 @@ tlResult* tlResultFrom(tlValue v1, ...) {
     for (tlValue v = v1; v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
 
-    tlResult* res = tlAllocWithFields(tlResultClass, sizeof(tlResult), size + 1);
+    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size + 1);
 
     va_start(ap, v1);
     int i = 0;
@@ -502,8 +502,8 @@ INTERNAL tlValue runClosure(tlValue _fn, tlArgs* args) {
 INTERNAL tlValue evalArgs(tlArgs* args) {
     tlValue fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
-    tlClass* klass = tl_class(fn);
-    if (klass->run) return klass->run(fn, args);
+    tlKind* kind = tl_kind(fn);
+    if (kind->run) return kind->run(fn, args);
     TL_THROW("'%s' not callable", tl_str(fn));
     return null;
 }
@@ -657,8 +657,8 @@ INTERNAL tlValue applyCall(tlCall* call) {
     trace("%p: fn=%s", call, tl_str(fn));
     assert(fn);
 
-    tlClass* klass = tl_class(fn);
-    if (klass->call) return klass->call(call);
+    tlKind* kind = tl_kind(fn);
+    if (kind->call) return kind->call(call);
 
     tlArgs* args = evalCall(call);
     if (args) {
@@ -731,10 +731,10 @@ INTERNAL tlValue _resolve(tlArgs* args) {
 bool tlCallableIs(tlValue v) {
     if (!tlRefIs(v)) return false;
     if (tlValueObjectIs(v)) return tlMapGetSym(v, s_call) != null;
-    tlClass* klass = tl_class(v);
-    if (klass->call) return true;
-    if (klass->run) return true;
-    if (klass->map && tlMapGetSym(klass->map, s_call)) return true;
+    tlKind* kind = tl_kind(v);
+    if (kind->call) return true;
+    if (kind->run) return true;
+    if (kind->map && tlMapGetSym(kind->map, s_call)) return true;
     return false;
 }
 
@@ -752,9 +752,9 @@ INTERNAL tlValue evalSend(tlArgs* args) {
     tlValue target = tlArgsTarget(args);
     tlSym msg = tlArgsMsg(args);
     trace("%s.%s", tl_str(target), tl_str(msg));
-    tlClass* klass = tl_class(target);
-    if (klass->send) return klass->send(args);
-    if (klass->map) return evalMapSend(klass->map, msg, args, target);
+    tlKind* kind = tl_kind(target);
+    if (kind->send) return kind->send(args);
+    if (kind->map) return evalMapSend(kind->map, msg, args, target);
     TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
 }
 
@@ -771,9 +771,9 @@ INTERNAL tlValue _send(tlArgs* args) {
     nargs->list = tlListSlice(args->list, 2, tlListSize(args->list));
     nargs->map = args->map;
 
-    tlClass* klass = tl_class(target);
-    assert(klass);
-    if (klass->locked) return evalSendLocked(nargs);
+    tlKind* kind = tl_kind(target);
+    assert(kind);
+    if (kind->locked) return evalSendLocked(nargs);
     return evalSend(nargs);
 }
 INTERNAL tlValue resumeTrySend(tlFrame* frame, tlValue res, tlValue throw) {
@@ -794,9 +794,9 @@ INTERNAL tlValue _try_send(tlArgs* args) {
     nargs->list = tlListSlice(args->list, 2, tlListSize(args->list));
     nargs->map = args->map;
 
-    tlClass* klass = tl_class(target);
-    assert(klass);
-    if (klass->locked) return evalSendLocked(nargs);
+    tlKind* kind = tl_kind(target);
+    assert(kind);
+    if (kind->locked) return evalSendLocked(nargs);
     tlValue res = evalSend(nargs);
     if (res) return res;
     return tlTaskPauseAttach(tlFrameAlloc(resumeTrySend, sizeof(tlFrame)));
@@ -941,14 +941,14 @@ static void eval_init() {
     tl_register_natives(__eval_natives);
 
     // TODO call into run for some of these ...
-    _tlCallClass.call = callCall;
-    _tlClosureClass.call = callClosure;
-    _tlClosureClass.run = runClosure;
-    _tlClosureClass.map = tlClassMapFrom(
+    _tlCallKind.call = callCall;
+    _tlClosureKind.call = callClosure;
+    _tlClosureKind.run = runClosure;
+    _tlClosureKind.map = tlClassMapFrom(
         "call", _call,
         null
     );
-    _tlThunkClass.call = callThunk;
-    _tlCodeClass.run = runCode;
+    _tlThunkKind.call = callThunk;
+    _tlCodeKind.run = runCode;
 }
 

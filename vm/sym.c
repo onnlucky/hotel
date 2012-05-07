@@ -32,8 +32,8 @@ static LHashMap *globals = 0;
 static tlSym _SYM_FROM_TEXT(tlText* v) { return (tlSym)((intptr_t)v | 2); }
 static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
 
-static tlClass _tlSymClass;
-tlClass* tlSymClass = &_tlSymClass;
+static tlKind _tlSymKind;
+tlKind* tlSymKind = &_tlSymKind;
 
 bool tlActiveIs(tlValue v) { return !tlIntIs(v) && (((intptr_t)v) & 7) >= 4; }
 tlValue tl_value(tlValue a) {
@@ -161,7 +161,7 @@ static void strfree(void *str) { }
 const char* symToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Symbol@%p #%s>", v, tlTextData(_TEXT_FROM_SYM(v))); return buf;
 }
-static tlClass _tlSymClass = {
+static tlKind _tlSymKind = {
     .name = "Symbol",
     .toText = symToText,
 };
@@ -191,7 +191,7 @@ static void sym_init() {
     s_Map_update = tlSYM("_Map_update");
     s_Map_inherit = tlSYM("_Map_inherit");
 
-    _tlSymClass.map = tlClassMapFrom(
+    _tlSymKind.map = tlClassMapFrom(
         "toText", _sym_toText,
         "toSym", _sym_toSym,
         null

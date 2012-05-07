@@ -4,16 +4,16 @@
 #include "trace-off.h"
 
 TL_REF_TYPE(tlQueue);
-static tlClass _tlQueueClass = { .name = "MsgQueue" };
-tlClass* tlQueueClass = &_tlQueueClass;
+static tlKind _tlQueueKind = { .name = "MsgQueue" };
+tlKind* tlQueueKind = &_tlQueueKind;
 
 TL_REF_TYPE(tlQueueInput);
-static tlClass _tlQueueInputClass = { .name = "MsgQueueInput" };
-tlClass* tlQueueInputClass = &_tlQueueInputClass;
+static tlKind _tlQueueInputKind = { .name = "MsgQueueInput" };
+tlKind* tlQueueInputKind = &_tlQueueInputKind;
 
 TL_REF_TYPE(tlMessage);
-static tlClass _tlMessageClass = { .name = "Message" };
-tlClass* tlMessageClass = &_tlMessageClass;
+static tlKind _tlMessageKind = { .name = "Message" };
+tlKind* tlMessageKind = &_tlMessageKind;
 
 typedef void(*tlQueueSignalFn)(void);
 
@@ -35,14 +35,14 @@ struct tlMessage {
 };
 
 tlMessage* tlMessageNew(tlArgs* args) {
-    tlMessage* msg = tlAlloc(tlMessageClass, sizeof(tlMessage));
+    tlMessage* msg = tlAlloc(tlMessageKind, sizeof(tlMessage));
     msg->sender = tlTaskCurrent();
     msg->args = args;
     return msg;
 }
 tlQueue* tlQueueNew() {
-    tlQueue* queue = tlAlloc(tlQueueClass, sizeof(tlQueue));
-    queue->input = tlAlloc(tlQueueInputClass, sizeof(tlQueueInput));
+    tlQueue* queue = tlAlloc(tlQueueKind, sizeof(tlQueue));
+    queue->input = tlAlloc(tlQueueInputKind, sizeof(tlQueueInput));
     queue->input->queue = queue;
     return queue;
 }
@@ -153,14 +153,14 @@ INTERNAL tlValue _message_get(tlArgs* args) {
 
 static tlMap* queueClass;
 void queue_init() {
-    _tlQueueInputClass.send = queueInputReceive;
-    _tlQueueClass.map = tlClassMapFrom(
+    _tlQueueInputKind.send = queueInputReceive;
+    _tlQueueKind.map = tlClassMapFrom(
         "input", _queue_input,
         "get", _queue_get,
         "poll", _queue_poll,
         null
     );
-    _tlMessageClass.map = tlClassMapFrom(
+    _tlMessageKind.map = tlClassMapFrom(
         "reply", _message_reply,
         "name", _message_name,
         "get", _message_get,

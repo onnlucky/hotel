@@ -2,8 +2,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlCodeClass = { .name = "Code" };
-tlClass* tlCodeClass = &_tlCodeClass;
+static tlKind _tlCodeKind = { .name = "Code" };
+tlKind* tlCodeKind = &_tlCodeKind;
 
 struct tlCode {
     tlHead head;
@@ -20,7 +20,7 @@ struct tlCode {
 void debugcode(tlCode* code);
 
 tlCode* tlCodeNew(int size) {
-    return tlAllocWithFields(tlCodeClass, sizeof(tlCode), size);
+    return tlAllocWithFields(tlCodeKind, sizeof(tlCode), size);
 }
 tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line) {
     int size = tlListSize(ops);

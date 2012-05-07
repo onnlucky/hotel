@@ -26,7 +26,7 @@ void tlSetAssert(tlSet* set) {
 }
 
 tlSet* tlSetNew(int size) {
-    return tlAllocWithFields(tlSetClass, sizeof(tlSet), size);
+    return tlAllocWithFields(tlSetKind, sizeof(tlSet), size);
 }
 
 tlValue tlSetGet(tlSet* set, int at) {
@@ -117,14 +117,14 @@ static tlValue _set_size(tlArgs* args) {
     return tlINT(tlSetSize(set));
 }
 
-static tlClass _tlSetClass = {
+static tlKind _tlSetKind = {
     .name = "Set",
 };
-tlClass* tlSetClass = &_tlSetClass;
+tlKind* tlSetKind = &_tlSetKind;
 
 static void set_init() {
     _tl_set_empty = tlSetNew(0);
-    _tlSetClass.map = tlClassMapFrom(
+    _tlSetKind.map = tlClassMapFrom(
         "size", _set_size,
         //"has", _set_has,
         "get", _set_get,
@@ -136,7 +136,7 @@ static void set_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlSetClass.map);
+    tlMapSetSym_(constructor, s_class, _tlSetKind.map);
     tl_register_global("Set", constructor);
 }
 

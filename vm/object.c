@@ -2,8 +2,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlObjectClass = { .name = "Object", .locked = true };
-tlClass* tlObjectClass = &_tlObjectClass;
+static tlKind _tlObjectKind = { .name = "Object", .locked = true };
+tlKind* tlObjectKind = &_tlObjectKind;
 
 struct tlObject {
     tlLock lock;
@@ -12,7 +12,7 @@ struct tlObject {
 };
 
 tlObject* tlObjectNew() {
-    tlObject* obj = tlAlloc(tlObjectClass, sizeof(tlObject));
+    tlObject* obj = tlAlloc(tlObjectKind, sizeof(tlObject));
     obj->map = tlMapEmpty();
     return obj;
 }
@@ -96,7 +96,7 @@ static const tlNativeCbs __object_nativecbs[] = {
 };
 
 static void object_init() {
-    _tlObjectClass.send = objectSend;
+    _tlObjectKind.send = objectSend;
     tl_register_natives(__object_nativecbs);
 }
 

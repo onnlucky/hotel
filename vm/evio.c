@@ -194,20 +194,20 @@ struct tlFile {
     tlReader* reader;
     tlWriter* writer;
 };
-static tlClass _tlFileClass = {
+static tlKind _tlFileKind = {
     .name = "File",
 };
-static tlClass _tlReaderClass = {
+static tlKind _tlReaderKind = {
     .name = "Reader",
     .locked = true,
 };
-static tlClass _tlWriterClass = {
+static tlKind _tlWriterKind = {
     .name = "Writer",
     .locked = true,
 };
-tlClass* tlFileClass = &_tlFileClass;
-tlClass* tlReaderClass = &_tlReaderClass;
-tlClass* tlWriterClass = &_tlWriterClass;
+tlKind* tlFileKind = &_tlFileKind;
+tlKind* tlReaderKind = &_tlReaderKind;
+tlKind* tlWriterKind = &_tlWriterKind;
 
 static tlFile* tlFileFromEv(ev_io *ev) {
     return tlFileAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
@@ -230,10 +230,10 @@ void close_ev_io(void* _file, void* data) {
     file->ev.fd = -1;
 }
 static tlFile* tlFileNew(int fd) {
-    tlFile *file = tlAlloc(tlFileClass, sizeof(tlFile));
-    file->reader = tlAlloc(tlReaderClass, sizeof(tlReader));
+    tlFile *file = tlAlloc(tlFileKind, sizeof(tlFile));
+    file->reader = tlAlloc(tlReaderKind, sizeof(tlReader));
     file->reader->file = file;
-    file->writer = tlAlloc(tlWriterClass, sizeof(tlWriter));
+    file->writer = tlAlloc(tlWriterKind, sizeof(tlWriter));
     file->writer->file = file;
     ev_io_init(&file->ev, io_cb, fd, 0);
     GC_REGISTER_FINALIZER_NO_ORDER(file, close_ev_io, null, null, null);
@@ -269,13 +269,13 @@ static tlValue _file_close(tlArgs* args) {
 static tlValue _file_reader(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (file->reader->lock.head.klass) return file->reader;
+    if (file->reader->lock.head.kind) return file->reader;
     return tlNull;
 }
 static tlValue _file_writer(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (file->writer->lock.head.klass) return file->writer;
+    if (file->writer->lock.head.kind) return file->writer;
     return tlNull;
 }
 
@@ -526,14 +526,14 @@ struct tlDir {
     tlLock lock;
     DIR* p;
 };
-tlClass _tlDirClass = {
+tlKind _tlDirKind = {
     .name = "Dir",
     .locked = true,
 };
-tlClass* tlDirClass = &_tlDirClass;
+tlKind* tlDirKind = &_tlDirKind;
 
 static tlDir* tlDirNew(DIR* p) {
-    tlDir* dir = tlAlloc(tlDirClass, sizeof(tlDir));
+    tlDir* dir = tlAlloc(tlDirKind, sizeof(tlDir));
     dir->p = p;
     return dir;
 }
@@ -670,11 +670,11 @@ struct tlChild {
     tlValue out;
     tlValue err;
 };
-tlClass _tlChildClass = {
+tlKind _tlChildKind = {
     .name = "Child",
     .locked = true,
 };
-tlClass* tlChildClass = &_tlChildClass;
+tlKind* tlChildKind = &_tlChildKind;
 
 static tlChild* tlChildFrom(ev_child *ev) {
     return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
@@ -698,7 +698,7 @@ static void child_cb(ev_child *ev, int revents) {
 }
 
 static tlChild* tlChildNew(pid_t pid, int in, int out, int err) {
-    tlChild* child = tlAlloc(tlChildClass, sizeof(tlChild));
+    tlChild* child = tlAlloc(tlChildKind, sizeof(tlChild));
     ev_child_init(&child->ev, child_cb, pid, 0);
     ev_child_start(&child->ev);
     // we can do this lazily ... but then we need a finalizer to close fds
@@ -839,8 +839,8 @@ static tlValue _io_launch(tlArgs* args) {
 
 INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
     tlFile* file = tlFileAs(v);
-    tlClass* klass = tl_class(file);
-    snprintf(buf, size, "<%s@%d>", klass->name, file->ev.fd);
+    tlKind* kind = tl_kind(file);
+    snprintf(buf, size, "<%s@%d>", kind->name, file->ev.fd);
     return buf;
 }
 
@@ -852,7 +852,7 @@ static void io_cb(ev_io *ev, int revents) {
     tlFile* file = tlFileFromEv(ev);
     if (revents & EV_READ) {
         trace("CANREAD");
-        assert(file->reader->lock.head.klass);
+        assert(file->reader->lock.head.kind);
         assert(file->reader->lock.owner);
         tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
         tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
@@ -862,7 +862,7 @@ static void io_cb(ev_io *ev, int revents) {
     }
     if (revents & EV_WRITE) {
         trace("CANWRITE");
-        assert(file->writer->lock.head.klass);
+        assert(file->writer->lock.head.kind);
         assert(file->writer->lock.owner);
         tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
@@ -1026,31 +1026,31 @@ static const tlNativeCbs __evio_natives[] = {
 };
 
 void evio_init() {
-    _tlReaderClass.map = tlClassMapFrom(
+    _tlReaderKind.map = tlClassMapFrom(
         "read", _reader_read,
         "accept", _reader_accept,
         "close", _reader_close,
         null
     );
-    _tlWriterClass.map = tlClassMapFrom(
+    _tlWriterKind.map = tlClassMapFrom(
         "write", _writer_write,
         "close", _writer_close,
         null
     );
-    _tlFileClass.toText = fileToText;
-    _tlFileClass.map = tlClassMapFrom(
+    _tlFileKind.toText = fileToText;
+    _tlFileKind.map = tlClassMapFrom(
         "isClosed", _file_isClosed,
         "close", _file_close,
         "reader", _file_reader,
         "writer", _file_writer,
         null
     );
-    _tlDirClass.map = tlClassMapFrom(
+    _tlDirKind.map = tlClassMapFrom(
         "read", _DirRead,
         "each", _DirEach,
         null
     );
-    _tlChildClass.map = tlClassMapFrom(
+    _tlChildKind.map = tlClassMapFrom(
         "isRunning", _child_running,
         "wait", _child_wait,
         "in", _child_in,

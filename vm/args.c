@@ -7,8 +7,8 @@
 
 #include "trace-off.h"
 
-static tlClass _tlArgsClass;
-tlClass* tlArgsClass = &_tlArgsClass;
+static tlKind _tlArgsKind;
+tlKind* tlArgsKind = &_tlArgsKind;
 
 struct tlArgs {
     tlHead head;
@@ -23,7 +23,7 @@ static tlArgs* v_args_empty;
 
 tlArgs* tlArgsNewNames(int size, tlSet* names) {
     if (!names) names = _tl_set_empty;
-    tlArgs* args = tlAlloc(tlArgsClass, sizeof(tlArgs));
+    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs));
     args->list = tlListNew(size - tlSetSize(names));
     args->map = tlMapNew(names);
     return args;
@@ -32,7 +32,7 @@ tlArgs* tlArgsNewNames(int size, tlSet* names) {
 tlArgs* tlArgsNew(tlList* list, tlMap* map) {
     if (!list) list = _tl_emptyList;
     if (!map) map = _tl_emptyMap;
-    tlArgs* args = tlAlloc(tlArgsClass, sizeof(tlArgs));
+    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs));
     args->list = list;
     args->map = map;
     return args;
@@ -132,13 +132,13 @@ const char* _ArgsToText(tlValue v, char* buf, int size) {
     return buf;
 }
 
-static tlClass _tlArgsClass = {
+static tlKind _tlArgsKind = {
     .name = "Args",
     .toText = _ArgsToText,
 };
 
 static void args_init() {
-    _tlArgsClass.map = tlClassMapFrom(
+    _tlArgsKind.map = tlClassMapFrom(
             "size", _args_size,
             "get", _args_get,
             "block", _args_block,

@@ -2,8 +2,8 @@
 
 #include "trace-on.h"
 
-static tlClass _tlArrayClass = { .name = "Array", .locked = true };
-tlClass* tlArrayClass = &_tlArrayClass;
+static tlKind _tlArrayKind = { .name = "Array", .locked = true };
+tlKind* tlArrayKind = &_tlArrayKind;
 
 TL_REF_TYPE(tlArray);
 
@@ -15,7 +15,7 @@ struct tlArray {
 };
 
 INTERNAL tlArray* tlArrayNew() {
-    tlArray* array = tlAlloc(tlArrayClass, sizeof(tlArray));
+    tlArray* array = tlAlloc(tlArrayKind, sizeof(tlArray));
     return array;
 }
 INTERNAL tlArray* tlArrayAdd(tlArray* array, tlValue v) {
@@ -146,7 +146,7 @@ INTERNAL tlValue _array_remove(tlArgs* args) {
 
 static tlMap* arrayClass;
 static void array_init() {
-    _tlArrayClass.map = tlClassMapFrom(
+    _tlArrayKind.map = tlClassMapFrom(
         "size", _array_size,
         "get", _array_get,
         "set", _array_set,
@@ -165,7 +165,7 @@ static void array_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(arrayClass, s_class, _tlArrayClass.map);
+    tlMapSetSym_(arrayClass, s_class, _tlArrayKind.map);
 }
 
 static void array_vm_default(tlVm* vm) {

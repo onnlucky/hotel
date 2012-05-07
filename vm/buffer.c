@@ -5,14 +5,14 @@ struct tlBuffer {
     tlLock lock;
     tl_buf* buf;
 };
-static tlClass _tlBufferClass = {
+static tlKind _tlBufferKind = {
     .name = "Buffer",
     .locked = true,
 };
-tlClass* tlBufferClass = &_tlBufferClass;
+tlKind* tlBufferKind = &_tlBufferKind;
 
 tlBuffer* tlBufferNew() {
-    tlBuffer* buf = tlAlloc(tlBufferClass, sizeof(tlBuffer));
+    tlBuffer* buf = tlAlloc(tlBufferKind, sizeof(tlBuffer));
     buf->buf = tlbuf_new();
     return buf;
 }
@@ -66,7 +66,7 @@ INTERNAL tlValue _Buffer_new(tlArgs* args) {
 }
 
 static void buffer_init() {
-    _tlBufferClass.map = tlClassMapFrom(
+    _tlBufferKind.map = tlClassMapFrom(
             "canread", _buffer_canread,
             "read", _buffer_read,
             "canwrite", _buffer_canwrite,
