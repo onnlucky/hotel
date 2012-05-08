@@ -2,6 +2,7 @@
 
 struct tlSet {
     tlHead head;
+    intptr_t size;
     tlValue data[];
 };
 
@@ -9,7 +10,7 @@ static tlSet* _tl_set_empty;
 
 int tlSetSize(tlSet* set) {
     assert(tlSetIs(set));
-    return set->head.size;
+    return set->size;
 }
 
 void tlSetAssert(tlSet* set) {
@@ -26,7 +27,9 @@ void tlSetAssert(tlSet* set) {
 }
 
 tlSet* tlSetNew(int size) {
-    return tlAllocWithFields(tlSetKind, sizeof(tlSet), size);
+    tlSet* set = tlAlloc(tlSetKind, sizeof(tlSet) + sizeof(tlValue) * size);
+    set->size = size;
+    return set;
 }
 
 tlValue tlSetGet(tlSet* set, int at) {

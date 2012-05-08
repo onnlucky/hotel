@@ -14,13 +14,16 @@ struct tlCode {
     tlSym name;
     tlList* argnames;
     tlMap* argdefaults;
+    intptr_t size;
     tlValue ops[];
 };
 
 void debugcode(tlCode* code);
 
 tlCode* tlCodeNew(int size) {
-    return tlAllocWithFields(tlCodeKind, sizeof(tlCode), size);
+    tlCode* code = tlAlloc(tlCodeKind, sizeof(tlCode) + sizeof(tlValue) * size);
+    code->size = size;
+    return code;
 }
 tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line) {
     int size = tlListSize(ops);
@@ -97,8 +100,8 @@ void tlCodeSetArgNameDefaults_(tlCode* code, tlList* name_defaults) {
 }
 
 void debugcall(int depth, tlCall* call) {
-    fprintf(stderr, "%d, (", tl_head(call)->size);
-    for (int i = 0; i < tl_head(call)->size; i++) {
+    fprintf(stderr, "%zd, (", call->size);
+    for (int i = 0; i < call->size; i++) {
         tlValue a = tlCallValueIter(call, i);
         if (i > 0) fprintf(stderr, ", ");
         fprintf(stderr, "%s", tl_str(a));
@@ -107,11 +110,11 @@ void debugcall(int depth, tlCall* call) {
 }
 
 void debugcode(tlCode* code) {
-    print("size: %d", code->head.size);
+    print("size: %zd", code->size);
     print("name: %s", tl_str(code->name));
     print("argnames: %p", code->argnames);
     print("argdefaults: %p", code->argdefaults);
-    for (int i = 0; i < code->head.size; i++) {
+    for (int i = 0; i < code->size; i++) {
         tlValue op = code->ops[i];
         print("%3d: %s%s", i, tlActiveIs(op)?"!":"", tl_str(op));
         if (tlActiveIs(op)) {

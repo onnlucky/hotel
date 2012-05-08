@@ -35,34 +35,25 @@ int tl_int_or(tlValue v, int d) {
 }
 
 // creating value objects
-void* tlAlloc(tlKind* kind, size_t bytes) {
+tlValue tlAlloc(tlKind* kind, size_t bytes) {
     trace("ALLOC: %p %zd", v, bytes);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
     head->kind = kind;
-    return (void*)head;
+    return head;
 }
-void* tlAllocWithFields(tlKind* kind, size_t bytes, int fieldc) {
-    trace("ALLOC: %p %zd %d", v, bytes, fieldc);
+// cloning objects
+tlValue tlClone(tlValue v) {
+    tlKind* kind = tl_kind(v);
+    assert(kind->size);
+    size_t bytes = kind->size(v);
+    trace("CLONE: %p %zd %d", v, bytes);
     assert(bytes % sizeof(tlValue) == 0);
-    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
+    tlHead* head = calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
-    head->size = fieldc;
-    head->kind = kind;
-    return (void*)head;
-}
-void* tlAllocClone(tlValue v, size_t bytes) {
-    int fieldc = tl_head(v)->size;
-    trace("CLONE: %p %zd %d", v, bytes, tl_head(v)->size);
-    assert(bytes % sizeof(tlValue) == 0);
-    tlHead* head = (tlHead*)calloc(1, bytes + sizeof(tlValue)*fieldc);
-    assert((((intptr_t)head) & 0x7) == 0);
-    head->xxxflags = tl_head(v)->xxxflags;
-    head->size = fieldc;
-    head->kind = tl_kind(v);
-    memcpy((void*)head + sizeof(tlHead), v + sizeof(tlHead), bytes + fieldc*sizeof(tlValue) - sizeof(tlHead));
-    return (void*)head;
+    memcpy(head, v, bytes);
+    return head;
 }
 
 

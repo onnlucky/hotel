@@ -7,6 +7,7 @@ tlKind* tlListKind = &_tlListKind;
 
 struct tlList {
     tlHead head;
+    intptr_t size;
     tlValue data[];
 };
 
@@ -18,8 +19,9 @@ tlList* tlListNew(int size) {
     trace("%d", size);
     if (size == 0) return _tl_emptyList;
     assert(size > 0 && size < TL_MAX_DATA_SIZE);
-    tlList* list = tlAllocWithFields(tlListKind, sizeof(tlList), size);
-    assert(list->head.size == size);
+    tlList* list = tlAlloc(tlListKind, sizeof(tlList) + sizeof(tlValue) * size);
+    list->size = size;
+    assert(list->size == size);
     assert(tlListSize(list) == size);
     return list;
 }
@@ -66,7 +68,7 @@ tlList* tlListFrom_a(tlValue* as, int size) {
 
 int tlListSize(tlList* list) {
     assert(tlListIs(list));
-    return tl_head(list)->size;
+    return list->size;
 }
 
 tlValue tlListGet(tlList* list, int at) {
@@ -222,7 +224,7 @@ INTERNAL tlList* tlListSlice(tlList* list, int first, int last) {
     int len = last - first;
     trace("%d %d %d (size: %d)", first, last, len, size);
     if (len < 0) len = 0;
-    if (len > list->head.size) len = list->head.size;
+    if (len > list->size) len = list->size;
     tlList* nlist = tlListNew(len);
 
     for (int i = 0; i < len; i++) {
@@ -236,7 +238,7 @@ static tlValue _List_clone(tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tlListSize(list);
-    list = tlAllocClone(list, sizeof(tlList));
+    list = tlClone(list);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!list->data[i]) list->data[i] = tlArgsGet(args, argc++);
@@ -317,9 +319,14 @@ INTERNAL tlValue _list_toChar(tlArgs* args) {
     return tlTextFromTake(buf, size);
 }
 
+static size_t listSize(tlValue v) {
+    return sizeof(tlList) + sizeof(tlValue) * tlListAs(v)->size;
+}
+
 // TODO eval: { "_list_clone", _list_clone },
 static tlKind _tlListKind = {
     .name = "List",
+    .size = listSize,
 };
 
 static void list_init() {

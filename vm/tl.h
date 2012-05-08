@@ -21,7 +21,7 @@ typedef struct tlKind tlKind;
 // thus pointers to values have 3 lowest bits set to 000
 typedef struct tlHead {
     uint8_t xxxflags;
-    uint16_t size;
+    uint16_t xxxsize;
     tlKind* kind;
 } tlHead;
 
@@ -352,9 +352,10 @@ tlValue tlResultGet(tlValue v, int at);
 tlResult* tlResultFrom(tlValue v1, ...);
 
 // allocate values
-void* tlAlloc(tlKind* kind, size_t bytes);
-void* tlAllocWithFields(tlKind* kind, size_t bytes, int fieldc);
-void* tlAllocClone(tlValue v, size_t bytes);
+tlValue tlAlloc(tlKind* kind, size_t bytes);
+tlValue tlClone(tlValue v);
+
+// TODO this should be done different
 tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
 
 // create objects with only native functions (to use as classes)
@@ -388,6 +389,7 @@ tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
+typedef size_t(*tlByteSizeFn)(tlValue from);
 typedef tlValue(*tlCallFn)(tlCall* args);
 typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
 typedef tlValue(*tlSendFn)(tlArgs* args);
@@ -398,13 +400,14 @@ struct tlKind {
     const char* name;  // general name of the value
     tlToTextFn toText; // a toText "printer" function
 
+    tlByteSizeFn size; // return memory in bytes required, e.g. `return sizeof(tlTask)`
+
     tlCallFn call;     // if called as a function, before arguments are evaluated
     tlRunFn run;       // if called as a function, after arguments are evaluated
 
+    bool locked;       // if the object has a lock, the task will aqcuire the lock before sending messages
     tlSendFn send;     // if send a message args.this and args.msg are filled in
     tlMap* map;        // if send a message, lookup args.msg here and eval its field
-
-    bool locked;       // if the object has a lock, the task will aqcuire the lock
 };
 
 // any non-value object will have to be protected from concurrent access

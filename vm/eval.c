@@ -56,6 +56,7 @@ static tlKind _tlResultKind = { .name = "Result" };
 tlKind* tlResultKind = &_tlResultKind;
 struct tlResult {
     tlHead head;
+    intptr_t size;
     tlValue data[];
 };
 
@@ -63,6 +64,7 @@ static tlKind _tlCollectKind = { .name = "Collect" };
 tlKind* tlCollectKind = &_tlCollectKind;
 struct tlCollect {
     tlHead head;
+    intptr_t size;
     tlValue data[];
 };
 
@@ -105,7 +107,8 @@ tlCollect* tlCollectFromList_(tlList* list) {
 }
 tlResult* tlResultFromArgs(tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size);
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * size);
+    res->size = size;
     for (int i = 0; i < size; i++) {
         res->data[i] = tlArgsGet(args, i);
     }
@@ -113,7 +116,8 @@ tlResult* tlResultFromArgs(tlArgs* args) {
 }
 tlResult* tlResultFromArgsPrepend(tlValue first, tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size + 1);
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * (size + 1));
+    res->size = size + 1;
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
         res->data[i + 1] = tlArgsGet(args, i);
@@ -122,7 +126,8 @@ tlResult* tlResultFromArgsPrepend(tlValue first, tlArgs* args) {
 }
 tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size - 1);
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * (size - 1));
+    res->size = size - 1;
     for (int i = 1; i < size; i++) {
         res->data[i - 1] = tlArgsGet(args, i);
     }
@@ -137,7 +142,8 @@ tlResult* tlResultFrom(tlValue v1, ...) {
     for (tlValue v = v1; v; v = va_arg(ap, tlValue)) size++;
     va_end(ap);
 
-    tlResult* res = tlAllocWithFields(tlResultKind, sizeof(tlResult), size + 1);
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * (size + 1));
+    res->size = size + 1;
 
     va_start(ap, v1);
     int i = 0;
@@ -148,7 +154,7 @@ tlResult* tlResultFrom(tlValue v1, ...) {
     return res;
 }
 void tlResultSet_(tlResult* res, int at, tlValue v) {
-    assert(at >= 0 && at < res->head.size);
+    assert(at >= 0 && at < res->size);
     res->data[at] = v;
 }
 tlValue tlResultGet(tlValue v, int at) {
@@ -158,7 +164,7 @@ tlValue tlResultGet(tlValue v, int at) {
         return tlNull;
     }
     tlResult* result = tlResultAs(v);
-    if (at < result->head.size) return result->data[at];
+    if (at < result->size) return result->data[at];
     return tlNull;
 }
 // return the first value from a list of results, or just the value passed in
@@ -166,7 +172,7 @@ tlValue tlFirst(tlValue v) {
     if (!v) return v;
     if (!tlResultIs(v)) return v;
     tlResult* result = tlResultAs(v);
-    if (0 < result->head.size) return result->data[0];
+    if (0 < result->size) return result->data[0];
     return tlNull;
 }
 
@@ -514,7 +520,7 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
 
     tlCode* code = frame->code;
     tlEnv* env = frame->env;
-    trace("%p -- %d [%d]", frame, pc, code->head.size);
+    trace("%p -- %d [%d]", frame, pc, code->size);
 
     // TODO this is broken and weird, how about eval constructs the tlCodeFrame itself ...
     // for _eval, it needs to "fish" up the env again, if is_eval we write it to worker
@@ -533,7 +539,7 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
     // set value from any pause/resume
     task->value = _res;
 
-    for (;pc < code->head.size; pc++) {
+    for (;pc < code->size; pc++) {
         tlValue op = code->ops[pc];
         trace("%p pc=%d, op=%s", frame, pc, tl_str(op));
 
@@ -579,8 +585,8 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
         // a "collect" object means processing a multi return value
         if (tlCollectIs(op)) {
             tlCollect* names = tlCollectAs(op);
-            trace2("%p op: collect -- %d -- %s", frame, names->head.size, tl_str(task->value));
-            for (int i = 0; i < names->head.size; i++) {
+            trace2("%p op: collect -- %d -- %s", frame, names->size, tl_str(task->value));
+            for (int i = 0; i < names->size; i++) {
                 tlSym name = tlSymAs(names->data[i]);
                 tlValue v = tlResultGet(task->value, i);
                 trace2("%p op: collect: %s = %s", frame, tl_str(name), tl_str(v));

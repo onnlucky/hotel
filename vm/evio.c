@@ -49,13 +49,13 @@ static int setblock(int fd) {
 }
 
 static tlValue _io_getrusage(tlArgs* args) {
-    tlMap *res = tlAllocClone(_usageMap, sizeof(tlMap));
+    tlMap *res = tlClone(_usageMap);
     struct rusage use;
     getrusage(RUSAGE_SELF, &use);
     tlMapSetSym_(res, _s_cpu, tlINT(use.ru_utime.tv_sec + use.ru_stime.tv_sec));
     tlMapSetSym_(res, _s_mem, tlINT(use.ru_maxrss));
     tlMapSetSym_(res, _s_pid, tlINT(getpid()));
-#ifdef HAVE_GC
+#ifdef HAVE_BOEHMGC
     tlMapSetSym_(res, _s_gcs, tlINT(GC_gc_no));
 #endif
     return res;
@@ -236,7 +236,9 @@ static tlFile* tlFileNew(int fd) {
     file->writer = tlAlloc(tlWriterKind, sizeof(tlWriter));
     file->writer->file = file;
     ev_io_init(&file->ev, io_cb, fd, 0);
+#ifdef HAVE_BOEHMGC
     GC_REGISTER_FINALIZER_NO_ORDER(file, close_ev_io, null, null, null);
+#endif
     trace("open: %p %d", file, fd);
     return file;
 }
@@ -505,7 +507,7 @@ static tlValue _Path_stat(tlArgs* args) {
         }
     }
 
-    tlMap *res = tlAllocClone(_statMap, sizeof(tlMap));
+    tlMap *res = tlClone(_statMap);
     tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
     tlMapSetSym_(res, _s_ino, tlINT(buf.st_ino));
     tlMapSetSym_(res, _s_mode, tlINT(buf.st_mode));

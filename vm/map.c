@@ -23,7 +23,7 @@ tlMap* tlMapEmpty() { return _tl_emptyMap; }
 
 tlMap* tlMapNew(tlSet* keys) {
     if (!keys) keys = _tl_set_empty;
-    tlMap* map = tlAllocWithFields(tlMapKind, sizeof(tlMap), tlSetSize(keys));
+    tlMap* map = tlAlloc(tlMapKind, sizeof(tlMap) + sizeof(tlValue) * keys->size);
     map->keys = keys;
     assert(tlMapSize(map) == tlSetSize(keys));
     return map;
@@ -33,7 +33,7 @@ tlMap* tlMapToObject_(tlMap* map) {
 }
 int tlMapSize(tlMap* map) {
     assert(tlMapOrObjectIs(map));
-    return map->head.size;
+    return map->keys->size;
 }
 tlSet* tlMapKeySet(tlMap* map) {
     return map->keys;
@@ -59,7 +59,7 @@ tlMap* tlMapSet(tlMap* map, tlValue key, tlValue v) {
     int at = 0;
     at = tlSetIndexof(map->keys, key);
     if (at >= 0) {
-        tlMap* nmap = tlAllocClone(map, sizeof(tlMap));
+        tlMap* nmap = tlClone(map);
         nmap->data[at] = v;
         return nmap;
     }
@@ -205,7 +205,7 @@ static tlValue _Map_clone(tlArgs* args) {
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     int size = tlMapSize(map);
-    map = tlAllocClone(map, sizeof(tlMap));
+    map = tlClone(map);
     int argc = 1;
     for (int i = 0; i < size; i++) {
         if (!map->data[i] || map->data[i] == tlUndefined) {
@@ -223,7 +223,7 @@ static tlValue _Map_update(tlArgs* args) {
     tlMap* map = tlArgsGet(args, 0);
     tlKind* kind = map->head.kind;
     tlMap* add = tlArgsGet(args, 1);
-    for (int i = 0; i < add->head.size; i++) {
+    for (int i = 0; i < add->keys->size; i++) {
         map = tlMapSet(map, add->keys->data[i], add->data[i]);
     }
     map->head.kind = kind;
@@ -238,7 +238,7 @@ static tlValue _Map_inherit(tlArgs* args) {
     for (int i = 1; i < tlArgsSize(args); i++) {
         if (!tlMapOrObjectIs(tlArgsGet(args, i))) TL_THROW("Expected a Map");
         tlMap* add = tlArgsGet(args, 1);
-        for (int i = 0; i < add->head.size; i++) {
+        for (int i = 0; i < add->keys->size; i++) {
             map = tlMapSet(map, add->keys->data[i], add->data[i]);
         }
     }
@@ -312,11 +312,18 @@ static tlValue _map_toObject(tlArgs* args) {
 const char* mapToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Map@%p %d>", v, tlMapSize(tlMapAs(v))); return buf;
 }
+static size_t mapSize(tlValue v) {
+    return sizeof(tlMap) + sizeof(tlValue) * tlMapAs(v)->keys->size;
+}
 static tlKind _tlMapKind = {
-    .name = "text",
+    .name = "map",
+    .size = mapSize,
     .toText = mapToText,
 };
 
+static size_t valueObjectSize(tlValue v) {
+    return sizeof(tlMap) + sizeof(tlValue) * tlMapFromObjectAs(v)->keys->size;
+}
 const char* valueObjectToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<ValueObject@%p %d>", v, tlMapSize(tlMapFromObjectAs(v))); return buf;
 }
@@ -358,6 +365,7 @@ static tlValue valueObjectRun(tlValue fn, tlArgs* args) {
 }
 static tlKind _tlValueObjectKind = {
     .name = "ValueObject",
+    .size = valueObjectSize,
     .toText = valueObjectToText,
     .send = valueObjectSend,
     .run = valueObjectRun,

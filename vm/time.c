@@ -24,7 +24,7 @@ static tlValue _Time(tlArgs* args) {
     localtime_r(&tv.tv_sec, &tm);
 
     // TODO add tv using a float ...
-    tlMap *res = tlAllocClone(_timeMap, sizeof(tlMap));
+    tlMap *res = tlClone(_timeMap);
     tlMapSetSym_(res, _s_sec, tlINT(tm.tm_sec));
     tlMapSetSym_(res, _s_min, tlINT(tm.tm_min));
     tlMapSetSym_(res, _s_hour, tlINT(tm.tm_hour));
