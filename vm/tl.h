@@ -8,29 +8,27 @@
 
 #include "platform.h"
 
+// all values are tagged pointers, memory based values are aligned to 8 bytes, so 3 tag bits
 typedef void* tlValue;
+
 typedef tlValue tlSym;
 typedef tlValue tlInt;
 
+// a kind describes a value, sort of like a common vtable
 typedef struct tlKind tlKind;
 
-// TODO how well defined is the struct memory layout we embed pretty deep sometimes
-// TODO rework now that we have classes ... but into what?
-// TODO we actually have 3 bits in the kind pointer ... just incase
-// common head of all ref values; values appear in memory at 8 byte alignments
-// thus pointers to values have 3 lowest bits set to 000
+// all memory based values start with a descriptive kind pointer
+// notice also tlKind's are 8 byte aligned, so we have a pointer and 3 flags
 typedef struct tlHead {
-    uint8_t xxxflags;
-    uint16_t xxxsize;
-    tlKind* kind;
+    intptr_t kind;
 } tlHead;
 
 // used for tlCall and tlArgs and tlMsg objects to indicate named params were passed in
-static const uint8_t TL_FLAG_HASKEYS  = 0x10;
+static const uint8_t TL_FLAG_HASKEYS  = 0x01;
 
 // used for tlEnv to indicate it was captured or closed
-static const uint8_t TL_FLAG_CAPTURED = 0x10;
-static const uint8_t TL_FLAG_CLOSED   = 0x20;
+static const uint8_t TL_FLAG_CAPTURED = 0x01;
+static const uint8_t TL_FLAG_CLOSED   = 0x02;
 
 // small int, 31 or 63 bits, lowest bit is always 1
 static const tlValue tlZero = (tlHead*)((0 << 1)|1);
@@ -99,8 +97,10 @@ extern tlKind* tlNullKind;
 extern tlKind* tlUndefinedKind;
 extern tlKind* tlBoolKind;
 
+static inline intptr_t get_kptr(tlValue v) { return ((tlHead*)v)->kind; }
+
 static inline tlKind* tl_kind(tlValue v) {
-    if (tlRefIs(v)) return tl_head(v)->kind;
+    if (tlRefIs(v)) return (tlKind*)(get_kptr(v) & ~0x7);
     if (tlIntIs(v)) return tlIntKind;
     if (tlSymIs(v)) return tlSymKind;
     // assert(tlTagIs(v));

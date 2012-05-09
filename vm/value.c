@@ -10,9 +10,11 @@ static inline tlTask* tlTaskCurrent() {
     return tl_task_current;
 }
 
-INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return tl_head(v)->xxxflags & flag; }
-INTERNAL void tlflag_clear(tlValue v, unsigned flag) { tl_head(v)->xxxflags &= ~flag; }
-INTERNAL void tlflag_set(tlValue v, unsigned flag)   { tl_head(v)->xxxflags |= flag; }
+static inline void set_kptr(tlValue v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
+
+INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return get_kptr(v) & flag; }
+INTERNAL void tlflag_clear(tlValue v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
+INTERNAL void tlflag_set(tlValue v, unsigned flag)   { set_kptr(v, get_kptr(v) | flag); }
 
 static tlText* _t_true;
 static tlText* _t_false;
@@ -36,11 +38,12 @@ int tl_int_or(tlValue v, int d) {
 
 // creating value objects
 tlValue tlAlloc(tlKind* kind, size_t bytes) {
+    assert((((intptr_t)kind) & 0x7) == 0);
     trace("ALLOC: %p %zd", v, bytes);
     assert(bytes % sizeof(tlValue) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
-    head->kind = kind;
+    head->kind = (intptr_t)kind;
     return head;
 }
 // cloning objects

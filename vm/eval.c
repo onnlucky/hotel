@@ -102,7 +102,8 @@ tlThunk* tlThunkNew(tlValue v) {
     return thunk;
 }
 tlCollect* tlCollectFromList_(tlList* list) {
-    list->head.kind = tlCollectKind;
+    assert((list->head.kind & 0x7) == 0);
+    list->head.kind = (intptr_t)tlCollectKind;
     return tlCollectAs(list);
 }
 tlResult* tlResultFromArgs(tlArgs* args) {

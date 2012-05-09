@@ -29,7 +29,8 @@ tlMap* tlMapNew(tlSet* keys) {
     return map;
 }
 tlMap* tlMapToObject_(tlMap* map) {
-    map->head.kind = tlValueObjectKind; return map;
+    assert((map->head.kind & 0x7) == 0);
+    map->head.kind = (intptr_t)tlValueObjectKind; return map;
 }
 int tlMapSize(tlMap* map) {
     assert(tlMapOrObjectIs(map));
@@ -221,7 +222,7 @@ static tlValue _Map_update(tlArgs* args) {
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     if (!tlMapOrObjectIs(tlArgsGet(args, 1))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
-    tlKind* kind = map->head.kind;
+    intptr_t kind = map->head.kind;
     tlMap* add = tlArgsGet(args, 1);
     for (int i = 0; i < add->keys->size; i++) {
         map = tlMapSet(map, add->keys->data[i], add->data[i]);
@@ -234,7 +235,7 @@ static tlValue _Map_inherit(tlArgs* args) {
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     tlValue oclass = tlMapGetSym(map, s_class);
-    tlKind* kind = map->head.kind;
+    intptr_t kind = map->head.kind;
     for (int i = 1; i < tlArgsSize(args); i++) {
         if (!tlMapOrObjectIs(tlArgsGet(args, i))) TL_THROW("Expected a Map");
         tlMap* add = tlArgsGet(args, 1);
