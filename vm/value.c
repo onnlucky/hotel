@@ -24,14 +24,20 @@ tlValue tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
 int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
 int tl_bool_or(tlValue v, bool d) { if (!v) return d; return tl_bool(v); }
 
-tlValue tlINT(int i) { return (tlValue)((intptr_t)i << 2 | 1); }
-int tl_int(tlValue v) {
+tlValue tlINT(intptr_t i) { return (tlValue)(i << 2 | 1); }
+intptr_t tl_int(tlValue v) {
     assert(tlIntIs(v));
-    int i = (intptr_t)v;
-    if (i < 0) return (i >> 2) | 0xC0000000;
+    intptr_t i = (intptr_t)v;
+    if (i < 0) {
+#ifdef M32
+        return (i >> 2) | 0xC0000000;
+#else
+        return (i >> 2) | 0xC000000000000000;
+#endif
+    }
     return i >> 2;
 }
-int tl_int_or(tlValue v, int d) {
+intptr_t tl_int_or(tlValue v, int d) {
     if (!tlIntIs(v)) return d;
     return tl_int(v);
 }
@@ -106,7 +112,7 @@ static const char* boolToText(tlValue v, char* buf, int size) {
 static tlKind _tlBoolKind = { .name = "Bool", .toText = boolToText };
 
 static const char* intToText(tlValue v, char* buf, int size) {
-    snprintf(buf, size, "%d", tl_int(v)); return buf;
+    snprintf(buf, size, "%zd", tl_int(v)); return buf;
 }
 static tlKind _tlIntKind = { .name = "Int", .toText = intToText };
 

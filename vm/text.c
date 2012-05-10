@@ -11,8 +11,9 @@ static tlText* _tl_emptyText;
 // TODO short strings should be "inline" saves finalizer
 struct tlText {
     tlHead head;
+    unsigned int hash;
+    unsigned int len;
     const char* data;
-    int len;
 };
 
 tlText* tlTextEmpty() { return _tl_emptyText; }
@@ -51,6 +52,42 @@ const char* tlTextData(tlText *text) {
 int tlTextSize(tlText* text) {
     assert(tlTextIs(text));
     return text->len;
+}
+
+#define mmix(h,k) { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; }
+static unsigned int murmurhash2a(const void * key, int len) {
+    const unsigned int seed = 33;
+    const unsigned int m = 0x5bd1e995;
+    const int r = 24;
+    unsigned int l = len;
+    const unsigned char * data = (const unsigned char *)key;
+    unsigned int h = seed;
+    while(len >= 4) {
+        unsigned int k = *(unsigned int*)data;
+        mmix(h,k);
+        data += 4;
+        len -= 4;
+    }
+    unsigned int t = 0;
+    switch(len) {
+        case 3: t ^= data[2] << 16;
+        case 2: t ^= data[1] << 8;
+        case 1: t ^= data[0];
+    }
+    mmix(h,t);
+    mmix(h,l);
+    h ^= h >> 13;
+    h *= m;
+    h ^= h >> 15;
+    return h;
+}
+
+unsigned int tlTextHash(tlText* text) {
+    assert(tlTextIs(text));
+    if (text->hash) return text->hash;
+    text->hash = murmurhash2a(text->data, text->len);
+    if (!text->hash) text->hash = 1;
+    return text->hash;
 }
 
 tlValue tlTextEquals(tlText* left, tlText* right) {
@@ -135,6 +172,13 @@ INTERNAL tlValue _text_size(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     return tlINT(tlTextSize(text));
+}
+INTERNAL tlValue _text_hash(tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    // TODO this can overflow/underflow ... sometimes, need to fix
+    return tlINT(tlTextHash(text));
 }
 
 INTERNAL tlValue _text_search(tlArgs* args) {
@@ -296,9 +340,13 @@ INTERNAL tlValue _text_endsWith(tlArgs* args) {
 INTERNAL const char* textToText(tlValue v, char* buf, int size) {
     return tlTextData(tlTextAs(v));
 }
+INTERNAL unsigned int textHash(tlValue v) {
+    return tlTextHash(tlTextAs(v));
+}
 static tlKind _tlTextKind = {
     .name = "text",
     .toText = textToText,
+    .hash = textHash,
 };
 
 static tlSym s_class;
@@ -308,6 +356,7 @@ static void text_init() {
         "toText", _text_toText,
         "toSym", _text_toSym,
         "size", _text_size,
+        "hash", _text_hash,
         "startsWith", _text_startsWith,
         "endsWith", _text_endsWith,
         "search", _text_search,

@@ -1,9 +1,12 @@
 # TODO
 
-cleanup tlValue to just be kind pointer (3 flags!)
+start using tagged doubles?
+add key iterator to lhashmap, and rework tlHashMap with real kind.hash function
+for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
+make the "flags" private ...
+
 rename tlLock to tlLockValue and put in union with tlValue
 add kind->resume for tlFrame
-add kind->memory for cloning values (either < 256 or pointer to function?)
 add kind->finalize for finalizers
 
 hook up tlArgumentError to TL_ERROR

@@ -156,7 +156,7 @@ bool tlCallableIs(tlValue v);
 
 // to and from primitive values
 tlValue tlBOOL(unsigned c);
-tlInt tlINT(int i);
+tlInt tlINT(intptr_t i);
 
 // tlTEXT and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
@@ -165,8 +165,8 @@ tlInt tlINT(int i);
 
 int tl_bool(tlValue v);
 int tl_bool_or(tlValue v, bool d);
-int tl_int(tlValue v);
-int tl_int_or(tlValue v, int d);
+intptr_t tl_int(tlValue v);
+intptr_t tl_int_or(tlValue v, int d);
 const char* tl_str(tlValue v);
 
 // ** main api for values in runtime **
@@ -389,7 +389,7 @@ tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
-typedef intptr_t(*tlHashFn)(tlValue from);
+typedef unsigned int(*tlHashFn)(tlValue from);
 typedef size_t(*tlByteSizeFn)(tlValue from);
 typedef tlValue(*tlCallFn)(tlCall* args);
 typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
