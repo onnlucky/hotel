@@ -146,7 +146,7 @@ INTERNAL tlValue _array_remove(tlArgs* args) {
 
 static tlMap* arrayClass;
 static void array_init() {
-    _tlArrayKind.map = tlClassMapFrom(
+    _tlArrayKind.klass = tlClassMapFrom(
         "size", _array_size,
         "get", _array_get,
         "set", _array_set,
@@ -165,7 +165,7 @@ static void array_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(arrayClass, s_class, _tlArrayKind.map);
+    tlMapSetSym_(arrayClass, s_class, _tlArrayKind.klass);
 }
 
 static void array_vm_default(tlVm* vm) {

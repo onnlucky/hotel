@@ -44,7 +44,7 @@ static const tlNativeCbs __var_natives[] = {
 
 static tlMap* varClass;
 static void var_init() {
-    _tlVarKind.map = tlClassMapFrom(
+    _tlVarKind.klass = tlClassMapFrom(
         "get", _var_get,
         "set", _var_set,
         null

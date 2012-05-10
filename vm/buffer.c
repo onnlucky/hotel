@@ -66,7 +66,7 @@ INTERNAL tlValue _Buffer_new(tlArgs* args) {
 }
 
 static void buffer_init() {
-    _tlBufferKind.map = tlClassMapFrom(
+    _tlBufferKind.klass = tlClassMapFrom(
             "canread", _buffer_canread,
             "read", _buffer_read,
             "canwrite", _buffer_canwrite,

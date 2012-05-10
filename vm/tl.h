@@ -389,25 +389,28 @@ tlLock* tlLockCast(tlValue v);
 tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
+typedef intptr_t(*tlHashFn)(tlValue from);
 typedef size_t(*tlByteSizeFn)(tlValue from);
 typedef tlValue(*tlCallFn)(tlCall* args);
 typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
 typedef tlValue(*tlSendFn)(tlArgs* args);
 
 // a kind describes a hotel value for the vm (not at the language level)
+// a kind can have a tlMap* klass, which represents its class from the language level
 // fields with a null value is usually perfectly fine
 struct tlKind {
     const char* name;  // general name of the value
     tlToTextFn toText; // a toText "printer" function
 
-    tlByteSizeFn size; // return memory in bytes required, e.g. `return sizeof(tlTask)`
+    tlHashFn hash;     // return a hash value, must be stable
+    tlByteSizeFn size; // return memory use in bytes, e.g. `return sizeof(tlTask)`
 
     tlCallFn call;     // if called as a function, before arguments are evaluated
     tlRunFn run;       // if called as a function, after arguments are evaluated
 
-    bool locked;       // if the object has a lock, the task will aqcuire the lock before sending messages
+    bool locked;       // if the object has a lock, the task will aqcuire the lock
     tlSendFn send;     // if send a message args.this and args.msg are filled in
-    tlMap* map;        // if send a message, lookup args.msg here and eval its field
+    tlMap* klass;      // if send a message, lookup args.msg here and eval its field
 };
 
 // any non-value object will have to be protected from concurrent access

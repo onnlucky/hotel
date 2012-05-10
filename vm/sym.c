@@ -191,7 +191,7 @@ static void sym_init() {
     s_Map_update = tlSYM("_Map_update");
     s_Map_inherit = tlSYM("_Map_inherit");
 
-    _tlSymKind.map = tlClassMapFrom(
+    _tlSymKind.klass = tlClassMapFrom(
         "toText", _sym_toText,
         "toSym", _sym_toSym,
         null

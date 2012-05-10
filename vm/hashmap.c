@@ -78,7 +78,7 @@ INTERNAL tlValue _hashmap_size(tlArgs* args) {
 
 static tlMap* hashmapClass;
 void hashmap_init() {
-    _tlHashMapKind.map = tlClassMapFrom(
+    _tlHashMapKind.klass = tlClassMapFrom(
         "get", _hashmap_get,
         "set", _hashmap_set,
         "has", _hashmap_has,

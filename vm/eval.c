@@ -739,7 +739,7 @@ bool tlCallableIs(tlValue v) {
     tlKind* kind = tl_kind(v);
     if (kind->call) return true;
     if (kind->run) return true;
-    if (kind->map && tlMapGetSym(kind->map, s_call)) return true;
+    if (kind->klass && tlMapGetSym(kind->klass, s_call)) return true;
     return false;
 }
 
@@ -759,7 +759,7 @@ INTERNAL tlValue evalSend(tlArgs* args) {
     trace("%s.%s", tl_str(target), tl_str(msg));
     tlKind* kind = tl_kind(target);
     if (kind->send) return kind->send(args);
-    if (kind->map) return evalMapSend(kind->map, msg, args, target);
+    if (kind->klass) return evalMapSend(kind->klass, msg, args, target);
     TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
 }
 
@@ -949,7 +949,7 @@ static void eval_init() {
     _tlCallKind.call = callCall;
     _tlClosureKind.call = callClosure;
     _tlClosureKind.run = runClosure;
-    _tlClosureKind.map = tlClassMapFrom(
+    _tlClosureKind.klass = tlClassMapFrom(
         "call", _call,
         null
     );

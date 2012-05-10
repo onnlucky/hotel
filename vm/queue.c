@@ -154,13 +154,13 @@ INTERNAL tlValue _message_get(tlArgs* args) {
 static tlMap* queueClass;
 void queue_init() {
     _tlQueueInputKind.send = queueInputReceive;
-    _tlQueueKind.map = tlClassMapFrom(
+    _tlQueueKind.klass = tlClassMapFrom(
         "input", _queue_input,
         "get", _queue_get,
         "poll", _queue_poll,
         null
     );
-    _tlMessageKind.map = tlClassMapFrom(
+    _tlMessageKind.klass = tlClassMapFrom(
         "reply", _message_reply,
         "name", _message_name,
         "get", _message_get,

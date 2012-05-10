@@ -596,7 +596,7 @@ static tlMap* taskClass;
 
 static void task_init() {
     tl_register_natives(__task_natives);
-    _tlTaskKind.map = tlClassMapFrom(
+    _tlTaskKind.klass = tlClassMapFrom(
         "isDone", _task_isDone,
         "wait", _task_wait,
         "value", _task_wait,

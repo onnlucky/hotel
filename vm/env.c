@@ -128,7 +128,7 @@ static tlValue _Env_localObject(tlArgs* args) {
 
 static tlMap* envClass;
 static void env_init() {
-    _tlEnvKind.map = tlClassMapFrom(
+    _tlEnvKind.klass = tlClassMapFrom(
         "size", _env_size,
         null
     );

@@ -127,7 +127,7 @@ tlKind* tlSetKind = &_tlSetKind;
 
 static void set_init() {
     _tl_set_empty = tlSetNew(0);
-    _tlSetKind.map = tlClassMapFrom(
+    _tlSetKind.klass = tlClassMapFrom(
         "size", _set_size,
         //"has", _set_has,
         "get", _set_get,
@@ -139,7 +139,7 @@ static void set_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlSetKind.map);
+    tlMapSetSym_(constructor, s_class, _tlSetKind.klass);
     tl_register_global("Set", constructor);
 }
 

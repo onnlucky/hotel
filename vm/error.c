@@ -110,7 +110,7 @@ static tlMap* argumentErrorClass;
 
 INTERNAL void error_init() {
     tl_register_natives(__error_natives);
-    _tlStackTraceKind.map = tlClassMapFrom(
+    _tlStackTraceKind.klass = tlClassMapFrom(
         "get", _stackTrace_get,
         null
     );

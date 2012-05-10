@@ -138,7 +138,7 @@ static tlKind _tlArgsKind = {
 };
 
 static void args_init() {
-    _tlArgsKind.map = tlClassMapFrom(
+    _tlArgsKind.klass = tlClassMapFrom(
             "size", _args_size,
             "get", _args_get,
             "block", _args_block,

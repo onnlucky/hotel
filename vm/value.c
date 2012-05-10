@@ -169,11 +169,11 @@ static void value_init() {
     _t_true = tlTEXT("true");
     _t_false = tlTEXT("false");
     tl_register_natives(__value_natives);
-    _tlBoolKind.map = tlClassMapFrom(
+    _tlBoolKind.klass = tlClassMapFrom(
         "toText", _bool_toText,
         null
     );
-    _tlIntKind.map = tlClassMapFrom(
+    _tlIntKind.klass = tlClassMapFrom(
         "toChar", _int_toChar,
         "toText", _int_toText,
         null

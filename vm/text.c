@@ -304,7 +304,7 @@ static tlKind _tlTextKind = {
 static tlSym s_class;
 static void text_init() {
     _tl_emptyText = tlTEXT("");
-    _tlTextKind.map = tlClassMapFrom(
+    _tlTextKind.klass = tlClassMapFrom(
         "toText", _text_toText,
         "toSym", _text_toSym,
         "size", _text_size,
@@ -328,7 +328,7 @@ static void text_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlTextKind.map);
+    tlMapSetSym_(constructor, s_class, _tlTextKind.klass);
     tl_register_global("Text", constructor);
 }
 

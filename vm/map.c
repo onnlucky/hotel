@@ -373,7 +373,7 @@ static tlKind _tlValueObjectKind = {
 };
 
 static void map_init() {
-    _tlMapKind.map = tlClassMapFrom(
+    _tlMapKind.klass = tlClassMapFrom(
         "size", _map_size,
         "get", _map_get,
         "set", _map_set,

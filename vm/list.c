@@ -331,7 +331,7 @@ static tlKind _tlListKind = {
 
 static void list_init() {
     _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
-    _tlListKind.map = tlClassMapFrom(
+    _tlListKind.klass = tlClassMapFrom(
         "size", _list_size,
         "get", _list_get,
         "set", _list_set,
@@ -352,7 +352,7 @@ static void list_init() {
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlListKind.map);
+    tlMapSetSym_(constructor, s_class, _tlListKind.klass);
     tl_register_global("List", constructor);
 }
 

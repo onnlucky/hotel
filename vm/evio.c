@@ -1028,31 +1028,31 @@ static const tlNativeCbs __evio_natives[] = {
 };
 
 void evio_init() {
-    _tlReaderKind.map = tlClassMapFrom(
+    _tlReaderKind.klass = tlClassMapFrom(
         "read", _reader_read,
         "accept", _reader_accept,
         "close", _reader_close,
         null
     );
-    _tlWriterKind.map = tlClassMapFrom(
+    _tlWriterKind.klass = tlClassMapFrom(
         "write", _writer_write,
         "close", _writer_close,
         null
     );
     _tlFileKind.toText = fileToText;
-    _tlFileKind.map = tlClassMapFrom(
+    _tlFileKind.klass = tlClassMapFrom(
         "isClosed", _file_isClosed,
         "close", _file_close,
         "reader", _file_reader,
         "writer", _file_writer,
         null
     );
-    _tlDirKind.map = tlClassMapFrom(
+    _tlDirKind.klass = tlClassMapFrom(
         "read", _DirRead,
         "each", _DirEach,
         null
     );
-    _tlChildKind.map = tlClassMapFrom(
+    _tlChildKind.klass = tlClassMapFrom(
         "isRunning", _child_running,
         "wait", _child_wait,
         "in", _child_in,
