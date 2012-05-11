@@ -90,9 +90,10 @@ unsigned int tlTextHash(tlText* text) {
     return text->hash;
 }
 
-tlValue tlTextEquals(tlText* left, tlText* right) {
-    if (tlTextSize(left) != tlTextSize(right)) return tlFalse;
-    return tlBOOL(strcmp(tlTextData(left), tlTextData(right)) == 0);
+bool tlTextEquals(tlText* left, tlText* right) {
+    if (left->len != right->len) return 0;
+    if (left->hash && right->hash && left->hash != right->hash) return 0;
+    return strcmp(left->data, right->data) == 0;
 }
 
 tlText* tlTextSub(tlText* from, int first, int size) {
@@ -343,10 +344,14 @@ INTERNAL const char* textToText(tlValue v, char* buf, int size) {
 INTERNAL unsigned int textHash(tlValue v) {
     return tlTextHash(tlTextAs(v));
 }
+INTERNAL int textEquals(tlValue left, tlValue right) {
+    return tlTextEquals(tlTextAs(left), tlTextAs(right));
+}
 static tlKind _tlTextKind = {
     .name = "text",
     .toText = textToText,
     .hash = textHash,
+    .equals = textEquals,
 };
 
 static tlSym s_class;

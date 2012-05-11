@@ -78,7 +78,7 @@ static tlValue _eq(tlArgs* args) {
     tlKind* leftKind = tl_kind(left);
     tlKind* rightKind = tl_kind(right);
     if (leftKind != rightKind) return tlFalse;
-    if (leftKind == tlTextKind) return tlTextEquals(tlTextAs(left), tlTextAs(right));
+    if (leftKind == tlTextKind) return tlBOOL(tlTextEquals(tlTextAs(left), tlTextAs(right)));
     // TODO do map here too? and others?
     //if (leftKind == tlListKind) return tlListEquals(tlListAs(left), tlListAs(right));
     return tlFalse;

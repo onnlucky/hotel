@@ -390,6 +390,8 @@ tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
 typedef unsigned int(*tlHashFn)(tlValue from);
+typedef int(*tlEqualsFn)(tlValue left, tlValue right);
+typedef int(*tlCompareFn)(tlValue left, tlValue right);
 typedef size_t(*tlByteSizeFn)(tlValue from);
 typedef tlValue(*tlCallFn)(tlCall* args);
 typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
@@ -403,6 +405,9 @@ struct tlKind {
     tlToTextFn toText; // a toText "printer" function
 
     tlHashFn hash;     // return a hash value, must be stable
+    tlEqualsFn equals; // return left == right, required if hash is not null
+    tlCompareFn cmp;   // return left - right
+
     tlByteSizeFn size; // return memory use in bytes, e.g. `return sizeof(tlTask)`
 
     tlCallFn call;     // if called as a function, before arguments are evaluated
