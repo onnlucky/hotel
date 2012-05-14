@@ -6,6 +6,8 @@ INTERNAL tlValue _call(tlArgs* args);
 INTERNAL tlArgs* evalCall(tlCall* call);
 INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn);
 
+static const uint8_t TL_FLAG_HASKEYS  = 0x01;
+
 static tlKind _tlNativeKind;
 tlKind* tlNativeKind = &_tlNativeKind;
 

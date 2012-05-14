@@ -14,7 +14,10 @@ static inline void set_kptr(tlValue v, intptr_t kind) { ((tlHead*)v)->kind = kin
 
 INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return get_kptr(v) & flag; }
 INTERNAL void tlflag_clear(tlValue v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
-INTERNAL void tlflag_set(tlValue v, unsigned flag)   { set_kptr(v, get_kptr(v) | flag); }
+INTERNAL void tlflag_set(tlValue v, unsigned flag) {
+    assert(flag <= 0x7);
+    set_kptr(v, get_kptr(v) | flag);
+}
 
 static tlText* _t_true;
 static tlText* _t_false;

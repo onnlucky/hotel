@@ -23,13 +23,6 @@ typedef struct tlHead {
     intptr_t kind;
 } tlHead;
 
-// used for tlCall and tlArgs and tlMsg objects to indicate named params were passed in
-static const uint8_t TL_FLAG_HASKEYS  = 0x01;
-
-// used for tlEnv to indicate it was captured or closed
-static const uint8_t TL_FLAG_CAPTURED = 0x01;
-static const uint8_t TL_FLAG_CLOSED   = 0x02;
-
 // small int, 31 or 63 bits, lowest bit is always 1
 static const tlValue tlZero = (tlHead*)((0 << 1)|1);
 static const tlValue tlOne =  (tlHead*)((1 << 1)|1);

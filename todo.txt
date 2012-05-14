@@ -3,7 +3,6 @@
 start using tagged doubles?
 add key iterator to lhashmap, and rework tlHashMap with real kind.hash function
 for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
-make the "flags" private ...
 
 rename tlLock to tlLockValue and put in union with tlValue
 add kind->resume for tlFrame

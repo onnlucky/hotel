@@ -4,6 +4,9 @@
 
 #include "trace-off.h"
 
+static const uint8_t TL_FLAG_CAPTURED = 0x01;
+static const uint8_t TL_FLAG_CLOSED   = 0x02;
+
 static tlKind _tlEnvKind = { .name = "Environment" };
 tlKind* tlEnvKind = &_tlEnvKind;
 
