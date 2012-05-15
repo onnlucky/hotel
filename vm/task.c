@@ -9,7 +9,7 @@
 //
 // If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 INTERNAL tlValue tlresult_get(tlValue v, int at);
 INTERNAL tlArgs* evalCall(tlCall* call);
@@ -131,6 +131,7 @@ tlValue tlTaskPauseResuming(tlResumeCb cb, tlValue res) {
 INTERNAL tlValue tlTaskSetStack(tlFrame* frame, tlValue res) {
     tlTask* task = tlTaskCurrent();
     trace("UNSAFE: set stack: %p", frame);
+    if (task->stack == frame) warning("set-stack on same frame");
     task->stack = frame;
     task->value = res;
     assert(task->value);

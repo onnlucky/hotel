@@ -35,6 +35,7 @@ INTERNAL tlValue resumeMatch(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
     frame = frame->caller; // our parent codeblock; we wish to unwind that one too ...
     assert(tlCodeFrameIs(frame));
+    // save to use set stack, because no user frames are unwound
     return tlTaskSetStack(frame->caller, res);
 }
 INTERNAL tlValue _match(tlArgs* args) {
@@ -217,6 +218,7 @@ INTERNAL tlValue resumeGoto(tlFrame* frame, tlValue res, tlValue throw) {
     tlTaskStackUnwind(caller, tlNull);           // unwind upto our caller
     tlTaskPauseResuming(resumeGotoEval, tlNull); // put a resume frame on top
     tlTaskPauseAttach(caller);                   // attach the caller
+    // save to use set stack, because we already unwound it above
     return tlTaskSetStack(task->worker->top, tlCallGet(call, 0)); // again, the resume frame
 }
 INTERNAL tlValue GotoCallFn(tlCall* call) {
@@ -232,7 +234,11 @@ INTERNAL tlValue GotoCallFn(tlCall* call) {
 TL_REF_TYPE(tlContinuation);
 struct tlContinuation {
     tlHead head;
-    tlFrame* frame;
+    tlTask* task;
+    tlCodeFrame* frame;
+    tlEnv* env;
+    tlClosure* handler;
+    int pc;
 };
 static tlValue ContinuationRun(tlValue fn, tlArgs* args);
 static tlKind _tlContinuationKind = {
@@ -242,10 +248,23 @@ static tlKind _tlContinuationKind = {
 tlKind* tlContinuationKind = &_tlContinuationKind;
 
 INTERNAL tlValue resumeContinuation(tlFrame* _frame, tlValue res, tlValue throw) {
+    if (!res) return null;
+
     tlArgs* args = tlArgsAs(res);
     tlContinuation* cont = tlContinuationAs(tlArgsFn(args));
-    fatal("broken");
-    return tlTaskSetStack(cont->frame, tlResultFromArgsPrepend(cont, args));
+
+    tlTask* task = tlTaskCurrent();
+    if (task != cont->task) TL_THROW("invoked continuation on different task");
+    tlFrame* frame = task->stack;
+    while (frame != (tlFrame*)cont->frame) {
+        if (!frame) TL_THROW("invoked continuation that is out of stack");
+        frame = frame->caller;
+    }
+
+    cont->frame->env = cont->env;
+    cont->frame->handler = cont->handler;
+    cont->frame->pc = cont->pc;
+    return tlTaskStackUnwind((tlFrame*)cont->frame, tlResultFromArgsPrepend(cont, args));
 }
 INTERNAL tlValue ContinuationRun(tlValue fn, tlArgs* args) {
     trace("CONTINUATION(%d)", tlArgsSize(args));
@@ -257,8 +276,13 @@ INTERNAL tlValue ContinuationRun(tlValue fn, tlArgs* args) {
 // called by eval.c when creating a continuation
 INTERNAL tlValue resumeNewContinuation(tlFrame* frame, tlValue res, tlValue throw) {
     tlContinuation* cont = tlAlloc(tlContinuationKind, sizeof(tlContinuation));
-    cont->frame = frame->caller;
-    assert(cont->frame && cont->frame->resumecb == resumeCode);
+    cont->task = tlTaskCurrent();
+    tlCodeFrame* f = tlCodeFrameAs(frame->caller);
+    cont->frame = f;
+    cont->env = f->env;
+    cont->handler = f->handler;
+    cont->pc = f->pc;
+    trace("continuation: %p, pc: %d", cont->frame, cont->pc);
     trace("%s -> %s", tl_str(s_continuation), tl_str(cont));
     return cont;
 }
