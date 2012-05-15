@@ -47,6 +47,12 @@ void tlMapDump(tlMap* map) {
     print("----");
 }
 
+tlMap* tlMapToObject(tlMap* map) {
+    tlMap* nmap = tlMapNew(map->keys);
+    for (int i = 0; i < tlMapSize(map); i++) nmap->data[i] = map->data[i];
+    return tlMapToObject_(nmap);
+}
+
 tlValue tlMapGet(tlMap* map, tlValue key) {
     assert(tlMapOrObjectIs(map));
     int at = tlSetIndexof(map->keys, key);
@@ -305,11 +311,8 @@ static tlValue _map_set(tlArgs* args) {
 static tlValue _map_toObject(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    tlMap* nmap = tlMapNew(map->keys);
-    for (int i = 0; i < tlMapSize(map); i++) nmap->data[i] = map->data[i];
-    return tlMapToObject_(nmap);
+    return tlMapToObject(map);
 }
-
 const char* mapToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "<Map@%p %d>", v, tlMapSize(tlMapAs(v))); return buf;
 }

@@ -172,22 +172,20 @@ Socket = {
     }
 }
 
-Process = {
-    run: { cmd ->
-        list = cmd.split
-        check = try: not args.names.error
-        // no stdin, no stdin, no stderr, joined stdin/stderr
-        child = _io.launch Task.locals.cwd, list, false, true, false, true
-        buf = Buffer.new
-        out = Stream.new(child.out)
-        loop: {
-            _, len = out.read buf
-            if len == 0: break
-        }
-        r = child.wait
-        if r != 0 and check: _throw "Error: process: $r $(list.get(0)) $(list.size)"
-        return buf.read, r
+run = { cmd ->
+    list = cmd.split
+    check = not (try: not args.names.error)
+    // no stdin, no stdin, no stderr, joined stdin/stderr
+    child = _io.launch Task.locals.cwd, list, false, true, false, true
+    buf = Buffer.new
+    out = Stream.new(child.out)
+    loop: {
+        _, len = out.read buf
+        if len == 0: break
     }
+    r = child.wait
+    if r != 0 and check: Error("'$cmd' exit: $r", output=buf.read).throw
+    return buf.read, r
 }
 
 wait = ms -> _io.wait ms
@@ -203,7 +201,8 @@ return {
     Dir: Dir
     Path: Path
     Socket: Socket
-    Process: Process
+
+    run: run
     wait: wait
     ioloop: ioloop
 

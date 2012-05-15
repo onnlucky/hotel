@@ -234,6 +234,7 @@ tlMap* tlMapToObject_(tlMap* map);
 tlMap* tlMapEmpty();
 tlMap* tlMapNew(tlSet* keys);
 tlMap* tlMapCopy(tlMap* map);
+tlMap* tlMapToObject(tlMap* map);
 tlMap* tlMapFrom1(tlValue key, tlValue v);
 tlMap* tlMapFrom(tlValue v1, ... /*tlValue, tlValue*/);
 tlMap* tlMapFromMany(tlValue vs[], int len /*multiple of 2*/);

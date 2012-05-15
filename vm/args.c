@@ -114,7 +114,7 @@ static tlValue _args_map(tlArgs* args) {
 static tlValue _args_names(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
-    return tlArgsMap(as);
+    return tlMapToObject(tlArgsMap(as));
 }
 static tlValue _args_slice(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));

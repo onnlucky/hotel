@@ -16,7 +16,7 @@ var $at = "init"
     conn.setContentType "text/html"
     conn.write "<head><title>hotel auto builder</title></head>"
     conn.write "<p>now: $($at)"
-    if $fail: conn.write "<p><b>failed</b>: $($fail.at)"
+    if $fail: conn.write "<p><b>failed</b>: $($fail.at)<pre>$($fail.output)</pre>"
     if $good: conn.write "<p>last build:<pre>$($good)</pre>"
 }
 
@@ -24,7 +24,7 @@ var $at = "init"
 run = { cmd ->
     print cmd
     $at = cmd
-    io.Process.run cmd
+    io.run cmd
 }
 
 // prepare
@@ -38,14 +38,15 @@ loop: {
     (
         // TODO need a syntax for try/catch ...
         _catch: { e ->
-            print "Error:", e
-            $fail = { at: $at }
+            print "Error:", $at
+            $fail = { at: $at, output: e?output }
         }
         run "git reset --hard"
         run "git clean -xfd"
         run "git pull --force"
         run "make"
         run "./tl test/fib.tl"
+        run "make test"
         $good = run "git log -n1"
         $fail = null
     )
