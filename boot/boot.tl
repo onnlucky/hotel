@@ -190,9 +190,9 @@ minutes = m -> m * 1000 * 60
 hours   = h -> m * 1000 * 60 * 60
 days    = d -> d * 1000 * 60 * 60 * 24
 
-eval = { text -> _parse(text)(Env.current) }
+eval2 = { text -> _parse(text)(Env.current) }
 _install(Text.class, #eval, (_eval_ = { ->
-    eval(this)
+    eval2(this)
 }))
 
 // unresolved names will call this, for auto module loading
