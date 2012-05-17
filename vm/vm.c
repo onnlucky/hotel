@@ -49,6 +49,27 @@
 
 tlText* tl_boot_code;
 
+// return true if equal, false otherwise
+bool tlValueEquals(tlValue left, tlValue right) {
+    if (left == right) return true;
+    tlKind* kleft = tl_kind(left);
+    tlKind* kright = tl_kind(right);
+    if (kleft != kright) return false;
+    assert(kleft->equals);
+    return kleft->equals(left, right);
+}
+// TODO this makes absolute ordering depending on runtime pointers ...
+// TODO also, returning just -1, 0, 1 is better because this can overflow ...
+// return left - right
+int tlValueCompare(tlValue left, tlValue right) {
+    if (left == right) return 0;
+    tlKind* kleft = tl_kind(left);
+    tlKind* kright = tl_kind(right);
+    if (kleft != kright) return (intptr_t)kleft - (intptr_t)kright;
+    assert(kleft->cmp);
+    return kleft->cmp(left, right);
+}
+
 static tlValue _out(tlArgs* args) {
     trace("out(%d)", tlArgsSize(args));
     for (int i = 0; i < 1000; i++) {
@@ -72,40 +93,34 @@ static tlValue _not(tlArgs* args) {
 }
 static tlValue _eq(tlArgs* args) {
     trace("%p == %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
-    tlValue left = tlArgsGet(args, 0);
-    tlValue right = tlArgsGet(args, 1);
-    if (left == right) return tlTrue;
-    tlKind* leftKind = tl_kind(left);
-    tlKind* rightKind = tl_kind(right);
-    if (leftKind != rightKind) return tlFalse;
-    if (leftKind == tlTextKind) return tlBOOL(tlTextEquals(tlTextAs(left), tlTextAs(right)));
-    // TODO do map here too? and others?
-    //if (leftKind == tlListKind) return tlListEquals(tlListAs(left), tlListAs(right));
-    return tlFalse;
+    return tlBOOL(tlValueEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
 static tlValue _neq(tlArgs* args) {
-    trace("%p !== %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(tlArgsGet(args, 0) != tlArgsGet(args, 1));
+    trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return tlBOOL(!tlValueEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-
-// TODO only for ints ...
 static tlValue _lt(tlArgs* args) {
-    trace("%d < %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    return tlBOOL(tl_int(tlArgsGet(args, 0)) < tl_int(tlArgsGet(args, 1)));
+    trace("%s < %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
+    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return tlBOOL(cmp < 0);
 }
 static tlValue _lte(tlArgs* args) {
     trace("%d <= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    return tlBOOL(tl_int(tlArgsGet(args, 0)) <= tl_int(tlArgsGet(args, 1)));
+    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return tlBOOL(cmp <= 0);
 }
 static tlValue _gt(tlArgs* args) {
     trace("%d > %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    return tlBOOL(tl_int(tlArgsGet(args, 0)) > tl_int(tlArgsGet(args, 1)));
+    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return tlBOOL(cmp > 0);
 }
 static tlValue _gte(tlArgs* args) {
     trace("%d >= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    return tlBOOL(tl_int(tlArgsGet(args, 0)) >= tl_int(tlArgsGet(args, 1)));
+    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return tlBOOL(cmp >= 0);
 }
 
+// int
 static tlValue _add(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) + tl_int(tlArgsGet(args, 1));
     trace("ADD: %d", res);
@@ -163,6 +178,7 @@ static tlValue _random(tlArgs* args) {
     trace("RND: %d", res);
     return tlINT(res);
 }
+
 static tlValue _int_parse(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expect a text");

@@ -117,7 +117,19 @@ static tlKind _tlBoolKind = { .name = "Bool", .toText = boolToText };
 static const char* intToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "%zd", tl_int(v)); return buf;
 }
-static tlKind _tlIntKind = { .name = "Int", .toText = intToText };
+static bool intEquals(tlValue left, tlValue right) {
+    return left == right;
+}
+static int intCmp(tlValue left, tlValue right) {
+    return tl_int(left) - tl_int(right);
+}
+static tlKind _tlIntKind = {
+    .name = "Int",
+    .toText = intToText,
+    //.hash = intHash,
+    .equals = intEquals,
+    .cmp = intCmp,
+};
 
 tlKind* tlUndefinedKind = &_tlUndefinedKind;
 tlKind* tlNullKind = &_tlNullKind;
