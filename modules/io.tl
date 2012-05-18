@@ -128,7 +128,7 @@ File = {
     class: {
         read: buf -> readFull(_File_open(this.name, _File_RDONLY), buf or Buffer.new)
         write: val -> writeFull(_File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT), Buffer.toBuffer(val))
-        open: -> Stream.new(_File_open(this.name, _File_RDRW+_File_TRUNC+File_CREAT))
+        open: -> Stream.new(_File_open(this.name, _File_RDWR+_File_TRUNC+_File_CREAT))
     }
 }
 

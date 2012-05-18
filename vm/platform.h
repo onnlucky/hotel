@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>

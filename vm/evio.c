@@ -458,6 +458,29 @@ static tlValue _Socket_connect(tlArgs* args) {
     return tlFileNew(fd);
 }
 
+static tlValue _Socket_connect_unix(tlArgs* args) {
+    tlText* address = tlTextCast(tlArgsGet(args, 0));
+    if (!address) TL_THROW("expected a unix path");
+
+    trace("unix_open: %s", tl_str(address));
+
+    struct sockaddr_un sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    sockaddr.sun_family = AF_UNIX;
+    strcpy(sockaddr.sun_path, tlTextData(address));
+
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) TL_THROW("unix_connect: failed: %s", strerror(errno));
+
+    if (nonblock(fd) < 0) TL_THROW("unix_connect: nonblock failed: %s", strerror(errno));
+
+    int r = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr) + strlen(sockaddr.sun_path));
+    if (r < 0 && errno != EINPROGRESS) TL_THROW("unix_connect: connect failed: %s", strerror(errno));
+
+    if (errno == EINPROGRESS) trace("unix_connect: EINPROGRESS");
+    return tlFileNew(fd);
+}
+
 // TODO make backlog configurable
 static tlValue _ServerSocket_listen(tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 0), -1);
@@ -1009,6 +1032,7 @@ static const tlNativeCbs __evio_natives[] = {
     { "_File_open", _File_open },
     { "_File_from", _File_from },
     { "_Socket_connect", _Socket_connect },
+    { "_Socket_connect_unix", _Socket_connect_unix },
     { "_Socket_resolve", _Socket_resolve },
     { "_ServerSocket_listen", _ServerSocket_listen },
     { "_Path_stat", _Path_stat },
