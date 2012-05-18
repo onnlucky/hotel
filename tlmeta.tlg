@@ -133,13 +133,16 @@ emitSub = { r, buf, ind ->
 emitRule = { r, buf ->
     name = r.name
     buf.write("rule_$name = {_in, _nr ->\n")
-    buf.write("  _catch: e -> pHandle(e, _nr, \"$name\")\n")
     buf.write("  trace(_in, \" >>  TRY $name\", _nr)\n")
     buf.write("  this = _in.oop\n")
     buf.write("  _name = \"$name\"\n")
+    buf.write("  _pos = _in.pos\n")
+    buf.write("  _hit = _tllookup(this, _name, _pos)\n")
+    buf.write("  if _hit: return _hit.in, _hit.v\n");
+    buf.write("  _catch: e -> pHandle(e, _nr, _name)\n")
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")
-    buf.write("  return _in, _v\n")
+    buf.write("  goto _tlcache(this, _name, _pos, _in, _v)\n")
     buf.write("}\n")
 }
 

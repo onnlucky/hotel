@@ -143,8 +143,22 @@ lineFromPos = { text, pos ->
     }
 }
 
+_tllookup = { oop, name, pos ->
+    hit = oop._cache.get("$name-$pos")
+    if hit: {
+        //print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'";
+        return hit
+    }
+    return
+}
+_tlcache = { oop, name, pos, in, v ->
+    //print "CACHE: $name $pos -> $(in.pos) '$v'";
+    oop._cache.set("$name-$pos", {in: in, v: v})
+    return in, v
+}
+
 pStart = { rule, text ->
-    oop = _Object_new()
+    oop = _Object_new({ _cache: HashMap.new })
     _with_lock(oop): {
         in, v = (
             _catch: { e ->
