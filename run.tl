@@ -270,12 +270,12 @@ parsePost = { in ->
 parseTerm = { in ->
     trace2(in, ">> term")
     a1 = { in ->
-        in = pText("(")(in);
+        in = pText("(")(in)
         trace2(in, ">> paren >> PAREN >> PAREN >>")
         _catch: e => print "!! !! SYNTAX ERROR::", e, ":: !! !!"
-        in = parseWs(in);
-        t=parseOr(in);
-        in = parseWs(t);
+        in = parseWs(in)
+        t=parseOr(in)
+        in = parseWs(t)
         in = pText(")")(in).set({ type: #Sub, term: t.value })
         trace2(in, "3 << paren << PAREN << PAREN <<")
     }
@@ -385,7 +385,7 @@ emitRule = { r, buf ->
     buf.write("  _name = \"$name\"\n")
     buf.write("  _pos = _in.pos\n")
     buf.write("  _hit = _tllookup(this, _name, _pos)\n")
-    buf.write("  if _hit: return _hit.in, _hit.v\n");
+    buf.write("  if _hit: return _hit.in, _hit.v\n")
     buf.write("  _catch: e -> pHandle(e, _nr, _name)\n")
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")

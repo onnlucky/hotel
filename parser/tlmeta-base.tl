@@ -10,7 +10,7 @@ ALPHA = LOWER.cat(UPPER)
 NUMERIC = "0123456789"
 ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
-advance = { in, adv -> { text: in.text, pos: in.pos + adv }}
+advance = { in, adv -> { text: in.text, pos: in.pos + adv, oop: in.oop }}
 error = { in, nr, msg ->
     if nr: _throw { t: #p, in: in, msg: nr, noreturn: true }
     _throw {t: #p, in: in, msg: msg }
@@ -143,21 +143,38 @@ lineFromPos = { text, pos ->
     }
 }
 
-pStart = { rule, text ->
-    in, v = (
-        _catch: { e ->
-            if e?t != #p: _throw e
-            line, char = lineFromPos(e.in.text, e.in.pos)
-            if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
-            _throw "SyntaxError: on line $line col $char"
-        }
-        rule({text: text, pos: 0 })
-    )
-    if in.pos < in.text.size: {
-        line, char = lineFromPos(in.text, in.pos)
-        _throw "SyntaxError: expected end of input on line $line col $char"
+_tllookup = { oop, name, pos ->
+    hit = oop._cache.get("$name-$pos")
+    if hit: {
+        //print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'";
+        return hit
     }
-    return v
+    return
+}
+_tlcache = { oop, name, pos, in, v ->
+    //print "CACHE: $name $pos -> $(in.pos) '$v'";
+    oop._cache.set("$name-$pos", {in: in, v: v})
+    return in, v
+}
+
+pStart = { rule, text ->
+    oop = _Object_new({ _cache: HashMap.new })
+    _with_lock(oop): {
+        in, v = (
+            _catch: { e ->
+                if e?t != #p: _throw e
+                line, char = lineFromPos(e.in.text, e.in.pos)
+                if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
+                _throw "SyntaxError: on line $line col $char"
+            }
+            rule({text: text, pos: 0, oop: oop })
+        )
+        if in.pos < in.text.size: {
+            line, char = lineFromPos(in.text, in.pos)
+            _throw "SyntaxError: expected end of input on line $line col $char"
+        }
+        return v
+    }
 }
 
 rule_line = in -> return in, lineFromPos(in.text, in.pos)
@@ -173,7 +190,7 @@ rule_ws = { in, nr ->
     trace2(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    if WS.search(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 }
 
@@ -181,7 +198,7 @@ rule_wsnl = { in ->
     trace(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws({text: in.text, pos: in.pos + 1 }))
+    if WS.search(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 }
 
