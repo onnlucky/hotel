@@ -2,6 +2,8 @@
 
 #include "code.h"
 
+static unsigned int murmurhash2a(const void * key, int len);
+
 static tlTask* tl_task_current;
 static inline tlTask* tlTaskCurrent() {
     assert(tl_task_current);
@@ -117,6 +119,10 @@ static tlKind _tlBoolKind = { .name = "Bool", .toText = boolToText };
 static const char* intToText(tlValue v, char* buf, int size) {
     snprintf(buf, size, "%zd", tl_int(v)); return buf;
 }
+static unsigned int intHash(tlValue v) {
+    intptr_t i = tl_int(v);
+    return murmurhash2a(&i, sizeof(i));
+}
 static bool intEquals(tlValue left, tlValue right) {
     return left == right;
 }
@@ -126,7 +132,7 @@ static int intCmp(tlValue left, tlValue right) {
 static tlKind _tlIntKind = {
     .name = "Int",
     .toText = intToText,
-    //.hash = intHash,
+    .hash = intHash,
     .equals = intEquals,
     .cmp = intCmp,
 };
@@ -140,6 +146,9 @@ static tlValue _bool_toText(tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
     if (b) return _t_true;
     return _t_false;
+}
+static tlValue _int_hash(tlArgs* args) {
+    return tlINT(intHash(tlArgsTarget(args)));
 }
 static tlValue _int_toChar(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
@@ -195,6 +204,7 @@ static void value_init() {
         null
     );
     _tlIntKind.klass = tlClassMapFrom(
+        "hash", _int_hash,
         "toChar", _int_toChar,
         "toText", _int_toText,
         null

@@ -169,6 +169,10 @@ const char* tl_str(tlValue v);
 // Mutable setters (ending with underscore) must only be used after you just created the value.
 // Notice hotel level text, list, etc. values are not necesairy primitive tlTexts or tlLists etc.
 
+unsigned int tlValueHash(tlValue v);
+bool tlValueEquals(tlValue left, tlValue right);
+int tlValueCompare(tlValue left, tlValue right);
+
 
 // ** text **
 int tlTextSize(tlText* text);

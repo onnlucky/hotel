@@ -250,6 +250,12 @@ INTERNAL tlValue _list_size(tlArgs* args) {
     if (!list) TL_THROW("Expected a list");
     return tlINT(tlListSize(list));
 }
+static unsigned int listHash(tlValue v);
+INTERNAL tlValue _list_hash(tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    if (!list) TL_THROW("Expected a list");
+    return tlINT(listHash(list));
+}
 INTERNAL tlValue _list_get(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -322,17 +328,54 @@ INTERNAL tlValue _list_toChar(tlArgs* args) {
 static size_t listSize(tlValue v) {
     return sizeof(tlList) + sizeof(tlValue) * tlListAs(v)->size;
 }
+static unsigned int listHash(tlValue v) {
+    tlList* list = tlListAs(v);
+    // if (list->hash) return list->hash;
+    unsigned int hash = 0x1;
+    for (int i = 0; i < list->size; i++) {
+        hash ^= tlValueHash(tlListGet(list, i));
+    }
+    if (!hash) hash = 1;
+    return hash;
+}
+static bool listEquals(tlValue _left, tlValue _right) {
+    if (_left == _right) return true;
+
+    tlList* left = tlListAs(_left);
+    tlList* right = tlListAs(_right);
+    if (left->size != right->size) return true;
+
+    for (int i = 0; i < left->size; i++) {
+        if (!tlValueEquals(tlListGet(left, i), tlListGet(right, i))) return false;
+    }
+    return true;
+}
+static int listCmp(tlValue _left, tlValue _right) {
+    if (_left == _right) return 0;
+
+    tlList* left = tlListAs(_left);
+    tlList* right = tlListAs(_right);
+    for (int i = 0; i < left->size; i++) {
+        int cmp = tlValueCompare(tlListGet(left, i), tlListGet(right, i));
+        if (cmp != 0) return cmp;
+    }
+    return left->size - right->size;
+}
 
 // TODO eval: { "_list_clone", _list_clone },
 static tlKind _tlListKind = {
     .name = "List",
     .size = listSize,
+    .hash = listHash,
+    .equals = listEquals,
+    .cmp = listCmp,
 };
 
 static void list_init() {
     _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
     _tlListKind.klass = tlClassMapFrom(
         "size", _list_size,
+        "hash", _list_hash,
         "get", _list_get,
         "set", _list_set,
         "add", _list_add,

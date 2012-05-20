@@ -49,6 +49,12 @@
 
 tlText* tl_boot_code;
 
+// return a hash
+unsigned tlValueHash(tlValue v) {
+    tlKind* kind = tl_kind(v);
+    assert(kind->hash);
+    return kind->hash(v);
+}
 // return true if equal, false otherwise
 bool tlValueEquals(tlValue left, tlValue right) {
     if (left == right) return true;
