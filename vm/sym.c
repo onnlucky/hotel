@@ -131,7 +131,7 @@ static int strequals(void *left, void *right) {
 static void strfree(void *str) { }
 
 const char* symToText(tlValue v, char* buf, int size) {
-    snprintf(buf, size, "<Symbol@%p #%s>", v, tlTextData(_TEXT_FROM_SYM(v))); return buf;
+    snprintf(buf, size, "#%s", tlTextData(_TEXT_FROM_SYM(v))); return buf;
 }
 static unsigned int symHash(tlValue v) {
     return tlTextHash(tlTextFromSym(tlSymAs(v)));
