@@ -29,6 +29,9 @@
 /// public type for a hashmap.
 typedef struct LHashMap LHashMap;
 
+/// a hashmap iterator, the iterator might or might not see further updates to the map
+typedef struct LHashMapIter LHashMapIter;
+
 /// Hash function to generate a hash from a key, notice producing a good hash
 /// function is paramount for good performance.
 typedef unsigned int (lhashmap_key_hash)(void *key);
@@ -57,7 +60,6 @@ void lhashmap_free(LHashMap *map);
 /// to non-zero values are counted.
 int lhashmap_size(LHashMap *map);
 
-
 /// Return the current mapping for @key in @map.
 /// Notice, unlike the @lhashmap_putif, the map does not own the key.
 void * lhashmap_get(LHashMap *map, const void *key);
@@ -73,6 +75,19 @@ extern void *LHASHMAP_IGNORE;
 /// @oldval the value that must be currently in map for the update to succeed;
 /// use @LHASHMAP_IGNORE if the update must always succeed.
 void * lhashmap_putif(LHashMap *map, void *key, const void *val, const void *oldval);
+
+/// Return an iterator that allows getting the keys and values
+LHashMapIter* lhashmapiter_new(LHashMap* map);
+
+/// Free the iterator
+void lhashmapiter_free(LHashMapIter* iter);
+
+/// Get the current key and value where the iterator is pointing at
+/// Sets *key and *value to null if no more items
+void lhashmapiter_get(LHashMapIter* iter, void** key, void** value);
+
+/// Move the iterator forward
+void lhashmapiter_next(LHashMapIter* iter);
 
 #endif
 

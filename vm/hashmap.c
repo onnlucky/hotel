@@ -98,6 +98,24 @@ INTERNAL tlValue _hashmap_size(tlArgs* args) {
     int size = lhashmap_size(map->map);
     return tlINT(size);
 }
+// TODO should implement each instead, this is costly
+INTERNAL tlValue _hashmap_keys(tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    if (!map) TL_THROW("expected a Map");
+
+    tlArray* array = tlArrayNew();
+
+    LHashMapIter* iter = lhashmapiter_new(map->map);
+    while (true) {
+        tlValue key;
+        lhashmapiter_get(iter, &key, null);
+        if (!key) break;
+        tlArrayAdd(array, key);
+        lhashmapiter_next(iter);
+    }
+    return array;
+    //return tlArrayToList(array);
+}
 
 static tlMap* hashmapClass;
 void hashmap_init() {
@@ -107,6 +125,7 @@ void hashmap_init() {
         "has", _hashmap_has,
         "del", _hashmap_del,
         "size", _hashmap_size,
+        "keys", _hashmap_keys,
         null
     );
     hashmapClass = tlClassMapFrom(

@@ -34,6 +34,7 @@
 // on, we will generate a page fault. (Plus the equals function might get passed in a corrupt key, which might not be
 // expected and cause trouble on its own.) Maybe something needs to be done about this ...
 //
+// TODO a bug in iterator, resizing the keys will mark all things as SIZED and break the iterator; how about tagging the pointers instead?
 //
 // TODO some false sharing might be going on, especially _btodo and _bdone fields
 // TODO yield is great on macosx, but on linux it is horrible, but so is any kind of sleep ... unless time ./test lies
@@ -79,7 +80,7 @@ typedef struct header header;
 struct header {
     volatile AO_t _btodo;   // unsigned long; _btodo and _bdone are placed apart to prevent false cachline sharing
     unsigned long len;      // final unsigned long
-    header *prev;           // a linked list of older maps to free later
+    //header *prev;           // a linked list of older maps to free later
     volatile AO_t _bdone;   // unsigned long
     entry kvs[0];           // the actual entries
 };
@@ -102,6 +103,11 @@ struct LHashMap {
     lhashmap_key_free   *free_func;
 };
 
+struct LHashMapIter {
+    unsigned long at;
+    header* kvs;
+};
+
 #define INITIAL_SIZE 4
 #define REPROBE_LIMIT 17
 #define BLOCK_SIZE (1024 * 8)
@@ -120,7 +126,7 @@ static header * header_new(unsigned int len) {
     h->len = len;
     h->_btodo = 0;
     h->_bdone = 0;
-    h->prev = 0;
+    //h->prev = 0;
     return h;
 }
 
@@ -130,6 +136,7 @@ static unsigned long current_time() { // return time in seconds
     return time.tv_sec;
 }
 
+#if 0
 // link in an old kvs struct, we hold on to it because not all threads might be done with it
 static void push_old_kvs(header *nkvs, header *okvs) {
     nkvs->prev = okvs;
@@ -156,6 +163,7 @@ static void free_old_kvs(header *nkvs) {
         nkvs->prev = 0;
     }
 }
+#endif
 
 // these functions read from volatile memory, we should really do that only once per "need"
 inline static entry * _load(header *kvs, int idx) {
@@ -199,13 +207,13 @@ LHashMap * lhashmap_new(lhashmap_key_equals *equals_func, lhashmap_key_hash *has
 
 static void free_kvs2(header *kvs) { // just free all old kvs
     if (kvs == 0) return;
-    free_kvs2(kvs->prev);
+    //free_kvs2(kvs->prev);
     free(kvs);
 }
 
 // freeing the top level map; notice we cannot free the values
 static void free_kvs(LHashMap *map, header *kvs) {
-    free_kvs2(kvs->prev);
+    //free_kvs2(kvs->prev);
     for (int i = kvs->len - 1; i >= 0; i--) {
         entry *e = _load(kvs, i);
         void *k = getkey(e);
@@ -383,8 +391,8 @@ void * _resize(LHashMap *map, header *okvs) {
 
         // here we could free the map, but many threads might still need to read the SIZED markers
         // so we keep all old lists and free only the really old; with a gc this is much better
-        push_old_kvs(nkvs, okvs);
-        free_old_kvs(nkvs);
+        //push_old_kvs(nkvs, okvs);
+        //free_old_kvs(nkvs);
 
         // this is the required order: otherwise another thread might attempt to resize (when compensating for late promise)
         // notice we compensate that we can now observe nkvs == kvs (in _putif)
@@ -553,5 +561,34 @@ void lhashmap_debug(LHashMap *map) {
     float ratio = size / (float)len;
     float mb = (sizeof(entry) * len) / (float) (1024 * 1024);
     print("%f (%d / %d) = %.0fmb", ratio, size, len, mb);
+}
+
+LHashMapIter* lhashmapiter_new(LHashMap* map) {
+    LHashMapIter* iter = malloc(sizeof(LHashMapIter));
+    iter->at = 0;
+    iter->kvs = (header*)map->_kvs;
+    return iter;
+}
+
+void lhashmapiter_next(LHashMapIter* iter) {
+    iter->at++;
+}
+
+void lhashmapiter_get(LHashMapIter* iter, void** key, void** value) {
+    while (iter->at < iter->kvs->len) {
+        void* v = (void*)iter->kvs->kvs[iter->at]._val;
+        void* k = (void*)iter->kvs->kvs[iter->at]._key;
+        if (v && v != DELETED && k) {
+            // oeps, this we cannot handle that is a BIG oeps ...
+            assert(k != SIZED);
+            assert(v != SIZED);
+            if (key) *key = k;
+            if (value) *value = v;
+            return;
+        }
+        iter->at++;
+    }
+    if (key) *key = 0;
+    if (value) *value = 0;
 }
 
