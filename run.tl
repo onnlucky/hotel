@@ -1,8 +1,11 @@
-map = HashMap.new
-map.set("x", true)
-map.set("y", true)
-map.set("z", true)
-map.set("x", false)
+server = http.Server.new(8080)
+!server.serve: { client ->
+    client.write "hello"
+}
 
-map.keys.each print
+print "WAITING"
+io.wait 1000
+print "CLOSING"
+server.close
+print "DONE"
 

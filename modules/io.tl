@@ -11,9 +11,11 @@ ioloop = { ->
             msg = _io_queue.poll
             (
                 _match(msg == null): break
+                _catch: e -> print "IO LOOP ERROR:", e
                 _match(msg.name == #waitread): _io_waitread msg.get(0), msg
                 _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
                 _match(msg.name == #wait): _io_wait msg.get(0), msg
+                _match(msg.name == #close): _io_close msg.get(0); msg.reply
                 _match(msg.name == #launch): msg.reply(_io_launch(
                         msg.get(0), msg.get(1),
                         msg.get(2), msg.get(3), msg.get(4), msg.get(5)))
@@ -94,7 +96,7 @@ Stream = {
         write: val -> writeFull(this.file, Buffer.toBuffer(val))
         close: { ->
             if this.file.isClosed: return
-            _with_lock(this.file.reader, this.file.writer): this.file.close
+            _io.close this.file
         }
     }
 }
@@ -112,7 +114,10 @@ Server = {
                 }
             }
         }
-        close: -> this.file.close
+        close: { ->
+            if this.file.isClosed: return
+            _io.close this.file
+        }
         serve: { ->
             block = args.block; if not block: _throw "serve expects a block"
             loop: {

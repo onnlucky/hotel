@@ -874,6 +874,7 @@ INTERNAL const char* fileToText(tlValue v, char* buf, int size) {
 
 static void io_cb(ev_io *ev, int revents) {
     trace("io_cb: %p", ev);
+    assert(ev->fd >= 0);
     tlFile* file = tlFileFromEv(ev);
     if (revents & EV_READ) {
         trace("CANREAD");
@@ -898,6 +899,43 @@ static void io_cb(ev_io *ev, int revents) {
     if (!ev->events) ev_io_stop(ev);
 }
 
+static tlValue _io_close(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a File");
+
+    // already closed
+    if (file->ev.fd < 0) return tlNull;
+
+    trace("close: %p %d", file, file->ev.fd);
+    ev_io_stop(&file->ev);
+
+    int r = close(file->ev.fd);
+    if (r < 0) TL_THROW("close: failed: %s", strerror(errno));
+    file->ev.fd = -1;
+
+    if (file->ev.events & EV_READ) {
+        trace("CLOSED WITH READER");
+        assert(file->reader->lock.head.kind);
+        assert(file->reader->lock.owner);
+        tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
+        tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
+        vm->waitevent -= 1;
+        file->ev.events &= ~EV_READ;
+        tlMessageReply(msg, null);
+    }
+    if (file->ev.events & EV_WRITE) {
+        trace("CLOSED WITH WRITER");
+        assert(file->writer->lock.head.kind);
+        assert(file->writer->lock.owner);
+        tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
+        tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
+        vm->waitevent -= 1;
+        file->ev.events &= ~EV_WRITE;
+        tlMessageReply(msg, null);
+    }
+    return tlNull;
+}
+
 static tlValue _io_waitread(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
@@ -914,6 +952,9 @@ static tlValue _io_waitread(tlArgs* args) {
 
     assert(reader->lock.owner == msg->sender);
     assert(msg->sender->value == msg);
+
+    // TODO we should actually reply to the message instead
+    assert(file->ev.fd >= 0);
 
     file->ev.events |= EV_READ;
     ev_io_start(&file->ev);
@@ -938,6 +979,9 @@ static tlValue _io_waitwrite(tlArgs* args) {
 
     assert(writer->lock.owner == msg->sender);
     assert(msg->sender->value == msg);
+
+    // TODO we should actually reply to the message instead
+    assert(file->ev.fd >= 0);
 
     file->ev.events |= EV_WRITE;
     ev_io_start(&file->ev);
@@ -1042,6 +1086,7 @@ static const tlNativeCbs __evio_natives[] = {
     { "_io_launch", _io_launch },
 
     { "_io_wait", _io_wait },
+    { "_io_close", _io_close },
     { "_io_waitread", _io_waitread },
     { "_io_waitwrite", _io_waitwrite },
 
