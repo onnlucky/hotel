@@ -112,7 +112,7 @@ Server = {
                 }
             }
         }
-        close: -> this.file.cose
+        close: -> this.file.close
         serve: { ->
             block = args.block; if not block: _throw "serve expects a block"
             loop: {
