@@ -271,13 +271,13 @@ static tlValue _file_close(tlArgs* args) {
 static tlValue _file_reader(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (file->reader->lock.head.kind) return file->reader;
+    if (file->reader) return file->reader;
     return tlNull;
 }
 static tlValue _file_writer(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
-    if (file->writer->lock.head.kind) return file->writer;
+    if (file->writer) return file->writer;
     return tlNull;
 }
 
@@ -878,7 +878,7 @@ static void io_cb(ev_io *ev, int revents) {
     tlFile* file = tlFileFromEv(ev);
     if (revents & EV_READ) {
         trace("CANREAD");
-        assert(file->reader->lock.head.kind);
+        assert(file->reader);
         assert(file->reader->lock.owner);
         tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
         tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
@@ -888,7 +888,7 @@ static void io_cb(ev_io *ev, int revents) {
     }
     if (revents & EV_WRITE) {
         trace("CANWRITE");
-        assert(file->writer->lock.head.kind);
+        assert(file->writer);
         assert(file->writer->lock.owner);
         tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
@@ -915,7 +915,7 @@ static tlValue _io_close(tlArgs* args) {
 
     if (file->ev.events & EV_READ) {
         trace("CLOSED WITH READER");
-        assert(file->reader->lock.head.kind);
+        assert(file->reader);
         assert(file->reader->lock.owner);
         tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
         tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
@@ -925,7 +925,7 @@ static tlValue _io_close(tlArgs* args) {
     }
     if (file->ev.events & EV_WRITE) {
         trace("CLOSED WITH WRITER");
-        assert(file->writer->lock.head.kind);
+        assert(file->writer);
         assert(file->writer->lock.owner);
         tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));

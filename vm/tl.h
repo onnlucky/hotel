@@ -420,7 +420,7 @@ struct tlKind {
 // NOTE: if we keep all tasks in a global list, we can use 32 (16) bits for the task, and 32 bits as queue
 //       there was a paper about that; collapses 3 pointers into one and has better behavior
 struct tlLock {
-    tlHead head;
+    intptr_t kind;
     tlTask* owner;
     lqueue wait_q;
 };
@@ -429,10 +429,13 @@ struct tlLock {
 // Any state that needs to be saved needs to be captured in a tlFrame
 // all frames together form a call stack
 struct tlFrame {
-    tlHead head;
+    intptr_t kind;
     tlFrame* caller;     // the frame below/after us
     tlResumeCb resumecb; // the resume function to be called when this frame is to resume
 };
+
+// force similar layout
+union _tl_0 { tlHead _tl_1; tlLock _tl_2; tlFrame _tl_3; };
 
 #endif // _tl_h_
 
