@@ -325,6 +325,23 @@ INTERNAL tlValue _list_toChar(tlArgs* args) {
     return tlTextFromTake(buf, size);
 }
 
+INTERNAL tlValue _List_unsafe(tlArgs* args) {
+    int size = tl_int_or(tlArgsGet(args, 0), -1);
+    if (size < 0) TL_THROW("Expected a size");
+    return tlListNew(size);
+}
+INTERNAL tlValue _list_set_(tlArgs* args) {
+    tlList* list = tlListCast(tlArgsGet(args, 0));
+    if (!list) TL_THROW("Expected a list");
+    int at = tl_int_or(tlArgsGet(args, 1), -1);
+    if (at < 0) TL_THROW("Expected a index");
+    tlValue val = tlArgsGet(args, 2);
+    if (!val) TL_THROW("Expected a value");
+    if (at >= tlListSize(list)) TL_THROW("index out of bounds");
+    tlListSet_(list, at, val);
+    return tlNull;
+}
+
 static size_t listSize(tlValue v) {
     return sizeof(tlList) + sizeof(tlValue) * tlListAs(v)->size;
 }
@@ -397,5 +414,7 @@ static void list_init() {
     );
     tlMapSetSym_(constructor, s_class, _tlListKind.klass);
     tl_register_global("List", constructor);
+    tl_register_global("_List_unsafe", tlNativeNew(_List_unsafe, tlSYM("_List_unsafe")));
+    tl_register_global("_list_set_", tlNativeNew(_list_set_, tlSYM("_list_set_")));
 }
 

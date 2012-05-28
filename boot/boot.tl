@@ -97,9 +97,10 @@ _install(List.class, #map, (map = { fn ->
 
     var $i = 0
     while $i < this.size: {
-        _list_set(res, $i, block(this.get($i)))
+        _list_set_(res, $i, block(this.get($i)))
         $i += 1
     }
+    return res
 }))
 _install(Array.class, #each, _each)
 _install(Array.class, #join, (join = { sep ->
