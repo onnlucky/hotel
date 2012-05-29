@@ -35,6 +35,12 @@ _each = { fn ->
     }
     loop(0)
 }
+_flatten2 = { ls, arr ->
+    ls.each: { e ->
+        if isList(e): _flatten2(e, arr); return
+        arr.add(e)
+    }
+}
 
 // TODO should have special boot places for text, list and such
 _install(Text.class, #each, _each)
@@ -101,6 +107,11 @@ _install(List.class, #map, (map = { fn ->
         $i += 1
     }
     return res
+}))
+_install(List.class, #flatten, (flatten = { ->
+    arr = Array.new
+    _flatten2(this, arr)
+    return arr.toList
 }))
 _install(Array.class, #each, _each)
 _install(Array.class, #join, (join = { sep ->

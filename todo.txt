@@ -19,6 +19,8 @@ add objects using:
     }
   }
 
+bug: _flatten2 does not work when defined just before _install(List.class, #flatten, ...)
+
 remove "foo $(...)" interpolation, do "foo" ... instead ...
 
 upgrade httpparser module, add httpresponse

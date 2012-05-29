@@ -401,6 +401,7 @@ static void list_init() {
         "slice", _list_slice,
         "toChar", _list_toChar,
         //"search", _ListSearch,
+        "flatten", null,
         "each", null,
         "join", null,
         "map", null,

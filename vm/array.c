@@ -98,6 +98,18 @@ INTERNAL tlValue _array_size(tlArgs* args) {
     if (!array) TL_THROW("expected an Array");
     return tlINT(array->size);
 }
+INTERNAL tlValue _array_toList(tlArgs* args) {
+    tlArray* array = tlArrayCast(tlArgsTarget(args));
+    if (!array) TL_THROW("expected an Array");
+
+    tlList* list = tlListNew(array->size);
+    for (int i = 0; i < array->size; i++) {
+        tlValue v = tlArrayGet(array, i);
+        if (!v) v = tlNull;
+        tlListSet_(list, i, v);
+    }
+    return list;
+}
 INTERNAL tlValue _array_get(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
@@ -147,6 +159,7 @@ INTERNAL tlValue _array_remove(tlArgs* args) {
 static tlMap* arrayClass;
 static void array_init() {
     _tlArrayKind.klass = tlClassMapFrom(
+        "toList", _array_toList,
         "size", _array_size,
         "get", _array_get,
         "set", _array_set,
