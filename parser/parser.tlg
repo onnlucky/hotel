@@ -242,5 +242,6 @@ bodyempty: body
    start: .. b=bodyempty .. end -> b
 }
 
-print inspect parse(io.File(args.get(0)).read)
+print inspect process parse(io.File(args.get(0)).read)
+
 
