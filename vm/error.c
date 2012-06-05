@@ -2,6 +2,9 @@
 
 #include "trace-off.h"
 
+static tlSet* _errorKeys;
+static tlSym _s_msg;
+static tlSym _s_stack;
 
 static tlKind _tlStackTraceKind;
 tlKind* tlStackTraceKind = &_tlStackTraceKind;
@@ -131,6 +134,12 @@ INTERNAL void error_init() {
     );
     tlMapSetSym_(undefinedErrorClass, s_class, errorClass);
     tlMapSetSym_(argumentErrorClass, s_class, errorClass);
+
+    // for rusage syscall
+    _errorKeys = tlSetNew(3);
+    _s_msg = tlSYM("msg"); tlSetAdd_(_errorKeys, _s_msg);
+    _s_stack = tlSYM("stack"); tlSetAdd_(_errorKeys, _s_stack);
+    tlSetAdd_(_errorKeys, s_class);
 }
 
 static void error_vm_default(tlVm* vm) {
@@ -139,12 +148,18 @@ static void error_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("ArgumentError"), argumentErrorClass);
 }
 
-tlValue tlArgumentError(const char* msg) {
-    return tlTaskThrow(tlObjectFrom(
-        "msg", tlTextFromStatic(msg, 0),
-        "stack", null,
-        "class", argumentErrorClass,
-        null
-    ));
+tlValue tlArgumentErrorThrow(const char* msg) {
+    tlMap* err = tlMapNew(_errorKeys);
+    tlMapSetSym_(err, _s_msg, tlTextFromStatic(msg, 0));
+    tlMapSetSym_(err, s_class, argumentErrorClass);
+    tlMapToObject_(err);
+    return tlTaskThrow(err);
+}
+
+void tlErrorAttachStack(tlValue _err, tlFrame* frame) {
+    tlMap* err = tlMapFromObjectCast(_err);
+    if (!err || err->keys != _errorKeys) return;
+    assert(tlMapGetSym(err, _s_stack) == null);
+    tlMapSetSym_(err, _s_stack, tlStackTraceNew(frame, 0));
 }
 

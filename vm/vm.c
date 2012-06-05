@@ -403,6 +403,10 @@ static tlValue _assert(tlArgs* args) {
     return tlNull;
 }
 
+static tlValue _error(tlArgs* args) {
+    return tlArgumentErrorThrow("hello world!");
+}
+
 void tlVmInitDefaultEnv(tlVm* vm) {
     tlNative* print = tlNativeNew(_print, tlSYM("print"));
     tlVmGlobalSet(vm, tlNativeName(print), print);
@@ -412,6 +416,9 @@ void tlVmInitDefaultEnv(tlVm* vm) {
 
     tlNative* eval = tlNativeNew(_eval, tlSYM("eval"));
     tlVmGlobalSet(vm, tlNativeName(eval), eval);
+
+    tlNative* error = tlNativeNew(_error, tlSYM("error"));
+    tlVmGlobalSet(vm, tlNativeName(error), error);
 }
 
 static tlKind _tlVmKind = {

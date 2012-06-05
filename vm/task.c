@@ -325,6 +325,10 @@ void tlTaskEvalArgsFn(tlArgs* as, tlValue fn) {
 
 INTERNAL tlValue resumeTaskThrow(tlFrame* frame, tlValue res, tlValue throw) {
     if (!res) return null;
+
+    // if it is an error object; attach the stack now
+    tlErrorAttachStack(res, frame->caller);
+
     tlTask* task = tlTaskCurrent();
     task->stack = frame->caller;
     return tlTaskRunThrow(task, res);
