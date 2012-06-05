@@ -404,7 +404,7 @@ static tlValue _assert(tlArgs* args) {
 }
 
 static tlValue _error(tlArgs* args) {
-    return tlArgumentErrorThrow("hello world!");
+    TL_THROW("hello world!");
 }
 
 void tlVmInitDefaultEnv(tlVm* vm) {

@@ -148,14 +148,27 @@ static void error_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("ArgumentError"), argumentErrorClass);
 }
 
-tlValue tlArgumentErrorThrow(const char* msg) {
+tlValue tlErrorThrow(tlValue msg) {
     tlMap* err = tlMapNew(_errorKeys);
-    tlMapSetSym_(err, _s_msg, tlTextFromStatic(msg, 0));
+    tlMapSetSym_(err, _s_msg, msg);
+    tlMapSetSym_(err, s_class, errorClass);
+    tlMapToObject_(err);
+    return tlTaskThrow(err);
+}
+tlValue tlUndefinedErrorThrow(tlValue msg) {
+    tlMap* err = tlMapNew(_errorKeys);
+    tlMapSetSym_(err, _s_msg, msg);
+    tlMapSetSym_(err, s_class, undefinedErrorClass);
+    tlMapToObject_(err);
+    return tlTaskThrow(err);
+}
+tlValue tlArgumentErrorThrow(tlValue msg) {
+    tlMap* err = tlMapNew(_errorKeys);
+    tlMapSetSym_(err, _s_msg, msg);
     tlMapSetSym_(err, s_class, argumentErrorClass);
     tlMapToObject_(err);
     return tlTaskThrow(err);
 }
-
 void tlErrorAttachStack(tlValue _err, tlFrame* frame) {
     tlMap* err = tlMapFromObjectCast(_err);
     if (!err || err->keys != _errorKeys) return;

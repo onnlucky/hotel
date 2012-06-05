@@ -325,9 +325,18 @@ void tlTaskReady();
 tlValue tlTaskThrow(tlValue err);
 
 // throw errors
-tlValue tlTaskThrowTake(char* str);
-#define TL_THROW(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); return tlTaskThrowTake(strdup(_s)); } while (0)
-#define TL_THROW_SET(f, x...) do { char _s[2048]; snprintf(_s, sizeof(_s), f, ##x); tlTaskThrowTake(strdup(_s)); } while (0)
+tlValue tlErrorThrow(tlValue msg);
+tlValue tlArgumentErrorThrow(tlValue msg);
+
+#define TL_THROW(f, x...) do {\
+    char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
+    return tlErrorThrow(tlTextFromCopy(_s, _k)); } while (0)
+#define TL_ILLARG(f, x...) do {\
+    char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
+    return tlArgumentErrorThrow(tlTextFromCopy(_s, _k)); } while (0)
+#define TL_THROW_SET(f, x...) do {\
+    char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
+    tlTaskThrowTake(strdup(_s)); } while (0)
 
 // args
 tlArgs* tlArgsNew(tlList* list, tlMap* map);
