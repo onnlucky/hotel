@@ -3,9 +3,12 @@ LocalRef = n, s -> [#local, s]
 ScopeRef = n, d, s -> [#scope, d, s]
 GlobalRef = n, s -> [#global, s]
 
-GlobalScope = { -> {
+Module = { -> {
     globals: HashMap.new
-    slookup: { name ->
+    data: Array.new
+    dataIndex: HashMap.new
+
+    scopeLookup: { name ->
         ref = this.globals.get name
         if ref: return GlobalRef(name, ref)
 
@@ -13,21 +16,32 @@ GlobalScope = { -> {
         this.globals.set(name, n)
         return GlobalRef(name, n)
     }
+    getData: { datum ->
+        ref = this.dataIndex.get(datum)
+        if ref: return [#data, ref]
+
+        n = this.data.size
+        this.data.add(datum)
+        this.dataIndex.set(datum, n)
+        assert this.data.size == this.dataIndex.size
+        return [#data, n]
+    }
 }}
 
-Scope = { parent -> {
+Scope = { parent, module -> {
     parent: parent
-    locals: HashMap.new
+    module: module
 
+    locals: HashMap.new
     lookup: { name ->
         ref = this.locals.get name
         if ref: return LocalRef(name, ref)
-        this.parent.slookup name, 0
+        this.parent.scopeLookup name, 0
     }
-    slookup: { name, depth ->
+    scopeLookup: { name, depth ->
         ref = this.locals.get name
         if ref: return ScopeRef(name, ref)
-        this.parent.slookup name, depth + 1
+        this.parent.scopeLookup name, depth + 1
     }
     bind: { name ->
         n = this.locals.size
@@ -43,8 +57,8 @@ isBody = { what -> return what.type == #body }
 emit = { scope, what ->
     print "EMIT:", what
     if isSym what: return scope.lookup what
-    if isNumber what: return [#data, what]
-    if isText what: return [#data, what]
+    if isNumber what: return scope.module.getData(what)
+    if isText what: return scope.module.getData(what)
     if isCall what: return emitCall scope, what
     if isSend what: return emitSend scope, what
     if isBody what: return emitBody scope, what
@@ -58,18 +72,20 @@ emitCall = { scope, call ->
 emitSend = { scope, send ->
     target = emit scope, send.target
     args = send.args.map: e -> emit scope, e
-    return [#drop, #send, args.size, target, send.msg].cat(args)
+    msg = scope.module.getData(send.msg)
+    return [#drop, #send, args.size, target, msg].cat(args)
 }
 
-emitBody = { scope, body ->
-    scope = Scope(scope)
+emitBody = { scope, module, body ->
+    scope = Scope(scope, module)
     body.map: expr -> emit scope, expr
 }
 
 { body ->
-    scope = GlobalScope()
-    b = emitBody scope, body
-    scope.globals.keys.each: k -> print "GLOBALS:", k
+    module = Module()
+    b = emitBody module, module, body
+    module.globals.keys.each: k -> print "GLOBALS:", k
+    module.data.each: d -> print "DATA:", d
     return b.flatten
 }
 
