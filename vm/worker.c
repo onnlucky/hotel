@@ -35,7 +35,7 @@ struct tlVm {
 
     tlEnv* globals;
     tlMap* locals; // default task locals
-    tlValue resolve;
+    tlHandle resolve;
 
     // for when we run multithreaded
     pthread_mutex_t* lock;

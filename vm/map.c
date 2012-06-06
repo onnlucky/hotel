@@ -3,34 +3,34 @@
 #include "trace-off.h"
 
 static tlKind _tlMapKind;
-static tlKind _tlValueObjectKind;
+static tlKind _tlHandleObjectKind;
 tlKind* tlMapKind = &_tlMapKind;
-tlKind* tlValueObjectKind = &_tlValueObjectKind;
+tlKind* tlHandleObjectKind = &_tlHandleObjectKind;
 
-tlMap* tlMapFromObjectAs(tlValue v) { assert(tlValueObjectIs(v)); return (tlMap*)v; }
-tlMap* tlMapFromObjectCast(tlValue v) { return tlValueObjectIs(v)?(tlMap*)v:null; }
-bool tlMapOrObjectIs(tlValue v) { return tlMapIs(v) || tlValueObjectIs(v); }
+tlMap* tlMapFromObjectAs(tlHandle v) { assert(tlHandleObjectIs(v)); return (tlMap*)v; }
+tlMap* tlMapFromObjectCast(tlHandle v) { return tlHandleObjectIs(v)?(tlMap*)v:null; }
+bool tlMapOrObjectIs(tlHandle v) { return tlMapIs(v) || tlHandleObjectIs(v); }
 
 static tlMap* _tl_emptyMap;
 
 struct tlMap {
     tlHead head;
     tlSet* keys;
-    tlValue data[];
+    tlHandle data[];
 };
 
 tlMap* tlMapEmpty() { return _tl_emptyMap; }
 
 tlMap* tlMapNew(tlSet* keys) {
     if (!keys) keys = _tl_set_empty;
-    tlMap* map = tlAlloc(tlMapKind, sizeof(tlMap) + sizeof(tlValue) * keys->size);
+    tlMap* map = tlAlloc(tlMapKind, sizeof(tlMap) + sizeof(tlHandle) * keys->size);
     map->keys = keys;
     assert(tlMapSize(map) == tlSetSize(keys));
     return map;
 }
 tlMap* tlMapToObject_(tlMap* map) {
     assert((map->head.kind & 0x7) == 0);
-    map->head.kind = (intptr_t)tlValueObjectKind; return map;
+    map->head.kind = (intptr_t)tlHandleObjectKind; return map;
 }
 int tlMapSize(tlMap* map) {
     assert(tlMapOrObjectIs(map));
@@ -53,14 +53,14 @@ tlMap* tlMapToObject(tlMap* map) {
     return tlMapToObject_(nmap);
 }
 
-tlValue tlMapGet(tlMap* map, tlValue key) {
+tlHandle tlMapGet(tlMap* map, tlHandle key) {
     assert(tlMapOrObjectIs(map));
     int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
     assert(at < tlMapSize(map));
     return map->data[at];
 }
-tlMap* tlMapSet(tlMap* map, tlValue key, tlValue v) {
+tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v) {
     trace("set map: %s = %s", tl_str(key), tl_str(v));
 
     int at = 0;
@@ -87,7 +87,7 @@ tlMap* tlMapSet(tlMap* map, tlValue key, tlValue v) {
     return nmap;
 }
 
-tlValue tlMapGetSym(tlMap* map, tlSym key) {
+tlHandle tlMapGetSym(tlMap* map, tlSym key) {
     assert(tlMapOrObjectIs(map));
     int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
@@ -95,7 +95,7 @@ tlValue tlMapGetSym(tlMap* map, tlSym key) {
     trace("keys get: %s = %s", tl_str(key), tl_str(map->data[at]));
     return map->data[at];
 }
-void tlMapSetSym_(tlMap* map, tlSym key, tlValue v) {
+void tlMapSetSym_(tlMap* map, tlSym key, tlHandle v) {
     assert(tlMapOrObjectIs(map));
     int at = tlSetIndexof(map->keys, key);
     assert(at >= 0 && at < tlMapSize(map));
@@ -118,24 +118,24 @@ tlMap* tlMapFromPairs(tlList* pairs) {
     for (int i = 0; i < size; i++) {
         tlList* pair = tlListAs(tlListGet(pairs, i));
         tlSym name = tlSymAs(tlListGet(pair, 0));
-        tlValue v = tlListGet(pair, 1);
+        tlHandle v = tlListGet(pair, 1);
         tlMapSetSym_(map, name, v);
     }
     return map;
 }
 
-tlValue tlMapValueIter(tlMap* map, int i) {
+tlHandle tlMapValueIter(tlMap* map, int i) {
     assert(i >= 0);
     if (i >= tlMapSize(map)) return null;
     return map->data[i];
 }
 
-void tlMapValueIterSet_(tlMap* map, int i, tlValue v) {
+void tlMapValueIterSet_(tlMap* map, int i, tlHandle v) {
     assert(i >= 0 && i < tlMapSize(map));
     map->data[i] = v;
 }
 
-tlMap* tlObjectFrom(const char* n1, tlValue v1, ...) {
+tlMap* tlObjectFrom(const char* n1, tlHandle v1, ...) {
     va_list ap;
     int size = 1;
     assert(n1);
@@ -144,7 +144,7 @@ tlMap* tlObjectFrom(const char* n1, tlValue v1, ...) {
     va_start(ap, v1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        tlValue v = va_arg(ap, tlValue); assert(v);
+        tlHandle v = va_arg(ap, tlHandle); assert(v);
         size++;
     }
     va_end(ap);
@@ -154,7 +154,7 @@ tlMap* tlObjectFrom(const char* n1, tlValue v1, ...) {
     va_start(ap, v1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        va_arg(ap, tlValue);
+        va_arg(ap, tlHandle);
         tlSetAdd_(keys, tlSYM(n));
     }
     va_end(ap);
@@ -164,7 +164,7 @@ tlMap* tlObjectFrom(const char* n1, tlValue v1, ...) {
     va_start(ap, v1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        tlValue v = va_arg(ap, tlValue); assert(v);
+        tlHandle v = va_arg(ap, tlHandle); assert(v);
         tlMapSetSym_(map, tlSYM(n), v);
     }
     va_end(ap);
@@ -208,7 +208,7 @@ tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...) {
 }
 
 // called when map literals contain lookups or expressions to evaluate
-static tlValue _Map_clone(tlArgs* args) {
+static tlHandle _Map_clone(tlArgs* args) {
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     int size = tlMapSize(map);
@@ -223,7 +223,7 @@ static tlValue _Map_clone(tlArgs* args) {
     return map;
 }
 // TODO these functions create way to many intermediates ... add more code :(
-static tlValue _Map_update(tlArgs* args) {
+static tlHandle _Map_update(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     if (!tlMapOrObjectIs(tlArgsGet(args, 1))) TL_THROW("Expected a Map");
@@ -236,11 +236,11 @@ static tlValue _Map_update(tlArgs* args) {
     map->head.kind = kind;
     return map;
 }
-static tlValue _Map_inherit(tlArgs* args) {
+static tlHandle _Map_inherit(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
-    tlValue oclass = tlMapGetSym(map, s_class);
+    tlHandle oclass = tlMapGetSym(map, s_class);
     intptr_t kind = map->head.kind;
     for (int i = 1; i < tlArgsSize(args); i++) {
         if (!tlMapOrObjectIs(tlArgsGet(args, i))) TL_THROW("Expected a Map");
@@ -253,71 +253,71 @@ static tlValue _Map_inherit(tlArgs* args) {
     map->head.kind = kind;
     return map;
 }
-static tlValue _Map_keys(tlArgs* args) {
+static tlHandle _Map_keys(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     return map->keys;
 }
-static tlValue _Map_get(tlArgs* args) {
+static tlHandle _Map_get(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     tlSym key = tlSymCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a symbol");
-    tlValue res = tlMapGetSym(map, key);
+    tlHandle res = tlMapGetSym(map, key);
     if (!res) return tlUndefined;
     return res;
 }
-static tlValue _Map_set(tlArgs* args) {
+static tlHandle _Map_set(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     tlSym key = tlSymCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a symbol");
-    tlValue val = tlArgsGet(args, 2);
+    tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("Expected a value");
     return tlMapSet(map, key, val);
 }
-static tlValue _map_size(tlArgs* args) {
+static tlHandle _map_size(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     return tlINT(tlMapSize(map));
 }
-static tlValue _map_keys(tlArgs* args) {
+static tlHandle _map_keys(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     return tlMapKeySet(map);
 }
-static tlValue _map_get(tlArgs* args) {
+static tlHandle _map_get(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    tlValue key = tlArgsGet(args, 0);
+    tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
-    tlValue res = tlMapGet(map, key);
+    tlHandle res = tlMapGet(map, key);
     if (!res) return tlUndefined;
     return res;
 }
-static tlValue _map_set(tlArgs* args) {
+static tlHandle _map_set(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
-    tlValue key = tlArgsGet(args, 0);
+    tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Expected a key");
-    tlValue val = tlArgsGet(args, 1);
+    tlHandle val = tlArgsGet(args, 1);
     if (!val || val == tlUndefined) val = tlNull;
     tlMap* nmap = tlMapSet(map, key, val);
     return nmap;
 }
-static tlValue _map_toObject(tlArgs* args) {
+static tlHandle _map_toObject(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     return tlMapToObject(map);
 }
-const char* mapToText(tlValue v, char* buf, int size) {
+const char* mapToText(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Map@%p %d>", v, tlMapSize(tlMapAs(v))); return buf;
 }
-static size_t mapSize(tlValue v) {
-    return sizeof(tlMap) + sizeof(tlValue) * tlMapAs(v)->keys->size;
+static size_t mapSize(tlHandle v) {
+    return sizeof(tlMap) + sizeof(tlHandle) * tlMapAs(v)->keys->size;
 }
 static tlKind _tlMapKind = {
     .name = "map",
@@ -325,17 +325,17 @@ static tlKind _tlMapKind = {
     .toText = mapToText,
 };
 
-static size_t valueObjectSize(tlValue v) {
-    return sizeof(tlMap) + sizeof(tlValue) * tlMapFromObjectAs(v)->keys->size;
+static size_t valueObjectSize(tlHandle v) {
+    return sizeof(tlMap) + sizeof(tlHandle) * tlMapFromObjectAs(v)->keys->size;
 }
-const char* valueObjectToText(tlValue v, char* buf, int size) {
+const char* valueObjectToText(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<ValueObject@%p %d>", v, tlMapSize(tlMapFromObjectAs(v))); return buf;
 }
-static tlValue valueObjectSend(tlArgs* args) {
+static tlHandle valueObjectSend(tlArgs* args) {
     tlMap* map = tlMapFromObjectCast(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
 
-    tlValue field = tlMapGet(map, msg);
+    tlHandle field = tlMapGet(map, msg);
     trace("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
     if (!field) {
         do {
@@ -356,9 +356,9 @@ static tlValue valueObjectSend(tlArgs* args) {
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
 }
-static tlValue valueObjectRun(tlValue fn, tlArgs* args) {
+static tlHandle valueObjectRun(tlHandle fn, tlArgs* args) {
     tlMap* map = tlMapFromObjectAs(fn);
-    tlValue field = tlMapGetSym(map, s_call);
+    tlHandle field = tlMapGetSym(map, s_call);
     if (field) {
         trace("%s", tl_str(field));
         // TODO this is awkward, tlCallableIs does not know about complex user objects
@@ -367,7 +367,7 @@ static tlValue valueObjectRun(tlValue fn, tlArgs* args) {
     }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
-static tlKind _tlValueObjectKind = {
+static tlKind _tlHandleObjectKind = {
     .name = "ValueObject",
     .size = valueObjectSize,
     .toText = valueObjectToText,

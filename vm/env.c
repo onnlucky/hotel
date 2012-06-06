@@ -57,7 +57,7 @@ void tlEnvCloseCaptures(tlEnv* env) {
 void tlEnvCaptured(tlEnv* env) {
     tlflag_set(env, TL_FLAG_CAPTURED);
 }
-tlValue tlEnvGet(tlEnv* env, tlSym key) {
+tlHandle tlEnvGet(tlEnv* env, tlSym key) {
     if (!env) {
         return tl_global(key);
         return null;
@@ -67,13 +67,13 @@ tlValue tlEnvGet(tlEnv* env, tlSym key) {
     trace("%p.get %s", env, tl_str(key));
 
     if (env->map) {
-        tlValue v = tlMapGetSym(env->map, key);
+        tlHandle v = tlMapGetSym(env->map, key);
         if (v) return v;
     }
     return tlEnvGet(env->parent, key);
 }
 
-tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlValue v) {
+tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
     assert(tlEnvIs(env));
     trace("%p.set %s = %s", env, tl_str(key), tl_str(v));
 
@@ -89,18 +89,18 @@ tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlValue v) {
     return env;
 }
 
-static tlValue _env_size(tlArgs* args) {
+static tlHandle _env_size(tlArgs* args) {
     tlEnv* env = tlEnvAs(tlArgsTarget(args));
     return tlINT(tlMapSize(env->map));
 }
-static tlValue _Env_new(tlArgs* args) {
+static tlHandle _Env_new(tlArgs* args) {
     tlEnv* parent = tlEnvCast(tlArgsGet(args, 0));
     return tlEnvNew(parent);
 }
 
 static bool tlCodeFrameIs(tlFrame*);
 static tlEnv* tlCodeFrameGetEnv(tlFrame*);
-static tlValue resumeEnvCurrent(tlFrame* frame, tlValue res, tlValue throw) {
+static tlHandle resumeEnvCurrent(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     while (frame) {
         if (tlCodeFrameIs(frame)) return tlCodeFrameGetEnv(frame);
@@ -108,12 +108,12 @@ static tlValue resumeEnvCurrent(tlFrame* frame, tlValue res, tlValue throw) {
     }
     return tlNull;
 }
-static tlValue _Env_current(tlArgs* args) {
+static tlHandle _Env_current(tlArgs* args) {
     trace("");
     return tlTaskPauseResuming(resumeEnvCurrent, tlNull);
 }
 
-static tlValue resumeEnvLocalObject(tlFrame* frame, tlValue res, tlValue throw) {
+static tlHandle resumeEnvLocalObject(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     while (frame) {
         if (tlCodeFrameIs(frame)) {
@@ -124,7 +124,7 @@ static tlValue resumeEnvLocalObject(tlFrame* frame, tlValue res, tlValue throw) 
     }
     return tlNull;
 }
-static tlValue _Env_localObject(tlArgs* args) {
+static tlHandle _Env_localObject(tlArgs* args) {
     trace("");
     return tlTaskPauseResuming(resumeEnvLocalObject, tlNull);
 }

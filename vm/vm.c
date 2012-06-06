@@ -50,13 +50,13 @@
 tlText* tl_boot_code;
 
 // return a hash
-unsigned tlValueHash(tlValue v) {
+unsigned tlHandleHash(tlHandle v) {
     tlKind* kind = tl_kind(v);
     assert(kind->hash);
     return kind->hash(v);
 }
 // return true if equal, false otherwise
-bool tlValueEquals(tlValue left, tlValue right) {
+bool tlHandleEquals(tlHandle left, tlHandle right) {
     if (left == right) return true;
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
@@ -67,7 +67,7 @@ bool tlValueEquals(tlValue left, tlValue right) {
 // TODO this makes absolute ordering depending on runtime pointers ...
 // TODO also, returning just -1, 0, 1 is better because this can overflow ...
 // return left - right
-int tlValueCompare(tlValue left, tlValue right) {
+int tlHandleCompare(tlHandle left, tlHandle right) {
     if (left == right) return 0;
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
@@ -76,10 +76,10 @@ int tlValueCompare(tlValue left, tlValue right) {
     return kleft->cmp(left, right);
 }
 
-static tlValue _out(tlArgs* args) {
+static tlHandle _out(tlArgs* args) {
     trace("out(%d)", tlArgsSize(args));
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlArgsGet(args, i);
+        tlHandle v = tlArgsGet(args, i);
         if (!v) break;
         printf("%s", tlTextData(tlToText(v)));
     }
@@ -87,97 +87,97 @@ static tlValue _out(tlArgs* args) {
     return tlNull;
 }
 
-static tlValue _bool(tlArgs* args) {
-    tlValue c = tlArgsGet(args, 0);
+static tlHandle _bool(tlArgs* args) {
+    tlHandle c = tlArgsGet(args, 0);
     trace("bool(%s)", tl_bool(c)?"true":"false");
-    tlValue res = tlArgsGet(args, tl_bool(c)?1:2);
+    tlHandle res = tlArgsGet(args, tl_bool(c)?1:2);
     return res;
 }
-static tlValue _not(tlArgs* args) {
+static tlHandle _not(tlArgs* args) {
     trace("!%s", tl_str(tlArgsGet(args, 0)));
     return tlBOOL(!tl_bool(tlArgsGet(args, 0)));
 }
-static tlValue _eq(tlArgs* args) {
+static tlHandle _eq(tlArgs* args) {
     trace("%p == %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(tlValueEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
+    return tlBOOL(tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-static tlValue _neq(tlArgs* args) {
+static tlHandle _neq(tlArgs* args) {
     trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(!tlValueEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
+    return tlBOOL(!tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-static tlValue _lt(tlArgs* args) {
+static tlHandle _lt(tlArgs* args) {
     trace("%s < %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
-    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(cmp < 0);
 }
-static tlValue _lte(tlArgs* args) {
+static tlHandle _lte(tlArgs* args) {
     trace("%d <= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(cmp <= 0);
 }
-static tlValue _gt(tlArgs* args) {
+static tlHandle _gt(tlArgs* args) {
     trace("%d > %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(cmp > 0);
 }
-static tlValue _gte(tlArgs* args) {
+static tlHandle _gte(tlArgs* args) {
     trace("%d >= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    int cmp = tlValueCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(cmp >= 0);
 }
 
 // int
-static tlValue _add(tlArgs* args) {
+static tlHandle _add(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) + tl_int(tlArgsGet(args, 1));
     trace("ADD: %d", res);
     return tlINT(res);
 }
-static tlValue _sub(tlArgs* args) {
+static tlHandle _sub(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) - tl_int(tlArgsGet(args, 1));
     trace("SUB: %d", res);
     return tlINT(res);
 }
-static tlValue _mul(tlArgs* args) {
+static tlHandle _mul(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) * tl_int(tlArgsGet(args, 1));
     trace("MUL: %d", res);
     return tlINT(res);
 }
-static tlValue _div(tlArgs* args) {
+static tlHandle _div(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) / tl_int(tlArgsGet(args, 1));
     trace("DIV: %d", res);
     return tlINT(res);
 }
-static tlValue _mod(tlArgs* args) {
+static tlHandle _mod(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) % tl_int(tlArgsGet(args, 1));
     trace("MOD: %d", res);
     return tlINT(res);
 }
-static tlValue _binand(tlArgs* args) {
+static tlHandle _binand(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
     trace("BIN AND: %d", res);
     return tlINT(res);
 }
-static tlValue _binor(tlArgs* args) {
+static tlHandle _binor(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) | tl_int(tlArgsGet(args, 1));
     trace("BIN OR: %d", res);
     return tlINT(res);
 }
-static tlValue _binxor(tlArgs* args) {
+static tlHandle _binxor(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) ^ tl_int(tlArgsGet(args, 1));
     trace("BIN XOR: %d", res);
     return tlINT(res);
 }
-static tlValue _binnot(tlArgs* args) {
+static tlHandle _binnot(tlArgs* args) {
     int res = ~tl_int(tlArgsGet(args, 0));
     trace("BIN NOT: %d", res);
     return tlINT(res);
 }
-static tlValue _sqrt(tlArgs* args) {
+static tlHandle _sqrt(tlArgs* args) {
     int res = sqrt(tl_int(tlArgsGet(args, 0)));
     trace("SQRT: %d", res);
     return tlINT(res);
 }
-static tlValue _random(tlArgs* args) {
+static tlHandle _random(tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);
     int res = random() % upto;
@@ -185,7 +185,7 @@ static tlValue _random(tlArgs* args) {
     return tlINT(res);
 }
 
-static tlValue _int_parse(tlArgs* args) {
+static tlHandle _int_parse(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expect a text");
     int base = tl_int_or(tlArgsGet(args, 1), 10);
@@ -219,10 +219,10 @@ void tl_init() {
     assert(!tlArgsIs(0));
     assert(tlArgsAs(0) == 0);
 
-    trace("    field size: %zd", sizeof(tlValue));
-    trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlValue));
-    trace("frame overhead: %zd (%zd)", sizeof(tlFrame), sizeof(tlFrame)/sizeof(tlValue));
-    trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlValue));
+    trace("    field size: %zd", sizeof(tlHandle));
+    trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlHandle));
+    trace("frame overhead: %zd (%zd)", sizeof(tlFrame), sizeof(tlFrame)/sizeof(tlHandle));
+    trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlHandle));
 
     sym_init();
 
@@ -280,7 +280,7 @@ void tlVmDelete(tlVm* vm) {
     free(vm);
 }
 
-void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v) {
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v) {
     vm->globals = tlEnvSet(vm->globals, key, v);
 }
 
@@ -366,9 +366,9 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as) {
     return task;
 }
 
-static tlValue _print(tlArgs* args) {
+static tlHandle _print(tlArgs* args) {
     tlText* sep = tlTEXT(" ");
-    tlValue v = tlArgsMapGet(args, tlSYM("sep"));
+    tlHandle v = tlArgsMapGet(args, tlSYM("sep"));
     if (v) sep = tlToText(v);
 
     tlText* begin = null;
@@ -381,7 +381,7 @@ static tlValue _print(tlArgs* args) {
 
     if (begin) printf("%s", tlTextData(begin));
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlArgsGet(args, i);
+        tlHandle v = tlArgsGet(args, i);
         if (!v) break;
         if (i > 0) printf("%s", tlTextData(sep));
         printf("%s", tlTextData(tlToText(v)));
@@ -392,18 +392,18 @@ static tlValue _print(tlArgs* args) {
     return tlNull;
 }
 
-static tlValue _assert(tlArgs* args) {
+static tlHandle _assert(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsMapGet(args, tlSYM("text")));
     if (!text) text = tlTextEmpty();
     for (int i = 0; i < 1000; i++) {
-        tlValue v = tlArgsGet(args, i);
+        tlHandle v = tlArgsGet(args, i);
         if (!v) break;
         if (!tl_bool(v)) TL_THROW("Assertion Failed: %s", tlTextData(text));
     }
     return tlNull;
 }
 
-static tlValue _error(tlArgs* args) {
+static tlHandle _error(tlArgs* args) {
     TL_THROW("hello world!");
 }
 

@@ -12,8 +12,8 @@ tlKind* tlArgsKind = &_tlArgsKind;
 
 struct tlArgs {
     tlHead head;
-    tlValue fn;
-    tlValue target;
+    tlHandle fn;
+    tlHandle target;
     tlSym msg;
     tlMap* map;
     tlList* list;
@@ -38,9 +38,9 @@ tlArgs* tlArgsNew(tlList* list, tlMap* map) {
     return args;
 }
 
-tlValue tlArgsTarget(tlArgs* args) { assert(tlArgsIs(args)); return args->target; }
-tlValue tlArgsMsg(tlArgs* args) { assert(tlArgsIs(args)); return args->msg; }
-tlValue tlArgsFn(tlArgs* args) { assert(tlArgsIs(args)); return args->fn; }
+tlHandle tlArgsTarget(tlArgs* args) { assert(tlArgsIs(args)); return args->target; }
+tlHandle tlArgsMsg(tlArgs* args) { assert(tlArgsIs(args)); return args->msg; }
+tlHandle tlArgsFn(tlArgs* args) { assert(tlArgsIs(args)); return args->fn; }
 
 int tlArgsSize(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -58,65 +58,65 @@ tlMap* tlArgsMap(tlArgs* args) {
     assert(tlArgsIs(args));
     return args->map;
 }
-tlValue tlArgsGet(tlArgs* args, int at) {
+tlHandle tlArgsGet(tlArgs* args, int at) {
     assert(tlArgsIs(args));
     return tlListGet(args->list, at);
 }
-tlValue tlArgsMapGet(tlArgs* args, tlSym name) {
+tlHandle tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
     return tlMapGetSym(args->map, name);
 }
-tlValue tlArgsBlock(tlArgs* args) {
+tlHandle tlArgsBlock(tlArgs* args) {
     assert(tlArgsIs(args));
     return tlArgsMapGet(args, s_block);
 }
 
-void tlArgsSetFn_(tlArgs* args, tlValue fn) {
+void tlArgsSetFn_(tlArgs* args, tlHandle fn) {
     assert(tlArgsIs(args));
     assert(!args->fn);
     args->fn = fn;
 }
-void tlArgsSet_(tlArgs* args, int at, tlValue v) {
+void tlArgsSet_(tlArgs* args, int at, tlHandle v) {
     assert(tlArgsIs(args));
     tlListSet_(args->list, at, v);
 }
-void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v) {
+void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v) {
     assert(tlArgsIs(args));
     tlMapSetSym_(args->map, name, v);
 }
 
-static tlValue _args_size(tlArgs* args) {
+static tlHandle _args_size(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlINT(tlArgsSize(as));
 }
-static tlValue _args_get(tlArgs* args) {
+static tlHandle _args_get(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at == -1) TL_THROW("Expected an index");
-    tlValue res = tlArgsGet(as, at);
+    tlHandle res = tlArgsGet(as, at);
     if (!res) return tlUndefined;
     return res;
 }
-static tlValue _args_block(tlArgs* args) {
+static tlHandle _args_block(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
-    tlValue res = tlArgsBlock(as);
+    tlHandle res = tlArgsBlock(as);
     if (!res) return tlUndefined;
     return res;
 }
-static tlValue _args_map(tlArgs* args) {
+static tlHandle _args_map(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlArgsMap(as);
 }
-static tlValue _args_names(tlArgs* args) {
+static tlHandle _args_names(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
     return tlMapToObject(tlArgsMap(as));
 }
-static tlValue _args_slice(tlArgs* args) {
+static tlHandle _args_slice(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     if (!as) TL_THROW("Expected a args object");
 
@@ -127,7 +127,7 @@ static tlValue _args_slice(tlArgs* args) {
     return tlListSlice(list, first, last);
 }
 
-const char* _ArgsToText(tlValue v, char* buf, int size) {
+const char* _ArgsToText(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
     return buf;
 }

@@ -35,22 +35,22 @@ static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
 static tlKind _tlSymKind;
 tlKind* tlSymKind = &_tlSymKind;
 
-bool tlActiveIs(tlValue v) { return !tlIntIs(v) && (((intptr_t)v) & 7) >= 4; }
-tlValue tl_value(tlValue a) {
+bool tlActiveIs(tlHandle v) { return !tlIntIs(v) && (((intptr_t)v) & 7) >= 4; }
+tlHandle tl_value(tlHandle a) {
     assert(tlActiveIs(a));
-    tlValue v = (tlValue)((intptr_t)a & ~4);
+    tlHandle v = (tlHandle)((intptr_t)a & ~4);
     assert(!tlActiveIs(v));
     assert(tlRefIs(v) || tlSymIs(v));
     return v;
 }
-tlValue tl_active(tlValue v) {
+tlHandle tl_active(tlHandle v) {
     assert(tlRefIs(v) || tlSymIs(v));
     assert(!tlActiveIs(v));
-    tlValue a = (tlValue)((intptr_t)v | 4);
+    tlHandle a = (tlHandle)((intptr_t)v | 4);
     assert(tlActiveIs(a));
     return a;
 }
-tlValue tlACTIVE(tlValue v) {
+tlHandle tlACTIVE(tlHandle v) {
     return tl_active(v);
 }
 
@@ -95,14 +95,14 @@ tlSym tlSymFromText(tlText* text) {
     return sym;
 }
 
-INTERNAL tlValue _sym_toText(tlArgs* args) {
+INTERNAL tlHandle _sym_toText(tlArgs* args) {
     return tlTextFromSym(tlArgsTarget(args));
 }
-INTERNAL tlValue _sym_toSym(tlArgs* args) {
+INTERNAL tlHandle _sym_toSym(tlArgs* args) {
     return tlArgsTarget(args);
 }
 
-void tl_register_global(const char* name, tlValue v) {
+void tl_register_global(const char* name, tlHandle v) {
     assert(globals);
     tlSYM(name);
     lhashmap_putif(globals, (void *)name, v, LHASHMAP_IGNORE);
@@ -116,7 +116,7 @@ void tl_register_natives(const tlNativeCbs* cbs) {
     }
 }
 
-static tlValue tl_global(tlSym sym) {
+static tlHandle tl_global(tlSym sym) {
     assert(tlSymIs(sym));
     assert(globals);
     return lhashmap_get(globals, tlTextData(_TEXT_FROM_SYM(sym)));
@@ -130,13 +130,13 @@ static int strequals(void *left, void *right) {
 }
 static void strfree(void *str) { }
 
-const char* symToText(tlValue v, char* buf, int size) {
+const char* symToText(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "#%s", tlTextData(_TEXT_FROM_SYM(v))); return buf;
 }
-static unsigned int symHash(tlValue v) {
+static unsigned int symHash(tlHandle v) {
     return tlTextHash(tlTextFromSym(tlSymAs(v)));
 }
-static bool symEquals(tlValue left, tlValue right) {
+static bool symEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
 static tlKind _tlSymKind = {

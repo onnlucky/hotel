@@ -9,10 +9,10 @@
 #include "platform.h"
 
 // all values are tagged pointers, memory based values are aligned to 8 bytes, so 3 tag bits
-typedef void* tlValue;
+typedef void* tlHandle;
 
-typedef tlValue tlSym;
-typedef tlValue tlInt;
+typedef tlHandle tlSym;
+typedef tlHandle tlInt;
 
 // a kind describes a value, sort of like a common vtable
 typedef struct tlKind tlKind;
@@ -24,19 +24,19 @@ typedef struct tlHead {
 } tlHead;
 
 // small int, 31 or 63 bits, lowest bit is always 1
-static const tlValue tlZero = (tlHead*)((0 << 1)|1);
-static const tlValue tlOne =  (tlHead*)((1 << 1)|1);
-static const tlValue tlTwo =  (tlHead*)((2 << 1)|1);
+static const tlHandle tlZero = (tlHead*)((0 << 1)|1);
+static const tlHandle tlOne =  (tlHead*)((1 << 1)|1);
+static const tlHandle tlTwo =  (tlHead*)((2 << 1)|1);
 #define TL_MAX_INT32 ((int32_t)0x3FFFFFFF)
 #define TL_MIN_INT32 ((int32_t)0xBFFFFFFF)
 #ifdef M32
-static const tlValue tlIntMax = (tlHead*)(0x7FFFFFFF);
-static const tlValue tlIntMin = (tlHead*)(0xFFFFFFFF);
+static const tlHandle tlIntMax = (tlHead*)(0x7FFFFFFF);
+static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFF);
 #define TL_MAX_INT ((int32_t)0x3FFFFFFF)
 #define TL_MIN_INT ((int32_t)0xBFFFFFFF)
 #else
-static const tlValue tlIntMax = (tlHead*)(0x7FFFFFFFFFFFFFFF);
-static const tlValue tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
+static const tlHandle tlIntMax = (tlHead*)(0x7FFFFFFFFFFFFFFF);
+static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
 #define TL_MAX_INT ((int64_t)0x3FFFFFFFFFFFFFFF)
 #define TL_MIN_INT ((int64_t)0xBFFFFFFFFFFFFFFF)
 #endif
@@ -47,17 +47,17 @@ static const tlValue tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
 #define TL_NULL      ((2 << 3)|2)
 #define TL_FALSE     ((3 << 3)|2)
 #define TL_TRUE      ((4 << 3)|2)
-static const tlValue tlUndefined = (tlHead*)TL_UNDEFINED;
-static const tlValue tlNull =      (tlHead*)TL_NULL;
-static const tlValue tlFalse =     (tlHead*)TL_FALSE;
-static const tlValue tlTrue =      (tlHead*)TL_TRUE;
+static const tlHandle tlUndefined = (tlHead*)TL_UNDEFINED;
+static const tlHandle tlNull =      (tlHead*)TL_NULL;
+static const tlHandle tlFalse =     (tlHead*)TL_FALSE;
+static const tlHandle tlTrue =      (tlHead*)TL_TRUE;
 
-static const tlValue tlTaskNotRunning = (tlHead*)((10 << 3)|2);
-static const tlValue tlTaskJumping    = (tlHead*)((11 << 3)|2);
+static const tlHandle tlTaskNotRunning = (tlHead*)((10 << 3)|2);
+static const tlHandle tlTaskJumping    = (tlHead*)((11 << 3)|2);
 
-static const tlValue tlThunkNull =    (tlHead*)((50 << 3)|2);
-static const tlValue tlCollectLazy =  (tlHead*)((51 << 3)|2);
-static const tlValue tlCollectEager = (tlHead*)((52 << 3)|2);
+static const tlHandle tlThunkNull =    (tlHead*)((50 << 3)|2);
+static const tlHandle tlCollectLazy =  (tlHead*)((51 << 3)|2);
+static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|2);
 
 // for the attentive reader, where does 100 tag come into play?
 // internally this is called an "active" value, which is used in the interpreter
@@ -67,22 +67,22 @@ static const tlValue tlCollectEager = (tlHead*)((52 << 3)|2);
 #define TL_MAX_DATA_SIZE (65535 - TL_MAX_PRIV_SIZE)
 #define TL_MAX_ARGS_SIZE 2000
 
-static inline bool tlRefIs(tlValue v) { return v && ((intptr_t)v & 7) == 0; }
-static inline bool tlTagIs(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
+static inline bool tlRefIs(tlHandle v) { return v && ((intptr_t)v & 7) == 0; }
+static inline bool tlTagIs(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
 
-static inline bool tlBoolIs(tlValue v) { return v == tlTrue || v == tlFalse; }
-static inline tlValue tlBoolAs(tlValue v) { assert(tlBoolIs(v)); return v; }
-static inline tlValue tlBoolCast(tlValue v) { return tlBoolIs(v)?tlBoolAs(v):0; }
+static inline bool tlBoolIs(tlHandle v) { return v == tlTrue || v == tlFalse; }
+static inline tlHandle tlBoolAs(tlHandle v) { assert(tlBoolIs(v)); return v; }
+static inline tlHandle tlBoolCast(tlHandle v) { return tlBoolIs(v)?tlBoolAs(v):0; }
 
-static inline bool tlIntIs(tlValue v) { return ((intptr_t)v & 1) == 1; }
-static inline tlInt tlIntAs(tlValue v) { assert(tlIntIs(v)); return v; }
-static inline tlInt tlIntCast(tlValue v) { return tlIntIs(v)?tlIntAs(v):0; }
+static inline bool tlIntIs(tlHandle v) { return ((intptr_t)v & 1) == 1; }
+static inline tlInt tlIntAs(tlHandle v) { assert(tlIntIs(v)); return v; }
+static inline tlInt tlIntCast(tlHandle v) { return tlIntIs(v)?tlIntAs(v):0; }
 
-static inline bool tlSymIs(tlValue v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
-static inline tlSym tlSymAs(tlValue v) { assert(tlSymIs(v)); return (tlSym)v; }
-static inline tlSym tlSymCast(tlValue v) { return tlSymIs(v)?tlSymAs(v):0; }
+static inline bool tlSymIs(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
+static inline tlSym tlSymAs(tlHandle v) { assert(tlSymIs(v)); return (tlSym)v; }
+static inline tlSym tlSymCast(tlHandle v) { return tlSymIs(v)?tlSymAs(v):0; }
 
-static inline tlHead* tl_head(tlValue v) { assert(tlRefIs(v)); return (tlHead*)v; }
+static inline tlHead* tl_head(tlHandle v) { assert(tlRefIs(v)); return (tlHead*)v; }
 
 extern tlKind* tlIntKind;
 extern tlKind* tlSymKind;
@@ -90,9 +90,9 @@ extern tlKind* tlNullKind;
 extern tlKind* tlUndefinedKind;
 extern tlKind* tlBoolKind;
 
-static inline intptr_t get_kptr(tlValue v) { return ((tlHead*)v)->kind; }
+static inline intptr_t get_kptr(tlHandle v) { return ((tlHead*)v)->kind; }
 
-static inline tlKind* tl_kind(tlValue v) {
+static inline tlKind* tl_kind(tlHandle v) {
     if (tlRefIs(v)) return (tlKind*)(get_kptr(v) & ~0x7);
     if (tlIntIs(v)) return tlIntKind;
     if (tlSymIs(v)) return tlSymKind;
@@ -109,18 +109,18 @@ static inline tlKind* tl_kind(tlValue v) {
 #define TL_REF_TYPE(_T) \
 typedef struct _T _T; \
 extern tlKind* _T##Kind; \
-static inline bool _T##Is(tlValue v) { \
+static inline bool _T##Is(tlHandle v) { \
     return tl_kind(v) == _T##Kind; } \
-static inline _T* _T##As(tlValue v) { \
+static inline _T* _T##As(tlHandle v) { \
     assert(_T##Is(v) || !v); return (_T*)v; } \
-static inline _T* _T##Cast(tlValue v) { \
+static inline _T* _T##Cast(tlHandle v) { \
     return _T##Is(v)?(_T*)v:null; }
 
 TL_REF_TYPE(tlText);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
-TL_REF_TYPE(tlValueObject);
+TL_REF_TYPE(tlHandleObject);
 
 TL_REF_TYPE(tlCall);
 TL_REF_TYPE(tlArgs);
@@ -145,10 +145,10 @@ TL_REF_TYPE(tlVm);
 TL_REF_TYPE(tlWorker);
 TL_REF_TYPE(tlTask);
 
-bool tlCallableIs(tlValue v);
+bool tlCallableIs(tlHandle v);
 
 // to and from primitive values
-tlValue tlBOOL(unsigned c);
+tlHandle tlBOOL(unsigned c);
 tlInt tlINT(intptr_t i);
 
 // tlTEXT and tlSYM can only be used after tl_init()
@@ -156,11 +156,11 @@ tlInt tlINT(intptr_t i);
 #define tlTEXT(x) tlTextFromStatic(x, strlen(x))
 #define tlSYM(x) tlSymFromStatic(x, strlen(x))
 
-int tl_bool(tlValue v);
-int tl_bool_or(tlValue v, bool d);
-intptr_t tl_int(tlValue v);
-intptr_t tl_int_or(tlValue v, int d);
-const char* tl_str(tlValue v);
+int tl_bool(tlHandle v);
+int tl_bool_or(tlHandle v, bool d);
+intptr_t tl_int(tlHandle v);
+intptr_t tl_int_or(tlHandle v, int d);
+const char* tl_str(tlHandle v);
 
 // ** main api for values in runtime **
 
@@ -169,9 +169,9 @@ const char* tl_str(tlValue v);
 // Mutable setters (ending with underscore) must only be used after you just created the value.
 // Notice hotel level text, list, etc. values are not necesairy primitive tlTexts or tlLists etc.
 
-unsigned int tlValueHash(tlValue v);
-bool tlValueEquals(tlValue left, tlValue right);
-int tlValueCompare(tlValue left, tlValue right);
+unsigned int tlHandleHash(tlHandle v);
+bool tlHandleEquals(tlHandle left, tlHandle right);
+int tlHandleCompare(tlHandle left, tlHandle right);
 
 
 // ** text **
@@ -201,53 +201,53 @@ const char* tlSymData(tlSym sym);
 // ** list **
 int tlListSize(tlList* list);
 int tlListIsEmpty(tlList* list);
-tlValue tlListGet(tlList* list, int at);
+tlHandle tlListGet(tlList* list, int at);
 
 tlList* tlListEmpty();
 tlList* tlListNew(int size);
-tlList* tlListFrom1(tlValue v);
-tlList* tlListFrom2(tlValue v1, tlValue v2);
-tlList* tlListFrom(tlValue v1, ... /*tlValue*/);
+tlList* tlListFrom1(tlHandle v);
+tlList* tlListFrom2(tlHandle v1, tlHandle v2);
+tlList* tlListFrom(tlHandle v1, ... /*tlHandle*/);
 
 tlList* tlListCopy(tlList* from, int newsize);
-tlList* tlListAppend(tlList* list, tlValue v);
-tlList* tlListAppend2(tlList* list, tlValue v1, tlValue v2);
-tlList* tlListPrepend(tlList* list, tlValue v);
-tlList* tlListPrepend2(tlList* list, tlValue v1, tlValue v2);
-tlList* tlListSet(tlList* list, int at, tlValue v);
+tlList* tlListAppend(tlList* list, tlHandle v);
+tlList* tlListAppend2(tlList* list, tlHandle v1, tlHandle v2);
+tlList* tlListPrepend(tlList* list, tlHandle v);
+tlList* tlListPrepend2(tlList* list, tlHandle v1, tlHandle v2);
+tlList* tlListSet(tlList* list, int at, tlHandle v);
 tlList* tlListCat(tlList* lhs, tlList* rhs);
 tlList* tlListSub(tlList* list, int first, int size);
 tlList* tlListSplice(tlList* list, int first, int size);
 
-void tlListSet_(tlList* list, int at, tlValue v);
+void tlListSet_(tlList* list, int at, tlHandle v);
 
 
 // ** map **
 int tlMapSize(tlMap* map);
 int tlMapIsEmpty(tlMap* map);
-tlValue tlMapGetInt(tlMap* map, int key);
-tlValue tlMapGetSym(tlMap* map, tlSym key);
-tlValue tlMapValueIter(tlMap* map, int i);
-tlValue tlMapKeyIter(tlMap* map, int i);
+tlHandle tlMapGetInt(tlMap* map, int key);
+tlHandle tlMapGetSym(tlMap* map, tlSym key);
+tlHandle tlMapValueIter(tlMap* map, int i);
+tlHandle tlMapKeyIter(tlMap* map, int i);
 
-void tlMapValueIterSet_(tlMap* map, int i, tlValue v);
-void tlMapSetInt_(tlMap* map, int key, tlValue v);
-void tlMapSetSym_(tlMap* map, tlSym key, tlValue v);
+void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
+void tlMapSetInt_(tlMap* map, int key, tlHandle v);
+void tlMapSetSym_(tlMap* map, tlSym key, tlHandle v);
 tlMap* tlMapToObject_(tlMap* map);
 
 tlMap* tlMapEmpty();
 tlMap* tlMapNew(tlSet* keys);
 tlMap* tlMapCopy(tlMap* map);
 tlMap* tlMapToObject(tlMap* map);
-tlMap* tlMapFrom1(tlValue key, tlValue v);
-tlMap* tlMapFrom(tlValue v1, ... /*tlValue, tlValue*/);
-tlMap* tlMapFromMany(tlValue vs[], int len /*multiple of 2*/);
+tlMap* tlMapFrom1(tlHandle key, tlHandle v);
+tlMap* tlMapFrom(tlHandle v1, ... /*tlHandle, tlHandle*/);
+tlMap* tlMapFromMany(tlHandle vs[], int len /*multiple of 2*/);
 tlMap* tlMapFromList(tlList* ls);
 tlMap* tlMapFromPairs(tlList* ls);
 
-tlValue tlMapGet(tlMap* map, tlValue key);
-tlMap* tlMapSet(tlMap* map, tlValue key, tlValue v);
-tlMap* tlMapDel(tlMap* map, tlValue key);
+tlHandle tlMapGet(tlMap* map, tlHandle key);
+tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v);
+tlMap* tlMapDel(tlMap* map, tlHandle key);
 tlMap* tlMapJoin(tlMap* lhs, tlMap* rhs);
 
 
@@ -256,7 +256,7 @@ void tl_init();
 
 tlVm* tlVmNew();
 void tlVmInitDefaultEnv(tlVm* vm);
-void tlVmGlobalSet(tlVm* vm, tlSym key, tlValue v);
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v);
 void tlVmDelete(tlVm* vm);
 
 
@@ -266,40 +266,40 @@ void tlVmDelete(tlVm* vm);
 //tlTask* tlTaskCurrent();
 
 // parsing
-tlValue tlParse(tlText* text, tlText* file);
+tlHandle tlParse(tlText* text, tlText* file);
 
 // runs until all tasks are done
-tlTask* tlVmEval(tlVm* vm, tlValue v);
-tlTask* tlVmEvalCall(tlVm* vm, tlValue fn, ...);
+tlTask* tlVmEval(tlVm* vm, tlHandle v);
+tlTask* tlVmEvalCall(tlVm* vm, tlHandle fn, ...);
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as);
 tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as);
 
 // setup a single task to eval something, returns immedately
-tlValue tlEval(tlValue v);
-tlValue tlEvalCall(tlValue fn, ...);
+tlHandle tlEval(tlHandle v);
+tlHandle tlEvalCall(tlHandle fn, ...);
 tlTask* tlEvalCode(tlVm* vm, tlText* code, tlArgs* as);
 
 // reading status from tasks
 bool tlTaskIsDone(tlTask* task);
-tlValue tlTaskGetThrowValue(tlTask* task);
-tlValue tlTaskGetValue(tlTask* task);
+tlHandle tlTaskGetThrowValue(tlTask* task);
+tlHandle tlTaskGetValue(tlTask* task);
 
 // invoking toText, almost same as tlEvalCode("v.toText")
-tlText* tlToText(tlValue v);
+tlText* tlToText(tlHandle v);
 
 
 // ** extending hotel with native functions **
 
 // native functions signature
-typedef tlValue(*tlNativeCb)(tlArgs*);
+typedef tlHandle(*tlNativeCb)(tlArgs*);
 tlNative* tlNATIVE(tlNativeCb cb, const char* name);
 tlNative* tlNativeNew(tlNativeCb cb, tlSym name);
 
 // bulk create native functions and globals (don't overuse these)
 typedef struct { const char* name; tlNativeCb cb; } tlNativeCbs;
 void tl_register_natives(const tlNativeCbs* cbs);
-void tl_register_global(const char* name, tlValue v);
+void tl_register_global(const char* name, tlHandle v);
 
 // task management
 tlTask* tlTaskNew(tlVm* vm, tlMap* locals);
@@ -310,23 +310,23 @@ tlVm* tlTaskGetVm(tlTask* task);
 // if res is set, a call returned a regular result
 // otherwise, if throw is set, a call has thrown a value (likely a tlError)
 // if both are null, we are "unwinding" the stack for a jump (return/continuation ...)
-typedef tlValue(*tlResumeCb)(tlFrame* frame, tlValue res, tlValue throw);
+typedef tlHandle(*tlResumeCb)(tlFrame* frame, tlHandle res, tlHandle throw);
 // pause task to reify stack
-tlValue tlTaskPause(void* frame);
-tlValue tlTaskPauseAttach(void* frame);
-tlValue tlTaskPauseResuming(tlResumeCb resume, tlValue res);
+tlHandle tlTaskPause(void* frame);
+tlHandle tlTaskPauseAttach(void* frame);
+tlHandle tlTaskPauseResuming(tlResumeCb resume, tlHandle res);
 // mark task as waiting
-tlValue tlTaskWaitFor(tlValue on);
+tlHandle tlTaskWaitFor(tlHandle on);
 void tlTaskWaitIo();
 // mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady();
 
 // throws value, if it is a map with a stack, it will be filled in witha stacktrace
-tlValue tlTaskThrow(tlValue err);
+tlHandle tlTaskThrow(tlHandle err);
 
 // throw errors
-tlValue tlErrorThrow(tlValue msg);
-tlValue tlArgumentErrorThrow(tlValue msg);
+tlHandle tlErrorThrow(tlHandle msg);
+tlHandle tlArgumentErrorThrow(tlHandle msg);
 
 #define TL_THROW(f, x...) do {\
     char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
@@ -340,27 +340,27 @@ tlValue tlArgumentErrorThrow(tlValue msg);
 
 // args
 tlArgs* tlArgsNew(tlList* list, tlMap* map);
-void tlArgsSet_(tlArgs* args, int at, tlValue v);
-void tlArgsMapSet_(tlArgs* args, tlSym name, tlValue v);
+void tlArgsSet_(tlArgs* args, int at, tlHandle v);
+void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v);
 
-tlValue tlArgsTarget(tlArgs* args);
+tlHandle tlArgsTarget(tlArgs* args);
 tlSym tlArgsMsg(tlArgs* args);
 
-tlValue tlArgsFn(tlArgs* args);
+tlHandle tlArgsFn(tlArgs* args);
 int tlArgsSize(tlArgs* args);
-tlValue tlArgsGet(tlArgs* args, int at);
+tlHandle tlArgsGet(tlArgs* args, int at);
 int tlArgsMapSize(tlArgs* args);
-tlValue tlArgsMapGet(tlArgs* args, tlSym name);
+tlHandle tlArgsMapGet(tlArgs* args, tlSym name);
 
 // results, from a result or a value, get the first result or the value itself
-tlValue tlFirst(tlValue v);
-tlValue tlResultGet(tlValue v, int at);
+tlHandle tlFirst(tlHandle v);
+tlHandle tlResultGet(tlHandle v, int at);
 // returning multiple results from native functions
-tlResult* tlResultFrom(tlValue v1, ...);
+tlResult* tlResultFrom(tlHandle v1, ...);
 
 // allocate values
-tlValue tlAlloc(tlKind* kind, size_t bytes);
-tlValue tlClone(tlValue v);
+tlHandle tlAlloc(tlKind* kind, size_t bytes);
+tlHandle tlClone(tlHandle v);
 
 // TODO this should be done different
 tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
@@ -371,8 +371,8 @@ tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...);
 
 // ** environment (scope) **
 tlEnv* tlEnvNew(tlEnv* parent);
-tlValue tlEnvGet(tlEnv* env, tlSym key);
-tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlValue v);
+tlHandle tlEnvGet(tlEnv* env, tlSym key);
+tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v);
 
 tlEnv* tlVmGlobalEnv(tlVm* vm);
 
@@ -385,24 +385,24 @@ void tlWorkerDelete(tlWorker* worker);
 void tlWorkerRun(tlWorker* worker);
 
 // todo too low level?
-tlValue tlEvalArgsFn(tlArgs* args, tlValue fn);
-tlValue tlEvalArgsTarget(tlArgs* args, tlValue target, tlValue fn);
+tlHandle tlEvalArgsFn(tlArgs* args, tlHandle fn);
+tlHandle tlEvalArgsTarget(tlArgs* args, tlHandle target, tlHandle fn);
 
 typedef struct tlLock tlLock;
 
-bool tlLockIs(tlValue v);
-tlLock* tlLockAs(tlValue v);
-tlLock* tlLockCast(tlValue v);
+bool tlLockIs(tlHandle v);
+tlLock* tlLockAs(tlHandle v);
+tlLock* tlLockCast(tlHandle v);
 tlTask* tlLockOwner(tlLock* lock);
 
-typedef const char*(*tlToTextFn)(tlValue v, char* buf, int size);
-typedef unsigned int(*tlHashFn)(tlValue from);
-typedef int(*tlEqualsFn)(tlValue left, tlValue right);
-typedef int(*tlCompareFn)(tlValue left, tlValue right);
-typedef size_t(*tlByteSizeFn)(tlValue from);
-typedef tlValue(*tlCallFn)(tlCall* args);
-typedef tlValue(*tlRunFn)(tlValue fn, tlArgs* args);
-typedef tlValue(*tlSendFn)(tlArgs* args);
+typedef const char*(*tlToTextFn)(tlHandle v, char* buf, int size);
+typedef unsigned int(*tlHashFn)(tlHandle from);
+typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
+typedef int(*tlCompareFn)(tlHandle left, tlHandle right);
+typedef size_t(*tlByteSizeFn)(tlHandle from);
+typedef tlHandle(*tlCallFn)(tlCall* args);
+typedef tlHandle(*tlRunFn)(tlHandle fn, tlArgs* args);
+typedef tlHandle(*tlSendFn)(tlArgs* args);
 
 // a kind describes a hotel value for the vm (not at the language level)
 // a kind can have a tlMap* klass, which represents its class from the language level

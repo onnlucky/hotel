@@ -40,7 +40,7 @@ static http_parser_settings settings = {
  .on_message_complete = on_message_complete,
 };
 
-tlValue _http_parse(tlArgs* args) {
+tlHandle _http_parse(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("expected a Buffer");
     http_parser *parser = malloc(sizeof(http_parser));

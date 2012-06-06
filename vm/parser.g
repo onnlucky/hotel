@@ -11,7 +11,7 @@
 
 #include "trace-off.h"
 
-static tlValue sa_send, sa_try_send, sa_this_send;
+static tlHandle sa_send, sa_try_send, sa_this_send;
 static tlSym s_send, s_try_send;
 static tlSym s_Text_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
 static tlSym s_Var_new, s_var_get, s_var_set;
@@ -48,11 +48,11 @@ bool push_indent(void* data);
 bool pop_indent(void* data);
 bool check_indent(void* data);
 
-#define YYSTYPE tlValue
+#define YYSTYPE tlHandle
 #define YY_XTYPE ParseContext*
 #define YY_INPUT(buf, len, max, cx) { len = writesome(cx, buf, max); }
 
-void try_name(tlSym name, tlValue v, ParseContext* cx) {
+void try_name(tlSym name, tlHandle v, ParseContext* cx) {
     if (tlActiveIs(v)) v = tl_value(v);
     if (tlCodeIs(v)) {
         tlCodeSetInfo_(tlCodeAs(v), cx->file, tlINT(cx->line), name);
@@ -60,11 +60,11 @@ void try_name(tlSym name, tlValue v, ParseContext* cx) {
     assert(tlSymIs(name));
 }
 
-tlValue map_activate(tlMap* map) {
+tlHandle map_activate(tlMap* map) {
     int i = 0;
     int argc = 0;
     for (int i = 0;; i++) {
-        tlValue v = tlMapValueIter(map, i);
+        tlHandle v = tlMapValueIter(map, i);
         if (!v) break;
         if (tlActiveIs(v) || tlCallIs(v)) argc++;
     }
@@ -74,7 +74,7 @@ tlValue map_activate(tlMap* map) {
     tlCallSet_(call, 0, map);
     argc = 1;
     for (int i = 0;; i++) {
-        tlValue v = tlMapValueIter(map, i);
+        tlHandle v = tlMapValueIter(map, i);
         if (!v) break;
         if (tlActiveIs(v) || tlCallIs(v)) {
             tlMapValueIterSet_(map, i, null);
@@ -83,11 +83,11 @@ tlValue map_activate(tlMap* map) {
     }
     return call;
 }
-tlValue list_activate(tlList* list) {
+tlHandle list_activate(tlList* list) {
     int size = tlListSize(list);
     int argc = 0;
     for (int i = 0; i < size; i++) {
-        tlValue v = tlListGet(list, i);
+        tlHandle v = tlListGet(list, i);
         if (tlActiveIs(v) || tlCallIs(v)) argc++;
     }
     if (!argc) return list;
@@ -96,7 +96,7 @@ tlValue list_activate(tlList* list) {
     tlCallSet_(call, 0, list);
     argc = 1;
     for (int i = 0; i < size; i++) {
-        tlValue v = tlListGet(list, i);
+        tlHandle v = tlListGet(list, i);
         if (tlActiveIs(v) || tlCallIs(v)) {
             tlListSet_(list, i, null);
             tlCallSet_(call, argc++, v);
@@ -105,27 +105,27 @@ tlValue list_activate(tlList* list) {
     return call;
 }
 
-tlValue call_activate(tlValue in) {
+tlHandle call_activate(tlHandle in) {
     if (tlCallIs(in)) {
         tlCall* call = tlCallAs(in);
         for (int i = 0;; i++) {
-            tlValue v = tlCallValueIter(call, i);
+            tlHandle v = tlCallValueIter(call, i);
             if (!v) break;
-            tlValue v2 = call_activate(v);
+            tlHandle v2 = call_activate(v);
             if (v != v2) tlCallValueIterSet_(call, i, v2);
         }
         return tl_active(call);
     }
     return in;
 }
-tlValue set_target(tlValue on, tlValue target) {
+tlHandle set_target(tlHandle on, tlHandle target) {
     if (!on) return target;
     if (tlCallIs(on)) {
         tlCall* call = tlCallAs(on);
-        tlValue fn = tlCallGetFn(call);
+        tlHandle fn = tlCallGetFn(call);
 
         if (fn == sa_send || fn == sa_try_send) {
-            tlValue oop = tlCallGet(call, 0);
+            tlHandle oop = tlCallGet(call, 0);
             if (!oop) {
                 tlCallSet_(call, 0, target);
                 return on;
@@ -514,7 +514,7 @@ bool check_indent(void* data) {
     return peek_indent(G) == find_indent(G);
 }
 
-tlValue tlParse(tlText* text, tlText* file) {
+tlHandle tlParse(tlText* text, tlText* file) {
     trace("\n----PARSING----\n%s----", tl_str(text));
 
     if (!s_send) {
@@ -560,7 +560,7 @@ tlValue tlParse(tlText* text, tlText* file) {
     if (!yyparse(&g)) {
         TL_THROW("parser error: %d", g.pos + g.offset);
     }
-    tlValue v = g.ss;
+    tlHandle v = g.ss;
     yydeinit(&g);
 
     trace("\n----PARSED----");

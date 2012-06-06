@@ -3,7 +3,7 @@
 struct tlSet {
     tlHead head;
     intptr_t size;
-    tlValue data[];
+    tlHandle data[];
 };
 
 static tlSet* _tl_set_empty;
@@ -27,12 +27,12 @@ void tlSetAssert(tlSet* set) {
 }
 
 tlSet* tlSetNew(int size) {
-    tlSet* set = tlAlloc(tlSetKind, sizeof(tlSet) + sizeof(tlValue) * size);
+    tlSet* set = tlAlloc(tlSetKind, sizeof(tlSet) + sizeof(tlHandle) * size);
     set->size = size;
     return set;
 }
 
-tlValue tlSetGet(tlSet* set, int at) {
+tlHandle tlSetGet(tlSet* set, int at) {
     return set->data[at];
 }
 
@@ -49,12 +49,12 @@ tlSet* tlSetCopy(tlSet* set, int size) {
     tlSet* nset = tlSetNew(size);
 
     if (osize > size) osize = size;
-    memcpy(nset->data, set->data, sizeof(tlValue) * osize);
+    memcpy(nset->data, set->data, sizeof(tlHandle) * osize);
     tlSetAssert(nset);
     return nset;
 }
 
-int tlSetIndexof2(tlSet* set, tlValue key) {
+int tlSetIndexof2(tlSet* set, tlHandle key) {
     tlSetAssert(set);
     int size = tlSetSize(set);
     if (key == null || size == 0) return -1;
@@ -68,13 +68,13 @@ int tlSetIndexof2(tlSet* set, tlValue key) {
     return min;
 }
 
-int tlSetIndexof(tlSet* set, tlValue key) {
+int tlSetIndexof(tlSet* set, tlHandle key) {
     int at = tlSetIndexof2(set, key);
     if (set->data[at] != key) return -1;
     return at;
 }
 
-tlSet* tlSetAdd(tlSet* set, tlValue key, int* at) {
+tlSet* tlSetAdd(tlSet* set, tlHandle key, int* at) {
     trace();
     *at = tlSetIndexof(set, key);
     if (key == null || *at >= 0) return set;
@@ -93,7 +93,7 @@ tlSet* tlSetAdd(tlSet* set, tlValue key, int* at) {
     return nset;
 }
 
-int tlSetAdd_(tlSet* set, tlValue key) {
+int tlSetAdd_(tlSet* set, tlHandle key) {
     int size = tlSetSize(set);
     int at = tlSetIndexof2(set, key);
     assert(at >= 0 && at < size);
@@ -106,15 +106,15 @@ int tlSetAdd_(tlSet* set, tlValue key) {
     return at;
 }
 
-static tlValue _set_get(tlArgs* args) {
+static tlHandle _set_get(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
     if (!set) TL_THROW("expected a Set");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0 || at >= tlSetSize(set)) return tlNull;
-    tlValue res = tlSetGet(set, at);
+    tlHandle res = tlSetGet(set, at);
     return (res)?res:tlNull;
 }
-static tlValue _set_size(tlArgs* args) {
+static tlHandle _set_size(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
     if (!set) TL_THROW("expected a Set");
     return tlINT(tlSetSize(set));

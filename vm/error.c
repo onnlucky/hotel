@@ -15,7 +15,7 @@ struct tlStackTrace {
     tlHead head;
     intptr_t size;
     tlTask* task;
-    tlValue entries[];
+    tlHandle entries[];
     // [tlText, tlText, tlInt, ...] so size * 3 is entries.length
 };
 
@@ -43,7 +43,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     trace("size %d", size);
 
     tlStackTrace* trace = tlAlloc(tlStackTraceKind,
-            sizeof(tlStackTraceKind) + sizeof(tlValue) * size * 3);
+            sizeof(tlStackTraceKind) + sizeof(tlHandle) * size * 3);
     trace->size = size;
     trace->task = task;
     int at = 0;
@@ -66,7 +66,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     return trace;
 }
 
-INTERNAL tlValue _stackTrace_get(tlArgs* args) {
+INTERNAL tlHandle _stackTrace_get(tlArgs* args) {
     tlStackTrace* trace = tlStackTraceCast(tlArgsTarget(args));
     if (!trace) TL_THROW("expected a StackTrace");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
@@ -80,7 +80,7 @@ INTERNAL tlValue _stackTrace_get(tlArgs* args) {
     return tlResultFrom(trace->entries[at], trace->entries[at + 1], trace->entries[at + 2], null);
 }
 
-INTERNAL tlValue resumeThrow(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeThrow(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     if (!res) return null;
     res = tlArgsGet(res, 0);
@@ -88,13 +88,13 @@ INTERNAL tlValue resumeThrow(tlFrame* frame, tlValue res, tlValue throw) {
     trace("throwing: %s", tl_str(res));
     return tlTaskRunThrow(tlTaskCurrent(), res);
 }
-INTERNAL tlValue _throw(tlArgs* args) {
+INTERNAL tlHandle _throw(tlArgs* args) {
     trace("");
     return tlTaskPauseResuming(resumeThrow, args);
 }
 
 // TODO put in full stack?
-const char* stackTraceToText(tlValue v, char* buf, int size) {
+const char* stackTraceToText(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<StackTrace: %p>", v); return buf;
 }
 static tlKind _tlStackTraceKind = {
@@ -148,28 +148,28 @@ static void error_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("ArgumentError"), argumentErrorClass);
 }
 
-tlValue tlErrorThrow(tlValue msg) {
+tlHandle tlErrorThrow(tlHandle msg) {
     tlMap* err = tlMapNew(_errorKeys);
     tlMapSetSym_(err, _s_msg, msg);
     tlMapSetSym_(err, s_class, errorClass);
     tlMapToObject_(err);
     return tlTaskThrow(err);
 }
-tlValue tlUndefinedErrorThrow(tlValue msg) {
+tlHandle tlUndefinedErrorThrow(tlHandle msg) {
     tlMap* err = tlMapNew(_errorKeys);
     tlMapSetSym_(err, _s_msg, msg);
     tlMapSetSym_(err, s_class, undefinedErrorClass);
     tlMapToObject_(err);
     return tlTaskThrow(err);
 }
-tlValue tlArgumentErrorThrow(tlValue msg) {
+tlHandle tlArgumentErrorThrow(tlHandle msg) {
     tlMap* err = tlMapNew(_errorKeys);
     tlMapSetSym_(err, _s_msg, msg);
     tlMapSetSym_(err, s_class, argumentErrorClass);
     tlMapToObject_(err);
     return tlTaskThrow(err);
 }
-void tlErrorAttachStack(tlValue _err, tlFrame* frame) {
+void tlErrorAttachStack(tlHandle _err, tlFrame* frame) {
     tlMap* err = tlMapFromObjectCast(_err);
     if (!err || err->keys != _errorKeys) return;
     assert(tlMapGetSym(err, _s_stack) == null);

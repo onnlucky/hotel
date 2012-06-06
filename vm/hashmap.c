@@ -39,59 +39,59 @@ tlHashMap* tlHashMapNew() {
     map->map = lhashmap_new(map_equals, map_hash, map_free);
     return map;
 }
-INTERNAL tlValue _HashMap_new(tlArgs* args) {
+INTERNAL tlHandle _HashMap_new(tlArgs* args) {
     // TODO take a map
     return tlHashMapNew();
 }
-INTERNAL tlValue _hashmap_get(tlArgs* args) {
+INTERNAL tlHandle _hashmap_get(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
-    tlValue key = tlArgsGet(args, 0);
+    tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
     if (!tl_kind(key)->hash) TL_THROW("expected a hashable key");
 
-    tlValue val = lhashmap_get(map->map, key);
+    tlHandle val = lhashmap_get(map->map, key);
     trace("%s == %s", tl_str(key), tl_str(val));
     if (!val) return tlUndefined;
     return val;
 }
-INTERNAL tlValue _hashmap_set(tlArgs* args) {
+INTERNAL tlHandle _hashmap_set(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
-    tlValue key = tlArgsGet(args, 0);
+    tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
     if (!tl_kind(key)->hash) TL_THROW("expected a hashable key");
-    tlValue val = tlArgsGet(args, 1);
+    tlHandle val = tlArgsGet(args, 1);
 
     trace("%s = %s", tl_str(key), tl_str(val));
     lhashmap_putif(map->map, key, val, LHASHMAP_IGNORE);
     return val?val:tlNull;
 }
-INTERNAL tlValue _hashmap_has(tlArgs* args) {
+INTERNAL tlHandle _hashmap_has(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
-    tlValue key = tlArgsGet(args, 0);
+    tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
     if (!tl_kind(key)->hash) TL_THROW("expected a hashable key");
 
-    tlValue val = lhashmap_get(map->map, key);
+    tlHandle val = lhashmap_get(map->map, key);
     trace("%s == %s", tl_str(key), tl_str(val));
     if (!val) return tlFalse;
     return tlTrue;
 }
-INTERNAL tlValue _hashmap_del(tlArgs* args) {
+INTERNAL tlHandle _hashmap_del(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
-    tlValue key = tlArgsGet(args, 0);
+    tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
     if (!tl_kind(key)->hash) TL_THROW("expected a hashable key");
 
-    tlValue val = lhashmap_putif(map->map, key, null, LHASHMAP_IGNORE);
+    tlHandle val = lhashmap_putif(map->map, key, null, LHASHMAP_IGNORE);
     trace("%s == %s", tl_str(key), tl_str(val));
     if (!val) return tlUndefined;
     return val;
 }
-INTERNAL tlValue _hashmap_size(tlArgs* args) {
+INTERNAL tlHandle _hashmap_size(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
 
@@ -99,7 +99,7 @@ INTERNAL tlValue _hashmap_size(tlArgs* args) {
     return tlINT(size);
 }
 // TODO should implement each instead, this is costly
-INTERNAL tlValue _hashmap_keys(tlArgs* args) {
+INTERNAL tlHandle _hashmap_keys(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("expected a Map");
 
@@ -107,7 +107,7 @@ INTERNAL tlValue _hashmap_keys(tlArgs* args) {
 
     LHashMapIter* iter = lhashmapiter_new(map->map);
     while (true) {
-        tlValue key;
+        tlHandle key;
         lhashmapiter_get(iter, &key, null);
         if (!key) break;
         tlArrayAdd(array, key);

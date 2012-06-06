@@ -17,7 +17,7 @@ static tlSym _s_gmtoff;
 
 static tlMap* _timeMap;
 
-static tlValue _Time(tlArgs* args) {
+static tlHandle _Time(tlArgs* args) {
     struct timeval tv;
     gettimeofday(&tv, null);
     struct tm tm;

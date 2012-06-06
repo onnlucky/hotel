@@ -8,7 +8,7 @@ tlKind* tlListKind = &_tlListKind;
 struct tlList {
     tlHead head;
     intptr_t size;
-    tlValue data[];
+    tlHandle data[];
 };
 
 static tlList* _tl_emptyList;
@@ -19,20 +19,20 @@ tlList* tlListNew(int size) {
     trace("%d", size);
     if (size == 0) return _tl_emptyList;
     assert(size > 0 && size < TL_MAX_DATA_SIZE);
-    tlList* list = tlAlloc(tlListKind, sizeof(tlList) + sizeof(tlValue) * size);
+    tlList* list = tlAlloc(tlListKind, sizeof(tlList) + sizeof(tlHandle) * size);
     list->size = size;
     assert(list->size == size);
     assert(tlListSize(list) == size);
     return list;
 }
 
-tlList* tlListFrom1(tlValue v1) {
+tlList* tlListFrom1(tlHandle v1) {
     tlList* list = tlListNew(1);
     tlListSet_(list, 0, v1);
     return list;
 }
 
-tlList* tlListFrom2(tlValue v1, tlValue v2) {
+tlList* tlListFrom2(tlHandle v1, tlHandle v2) {
     tlList* list = tlListNew(2);
     assert(tlListSize(list) == 2);
     tlListSet_(list, 0, v1);
@@ -40,12 +40,12 @@ tlList* tlListFrom2(tlValue v1, tlValue v2) {
     return list;
 }
 
-tlList* tlListFrom(tlValue v1, ...) {
+tlList* tlListFrom(tlHandle v1, ...) {
     va_list ap;
     int size = 0;
 
     va_start(ap, v1);
-    for (tlValue v = v1; v; v = va_arg(ap, tlValue)) size++;
+    for (tlHandle v = v1; v; v = va_arg(ap, tlHandle)) size++;
     va_end(ap);
     trace("%d", size);
 
@@ -53,14 +53,14 @@ tlList* tlListFrom(tlValue v1, ...) {
 
     va_start(ap, v1);
     int i = 0;
-    for (tlValue v = v1; v; v = va_arg(ap, tlValue), i++) tlListSet_(list, i, v);
+    for (tlHandle v = v1; v; v = va_arg(ap, tlHandle), i++) tlListSet_(list, i, v);
     va_end(ap);
 
     assert(size == tlListSize(list));
     return list;
 }
 
-tlList* tlListFrom_a(tlValue* as, int size) {
+tlList* tlListFrom_a(tlHandle* as, int size) {
     tlList* list = tlListNew(size);
     for (int i = 0; i < size; i++) tlListSet_(list, i, as[i]);
     return list;
@@ -71,7 +71,7 @@ int tlListSize(tlList* list) {
     return list->size;
 }
 
-tlValue tlListGet(tlList* list, int at) {
+tlHandle tlListGet(tlList* list, int at) {
     assert(tlListIs(list));
 
     if (at < 0 || at >= tlListSize(list)) {
@@ -95,11 +95,11 @@ tlList* tlListCopy(tlList* list, int size) {
     tlList* nlist = tlListNew(size);
 
     if (osize > size) osize = size;
-    memcpy(nlist->data, list->data, sizeof(tlValue) * osize);
+    memcpy(nlist->data, list->data, sizeof(tlHandle) * osize);
     return nlist;
 }
 
-void tlListSet_(tlList* list, int at, tlValue v) {
+void tlListSet_(tlList* list, int at, tlHandle v) {
     assert(tlListIs(list));
     trace("%d <- %s", at, tl_str(v));
 
@@ -109,7 +109,7 @@ void tlListSet_(tlList* list, int at, tlValue v) {
     list->data[at] = v;
 }
 
-tlList* tlListAppend(tlList* list, tlValue v) {
+tlList* tlListAppend(tlList* list, tlHandle v) {
     assert(tlListIs(list));
 
     int osize = tlListSize(list);
@@ -120,7 +120,7 @@ tlList* tlListAppend(tlList* list, tlValue v) {
     return nlist;
 }
 
-tlList* tlListAppend2(tlList* list, tlValue v1, tlValue v2) {
+tlList* tlListAppend2(tlList* list, tlHandle v1, tlHandle v2) {
     assert(tlListIs(list));
 
     int osize = tlListSize(list);
@@ -133,33 +133,33 @@ tlList* tlListAppend2(tlList* list, tlValue v1, tlValue v2) {
 }
 
 
-tlList* tlListPrepend(tlList* list, tlValue v) {
+tlList* tlListPrepend(tlList* list, tlHandle v) {
     int size = tlListSize(list);
     trace("%s :: [%d]", tl_str(v), size);
 
     tlList *nlist = tlListNew(size + 1);
-    memcpy(nlist->data + 1, list->data, sizeof(tlValue) * size);
+    memcpy(nlist->data + 1, list->data, sizeof(tlHandle) * size);
     nlist->data[0] = v;
     return nlist;
 }
 
-tlList* tlListPrepend2(tlList* list, tlValue v1, tlValue v2) {
+tlList* tlListPrepend2(tlList* list, tlHandle v1, tlHandle v2) {
     int size = tlListSize(list);
     trace("%s :: %s :: [%d]", tl_str(v1), tl_str(v2), size);
 
     tlList *nlist = tlListNew(size + 2);
-    memcpy(nlist->data + 2, list->data, sizeof(tlValue) * size);
+    memcpy(nlist->data + 2, list->data, sizeof(tlHandle) * size);
     nlist->data[0] = v1;
     nlist->data[1] = v2;
     return nlist;
 }
 
-tlList* tlListPrepend4(tlList* list, tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
+tlList* tlListPrepend4(tlList* list, tlHandle v1, tlHandle v2, tlHandle v3, tlHandle v4) {
     int size = tlListSize(list);
     trace("%s :: %s :: ... :: [%d]", tl_str(v1), tl_str(v2), size);
 
     tlList *nlist = tlListNew(size + 4);
-    memcpy(nlist->data + 2, list->data, sizeof(tlValue) * size);
+    memcpy(nlist->data + 2, list->data, sizeof(tlHandle) * size);
     nlist->data[0] = v1;
     nlist->data[1] = v2;
     nlist->data[2] = v3;
@@ -167,14 +167,14 @@ tlList* tlListPrepend4(tlList* list, tlValue v1, tlValue v2, tlValue v3, tlValue
     return nlist;
 }
 
-tlList* tlListNew_add(tlValue v) {
+tlList* tlListNew_add(tlHandle v) {
     trace("[] :: %s", tl_str(v));
     tlList* list = tlListNew(1);
     tlListSet_(list, 0, v);
     return list;
 }
 
-tlList* tlListNew_add2(tlValue v1, tlValue v2) {
+tlList* tlListNew_add2(tlHandle v1, tlHandle v2) {
     trace("[] :: %s :: %s", tl_str(v1), tl_str(v2));
     tlList* list = tlListNew(2);
     tlListSet_(list, 0, v1);
@@ -182,7 +182,7 @@ tlList* tlListNew_add2(tlValue v1, tlValue v2) {
     return list;
 }
 
-tlList* tlListNew_add3(tlValue v1, tlValue v2, tlValue v3) {
+tlList* tlListNew_add3(tlHandle v1, tlHandle v2, tlHandle v3) {
     trace("[] :: %s :: %s ...", tl_str(v1), tl_str(v2));
     tlList* list = tlListNew(3);
     tlListSet_(list, 0, v1);
@@ -191,7 +191,7 @@ tlList* tlListNew_add3(tlValue v1, tlValue v2, tlValue v3) {
     return list;
 }
 
-tlList* tlListNew_add4(tlValue v1, tlValue v2, tlValue v3, tlValue v4) {
+tlList* tlListNew_add4(tlHandle v1, tlHandle v2, tlHandle v3, tlHandle v4) {
     trace("[] :: %s :: %s ...", tl_str(v1), tl_str(v2));
     tlList* list = tlListNew(4);
     tlListSet_(list, 0, v1);
@@ -208,7 +208,7 @@ tlList* tlListCat(tlList* left, tlList* right) {
     if (rsize == 0) return left;
 
     tlList *nlist = tlListCopy(left, lsize + rsize);
-    memcpy(nlist->data + lsize, right->data, sizeof(tlValue) * rsize);
+    memcpy(nlist->data + lsize, right->data, sizeof(tlHandle) * rsize);
     return nlist;
 }
 
@@ -234,7 +234,7 @@ INTERNAL tlList* tlListSlice(tlList* list, int first, int last) {
 }
 
 // called when list literals contain lookups or expressions to evaluate
-static tlValue _List_clone(tlArgs* args) {
+static tlHandle _List_clone(tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     if (!list) TL_THROW("Expected a list");
     int size = tlListSize(list);
@@ -245,59 +245,59 @@ static tlValue _List_clone(tlArgs* args) {
     }
     return list;
 }
-INTERNAL tlValue _list_size(tlArgs* args) {
+INTERNAL tlHandle _list_size(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     return tlINT(tlListSize(list));
 }
-static unsigned int listHash(tlValue v);
-INTERNAL tlValue _list_hash(tlArgs* args) {
+static unsigned int listHash(tlHandle v);
+INTERNAL tlHandle _list_hash(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     return tlINT(listHash(list));
 }
-INTERNAL tlValue _list_get(tlArgs* args) {
+INTERNAL tlHandle _list_get(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
-    tlValue res = tlListGet(list, at);
+    tlHandle res = tlListGet(list, at);
     if (!res) return tlNull;
     return res;
 }
-INTERNAL tlValue _list_set(tlArgs* args) {
+INTERNAL tlHandle _list_set(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
-    tlValue val = tlArgsGet(args, 1);
+    tlHandle val = tlArgsGet(args, 1);
     if (!val || val == tlUndefined) val = tlNull;
     fatal("not implemented yet");
     tlList* nlist = tlNull; //tlListSet(list, at, val);
     return nlist;
 }
-INTERNAL tlValue _list_add(tlArgs* args) {
+INTERNAL tlHandle _list_add(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    tlValue val = tlArgsGet(args, 0);
+    tlHandle val = tlArgsGet(args, 0);
     if (!val || val == tlUndefined) val = tlNull;
     return tlListAppend(list, val);
 }
-INTERNAL tlValue _list_prepend(tlArgs* args) {
+INTERNAL tlHandle _list_prepend(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    tlValue val = tlArgsGet(args, 0);
+    tlHandle val = tlArgsGet(args, 0);
     if (!val || val == tlUndefined) val = tlNull;
     return tlListPrepend(list, val);
 }
-INTERNAL tlValue _list_cat(tlArgs* args) {
+INTERNAL tlHandle _list_cat(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     tlList* l1 = tlListCast(tlArgsGet(args, 0));
     if (!l1) TL_THROW("Expected a list");
     return tlListCat(list, l1);
 }
-INTERNAL tlValue _list_slice(tlArgs* args) {
+INTERNAL tlHandle _list_slice(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
 
@@ -308,7 +308,7 @@ INTERNAL tlValue _list_slice(tlArgs* args) {
 }
 
 // TODO by lack of better name; akin to int.toChar ...
-INTERNAL tlValue _list_toChar(tlArgs* args) {
+INTERNAL tlHandle _list_toChar(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
 
@@ -325,37 +325,37 @@ INTERNAL tlValue _list_toChar(tlArgs* args) {
     return tlTextFromTake(buf, size);
 }
 
-INTERNAL tlValue _List_unsafe(tlArgs* args) {
+INTERNAL tlHandle _List_unsafe(tlArgs* args) {
     int size = tl_int_or(tlArgsGet(args, 0), -1);
     if (size < 0) TL_THROW("Expected a size");
     return tlListNew(size);
 }
-INTERNAL tlValue _list_set_(tlArgs* args) {
+INTERNAL tlHandle _list_set_(tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     if (!list) TL_THROW("Expected a list");
     int at = tl_int_or(tlArgsGet(args, 1), -1);
     if (at < 0) TL_THROW("Expected a index");
-    tlValue val = tlArgsGet(args, 2);
+    tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("Expected a value");
     if (at >= tlListSize(list)) TL_THROW("index out of bounds");
     tlListSet_(list, at, val);
     return tlNull;
 }
 
-static size_t listSize(tlValue v) {
-    return sizeof(tlList) + sizeof(tlValue) * tlListAs(v)->size;
+static size_t listSize(tlHandle v) {
+    return sizeof(tlList) + sizeof(tlHandle) * tlListAs(v)->size;
 }
-static unsigned int listHash(tlValue v) {
+static unsigned int listHash(tlHandle v) {
     tlList* list = tlListAs(v);
     // if (list->hash) return list->hash;
     unsigned int hash = 0x1;
     for (int i = 0; i < list->size; i++) {
-        hash ^= tlValueHash(tlListGet(list, i));
+        hash ^= tlHandleHash(tlListGet(list, i));
     }
     if (!hash) hash = 1;
     return hash;
 }
-static bool listEquals(tlValue _left, tlValue _right) {
+static bool listEquals(tlHandle _left, tlHandle _right) {
     if (_left == _right) return true;
 
     tlList* left = tlListAs(_left);
@@ -363,17 +363,17 @@ static bool listEquals(tlValue _left, tlValue _right) {
     if (left->size != right->size) return true;
 
     for (int i = 0; i < left->size; i++) {
-        if (!tlValueEquals(tlListGet(left, i), tlListGet(right, i))) return false;
+        if (!tlHandleEquals(tlListGet(left, i), tlListGet(right, i))) return false;
     }
     return true;
 }
-static int listCmp(tlValue _left, tlValue _right) {
+static int listCmp(tlHandle _left, tlHandle _right) {
     if (_left == _right) return 0;
 
     tlList* left = tlListAs(_left);
     tlList* right = tlListAs(_right);
     for (int i = 0; i < left->size; i++) {
-        int cmp = tlValueCompare(tlListGet(left, i), tlListGet(right, i));
+        int cmp = tlHandleCompare(tlListGet(left, i), tlListGet(right, i));
         if (cmp != 0) return cmp;
     }
     return left->size - right->size;

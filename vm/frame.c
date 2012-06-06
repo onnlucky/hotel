@@ -16,12 +16,12 @@ tlFrame* tlFrameSetResume(tlFrame* frame, tlResumeCb cb) {
     return frame;
 }
 
-tlValue tlTaskPauseAttach(void* frame);
-tlValue tlTaskPauseResuming(tlResumeCb cb, tlValue res);
-INTERNAL tlValue tlTaskRunThrow(tlTask* task, tlValue throw);
+tlHandle tlTaskPauseAttach(void* frame);
+tlHandle tlTaskPauseResuming(tlResumeCb cb, tlHandle res);
+INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle throw);
 
-INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw);
-INTERNAL tlValue stopCode(tlFrame* _frame, tlValue res, tlValue throw);
+INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw);
+INTERNAL tlHandle stopCode(tlFrame* _frame, tlHandle res, tlHandle throw);
 static bool tlCodeFrameIs(tlFrame* frame) {
     return frame && (frame->resumecb == resumeCode || frame->resumecb == stopCode);
 }

@@ -12,11 +12,11 @@ static inline tlTask* tlTaskCurrent() {
     return tl_task_current;
 }
 
-static inline void set_kptr(tlValue v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
+static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
 
-INTERNAL bool tlflag_isset(tlValue v, unsigned flag) { return get_kptr(v) & flag; }
-INTERNAL void tlflag_clear(tlValue v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
-INTERNAL void tlflag_set(tlValue v, unsigned flag) {
+INTERNAL bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) & flag; }
+INTERNAL void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
+INTERNAL void tlflag_set(tlHandle v, unsigned flag) {
     assert(flag <= 0x7);
     set_kptr(v, get_kptr(v) | flag);
 }
@@ -25,12 +25,12 @@ static tlText* _t_true;
 static tlText* _t_false;
 
 // creating tagged values
-tlValue tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
-int tl_bool(tlValue v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
-int tl_bool_or(tlValue v, bool d) { if (!v) return d; return tl_bool(v); }
+tlHandle tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
+int tl_bool(tlHandle v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
+int tl_bool_or(tlHandle v, bool d) { if (!v) return d; return tl_bool(v); }
 
-tlValue tlINT(intptr_t i) { return (tlValue)(i << 2 | 1); }
-intptr_t tl_int(tlValue v) {
+tlHandle tlINT(intptr_t i) { return (tlHandle)(i << 2 | 1); }
+intptr_t tl_int(tlHandle v) {
     assert(tlIntIs(v));
     intptr_t i = (intptr_t)v;
     if (i < 0) {
@@ -42,28 +42,28 @@ intptr_t tl_int(tlValue v) {
     }
     return i >> 2;
 }
-intptr_t tl_int_or(tlValue v, int d) {
+intptr_t tl_int_or(tlHandle v, int d) {
     if (!tlIntIs(v)) return d;
     return tl_int(v);
 }
 
 // creating value objects
-tlValue tlAlloc(tlKind* kind, size_t bytes) {
+tlHandle tlAlloc(tlKind* kind, size_t bytes) {
     assert((((intptr_t)kind) & 0x7) == 0);
     trace("ALLOC: %p %zd", v, bytes);
-    assert(bytes % sizeof(tlValue) == 0);
+    assert(bytes % sizeof(tlHandle) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
     head->kind = (intptr_t)kind;
     return head;
 }
 // cloning objects
-tlValue tlClone(tlValue v) {
+tlHandle tlClone(tlHandle v) {
     tlKind* kind = tl_kind(v);
     assert(kind->size);
     size_t bytes = kind->size(v);
     trace("CLONE: %p %zd %d", v, bytes);
-    assert(bytes % sizeof(tlValue) == 0);
+    assert(bytes % sizeof(tlHandle) == 0);
     tlHead* head = calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
     memcpy(head, v, bytes);
@@ -78,7 +78,7 @@ static char** _str_bufs;
 static char* _str_buf;
 static int _str_buf_at = -1;
 
-const char* tl_str(tlValue v) {
+const char* tl_str(tlHandle v) {
     if (_str_buf_at == -1) {
         trace("init buffers for output");
         _str_buf_at = 0;
@@ -101,13 +101,13 @@ const char* tl_str(tlValue v) {
     return _str_buf;
 }
 
-static const char* undefinedToText(tlValue v, char* buf, int size) { return "undefined"; }
+static const char* undefinedToText(tlHandle v, char* buf, int size) { return "undefined"; }
 static tlKind _tlUndefinedKind = { .name = "Undefined", .toText = undefinedToText };
 
-static const char* nullToText(tlValue v, char* buf, int size) { return "null"; }
+static const char* nullToText(tlHandle v, char* buf, int size) { return "null"; }
 static tlKind _tlNullKind = { .name = "Null", .toText = nullToText };
 
-static const char* boolToText(tlValue v, char* buf, int size) {
+static const char* boolToText(tlHandle v, char* buf, int size) {
     switch ((intptr_t)v) {
         case TL_FALSE: return "false";
         case TL_TRUE: return "true";
@@ -116,17 +116,17 @@ static const char* boolToText(tlValue v, char* buf, int size) {
 }
 static tlKind _tlBoolKind = { .name = "Bool", .toText = boolToText };
 
-static const char* intToText(tlValue v, char* buf, int size) {
+static const char* intToText(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "%zd", tl_int(v)); return buf;
 }
-static unsigned int intHash(tlValue v) {
+static unsigned int intHash(tlHandle v) {
     intptr_t i = tl_int(v);
     return murmurhash2a(&i, sizeof(i));
 }
-static bool intEquals(tlValue left, tlValue right) {
+static bool intEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
-static int intCmp(tlValue left, tlValue right) {
+static int intCmp(tlHandle left, tlHandle right) {
     return tl_int(left) - tl_int(right);
 }
 static tlKind _tlIntKind = {
@@ -142,15 +142,15 @@ tlKind* tlNullKind = &_tlNullKind;
 tlKind* tlBoolKind = &_tlBoolKind;
 tlKind* tlIntKind = &_tlIntKind;
 
-static tlValue _bool_toText(tlArgs* args) {
+static tlHandle _bool_toText(tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
     if (b) return _t_true;
     return _t_false;
 }
-static tlValue _int_hash(tlArgs* args) {
+static tlHandle _int_hash(tlArgs* args) {
     return tlINT(intHash(tlArgsTarget(args)));
 }
-static tlValue _int_toChar(tlArgs* args) {
+static tlHandle _int_toChar(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     if (c < 0) TL_THROW("negative numbers cannot be a char");
     if (c > 255) TL_THROW("utf8 not yet supported");
@@ -158,31 +158,31 @@ static tlValue _int_toChar(tlArgs* args) {
     return tlTextFromCopy(buf, 1);
 }
 
-static tlValue _int_toText(tlArgs* args) {
+static tlHandle _int_toText(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[255];
     int len = snprintf(buf, sizeof(buf), "%d", c);
     return tlTextFromCopy(buf, len);
 }
 
-static tlValue _isBool(tlArgs* args) {
+static tlHandle _isBool(tlArgs* args) {
     return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
 }
-static tlValue _isNumber(tlArgs* args) {
+static tlHandle _isNumber(tlArgs* args) {
     return tlBOOL(tlIntIs(tlArgsGet(args, 0)));
 }
-static tlValue _isSym(tlArgs* args) {
+static tlHandle _isSym(tlArgs* args) {
     return tlBOOL(tlSymIs(tlArgsGet(args, 0)));
 }
-static tlValue _isText(tlArgs* args) {
+static tlHandle _isText(tlArgs* args) {
     return tlBOOL(tlTextIs(tlArgsGet(args, 0)));
 }
-static tlValue _isList(tlArgs* args) {
+static tlHandle _isList(tlArgs* args) {
     return tlBOOL(tlListIs(tlArgsGet(args, 0)));
 }
-static tlValue _isObject(tlArgs* args) {
-    tlValue v = tlArgsGet(args, 0);
-    return tlBOOL(tlMapIs(v)||tlValueObjectIs(v));
+static tlHandle _isObject(tlArgs* args) {
+    tlHandle v = tlArgsGet(args, 0);
+    return tlBOOL(tlMapIs(v)||tlHandleObjectIs(v));
 }
 
 static const tlNativeCbs __value_natives[] = {

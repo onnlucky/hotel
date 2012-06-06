@@ -4,13 +4,13 @@
 
 #include "trace-off.h"
 
-bool tlLockIs(tlValue v) {
+bool tlLockIs(tlHandle v) {
     return tl_kind(v)->locked;
 }
-tlLock* tlLockAs(tlValue v) {
+tlLock* tlLockAs(tlHandle v) {
     assert(tlLockIs(v)); return (tlLock*)v;
 }
-tlLock* tlLockCast(tlValue v) {
+tlLock* tlLockCast(tlHandle v) {
     return (tlLockIs(v))?(tlLock*)v:null;
 }
 tlTask* tlLockOwner(tlLock* lock) {
@@ -35,14 +35,14 @@ INTERNAL void lockScheduleNext(tlLock* lock) {
     if (ntask) tlVmScheduleTask(tlTaskGetVm(task), ntask);
 }
 
-INTERNAL tlValue lockEnqueue(tlLock* lock, tlFrame* frame) {
+INTERNAL tlHandle lockEnqueue(tlLock* lock, tlFrame* frame) {
     tlTask* task = tlTaskCurrent();
     trace("%s", tl_str(lock));
     assert(tlLockIs(lock));
 
     // make the task wait and enqueue it
     task->stack = frame;
-    tlValue deadlock = tlTaskWaitFor(lock);
+    tlHandle deadlock = tlTaskWaitFor(lock);
     if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
     lqueue_put(&lock->wait_q, &task->entry);
 
@@ -59,7 +59,7 @@ typedef struct ReleaseFrame {
     tlLock* lock;
 } ReleaseFrame;
 
-INTERNAL tlValue resumeRelease(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeRelease(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("");
     lockScheduleNext(tlLockAs(((ReleaseFrame*)_frame)->lock));
     return res;
@@ -67,22 +67,22 @@ INTERNAL tlValue resumeRelease(tlFrame* _frame, tlValue res, tlValue throw) {
 
 
 // ** lock a native object to send it a message **
-INTERNAL tlValue evalSend(tlArgs* args);
-INTERNAL tlValue lockEvalSend(tlLock* lock, tlArgs* args);
+INTERNAL tlHandle evalSend(tlArgs* args);
+INTERNAL tlHandle lockEvalSend(tlLock* lock, tlArgs* args);
 
-INTERNAL tlValue resumeReceive(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeReceive(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("%s", tl_str(res));
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     return lockEvalSend(tlLockAs(tlArgsTarget(args)), args);
 }
-INTERNAL tlValue resumeReceiveEnqueue(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeReceiveEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("%s", tl_str(res));
     if (!res) return null;
     frame->resumecb = resumeReceive;
     return lockEnqueue(tlLockAs(tlArgsAs(res)->target), frame);
 }
-tlValue evalSendLocked(tlArgs* args) {
+tlHandle evalSendLocked(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     tlLock* lock = tlLockAs(args->target);
     trace("%s", tl_str(lock));
@@ -97,12 +97,12 @@ tlValue evalSendLocked(tlArgs* args) {
     }
     return lockEvalSend(lock, args);
 }
-INTERNAL tlValue lockEvalSend(tlLock* lock, tlArgs* args) {
+INTERNAL tlHandle lockEvalSend(tlLock* lock, tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("%s", tl_str(lock));
     assert(lock->owner == task);
 
-    tlValue res = evalSend(args);
+    tlHandle res = evalSend(args);
     if (!res) {
         ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
         frame->lock = lock;
@@ -115,23 +115,23 @@ INTERNAL tlValue lockEvalSend(tlLock* lock, tlArgs* args) {
 
 // ** acquire and release from native **
 
-INTERNAL tlValue lockAquire(tlLock* lock, tlResumeCb resumecb, tlValue _res);
+INTERNAL tlHandle lockAquire(tlLock* lock, tlResumeCb resumecb, tlHandle _res);
 
 typedef struct AquireFrame {
     tlFrame frame;
     tlLock* lock;
     tlResumeCb resumecb;
-    tlValue res;
+    tlHandle res;
 } AquireFrame;
 
-INTERNAL tlValue resumeAquire(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeAquire(tlFrame* _frame, tlHandle res, tlHandle throw) {
     // here we own the lock, now we can resume our given frame
     trace("");
     if (!res) return null;
     AquireFrame* frame = (AquireFrame*)_frame;
     return lockAquire(frame->lock, frame->resumecb, frame->res);
 }
-INTERNAL tlValue resumeAquireEnqueue(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeAquireEnqueue(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("");
     if (!res) return null;
     _frame->resumecb = resumeAquire;
@@ -139,7 +139,7 @@ INTERNAL tlValue resumeAquireEnqueue(tlFrame* _frame, tlValue res, tlValue throw
 }
 
 // almost same as tlTaskPauseResuming ... will call resumecb when locked
-tlValue tlLockAquireResuming(tlLock* lock, tlResumeCb resumecb, tlValue res) {
+tlHandle tlLockAquireResuming(tlLock* lock, tlResumeCb resumecb, tlHandle res) {
     tlTask* task = tlTaskCurrent();
     trace("%p %p %s", lock, resumecb, tl_str(res));
     assert(lock);
@@ -157,8 +157,8 @@ tlValue tlLockAquireResuming(tlLock* lock, tlResumeCb resumecb, tlValue res) {
     return lockAquire(lock, resumecb, res);
 }
 
-INTERNAL tlValue lockAquire(tlLock* lock, tlResumeCb resumecb, tlValue _res) {
-    tlValue res = resumecb(null, _res, null);
+INTERNAL tlHandle lockAquire(tlLock* lock, tlResumeCb resumecb, tlHandle _res) {
+    tlHandle res = resumecb(null, _res, null);
     if (!res) {
         ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
         frame->lock = lock;
@@ -176,7 +176,7 @@ typedef struct WithFrame {
     tlArgs* args;
 } WithFrame;
 
-INTERNAL tlValue resumeWithUnlock(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeWithUnlock(tlFrame* _frame, tlHandle res, tlHandle throw) {
     tlTask* task = tlTaskCurrent();
     WithFrame* frame = (WithFrame*)_frame;
     tlArgs* args = frame->args;
@@ -189,7 +189,7 @@ INTERNAL tlValue resumeWithUnlock(tlFrame* _frame, tlValue res, tlValue throw) {
     }
     return res;
 }
-INTERNAL tlValue resumeWithLock(tlFrame* _frame, tlValue _res, tlValue _throw) {
+INTERNAL tlHandle resumeWithLock(tlFrame* _frame, tlHandle _res, tlHandle _throw) {
     tlTask* task = tlTaskCurrent();
     if (!_res) fatal("cannot handle this ... must unlock ...");
     WithFrame* frame = (WithFrame*)_frame;
@@ -206,14 +206,14 @@ INTERNAL tlValue resumeWithLock(tlFrame* _frame, tlValue _res, tlValue _throw) {
         }
     }
     frame->frame.resumecb = resumeWithUnlock;
-    tlValue res = tlEval(tlCallFrom(tlArgsBlock(args), null));
+    tlHandle res = tlEval(tlCallFrom(tlArgsBlock(args), null));
     if (!res) return tlTaskPauseAttach(frame);
     return resumeWithUnlock((tlFrame*)frame, res, null);
 }
-INTERNAL tlValue _with_lock(tlArgs* args) {
+INTERNAL tlHandle _with_lock(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
-    tlValue block = tlArgsBlock(args);
+    tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("with expects a block");
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlLock* lock = tlLockCast(tlArgsGet(args, i));

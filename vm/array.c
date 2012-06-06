@@ -11,42 +11,42 @@ struct tlArray {
     tlLock lock;
     intptr_t size;
     intptr_t alloc;
-    tlValue* data;
+    tlHandle* data;
 };
 
 INTERNAL tlArray* tlArrayNew() {
     tlArray* array = tlAlloc(tlArrayKind, sizeof(tlArray));
     return array;
 }
-INTERNAL tlArray* tlArrayAdd(tlArray* array, tlValue v) {
+INTERNAL tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     trace("add: %s.add %s -- %zd -- %zd", tl_str(array), tl_str(v), array->size, array->alloc);
     if (array->size == array->alloc) {
         if (!array->alloc) array->alloc = 8; else array->alloc *= 2;
-        array->data = realloc(array->data, array->alloc * sizeof(tlValue));
+        array->data = realloc(array->data, array->alloc * sizeof(tlHandle));
         assert(array->data);
     }
     array->data[array->size++] = v;
     return array;
 }
-INTERNAL tlValue tlArrayPop(tlArray* array) {
+INTERNAL tlHandle tlArrayPop(tlArray* array) {
     if (array->size == 0) return tlUndefined;
     array->size--;
-    tlValue v = array->data[array->size];
+    tlHandle v = array->data[array->size];
     array->data[array->size] = 0;
     return v;
 }
-INTERNAL tlValue tlArrayRemove(tlArray* array, int i) {
+INTERNAL tlHandle tlArrayRemove(tlArray* array, int i) {
     if (i < 0) return tlUndefined;
     if (i >= array->size) return tlUndefined;
-    tlValue v = array->data[i];
+    tlHandle v = array->data[i];
 
     trace("remove: %d", i);
-    memmove(array->data + i, array->data + i + 1, (array->size - i) * sizeof(tlValue));
+    memmove(array->data + i, array->data + i + 1, (array->size - i) * sizeof(tlHandle));
     array->size -= 1;
 
     return v;
 }
-INTERNAL tlArray* tlArrayInsert(tlArray* array, int i, tlValue v) {
+INTERNAL tlArray* tlArrayInsert(tlArray* array, int i, tlHandle v) {
     if (i < 0) return array;
     if (i == array->size) return tlArrayAdd(array, v);
 
@@ -60,29 +60,29 @@ INTERNAL tlArray* tlArrayInsert(tlArray* array, int i, tlValue v) {
     if (nsize > array->alloc) {
         if (!array->alloc) array->alloc = 8; else array->alloc *= 2;
         while (nsize > array->alloc) array->alloc *= 2;
-        array->data = realloc(array->data, array->alloc * sizeof(tlValue));
+        array->data = realloc(array->data, array->alloc * sizeof(tlHandle));
         assert(array->data);
     }
 
     if (nsize - array->size > 0) {
         trace("clearing: %zd - %zd", array->size, nsize - array->size);
-        memset(array->data + array->size, 0, (nsize - array->size) * sizeof(tlValue));
+        memset(array->data + array->size, 0, (nsize - array->size) * sizeof(tlHandle));
     }
     if (array->size - i > 0) {
         trace("moving: %d - %zd", i + 1, array->size - i);
-        memmove(array->data + i + 1, array->data + i, (array->size - i) * sizeof(tlValue));
+        memmove(array->data + i + 1, array->data + i, (array->size - i) * sizeof(tlHandle));
     }
     array->data[i] = v;
     array->size = nsize;
 
     return array;
 }
-INTERNAL tlValue tlArrayGet(tlArray* array, int i) {
+INTERNAL tlHandle tlArrayGet(tlArray* array, int i) {
     if (i < 0) return tlUndefined;
     if (i >= array->size) return tlUndefined;
     return array->data[i];
 }
-INTERNAL tlArray* tlArraySet(tlArray* array, int i, tlValue v) {
+INTERNAL tlArray* tlArraySet(tlArray* array, int i, tlHandle v) {
     if (i < 0) return tlUndefined;
     if (i == array->size) return tlArrayAdd(array, v);
     if (i > array->size) return tlArrayInsert(array, i, v);
@@ -90,69 +90,69 @@ INTERNAL tlArray* tlArraySet(tlArray* array, int i, tlValue v) {
     return array;
 }
 
-INTERNAL tlValue _Array_new(tlArgs* args) {
+INTERNAL tlHandle _Array_new(tlArgs* args) {
     return tlArrayNew();
 }
-INTERNAL tlValue _array_size(tlArgs* args) {
+INTERNAL tlHandle _array_size(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     return tlINT(array->size);
 }
-INTERNAL tlValue _array_toList(tlArgs* args) {
+INTERNAL tlHandle _array_toList(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
 
     tlList* list = tlListNew(array->size);
     for (int i = 0; i < array->size; i++) {
-        tlValue v = tlArrayGet(array, i);
+        tlHandle v = tlArrayGet(array, i);
         if (!v) v = tlNull;
         tlListSet_(list, i, v);
     }
     return list;
 }
-INTERNAL tlValue _array_get(tlArgs* args) {
+INTERNAL tlHandle _array_get(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    tlValue v = tlArrayGet(array, tl_int(i));
+    tlHandle v = tlArrayGet(array, tl_int(i));
     return v?v:tlNull;
 }
-INTERNAL tlValue _array_set(tlArgs* args) {
+INTERNAL tlHandle _array_set(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
     return tlArraySet(array, tl_int(i), tlArgsGet(args, 1));
 }
-INTERNAL tlValue _array_add(tlArgs* args) {
+INTERNAL tlHandle _array_add(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     for (int i = 0; i < tlArgsSize(args); i++) {
-        tlValue v = tlArgsGet(args, i);
+        tlHandle v = tlArgsGet(args, i);
         tlArrayAdd(array, v);
     }
     return array;
 }
-INTERNAL tlValue _array_pop(tlArgs* args) {
+INTERNAL tlHandle _array_pop(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
-    tlValue v = tlArrayPop(array);
+    tlHandle v = tlArrayPop(array);
     return v?v:tlNull;
 }
-INTERNAL tlValue _array_insert(tlArgs* args) {
+INTERNAL tlHandle _array_insert(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
     return tlArrayInsert(array, tl_int(i), tlArgsGet(args, 1));
 }
-INTERNAL tlValue _array_remove(tlArgs* args) {
+INTERNAL tlHandle _array_remove(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    tlValue v = tlArrayRemove(array, tl_int(i));
+    tlHandle v = tlArrayRemove(array, tl_int(i));
     return v?v:tlNull;
 }
 

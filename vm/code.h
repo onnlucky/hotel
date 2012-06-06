@@ -1,8 +1,8 @@
 #pragma once
 
-bool tlActiveIs(tlValue v);
-tlValue tl_active(tlValue value);
-tlValue tl_value(tlValue active);
+bool tlActiveIs(tlHandle v);
+tlHandle tl_active(tlHandle value);
+tlHandle tl_value(tlHandle active);
 
 tlCode* tlCodeNew(int size);
 tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line);
@@ -15,19 +15,19 @@ void tlCodeSetArgs_(tlCode* code, tlList* args);
 void tlCodeSetOps_(tlCode* code, tlList* ops);
 
 tlCall* tlCallNew(int argc, bool keys);
-tlCall* tlCallFrom(tlValue v1, ...);
-tlCall* tlCallFromList(tlValue fn, tlList* args);
-tlCall* tlCallSendFromList(tlValue fn, tlValue oop, tlValue msg, tlList* args);
-tlCall* tlCallAddBlock(tlValue call, tlCode* block);
+tlCall* tlCallFrom(tlHandle v1, ...);
+tlCall* tlCallFromList(tlHandle fn, tlList* args);
+tlCall* tlCallSendFromList(tlHandle fn, tlHandle oop, tlHandle msg, tlList* args);
+tlCall* tlCallAddBlock(tlHandle call, tlCode* block);
 
-tlValue tlCallValueIter(tlCall* call, int i);
-tlCall* tlCallValueIterSet_(tlCall* call, int i, tlValue v);
+tlHandle tlCallValueIter(tlCall* call, int i);
+tlCall* tlCallValueIterSet_(tlCall* call, int i, tlHandle v);
 
-tlValue tlCallGetFn(tlCall* call);
-void tlCallSetFn_(tlCall* call, tlValue v);
+tlHandle tlCallGetFn(tlCall* call);
+void tlCallSetFn_(tlCall* call, tlHandle v);
 
-tlValue tlCallGet(tlCall* call, int at);
-void tlCallSet_(tlCall* call, int at, tlValue v);
+tlHandle tlCallGet(tlCall* call, int at);
+void tlCallSet_(tlCall* call, int at, tlHandle v);
 
 tlCollect* tlCollectFromList_(tlList* list);
 

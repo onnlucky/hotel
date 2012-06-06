@@ -13,56 +13,56 @@
 #include "trace-off.h"
 
 // if (no else)
-INTERNAL tlValue _if(tlArgs* args) {
-    tlValue block = tlArgsBlock(args);
+INTERNAL tlHandle _if(tlArgs* args) {
+    tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("if expects a block");
-    tlValue cond = tlArgsGet(args, 0);
+    tlHandle cond = tlArgsGet(args, 0);
     if (!cond) return tlNull;
 
     if (!tl_bool(cond)) return tlNull;
     return tlEval(tlCallFrom(block, null));
 }
 
-INTERNAL tlValue _break(tlArgs* args) {
+INTERNAL tlHandle _break(tlArgs* args) {
     return tlTaskThrow(s_break);
 }
-INTERNAL tlValue _continue(tlArgs* args) {
+INTERNAL tlHandle _continue(tlArgs* args) {
     return tlTaskThrow(s_continue);
 }
 
 // match (produced by compiler, if cond is true, execute block and exit parent body)
-INTERNAL tlValue resumeMatch(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeMatch(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     frame = frame->caller; // our parent codeblock; we wish to unwind that one too ...
     assert(tlCodeFrameIs(frame));
     // save to use set stack, because no user frames are unwound
     return tlTaskSetStack(frame->caller, res);
 }
-INTERNAL tlValue _match(tlArgs* args) {
-    tlValue block = tlArgsBlock(args);
+INTERNAL tlHandle _match(tlArgs* args) {
+    tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("match expectes a block");
-    tlValue cond = tlArgsGet(args, 0);
+    tlHandle cond = tlArgsGet(args, 0);
     if (!cond) return tlNull;
 
     if (!tl_bool(cond)) return tlNull;
-    tlValue res = tlEval(tlCallFrom(block, null));
+    tlHandle res = tlEval(tlCallFrom(block, null));
     if (!res) {
         tlFrame* frame = tlFrameAlloc(resumeMatch, sizeof(tlFrame));
         return tlTaskPauseAttach(frame);
     }
     return tlTaskPauseResuming(resumeMatch, res);
 }
-INTERNAL tlValue _nomatch(tlArgs* args) {
+INTERNAL tlHandle _nomatch(tlArgs* args) {
     TL_THROW("no branch taken");
 }
 
 // loop
 typedef struct LoopFrame {
     tlFrame frame;
-    tlValue block;
+    tlHandle block;
 } LoopFrame;
 
-INTERNAL tlValue resumeLoop(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (throw && throw == s_break) return tlNull;
     if (throw && throw != s_continue) return null;
     if (!throw && !res) return null;
@@ -76,8 +76,8 @@ again:;
     return tlNull;
 }
 
-INTERNAL tlValue _loop(tlArgs* args) {
-    tlValue block = tlArgsMapGet(args, tlSYM("block"));
+INTERNAL tlHandle _loop(tlArgs* args) {
+    tlHandle block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) TL_THROW("loop requires a block");
 
     LoopFrame* frame = tlFrameAlloc(resumeLoop, sizeof(LoopFrame));
@@ -133,20 +133,20 @@ struct tlReturn {
     tlHead head;
     tlArgs* targetargs;
 };
-static tlValue ReturnRun(tlValue fn, tlArgs* args);
+static tlHandle ReturnRun(tlHandle fn, tlArgs* args);
 static tlKind _tlReturnKind = {
     .name = "Return",
     .run = ReturnRun,
 };
 tlKind* tlReturnKind = &_tlReturnKind;
 
-INTERNAL tlValue tlReturnNew(tlArgs* args) {
+INTERNAL tlHandle tlReturnNew(tlArgs* args) {
     tlReturn* ret = tlAlloc(tlReturnKind, sizeof(tlReturn));
     ret->targetargs = args;
     return ret;
 }
 
-INTERNAL tlValue resumeReturn(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeReturn(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     trace("RESUME RETURN(%d) %s", tlArgsSize(args), tl_str(tlArgsGet(args, 0)));
@@ -163,7 +163,7 @@ INTERNAL tlValue resumeReturn(tlFrame* frame, tlValue res, tlValue throw) {
     if (frame) return tlTaskStackUnwind(frame->caller, res);
     return res;
 }
-INTERNAL tlValue ReturnRun(tlValue fn, tlArgs* args) {
+INTERNAL tlHandle ReturnRun(tlHandle fn, tlArgs* args) {
     assert(fn == tlArgsFn(args));
     return tlTaskPauseResuming(resumeReturn, args);
 }
@@ -173,14 +173,14 @@ struct tlGoto {
     tlHead head;
     tlArgs* args;
 };
-static tlValue GotoCallFn(tlCall* call);
+static tlHandle GotoCallFn(tlCall* call);
 static tlKind _tlGotoKind = {
     .name = "Goto",
     .call = GotoCallFn,
 };
 tlKind* tlGotoKind = &_tlGotoKind;
 
-INTERNAL tlValue tlGotoNew(tlArgs* args) {
+INTERNAL tlHandle tlGotoNew(tlArgs* args) {
     tlGoto* go = tlAlloc(tlGotoKind, sizeof(tlGoto));
     go->args = args;
     return go;
@@ -192,12 +192,12 @@ typedef struct GotoFrame {
     tlArgs* targetargs;
 } GotoFrame;
 
-INTERNAL tlValue resumeGotoEval(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeGotoEval(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     // now it is business as usual
     return tlEval(res);
 }
-INTERNAL tlValue resumeGoto(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeGoto(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlTask* task = tlTaskCurrent();
     tlCall* call = tlCallAs(res);
@@ -221,7 +221,7 @@ INTERNAL tlValue resumeGoto(tlFrame* frame, tlValue res, tlValue throw) {
     // save to use set stack, because we already unwound it above
     return tlTaskSetStack(task->worker->top, tlCallGet(call, 0)); // again, the resume frame
 }
-INTERNAL tlValue GotoCallFn(tlCall* call) {
+INTERNAL tlHandle GotoCallFn(tlCall* call) {
     trace("GOTO(%d)", tlCallSize(call));
     return tlTaskPauseResuming(resumeGoto, call);
 }
@@ -240,14 +240,14 @@ struct tlContinuation {
     tlClosure* handler;
     int pc;
 };
-static tlValue ContinuationRun(tlValue fn, tlArgs* args);
+static tlHandle ContinuationRun(tlHandle fn, tlArgs* args);
 static tlKind _tlContinuationKind = {
     .name = "Continuation",
     .run = ContinuationRun,
 };
 tlKind* tlContinuationKind = &_tlContinuationKind;
 
-INTERNAL tlValue resumeContinuation(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeContinuation(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
 
     tlArgs* args = tlArgsAs(res);
@@ -266,7 +266,7 @@ INTERNAL tlValue resumeContinuation(tlFrame* _frame, tlValue res, tlValue throw)
     cont->frame->pc = cont->pc;
     return tlTaskStackUnwind((tlFrame*)cont->frame, tlResultFromArgsPrepend(cont, args));
 }
-INTERNAL tlValue ContinuationRun(tlValue fn, tlArgs* args) {
+INTERNAL tlHandle ContinuationRun(tlHandle fn, tlArgs* args) {
     trace("CONTINUATION(%d)", tlArgsSize(args));
     assert(tlContinuationIs(fn));
     assert(fn == tlArgsFn(args));
@@ -274,7 +274,7 @@ INTERNAL tlValue ContinuationRun(tlValue fn, tlArgs* args) {
 }
 
 // called by eval.c when creating a continuation
-INTERNAL tlValue resumeNewContinuation(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeNewContinuation(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlContinuation* cont = tlAlloc(tlContinuationKind, sizeof(tlContinuation));
     cont->task = tlTaskCurrent();
     tlCodeFrame* f = tlCodeFrameAs(frame->caller);

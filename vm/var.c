@@ -7,26 +7,26 @@ tlKind* tlVarKind = &_tlVarKind;
 
 struct tlVar {
     tlHead head;
-    tlValue value;
+    tlHandle value;
 };
 
-tlValue tlVarGet(tlVar* var) { return var->value; }
-tlValue tlVarSet(tlVar* var, tlValue v) { var->value = v; return v; }
+tlHandle tlVarGet(tlVar* var) { return var->value; }
+tlHandle tlVarSet(tlVar* var, tlHandle v) { var->value = v; return v; }
 
-INTERNAL tlValue _Var_new(tlArgs* args) {
+INTERNAL tlHandle _Var_new(tlArgs* args) {
     trace("");
     tlVar* var = tlAlloc(tlVarKind, sizeof(tlVar));
     var->value = tlArgsGet(args, 0);
     return var;
 }
-INTERNAL tlValue _var_get(tlArgs* args) {
+INTERNAL tlHandle _var_get(tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
     if (!var->value) return tlNull;
     return var->value;
 }
-INTERNAL tlValue _var_set(tlArgs* args) {
+INTERNAL tlHandle _var_set(tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");

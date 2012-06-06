@@ -16,13 +16,13 @@ tlBuffer* tlBufferNew() {
     buf->buf = tlbuf_new();
     return buf;
 }
-INTERNAL tlValue _buffer_canread(tlArgs* args) {
+INTERNAL tlHandle _buffer_canread(tlArgs* args) {
     return tlINT(canread(tlBufferAs(tlArgsTarget(args))->buf));
 }
-INTERNAL tlValue _buffer_canwrite(tlArgs* args) {
+INTERNAL tlHandle _buffer_canwrite(tlArgs* args) {
     return tlINT(canwrite(tlBufferAs(tlArgsTarget(args))->buf));
 }
-INTERNAL tlValue _buffer_read(tlArgs* args) {
+INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
     if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
@@ -35,7 +35,7 @@ INTERNAL tlValue _buffer_read(tlArgs* args) {
     return tlTextFromTake(data, last);
 }
 
-INTERNAL tlValue _buffer_write(tlArgs* args) {
+INTERNAL tlHandle _buffer_write(tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
     if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
@@ -47,7 +47,7 @@ INTERNAL tlValue _buffer_write(tlArgs* args) {
     return tlINT(tlbuf_write(buf, tlTextData(text), tlTextSize(text)));
 }
 
-INTERNAL tlValue _buffer_find(tlArgs* args) {
+INTERNAL tlHandle _buffer_find(tlArgs* args) {
     tlBuffer* buffer = tlBufferCast(tlArgsTarget(args));
     if (!buffer) TL_THROW("expected a Buffer");
     tl_buf* buf = buffer->buf;
@@ -61,7 +61,7 @@ INTERNAL tlValue _buffer_find(tlArgs* args) {
     return tlINT(i);
 }
 
-INTERNAL tlValue _Buffer_new(tlArgs* args) {
+INTERNAL tlHandle _Buffer_new(tlArgs* args) {
     return tlBufferNew();
 }
 

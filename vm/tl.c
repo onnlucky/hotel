@@ -30,12 +30,12 @@ int main(int argc, char** argv) {
     if (boot) maintask = tlVmEvalFile(vm, tlTEXT(boot), args);
     else maintask = tlVmEvalBoot(vm, args);
 
-    tlValue throw = tlTaskGetThrowValue(maintask);
+    tlHandle throw = tlTaskGetThrowValue(maintask);
     if (throw) {
         printf("%s\n", tl_str(throw));
         return 1;
     }
-    tlValue v = tlTaskGetValue(maintask);
+    tlHandle v = tlTaskGetValue(maintask);
     if (tl_bool(v)) printf("%s\n", tl_str(v));
     tlVmDelete(vm);
     return 0;

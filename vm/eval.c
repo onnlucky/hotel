@@ -24,13 +24,13 @@
 #include "trace-off.h"
 
 // implemented in controlflow.c
-INTERNAL tlValue tlReturnNew(tlArgs* args);
-INTERNAL tlValue tlGotoNew(tlArgs* args);
-INTERNAL tlValue resumeNewContinuation(tlFrame* frame, tlValue res, tlValue throw);
+INTERNAL tlHandle tlReturnNew(tlArgs* args);
+INTERNAL tlHandle tlGotoNew(tlArgs* args);
+INTERNAL tlHandle resumeNewContinuation(tlFrame* frame, tlHandle res, tlHandle throw);
 
 // var.c
-tlValue tlVarSet(tlVar*, tlValue);
-tlValue tlVarGet(tlVar*);
+tlHandle tlVarSet(tlVar*, tlHandle);
+tlHandle tlVarGet(tlVar*);
 
 static tlText* _t_unknown;
 static tlText* _t_anon;
@@ -49,7 +49,7 @@ static tlKind _tlThunkKind = { .name = "Thunk" };
 tlKind* tlThunkKind = &_tlThunkKind;
 struct tlThunk {
     tlHead head;
-    tlValue value;
+    tlHandle value;
 };
 
 static tlKind _tlResultKind = { .name = "Result" };
@@ -57,7 +57,7 @@ tlKind* tlResultKind = &_tlResultKind;
 struct tlResult {
     tlHead head;
     intptr_t size;
-    tlValue data[];
+    tlHandle data[];
 };
 
 static tlKind _tlCollectKind = { .name = "Collect" };
@@ -65,7 +65,7 @@ tlKind* tlCollectKind = &_tlCollectKind;
 struct tlCollect {
     tlHead head;
     intptr_t size;
-    tlValue data[];
+    tlHandle data[];
 };
 
 // various types of frames, just for convenience ...
@@ -96,7 +96,7 @@ tlClosure* tlClosureNew(tlCode* code, tlEnv* env) {
     fn->env = tlEnvNew(env);
     return fn;
 }
-tlThunk* tlThunkNew(tlValue v) {
+tlThunk* tlThunkNew(tlHandle v) {
     tlThunk* thunk = tlAlloc(tlThunkKind, sizeof(tlThunk));
     thunk->value = v;
     return thunk;
@@ -108,16 +108,16 @@ tlCollect* tlCollectFromList_(tlList* list) {
 }
 tlResult* tlResultFromArgs(tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * size);
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * size);
     res->size = size;
     for (int i = 0; i < size; i++) {
         res->data[i] = tlArgsGet(args, i);
     }
     return res;
 }
-tlResult* tlResultFromArgsPrepend(tlValue first, tlArgs* args) {
+tlResult* tlResultFromArgsPrepend(tlHandle first, tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * (size + 1));
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size + 1));
     res->size = size + 1;
     res->data[0] = first;
     for (int i = 0; i < size; i++) {
@@ -127,38 +127,38 @@ tlResult* tlResultFromArgsPrepend(tlValue first, tlArgs* args) {
 }
 tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     int size = tlArgsSize(args);
-    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * (size - 1));
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size - 1));
     res->size = size - 1;
     for (int i = 1; i < size; i++) {
         res->data[i - 1] = tlArgsGet(args, i);
     }
     return res;
 }
-tlResult* tlResultFrom(tlValue v1, ...) {
+tlResult* tlResultFrom(tlHandle v1, ...) {
     va_list ap;
     int size = 0;
 
     //assert(false);
     va_start(ap, v1);
-    for (tlValue v = v1; v; v = va_arg(ap, tlValue)) size++;
+    for (tlHandle v = v1; v; v = va_arg(ap, tlHandle)) size++;
     va_end(ap);
 
-    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlValue) * (size + 1));
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size + 1));
     res->size = size + 1;
 
     va_start(ap, v1);
     int i = 0;
-    for (tlValue v = v1; v; v = va_arg(ap, tlValue), i++) res->data[i] = v;
+    for (tlHandle v = v1; v; v = va_arg(ap, tlHandle), i++) res->data[i] = v;
     va_end(ap);
 
     trace("RESULTS: %d", size);
     return res;
 }
-void tlResultSet_(tlResult* res, int at, tlValue v) {
+void tlResultSet_(tlResult* res, int at, tlHandle v) {
     assert(at >= 0 && at < res->size);
     res->data[at] = v;
 }
-tlValue tlResultGet(tlValue v, int at) {
+tlHandle tlResultGet(tlHandle v, int at) {
     assert(at >= 0);
     if (!tlResultIs(v)) {
         if (at == 0) return v;
@@ -169,7 +169,7 @@ tlValue tlResultGet(tlValue v, int at) {
     return tlNull;
 }
 // return the first value from a list of results, or just the value passed in
-tlValue tlFirst(tlValue v) {
+tlHandle tlFirst(tlHandle v) {
     if (!v) return v;
     if (!tlResultIs(v)) return v;
     tlResult* result = tlResultAs(v);
@@ -222,20 +222,20 @@ INTERNAL void print_backtrace(tlFrame* frame) {
     }
 }
 
-INTERNAL tlValue applyCall(tlCall* call);
+INTERNAL tlHandle applyCall(tlCall* call);
 
 
-INTERNAL tlValue run_activate(tlValue v, tlEnv* env);
-INTERNAL tlValue run_activate_call(ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlValue _res);
+INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env);
+INTERNAL tlHandle run_activate_call(ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlHandle _res);
 
-INTERNAL tlValue resumeActivateCall(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeActivateCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
     return run_activate_call(frame, frame->call, frame->env, res);
 }
 
 // TODO fix this?
-INTERNAL tlValue run_activate_call(ActivateCallFrame* frame, tlCall* call, tlEnv* env, tlValue _res) {
+INTERNAL tlHandle run_activate_call(ActivateCallFrame* frame, tlCall* call, tlEnv* env, tlHandle _res) {
     int i = 0;
     if (frame) i = frame->count;
     else call = tlCallCopy(call);
@@ -243,14 +243,14 @@ INTERNAL tlValue run_activate_call(ActivateCallFrame* frame, tlCall* call, tlEnv
 
     if (i < 0) {
         i = -i - 1;
-        tlValue v = tlFirst(_res);
+        tlHandle v = tlFirst(_res);
         trace2("%p call: %d = %s", frame, i, tl_str(v));
         assert(v);
         call = tlCallValueIterSet_(call, i, v);
         i++;
     }
     for (;; i++) {
-        tlValue v = tlCallValueIter(call, i);
+        tlHandle v = tlCallValueIter(call, i);
         if (!v) break;
         if (tlActiveIs(v)) {
             v = run_activate(tl_value(v), env);
@@ -272,14 +272,14 @@ INTERNAL tlValue run_activate_call(ActivateCallFrame* frame, tlCall* call, tlEnv
 }
 
 // lookups potentially need to run hotel code, so we can pause from here
-INTERNAL tlValue lookup(tlEnv* env, tlSym name) {
+INTERNAL tlHandle lookup(tlEnv* env, tlSym name) {
     if (name == s_return) {
-        tlValue fn = tlReturnNew(tlEnvGetArgs(env));
+        tlHandle fn = tlReturnNew(tlEnvGetArgs(env));
         trace("%s -> %s", tl_str(name), tl_str(fn));
         return fn;
     }
     if (name == s_goto) {
-        tlValue fn = tlGotoNew(tlEnvGetArgs(env));
+        tlHandle fn = tlGotoNew(tlEnvGetArgs(env));
         trace("%s -> %s", tl_str(name), tl_str(fn));
         return fn;
     }
@@ -287,7 +287,7 @@ INTERNAL tlValue lookup(tlEnv* env, tlSym name) {
         trace("pausing for continuation");
         return tlTaskPauseResuming(resumeNewContinuation, tlNull);
     }
-    tlValue v = tlEnvGet(env, name);
+    tlHandle v = tlEnvGet(env, name);
     trace("%s -> %s", tl_str(name), tl_str(v));
     if (v) return v;
 
@@ -302,7 +302,7 @@ INTERNAL tlValue lookup(tlEnv* env, tlSym name) {
     TL_THROW("undefined '%s'", tl_str(name));
 }
 
-INTERNAL tlValue run_activate(tlValue v, tlEnv* env) {
+INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env) {
     trace("%s", tl_str(v));
     if (tlSymIs(v)) {
         tlEnvCloseCaptures(env);
@@ -320,14 +320,14 @@ INTERNAL tlValue run_activate(tlValue v, tlEnv* env) {
 }
 
 // when call->fn is a call itself
-INTERNAL tlValue resumeCallFn(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeCallFn(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     CallFnFrame* frame = (CallFnFrame*)_frame;
     return applyCall(tlCallCopySetFn(frame->call, res));
 }
 INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn) {
     trace(">> %p", fn);
-    tlValue res = applyCall(fn);
+    tlHandle res = applyCall(fn);
     if (!res) {
         CallFnFrame* frame = tlFrameAlloc(resumeCallFn, sizeof(CallFnFrame));
         frame->call = call;
@@ -338,7 +338,7 @@ INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn) {
 }
 
 // we eval every internal call, and result in an tlArgs in the end
-INTERNAL tlArgs* evalCall2(CallFrame* frame, tlValue _res) {
+INTERNAL tlArgs* evalCall2(CallFrame* frame, tlHandle _res) {
     trace2("%p", frame);
 
     // setup needed data
@@ -348,7 +348,7 @@ INTERNAL tlArgs* evalCall2(CallFrame* frame, tlValue _res) {
     tlList* names = null;
     tlMap* defaults = null;
 
-    tlValue fn = tlCallGetFn(call);
+    tlHandle fn = tlCallGetFn(call);
     if (tlClosureIs(fn)) {
         tlCode* code = tlClosureAs(fn)->code;
         names = code->argnames;
@@ -368,7 +368,7 @@ INTERNAL tlArgs* evalCall2(CallFrame* frame, tlValue _res) {
     //print("AT: %d, NAMED: %d, SKIPPED: %d", at, named, skipped);
 
     if (frame->count & 0x80000000) {
-        tlValue v = tlFirst(_res);
+        tlHandle v = tlFirst(_res);
         tlSym name = tlCallGetName(call, at);
         if (name) {
             trace("(frame) ARGS: %s = %s", tl_str(name), tl_str(v));
@@ -383,9 +383,9 @@ INTERNAL tlArgs* evalCall2(CallFrame* frame, tlValue _res) {
 
     // evaluate each argument
     for (; at < argc; at++) {
-        tlValue v = tlCallGet(call, at);
+        tlHandle v = tlCallGet(call, at);
         tlSym name = tlCallGetName(call, at);
-        tlValue d = tlNull;
+        tlHandle d = tlNull;
         if (name) {
             if (defaults) d = tlMapGetSym(defaults, name);
         } else {
@@ -426,16 +426,16 @@ INTERNAL tlArgs* evalCall2(CallFrame* frame, tlValue _res) {
     return args;
 }
 
-INTERNAL tlValue resumeCall(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeCall(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     return evalCall2((CallFrame*)frame, res);
 }
 
-INTERNAL tlValue stopCode(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle stopCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
     return res;
 }
-INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue res);
-INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle res);
+INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
     tlCodeFrame* frame = (tlCodeFrame*)_frame;
     if (throw) {
         tlClosure* handler = frame->handler;
@@ -453,7 +453,7 @@ INTERNAL tlValue resumeCode(tlFrame* _frame, tlValue res, tlValue throw) {
     return evalCode2(frame, res);
 }
 
-INTERNAL tlValue evalCode(tlArgs* args, tlClosure* fn) {
+INTERNAL tlHandle evalCode(tlArgs* args, tlClosure* fn) {
     trace("");
     tlCodeFrame* frame = tlFrameAlloc(resumeCode, sizeof(tlCodeFrame));
     frame->env = tlEnvCopy(fn->env);
@@ -467,7 +467,7 @@ INTERNAL tlValue evalCode(tlArgs* args, tlClosure* fn) {
         int size = tlListSize(names);
         for (int i = 0; i < size; i++) {
             tlSym name = tlSymAs(tlListGet(names, i));
-            tlValue v = tlArgsMapGet(args, name);
+            tlHandle v = tlArgsMapGet(args, name);
             if (!v) {
                 v = tlArgsGet(args, first); first++;
             }
@@ -491,7 +491,7 @@ INTERNAL tlValue evalCode(tlArgs* args, tlClosure* fn) {
     }
     // TODO only do this if the closure is a method
     // the *only* dynamically scoped name
-    tlValue oop = tlArgsMapGet(args, s_this);
+    tlHandle oop = tlArgsMapGet(args, s_this);
     if (!oop) oop = tlArgsTarget(args);
     if (oop) frame->env = tlEnvSet(frame->env, s_this, oop);
 
@@ -499,13 +499,13 @@ INTERNAL tlValue evalCode(tlArgs* args, tlClosure* fn) {
     return evalCode2(frame, tlNull);
 }
 
-INTERNAL tlValue runClosure(tlValue _fn, tlArgs* args) {
+INTERNAL tlHandle runClosure(tlHandle _fn, tlArgs* args) {
     tlClosure* fn = tlClosureAs(_fn);
     return evalCode(args, fn);
 }
 
-INTERNAL tlValue evalArgs(tlArgs* args) {
-    tlValue fn = tlArgsFn(args);
+INTERNAL tlHandle evalArgs(tlArgs* args) {
+    tlHandle fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     tlKind* kind = tl_kind(fn);
     if (kind->run) return kind->run(fn, args);
@@ -514,7 +514,7 @@ INTERNAL tlValue evalArgs(tlArgs* args) {
 }
 
 // this is the main part of eval: running the "list" of "bytecode"
-INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
+INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle _res) {
     tlTask* task = tlTaskCurrent();
     task->worker->codeframe = frame;
     int pc = frame->pc;
@@ -541,7 +541,7 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
     task->value = _res;
 
     for (;pc < code->size; pc++) {
-        tlValue op = code->ops[pc];
+        tlHandle op = code->ops[pc];
         trace("%p pc=%d, op=%s", frame, pc, tl_str(op));
 
         // a value marked as active
@@ -551,7 +551,7 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
             frame->env = env;
             frame->pc = pc + 1;
 
-            tlValue v = run_activate(tl_value(op), env);
+            tlHandle v = run_activate(tl_value(op), env);
             if (!v) {
                 if (is_eval) task->worker->evalEnv = env;
                 return tlTaskPauseAttach(frame);
@@ -574,7 +574,7 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
 
         // just a symbol means setting the current value under this name in env
         if (tlSymIs(op)) {
-            tlValue v = tlFirst(task->value);
+            tlHandle v = tlFirst(task->value);
             trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
             if (!tlClosureIs(v)) tlEnvCloseCaptures(env);
             env = tlEnvSet(env, tlSymAs(op), v);
@@ -589,7 +589,7 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
             trace2("%p op: collect -- %d -- %s", frame, names->size, tl_str(task->value));
             for (int i = 0; i < names->size; i++) {
                 tlSym name = tlSymAs(names->data[i]);
-                tlValue v = tlResultGet(task->value, i);
+                tlHandle v = tlResultGet(task->value, i);
                 trace2("%p op: collect: %s = %s", frame, tl_str(name), tl_str(v));
                 env = tlEnvSet(env, name, v);
             }
@@ -605,8 +605,8 @@ INTERNAL tlValue evalCode2(tlCodeFrame* frame, tlValue _res) {
     return task->value;
 }
 
-INTERNAL tlValue run_thunk(tlThunk* thunk) {
-    tlValue v = thunk->value;
+INTERNAL tlHandle run_thunk(tlThunk* thunk) {
+    tlHandle v = thunk->value;
     trace("%p -> %s", thunk, tl_str(v));
     if (tlCallIs(v)) {
         return tlEval(tlCallAs(v));
@@ -621,16 +621,16 @@ INTERNAL tlArgs* evalCall(tlCall* call) {
     return evalCall2(frame, null);
 }
 
-INTERNAL tlValue resumeEvalCall(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeEvalCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     return evalArgs(tlArgsAs(res));
 }
 
-INTERNAL tlValue callCall(tlCall* call) {
+INTERNAL tlHandle callCall(tlCall* call) {
     trace("%s", tl_str(call));
     return evalCallFn(call, tlCallAs(tlCallGetFn(call)));
 }
-INTERNAL tlValue callClosure(tlCall* call) {
+INTERNAL tlHandle callClosure(tlCall* call) {
     trace("%s", tl_str(call));
     tlArgs* args = evalCall(call);
     if (args) return evalArgs(args);
@@ -638,7 +638,7 @@ INTERNAL tlValue callClosure(tlCall* call) {
     tlFrame* frame = tlFrameAlloc(resumeEvalCall, sizeof(tlFrame));
     return tlTaskPauseAttach(frame);
 }
-INTERNAL tlValue callThunk(tlCall* call) {
+INTERNAL tlHandle callThunk(tlCall* call) {
     if (tlCallSize(call) > 0) {
         fatal("broken");
         //tlArgs* args = evalCall(call);
@@ -646,19 +646,19 @@ INTERNAL tlValue callThunk(tlCall* call) {
     return run_thunk(tlThunkAs(tlCallGetFn(call)));
 }
 
-INTERNAL tlValue applyCall(tlCall* call) {
+INTERNAL tlHandle applyCall(tlCall* call) {
     assert(call);
     trace("apply >> %p(%d) <<", call, tlCallSize(call));
 
 #ifdef HAVE_ASSERT
     for (int i = 0;; i++) {
-        tlValue v = tlCallValueIter(call, i);
+        tlHandle v = tlCallValueIter(call, i);
         if (!v) { assert(i >= tlCallSize(call)); break; }
         assert(!tlActiveIs(v));
     };
 #endif
 
-    tlValue fn = tlCallGetFn(call);
+    tlHandle fn = tlCallGetFn(call);
     trace("%p: fn=%s", call, tl_str(fn));
     assert(fn);
 
@@ -676,23 +676,23 @@ INTERNAL tlValue applyCall(tlCall* call) {
 }
 
 // Various high level eval stuff, will piggyback on the task given
-tlText* tlToText(tlValue v) {
+tlText* tlToText(tlHandle v) {
     if (tlTextIs(v)) return v;
     // TODO actually invoke toText ...
     return tlTextFromCopy(tl_str(v), 0);
 }
-tlValue tlEval(tlValue v) {
+tlHandle tlEval(tlHandle v) {
     trace("%s", tl_str(v));
     if (tlCallIs(v)) return applyCall(tlCallAs(v));
     return v;
 }
-tlValue tlEvalArgsFn(tlArgs* args, tlValue fn) {
+tlHandle tlEvalArgsFn(tlArgs* args, tlHandle fn) {
     trace("%s %s", tl_str(fn), tl_str(args));
     assert(tlCallableIs(fn));
     args->fn = fn;
     return evalArgs(args);
 }
-tlValue tlEvalArgsTarget(tlArgs* args, tlValue target, tlValue fn) {
+tlHandle tlEvalArgsTarget(tlArgs* args, tlHandle target, tlHandle fn) {
     assert(tlCallableIs(fn));
     args->target = target;
     args->fn = fn;
@@ -701,31 +701,31 @@ tlValue tlEvalArgsTarget(tlArgs* args, tlValue target, tlValue fn) {
 
 
 // print a generic backtrace
-INTERNAL tlValue resumeBacktrace(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeBacktrace(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     print_backtrace(frame->caller);
     return tlNull;
 }
-INTERNAL tlValue _backtrace(tlArgs* args) {
+INTERNAL tlHandle _backtrace(tlArgs* args) {
     return tlTaskPauseResuming(resumeBacktrace, tlNull);
 }
 
 // install a catch handler (bit primitive like this)
-INTERNAL tlValue resumeCatch(tlFrame* _frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeCatch(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
-    tlValue handler = tlArgsBlock(args);
+    tlHandle handler = tlArgsBlock(args);
     trace("%p.handler = %s", _frame->caller, tl_str(handler));
     tlCodeFrame* frame = tlCodeFrameAs(_frame->caller);
     frame->handler = handler;
     return tlNull;
 }
-INTERNAL tlValue _catch(tlArgs* args) {
+INTERNAL tlHandle _catch(tlArgs* args) {
     return tlTaskPauseResuming(resumeCatch, args);
 }
 
 // install a global resolver, used to load modules
-INTERNAL tlValue _resolve(tlArgs* args) {
+INTERNAL tlHandle _resolve(tlArgs* args) {
     tlVm* vm = tlTaskGetVm(tlTaskCurrent());
     if (vm->resolve) TL_THROW("already set _resolve: %s", tl_str(vm->resolve));
     vm->resolve = tlArgsBlock(args);
@@ -733,9 +733,9 @@ INTERNAL tlValue _resolve(tlArgs* args) {
 }
 
 // TODO not so sure about this, user objects which return something on .call are also callable ...
-bool tlCallableIs(tlValue v) {
+bool tlCallableIs(tlHandle v) {
     if (!tlRefIs(v)) return false;
-    if (tlValueObjectIs(v)) return tlMapGetSym(v, s_call) != null;
+    if (tlHandleObjectIs(v)) return tlMapGetSym(v, s_call) != null;
     tlKind* kind = tl_kind(v);
     if (kind->call) return true;
     if (kind->run) return true;
@@ -744,8 +744,8 @@ bool tlCallableIs(tlValue v) {
 }
 
 // send messages
-INTERNAL tlValue evalMapSend(tlMap* map, tlSym msg, tlArgs* args, tlValue target) {
-    tlValue field = tlMapGet(map, msg);
+INTERNAL tlHandle evalMapSend(tlMap* map, tlSym msg, tlArgs* args, tlHandle target) {
+    tlHandle field = tlMapGet(map, msg);
     trace(".%s -> %s()", tl_str(msg), tl_str(field));
     if (!field) TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
     if (!tlCallableIs(field)) return field;
@@ -753,8 +753,8 @@ INTERNAL tlValue evalMapSend(tlMap* map, tlSym msg, tlArgs* args, tlValue target
     return evalArgs(args);
 }
 
-INTERNAL tlValue evalSend(tlArgs* args) {
-    tlValue target = tlArgsTarget(args);
+INTERNAL tlHandle evalSend(tlArgs* args) {
+    tlHandle target = tlArgsTarget(args);
     tlSym msg = tlArgsMsg(args);
     trace("%s.%s", tl_str(target), tl_str(msg));
     tlKind* kind = tl_kind(target);
@@ -763,9 +763,9 @@ INTERNAL tlValue evalSend(tlArgs* args) {
     TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
 }
 
-INTERNAL tlValue _send(tlArgs* args) {
-    tlValue target = tlArgsGet(args, 0);
-    tlValue msg = tlArgsGet(args, 1);
+INTERNAL tlHandle _send(tlArgs* args) {
+    tlHandle target = tlArgsGet(args, 0);
+    tlHandle msg = tlArgsGet(args, 1);
     if (!target || !msg) TL_THROW("internal error: bad _send");
 
     trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
@@ -781,14 +781,14 @@ INTERNAL tlValue _send(tlArgs* args) {
     if (kind->locked) return evalSendLocked(nargs);
     return evalSend(nargs);
 }
-INTERNAL tlValue resumeTrySend(tlFrame* frame, tlValue res, tlValue throw) {
+INTERNAL tlHandle resumeTrySend(tlFrame* frame, tlHandle res, tlHandle throw) {
     // trysend catches any error and ignores it ...
     // TODO it should only catch locally thrown undefined errors ... in the future
     return tlUndefined;
 }
-INTERNAL tlValue _try_send(tlArgs* args) {
-    tlValue target = tlArgsGet(args, 0);
-    tlValue msg = tlArgsGet(args, 1);
+INTERNAL tlHandle _try_send(tlArgs* args) {
+    tlHandle target = tlArgsGet(args, 0);
+    tlHandle msg = tlArgsGet(args, 1);
     if (!target || !msg) TL_THROW("internal error: bad _try_send");
 
     trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
@@ -802,15 +802,15 @@ INTERNAL tlValue _try_send(tlArgs* args) {
     tlKind* kind = tl_kind(target);
     assert(kind);
     if (kind->locked) return evalSendLocked(nargs);
-    tlValue res = evalSend(nargs);
+    tlHandle res = evalSend(nargs);
     if (res) return res;
     return tlTaskPauseAttach(tlFrameAlloc(resumeTrySend, sizeof(tlFrame)));
 }
 
 // implement fn.call ... pretty generic
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
-INTERNAL tlValue _call(tlArgs* args) {
-    tlValue* fn = tlArgsTarget(args);
+INTERNAL tlHandle _call(tlArgs* args) {
+    tlHandle* fn = tlArgsTarget(args);
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlArgs* nargs = tlArgsNew(list, null);
     return tlEvalArgsFn(nargs, fn);
@@ -822,7 +822,7 @@ typedef struct EvalFrame {
     tlVar* var;
 } EvalFrame;
 
-static tlValue resumeEval(tlFrame* _frame, tlValue res, tlValue throw) {
+static tlHandle resumeEval(tlFrame* _frame, tlHandle res, tlHandle throw) {
     tlTask* task = tlTaskCurrent();
     if (!res) return null;
     trace("resuming");
@@ -832,7 +832,7 @@ static tlValue resumeEval(tlFrame* _frame, tlValue res, tlValue throw) {
     return res;
 }
 
-static tlValue _textFromFile(tlArgs* args) {
+static tlHandle _textFromFile(tlArgs* args) {
     tlText* file = tlTextCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a file name");
     tl_buf* buf = tlbuf_new_from_file(tlTextData(file));
@@ -842,7 +842,7 @@ static tlValue _textFromFile(tlArgs* args) {
     return tlTextFromTake(tlbuf_free_get(buf), 0);
 }
 
-static tlValue _parse(tlArgs* args) {
+static tlHandle _parse(tlArgs* args) {
     tlText* code = tlTextCast(tlArgsGet(args, 0));
     if (!code) TL_THROW("expected a Text");
     tlText* name = tlTextCast(tlArgsGet(args, 1));
@@ -854,7 +854,7 @@ static tlValue _parse(tlArgs* args) {
     return body;
 }
 
-static tlValue runCode(tlValue _fn, tlArgs* args) {
+static tlHandle runCode(tlHandle _fn, tlArgs* args) {
     tlCode* body = tlCodeCast(_fn);
     if (!body) TL_THROW("expected Code");
     tlEnv* env = tlEnvCast(tlArgsGet(args, 0));
@@ -867,7 +867,7 @@ static tlValue runCode(tlValue _fn, tlArgs* args) {
 }
 
 // TODO setting worker->evalArgs doesn't work, instead build own tlCodeFrame, that works ...
-static tlValue _eval(tlArgs* args) {
+static tlHandle _eval(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
@@ -885,7 +885,7 @@ static tlValue _eval(tlArgs* args) {
     tlArgs* cargs = evalCall(call);
     assert(cargs);
     task->worker->evalArgs = cargs;
-    tlValue res = evalArgs(cargs);
+    tlHandle res = evalArgs(cargs);
     if (!res) {
         trace("pausing");
         EvalFrame* frame = tlFrameAlloc(resumeEval, sizeof(EvalFrame));
@@ -898,13 +898,13 @@ static tlValue _eval(tlArgs* args) {
     return res;
 }
 
-INTERNAL tlValue _install(tlArgs* args) {
+INTERNAL tlHandle _install(tlArgs* args) {
     trace("install: %s", tl_str(tlArgsGet(args, 0)));
     tlMap* map = tlMapFromObjectCast(tlArgsGet(args, 0));
     if (!map) TL_THROW("expected a Map");
     tlSym sym = tlSymCast(tlArgsGet(args, 1));
     if (!sym) TL_THROW("expected a Sym");
-    tlValue val = tlArgsGet(args, 2);
+    tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("expected a Value");
     // TODO some safety here?
     tlMapSetSym_(map, sym, val);
