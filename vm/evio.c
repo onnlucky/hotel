@@ -82,6 +82,7 @@ static tlText* path_join(tlText* lhs, tlText* rhs) {
     if (rlen == 0) return lhs;
 
     char* buf = malloc(llen + 1 + rlen + 1);
+    buf[0] = 0;
     strcat(buf, l);
     strcat(buf + llen, "/");
     strcat(buf + llen + 1, r);

@@ -1,6 +1,6 @@
 # TODO
 
-rename tlValue -> tlHandle and use tlValue as tlMap and remove tlValueObject ...
+rename tlMap as tlValue and remove tlValueObject ...
 for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
 allow printing thrown error properly from vm
 start using tagged doubles?

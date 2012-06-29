@@ -8,12 +8,12 @@ THREADS="--enable-threads=posix --enable-thread-local-alloc --enable-parallel-ma
 if ! cd libgc; then
     git clone git://github.com/ivmai/bdwgc.git libgc
     cd libgc
-    git checkout origin/release
+    git checkout origin/release-7_2
 fi
 if ! cd libatomic_ops; then
     git clone git://github.com/ivmai/libatomic_ops.git
     cd libatomic_ops
-    git checkout origin/release
+    git checkout origin/release-7_2
     cd ..
 else
     cd ..

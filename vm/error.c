@@ -42,8 +42,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     }
     trace("size %d", size);
 
-    tlStackTrace* trace = tlAlloc(tlStackTraceKind,
-            sizeof(tlStackTraceKind) + sizeof(tlHandle) * size * 3);
+    tlStackTrace* trace = tlAlloc(tlStackTraceKind, sizeof(tlStackTrace) + sizeof(tlHandle) * size * 3);
     trace->size = size;
     trace->task = task;
     int at = 0;
