@@ -4,7 +4,7 @@ parser.tl: parser.tlg tlmeta.tl tlmeta-base.tl
 test.tl: test.tlg tlmeta.tl tlmeta-base.tl
 	tl tlmeta.tl test.tlg test.tl
 
-run: parser.tl test.tl
+run: parser.tl
 	tl parser.tl test-input.tl
 
 clean:
