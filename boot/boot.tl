@@ -30,7 +30,7 @@ _each = { fn ->
     len = this.size
     loop = { at =>
         if at >= len: return
-        block(this.get(at))
+        block(this.get(at), at)
         goto(loop(at + 1))
     }
     loop(0)
