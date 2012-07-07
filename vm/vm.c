@@ -267,6 +267,7 @@ tlVm* tlVmNew() {
     var_vm_default(vm);
     array_vm_default(vm);
     hashmap_vm_default(vm);
+    evio_vm_default(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     return vm;

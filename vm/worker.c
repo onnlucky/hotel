@@ -17,6 +17,8 @@ INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task);
 INTERNAL bool tlVmIsRunning(tlVm* vm);
 INTERNAL void tlVmWaitSignal(tlVm* vm);
 
+typedef void(*tlVmSignalFn)(void);
+
 struct tlVm {
     tlHead head;
     // tasks ready to run
@@ -36,6 +38,9 @@ struct tlVm {
     tlEnv* globals;
     tlMap* locals; // default task locals
     tlHandle resolve;
+
+    // to wake up select
+    tlVmSignalFn signalcb;
 
     // for when we run multithreaded
     pthread_mutex_t* lock;

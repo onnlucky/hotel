@@ -1189,3 +1189,7 @@ void evio_init() {
     ev_run(EVRUN_NOWAIT);
 }
 
+void evio_vm_default(tlVm* vm) {
+    vm->signalcb = iointerrupt;
+}
+

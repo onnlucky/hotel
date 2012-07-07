@@ -349,8 +349,19 @@ tlHandle tlTaskGetThrowValue(tlTask* task) {
     return task->throw;
 }
 tlHandle tlTaskGetValue(tlTask* task) {
-    assert(tlTaskIsDone(task));
+    assert(task->state >= TL_STATE_WAIT);
     return tlFirst(task->value);
+}
+void tlTaskSetValue(tlTask* task, tlHandle h) {
+    assert(task->state >= TL_STATE_WAIT);
+    task->value = h;
+}
+
+void tlTaskEnqueue(tlTask* task, lqueue* q) {
+    lqueue_put(q, &task->entry);
+}
+tlTask* tlTaskDequeue(lqueue* q) {
+    return tlTaskFromEntry(lqueue_get(q));
 }
 
 // TODO all this deadlock checking needs to thread more carefully
@@ -404,6 +415,21 @@ void tlTaskReady(tlTask* task) {
         task->worker = null;
         lqueue_put(&vm->run_q, &task->entry);
     }
+}
+
+tlTask* tlTaskWaitExternal() {
+    tlTask* task = tlTaskCurrent();
+    tlVm* vm = tlTaskGetVm(task);
+    a_inc(&vm->waitevent);
+    tlTaskWaitFor(null);
+    return task;
+}
+
+void tlTaskReadyExternal(tlTask* task) {
+    tlVm* vm = tlTaskGetVm(task);
+    a_dec(&vm->waitevent);
+    tlTaskReady(task);
+    if (vm->signalcb) vm->signalcb();
 }
 
 void tlTaskStart(tlTask* task) {

@@ -265,6 +265,7 @@ void tlVmDelete(tlVm* vm);
 // get the current task
 //tlTask* tlTaskCurrent();
 
+
 // parsing
 tlHandle tlParse(tlText* text, tlText* file);
 
@@ -284,6 +285,9 @@ tlTask* tlEvalCode(tlVm* vm, tlText* code, tlArgs* as);
 bool tlTaskIsDone(tlTask* task);
 tlHandle tlTaskGetThrowValue(tlTask* task);
 tlHandle tlTaskGetValue(tlTask* task);
+
+void tlTaskEnqueue(tlTask* task, lqueue* q);
+tlTask* tlTaskDequeue(lqueue* q);
 
 // invoking toText, almost same as tlEvalCode("v.toText")
 tlText* tlToText(tlHandle v);
@@ -311,15 +315,22 @@ tlVm* tlTaskGetVm(tlTask* task);
 // otherwise, if throw is set, a call has thrown a value (likely a tlError)
 // if both are null, we are "unwinding" the stack for a jump (return/continuation ...)
 typedef tlHandle(*tlResumeCb)(tlFrame* frame, tlHandle res, tlHandle throw);
+
 // pause task to reify stack
 tlHandle tlTaskPause(void* frame);
 tlHandle tlTaskPauseAttach(void* frame);
 tlHandle tlTaskPauseResuming(tlResumeCb resume, tlHandle res);
+
 // mark task as waiting
 tlHandle tlTaskWaitFor(tlHandle on);
-void tlTaskWaitIo();
+
 // mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady();
+
+// mark the current task as waiting for external event
+tlTask* tlTaskWaitExternal();
+void tlTaskReadyExternal(tlTask* task);
+void tlTaskSetValue(tlTask* task, tlHandle h);
 
 // throws value, if it is a map with a stack, it will be filled in witha stacktrace
 tlHandle tlTaskThrow(tlHandle err);

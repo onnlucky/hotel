@@ -39,7 +39,9 @@ static tlHandle App_shared(tlArgs* args) {
 struct Window {
     tlHead head;
     GraphicsWindow* nswindow;
-    Graphics* g;
+    GraphicsView* nsview;
+    // holds tasks with value set to a Graphics
+    lqueue draw_q;
 };
 static tlKind _WindowKind = {
     .name = "Window"
@@ -54,11 +56,14 @@ static tlHandle _Window_new(tlArgs* args) {
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
                         backing: NSBackingStoreBuffered
                           defer: NO];
-    GraphicsView* view = [[GraphicsView new] autorelease];
-    view->window = window;
-    [window->nswindow setContentView: view];
-    [window->nswindow center];
+    window->nsview = [[GraphicsView new] autorelease];
     window->nswindow->window = window;
+    window->nsview->window = window;
+
+    [window->nswindow setContentView: window->nsview];
+    [window->nswindow center];
+
+    // TODO increment vm->waitexternal;
     return window;
 }
 
@@ -72,21 +77,6 @@ static tlHandle _window_hide(tlArgs* args) {
     [window->nswindow orderOut: nil];
     return tlNull;
 }
-static tlHandle _window_graphics(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    NSRect frame = [[window->nswindow contentView] frame];
-    if (window->g) {
-        graphicsResize(window->g, frame.size.width, frame.size.height);
-        return window->g;
-    }
-    return window->g = GraphicsNew(frame.size.width, frame.size.height);
-}
-static tlHandle _window_draw(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    [[window->nswindow contentView]
-            performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
-    return tlNull;
-}
 static tlHandle _window_setTitle(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlText* text = tlTextCast(tlArgsGet(args, 0));
@@ -94,6 +84,14 @@ static tlHandle _window_setTitle(tlArgs* args) {
         [window->nswindow setTitle: [NSString stringWithUTF8String: tlTextData(text)]];
     }
     return tlNull;
+}
+static tlHandle _window_width(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    return tlINT([[window->nswindow contentView] frame].size.width);
+}
+static tlHandle _window_height(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    return tlINT([[window->nswindow contentView] frame].size.height);
 }
 static tlHandle _window_frame(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
@@ -116,6 +114,28 @@ static tlHandle _window_mouse(tlArgs* args) {
     return tlResultFrom(tlINT(point.x), tlINT(height - point.y), null);
 }
 
+// drawing
+static tlHandle resumeDraw(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    tlArgs* args = tlArgsAs(res);
+    Window* window = tlArgsTarget(args);
+
+    tlTask* task = tlTaskWaitExternal();
+    tlTaskSetValue(task, tlArgsGet(args, 0));
+    frame->resumecb = null;
+
+    [[window->nswindow contentView]
+            performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
+
+    tlTaskEnqueue(task, &window->draw_q);
+    return tlTaskNotRunning;
+}
+static tlHandle _window_draw(tlArgs* args) {
+    Graphics* g = GraphicsCast(tlArgsGet(args, 0));
+    if (!g) return tlNull;
+    return tlTaskPauseResuming(resumeDraw, args);
+}
+
 @implementation GraphicsWindow
 - (void)keyDown: (NSEvent*)event {
     NSLog(@"keydown: %@", event);
@@ -133,18 +153,23 @@ static tlHandle _window_mouse(tlArgs* args) {
 }
 
 static void releaseGrahpicsData(void* info, const void* data, size_t size) {
-    // TODO unlock graphics ...
+    tlTask* task = tlTaskAs(info);
+    tlTaskReadyExternal(task);
 }
 
+// TODO unfortunately, the content of a view is not persistent ... so we need a copy of the backing bitmap?
 - (void)drawRect: (NSRect)rect {
-    if (!window->g) return;
+    tlTask* task = tlTaskDequeue(&window->draw_q);
+    if (!task) return;
+    Graphics* g = GraphicsCast(tlTaskGetValue(task));
+    if (!g) return;
 
     uint8_t* buf;
     int width; int height; int stride;
-    graphicsData(window->g, &buf, &width, &height, &stride);
+    graphicsData(g, &buf, &width, &height, &stride);
 
     CGDataProviderRef data = CGDataProviderCreateWithData(
-            null, buf, stride * height, releaseGrahpicsData);
+            task, buf, stride * height, releaseGrahpicsData);
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
     CGImageRef img = CGImageCreate(
             width, height, 8, 32, stride,
@@ -168,9 +193,10 @@ void window_init(tlVm* vm) {
         "show", _window_show,
         "hide", _window_hide,
         "setTitle", _window_setTitle,
+        "width", _window_width,
+        "height", _window_height,
         "frame", _window_frame,
         "mouse", _window_mouse,
-        "graphics", _window_graphics,
         "draw", _window_draw,
         null
     );
@@ -228,7 +254,7 @@ static void* tl_main(void* data) {
     window_init(vm);
     tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
-    print("done");
+    print("end of program");
     ns_stop();
     return 0;
 }
