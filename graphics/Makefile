@@ -1,4 +1,4 @@
-CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -L/usr/local/lib -L/usr/X11/lib
+CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -L/usr/local/lib -L/usr/X11/lib -I..
 
 run: mac
 	./mac

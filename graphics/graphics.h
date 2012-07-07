@@ -1,5 +1,5 @@
 #include <cairo/cairo.h>
-#include "../tl.h"
+#include "vm/tl.h"
 
 TL_REF_TYPE(Graphics);
 

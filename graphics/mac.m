@@ -3,8 +3,7 @@
 #include <cairo/cairo.h>
 #include <cairo/cairo-quartz.h>
 
-#include "../tl.h"
-
+#include "vm/tl.h"
 #include "graphics.h"
 
 static void ns_init();
@@ -25,13 +24,13 @@ struct App {
     tlHead head;
     NSApplication* app;
 };
-static tlClass _AppClass = {
+static tlKind _AppKind = {
     .name = "App",
 };
-tlClass* AppClass = &_AppClass;
+tlKind* AppKind = &_AppKind;
 static App* shared;
 
-static tlValue App_shared(tlArgs* args) {
+static tlHandle App_shared(tlArgs* args) {
     ns_init();
     assert(shared);
     return shared;
@@ -44,14 +43,14 @@ struct Window {
     Graphics* draw;
     Graphics* old;
 };
-static tlClass _WindowClass = {
+static tlKind _WindowKind = {
     .name = "Window"
 };
-tlClass* WindowClass = &_WindowClass;
+tlKind* WindowKind = &_WindowKind;
 
-static tlValue _Window_new(tlArgs* args) {
+static tlHandle _Window_new(tlArgs* args) {
     ns_init();
-    Window* window = tlAlloc(WindowClass, sizeof(Window));
+    Window* window = tlAlloc(WindowKind, sizeof(Window));
     window->nswindow = [[HotelWindow alloc]
             initWithContentRect: NSMakeRect(0, 0, 200, 200)
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
@@ -65,24 +64,24 @@ static tlValue _Window_new(tlArgs* args) {
     return window;
 }
 
-static tlValue _window_show(tlArgs* args) {
+static tlHandle _window_show(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     [window->nswindow makeKeyAndOrderFront: nil];
     return tlNull;
 }
-static tlValue _window_hide(tlArgs* args) {
+static tlHandle _window_hide(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     [window->nswindow orderOut: nil];
     return tlNull;
 }
-static tlValue _window_graphics(tlArgs* args) {
+static tlHandle _window_graphics(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     NSRect frame = [[window->nswindow contentView] frame];
     Graphics* buf = A_PTR(a_swap(A_VAR(window->buf), null));
     Graphics* g = graphicsSizeTo(buf, frame.size.width, frame.size.height);
     return g;
 }
-static tlValue _window_draw(tlArgs* args) {
+static tlHandle _window_draw(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     Graphics* buf = GraphicsCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("expected a buffer");
@@ -95,7 +94,7 @@ static tlValue _window_draw(tlArgs* args) {
             performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
     return tlNull;
 }
-static tlValue _window_setTitle(tlArgs* args) {
+static tlHandle _window_setTitle(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (text) {
@@ -103,7 +102,7 @@ static tlValue _window_setTitle(tlArgs* args) {
     }
     return tlNull;
 }
-static tlValue _window_frame(tlArgs* args) {
+static tlHandle _window_frame(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     int height = 0;
     NSScreen* screen = [window->nswindow screen];
@@ -112,16 +111,16 @@ static tlValue _window_frame(tlArgs* args) {
     NSRect vframe = [[window->nswindow contentView] frame];
     int y = height - wframe.origin.y - vframe.size.height;
     if (y < 0) y = 0;
-    return tlResultNewFrom(tlINT(wframe.origin.x), tlINT(y),
+    return tlResultFrom(tlINT(wframe.origin.x), tlINT(y),
             tlINT(vframe.size.width), tlINT(vframe.size.height), null);
 }
-static tlValue _window_mouse(tlArgs* args) {
+static tlHandle _window_mouse(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     int height = 0;
     NSScreen* screen = [window->nswindow screen];
     if (screen) height = [screen frame].size.height;
     NSPoint point = [NSEvent mouseLocation];
-    return tlResultNewFrom(tlINT(point.x), tlINT(height - point.y), null);
+    return tlResultFrom(tlINT(point.x), tlINT(height - point.y), null);
 }
 
 @implementation HotelWindow
@@ -180,7 +179,7 @@ static tlValue _window_mouse(tlArgs* args) {
 void window_init(tlVm* vm) {
     // TODO if we do this, will will need to drain it sometime ...
     [NSAutoreleasePool new];
-    _WindowClass.map = tlClassMapFrom(
+    _WindowKind.klass = tlClassMapFrom(
         "show", _window_show,
         "hide", _window_hide,
         "setTitle", _window_setTitle,
@@ -214,7 +213,7 @@ static void ns_init() {
     pthread_cond_wait(&cocoa_start, &cocoa);
     pthread_mutex_unlock(&cocoa);
 
-    shared = tlAlloc(AppClass, sizeof(App));
+    shared = tlAlloc(AppKind, sizeof(App));
     shared->app = NSApp;
 }
 
@@ -242,7 +241,9 @@ static void* tl_main(void* data) {
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
     window_init(vm);
-    tlVmEvalFile(vm, tlTEXT("run.tl"));
+    tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
+    tlVmEvalBoot(vm, args);
+    print("done");
     ns_stop();
     return 0;
 }
