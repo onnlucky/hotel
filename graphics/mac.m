@@ -11,11 +11,11 @@ static void ns_init();
 TL_REF_TYPE(App);
 TL_REF_TYPE(Window);
 
-@interface HotelView: NSView {
+@interface GraphicsView: NSView {
 @public
     Window* window;
 } @end
-@interface HotelWindow: NSWindow {
+@interface GraphicsWindow: NSWindow {
 @public
     Window* window;
 } @end
@@ -38,10 +38,8 @@ static tlHandle App_shared(tlArgs* args) {
 
 struct Window {
     tlHead head;
-    HotelWindow* nswindow;
-    Graphics* buf;
-    Graphics* draw;
-    Graphics* old;
+    GraphicsWindow* nswindow;
+    Graphics* g;
 };
 static tlKind _WindowKind = {
     .name = "Window"
@@ -51,12 +49,12 @@ tlKind* WindowKind = &_WindowKind;
 static tlHandle _Window_new(tlArgs* args) {
     ns_init();
     Window* window = tlAlloc(WindowKind, sizeof(Window));
-    window->nswindow = [[HotelWindow alloc]
+    window->nswindow = [[GraphicsWindow alloc]
             initWithContentRect: NSMakeRect(0, 0, 200, 200)
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
                         backing: NSBackingStoreBuffered
                           defer: NO];
-    HotelView* view = [[HotelView new] autorelease];
+    GraphicsView* view = [[GraphicsView new] autorelease];
     view->window = window;
     [window->nswindow setContentView: view];
     [window->nswindow center];
@@ -77,19 +75,14 @@ static tlHandle _window_hide(tlArgs* args) {
 static tlHandle _window_graphics(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     NSRect frame = [[window->nswindow contentView] frame];
-    Graphics* buf = A_PTR(a_swap(A_VAR(window->buf), null));
-    Graphics* g = graphicsSizeTo(buf, frame.size.width, frame.size.height);
-    return g;
+    if (window->g) {
+        graphicsResize(window->g, frame.size.width, frame.size.height);
+        return window->g;
+    }
+    return window->g = GraphicsNew(frame.size.width, frame.size.height);
 }
 static tlHandle _window_draw(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    Graphics* buf = GraphicsCast(tlArgsGet(args, 0));
-    if (!buf) TL_THROW("expected a buffer");
-    while (a_swap_if(A_VAR(window->draw), A_VAL(buf), null) != null) {
-        [[window->nswindow contentView]
-                performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
-        usleep(20*1000);
-    }
     [[window->nswindow contentView]
             performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
     return tlNull;
@@ -123,13 +116,13 @@ static tlHandle _window_mouse(tlArgs* args) {
     return tlResultFrom(tlINT(point.x), tlINT(height - point.y), null);
 }
 
-@implementation HotelWindow
+@implementation GraphicsWindow
 - (void)keyDown: (NSEvent*)event {
     NSLog(@"keydown: %@", event);
 }
 @end
 
-@implementation HotelView
+@implementation GraphicsView
 
 -(void)mouseDown:(NSEvent*)event {
     NSLog(@"mouseDown: %@", event);
@@ -139,39 +132,31 @@ static tlHandle _window_mouse(tlArgs* args) {
     [self setNeedsDisplay: YES];
 }
 
+static void releaseGrahpicsData(void* info, const void* data, size_t size) {
+    // TODO unlock graphics ...
+}
+
 - (void)drawRect: (NSRect)rect {
-    Graphics* buf = A_PTR(a_swap(A_VAR(window->draw), null));
-    if (buf) {
-        if (window->old) {
-            if (a_swap_if(A_VAR(window->buf), A_VAL(window->old), null) != null) {
-                print(">> BUFFER FULL: DELETING");
-                graphicsDelete(window->old);
-            }
-        }
-        window->old = buf;
-    } else {
-        if (!window->old) return;
-        buf = window->old;
-    }
-    assert(buf);
-    NSRect frame = [self frame];
+    if (!window->g) return;
 
-    // get gc context and translate/scale it for cairo
-    CGContextRef ctx = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
-    CGContextTranslateCTM(ctx, 0.0, frame.size.height);
-    CGContextScaleCTM(ctx, 1.0, -1.0);
+    uint8_t* buf;
+    int width; int height; int stride;
+    graphicsData(window->g, &buf, &width, &height, &stride);
 
-    // create a cairo context and drow the buf context to it
-    cairo_surface_t *surface =
-            cairo_quartz_surface_create_for_cg_context(ctx, frame.size.width, frame.size.height);
-    cairo_t *cr = cairo_create(surface);
+    CGDataProviderRef data = CGDataProviderCreateWithData(
+            null, buf, stride * height, releaseGrahpicsData);
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGImageRef img = CGImageCreate(
+            width, height, 8, 32, stride,
+            colorSpace, kCGImageAlphaFirst|kCGBitmapByteOrder32Little, data,
+            NULL, true, kCGRenderingIntentDefault);
 
-    graphicsDrawOn(buf, cr);
+    CGContextRef cg = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
+    CGContextDrawImage(cg, [self bounds], img);
 
-    // pop the group, paint it and cleanup
-    cairo_paint(cr);
-    cairo_destroy(cr);
-    cairo_surface_destroy(surface);
+    CGDataProviderRelease(data);
+    CGColorSpaceRelease(colorSpace);
+    CGImageRelease(img);
 }
 
 @end

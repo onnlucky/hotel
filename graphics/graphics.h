@@ -5,7 +5,7 @@ TL_REF_TYPE(Graphics);
 
 void graphics_init(tlVm* vm);
 
-Graphics* graphicsSizeTo(Graphics* g, int width, int height);
-void graphicsDrawOn(Graphics* g, cairo_t* cr);
-void graphicsDelete(Graphics* g);
+Graphics* GraphicsNew(int width, int height);
+void graphicsResize(Graphics* g, int width, int height);
+void graphicsData(Graphics* g, uint8_t** bytes, int* width, int* height, int* stride);
 
