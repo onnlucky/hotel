@@ -26,18 +26,16 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
-    tlTask* maintask;
-    if (boot) maintask = tlVmEvalFile(vm, tlTEXT(boot), args);
-    else maintask = tlVmEvalBoot(vm, args);
-
-    tlHandle throw = tlTaskGetThrowValue(maintask);
-    if (throw) {
-        printf("%s\n", tl_str(throw));
-        return 1;
+    if (boot) {
+        tlTask* task = tlVmEvalFile(vm, tlTEXT(boot), args);
+        tlHandle h = tlTaskGetValue(task);
+        if (tl_bool(h)) printf("%s\n", tl_str(h));
+    } else {
+        tlVmEvalBoot(vm, args);
     }
-    tlHandle v = tlTaskGetValue(maintask);
-    if (tl_bool(v)) printf("%s\n", tl_str(v));
+
+    int exitcode = tlVmExitCode(vm);
     tlVmDelete(vm);
-    return 0;
+    return exitcode;
 }
 

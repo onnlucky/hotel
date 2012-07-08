@@ -270,6 +270,7 @@ tlVm* tlVmNew() {
     evio_vm_default(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
+    vm->exitcode = -1;
     return vm;
 }
 
@@ -279,6 +280,28 @@ void tlVmDelete(tlVm* vm) {
     GC_gcollect();
     GC_gcollect();
     free(vm);
+}
+
+int tlVmExitCode(tlVm* vm) {
+    if (vm->exitcode >= 0) return vm->exitcode;
+    if (vm->main && tlTaskIsDone(vm->main)) {
+        return tlTaskGetThrowValue(vm->main)?1:0;
+    }
+    return 0;
+}
+
+void tlVmSetExitCode(tlVm* vm, int code) {
+    assert(code >= 0);
+    assert(vm->exitcode == -1);
+    vm->exitcode = code;
+}
+
+INTERNAL tlHandle _set_exitcode(tlArgs* args) {
+    int code = tl_int_or(tlArgsGet(args, 0), 1);
+    tlVm* vm = tlVmCurrent();
+    if (vm->exitcode >= 0) warning("exitcode already set: %d new: %d", vm->exitcode, code);
+    vm->exitcode = code;
+    return tlNull;
 }
 
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v) {
@@ -318,6 +341,8 @@ static const tlNativeCbs __vm_natives[] = {
     { "_int_parse", _int_parse },
 
     { "_Buffer_new", _Buffer_new },
+
+    { "_set_exitcode", _set_exitcode },
 
     { 0, 0 },
 };

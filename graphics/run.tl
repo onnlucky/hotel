@@ -13,7 +13,6 @@ w.ondraw: {
     g.resize w.width, w.height
     w.draw g
 }
-*/
 
 while true: {
     mx, my = w.mouse

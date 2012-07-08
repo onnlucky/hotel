@@ -234,7 +234,10 @@ _resolve: { name, path ->
 runmain = { as ->
     if as.size == 0: return repl.run
 
-    _catch: e -> print e.toText
+    _catch: { e ->
+        print e.toText
+        _set_exitcode(1)
+    }
     file = as.get(0)
     return _parse(_textFromFile(file), file)(_env, as.slice(1))
 }
@@ -243,6 +246,7 @@ main = !runmain(args)
 // this will only return when there are no more tasks to run
 io.ioloop
 
-// we are done ... return status of main task (will throw if main task is in error)
+// we are done, print the results, if any, error has already been printed
+if main.value: print main.value
 return main.value
 

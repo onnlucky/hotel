@@ -259,6 +259,7 @@ tlVm* tlVmCurrent();
 void tlVmInitDefaultEnv(tlVm* vm);
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v);
 void tlVmDelete(tlVm* vm);
+int tlVmExitCode(tlVm* vm);
 
 // register an external "task" as still running
 void tlVmIncExternal(tlVm* vm);

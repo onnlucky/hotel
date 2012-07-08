@@ -272,7 +272,6 @@ static void* tl_main(void* data) {
     window_init(vm);
     tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
-    print("end of program");
     ns_stop();
     return 0;
 }

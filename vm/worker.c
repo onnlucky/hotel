@@ -26,8 +26,10 @@ struct tlVm {
 
     // the waiter does not actually "work", it helps tasks keep reference back to the vm
     tlWorker* waiter;
+
     // the main task, if it exits, usually the vm is done
     bool running;
+    int exitcode;
     tlTask* main;
 
     // task counts: total, runnable or waiting on a runloop event
