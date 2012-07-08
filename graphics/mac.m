@@ -261,6 +261,8 @@ static void ns_stop() {
     pthread_mutex_unlock(&cocoa);
 }
 
+static int vm_exit_code = 0;
+
 // Cocoa cannot be convinced its main thread to be something but the first thread
 // so we immediately launch a second thread for the hotel interpreter
 // TODO we can, theoretically, gift cocoa our thread if we control our worker better ...
@@ -272,8 +274,9 @@ static void* tl_main(void* data) {
     window_init(vm);
     tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
+    vm_exit_code = tlVmExitCode(vm);
     ns_stop();
-    return 0;
+    return null;
 }
 
 // we launch the hotel interpreter thread, and then wait
@@ -302,6 +305,6 @@ int main() {
     }
 
     pthread_join(tl_thread, null);
-    return 0;
+    return vm_exit_code;
 }
 
