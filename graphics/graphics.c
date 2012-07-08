@@ -4,14 +4,14 @@
 #include "vm/tl.h"
 
 struct Graphics {
-    tlHead head;
+    tlLock lock;
     cairo_surface_t* surface;
     cairo_t* cairo;
 };
 
-// TODO make locked ...
 static tlKind _GraphicsKind = {
-    .name = "Graphics"
+    .name = "Graphics",
+    .locked = true,
 };
 tlKind* GraphicsKind = &_GraphicsKind;
 
@@ -33,7 +33,12 @@ void graphicsResize(Graphics* g, int width, int height) {
     assert(g->cairo);
 
     if (surface) {
-        // TODO copy old pixels to top/left
+        cairo_save(g->cairo);
+        cairo_set_source_surface(g->cairo, surface, 0, 0);
+        cairo_rectangle(g->cairo, 0, 0, MIN(oldwidth, width), MIN(oldheight, height));
+        cairo_fill(g->cairo);
+        cairo_restore(g->cairo);
+
         cairo_destroy(cr);
         cairo_surface_destroy(surface);
     }
@@ -47,8 +52,8 @@ void graphicsData(Graphics* g, uint8_t** buf, int* width, int* height, int* stri
     if (stride) *stride = cairo_image_surface_get_stride(g->surface);
 }
 
+// TODO call this from finalizer, but actually libgc will take care of it right now
 void graphicsDelete(Graphics* g) {
-    // TODO this is not thread save ... so we must guarentee that somehow
     if (g->cairo) { cairo_destroy(g->cairo); g->cairo = null; }
     if (g->surface) { cairo_surface_destroy(g->surface); g->surface = null; }
 }

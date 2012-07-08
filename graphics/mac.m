@@ -38,6 +38,7 @@ static tlHandle App_shared(tlArgs* args) {
 
 struct Window {
     tlHead head;
+    tlVm* vm;
     GraphicsWindow* nswindow;
     GraphicsView* nsview;
     // holds tasks with value set to a Graphics
@@ -49,13 +50,19 @@ static tlKind _WindowKind = {
 tlKind* WindowKind = &_WindowKind;
 
 static tlHandle _Window_new(tlArgs* args) {
+    int width = tl_int_or(tlArgsGet(args, 0), 0);
+    int height = tl_int_or(tlArgsGet(args, 0), 0);
+    if (width < 0) width = 0;
+    if (height < 0) height = 0;
+
     ns_init();
     Window* window = tlAlloc(WindowKind, sizeof(Window));
     window->nswindow = [[GraphicsWindow alloc]
-            initWithContentRect: NSMakeRect(0, 0, 200, 200)
+            initWithContentRect: NSMakeRect(0, 0, width, height)
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
                         backing: NSBackingStoreBuffered
                           defer: NO];
+    [window->nswindow setDelegate: (id)window->nswindow];
     window->nsview = [[GraphicsView new] autorelease];
     window->nswindow->window = window;
     window->nsview->window = window;
@@ -63,12 +70,19 @@ static tlHandle _Window_new(tlArgs* args) {
     [window->nswindow setContentView: window->nsview];
     [window->nswindow center];
 
-    // TODO increment vm->waitexternal;
+    window->vm = tlVmCurrent();
+    tlVmIncExternal(window->vm);
     return window;
 }
 
+static tlHandle _window_close(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    [window->nswindow close];
+    return tlNull;
+}
 static tlHandle _window_show(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
+    [NSApp activateIgnoringOtherApps: YES];
     [window->nswindow makeKeyAndOrderFront: nil];
     return tlNull;
 }
@@ -140,6 +154,10 @@ static tlHandle _window_draw(tlArgs* args) {
 - (void)keyDown: (NSEvent*)event {
     NSLog(@"keydown: %@", event);
 }
+- (void)windowWillClose:(NSNotification *)notification {
+    //NSLog(@"close %@", notification);
+    tlVmDecExternal(window->vm);
+}
 @end
 
 @implementation GraphicsView
@@ -190,6 +208,7 @@ void window_init(tlVm* vm) {
     // TODO if we do this, will will need to drain it sometime ...
     [NSAutoreleasePool new];
     _WindowKind.klass = tlClassMapFrom(
+        "close", _window_close,
         "show", _window_show,
         "hide", _window_hide,
         "setTitle", _window_setTitle,
@@ -236,7 +255,6 @@ static void ns_stop() {
         // TODO this fixes the above stop waiting until first event in queue actually stops the loop
         // we need to post an event in the queue and wake it up
         [[NSApplication sharedApplication] performSelectorOnMainThread: @selector(terminate:) withObject: nil waitUntilDone: NO];
-        NSLog(@"stop app: %@", NSApp);
     } else {
         pthread_cond_signal(&cocoa_start);
     }
