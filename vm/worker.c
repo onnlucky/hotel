@@ -70,6 +70,19 @@ void tlVmWaitSignal(tlVm* vm) {
     pthread_mutex_unlock(vm->lock);
 }
 
+tlVm* tlVmCurrent() {
+    return tlTaskGetVm(tlTaskCurrent());
+}
+void tlVmIncExternal(tlVm* vm) {
+    assert(vm);
+    a_inc(&vm->waitevent);
+}
+void tlVmDecExternal(tlVm* vm) {
+    assert(vm);
+    a_dec(&vm->waitevent);
+    if (vm->signalcb) vm->signalcb();
+}
+
 // TODO move most/all structs to some place to include them first
 typedef struct tlCodeFrame {
     tlFrame frame;

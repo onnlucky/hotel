@@ -234,7 +234,7 @@ _resolve: { name, path ->
 runmain = { as ->
     if as.size == 0: return repl.run
 
-    _catch: e -> e.toText
+    _catch: e -> print e.toText
     file = as.get(0)
     return _parse(_textFromFile(file), file)(_env, as.slice(1))
 }

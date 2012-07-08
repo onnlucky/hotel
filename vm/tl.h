@@ -255,9 +255,14 @@ tlMap* tlMapJoin(tlMap* lhs, tlMap* rhs);
 void tl_init();
 
 tlVm* tlVmNew();
+tlVm* tlVmCurrent();
 void tlVmInitDefaultEnv(tlVm* vm);
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v);
 void tlVmDelete(tlVm* vm);
+
+// register an external "task" as still running
+void tlVmIncExternal(tlVm* vm);
+void tlVmDecExternal(tlVm* vm);
 
 
 // ** running code **
