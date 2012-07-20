@@ -32,6 +32,7 @@ Buffer = {
     toBuffer: { v ->
         // TODO this makes the class sortof "final"
         try: if v.class == this.class: return v
+        if isBuffer(v): return { buf: v, class: this.class }
         buf = _Buffer_new()
         buf.write v.toText
         return { buf: buf, class: this.class }

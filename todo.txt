@@ -2,10 +2,9 @@
 
 rename tlMap as tlValue and remove tlValueObject ...
 for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
-allow printing thrown error properly from vm
-start using tagged doubles?
 add kind->resume for tlFrame and throw using frame.kind.name
 add kind->finalize for finalizers
+add tlFloat and tlNumber both boxed, to complement tlInt
 
 do class._name for error.toText: this.class._name ": " this.msg ...
 on error, if object, call toText on it ...
