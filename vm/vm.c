@@ -42,6 +42,8 @@
 #include "evio.c"
 #include "time.c"
 
+#include "serialize.c"
+
 // super extra
 //#include "http.c"
 
@@ -344,6 +346,9 @@ static const tlNativeCbs __vm_natives[] = {
     { "isBuffer", _isBuffer },
 
     { "_set_exitcode", _set_exitcode },
+
+    { "write_blob", _write_blob },
+    { "read_blob", _read_blob },
 
     { 0, 0 },
 };
