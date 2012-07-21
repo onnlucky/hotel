@@ -14,7 +14,7 @@ HttpConnection = { conn ->
             // read and parse until headers are complete
             if @_req: return @_req
             loop: {
-                if @_in.canread > 2048: print @_in.read; conn.close; _throw "REQUEST TOO LONG"
+                if @_in.size > 2048: print @_in.read; conn.close; _throw "REQUEST TOO LONG"
                 if @_in.find("\r\n\r\n"): break
                 if @_in.find("\n\n"): break
                 _, len = conn.read @_in
@@ -29,7 +29,7 @@ HttpConnection = { conn ->
         }
         flush: { ending ->
             if not @_didhead: @_sendheaders(ending)
-            while @_body.canread > 0: {
+            while @_body.size > 0: {
                 len = conn.write @_body
                 if len == 0: _throw "IO ERROR"
             }
@@ -39,9 +39,9 @@ HttpConnection = { conn ->
             headers = io.Buffer.new()
             headers.write "HTTP/1.0 200 Ok\r\n"
             if @_type: headers.write "Content-Type: $(@_type)\r\n"
-            if ending: headers.write "Content-Length: $(@_body.canread)\r\n"
+            if ending: headers.write "Content-Length: $(@_body.size)\r\n"
             headers.write "\r\n"
-            while headers.canread > 0: {
+            while headers.size > 0: {
                 len = conn.write headers
                 if len == 0: _throw "IO ERROR"
             }

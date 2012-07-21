@@ -40,8 +40,6 @@ Buffer = {
     class: {
         size: -> this.buf.size
         find: v -> this.buf.find v.toText
-        canread: -> this.buf.canread
-        canwrite: -> this.buf.canwrite
         write: { v ->
             try: if v.class == this.class: return this.buf.writebuf v
             this.buf.write v.toText
@@ -83,7 +81,7 @@ writeFull = { file, val ->
     buf = Buffer.toBuffer(val)
     _with_lock(buf.buf, writer): {
         loop: {
-            if buf.canread == 0: break
+            if buf.size == 0: break
             len = writer.write buf.buf
             if len == null: _io.waitwrite writer
         }

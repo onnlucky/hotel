@@ -9,7 +9,7 @@
 
 #include "debug.h"
 #include "debug.c"
-#include "buf.c"
+#include "buffer.c"
 
 #include "value.c"
 #include "text.c"
@@ -38,7 +38,6 @@
 #include "controlflow.c"
 
 // extras
-#include "buffer.c"
 #include "evio.c"
 #include "time.c"
 
@@ -360,11 +359,11 @@ static void vm_init() {
 }
 
 tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as) {
-    tl_buf* buf = tlbuf_new_from_file(tlTextData(file));
+    tlBuffer* buf = tlBufferFromFile(tlTextData(file));
     if (!buf) fatal("cannot read file: %s", tl_str(file));
 
-    tlbuf_write_uint8(buf, 0);
-    tlText* code = tlTextFromTake(tlbuf_free_get(buf), 0);
+    tlBufferWriteByte(buf, 0);
+    tlText* code = tlTextFromTake(tlBufferTakeData(buf), 0);
     return tlVmEvalCode(vm, code, file, as);
 }
 

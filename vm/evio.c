@@ -301,18 +301,19 @@ static tlHandle _reader_read(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
     tlReader* reader = tlReaderCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
+    tlBuffer* buf= tlBufferCast(tlArgsGet(args, 0));
     if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
-    if (!buffer || !tlLockIsOwner(tlLockAs(buffer), task)) TL_THROW("expected a locked Buffer");
+    if (!buf|| !tlLockIsOwner(tlLockAs(buf), task)) TL_THROW("expected a locked Buffer");
 
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
 
     if (file->ev.fd < 0) TL_THROW("read: already closed");
 
-    tl_buf* buf = buffer->buf;
-    tlbuf_autogrow(buf);
-    if (canwrite(buf) <= 0) TL_THROW("read: failed: buffer full");
+    // TODO figure out how much data there is to read ...
+    // TODO do this in a while loop until all data from kernel is read?
+    tlBufferBeforeWrite(buf, 5 * 1024);
+    assert(canwrite(buf));
 
     int len = read(file->ev.fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
@@ -343,17 +344,16 @@ static tlHandle _writer_write(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
     tlWriter* writer = tlWriterCast(tlArgsTarget(args));
-    tlBuffer* buffer = tlBufferCast(tlArgsGet(args, 0));
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
-    if (!buffer || !tlLockIsOwner(tlLockAs(buffer), task)) TL_THROW("expected a locked Buffer");
+    if (!buf || !tlLockIsOwner(tlLockAs(buf), task)) TL_THROW("expected a locked Buffer");
 
     tlFile* file = tlFileFromWriter(writer);
     assert(tlFileIs(file));
 
     if (file->ev.fd < 0) TL_THROW("write: already closed");
 
-    tl_buf* buf = buffer->buf;
-    if (canread(buf) <= 0) TL_THROW("write: failed: buffer empty");
+    if (tlBufferSize(buf) <= 0) TL_THROW("write: failed: buffer empty");
 
     int len = write(file->ev.fd, readbuf(buf), canread(buf));
     if (len < 0) {

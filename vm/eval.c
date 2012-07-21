@@ -835,11 +835,11 @@ static tlHandle resumeEval(tlFrame* _frame, tlHandle res, tlHandle throw) {
 static tlHandle _textFromFile(tlArgs* args) {
     tlText* file = tlTextCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a file name");
-    tl_buf* buf = tlbuf_new_from_file(tlTextData(file));
+    tlBuffer* buf = tlBufferFromFile(tlTextData(file));
     if (!buf) TL_THROW("unable to read file: '%s'", tlTextData(file));
 
-    tlbuf_write_uint8(buf, 0);
-    return tlTextFromTake(tlbuf_free_get(buf), 0);
+    tlBufferWriteByte(buf, 0);
+    return tlTextFromTake(tlBufferTakeData(buf), 0);
 }
 
 static tlHandle _parse(tlArgs* args) {
