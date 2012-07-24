@@ -1,4 +1,3 @@
-#include <cairo/cairo.h>
 #include "vm/tl.h"
 
 TL_REF_TYPE(Graphics);
