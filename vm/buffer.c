@@ -70,7 +70,7 @@ INTERNAL void tlBufferCompact(tlBuffer* buf) {
 }
 INTERNAL void tlBufferBeforeWrite(tlBuffer* buf, int len) {
     assert(tlBufferIs(buf));
-    assert(len > 0 && len < 100 * 1024 * 1024);
+    assert(len >= 0 && len < 100 * 1024 * 1024);
 
     tlBufferCompact(buf);
     while (canwrite(buf) < len) buf->size += max(buf->size * 2, MAX_SIZE_INCREMENT);
