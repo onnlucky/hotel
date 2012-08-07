@@ -44,11 +44,12 @@ struct tlTask {
 
     tlHandle value;     // current value
     tlHandle throw;     // current throw (throwing or done)
-    tlFrame* stack;    // current frame (== top of stack or current continuation)
+    tlFrame* stack;     // current frame (== top of stack or current continuation)
 
     tlMap* locals;     // task local storage, for cwd, stdout etc ...
     // TODO remove these in favor a some flags
     tlTaskState state; // state it is currently in
+    void* data;
 };
 
 tlWorker* tlWorkerCurrent() {
@@ -298,7 +299,7 @@ INTERNAL tlHandle resumeTaskEval(tlFrame* frame, tlHandle res, tlHandle throw) {
 void tlTaskEval(tlTask* task, tlHandle v) {
     trace("on %s eval %s", tl_str(task), tl_str(v));
 
-    task->stack = tlFrameAlloc(resumeTaskEval, sizeof(tlTask));
+    task->stack = tlFrameAlloc(resumeTaskEval, sizeof(tlFrame));
     task->value = v;
 }
 
@@ -474,6 +475,9 @@ INTERNAL void signalVm(tlTask* task) {
     if (tlTaskGetVm(task)->main == task) tlVmStop(tlTaskGetVm(task));
 }
 
+bool tlBlockingTaskIs(tlTask* task);
+void tlBlockingTaskDone(tlTask* task);
+
 INTERNAL tlHandle tlTaskError(tlTask* task, tlHandle throw) {
     trace("%s throw: %s", tl_str(task), tl_str(throw));
     task->stack = null;
@@ -487,6 +491,7 @@ INTERNAL tlHandle tlTaskError(tlTask* task, tlHandle throw) {
     task->worker = vm->waiter;
     signalWaiters(task);
     signalVm(task);
+    if (tlBlockingTaskIs(task)) tlBlockingTaskDone(task);
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle tlTaskDone(tlTask* task, tlHandle res) {
@@ -502,6 +507,7 @@ INTERNAL tlHandle tlTaskDone(tlTask* task, tlHandle res) {
     task->worker = vm->waiter;
     signalWaiters(task);
     signalVm(task);
+    if (tlBlockingTaskIs(task)) tlBlockingTaskDone(task);
     return tlTaskNotRunning;
 }
 
@@ -596,6 +602,46 @@ INTERNAL tlHandle _task_wait(tlArgs* args) {
     }
     trace("!! >> WAITING << !!");
     return tlTaskPause(tlFrameAlloc(null, sizeof(tlFrame)));
+}
+
+// ** blocking task support, for when external threads wish to wait on evaulations **
+typedef struct TaskBlocker {
+    pthread_mutex_t lock;
+    pthread_cond_t signal;
+} TaskBlocker;
+
+bool tlBlockingTaskIs(tlTask* task) {
+    return task->data != null;
+}
+
+tlTask* tlBlockingTaskNew(tlVm* vm) {
+    tlTask* task = tlTaskNew(vm, vm->locals);
+    TaskBlocker* b = malloc(sizeof(TaskBlocker));
+    task->data = b;
+    if (pthread_mutex_init(&b->lock, null)) fatal("pthread: %s", strerror(errno));
+    if (pthread_cond_init(&b->signal, null)) fatal("pthread: %s", strerror(errno));
+    return task;
+}
+
+void tlBlockingTaskDone(tlTask* task) {
+    assert(task->data);
+    TaskBlocker* b = (TaskBlocker*)task->data;
+    pthread_cond_signal(&b->signal);
+}
+
+tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
+    assert(task->data);
+    TaskBlocker* b = (TaskBlocker*)task->data;
+
+    pthread_mutex_lock(&b->lock);
+
+    tlTaskEval(task, v);
+    tlTaskStart(task);
+
+    pthread_cond_wait(&b->signal, &b->lock);
+    pthread_mutex_unlock(&b->lock);
+
+    return task->value;
 }
 
 INTERNAL const char* _TaskToText(tlHandle v, char* buf, int size) {

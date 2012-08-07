@@ -295,6 +295,11 @@ tlHandle tlTaskGetValue(tlTask* task);
 void tlTaskEnqueue(tlTask* task, lqueue* q);
 tlTask* tlTaskDequeue(lqueue* q);
 
+// run a task inside the vm, when done, unblock the current thread
+// do not call from insideo a vm thread
+tlTask* tlBlockingTaskNew(tlVm* vm);
+tlHandle tlBlockingTaskEval(tlTask* task, tlHandle call);
+
 // invoking toText, almost same as tlEvalCode("v.toText")
 tlText* tlToText(tlHandle v);
 
@@ -368,6 +373,10 @@ int tlArgsSize(tlArgs* args);
 tlHandle tlArgsGet(tlArgs* args, int at);
 int tlArgsMapSize(tlArgs* args);
 tlHandle tlArgsMapGet(tlArgs* args, tlSym name);
+
+// calls
+
+tlCall* tlCallFrom(tlHandle h, ...);
 
 // results, from a result or a value, get the first result or the value itself
 tlHandle tlFirst(tlHandle v);
