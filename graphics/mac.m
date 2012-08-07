@@ -5,6 +5,7 @@
 
 #include "vm/tl.h"
 #include "graphics.h"
+#include "scene.h"
 
 static void ns_init();
 
@@ -271,6 +272,7 @@ static void* tl_main(void* data) {
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
+    scene_init(vm);
     window_init(vm);
     tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
     tlVmEvalBoot(vm, args);

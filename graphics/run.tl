@@ -18,6 +18,12 @@ g.fill
 
 w.draw g
 
+s = Scene.new
+n = s.newNode
+n.width(256)
+n.height(256)
+s.add(n)
+
 /*
 w.ondraw: {
     g.resize w.width, w.height
