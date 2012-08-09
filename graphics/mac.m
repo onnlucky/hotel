@@ -16,6 +16,12 @@ TL_REF_TYPE(Window);
 @public
     Window* window;
 } @end
+@interface SceneView: NSView {
+@public
+    Window* window;
+    Scene* scene;
+} @end
+
 @interface GraphicsWindow: NSWindow {
 @public
     Window* window;
@@ -41,7 +47,7 @@ struct Window {
     tlHead head;
     tlVm* vm;
     GraphicsWindow* nswindow;
-    GraphicsView* nsview;
+    SceneView* nsview;
     // holds tasks with value set to a Graphics
     lqueue draw_q;
 };
@@ -64,7 +70,7 @@ static tlHandle _Window_new(tlArgs* args) {
                         backing: NSBackingStoreBuffered
                           defer: NO];
     [window->nswindow setDelegate: (id)window->nswindow];
-    window->nsview = [[GraphicsView new] autorelease];
+    window->nsview = [[SceneView new] autorelease];
     window->nswindow->window = window;
     window->nsview->window = window;
 
@@ -150,6 +156,10 @@ static tlHandle _window_draw(tlArgs* args) {
     if (!g) return tlNull;
     return tlTaskPauseResuming(resumeDraw, args);
 }
+static tlHandle _window_scene(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    return window->nsview->scene;
+}
 
 @implementation GraphicsWindow
 - (void)keyDown: (NSEvent*)event {
@@ -158,6 +168,36 @@ static tlHandle _window_draw(tlArgs* args) {
 - (void)windowWillClose:(NSNotification *)notification {
     //NSLog(@"close %@", notification);
     tlVmDecExternal(window->vm);
+}
+@end
+
+static void needsdisplay(void* data) {
+    [(SceneView*)data setNeedsDisplay: YES];
+}
+@implementation SceneView
+- (SceneView*)init {
+    self = [super init];
+    scene = SceneNew(100, 100);
+    sceneSetDirtySignal(scene, needsdisplay, self);
+    return self;
+}
+- (void)drawRect: (NSRect)rect {
+    int width = self.bounds.size.width;
+    int height = self.bounds.size.height;
+
+    CGContextRef cgx = [[NSGraphicsContext currentContext] graphicsPort];
+    CGContextTranslateCTM(cgx, 0.0, height);
+    CGContextScaleCTM(cgx, 1.0, -1.0);
+    cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(cgx, width, height);
+    cairo_t* cairo = cairo_create(surface);
+
+    sceneRender(scene, cairo);
+
+    cairo_destroy(cairo);
+    cairo_surface_destroy(surface);
+}
+-(void)mouseDown:(NSEvent*)event {
+    NSLog(@"mouseDown: %@", event);
 }
 @end
 
@@ -218,6 +258,7 @@ void window_init(tlVm* vm) {
         "frame", _window_frame,
         "mouse", _window_mouse,
         "draw", _window_draw,
+        "scene", _window_scene,
         null
     );
     tlMap* WindowStatic = tlClassMapFrom(

@@ -98,13 +98,15 @@ void graphicsDelete(Graphics* g) {
     if (g->surface) { cairo_surface_destroy(g->surface); g->surface = null; }
 }
 
-Graphics* GraphicsNew(int width, int height) {
+Graphics* GraphicsNew(cairo_t* cairo) {
     trace("new graphics; width: %d, height: %d", width, height);
     Graphics* g = tlAlloc(GraphicsKind, sizeof(Graphics));
-    graphicsResize(g, width, height);
+    //graphicsResize(g, width, height);
+    g->cairo = cairo;
     return g;
 }
 
+/*
 static tlHandle _Graphics_new(tlArgs* args) {
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
@@ -113,6 +115,7 @@ static tlHandle _Graphics_new(tlArgs* args) {
 
     return GraphicsNew(width, height);
 }
+*/
 
 static tlHandle _width(tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
@@ -537,7 +540,7 @@ void graphics_init(tlVm* vm) {
     );
 
     tlMap* GraphicsStatic = tlClassMapFrom(
-        "new", _Graphics_new,
+        //"new", _Graphics_new,
 
         "winding", s_winding,
         "even_odd", s_even_odd,

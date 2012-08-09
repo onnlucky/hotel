@@ -15,6 +15,9 @@ struct Scene {
 
     tlHandle onkey;
     tlHandle onresize;
+
+    SceneDirtySignalCb* dirty_signal;
+    void* dirty_data;
 };
 
 struct Node {
@@ -39,31 +42,34 @@ tlKind* SceneKind = &_SceneKind;
 static tlKind _NodeKind = { .name = "Node", };
 tlKind* NodeKind = &_NodeKind;
 
-void render(Node* n, Graphics* g) {
-    cairo_t* c = null;//g->cairo;
+static void render_node(cairo_t* c, Node* n, Graphics* g) {
+    if (!n) return;
+
     cairo_save(c);
 
     // setup transform and clip
     cairo_translate(c, n->x + n->cx, n->y + n->cy);
     if (n->r) cairo_rotate(c, n->r / 360.0);
     cairo_translate(c, -n->cx, -n->cy);
-    if (n->sx != 1 || n->sy != 1) cairo_scale(c, n->sx, n->sy);
+    //if (n->sx != 1 || n->sy != 1) cairo_scale(c, n->sx, n->sy);
     cairo_rectangle(c, 0, 0, n->width, n->height);
     cairo_clip(c);
 
     // call out to render task, it runs on the vm thread, blocking ours until done
-    tlBlockingTaskEval(n->scene->rendertask, tlCallFrom(n->ondraw, g, null));
+    if (n->ondraw) {
+        tlBlockingTaskEval(n->scene->rendertask, tlCallFrom(n->ondraw, g, null));
+    }
 
     // draw the subnodes nodes
-    for (Node* sn = n->nodes; sn; sn = sn->next) render(sn, g);
+    for (Node* sn = n->nodes; sn; sn = sn->next) render_node(c, sn, g);
 
     cairo_reset_clip(c);
     cairo_restore(c);
 }
 
-void renderscene(Scene* scene) {
-    //GraphicsResize(scene->width, scene->height);
-    render(scene->root, scene->graphics);
+void sceneRender(Scene* scene, cairo_t* cairo) {
+    Graphics* g = GraphicsNew(cairo);
+    render_node(cairo, scene->root, g);
 }
 
 Scene* SceneNew(int width, int height) {
@@ -71,8 +77,12 @@ Scene* SceneNew(int width, int height) {
     scene->width = width;
     scene->height = height;
     scene->rendertask = tlBlockingTaskNew(tlVmCurrent());
-    scene->graphics = GraphicsNew(width, height);
     return scene;
+}
+
+void sceneSetDirtySignal(Scene* scene, SceneDirtySignalCb cb, void* data) {
+    scene->dirty_signal = cb;
+    scene->dirty_data = data;
 }
 
 Node* NodeNew(Scene* scene) {
@@ -93,6 +103,7 @@ static tlHandle _scene_add(tlArgs* args) {
     Scene* scene = SceneAs(tlArgsTarget(args));
     Node* node = NodeCast(tlArgsGet(args, 0));
     if (!node) TL_THROW("expect a Node to add");
+    if (scene->dirty_signal) scene->dirty_signal(scene->dirty_data);
 
     if (!scene->root) {
         scene->root = node;
@@ -171,7 +182,7 @@ static tlHandle _node_height(tlArgs* args) {
 static tlHandle _node_ondraw(tlArgs* args) {
     Node* node = NodeAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) node->ondraw = tlArgsGet(args, 0);
-    return node->ondraw;
+    return node->ondraw?node->ondraw : tlNull;
 }
 
 void scene_init(tlVm* vm) {
