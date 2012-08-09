@@ -617,9 +617,12 @@ bool tlBlockingTaskIs(tlTask* task) {
 tlTask* tlBlockingTaskNew(tlVm* vm) {
     tlTask* task = tlTaskNew(vm, vm->locals);
     TaskBlocker* b = malloc(sizeof(TaskBlocker));
+    task->worker = vm->waiter;
     task->data = b;
     if (pthread_mutex_init(&b->lock, null)) fatal("pthread: %s", strerror(errno));
     if (pthread_cond_init(&b->signal, null)) fatal("pthread: %s", strerror(errno));
+
+    assert(tlTaskGetVm(task));
     return task;
 }
 
@@ -632,16 +635,26 @@ void tlBlockingTaskDone(tlTask* task) {
 tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
     assert(task->data);
     TaskBlocker* b = (TaskBlocker*)task->data;
-
-    pthread_mutex_lock(&b->lock);
+    tlVm* vm = tlTaskGetVm(task);
 
     tlTaskEval(task, v);
-    tlTaskStart(task);
 
+    // lock, schedule, signal vm, and wait until task is done ...
+    pthread_mutex_lock(&b->lock);
+    tlTaskStart(task);
+    if (vm->signalcb) vm->signalcb();
     pthread_cond_wait(&b->signal, &b->lock);
     pthread_mutex_unlock(&b->lock);
 
-    return task->value;
+    assert(tlTaskIsDone(task));
+    tlHandle res = task->value;
+
+    // re-init task ...
+    task->state = TL_STATE_INIT;
+    task->value = null;
+    task->stack = null;
+
+    return res;
 }
 
 INTERNAL const char* _TaskToText(tlHandle v, char* buf, int size) {
