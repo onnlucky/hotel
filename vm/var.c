@@ -19,14 +19,14 @@ INTERNAL tlHandle _Var_new(tlArgs* args) {
     var->value = tlArgsGet(args, 0);
     return var;
 }
-INTERNAL tlHandle _var_get(tlArgs* args) {
+INTERNAL tlHandle __var_get(tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
     if (!var->value) return tlNull;
     return var->value;
 }
-INTERNAL tlHandle _var_set(tlArgs* args) {
+INTERNAL tlHandle __var_set(tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
@@ -34,11 +34,22 @@ INTERNAL tlHandle _var_set(tlArgs* args) {
     if (!var->value) return tlNull;
     return var->value;
 }
+INTERNAL tlHandle _var_get(tlArgs* args) {
+    tlVar* var = tlVarAs(tlArgsTarget(args));
+    tlHandle v = var->value;
+    return v?v : tlNull;
+}
+INTERNAL tlHandle _var_set(tlArgs* args) {
+    tlVar* var = tlVarAs(tlArgsTarget(args));
+    tlHandle v = tlArgsGet(args, 0);
+    var->value = v;
+    return v?v : tlNull;
+}
 
 static const tlNativeCbs __var_natives[] = {
     { "_Var_new", _Var_new },
-    { "_var_get", _var_get },
-    { "_var_set", _var_set },
+    { "_var_get", __var_get },
+    { "_var_set", __var_set },
     { 0, 0 }
 };
 

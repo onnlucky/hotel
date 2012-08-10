@@ -235,6 +235,9 @@ void tlMapSetInt_(tlMap* map, int key, tlHandle v);
 void tlMapSetSym_(tlMap* map, tlSym key, tlHandle v);
 tlMap* tlMapToObject_(tlMap* map);
 
+tlSet* tlSetNew(int size);
+int tlSetAdd_(tlSet* set, tlHandle key);
+
 tlMap* tlMapEmpty();
 tlMap* tlMapNew(tlSet* keys);
 tlMap* tlMapCopy(tlMap* map);
