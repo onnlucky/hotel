@@ -5,35 +5,26 @@
 
 #include "vm/tl.h"
 #include "graphics.h"
-#include "scene.h"
+#include "window.h"
+
+// an implementation of how to integrate the cocoa framework with the hotelvm
+// There is a slight gotcha:
+// when the cocoa mainthread wishes to render, we use a tlBlockingTask, this will run on "a" hotel thread
+// however, that same thread might be calling into the cocoa framework, which internally also uses locks
+// leading to deadlock (of sorts)
+//
+// Two solutions:
+// 1. never block hotel threads by doing all cocoa work on the cocoa main thread (attempted now)
+// 2. take a hotel level lock on the window object, blocking until we have it, then do our work
 
 static void ns_init();
 
 TL_REF_TYPE(App);
-TL_REF_TYPE(Window);
-
-@interface GraphicsView: NSView {
-@public
-    Window* window;
-} @end
-@interface SceneView: NSView {
-@public
-    Window* window;
-    Scene* scene;
-} @end
-
-@interface GraphicsWindow: NSWindow {
-@public
-    Window* window;
-} @end
-
 struct App {
     tlHead head;
     NSApplication* app;
 };
-static tlKind _AppKind = {
-    .name = "App",
-};
+static tlKind _AppKind = { .name = "App", };
 tlKind* AppKind = &_AppKind;
 static App* shared;
 
@@ -43,145 +34,94 @@ static tlHandle App_shared(tlArgs* args) {
     return shared;
 }
 
-struct Window {
-    tlHead head;
-    tlVm* vm;
-    GraphicsWindow* nswindow;
-    SceneView* nsview;
-    // holds tasks with value set to a Graphics
-    lqueue draw_q;
-};
-static tlKind _WindowKind = {
-    .name = "Window"
-};
-tlKind* WindowKind = &_WindowKind;
+@interface NWindow: NSWindow {
+@public
+    Window* window;
+} @end
+@interface NView: NSView {
+@public
+    Window* window;
+} @end
 
-static tlHandle _Window_new(tlArgs* args) {
-    int width = tl_int_or(tlArgsGet(args, 0), 0);
-    int height = tl_int_or(tlArgsGet(args, 0), 0);
-    if (width < 0) width = 0;
-    if (height < 0) height = 0;
-
+NativeWindow* nativeWindowNew(Window* window) {
     ns_init();
-    Window* window = tlAlloc(WindowKind, sizeof(Window));
-    window->nswindow = [[GraphicsWindow alloc]
-            initWithContentRect: NSMakeRect(0, 0, width, height)
+    // TODO use or update x and y
+    NWindow* w = [[NWindow alloc]
+            initWithContentRect: NSMakeRect(0, 0, window->width, window->height)
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
                         backing: NSBackingStoreBuffered
                           defer: NO];
-    [window->nswindow setDelegate: (id)window->nswindow];
-    window->nsview = [[SceneView new] autorelease];
-    window->nswindow->window = window;
-    window->nsview->window = window;
+    [w setDelegate: (id)w];
+    NView* v = [[NView new] autorelease];
+    [w setContentView: v];
+    [w center];
 
-    [window->nswindow setContentView: window->nsview];
-    [window->nswindow center];
-
-    window->vm = tlVmCurrent();
-    tlVmIncExternal(window->vm);
-    return window;
+    w->window = v->window = window;
+    return w;
 }
-
-static tlHandle _window_close(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    [window->nswindow close];
-    return tlNull;
+void nativeWindowClose(NativeWindow* _w) {
+    NWindow* w = (NWindow*)_w;
+    [w performSelectorOnMainThread: @selector(close) withObject:nil waitUntilDone:NO];
 }
-static tlHandle _window_show(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
+void nativeWindowFocus(NativeWindow* _w) {
+    NWindow* w = (NWindow*)_w;
     [NSApp activateIgnoringOtherApps: YES];
-    [window->nswindow makeKeyAndOrderFront: nil];
-    return tlNull;
+    [w performSelectorOnMainThread: @selector(makeKeyAndOrderFront:) withObject:w waitUntilDone:NO];
 }
-static tlHandle _window_hide(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    [window->nswindow orderOut: nil];
-    return tlNull;
-}
-static tlHandle _window_setTitle(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (text) {
-        [window->nswindow setTitle: [NSString stringWithUTF8String: tlTextData(text)]];
+void nativeWindowSetVisible(NativeWindow* _w, bool visible) {
+    NWindow* w = (NWindow*)_w;
+    // cocoa is always weird about show/hide of windows and such ...
+    if (visible) {
+        [w performSelectorOnMainThread: @selector(orderFront:) withObject:w waitUntilDone:NO];
+    } else {
+        [w performSelectorOnMainThread: @selector(orderOut:) withObject:w waitUntilDone:NO];
     }
-    return tlNull;
 }
-static tlHandle _window_width(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    return tlINT([[window->nswindow contentView] frame].size.width);
+int nativeWindowVisible(NativeWindow* _w) {
+    NWindow* w = (NWindow*)_w;
+    return [w isVisible];
 }
-static tlHandle _window_height(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    return tlINT([[window->nswindow contentView] frame].size.height);
+void nativeWindowSetTitle(NativeWindow* _w, tlText* title) {
+    NWindow* w = (NWindow*)_w;
+    if (title) [w performSelectorOnMainThread:@selector(setTitle:) withObject:[NSString stringWithUTF8String: tlTextData(title)] waitUntilDone:NO];
 }
-static tlHandle _window_frame(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    int height = 0;
-    NSScreen* screen = [window->nswindow screen];
-    if (screen) height = [screen frame].size.height;
-    NSRect wframe = [window->nswindow frame];
-    NSRect vframe = [[window->nswindow contentView] frame];
-    int y = height - wframe.origin.y - vframe.size.height;
-    if (y < 0) y = 0;
-    return tlResultFrom(tlINT(wframe.origin.x), tlINT(y),
-            tlINT(vframe.size.width), tlINT(vframe.size.height), null);
-}
-static tlHandle _window_mouse(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    int height = 0;
-    NSScreen* screen = [window->nswindow screen];
-    if (screen) height = [screen frame].size.height;
-    NSPoint point = [NSEvent mouseLocation];
-    return tlResultFrom(tlINT(point.x), tlINT(height - point.y), null);
+tlText* nativeWindowTitle(NativeWindow* _w) {
+    NWindow* w = (NWindow*)_w;
+    return tlTextFromCopy([[w title] UTF8String], 0);
 }
 
-// drawing
-static tlHandle resumeDraw(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    tlArgs* args = tlArgsAs(res);
-    Window* window = tlArgsTarget(args);
-
-    tlTask* task = tlTaskWaitExternal();
-    tlTaskSetValue(task, tlArgsGet(args, 0));
-    frame->resumecb = null;
-
-    [[window->nswindow contentView]
-            performSelectorOnMainThread: @selector(draw) withObject: nil waitUntilDone: NO];
-
-    tlTaskEnqueue(task, &window->draw_q);
-    return tlTaskNotRunning;
+void nativeWindowFrame(NativeWindow* _w, int* x, int* y, int* width, int* height) {
+    NWindow* w = (NWindow*)_w;
+    NSRect rect = [w frame];
+    if (x) *x = rect.origin.x;
+    if (y) *y = rect.origin.y;
+    if (width) *width = rect.size.width;
+    if (height) *height = rect.size.height;
 }
-static tlHandle _window_draw(tlArgs* args) {
-    Graphics* g = GraphicsCast(tlArgsGet(args, 0));
-    if (!g) return tlNull;
-    return tlTaskPauseResuming(resumeDraw, args);
+void nativeWindowSetPos(NativeWindow* _w, int x, int y) {
+    //NWindow* w = (NWindow*)_w;
 }
-static tlHandle _window_scene(tlArgs* args) {
-    Window* window = WindowAs(tlArgsTarget(args));
-    return window->nsview->scene;
+void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
+    //NWindow* w = (NWindow*)_w;
 }
 
-@implementation GraphicsWindow
+@implementation NWindow
 - (void)keyDown: (NSEvent*)event {
     NSLog(@"keydown: %@", event);
 }
 - (void)windowWillClose:(NSNotification *)notification {
     //NSLog(@"close %@", notification);
-    tlVmDecExternal(window->vm);
 }
 @end
 
 static void needsdisplay(void* data) {
-    [(SceneView*)data setNeedsDisplay: YES];
+    [(NView*)data setNeedsDisplay: YES];
 }
-@implementation SceneView
-- (SceneView*)init {
-    self = [super init];
-    scene = SceneNew(100, 100);
-    sceneSetDirtySignal(scene, needsdisplay, self);
-    return self;
-}
+
+@implementation NView
 - (void)drawRect: (NSRect)rect {
+    if (!window) return;
+
     int width = self.bounds.size.width;
     int height = self.bounds.size.height;
 
@@ -191,7 +131,7 @@ static void needsdisplay(void* data) {
     cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(cgx, width, height);
     cairo_t* cairo = cairo_create(surface);
 
-    sceneRender(scene, cairo);
+    renderWindow(window, cairo);
 
     cairo_destroy(cairo);
     cairo_surface_destroy(surface);
@@ -201,72 +141,6 @@ static void needsdisplay(void* data) {
 }
 @end
 
-@implementation GraphicsView
-
--(void)mouseDown:(NSEvent*)event {
-    NSLog(@"mouseDown: %@", event);
-}
-
-- (void)draw {
-    [self setNeedsDisplay: YES];
-}
-
-static void releaseGrahpicsData(void* info, const void* data, size_t size) {
-    tlTask* task = tlTaskAs(info);
-    tlTaskReadyExternal(task);
-}
-
-// TODO unfortunately, the content of a view is not persistent ... so we need a copy of the backing bitmap?
-- (void)drawRect: (NSRect)rect {
-    tlTask* task = tlTaskDequeue(&window->draw_q);
-    if (!task) return;
-    Graphics* g = GraphicsCast(tlTaskGetValue(task));
-    if (!g) return;
-
-    uint8_t* buf;
-    int width; int height; int stride;
-    graphicsData(g, &buf, &width, &height, &stride);
-
-    CGDataProviderRef data = CGDataProviderCreateWithData(
-            task, buf, stride * height, releaseGrahpicsData);
-    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-    CGImageRef img = CGImageCreate(
-            width, height, 8, 32, stride,
-            colorSpace, kCGImageAlphaFirst|kCGBitmapByteOrder32Little, data,
-            NULL, true, kCGRenderingIntentDefault);
-
-    CGContextRef cg = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
-    CGContextDrawImage(cg, [self bounds], img);
-
-    CGDataProviderRelease(data);
-    CGColorSpaceRelease(colorSpace);
-    CGImageRelease(img);
-}
-
-@end
-
-void window_init(tlVm* vm) {
-    // TODO if we do this, will will need to drain it sometime ...
-    [NSAutoreleasePool new];
-    _WindowKind.klass = tlClassMapFrom(
-        "close", _window_close,
-        "show", _window_show,
-        "hide", _window_hide,
-        "setTitle", _window_setTitle,
-        "width", _window_width,
-        "height", _window_height,
-        "frame", _window_frame,
-        "mouse", _window_mouse,
-        "draw", _window_draw,
-        "scene", _window_scene,
-        null
-    );
-    tlMap* WindowStatic = tlClassMapFrom(
-        "new", _Window_new,
-        null
-    );
-    tlVmGlobalSet(vm, tlSYM("Window"), WindowStatic);
-}
 
 // this code launches a second thread to run hotel in, maybe starting the Cocoa framework in the first
 
@@ -309,11 +183,9 @@ static int vm_exit_code = 0;
 // so we immediately launch a second thread for the hotel interpreter
 // TODO we can, theoretically, gift cocoa our thread if we control our worker better ...
 static void* tl_main(void* data) {
-    tl_init();
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
-    scene_init(vm);
     window_init(vm);
     tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
@@ -325,6 +197,8 @@ static void* tl_main(void* data) {
 // we launch the hotel interpreter thread, and then wait
 // if the interpreter wishes to start the Cocoa environment, we let it
 int main() {
+    tl_init();
+
     pthread_t tl_thread;
     pthread_mutex_init(&cocoa, null);
     pthread_cond_init(&cocoa_start, null);
@@ -341,7 +215,9 @@ int main() {
         [NSAutoreleasePool new];
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy: NSApplicationActivationPolicyRegular];
+        NSThread* dummy = [[[NSThread alloc] init] autorelease]; [dummy start];
         assert([NSThread isMainThread]);
+        assert([NSThread isMultiThreaded]);
         pthread_cond_signal(&cocoa_start);
         // this will only return when Cocoa's mainloop is done
         [NSApp run];

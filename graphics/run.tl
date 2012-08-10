@@ -1,17 +1,23 @@
-w = Window.new 400, 400
-w.setTitle "Hello World!"
-w.show
-
-scene = w.scene
-n = scene.newNode
-n.x(200)
-n.y(200)
-n.width(100);
-n.height(100);
-n.ondraw({ g ->
+b1 = Box.new(0, 0, 100, 100)
+b1.ondraw({ g ->
+    print "circle"
     g.color 255, 0, 0
     g.arc 50, 50, 50
     g.fill
 })
-scene.add n
+
+b2 = Box.new(0, 0, 100, 100)
+b2.ondraw({ g ->
+    print "hello world"
+    g.color 0, 0, 0
+    g.moveTo 10, 10
+    g.fillText "hello world!"
+})
+
+w = Window.new 400, 400
+w.add b1
+w.add b2
+w.title "Hello World!"
+
+w.focus
 
