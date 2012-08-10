@@ -2,9 +2,11 @@
 set -e
 
 CFLAGS="-g -O3"
-#DEBUG="--enable-gc-debug --enable-gc-assertions"
+DEBUG="--enable-gc-debug --enable-gc-assertions --enable-debug"
 #NOTHREADS="--disable-threads"
-THREADS="--enable-threads=posix --enable-thread-local-alloc --enable-parallel-mark"
+THREADS="--enable-threads=posix"
+#THREADS+=" --enable-thread-local-alloc --enable-parallel-mark"
+OPS="--disable-dependency-tracking --enable-cplusplus"
 if ! cd libgc; then
     git clone git://github.com/ivmai/bdwgc.git libgc
     cd libgc
@@ -18,7 +20,7 @@ if ! cd libatomic_ops; then
 else
     cd ..
 fi
-CFLAGS="$CFLAGS" ./configure $DEBUG $NOTHREADS $THREADS
+CFLAGS="$CFLAGS" ./configure $DEBUG $NOTHREADS $THREADS $OPS
 make
 rm -rf objs
 mkdir objs
