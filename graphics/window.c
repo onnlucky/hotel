@@ -4,6 +4,11 @@
 #include <math.h>
 #include <cairo/cairo.h>
 
+
+static tlSym _s_key;
+static tlSym _s_input;
+static tlMap* _keyEventMap;
+
 struct Box {
     tlLock lock;
     Window* window;
@@ -18,7 +23,8 @@ struct Box {
     int alpha;
 
     tlHandle ondraw;
-    tlHandle onclick;
+    tlHandle onkey;
+    tlHandle onpointer;
 };
 
 static tlKind _WindowKind = { .name = "Window", .locked = true, };
@@ -28,6 +34,7 @@ tlKind* BoxKind = &_BoxKind;
 
 static void renderBox(cairo_t* c, Box* b, Graphics* g) {
     if (!b) return;
+    b->dirty = false;
 
     cairo_save(c);
 
@@ -57,11 +64,20 @@ void renderWindow(Window* window, cairo_t* cairo) {
     assert(cairo);
     Graphics* g = GraphicsNew(cairo);
 
+    window->dirty = false;
     for (Box* sb = window->root; sb; sb = sb->next) renderBox(cairo, sb, g);
 }
 
 void window_dirty(Window* window) {
+    if (window->dirty) return;
     window->dirty = true;
+    nativeWindowRedraw(window->native);
+}
+void box_dirty(Box* box) {
+    if (box->dirty) return;
+    box->dirty = true;
+    if (box->up) box_dirty(box->up);
+    else if (box->window) window_dirty(box->window);
 }
 
 #define ATTACH(b, w) if(b->window) TL_THROW("box is still attached");\
@@ -101,6 +117,7 @@ static tlHandle _window_add(tlArgs* args) {
     Box* box = BoxCast(tlArgsGet(args, 0));
     if (!box) TL_THROW("expect a Box to add");
     ATTACH(box, window);
+    box_dirty(box);
 
     if (!window->root) {
         window->root = box;
@@ -178,6 +195,16 @@ static tlHandle _window_focus(tlArgs* args) {
     return tlNull;
 }
 
+void windowKeyEvent(Window* window, int code, tlText* input) {
+    print("HAVE A KEY: %d %s", code, tl_str(input));
+    if (!window->onkey) return;
+
+    tlMap *res = tlClone(_keyEventMap);
+    tlMapSetSym_(res, _s_key, tlINT(code));
+    tlMapSetSym_(res, _s_input, input);
+    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onkey, res, null));
+}
+
 // ** boxes **
 
 Box* BoxNew(int x, int y, int width, int height) {
@@ -186,10 +213,16 @@ Box* BoxNew(int x, int y, int width, int height) {
     return box;
 }
 static tlHandle _Box_new(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
-    int width = tl_int_or(tlArgsGet(args, 2), 0);
-    int height = tl_int_or(tlArgsGet(args, 3), 0);
+    int x = 0, y = 0, width = 0, height = 0;
+    if (tlArgsSize(args) <= 2) {
+        width = tl_int_or(tlArgsGet(args, 0), 0);
+        height = tl_int_or(tlArgsGet(args, 1), 0);
+    } else {
+        x = tl_int_or(tlArgsGet(args, 0), 0);
+        y = tl_int_or(tlArgsGet(args, 1), 0);
+        width = tl_int_or(tlArgsGet(args, 2), 0);
+        height = tl_int_or(tlArgsGet(args, 3), 0);
+    }
     Box* box = BoxNew(x, y, width, height);
     // TODO allow more arguments, like ondraw and such
     return box;
@@ -199,6 +232,7 @@ static tlHandle _box_add(tlArgs* args) {
     Box* box = BoxCast(tlArgsGet(args, 0));
     if (!box) TL_THROW("expect a Box to add");
     ATTACH(box, up->window);
+    box_dirty(box);
 
     if (!up->boxes) {
         up->boxes = box;
@@ -244,6 +278,17 @@ static tlHandle _box_ondraw(tlArgs* args) {
     if (tlArgsSize(args) > 0) box->ondraw = tlArgsGet(args, 0);
     return box->ondraw?box->ondraw : tlNull;
 }
+static tlHandle _box_redraw(tlArgs* args) {
+    Box* box = BoxAs(tlArgsTarget(args));
+    box_dirty(box);
+    return tlNull;
+}
+
+static tlHandle _window_onkey(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) window->onkey = tlArgsGet(args, 0);
+    return window->onkey?window->onkey : tlNull;
+}
 
 void window_init(tlVm* vm) {
     _BoxKind.klass = tlClassMapFrom(
@@ -256,6 +301,8 @@ void window_init(tlVm* vm) {
         "y", _box_x,
         "width", _box_width,
         "height", _box_height,
+
+        "redraw", _box_redraw,
 
         "ondraw", _box_ondraw,
         null
@@ -270,6 +317,8 @@ void window_init(tlVm* vm) {
         "y", _window_y,
         "width", _window_width,
         "height", _window_height,
+
+        "onkey", _window_onkey,
 
         "title", _window_title,
         "focus", _window_focus,
@@ -289,5 +338,12 @@ void window_init(tlVm* vm) {
 
     tlVmGlobalSet(vm, tlSYM("Box"), BoxStatic);
     tlVmGlobalSet(vm, tlSYM("Window"), WindowStatic);
+
+    // for key events
+    tlSet* keys = tlSetNew(2);
+    _s_key = tlSYM("key"); tlSetAdd_(keys, _s_key);
+    _s_input = tlSYM("input"); tlSetAdd_(keys, _s_input);
+    _keyEventMap = tlMapNew(keys);
+    tlMapToObject_(_keyEventMap);
 }
 

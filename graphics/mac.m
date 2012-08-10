@@ -81,6 +81,11 @@ int nativeWindowVisible(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
     return [w isVisible];
 }
+void nativeWindowRedraw(NativeWindow* _w) {
+    NWindow* w = (NWindow*)_w;
+    [[w contentView] setNeedsDisplay: YES];
+}
+
 void nativeWindowSetTitle(NativeWindow* _w, tlText* title) {
     NWindow* w = (NWindow*)_w;
     if (title) [w performSelectorOnMainThread:@selector(setTitle:) withObject:[NSString stringWithUTF8String: tlTextData(title)] waitUntilDone:NO];
@@ -107,7 +112,7 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
 
 @implementation NWindow
 - (void)keyDown: (NSEvent*)event {
-    NSLog(@"keydown: %@", event);
+    windowKeyEvent(window, [event keyCode], tlTextFromCopy([[event characters] UTF8String], 0));
 }
 - (void)windowWillClose:(NSNotification *)notification {
     //NSLog(@"close %@", notification);

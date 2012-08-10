@@ -33,6 +33,8 @@ void nativeWindowFocus(NativeWindow*); // requesting focus makes window visible 
 void nativeWindowSetVisible(NativeWindow*, bool visible);
 int nativeWindowVisible(NativeWindow*);
 
+void nativeWindowRedraw(NativeWindow* w);
+
 void nativeWindowFrame(NativeWindow*, int* x, int* y, int* width, int* height);
 void nativeWindowSetPos(NativeWindow*, int x, int y);
 void nativeWindowSetSize(NativeWindow*, int width, int height);
@@ -42,5 +44,5 @@ void nativeWindowSetTitle(NativeWindow*, tlText* title);
 
 // platform can call the following for callbacks
 void windowPointerEvent(Window* w);
-void windowKeyEvent(Window* w);
+void windowKeyEvent(Window* w, int code, tlText* input);
 
