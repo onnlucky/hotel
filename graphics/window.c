@@ -29,7 +29,6 @@ tlKind* BoxKind = &_BoxKind;
 static void renderBox(cairo_t* c, Box* b, Graphics* g) {
     if (!b) return;
 
-    print("!!render box!!");
     cairo_save(c);
 
     // setup transform and clip
@@ -53,7 +52,6 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
 }
 
 void renderWindow(Window* window, cairo_t* cairo) {
-    print("!!render window!!");
     assert(window);
     assert(window->rendertask);
     assert(cairo);
