@@ -7,6 +7,8 @@
 #include "graphics.h"
 #include "vm/tl.h"
 
+#define CAIRO_STATUS(c) if (cairo_status(c)) warning("CAIRO_ERROR: %s", cairo_status_to_string(cairo_status(c)));
+
 static tlSym s_winding;
 static tlSym s_even_odd;
 

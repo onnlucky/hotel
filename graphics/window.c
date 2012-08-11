@@ -196,7 +196,6 @@ static tlHandle _window_focus(tlArgs* args) {
 }
 
 void windowKeyEvent(Window* window, int code, tlText* input) {
-    print("HAVE A KEY: %d %s", code, tl_str(input));
     if (!window->onkey) return;
 
     tlMap *res = tlClone(_keyEventMap);
