@@ -440,7 +440,10 @@ thisref = "@" n:name  { $$ = tlCallFrom(tl_active(s_this_get), tl_active(s_this)
  lookup = n:name      { $$ = tl_active(n); }
 
    sym = "#" n:name                 { $$ = n }
-number = < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
+number = < "-"? [0-9]+ "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
+       | < "-"?        "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
+       | < "-"? [0-9]+ "." !name  > { $$ = tlFLOAT(atof(yytext)); }
+       | < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
 
   text = '"' '"'          { $$ = tlTextEmpty(); }
        | '"'  t:stext '"' { $$ = t }

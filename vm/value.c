@@ -157,19 +157,22 @@ static tlHandle _int_toChar(tlArgs* args) {
     const char buf[] = { c, 0 };
     return tlTextFromCopy(buf, 1);
 }
-
 static tlHandle _int_toText(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[255];
     int len = snprintf(buf, sizeof(buf), "%d", c);
     return tlTextFromCopy(buf, len);
 }
+static tlHandle _int_self(tlArgs* args) {
+    return tlArgsTarget(args);
+}
 
 static tlHandle _isBool(tlArgs* args) {
     return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
 }
 static tlHandle _isNumber(tlArgs* args) {
-    return tlBOOL(tlIntIs(tlArgsGet(args, 0)));
+    tlHandle v = tlArgsGet(args, 0);
+    return tlBOOL(tlIntIs(v) || tlFloatIs(v));
 }
 static tlHandle _isSym(tlArgs* args) {
     return tlBOOL(tlSymIs(tlArgsGet(args, 0)));
@@ -207,6 +210,9 @@ static void value_init() {
         "hash", _int_hash,
         "toChar", _int_toChar,
         "toText", _int_toText,
+        "floor", _int_self,
+        "round", _int_self,
+        "ceil", _int_self,
         null
     );
 }

@@ -116,6 +116,7 @@ static inline _T* _T##As(tlHandle v) { \
 static inline _T* _T##Cast(tlHandle v) { \
     return _T##Is(v)?(_T*)v:null; }
 
+TL_REF_TYPE(tlFloat);
 TL_REF_TYPE(tlText);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
@@ -151,6 +152,7 @@ bool tlCallableIs(tlHandle v);
 // to and from primitive values
 tlHandle tlBOOL(unsigned c);
 tlInt tlINT(intptr_t i);
+tlFloat* tlFLOAT(double d);
 
 // tlTEXT and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
@@ -161,6 +163,7 @@ int tl_bool(tlHandle v);
 int tl_bool_or(tlHandle v, bool d);
 intptr_t tl_int(tlHandle v);
 intptr_t tl_int_or(tlHandle v, int d);
+double tl_double(tlHandle v);
 const char* tl_str(tlHandle v);
 
 // ** main api for values in runtime **

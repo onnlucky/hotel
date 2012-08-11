@@ -9,6 +9,7 @@ Point = (
     zero = call(0, 0)
     Env.localObject
 )
-print Point(10, 10).distance
-print Point.zero.distance
+// perhaps not a good idea to test sqrt ...
+print Point(10, 10).distance.round
+print Point.zero.distance.round
 
