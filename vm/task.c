@@ -655,6 +655,7 @@ tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
     // re-init task ...
     task->state = TL_STATE_INIT;
     task->value = null;
+    task->throw = null;
     task->stack = null;
 
     return res;
