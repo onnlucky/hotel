@@ -1,3 +1,6 @@
+#ifndef _window_h_
+#define _window_h_
+
 #include "vm/tl.h"
 #include <cairo/cairo.h>
 
@@ -46,3 +49,4 @@ void nativeWindowSetTitle(NativeWindow*, tlText* title);
 void windowPointerEvent(Window* w);
 void windowKeyEvent(Window* w, int code, tlText* input);
 
+#endif // _window_h_

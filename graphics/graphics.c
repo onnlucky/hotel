@@ -1,11 +1,10 @@
 #include <math.h>
-#include <cairo/cairo.h>
+
+#include "graphics.h"
+#include "image.h"
 
 #define PI (3.141592653589793)
 #define TAU (PI*2)
-
-#include "graphics.h"
-#include "vm/tl.h"
 
 #define CAIRO_STATUS(c) if (cairo_status(c)) warning("CAIRO_ERROR: %s", cairo_status_to_string(cairo_status(c)));
 
@@ -459,6 +458,37 @@ static tlHandle _measureText(tlArgs* args) {
     return tlResultFrom(tlINT(extents.width), tlINT(extents.height), null);
 }
 
+// ** images **
+static tlHandle _image(tlArgs* args) {
+    Image* img = ImageCast(tlArgsGet(args, 0));
+    if (!img) TL_THROW("require an image");
+
+    int width = imageWidth(img);
+    int height = imageHeight(img);
+
+    int dx = tl_int_or(tlArgsGet(args, 1), 0);
+    int dy = tl_int_or(tlArgsGet(args, 2), 0);
+    int dw = tl_int_or(tlArgsGet(args, 3), width);
+    int dh = tl_int_or(tlArgsGet(args, 4), height);
+
+    print("%d %d %d %d", dx, dy, dw, dh);
+
+    Graphics* g = GraphicsAs(tlArgsTarget(args));
+    cairo_save(g->cairo);
+    cairo_translate(g->cairo, dx, dy);
+    cairo_rectangle(g->cairo, 0, 0, dw, dh);
+    cairo_clip(g->cairo);
+
+    if (dw != width || dh != height) {
+        cairo_scale(g->cairo, dw/(double)width, dh/(double)height);
+    }
+    cairo_set_source_surface(g->cairo, imageSurface(img), 0, 0);
+    cairo_paint(g->cairo);
+    cairo_restore(g->cairo);
+    CAIRO_STATUS(g->cairo);
+    return g;
+}
+
 void graphics_init(tlVm* vm) {
 
     s_winding = tlSYM("winding");
@@ -537,6 +567,8 @@ void graphics_init(tlVm* vm) {
         "setFont", _setFont,
         "fillText", _fillText,
         "measureText", _measureText,
+
+        "image", _image,
 
         null
     );

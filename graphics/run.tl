@@ -1,6 +1,13 @@
 w = Window.new 400, 400
 w.title "Hello World!"
 
+lenna = Image.new "lenna.png"
+b3 = Box.new(100, 100, 200, 200)
+b3.ondraw({ g ->
+    g.image lenna, 0, 0, 200, 200
+})
+w.add b3
+
 b1 = Box.new(100, 100)
 b1.ondraw({ g ->
     g.color 255, 0, 0
