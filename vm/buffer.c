@@ -6,7 +6,6 @@
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)
 
-TL_REF_TYPE(tlBuffer);
 struct tlBuffer {
     tlLock lock;
     char* data;

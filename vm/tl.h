@@ -145,6 +145,7 @@ TL_REF_TYPE(tlVm);
 TL_REF_TYPE(tlWorker);
 TL_REF_TYPE(tlTask);
 
+
 bool tlCallableIs(tlHandle v);
 
 // to and from primitive values
@@ -474,6 +475,13 @@ struct tlFrame {
 
 // force similar layout
 union _tl_0 { tlHead _tl_1; tlLock _tl_2; tlFrame _tl_3; };
+
+
+// ** buffer **
+
+TL_REF_TYPE(tlBuffer);
+tlBuffer* tlBufferFromFile(const char* file);
+int tlBufferRead(tlBuffer* buf, char* to, int count);
 
 #endif // _tl_h_
 
