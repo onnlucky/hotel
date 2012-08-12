@@ -57,6 +57,9 @@ char* tlBufferTakeData(tlBuffer* buf) {
 int tlBufferSize(tlBuffer* buf) {
     return canread(buf);
 }
+const char* tlBufferData(tlBuffer* buf) {
+    return readbuf(buf);
+}
 
 // on every write, we compact the buffer and ensure there is enough space to write, growing if needed
 INTERNAL void tlBufferCompact(tlBuffer* buf) {

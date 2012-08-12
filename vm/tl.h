@@ -483,8 +483,15 @@ union _tl_0 { tlHead _tl_1; tlLock _tl_2; tlFrame _tl_3; };
 // ** buffer **
 
 TL_REF_TYPE(tlBuffer);
+tlBuffer* tlBufferNew();
 tlBuffer* tlBufferFromFile(const char* file);
+
+int tlBufferSize(tlBuffer* buf);
+const char* tlBufferData(tlBuffer* buf);
+
+int tlBufferFind(tlBuffer* buf, const char* text, int len);
 int tlBufferRead(tlBuffer* buf, char* to, int count);
+
 
 #endif // _tl_h_
 
