@@ -40,7 +40,8 @@ tlText* tlTextFromCopy(const char* s, int len) {
     //assert(len < TL_MAX_INT);
     char *data = malloc_atomic(len + 1);
     if (!data) return null;
-    memcpy(data, s, len + 1);
+    memcpy(data, s, len);
+    data[len] = 0;
     return tlTextFromTake(data, len);
 }
 

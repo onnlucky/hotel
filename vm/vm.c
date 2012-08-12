@@ -41,6 +41,7 @@
 // extras
 #include "evio.c"
 #include "time.c"
+#include "regex.c"
 
 #include "serialize.c"
 
@@ -277,6 +278,7 @@ tlVm* tlVmNew() {
     hashmap_vm_default(vm);
     evio_vm_default(vm);
     buffer_init_vm(vm);
+    regex_init_vm(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;
