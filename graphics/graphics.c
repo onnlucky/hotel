@@ -463,6 +463,9 @@ static tlHandle _image(tlArgs* args) {
     Image* img = ImageCast(tlArgsGet(args, 0));
     if (!img) TL_THROW("require an image");
 
+    Graphics* g = GraphicsAs(tlArgsTarget(args));
+    if (!imageSurface(img)) return g;
+
     int width = imageWidth(img);
     int height = imageHeight(img);
 
@@ -473,7 +476,6 @@ static tlHandle _image(tlArgs* args) {
 
     print("%d %d %d %d", dx, dy, dw, dh);
 
-    Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_save(g->cairo);
     cairo_translate(g->cairo, dx, dy);
     cairo_rectangle(g->cairo, 0, 0, dw, dh);

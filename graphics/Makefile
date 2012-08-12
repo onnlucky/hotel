@@ -4,7 +4,7 @@ run: mac
 	./mac
 
 mac: mac.m graphics.o window.o image.o ../libtl.a
-	CC $(CFLAGS) mac.m -o mac graphics.o window.o image.o ../libtl.a -framework Cocoa -lcairo -lfreetype
+	CC $(CFLAGS) mac.m -o mac graphics.o window.o image.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg
 
 graphics.o: graphics.h graphics.c
 	CC $(CFLAGS) -c graphics.c
