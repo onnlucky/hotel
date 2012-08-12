@@ -276,6 +276,7 @@ tlVm* tlVmNew() {
     array_vm_default(vm);
     hashmap_vm_default(vm);
     evio_vm_default(vm);
+    buffer_init_vm(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;

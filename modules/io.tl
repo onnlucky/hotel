@@ -3,7 +3,7 @@
 _io_queue = _io_init()
 _io = _io_queue.input
 
-// the boot task will call this
+// the boot task will call this, this is basically hotelvm's mainloop
 ioloop = { ->
     loop: {
         Task.yield
@@ -27,72 +27,65 @@ ioloop = { ->
     }
 }
 
-Buffer = {
-    new: -> { buf: _Buffer_new(), class: this.class }
-    toBuffer: { v ->
-        // TODO this makes the class sortof "final"
-        try: if v.class == this.class: return v
-        if isBuffer(v): return { buf: v, class: this.class }
-        buf = _Buffer_new()
-        buf.write v.toText
-        return { buf: buf, class: this.class }
-    }
-    class: {
-        size: -> this.buf.size
-        find: v -> this.buf.find v.toText
-        write: { v ->
-            try: if v.class == this.class: return this.buf.writebuf v
-            this.buf.write v.toText
-        }
-        read: { v ->
-            try: if v.class == this.class: return v.write this
-            return this.buf.read
-        }
-        toText: -> return this.buf.read
+// reader/writer utils
+readSome = { reader, buf ->
+    loop: {
+        len = reader.read buf
+        if len == null: _io.waitread reader
+        if len: return len
     }
 }
-
-readSome = { file, buf ->
-    if not buf.class == Buffer.class: _throw "Expected a Buffer"
-    reader = file.reader
-    _with_lock(buf.buf, reader): {
-        loop: {
-            len = reader.read buf.buf
-            if len == null: _io.waitread reader
-            if len: return buf, len
-        }
+readFull = { reader, buf ->
+    loop: {
+        len = reader.read buf
+        if len == 0: break
+        if len == null: _io.waitread reader
     }
 }
-readFull = { file, buf ->
-    if not buf.class == Buffer.class: _throw "Expected a Buffer"
-    reader = file.reader
-    _with_lock(buf.buf, reader): {
-        loop: {
-            len = reader.read buf.buf
-            if len == 0: break
-            if len == null: _io.waitread reader
-        }
-    }
-    // TODO should be able to return just the buffer, if that behaves a lot like Texts
-    return buf.read
-}
-writeFull = { file, val ->
-    writer = file.writer
-    buf = Buffer.toBuffer(val)
-    _with_lock(buf.buf, writer): {
-        loop: {
-            if buf.size == 0: break
-            len = writer.write buf.buf
-            if len == null: _io.waitwrite writer
-        }
+writeFull = { writer, buf ->
+    loop: {
+        if buf.size == 0: break
+        len = writer.write buf
+        if len == null: _io.waitwrite writer
     }
 }
 
 Stream = {
-    new: file -> { file: file, class: this.class }
+    // TODO optimize the read/write buffer usage
+    new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
     class: {
-        read: buf -> readSome(this.file, buf or Buffer.new)
-        write: val -> writeFull(this.file, Buffer.toBuffer(val))
+        read: { buf ->
+            reader = this.file.reader
+            if buf: {
+                _with_lock(reader, buf): {
+                    s = buf.size
+                    buf.write this.rbuf
+                    readSome(reader, buf)
+                    // TODO fix the freaking parser already
+                    return buf, (buf.size) - s
+                }
+            }
+            _with_lock(reader, this.rbuf): {
+                readFull(reader, this.rbuf)
+                return this.rbuf.read
+            }
+        }
+        write: { val ->
+            assert val
+            // TODO throw exception if not all could be written
+            writer = this.file.writer
+            if isBuffer(val): {
+                _with_lock(writer, val): {
+                    assert(this.wbuf.size == 0)
+                    writeFull(writer, val)
+                    return
+                }
+            }
+            _with_lock(writer, this.wbuf): {
+                this.wbuf.write val.toText
+                writeFull(writer, this.wbuf)
+            }
+        }
         close: { ->
             if this.file.isClosed: return
             _io.close this.file
@@ -130,8 +123,27 @@ Server = {
 File = {
     call: name -> { name: name, class: this.class }
     class: {
-        read: buf -> readFull(_File_open(this.name, _File_RDONLY), buf or Buffer.new)
-        write: val -> writeFull(_File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT), Buffer.toBuffer(val))
+        read: { buf ->
+            reader = _File_open(this.name, _File_RDONLY).reader
+            if buf: {
+                _with_lock(reader, buf): readFull(reader, buf)
+                return buf
+            }
+            buf = Buffer.new
+            _with_lock(reader, buf): readFull(reader, buf)
+            return buf.read
+        }
+        write: { val ->
+            writer = _File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT).writer
+            if isBuffer(val): {
+                _with_lock(writer, val): writeFull(writer, val)
+                return
+            }
+            buf = Buffer.new
+            buf.write val.toText
+            _with_lock(writer, buf): writeFull(writer, buf)
+            return
+        }
         open: -> Stream.new(_File_open(this.name, _File_RDWR+_File_TRUNC+_File_CREAT))
     }
 }

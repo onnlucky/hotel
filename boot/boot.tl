@@ -3,6 +3,8 @@
 // 2. run the requests file(s) or start a repl
 // 3. drop into the io runloop, exiting when no tasks are left
 
+_catch: e -> print "boot exception: $(e.toText)"
+
 // TODO print false or true -> is error because false becomes function call (parser error)
 or = { left, &right ->
     if not left: return right()

@@ -253,3 +253,11 @@ static void buffer_init() {
     );
 }
 
+static void buffer_init_vm(tlVm* vm) {
+    tlMap* BufferStatic = tlClassMapFrom(
+        "new", _Buffer_new,
+        null
+    );
+    tlVmGlobalSet(vm, tlSYM("Buffer"), BufferStatic);
+}
+
