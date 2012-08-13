@@ -153,9 +153,9 @@ _install(Error, #class, {
 
 inspect = { x ->
     toJSON = { x, indent, buf, inlist -> (
-        _match(isBool(x)): buf.write(x); return false
+        _match(isBool(x)): buf.write(x.toText); return false
         _match(not x): buf.write("null"); return false
-        _match(isNumber(x)): buf.write(x); return false
+        _match(isNumber(x)): buf.write(x.toText); return false
         _match(isSym(x)): buf.write("#"); buf.write(x.toText.escape); return false
         _match(isText(x)): buf.write("\""); buf.write(x.escape); buf.write("\""); return false
         _match(isList(x)): (
@@ -183,6 +183,9 @@ inspect = { x ->
                 $first = false
             }
             return true
+        )
+        _match(true): (
+            buf.write("$x"); return false
         )
         _nomatch()
     )}

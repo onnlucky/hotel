@@ -185,13 +185,16 @@ INTERNAL tlHandle _text_hash(tlArgs* args) {
     return tlINT(tlTextHash(text));
 }
 
-INTERNAL tlHandle _text_search(tlArgs* args) {
+INTERNAL tlHandle _text_find(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     tlText* find = tlTextCast(tlArgsGet(args, 0));
     if (!find) TL_THROW("expected a Text");
-    const char* p = strstr(tlTextData(text), tlTextData(find));
+    int from = tl_int_or(tlArgsGet(args, 1), 0);
+
+    if (from >= tlTextSize(text)) return tlNull;
+    const char* p = strstr(tlTextData(text) + from, tlTextData(find));
     if (!p) return tlNull;
     return tlINT(p - tlTextData(text));
 }
@@ -317,7 +320,6 @@ INTERNAL tlHandle _text_startsWith(tlArgs* args) {
     if (!start) TL_THROW("arg must be a Text");
     int from = tl_int_or((tlArgsGet(args, 1)), 0);
 
-
     int textsize = tlTextSize(text);
     int startsize = tlTextSize(start);
     if (textsize + from < startsize) return tlFalse;
@@ -371,7 +373,7 @@ static void text_init() {
         "hash", _text_hash,
         "startsWith", _text_startsWith,
         "endsWith", _text_endsWith,
-        "search", _text_search,
+        "find", _text_find,
         "char", _text_char,
         "get", _text_char,
         "slice", _text_slice,

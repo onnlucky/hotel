@@ -65,5 +65,35 @@ Server = {
     }
 }
 
-return { Server: Server }
+get = { url ->
+    url = httpparser.url(url)
+    s = io.Socket.open(url.host, url.port or 80)
+    buf = Buffer.new
+    buf.write "GET ", url.request, " HTTP/1.0\r\n"
+    buf.write "Host: ", url.host, "\r\n"
+    buf.write "\r\n"
+    s.write buf
+
+    loop: {
+        len = s.read buf
+        at = buf.find("\r\n\r\n")
+        if not at: {
+            if len == 0: Error("No headers received").throw
+            if buf.size > 8000: Error("Headers too long").throw
+            continue
+        }
+        res = httpparser.response(buf.read(at + 4))
+        body = buf.compact
+
+        length = res.headers.get("Content-Length").eval
+        loop: {
+            if buf.size >= length: break
+            _, len = s.read buf
+            if len == 0: Error("Incomplete body received").throw
+        }
+        return body, res
+    }
+}
+
+return { Server: Server, get: get }
 

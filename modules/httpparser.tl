@@ -11,7 +11,7 @@ input = { text, pos, value -> {
         text: text
         pos: pos
         value: value
-        item: text.char(pos)
+        item: text.get(pos)
         end: -> this.pos >= this.text.size
         set: val -> input(this.text, this.pos, val)
         do: block -> this.set(block(this.value))
@@ -57,12 +57,12 @@ pChar = rule({in, ch ->
 })
 pChars = rule({in, chars ->
     trace(in, "pChars: $(in.item.toChar) in $(chars)")
-    if chars.search(in.item.toChar): return in.next(in.item)
+    if chars.find(in.item.toChar): return in.next(in.item)
     in.error(chars)
 })
 pNotChars = rule({in, chars ->
     trace(in, "pNotChars: $(in.item.toChar) not in $(chars)")
-    if chars.search(in.item.toChar): return in.error("not $chars")
+    if chars.find(in.item.toChar): return in.error("not $chars")
     in.next(in.item)
 })
 pText = rule({in, text ->
@@ -80,8 +80,8 @@ parseHost = {in ->
     in = pOptional(pText("//"))(in)
     if not in.value: {
         // TODO this is cheating ... just a bit ...
-        colon = in.text.search(":")
-        slash = in.text.search("/")
+        colon = in.text.find(":", in.pos)
+        slash = in.text.find("/", in.pos)
         if not colon: return in
         if slash and slash > colon: return in
     }
@@ -93,6 +93,13 @@ parsePort = {in ->
 }
 parsePath = {in ->
     path = pMany(pNotChars("?# \t\n\r"))(in).do: v -> v.toChar
+    text = path.value
+    if text.size == 0: return path.set("/")
+    if text.char != "/".char: return path.set("/$(text)")
+    return path
+}
+parseRequestPath = {in ->
+    path = pMany(pNotChars("# \t\n\r"))(in).do: v -> v.toChar
     text = path.value
     if text.size == 0: return path.set("/")
     if text.char != "/".char: return path.set("/$(text)")
@@ -113,15 +120,17 @@ parseUrl = {in ->
     host = pOptional(parseHost)(type)
     port = pOptional(parsePort)(host)
     path = parsePath(port)
+    reqpath = parseRequestPath(port) // not a mistake!
     query = pOptional(parseQuery)(path)
     fragment = pOptional(parseFragment)(query)
     fragment.set({
         type: type.value
         host: host.value
         port: port.value
+        request: reqpath.value
+        fragment: fragment.value
         path: path.value
         query: query.value
-        fragment: fragment.value
     })
 }
 parseSpaces = {in ->
@@ -147,6 +156,11 @@ parseHeader = {in ->
         value: value.value
     })
 }
+createmap = { ls ->
+    map = HashMap.new
+    ls.each: { e -> map.set e.key, e.value }
+    return map
+}
 parseHttpRequest = {in ->
     method = pManyOne(pChars(upper))(in).do: v -> v.toChar
     trace(method, "METHOD: $(method.value)")
@@ -163,9 +177,26 @@ parseHttpRequest = {in ->
         method: method.value
         url: url.value
         version: version.value
-        headers: headers
+        headers: createmap(headers.value)
+    })
+}
+parseHttpResponse = {in ->
+    http = pMany(pNotChars(" \r\n"))(in)
+    sp = pOptional(parseSpaces)(http)
+    status = pMany(pChars(numbers))(sp).do: v -> v.toChar.eval
+    line = pMany(pNotChars("\r\n"))(status)
+    nl = parseNewline(line)
+    headers = pMany(parseHeader)(nl)
+    nl = parseNewline(headers)
+    nl.set({
+        status: status.value
+        headers: createmap(headers.value)
     })
 }
 
-{ request: {text -> parse(parseHttpRequest, text)} }
+{
+    request: {text -> parse(parseHttpRequest, text) }
+    response: { text -> parse(parseHttpResponse, text) }
+    url: { text -> parse(parseUrl, text) }
+}
 

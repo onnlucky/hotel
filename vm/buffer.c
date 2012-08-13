@@ -75,7 +75,7 @@ INTERNAL void tlBufferBeforeWrite(tlBuffer* buf, int len) {
     assert(len >= 0 && len < 100 * 1024 * 1024);
 
     tlBufferCompact(buf);
-    while (canwrite(buf) < len) buf->size += max(buf->size * 2, MAX_SIZE_INCREMENT);
+    while (canwrite(buf) < len) buf->size += min(buf->size * 2, MAX_SIZE_INCREMENT);
     trace("new size: %d", buf->size);
     buf->data = realloc(buf->data, buf->size);
     check(buf);
@@ -188,13 +188,27 @@ tlBuffer* tlBufferFromFile(const char* file) {
 INTERNAL tlHandle _buffer_size(tlArgs* args) {
     return tlINT(canread(tlBufferAs(tlArgsTarget(args))));
 }
+INTERNAL tlHandle _buffer_compact(tlArgs* args) {
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
+    tlBufferCompact(buf);
+    return buf;
+}
+INTERNAL tlHandle _buffer_clear(tlArgs* args) {
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
+    tlBufferClear(buf);
+    return buf;
+}
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
     if (!buf) TL_THROW("expected a Buffer");
 
-    trace("canread: %d", canread(buf));
-    char* data = malloc_atomic(canread(buf) + 1);
-    int last = tlBufferRead(buf, data, canread(buf));
+    int max = canread(buf);
+    int len = tl_int_or(tlArgsGet(args, 0), max);
+    if (len > max) len = max;
+
+    trace("canread: %d", len);
+    char* data = malloc_atomic(len + 1);
+    int last = tlBufferRead(buf, data, len);
     data[last] = 0;
     return tlTextFromTake(data, last);
 }
@@ -203,19 +217,26 @@ INTERNAL tlHandle _buffer_write(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
     if (!buf) TL_THROW("expected a Buffer");
 
-    tlHandle v = tlArgsGet(args, 0);
-    if (tlTextIs(v)) {
-        tlText* text = tlTextAs(v);
-        return tlINT(tlBufferWrite(buf, tlTextData(text), tlTextSize(text)));
-    } else if (tlBufferIs(v)) {
-        tlBuffer* from = tlBufferAs(v);
-        int size = canread(from);
-        tlBufferWrite(buf, readbuf(from), size);
-        didread(from, size);
-        return tlINT(size);
-    } else {
-        TL_THROW("expected a Text or Buffer or Bin to write");
+    int written = 0;
+    for (int i = 0; i < 1000; i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (!v) return tlINT(written);
+
+        if (tlTextIs(v)) {
+            tlText* text = tlTextAs(v);
+            written += tlBufferWrite(buf, tlTextData(text), tlTextSize(text));
+        } else if (tlBufferIs(v)) {
+            tlBuffer* from = tlBufferAs(v);
+            int size = canread(from);
+            tlBufferWrite(buf, readbuf(from), size);
+            didread(from, size);
+            written += size;
+        } else {
+            // TODO this leaves buffer in half state ... do prepass?
+            TL_THROW("expected a Text or Buffer or Bin to write");
+        }
     }
+    return tlNull;
 }
 INTERNAL tlHandle _buffer_writeByte(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
@@ -232,10 +253,30 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
 
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("expected a Text");
+    int from = tl_int_or(tlArgsGet(args, 1), 0);
 
-    int i = tlBufferFind(buf, tlTextData(text), tlTextSize(text));
-    if (i < 0) return tlNull;
-    return tlINT(i);
+    if (from >= tlBufferSize(buf)) return tlNull;
+
+    const char* begin = readbuf(buf);
+    char* at = strnstr(begin + from, tlTextData(text), max(canread(buf) - from, tlTextSize(text)));
+    if (!at) return tlNull;
+    return tlINT(at - begin);
+}
+
+INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    if (!buf) TL_THROW("expected a Buffer");
+
+    tlText* start = tlTextCast(tlArgsGet(args, 0));
+    if (!start) TL_THROW("arg must be a Text");
+    int from = tl_int_or((tlArgsGet(args, 1)), 0);
+
+    int bufsize = tlBufferSize(buf);
+    int startsize = tlTextSize(start);
+    if (bufsize + from < startsize) return tlFalse;
+
+    int r = strncmp(tlBufferData(buf) + from, tlTextData(start), startsize);
+    return tlBOOL(r == 0);
 }
 
 INTERNAL tlHandle _Buffer_new(tlArgs* args) {
@@ -248,10 +289,13 @@ static tlHandle _isBuffer(tlArgs* args) {
 static void buffer_init() {
     _tlBufferKind.klass = tlClassMapFrom(
             "size", _buffer_size,
+            "compact", _buffer_compact,
+            "clear", _buffer_clear,
             "read", _buffer_read,
             "write", _buffer_write,
             "writeByte", _buffer_writeByte,
             "find", _buffer_find,
+            "startsWith", _buffer_startsWith,
             null
     );
 }
