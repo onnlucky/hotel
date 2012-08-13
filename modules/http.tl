@@ -85,13 +85,20 @@ get = { url ->
         res = httpparser.response(buf.read(at + 4))
         body = buf.compact
 
-        length = res.headers.get("Content-Length").eval
-        loop: {
-            if buf.size >= length: break
-            _, len = s.read buf
-            if len == 0: Error("Incomplete body received").throw
+        length = res.headers.get("Content-Length")
+        if length: {
+            length = length.eval
+            loop: {
+                if buf.size >= length: break
+                _, len = s.read buf
+                if len == 0: Error("Incomplete body received").throw
+            }
+            return body, res
         }
-        return body, res
+        loop: {
+            _, len = s.read buf
+            if len == 0: return buf, res
+        }
     }
 }
 
