@@ -61,7 +61,7 @@ _install(Text.class, #split, (split = { on ->
     return loop(0, 0, [])
 }))
 _install(Text.class, #replace, (replace = { from, to ->
-    at = this.search(from)
+    at = this.find(from)
     if not at: return this
 
     before = this.slice(0, at)

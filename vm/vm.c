@@ -55,7 +55,7 @@ tlText* tl_boot_code;
 // return a hash
 unsigned tlHandleHash(tlHandle v) {
     tlKind* kind = tl_kind(v);
-    assert(kind->hash);
+    if (!kind->hash) fatal("no hash for kind: %s", kind->name);
     return kind->hash(v);
 }
 // return true if equal, false otherwise
@@ -64,7 +64,7 @@ bool tlHandleEquals(tlHandle left, tlHandle right) {
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
     if (kleft != kright) return false;
-    assert(kleft->equals);
+    if (!kleft->equals) return false;
     return kleft->equals(left, right);
 }
 // TODO this makes absolute ordering depending on runtime pointers ...
@@ -75,7 +75,7 @@ int tlHandleCompare(tlHandle left, tlHandle right) {
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
     if (kleft != kright) return (intptr_t)kleft - (intptr_t)kright;
-    assert(kleft->cmp);
+    if (!kleft->cmp) return (intptr_t)left - (intptr_t)right;
     return kleft->cmp(left, right);
 }
 
