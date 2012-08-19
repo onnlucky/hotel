@@ -234,15 +234,18 @@ int main() {
     pthread_mutex_unlock(&cocoa);
 
     if (should_start) {
+        print(">>> starting cocoa framework <<<");
         [NSAutoreleasePool new];
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy: NSApplicationActivationPolicyRegular];
+        //[NSApp setActivationPolicy: NSApplicationActivationPolicyAccessory];
         NSThread* dummy = [[[NSThread alloc] init] autorelease]; [dummy start];
         assert([NSThread isMainThread]);
         assert([NSThread isMultiThreaded]);
+        print(">>> signal mainloop about to run <<<");
         pthread_cond_signal(&cocoa_start);
-        // this will only return when Cocoa's mainloop is done
         [NSApp run];
+        // if we are here, it means the cocoa runloop has exited
     }
 
     pthread_join(tl_thread, null);

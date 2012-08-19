@@ -1,7 +1,7 @@
 CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -L/usr/local/lib -L/usr/X11/lib -I..
 
 run: mac
-	./mac
+	TL_MODULE_PATH=../modules ./mac
 
 mac: mac.m graphics.o window.o image.o ../libtl.a
 	CC $(CFLAGS) mac.m -o mac graphics.o window.o image.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg
