@@ -201,11 +201,13 @@ test = { ->
 }
 
 // TODO should not sleep in ms, but need float ... should also add Time module
-sleep =   ms -> io.wait ms
-seconds = s -> s * 1000
-minutes = m -> m * 1000 * 60
-hours   = h -> m * 1000 * 60 * 60
-days    = d -> d * 1000 * 60 * 60 * 24
+sleep =   s -> io.wait s
+wait  =   s -> io.wait s
+millis  = s -> s / 1000.0
+seconds = s -> s
+minutes = m -> m * 60
+hours   = h -> m * 60 * 60
+days    = d -> d * 60 * 60 * 24
 
 eval2 = { text -> _parse(text)(Env.current) }
 _install(Text.class, #eval, (_eval_ = { ->

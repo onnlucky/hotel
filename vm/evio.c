@@ -1005,13 +1005,12 @@ static tlHandle _io_wait(tlArgs* args) {
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expect a Msg");
 
-    int millis = tl_int_or(tlArgsGet(args, 0), 1000);
-    trace("sleep: %d", millis);
-    float ms = millis / 1000.0;
+    double s = tl_double_or(tlArgsGet(args, 0), 1);
+    trace("sleep: %f", s);
 
     ev_timer *timer = malloc(sizeof(ev_timer));
     timer->data = msg;
-    ev_timer_init(timer, timer_cb, ms, 0);
+    ev_timer_init(timer, timer_cb, s, 0);
     ev_timer_start(timer);
     vm->waitevent += 1;
 

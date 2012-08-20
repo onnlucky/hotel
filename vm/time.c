@@ -39,6 +39,13 @@ static tlHandle _Time(tlArgs* args) {
     return res;
 }
 
+static tlHandle _now(tlArgs* args) {
+    struct timeval tv;
+    gettimeofday(&tv, null);
+    double seconds = (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+    return tlFLOAT(seconds);
+}
+
 static void time_init() {
     tlSet* keys = tlSetNew(11);
     _s_sec = tlSYM("sec"); tlSetAdd_(keys, _s_sec);
@@ -56,5 +63,6 @@ static void time_init() {
     tlMapToObject_(_timeMap);
 
     tl_register_global("Time", tlNATIVE(_Time, "Time"));
+    tl_register_global("now", tlNATIVE(_now, "now"));
 }
 

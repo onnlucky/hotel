@@ -204,7 +204,7 @@ run = { cmd ->
     return buf.read, r
 }
 
-wait = ms -> _io.wait ms
+wait = s -> _io.wait s
 
 stdin = Stream.new(_File_from(0))
 stdout = Stream.new(_File_from(1))
