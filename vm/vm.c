@@ -192,6 +192,47 @@ static tlHandle _random(tlArgs* args) {
     trace("RND: %d", res);
     return tlINT(res);
 }
+static tlHandle _sin(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(sin(in));
+}
+static tlHandle _cos(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(cos(in));
+}
+static tlHandle _tan(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(tan(in));
+}
+static tlHandle _asin(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(asin(in));
+}
+static tlHandle _acos(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(acos(in));
+}
+static tlHandle _atan(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(atan(in));
+}
+static tlHandle _atan2(tlArgs* args) {
+    double a = tl_double(tlArgsGet(args, 0));
+    double b = tl_double(tlArgsGet(args, 1));
+    return tlFLOAT(atan2(a, b));
+}
+static tlHandle _sinh(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(sinh(in));
+}
+static tlHandle _cosh(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(cosh(in));
+}
+static tlHandle _tanh(tlArgs* args) {
+    double in = tl_double(tlArgsGet(args, 0));
+    return tlFLOAT(tanh(in));
+}
 
 static tlHandle _int_parse(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
@@ -349,6 +390,18 @@ static const tlNativeCbs __vm_natives[] = {
 
     { "sqrt", _sqrt },
     { "random", _random },
+
+    { "sin", _sin },
+    { "cos", _cos },
+    { "tan", _tan },
+    { "asin", _asin },
+    { "acos", _acos },
+    { "atan", _atan },
+    { "atan2", _atan2 },
+    { "sinh", _sinh },
+    { "cosh", _cosh },
+    { "tanh", _tanh },
+
     { "_int_parse", _int_parse },
 
     { "_Buffer_new", _Buffer_new },
