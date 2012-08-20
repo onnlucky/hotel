@@ -18,8 +18,9 @@ struct Box {
 
     bool dirty;
     int x; int y; int width; int height;
-    int cx; int cy; int r; // center, rotate
-    int sx; int sy;        // scale
+    int cx; int cy;     // center
+    float r;            // rotate
+    float sx; float sy; // scale - 1
     int alpha;
 
     tlHandle ondraw;
@@ -40,9 +41,9 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
 
     // setup transform and clip
     cairo_translate(c, b->x + b->cx, b->y + b->cy);
-    if (b->r) cairo_rotate(c, b->r / 360.0);
+    if (fabs(b->r) >= 0.001) cairo_rotate(c, b->r);
     cairo_translate(c, -b->cx, -b->cy);
-    //if (b->sx != 1 || b->sy != 1) cairo_scale(c, b->sx, b->sy);
+    if (fabs(b->sx) >= 0.00001 || fabs(b->sy) >= 0.00001) cairo_scale(c, b->sx + 1.0, b->sy + 1.0);
     cairo_rectangle(c, 0, 0, b->width, b->height);
     cairo_clip(c);
 
@@ -272,6 +273,29 @@ static tlHandle _box_height(tlArgs* args) {
     if (tlArgsSize(args) > 0) box->height = tl_int_or(tlArgsGet(args, 0), 0);
     return tlINT(box->height);
 }
+
+static tlHandle _box_center(tlArgs* args) {
+    Box* box = BoxAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) {
+        box->cx = tl_int_or(tlArgsGet(args, 0), 0);
+        box->cy = tl_int_or(tlArgsGet(args, 1), 0);
+    }
+    return tlResultFrom(tlINT(box->cx), tlINT(box->cy), null);
+}
+static tlHandle _box_scale(tlArgs* args) {
+    Box* box = BoxAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) {
+        box->sx = tl_int_or(tlArgsGet(args, 0), 0);
+        box->sy = tl_int_or(tlArgsGet(args, 1), 0);
+    }
+    return tlResultFrom(tlINT(box->sx), tlINT(box->sy), null);
+}
+static tlHandle _box_rotate(tlArgs* args) {
+    Box* box = BoxAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) box->r = tl_double_or(tlArgsGet(args, 0), 0);
+    return tlFLOAT(box->r);
+}
+
 static tlHandle _box_ondraw(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) box->ondraw = tlArgsGet(args, 0);
@@ -300,6 +324,10 @@ void window_init(tlVm* vm) {
         "y", _box_x,
         "width", _box_width,
         "height", _box_height,
+
+        "center", _box_center,
+        "rotate", _box_rotate,
+        "scale", _box_scale,
 
         "redraw", _box_redraw,
 

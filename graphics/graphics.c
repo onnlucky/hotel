@@ -46,7 +46,6 @@ static tlSym s_hsl_luminosity;
 
 struct Graphics {
     tlLock lock;
-    cairo_surface_t* surface;
     cairo_t* cairo;
 };
 
@@ -56,97 +55,12 @@ static tlKind _GraphicsKind = {
 };
 tlKind* GraphicsKind = &_GraphicsKind;
 
-void graphicsResize(Graphics* g, int width, int height) {
-    cairo_t* cr = g->cairo;
-    cairo_surface_t* surface = g->surface;
-    int oldwidth = 0;
-    int oldheight = 0;
-
-    if (surface) {
-        oldwidth = cairo_image_surface_get_width(surface);
-        oldheight = cairo_image_surface_get_height(surface);
-        if (oldwidth == width && oldheight == height) return;
-    }
-
-    g->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-    assert(g->surface);
-    g->cairo = cairo_create(g->surface);
-    assert(g->cairo);
-
-    if (surface) {
-        cairo_save(g->cairo);
-        cairo_set_source_surface(g->cairo, surface, 0, 0);
-        cairo_rectangle(g->cairo, 0, 0, MIN(oldwidth, width), MIN(oldheight, height));
-        cairo_fill(g->cairo);
-        cairo_restore(g->cairo);
-
-        cairo_destroy(cr);
-        cairo_surface_destroy(surface);
-    }
-}
-
-void graphicsData(Graphics* g, uint8_t** buf, int* width, int* height, int* stride) {
-    if (!g->surface) return;
-    if (buf) *buf = cairo_image_surface_get_data(g->surface);
-    if (width) *width = cairo_image_surface_get_width(g->surface);
-    if (height) *height = cairo_image_surface_get_height(g->surface);
-    if (stride) *stride = cairo_image_surface_get_stride(g->surface);
-}
-
-// TODO call this from finalizer, but actually libgc will take care of it right now
-void graphicsDelete(Graphics* g) {
-    if (g->cairo) { cairo_destroy(g->cairo); g->cairo = null; }
-    if (g->surface) { cairo_surface_destroy(g->surface); g->surface = null; }
-}
-
 Graphics* GraphicsNew(cairo_t* cairo) {
+    cairo_set_antialias(cairo, CAIRO_ANTIALIAS_BEST);
     trace("new graphics; width: %d, height: %d", width, height);
     Graphics* g = tlAlloc(GraphicsKind, sizeof(Graphics));
-    //graphicsResize(g, width, height);
     g->cairo = cairo;
     return g;
-}
-
-/*
-static tlHandle _Graphics_new(tlArgs* args) {
-    int width = tl_int_or(tlArgsGet(args, 0), 0);
-    int height = tl_int_or(tlArgsGet(args, 1), 0);
-    if (width < 0) width = 0;
-    if (height < 0) height = 0;
-
-    return GraphicsNew(width, height);
-}
-*/
-
-static tlHandle _width(tlArgs* args) {
-    Graphics* g = GraphicsAs(tlArgsTarget(args));
-    return tlINT(cairo_image_surface_get_width(g->surface));
-}
-static tlHandle _height(tlArgs* args) {
-    Graphics* g = GraphicsAs(tlArgsTarget(args));
-    return tlINT(cairo_image_surface_get_height(g->surface));
-}
-
-static tlHandle _resize(tlArgs* args) {
-    Graphics* g = GraphicsAs(tlArgsTarget(args));
-    int width = tl_int_or(tlArgsGet(args, 0), 0);
-    int height = tl_int_or(tlArgsGet(args, 1), 0);
-    if (width < 0) width = 0;
-    if (height < 0) height = 0;
-    graphicsResize(g, width, height);
-    return tlNull;
-}
-
-static tlHandle _clear(tlArgs* args) {
-    Graphics* g = GraphicsAs(tlArgsTarget(args));
-
-    cairo_surface_flush(g->surface);
-    uint8_t* data = cairo_image_surface_get_data(g->surface);
-    int stride = cairo_image_surface_get_stride(g->surface);
-    int height = cairo_image_surface_get_height(g->surface);
-    memset(data, 0, stride * height);
-    cairo_surface_mark_dirty(g->surface);
-    return tlNull;
 }
 
 /** cairo api **/
@@ -197,16 +111,15 @@ static tlHandle _setLineJoin(tlArgs* args) {
     return g;
 }
 
-// TODO support floats
 static tlHandle _setLineWidth(tlArgs* args) {
-    int width = tl_int_or(tlArgsGet(args, 0), 2);
+    double width = tl_double_or(tlArgsGet(args, 0), 2.0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_line_width(g->cairo, width);
     return g;
 }
 
 static tlHandle _setMiterLimit(tlArgs* args) {
-    int limit = tl_int_or(tlArgsGet(args, 0), 10);
+    double limit = tl_double_or(tlArgsGet(args, 0), 10.0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_line_width(g->cairo, limit);
     return g;
@@ -290,10 +203,10 @@ static tlHandle _resetClip(tlArgs* args) {
 // TODO handle color names in string and symbol form
 // TODO also support floats and 3 or 4 length float arrays
 static tlHandle _color(tlArgs* args) {
-    float r = tl_int_or(tlArgsGet(args, 0), 0)/255.0;
-    float g = tl_int_or(tlArgsGet(args, 1), 0)/255.0;
-    float b = tl_int_or(tlArgsGet(args, 2), 0)/255.0;
-    float a = tl_int_or(tlArgsGet(args, 3), 255)/255.0;
+    double r = tl_double_or(tlArgsGet(args, 0), 0);
+    double g = tl_double_or(tlArgsGet(args, 1), 0);
+    double b = tl_double_or(tlArgsGet(args, 2), 0);
+    double a = tl_double_or(tlArgsGet(args, 3), 1.0);
     Graphics* gr = GraphicsAs(tlArgsTarget(args));
     cairo_set_source_rgba(gr->cairo, r, g, b, a);
     return gr;
@@ -327,72 +240,72 @@ static tlHandle _closePath(tlArgs* args) {
 }
 
 static tlHandle _curveTo(tlArgs* args) {
-    int x1 = tl_int_or(tlArgsGet(args, 0), 0);
-    int y1 = tl_int_or(tlArgsGet(args, 1), 0);
-    int x2 = tl_int_or(tlArgsGet(args, 2), 0);
-    int y2 = tl_int_or(tlArgsGet(args, 3), 0);
-    int x3 = tl_int_or(tlArgsGet(args, 4), 0);
-    int y3 = tl_int_or(tlArgsGet(args, 5), 0);
+    double x1 = tl_double_or(tlArgsGet(args, 0), 0);
+    double y1 = tl_double_or(tlArgsGet(args, 1), 0);
+    double x2 = tl_double_or(tlArgsGet(args, 2), 0);
+    double y2 = tl_double_or(tlArgsGet(args, 3), 0);
+    double x3 = tl_double_or(tlArgsGet(args, 4), 0);
+    double y3 = tl_double_or(tlArgsGet(args, 5), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_curve_to(g->cairo, x1, y1, x2, y2, x3, y3);
     return g;
 }
 static tlHandle _lineTo(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_line_to(g->cairo, x, y);
     return g;
 }
 static tlHandle _moveTo(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_move_to(g->cairo, x, y);
     return g;
 }
 static tlHandle _curveToRel(tlArgs* args) {
-    int x1 = tl_int_or(tlArgsGet(args, 0), 0);
-    int y1 = tl_int_or(tlArgsGet(args, 1), 0);
-    int x2 = tl_int_or(tlArgsGet(args, 2), 0);
-    int y2 = tl_int_or(tlArgsGet(args, 3), 0);
-    int x3 = tl_int_or(tlArgsGet(args, 4), 0);
-    int y3 = tl_int_or(tlArgsGet(args, 5), 0);
+    double x1 = tl_double_or(tlArgsGet(args, 0), 0);
+    double y1 = tl_double_or(tlArgsGet(args, 1), 0);
+    double x2 = tl_double_or(tlArgsGet(args, 2), 0);
+    double y2 = tl_double_or(tlArgsGet(args, 3), 0);
+    double x3 = tl_double_or(tlArgsGet(args, 4), 0);
+    double y3 = tl_double_or(tlArgsGet(args, 5), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rel_curve_to(g->cairo, x1, y1, x2, y2, x3, y3);
     return g;
 }
 static tlHandle _lineToRel(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rel_line_to(g->cairo, x, y);
     return g;
 }
 static tlHandle _moveToRel(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rel_move_to(g->cairo, x, y);
     return g;
 }
 
 static tlHandle _arc(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
-    int r = tl_int_or(tlArgsGet(args, 2), 0);
-    double a1 = tl_int_or(tlArgsGet(args, 3), 0)/360.0 * TAU;
-    double a2 = tl_int_or(tlArgsGet(args, 4), 360)/360.0 * TAU;
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
+    double r = tl_double_or(tlArgsGet(args, 2), 0);
+    double a1 = tl_double_or(tlArgsGet(args, 3), 0);
+    double a2 = tl_double_or(tlArgsGet(args, 4), TAU);
     bool flip = tl_bool(tlArgsGet(args, 5));
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     (!flip)? cairo_arc(g->cairo, x, y, r, a1, a2) : cairo_arc_negative(g->cairo, x, y, r, a1, a2);
     return g;
 }
 static tlHandle _rectangle(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
-    int w = tl_int_or(tlArgsGet(args, 2), 0);
-    int h = tl_int_or(tlArgsGet(args, 3), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
+    double w = tl_double_or(tlArgsGet(args, 2), 0);
+    double h = tl_double_or(tlArgsGet(args, 3), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rectangle(g->cairo, x, y, w, h);
     return g;
@@ -408,21 +321,21 @@ static tlHandle _textPath(tlArgs* args) {
 
 // ** transforms **
 static tlHandle _translate(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_translate(g->cairo, x, y);
     return g;
 }
 static tlHandle _rotate(tlArgs* args) {
-    double r = tl_int_or(tlArgsGet(args, 0), 0)/360.0 * TAU;
+    double r = tl_double_or(tlArgsGet(args, 0), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rotate(g->cairo, r);
     return g;
 }
 static tlHandle _scale(tlArgs* args) {
-    int x = tl_int_or(tlArgsGet(args, 0), 0);
-    int y = tl_int_or(tlArgsGet(args, 1), 0);
+    double x = tl_double_or(tlArgsGet(args, 0), 0);
+    double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_scale(g->cairo, x, y);
     return g;
@@ -431,7 +344,7 @@ static tlHandle _scale(tlArgs* args) {
 // ** text **
 static tlHandle _setFont(tlArgs* args) {
     tlText* name = tlTextCast(tlArgsGet(args, 0));
-    int size = tl_int_or(tlArgsGet(args, 1), 16);
+    int size = tl_double_or(tlArgsGet(args, 1), 16);
 
     // TODO set these two also from args
     cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
@@ -466,15 +379,12 @@ static tlHandle _image(tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     if (!imageSurface(img)) return g;
 
-    int width = imageWidth(img);
-    int height = imageHeight(img);
-
-    int dx = tl_int_or(tlArgsGet(args, 1), 0);
-    int dy = tl_int_or(tlArgsGet(args, 2), 0);
-    int dw = tl_int_or(tlArgsGet(args, 3), width);
-    int dh = tl_int_or(tlArgsGet(args, 4), height);
-
-    print("%d %d %d %d", dx, dy, dw, dh);
+    double width = imageWidth(img);
+    double height = imageHeight(img);
+    double dx = tl_double_or(tlArgsGet(args, 1), 0);
+    double dy = tl_double_or(tlArgsGet(args, 2), 0);
+    double dw = tl_double_or(tlArgsGet(args, 3), width);
+    double dh = tl_double_or(tlArgsGet(args, 4), height);
 
     cairo_save(g->cairo);
     cairo_translate(g->cairo, dx, dy);
@@ -482,7 +392,7 @@ static tlHandle _image(tlArgs* args) {
     cairo_clip(g->cairo);
 
     if (dw != width || dh != height) {
-        cairo_scale(g->cairo, dw/(double)width, dh/(double)height);
+        cairo_scale(g->cairo, dw/width, dh/height);
     }
     cairo_set_source_surface(g->cairo, imageSurface(img), 0, 0);
     cairo_paint(g->cairo);
@@ -527,11 +437,6 @@ void graphics_init(tlVm* vm) {
     s_hsl_luminosity = tlSYM("hsl_luminosity");
 
     _GraphicsKind.klass = tlClassMapFrom(
-        "resize", _resize,
-        "width", _width,
-        "height", _height,
-
-        "clear", _clear,
         "save", _save,
         "restore", _restore,
 
@@ -576,8 +481,6 @@ void graphics_init(tlVm* vm) {
     );
 
     tlMap* GraphicsStatic = tlClassMapFrom(
-        //"new", _Graphics_new,
-
         "winding", s_winding,
         "even_odd", s_even_odd,
 

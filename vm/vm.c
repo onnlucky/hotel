@@ -134,31 +134,31 @@ static tlHandle _add(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) + tl_int(r));
-    return tlFLOAT(tl_float(l) + tl_float(r));
+    return tlFLOAT(tl_double(l) + tl_double(r));
 }
 static tlHandle _sub(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) - tl_int(r));
-    return tlFLOAT(tl_float(l) - tl_float(r));
+    return tlFLOAT(tl_double(l) - tl_double(r));
 }
 static tlHandle _mul(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) * tl_int(r));
-    return tlFLOAT(tl_float(l) * tl_float(r));
+    return tlFLOAT(tl_double(l) * tl_double(r));
 }
 static tlHandle _div(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) / tl_int(r));
-    return tlFLOAT(tl_float(l) / tl_float(r));
+    return tlFLOAT(tl_double(l) / tl_double(r));
 }
 static tlHandle _mod(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) % tl_int(r));
-    return tlFLOAT(fmod(tl_float(l), tl_float(r)));
+    return tlFLOAT(fmod(tl_double(l), tl_double(r)));
 }
 static tlHandle _binand(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
@@ -181,7 +181,7 @@ static tlHandle _binnot(tlArgs* args) {
     return tlINT(res);
 }
 static tlHandle _sqrt(tlArgs* args) {
-    double res = sqrt(tl_float(tlArgsGet(args, 0)));
+    double res = sqrt(tl_double(tlArgsGet(args, 0)));
     trace("SQRT: %d", res);
     return tlFLOAT(res);
 }

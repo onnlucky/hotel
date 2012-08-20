@@ -164,6 +164,7 @@ int tl_bool_or(tlHandle v, bool d);
 intptr_t tl_int(tlHandle v);
 intptr_t tl_int_or(tlHandle v, int d);
 double tl_double(tlHandle v);
+double tl_double_or(tlHandle v, double d);
 const char* tl_str(tlHandle v);
 
 // ** main api for values in runtime **
