@@ -12,12 +12,12 @@ b3.ondraw({ g ->
 !(
     last = Var.new now()
     loop: {
-        wait 0.02
+        wait 0.030
         n = now()
         dt = n - last.get
         last.set(n)
-        print dt
         b3.rotate(b3.rotate + dt)
+        b3.scale(1+sin(n), 1+sin(n))
     }
 )
 w.add b3
@@ -70,7 +70,7 @@ TextField = { ->
     }
     box.ondraw { g ->
         g.setFont "Arial", 16
-        g.color 255, 255, 255
+        g.color 1, 1, 1, 0.5
         g.rectangle 0, 0, box.width, box.height
         g.fill
 

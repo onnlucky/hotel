@@ -42,8 +42,8 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
     // setup transform and clip
     cairo_translate(c, b->x + b->cx, b->y + b->cy);
     if (fabs(b->r) >= 0.001) cairo_rotate(c, b->r);
+    if (fabs(b->sx - 1.0) >= 0.0001 || fabs(b->sy - 1.0) >= 0.0001) cairo_scale(c, b->sx, b->sy);
     cairo_translate(c, -b->cx, -b->cy);
-    if (fabs(b->sx) >= 0.00001 || fabs(b->sy) >= 0.00001) cairo_scale(c, b->sx + 1.0, b->sy + 1.0);
     cairo_rectangle(c, 0, 0, b->width, b->height);
     cairo_clip(c);
 
@@ -214,6 +214,9 @@ void windowKeyEvent(Window* window, int code, tlText* input) {
 Box* BoxNew(int x, int y, int width, int height) {
     Box* box = tlAlloc(BoxKind, sizeof(Box));
     box->x = x; box->y = y; box->width = width; box->height = height;
+    box->sx = 1.0;
+    box->sy = 1.0;
+    box->alpha = 1.0;
     return box;
 }
 static tlHandle _Box_new(tlArgs* args) {
@@ -301,11 +304,13 @@ static tlHandle _box_center(tlArgs* args) {
 static tlHandle _box_scale(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        box->sx = tl_int_or(tlArgsGet(args, 0), 0);
-        box->sy = tl_int_or(tlArgsGet(args, 1), 0);
+        box->sx = tl_double_or(tlArgsGet(args, 0), 0);
+        box->sy = tl_double_or(tlArgsGet(args, 1), 0);
+        if (box->sx < 0) box->sx = 0;
+        if (box->sy < 0) box->sy = 0;
         box_dirty(box);
     }
-    return tlResultFrom(tlINT(box->sx), tlINT(box->sy), null);
+    return tlResultFrom(tlFLOAT(box->sx), tlFLOAT(box->sy), null);
 }
 static tlHandle _box_rotate(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
