@@ -84,7 +84,7 @@ int nativeWindowVisible(NativeWindow* _w) {
 }
 void nativeWindowRedraw(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
-    [[w contentView] setNeedsDisplay: YES];
+    [[w contentView] performSelectorOnMainThread: @selector(setNeedsDisplay:) withObject:w waitUntilDone:NO];
 }
 
 void nativeWindowSetTitle(NativeWindow* _w, tlText* title) {
@@ -134,10 +134,6 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
     //NSLog(@"close %@", notification);
 }
 @end
-
-static void needsdisplay(void* data) {
-    [(NView*)data setNeedsDisplay: YES];
-}
 
 @implementation NView
 - (void)drawRect: (NSRect)rect {

@@ -21,7 +21,7 @@ struct Box {
     int cx; int cy;     // center
     float r;            // rotate
     float sx; float sy; // scale - 1
-    int alpha;
+    float alpha;
 
     tlHandle ondraw;
     tlHandle onkey;
@@ -185,6 +185,8 @@ static tlHandle _window_visible(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         bool visible = tl_bool(tlArgsGet(args, 0));
+        window->dirty = false;
+        window_dirty(window);
         nativeWindowSetVisible(window->native, visible);
         return tlBOOL(visible);
     }
@@ -192,6 +194,8 @@ static tlHandle _window_visible(tlArgs* args) {
 }
 static tlHandle _window_focus(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
+    window->dirty = false;
+    window_dirty(window);
     nativeWindowFocus(window->native);
     return tlNull;
 }
@@ -255,30 +259,42 @@ static tlHandle _box_up(tlArgs* args) {
 }
 static tlHandle _box_x(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) box->x = tl_int_or(tlArgsGet(args, 0), 0);
+    if (tlArgsSize(args) > 0) {
+        box->x = tl_int_or(tlArgsGet(args, 0), 0);
+        box_dirty(box);
+    }
     return tlINT(box->x);
 }
 static tlHandle _box_y(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) box->y = tl_int_or(tlArgsGet(args, 0), 0);
+    if (tlArgsSize(args) > 0) {
+        box->y = tl_int_or(tlArgsGet(args, 0), 0);
+        box_dirty(box);
+    }
     return tlINT(box->y);
 }
 static tlHandle _box_width(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) box->width = tl_int_or(tlArgsGet(args, 0), 0);
+    if (tlArgsSize(args) > 0) {
+        box->width = tl_int_or(tlArgsGet(args, 0), 0);
+        box_dirty(box);
+    }
     return tlINT(box->width);
 }
 static tlHandle _box_height(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) box->height = tl_int_or(tlArgsGet(args, 0), 0);
+    if (tlArgsSize(args) > 0) {
+        box->height = tl_int_or(tlArgsGet(args, 0), 0);
+        box_dirty(box);
+    }
     return tlINT(box->height);
 }
-
 static tlHandle _box_center(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->cx = tl_int_or(tlArgsGet(args, 0), 0);
         box->cy = tl_int_or(tlArgsGet(args, 1), 0);
+        box_dirty(box);
     }
     return tlResultFrom(tlINT(box->cx), tlINT(box->cy), null);
 }
@@ -287,18 +303,33 @@ static tlHandle _box_scale(tlArgs* args) {
     if (tlArgsSize(args) > 0) {
         box->sx = tl_int_or(tlArgsGet(args, 0), 0);
         box->sy = tl_int_or(tlArgsGet(args, 1), 0);
+        box_dirty(box);
     }
     return tlResultFrom(tlINT(box->sx), tlINT(box->sy), null);
 }
 static tlHandle _box_rotate(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) box->r = tl_double_or(tlArgsGet(args, 0), 0);
+    if (tlArgsSize(args) > 0) {
+        box->r = tl_double_or(tlArgsGet(args, 0), 0);
+        box_dirty(box);
+    }
     return tlFLOAT(box->r);
+}
+static tlHandle _box_alpha(tlArgs* args) {
+    Box* box = BoxAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) {
+        box->alpha = tl_double_or(tlArgsGet(args, 0), 0);
+        box_dirty(box);
+    }
+    return tlFLOAT(box->alpha);
 }
 
 static tlHandle _box_ondraw(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) box->ondraw = tlArgsGet(args, 0);
+    if (tlArgsSize(args) > 0) {
+        box->ondraw = tlArgsGet(args, 0);
+        box_dirty(box);
+    }
     return box->ondraw?box->ondraw : tlNull;
 }
 static tlHandle _box_redraw(tlArgs* args) {
@@ -328,6 +359,8 @@ void window_init(tlVm* vm) {
         "center", _box_center,
         "rotate", _box_rotate,
         "scale", _box_scale,
+
+        "alpha", _box_alpha,
 
         "redraw", _box_redraw,
 

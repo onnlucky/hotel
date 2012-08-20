@@ -3,9 +3,23 @@ w.title "Hello World!"
 
 lenna = Image.new "lenna.png"
 b3 = Box.new(100, 100, 200, 200)
+b3.center(100, 100)
+b3.rotate(0.2)
+b3.scale(0.1, 0.1)
 b3.ondraw({ g ->
     g.image lenna, 0, 0, 200, 200
 })
+!(
+    last = Var.new now()
+    loop: {
+        wait 0.02
+        n = now()
+        dt = n - last.get
+        last.set(n)
+        print dt
+        b3.rotate(b3.rotate + dt)
+    }
+)
 w.add b3
 
 b1 = Box.new(100, 100)
@@ -31,6 +45,8 @@ TextField = { ->
     right = Var.new ""
 
     box = Box.new(100, 100, 100, 116)
+    box.rotate(0.2)
+    box.alpha(0.5)
     onkey = { e ->
         _catch: e -> print e.toText
         if e.key == 37 and left.get.size > 0: {
@@ -72,7 +88,7 @@ TextField = { ->
     { text: { -> left.get.cat(right.get) }, box: box, onkey: onkey }
 }
 
-sleep 1000
+wait 1
 
 text = TextField()
 w.add text.box
