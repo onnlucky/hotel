@@ -17,8 +17,8 @@ struct Box {
     Box* boxes;
 
     bool dirty;
-    int x; int y; int width; int height;
-    int cx; int cy;     // center
+    float x; float y; float width; float height;
+    float cx; float cy; // center
     float r;            // rotate
     float sx; float sy; // scale - 1
     float alpha;
@@ -44,7 +44,7 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
     if (fabs(b->r) >= 0.001) cairo_rotate(c, b->r);
     if (fabs(b->sx - 1.0) >= 0.0001 || fabs(b->sy - 1.0) >= 0.0001) cairo_scale(c, b->sx, b->sy);
     cairo_translate(c, -b->cx, -b->cy);
-    cairo_rectangle(c, 0, 0, b->width, b->height);
+    cairo_rectangle(c, 0.5, 0.5, b->width, b->height);
     cairo_clip(c);
 
     // call out to render task, it runs on the vm thread, blocking ours until done
@@ -70,18 +70,19 @@ void renderWindow(Window* window, cairo_t* cairo) {
 }
 
 void window_dirty(Window* window) {
-    if (window->dirty) return;
+    if (!window || window->dirty) return;
     window->dirty = true;
     nativeWindowRedraw(window->native);
 }
 void box_dirty(Box* box) {
-    if (box->dirty) return;
+    if (!box || box->dirty) return;
     box->dirty = true;
     if (box->up) box_dirty(box->up);
     else if (box->window) window_dirty(box->window);
 }
 
-#define ATTACH(b, w) if(b->window) TL_THROW("box is still attached");\
+#define ATTACH(b, w) \
+        if(b->window) TL_THROW("box is still attached");\
         b->window = w;
 
 Window* WindowNew(int width, int height) {
@@ -263,51 +264,51 @@ static tlHandle _box_up(tlArgs* args) {
 static tlHandle _box_x(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        box->x = tl_int_or(tlArgsGet(args, 0), 0);
+        box->x = tl_double_or(tlArgsGet(args, 0), 0);
         box_dirty(box);
     }
-    return tlINT(box->x);
+    return tlFLOAT(box->x);
 }
 static tlHandle _box_y(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        box->y = tl_int_or(tlArgsGet(args, 0), 0);
+        box->y = tl_double_or(tlArgsGet(args, 0), 0);
         box_dirty(box);
     }
-    return tlINT(box->y);
+    return tlFLOAT(box->y);
 }
 static tlHandle _box_width(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        box->width = tl_int_or(tlArgsGet(args, 0), 0);
+        box->width = tl_double_or(tlArgsGet(args, 0), 0);
         box_dirty(box);
     }
-    return tlINT(box->width);
+    return tlFLOAT(box->width);
 }
 static tlHandle _box_height(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        box->height = tl_int_or(tlArgsGet(args, 0), 0);
+        box->height = tl_double_or(tlArgsGet(args, 0), 0);
         box_dirty(box);
     }
-    return tlINT(box->height);
+    return tlFLOAT(box->height);
 }
 static tlHandle _box_center(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        box->cx = tl_int_or(tlArgsGet(args, 0), 0);
-        box->cy = tl_int_or(tlArgsGet(args, 1), 0);
+        box->cx = tl_double_or(tlArgsGet(args, 0), 0);
+        box->cy = tl_double_or(tlArgsGet(args, 1), 0);
         box_dirty(box);
     }
-    return tlResultFrom(tlINT(box->cx), tlINT(box->cy), null);
+    return tlResultFrom(tlFLOAT(box->cx), tlFLOAT(box->cy), null);
 }
 static tlHandle _box_scale(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->sx = tl_double_or(tlArgsGet(args, 0), 0);
         box->sy = tl_double_or(tlArgsGet(args, 1), 0);
-        if (box->sx < 0) box->sx = 0;
-        if (box->sy < 0) box->sy = 0;
+        if (box->sx <= 0) box->sx = 0.000000001;
+        if (box->sy <= 0) box->sy = 0.000000001;
         box_dirty(box);
     }
     return tlResultFrom(tlFLOAT(box->sx), tlFLOAT(box->sy), null);
@@ -357,7 +358,7 @@ void window_init(tlVm* vm) {
         "up", _box_up,
 
         "x", _box_x,
-        "y", _box_x,
+        "y", _box_y,
         "width", _box_width,
         "height", _box_height,
 

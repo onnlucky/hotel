@@ -388,13 +388,14 @@ static tlHandle _image(tlArgs* args) {
 
     cairo_save(g->cairo);
     cairo_translate(g->cairo, dx, dy);
-    cairo_rectangle(g->cairo, 0, 0, dw, dh);
+    cairo_rectangle(g->cairo, 0.5, 0.5, dw, dh);
     cairo_clip(g->cairo);
 
     if (dw != width || dh != height) {
         cairo_scale(g->cairo, dw/width, dh/height);
     }
     cairo_set_source_surface(g->cairo, imageSurface(img), 0, 0);
+    //cairo_set_source_rgba(g->cairo, 0, 0, 0, 0.2);
     cairo_paint(g->cairo);
     cairo_restore(g->cairo);
     CAIRO_STATUS(g->cairo);
