@@ -74,7 +74,11 @@ int tlHandleCompare(tlHandle left, tlHandle right) {
     if (left == right) return 0;
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
-    if (kleft != kright) return (intptr_t)kleft - (intptr_t)kright;
+    if (kleft != kright) {
+        if (kleft == tlIntKind && kright == tlFloatKind) return kright->cmp(left, right);
+        if (kleft == tlFloatKind && kright == tlIntKind) return kleft->cmp(left, right);
+        return (intptr_t)kleft - (intptr_t)kright;
+    }
     if (!kleft->cmp) return (intptr_t)left - (intptr_t)right;
     return kleft->cmp(left, right);
 }
