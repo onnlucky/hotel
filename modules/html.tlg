@@ -1,0 +1,68 @@
+
+tomap = { ls ->
+    m = HashMap.new
+    ls.each: e -> m.set(e.k, e.v)
+    return m
+}
+totext = { b, n ->
+    if not n: return
+    if isText(n): b.write(n); return
+    n.sub.each: sn -> totext(b, sn)
+}
+
+NodeClass = {
+    find: { sel -> sizzle.find(sel, this) }
+    findAll: { sel -> sizzle.findAll(sel, this) }
+    hasClass: { n -> this.classes.each({ c => if c == n: return true }); return false }
+    text: { ->
+        if this.sub.size == 0: return ""
+        if this.sub.size == 1 and isText(this.sub.get(0)): return this.sub.get(0)
+        b = Buffer.new
+        totext(b, this)
+        return b.read
+    }
+}
+Node = { name, attr, sub ->
+    cs = ((attr.get("class")) or "").split
+    return {
+        name: name
+        id: attr.get("id") or null
+        classes: cs
+        attr: attr
+        sub: sub
+        class: NodeClass
+    }
+}
+
+parseHtml = parser {
+    start: (.(dir|comment))* .n=node. -> n
+         | .s=sub.                    -> Node("html", [], s)
+
+    name: ns=(![ <>=/] _)+       -> ns.toChar
+
+    text: ts=(![<] _)+           -> ts.toChar
+     sub: ns=(node|text)*        -> ns
+        | . -> []
+
+    attr: k=name ."="."\"" v=(!["] _)* "\"" -> { k: k, v: v.toChar }
+        | k=name ."="."'"  v=(!["] _)* "'"  -> { k: k, v: v.toChar }
+        | k=name ."=".     v=name           -> { k: k, v: v }
+        | k=name . !"\"" !"'"               -> { k: k, v: true }
+   attrs: as=(.attr)* -> tomap(as)
+
+ comment: "<!"."--" (!"-->" _)* "-->" -> null
+     dir: "<!" (!">" _)* ">"          -> null
+  script: "<"."script".a=attrs.">" ts=(!"</script" _)* "</script".attrs.">" -> Node("script", a, [ts.toChar])
+   style: "<"."style".a=attrs.">"  ts=(!"</style"  _)* "</style".attrs.">"  -> Node("style", a, [ts.toChar])
+
+    node: comment | dir | script | style
+        | "<".n=name.a=attrs."/".">"                                      -> Node(n, a, [])
+        | "<".n=name.a=attrs.">" s=sub "<"."/".m=name ?(n == m).attrs.">" -> Node(n, a, s)
+        | "<".n=name.a=attrs.">" s=sub &("<"."/" | !_)                    -> Node(n, a, s)
+
+// TODO to parse html properly, <p>, <li>, <meta> and others need to be closed if new one is opened, now we just nest them
+
+}
+
+{ parse: parseHtml }
+

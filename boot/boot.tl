@@ -47,6 +47,7 @@ _flatten2 = { ls, arr ->
 // TODO should have special boot places for text, list and such
 _install(Text.class, #each, _each)
 _install(Text.class, #split, (split = { on ->
+    if this.size == 0: return []
     on = (on) or " " // TODO this is weird in the parser; hence the braces
     onlen = on.size
     loop = { start, at, list ->

@@ -114,13 +114,13 @@ pChar = rule({ in, ch ->
 pChars = rule({ in, chars ->
     trace(in, "pChars: $(in.item) in $(chars)")
     if not in.item: in.error(chars)
-    if chars.search(in.item.toChar): return in.next(in.item)
+    if chars.find(in.item.toChar): return in.next(in.item)
     in.error(chars)
 })
 pNotChars = rule({ in, chars ->
     trace(in, "pNotChars: $(in.item) not in $(chars)")
     if not in.item: in.error("not $chars")
-    if chars.search(in.item.toChar): return in.error("not $chars")
+    if chars.find(in.item.toChar): return in.error("not $chars")
     in.next(in.item)
 })
 pText = rule({ in, text ->

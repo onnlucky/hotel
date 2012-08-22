@@ -6,13 +6,14 @@ ifeq ($(GDB),1)
 TOOL=gdb --args
 endif
 
-
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
 LIBGC:=libgc/objs/libgc.a
 
-all: tl
+TLG_MODULES=modules/html.tl modules/sizzle.tl
 
-run: tl
+all: tl $(TLG_MODULES)
+
+run: tl $(TLG_MODULES)
 	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
 
 test: tl
@@ -52,6 +53,16 @@ vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC)
 tl: libtl.a vm/tl.c
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread
 
+# meta parser and modules depending on it
+tlmeta.tl: tlmeta.tlg tl tlmeta-base.tl
+	TL_MODULE_PATH=./modules ./tl boot-tlmeta.tl tlmeta.tlg tlmeta.tl
+
+modules/html.tl: modules/html.tlg tl tlmeta.tl
+	TL_MODULE_PATH=./modules ./tl tlmeta.tl modules/html.tlg modules/html.tl
+
+modules/sizzle.tl: modules/sizzle.tlg tl tlmeta.tl
+	TL_MODULE_PATH=./modules ./tl tlmeta.tl modules/sizzle.tlg modules/sizzle.tl
+
 clean:
 	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
 	$(MAKE) -C graphics clean
@@ -64,7 +75,7 @@ BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib
 INCDIR:=$(DESTDIR)$(PREFIX)/include
 MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
-install: libtl.a tl
+install: libtl.a tl $(TLG_MODULES)
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
 	mkdir -p $(INCDIR)
@@ -72,7 +83,7 @@ install: libtl.a tl
 	mkdir -p $(MODDIR)
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
-	cp -r modules/* $(MODDIR)/
+	cp -r modules/*.tl $(MODDIR)/
 uninstall:
 	rm -rf $(BINDIR)/tl
 	rm -rf $(LIBDIR)/libtl.a
