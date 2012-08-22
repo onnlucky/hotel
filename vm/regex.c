@@ -30,7 +30,7 @@ static tlHandle _regex_match(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsGet(args, 0));
     if (!text) TL_THROW("require a text");
 
-    size_t offset = tl_int_or(tlArgsGet(args, 1), 0);
+    int offset = tl_int_or(tlArgsGet(args, 1), 0);
     if (offset < 0 || offset >= tlTextSize(text)) return tlNull;
 
     regmatch_t m[1];

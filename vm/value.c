@@ -152,6 +152,8 @@ static tlHandle _int_hash(tlArgs* args) {
 }
 static tlHandle _int_toChar(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
+    if (c < 0) c = 32;
+    if (c > 255) c = 32;
     if (c < 0) TL_THROW("negative numbers cannot be a char");
     if (c > 255) TL_THROW("utf8 not yet supported");
     const char buf[] = { c, 0 };

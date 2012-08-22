@@ -317,6 +317,8 @@ INTERNAL tlHandle _list_toChar(tlArgs* args) {
     assert(buf);
     for (int i = 0; i < size; i++) {
         int ch = tl_int_or(tlListGet(list, i), -1);
+        if (ch < 0) ch = 32;
+        if (ch > 255) ch = 32;
         if (ch < 0) { free(buf); TL_THROW("not a list of characters"); }
         if (ch > 255) { free(buf); TL_THROW("utf8 not yet supported"); }
         buf[i] = ch;

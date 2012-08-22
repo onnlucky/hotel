@@ -253,7 +253,7 @@ static inline char escape(char c) {
         case '$': return '$';
         case '\\': return '\\';
         default:
-            assert(c >= 32);
+            //assert(c >= 32);
             return 0;
     }
 }
