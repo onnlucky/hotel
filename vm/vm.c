@@ -42,7 +42,7 @@
 #include "evio.c"
 #include "time.c"
 #include "regex.c"
-
+#include "openssl.c"
 #include "serialize.c"
 
 // super extra
@@ -305,6 +305,7 @@ void tl_init() {
     buffer_init();
     evio_init();
     time_init();
+    openssl_init();
 
     tl_boot_code = tlTextFromStatic((const char*)boot_tl, boot_tl_len);
 }
@@ -324,6 +325,7 @@ tlVm* tlVmNew() {
     evio_vm_default(vm);
     buffer_init_vm(vm);
     regex_init_vm(vm);
+    openssl_init_vm(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;

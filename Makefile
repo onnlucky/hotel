@@ -51,7 +51,7 @@ vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC)
 	$(CC) $(CFLAGS) -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
-	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread
+	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lssl -lcrypto
 
 # meta parser and modules depending on it
 tlmeta.tl: tlmeta.tlg tl tlmeta-base.tl

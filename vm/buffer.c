@@ -49,6 +49,7 @@ char* tlBufferTakeData(tlBuffer* buf) {
     char* data = buf->data;
     buf->data = null;
     buf->size = 0;
+    buf->readpos = buf->writepos = 0;
 
     trace("size: %d", buf->size);
     return data;
