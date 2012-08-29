@@ -31,22 +31,26 @@ ioloop = { ->
 readSome = { reader, buf ->
     loop: {
         len = reader.read buf
-        if len == null: _io.waitread reader
         if len: return len
+        _io.waitread reader
     }
 }
 readFull = { reader, buf ->
+    total = Var.new 0
     loop: {
         len = reader.read buf
-        if len == 0: break
-        if len == null: _io.waitread reader
+        if len == 0: return $total
+        if len: $total += len; continue
+        _io.waitread reader
     }
 }
 writeFull = { writer, buf ->
+    total = Var.new 0
     loop: {
-        if buf.size == 0: break
+        if buf.size == 0: return
         len = writer.write buf
-        if len == null: _io.waitwrite writer
+        if len == 0: return buf.size
+        if not len: _io.waitwrite writer
     }
 }
 
@@ -58,15 +62,15 @@ Stream = {
             reader = this.file.reader
             if buf: {
                 _with_lock(reader, buf): {
-                    s = buf.size
                     buf.write this.rbuf
-                    readSome(reader, buf)
-                    // TODO fix the freaking parser already
-                    return buf, (buf.size) - s
+                    len = readSome(reader, buf)
+                    if len == 0: return null
+                    return buf
                 }
             }
             _with_lock(reader, this.rbuf): {
-                readFull(reader, this.rbuf)
+                len = readFull(reader, this.rbuf)
+                if len == 0: return null
                 return this.rbuf.read
             }
         }
@@ -77,13 +81,12 @@ Stream = {
             if isBuffer(val): {
                 _with_lock(writer, val): {
                     assert(this.wbuf.size == 0)
-                    writeFull(writer, val)
-                    return
+                    return writeFull(writer, val)
                 }
             }
             _with_lock(writer, this.wbuf): {
                 this.wbuf.write val.toText
-                writeFull(writer, this.wbuf)
+                return writeFull(writer, this.wbuf)
             }
         }
         close: { ->
@@ -126,23 +129,30 @@ File = {
         read: { buf ->
             reader = _File_open(this.name, _File_RDONLY).reader
             if buf: {
-                _with_lock(reader, buf): readFull(reader, buf)
-                return buf
+                _with_lock(reader, buf): {
+                    len = readFull(reader, buf)
+                    if len == 0: return null
+                    return buf
+                }
             }
             buf = Buffer.new
-            _with_lock(reader, buf): readFull(reader, buf)
-            return buf.read
+            _with_lock(reader, buf): {
+                len = readFull(reader, buf)
+                if len == 0: return null
+                return buf.read
+            }
         }
         write: { val ->
             writer = _File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT).writer
             if isBuffer(val): {
-                _with_lock(writer, val): writeFull(writer, val)
-                return
+                _with_lock(writer, val): {
+                    return writeFull(writer, val)
+                }
             }
-            buf = Buffer.new
-            buf.write val.toText
-            _with_lock(writer, buf): writeFull(writer, buf)
-            return
+            buf = Buffer.new; buf.write val.toText
+            _with_lock(writer, buf): {
+                return writeFull(writer, buf)
+            }
         }
         open: -> Stream.new(_File_open(this.name, _File_RDWR+_File_TRUNC+_File_CREAT))
     }
@@ -196,8 +206,8 @@ run = { cmd ->
     buf = Buffer.new
     out = Stream.new(child.out)
     loop: {
-        _, len = out.read buf
-        if len == 0: break
+        res = out.read buf
+        if not res: break
     }
     r = child.wait
     if r != 0 and check: Error("'$cmd' exit: $r", output=buf.read).throw

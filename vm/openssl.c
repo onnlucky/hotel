@@ -7,12 +7,12 @@
 #include "trace-on.h"
 
 static int sb_write(BIO* bio, const char* from, int len) {
-    print("write: %d", len);
+    trace("write: %d", len);
     BIO_clear_retry_flags(bio);
     return tlBufferWrite(tlBufferAs(bio->ptr), from, len);
 }
 static int sb_read(BIO* bio, char* into, int len) {
-    print("read: %d", tlBufferSize(tlBufferAs(bio->ptr)));
+    trace("read: %d", tlBufferSize(tlBufferAs(bio->ptr)));
     BIO_clear_retry_flags(bio);
     int res = tlBufferRead(tlBufferAs(bio->ptr), into, len);
     if (res == 0) {
@@ -30,7 +30,7 @@ static int sb_gets(BIO* bio, char* into, int len) {
     return 0;
 }
 static long sb_ctrl(BIO* bio, int cmd, long num, void* ptr) {
-    print("BUFFER CTRL: %d %ld %p", cmd, num, ptr);
+    trace("BUFFER CTRL: %d %ld %p", cmd, num, ptr);
     switch (cmd) {
         case BIO_CTRL_RESET: return 0;
         case BIO_CTRL_EOF: return 0;
@@ -52,11 +52,10 @@ static long sb_ctrl(BIO* bio, int cmd, long num, void* ptr) {
     return 0;
 }
 static int sb_create(BIO* bio) {
-    print("create %p", bio);
+    trace("create %p", bio);
     bio->init = 1;
     bio->num = -1;
     bio->flags = BIO_FLAGS_UPLINK;
-    bio->ptr = tlBufferNew();
     return 1;
 }
 static int sb_destroy(BIO* bio) {
@@ -88,21 +87,18 @@ struct tlSSL {
     BIO* rbio;
     BIO* wbio;
     SSL* session;
+    tlBuffer* rbuf; // here for GC visibility
+    tlBuffer* wbuf; // idem
 };
 
+// TODO server state, getting/setting keys and all that good stuff ...
 INTERNAL tlHandle _SSL_new(tlArgs* args) {
     tlSSL* ssl = tlAlloc(tlSSLKind, sizeof(tlSSL));
     ssl->rbio = BIO_new(&buffer_bio_method);
     ssl->wbio = BIO_new(&buffer_bio_method);
     assert(ssl->rbio && ssl->wbio);
-
-#if 0
-    BIO* enc = BIO_new(BIO_f_base64());
-    BIO_push(enc, ssl->wbio);
-    BIO_puts(enc, "hello world!");
-    int x = BIO_flush(enc);
-    print("%d - %s", x, tlBufferTakeData(bio_buffer(ssl->wbio)));
-#endif
+    ssl->rbuf = ssl->rbio->ptr = tlBufferNew();
+    ssl->wbuf = ssl->wbio->ptr = tlBufferNew();
 
     SSL_METHOD *m = SSLv23_client_method();
     assert(m);
@@ -131,51 +127,29 @@ INTERNAL tlHandle _ssl_write(tlArgs* args) {
     tlSSL* ssl = tlSSLAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("require a buffer");
-    print("WRITE: %p", ssl);
-    int err;
-
-    /*
-    int status = SSL_do_handshake(ssl->session);
-    print("DID CONNECT: %d", status);
-    switch ((err = SSL_get_error(ssl->session, status))) {
-        case SSL_ERROR_NONE: print("NO ERROR!"); break;
-        case SSL_ERROR_ZERO_RETURN: print("EOF"); break;
-        case SSL_ERROR_WANT_READ: print("WANT READ"); return tlTrue;
-        case SSL_ERROR_WANT_X509_LOOKUP: print("SSL LOOKUP ... oeps"); break;
-        case SSL_ERROR_SSL:
-            print("SSL SESSION ERROR");
-            print("%s", ERR_reason_error_string(ERR_get_error()));
-            break;
-        case SSL_ERROR_WANT_WRITE: print("WANT WRITE"); break;
-        case SSL_ERROR_WANT_CONNECT: print("WANT CONNECT"); break;
-        case SSL_ERROR_WANT_ACCEPT: print("WANT ACCEPT"); break;
-        case SSL_ERROR_SYSCALL:
-            print("SYSCALL ERROR: %s", ERR_reason_error_string(err));
-            fatal("syscall");
-        default: fatal("missing");
-    }
-    */
+    trace("WRITE: %p", ssl);
 
     int len = SSL_write(ssl->session, tlBufferData(buf), tlBufferSize(buf));
-    print("DIDWRITE: %d", len);
+    trace("DIDWRITE: %d", len);
     if (len > 0) {
         tlBufferReadSkip(buf, len);
         return tlFalse;
     }
-    switch ((err = SSL_get_error(ssl->session, len))) {
-        case SSL_ERROR_NONE: print("NO ERROR!"); break;
-        case SSL_ERROR_ZERO_RETURN: print("EOF"); break;
-        case SSL_ERROR_WANT_READ: print("WANT READ"); return tlTrue;
-        case SSL_ERROR_WANT_X509_LOOKUP: print("SSL LOOKUP ... oeps"); break;
+    int err = SSL_get_error(ssl->session, len);
+    switch (err) {
+        case SSL_ERROR_NONE: trace("NO ERROR!"); break;
+        case SSL_ERROR_ZERO_RETURN: trace("EOF"); break;
+        case SSL_ERROR_WANT_READ: trace("WANT READ"); return tlTrue;
+        case SSL_ERROR_WANT_X509_LOOKUP: trace("SSL LOOKUP ... oeps"); break;
         case SSL_ERROR_SSL:
-            print("SSL SESSION ERROR");
-            print("%s", ERR_reason_error_string(ERR_get_error()));
+            trace("SSL SESSION ERROR");
+            print("ssl protocol error: %s", ERR_reason_error_string(ERR_get_error()));
             break;
-        case SSL_ERROR_WANT_WRITE: print("WANT WRITE"); break;
-        case SSL_ERROR_WANT_CONNECT: print("WANT CONNECT"); break;
-        case SSL_ERROR_WANT_ACCEPT: print("WANT ACCEPT"); break;
+        case SSL_ERROR_WANT_WRITE: trace("WANT WRITE"); break;
+        case SSL_ERROR_WANT_CONNECT: trace("WANT CONNECT"); break;
+        case SSL_ERROR_WANT_ACCEPT: trace("WANT ACCEPT"); break;
         case SSL_ERROR_SYSCALL:
-            print("SYSCALL ERROR: %s", ERR_reason_error_string(err));
+            print("ssl syscall error: %s", ERR_reason_error_string(err));
             fatal("syscall");
         default: fatal("missing");
     }
@@ -186,11 +160,11 @@ INTERNAL tlHandle _ssl_read(tlArgs* args) {
     tlSSL* ssl = tlSSLAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("require a buffer");
-    print("READ: %p", ssl);
+    trace("READ: %p", ssl);
 
     tlBufferBeforeWrite(buf, 5*1024);
     int len = SSL_read(ssl->session, writebuf(buf), canwrite(buf));
-    print("DIDREAD: %d", len);
+    trace("DIDREAD: %d", len);
     if (len > 0) {
         didwrite(buf, len);
         return tlINT(len);
@@ -198,18 +172,18 @@ INTERNAL tlHandle _ssl_read(tlArgs* args) {
     int err;
     switch ((err = SSL_get_error(ssl->session, len))) {
         case SSL_ERROR_NONE: break;
-        case SSL_ERROR_ZERO_RETURN: print("EOF"); break;
-        case SSL_ERROR_WANT_WRITE: print("WANT WRITE"); break;
-        case SSL_ERROR_WANT_X509_LOOKUP: print("SSL LOOKUP ... oeps"); break;
+        case SSL_ERROR_ZERO_RETURN: trace("EOF"); break;
+        case SSL_ERROR_WANT_WRITE: trace("WANT WRITE"); break;
+        case SSL_ERROR_WANT_X509_LOOKUP: trace("SSL LOOKUP ... oeps"); break;
         case SSL_ERROR_SSL:
-            print("SSL SESSION ERROR");
-            print("%s", ERR_reason_error_string(ERR_get_error()));
+            trace("SSL SESSION ERROR");
+            print("ssl protocol error: %s", ERR_reason_error_string(ERR_get_error()));
             break;
-        case SSL_ERROR_WANT_READ: print("WANT READ"); break;
-        case SSL_ERROR_WANT_CONNECT: print("WANT CONNECT"); break;
-        case SSL_ERROR_WANT_ACCEPT: print("WANT ACCEPT"); break;
+        case SSL_ERROR_WANT_READ: trace("WANT READ"); break;
+        case SSL_ERROR_WANT_CONNECT: trace("WANT CONNECT"); break;
+        case SSL_ERROR_WANT_ACCEPT: trace("WANT ACCEPT"); break;
         case SSL_ERROR_SYSCALL:
-            print("SYSCALL ERROR: %s", ERR_reason_error_string(err));
+            print("ssl syscall error: %s", ERR_reason_error_string(err));
             fatal("syscall");
         default: fatal("missing");
     }

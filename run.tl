@@ -1,40 +1,55 @@
 //client = http.Client.new
 //client.get("http://onnlucky.com")
 
-s = io.Socket.open("www.google.nl", 443)
-ssl = SSL.new
-
-read = { s, into ->
-    _with_lock(ssl, into): {
-        loop: {
-            len = ssl.read(into)
-            if ssl.wbuf.size > 0: s.write ssl.wbuf
-            if len > 0: return len
-            s.read ssl.rbuf
-        }
-    }
-}
-write = { s, from ->
-    _with_lock(ssl, from): {
-        len = from.size
-        loop: {
-            mustread = ssl.write(from)
-            s.write ssl.wbuf
-            if mustread: {
-                _, len = s.read ssl.rbuf
-                print("read:", len)
-                if len == 0: _throw("closed")
-                continue;
+SSLStream = {
+    new: stream -> { stream: stream, ssl: SSL.new, class: this.class }
+    class: {
+        read: { into ->
+            if into: return this._read2(into)
+            buf = Buffer.new
+            loop: {
+                res = this._read2(buf)
+                if not res: break
             }
-            if from.size == 0 and ssl.wbuf.size == 0: return len
+            if buf.size > 0: return buf.read
+            return null
+        }
+        _read2: { into ->
+            ssl = this.ssl
+            _with_lock(ssl, into): {
+                loop: {
+                    len = ssl.read(into)
+                    if ssl.wbuf.size > 0: this.stream.write ssl.wbuf
+                    if len > 0: return into
+                    res = this.stream.read ssl.rbuf
+                    if not res: return null
+                }
+            }
+        }
+        write: { from ->
+            if isBuffer(from): return this._write2(from)
+            buf = Buffer.new; buf.write(from.toText)
+            return this._write2(buf)
+        }
+        _write2: { from ->
+            ssl = this.ssl
+            _with_lock(ssl, from): {
+                loop: {
+                    mustread = ssl.write(from)
+                    this.stream.write ssl.wbuf
+                    if mustread: {
+                        res = this.stream.read ssl.rbuf
+                        if not res: return 1 // TODO figure out how much was written ...
+                        continue
+                    }
+                    if from.size == 0 and ssl.wbuf.size == 0: return
+                }
+            }
         }
     }
 }
 
-b = Buffer.new
-b.write "HEAD / HTTP/1.0\r\n\r\n"
-write(s, b)
-print("READING...")
-read(s, b)
-print b.read
+s = SSLStream.new(io.Socket.open("www.google.nl", 443))
+s.write "GET / HTTP/1.0\r\nHost: www.google.nl\r\n\r\n"
+print s.read
 
