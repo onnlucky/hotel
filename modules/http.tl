@@ -65,9 +65,16 @@ Server = {
     }
 }
 
+openstream = { url ->
+    if url.type == "https": {
+        return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
+    }
+    return io.Socket.open(url.host, url.port or 80)
+}
+
 get = { url ->
     url = httpparser.url(url)
-    s = io.Socket.open(url.host, url.port or 80)
+    s = openstream(url)
     buf = Buffer.new
     buf.write "GET ", url.request, " HTTP/1.0\r\n"
     buf.write "Host: ", url.host, "\r\n"
@@ -90,14 +97,14 @@ get = { url ->
             length = length.eval
             loop: {
                 if buf.size >= length: break
-                _, len = s.read buf
-                if len == 0: Error("Incomplete body received").throw
+                read = s.read buf
+                if not read: Error("Incomplete body received").throw
             }
             return body, res
         }
         loop: {
-            _, len = s.read buf
-            if len == 0: return buf, res
+            read = s.read buf
+            if not read: return buf, res
         }
     }
 }
