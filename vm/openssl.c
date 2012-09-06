@@ -191,8 +191,8 @@ INTERNAL tlHandle _ssl_read(tlArgs* args) {
 }
 
 static tlKind _tlSSLKind = {
-    name: "SSL",
-    locked: true,
+    .name = "SSL",
+    .locked = true,
 };
 tlKind* tlSSLKind = &_tlSSLKind;
 

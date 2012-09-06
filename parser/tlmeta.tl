@@ -47,7 +47,7 @@ pChar = { in, nr, text ->
     trace2(in, "pChar: $text")
     c = in.text.get(in.pos)
     if not c: error(in, nr, "[$text]")
-    if text.search(c.toChar): return advance(in, 1), c
+    if text.find(c.toChar): return advance(in, 1), c
     error(in, nr, "[$text]")
 }
 pNot = { in, nr, parser ->
@@ -192,7 +192,7 @@ rule_ws = { in, nr ->
     trace2(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws(advance(in, 1)))
+    if WS.find(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 }
 
@@ -200,7 +200,7 @@ rule_wsnl = { in ->
     trace(in, "rule_ws")
     c = in.text.get(in.pos)
     if not c: return in, null
-    if WS.search(c.toChar): goto(rule_ws(advance(in, 1)))
+    if WS.find(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 }
 
