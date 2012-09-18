@@ -18,8 +18,6 @@ static tlSym s_call;
 static tlSym s_send;
 static tlSym s_op;
 
-static tlSym s_class;
-
 static tlSym s_Text_cat;
 static tlSym s_List_clone;
 static tlSym s_Map_clone;

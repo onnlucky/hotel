@@ -363,7 +363,6 @@ static tlKind _tlTextKind = {
     .cmp = textCmp,
 };
 
-static tlSym s_class;
 static void text_init() {
     _tl_emptyText = tlTEXT("");
     _tlTextKind.klass = tlClassMapFrom(

@@ -184,6 +184,20 @@ static tlHandle _binnot(tlArgs* args) {
     trace("BIN NOT: %d", res);
     return tlINT(res);
 }
+static tlHandle _shift(tlArgs* args) {
+    int from = tl_int(tlArgsGet(args, 0));
+    int by = tl_int_or(tlArgsGet(args, 1), 0);
+    int res;
+    if (by < 0) {
+        if (-by > sizeof(int)*8) { res = 0; } else { res = from >> -by; }
+    } else if (by > 0) {
+        if (by > sizeof(int)*8) { res = 0; } else { res = from << by; }
+    } else {
+        res = from;
+    }
+    trace("BIN SHIFT: %d by: %d == %d", from, by, res);
+    return tlINT(res);
+}
 static tlHandle _sqrt(tlArgs* args) {
     double res = sqrt(tl_double(tlArgsGet(args, 0)));
     trace("SQRT: %d", res);
@@ -393,6 +407,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "binor",  _binor },
     { "binxor",  _binxor },
     { "binnot",  _binnot },
+    { "shift", _shift },
 
     { "sqrt", _sqrt },
     { "random", _random },

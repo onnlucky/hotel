@@ -1,6 +1,7 @@
 // this is how all tl values look in memory
 
 #include "code.h"
+static tlSym s_class;
 
 static unsigned int murmurhash2a(const void * key, int len);
 
@@ -215,7 +216,15 @@ static void value_init() {
         "floor", _int_self,
         "round", _int_self,
         "ceil", _int_self,
+        "times", null,
+        "to", null,
         null
     );
+    tlMap* intStatic= tlClassMapFrom(
+        "class", null,
+        null
+    );
+    tlMapSetSym_(intStatic, s_class, _tlIntKind.klass);
+    tl_register_global("Int", intStatic);
 }
 

@@ -37,12 +37,42 @@ _each = { fn ->
     }
     loop(0)
 }
+_times = { fn ->
+    if this <= 0: return
+    block = (args.block) or fn
+    if not block: _throw "times expects a block or fn"
+    again = { at ->
+        block(at)
+        if at >= this: return
+        goto again(at + 1)
+    }; goto again(1)
+}
+_to = { to, fn ->
+    block = (args.block) or fn
+    if not block: _throw "to expects a block or fn"
+    to = (to) or 1
+    if (this <= to): {
+        again = { at ->
+            block(at)
+            if at >= to: return
+            goto again(at + 1)
+        }; goto again(this)
+    }
+    again = { at ->
+            block(at)
+            if at <= to: return
+            goto again(at - 1)
+    }; goto again(this)
+}
 _flatten2 = { ls, arr ->
     ls.each: { e ->
         if isList(e): _flatten2(e, arr); return
         arr.add(e)
     }
 }
+
+_install(Int.class, #times, _times)
+_install(Int.class, #to, _to)
 
 // TODO should have special boot places for text, list and such
 _install(Text.class, #each, _each)
