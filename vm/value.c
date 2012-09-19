@@ -1,6 +1,9 @@
 // this is how all tl values look in memory
 
 #include "code.h"
+
+#include "trace-off.h"
+
 static tlSym s_class;
 
 static unsigned int murmurhash2a(const void * key, int len);
@@ -51,7 +54,7 @@ intptr_t tl_int_or(tlHandle v, int d) {
 // creating value objects
 tlHandle tlAlloc(tlKind* kind, size_t bytes) {
     assert((((intptr_t)kind) & 0x7) == 0);
-    trace("ALLOC: %p %zd", v, bytes);
+    trace("ALLOC: %p %zd", kind, bytes);
     assert(bytes % sizeof(tlHandle) == 0);
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
@@ -63,7 +66,7 @@ tlHandle tlClone(tlHandle v) {
     tlKind* kind = tl_kind(v);
     assert(kind->size);
     size_t bytes = kind->size(v);
-    trace("CLONE: %p %zd %d", v, bytes);
+    trace("CLONE: %p %zd", kind, bytes);
     assert(bytes % sizeof(tlHandle) == 0);
     tlHead* head = calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);

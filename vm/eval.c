@@ -309,7 +309,7 @@ INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env) {
         return lookup(env, v);
     }
     if (tlCodeIs(v)) {
-        tlEnvCaptured(env); // half closes the environment
+        env = tlEnvCapture(env); // half closes the environment
         return tlClosureNew(tlCodeAs(v), env);
     }
     if (tlCallIs(v)) {

@@ -14,21 +14,29 @@ struct tlEnv {
     tlHead head;
 
     tlEnv* parent;
+    tlEnv* future; // when a closed environment is captured, the future is used
     tlArgs* args;
     tlMap* map;
 };
 
 tlEnv* tlEnvNew(tlEnv* parent) {
-    trace("env new; parent: %p", parent);
     tlEnv* env = tlAlloc(tlEnvKind, sizeof(tlEnv));
+    trace("env new parent: %p, new: %p", parent, env);
     env->parent = parent;
     env->map = _tl_emptyMap;
     return env;
 }
 
 tlEnv* tlEnvCopy(tlEnv* env) {
-    trace("env copy: %p, parent: %p", env, env->parent);
+    if (env->future) {
+        // TODO this looks good, but probably setting it to null means under continuations or other
+        // scenario's it might not work right, and it is not thread safe
+        tlEnv* future = env->future;
+        env->future = null;
+        return future;
+    }
     tlEnv* nenv = tlEnvNew(env->parent);
+    trace("env copy from: %p, parent: %p, new: %p", env, env->parent, nenv);
     nenv->args = env->args;
     nenv->map = env->map;
     return nenv;
@@ -51,11 +59,18 @@ tlArgs* tlEnvGetArgs(tlEnv* env) {
 
 void tlEnvCloseCaptures(tlEnv* env) {
     if (tlflag_isset(env, TL_FLAG_CAPTURED)) {
+        trace("closing env: %p", env);
         tlflag_set(env, TL_FLAG_CLOSED);
     }
 }
-void tlEnvCaptured(tlEnv* env) {
+tlEnv* tlEnvCapture(tlEnv* env) {
+    trace("captured env: %p", env);
+    if (tlflag_isset(env, TL_FLAG_CLOSED)) {
+        env->future = tlEnvCopy(env);
+        return env->future;
+    }
     tlflag_set(env, TL_FLAG_CAPTURED);
+    return env;
 }
 tlHandle tlEnvGet(tlEnv* env, tlSym key) {
     if (!env) {
@@ -86,6 +101,7 @@ tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
     }
 
     env->map = tlMapSet(env->map, key, v);
+    assert(tlMapGetSym(env->map, key));
     return env;
 }
 

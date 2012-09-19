@@ -8,7 +8,7 @@
 // We can also create a thread dedicated to running a single task, this task will never appear in
 // the vm->run_q, instead whenever it can run, we will signal the thread.
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 INTERNAL tlTask* tlTaskFromEntry(lqentry* entry);
 INTERNAL void tlTaskRun(tlTask* task);

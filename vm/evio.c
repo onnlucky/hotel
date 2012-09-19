@@ -7,7 +7,7 @@
 #define EV_MULTIPLICITY 0
 #include "ev/ev.h"
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 static tlSym _s_cwd;
 

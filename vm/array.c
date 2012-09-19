@@ -1,6 +1,6 @@
 // a mutable list implementation
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 static tlKind _tlArrayKind = { .name = "Array", .locked = true };
 tlKind* tlArrayKind = &_tlArrayKind;

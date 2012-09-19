@@ -1,6 +1,6 @@
 #include <regex.h>
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 TL_REF_TYPE(tlRegex);
 
