@@ -208,7 +208,7 @@ static void openssl_init() {
         "write", _ssl_write,
         null
     );
-    }
+}
 static void openssl_init_vm(tlVm* vm) {
     tlMap* SSLStatic = tlClassMapFrom(
         "new", _SSL_new,

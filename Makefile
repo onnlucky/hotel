@@ -13,8 +13,11 @@ TLG_MODULES=modules/html.tl modules/sizzle.tl
 
 all: tl $(TLG_MODULES)
 
-run: tl $(TLG_MODULES)
+run: tl
 	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
+
+runnoboot: tl
+	TL_MODULE_PATH=./modules $(TOOL) ./tl --noboot run.tl
 
 test: tl
 	cd test/noboot/ && ./run.sh
@@ -51,7 +54,7 @@ vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC)
 	$(CC) $(CFLAGS) -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
-	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lssl -lcrypto
+	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lportaudio -lssl -lcrypto
 
 # meta parser and modules depending on it
 tlmeta.tl: tlmeta.tlg tl tlmeta-base.tl
