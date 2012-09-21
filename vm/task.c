@@ -378,6 +378,7 @@ INTERNAL tlHandle checkDeadlock(tlTask* task, tlHandle on) {
     if (other == task) { trace("DEADLOCK: %s", tl_str(other)); return task; }
     if (!other) return null;
     if (other->state != TL_STATE_WAIT) return null;
+    if (other->waitFor == on) return null; // if a task waits on an object or such ...
     return checkDeadlock(task, other->waitFor);
 }
 

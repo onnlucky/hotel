@@ -32,7 +32,7 @@ INTERNAL void lockScheduleNext(tlLock* lock) {
 
     // make it the owner and schedule it; null is perfectly good as owner
     lock->owner = ntask;
-    if (ntask) tlVmScheduleTask(tlTaskGetVm(task), ntask);
+    if (ntask) tlTaskReady(ntask);
 }
 
 INTERNAL tlHandle lockEnqueue(tlLock* lock, tlFrame* frame) {
