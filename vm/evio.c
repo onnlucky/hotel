@@ -430,6 +430,54 @@ static tlHandle _Socket_resolve(tlArgs* args) {
     return tlTextFromTake(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
 }
 
+static tlHandle _Socket_udp(tlArgs* args) {
+    bool broadcast = tl_bool_or(tlArgsGet(args, 0), false);
+    broadcast = broadcast;
+
+    trace("udp_open: broadcast: %d", broadcast);
+
+    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (fd < 0) TL_THROW("udp_connect: failed: %s", strerror(errno));
+
+    if (broadcast) {
+        int r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
+        if (r < 0) TL_THROW("oeps: %s", strerror(errno));
+    }
+
+    if (nonblock(fd) < 0) TL_THROW("udp_connect: nonblock failed: %s", strerror(errno));
+    return tlFileNew(fd);
+}
+
+static tlHandle _Socket_sendto(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a udp socket");
+    tlText* address = tlTextCast(tlArgsGet(args, 1));
+    if (!address) TL_THROW("expected a ip address");
+    int port = tl_int_or(tlArgsGet(args, 2), -1);
+    if (port < 0) TL_THROW("expected a port");
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 3));
+    if (!buf) TL_THROW("expected a buffer");
+
+    trace("udp_sendto: %s:%d", tl_str(address), port);
+
+    struct in_addr ip;
+    if (!inet_aton(tlTextData(address), &ip)) TL_THROW("udp_open: invalid ip: %s", tl_str(address));
+
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    sockaddr.sin_family = AF_INET;
+    bcopy(&ip, &sockaddr.sin_addr.s_addr, sizeof(ip));
+    sockaddr.sin_port = htons(port);
+
+    int len = tlBufferSize(buf);
+    int r = sendto(file->ev.fd, tlBufferData(buf), len, 0, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
+    if (r < 0) {
+        TL_THROW("oeps: %s", strerror(errno));
+    }
+    tlBufferClear(buf);
+    return tlINT(len);
+}
+
 static tlHandle _Socket_connect(tlArgs* args) {
     tlText* address = tlTextCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a ip address");
@@ -1075,6 +1123,8 @@ static const tlNativeCbs __evio_natives[] = {
 
     { "_File_open", _File_open },
     { "_File_from", _File_from },
+    { "_Socket_udp", _Socket_udp },
+    { "_Socket_sendto", _Socket_sendto },
     { "_Socket_connect", _Socket_connect },
     { "_Socket_connect_unix", _Socket_connect_unix },
     { "_Socket_resolve", _Socket_resolve },
