@@ -89,7 +89,7 @@ parseHost = {in ->
 }
 parsePort = {in ->
     in = pChar(":".char)(in)
-    port = pMany(pChars(numbers))(in).do: v -> v.toChar
+    port = pMany(pChars(numbers))(in).do: v -> v.toChar.eval
 }
 parsePath = {in ->
     path = pMany(pNotChars("?# \t\n\r"))(in).do: v -> v.toChar
