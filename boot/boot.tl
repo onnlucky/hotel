@@ -26,6 +26,9 @@ try = { ->
     _catch: return null
     args.block.call()
 }
+_get_random = { ->
+    this.get(random(this.size))
+}
 _each = { fn ->
     block = (args.block) or fn
     if not block: _throw "each expects a block or fn"
@@ -99,7 +102,9 @@ _install(Text.class, #replace, (replace = { from, to ->
     after = this.slice(at + from.size)
     return "$before$to$after"
 }))
+_install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)
+_install(List.class, #random, _get_random)
 _install(List.class, #each, _each)
 _install(List.class, #join, (join = { sep ->
     if this.size == 0: return ""
@@ -146,6 +151,7 @@ _install(List.class, #flatten, (flatten = { ->
     _flatten2(this, arr)
     return arr.toList
 }))
+_install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
 _install(Array.class, #join, (join = { sep ->
     if this.size == 0: return ""
@@ -263,6 +269,7 @@ _resolve: { name, path ->
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
+    _catch: e -> _throw "Error reading module: '$name'"
     file = _fileForModule("$(name.toText).tl", path)
     res = _parse(_textFromFile(file), file)(_env)
     _loaded.set(name, res)

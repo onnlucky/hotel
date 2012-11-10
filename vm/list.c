@@ -404,6 +404,7 @@ static void list_init() {
         "toChar", _list_toChar,
         //"search", _ListSearch,
         "flatten", null,
+        "random", null,
         "each", null,
         "join", null,
         "map", null,

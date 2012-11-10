@@ -169,6 +169,7 @@ static void array_init() {
         //"popFront", _array_popFront,
         "remove", _array_remove,
         "insert", _array_insert,
+        "random", null,
         "each", null,
         "join", null,
         null

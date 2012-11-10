@@ -131,6 +131,7 @@ static void set_init() {
         "size", _set_size,
         //"has", _set_has,
         "get", _set_get,
+        "random", null,
         "each", null,
         null
     );
