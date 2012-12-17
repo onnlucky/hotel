@@ -842,7 +842,7 @@ static tlHandle _io_launch(tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlListSize(as) + 1));
     for (int i = 0; i < tlListSize(as); i++) {
         tlText* text = tlTextCast(tlListGet(as, i));
-        if (!text) { free(argv); TL_THROW("expected a Text"); }
+        if (!text) TL_THROW("expected a Text");
         argv[i] = (char*)tlTextData(text);
     }
     argv[tlListSize(as)] = 0;
@@ -853,6 +853,16 @@ static tlHandle _io_launch(tlArgs* args) {
     bool join_err = tl_bool_or(tlArgsGet(args, 5), false);
     trace("launch: %s [%d] %d,%d,%d,%d", argv[0], tlListSize(as) - 1,
             want_in, want_out, want_err, join_err);
+
+    tlHandle henv = tlArgsGet(args, 6);
+    if (tl_bool(henv) && !tlMapOrObjectIs(henv)) TL_THROW("environment must be a map");
+    tlMap* env = tlMapFromObjectCast(henv);
+    if (env) for (int i = 0;; i++) {
+        tlHandle val = tlMapValueIter(env, i);
+        if (!val) break;
+        if (!tlTextIs(val)) TL_THROW("expected only Strings in the environment map");
+    }
+    bool reset_env = tl_bool_or(tlArgsGet(args, 7), false);
 
     int _in[2] = {-1, -1};
     int _out[2] = {-1, -1};
@@ -889,7 +899,6 @@ static tlHandle _io_launch(tlArgs* args) {
         close(_in[0]); close(_in[1]);
         close(_out[0]); close(_out[1]);
         close(_err[0]); close(_err[1]);
-        free(argv);
         return null;
     }
     assert(pid >= 0);
@@ -905,6 +914,17 @@ static tlHandle _io_launch(tlArgs* args) {
     dup2(_in[0], 0);
     dup2(_out[1], 1);
     dup2(_err[1], 2);
+
+    // set new environment, if any
+    if (reset_env) {
+        // TODO how?
+    }
+    if (env) for (int i = 0;; i++) {
+        tlText* text = tlTextCast(tlMapValueIter(env, i));
+        if (!text) break;
+        tlSym key = tlSetGet(tlMapKeySet(env), i);
+        setenv(tlSymData(key), tlTextData(text), 1);
+    }
 
     launch(tlTextData(cwd), argv);
     // cannot happen, launch does exit

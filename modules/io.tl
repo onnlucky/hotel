@@ -18,7 +18,9 @@ ioloop = { ->
                 _match(msg.name == #close): _io_close msg.get(0); msg.reply
                 _match(msg.name == #launch): msg.reply(_io_launch(
                         msg.get(0), msg.get(1),
-                        msg.get(2), msg.get(3), msg.get(4), msg.get(5)))
+                        msg.get(2), msg.get(3), msg.get(4), msg.get(5),
+                        msg.get(6), msg.get(7)
+                        ))
                 _nomatch
             )
         }
@@ -202,7 +204,7 @@ run = { cmd ->
     list = cmd.split
     check = not (try: not args.names.error)
     // no stdin, no stdin, no stderr, joined stdin/stderr
-    child = _io.launch Task.locals.cwd, list, false, true, false, true
+    child = _io.launch(Task.locals.cwd, list, false, true, false, true, args.names?env, false)
     buf = Buffer.new
     out = Stream.new(child.out)
     loop: {
@@ -234,6 +236,7 @@ return {
 
     stdin: stdin, stdout: stdout, stderr: stderr
     chdir: _io_chdir
+    mkdir: _io_mkdir
     getenv: _io_getenv
 }
 
