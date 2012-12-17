@@ -5,7 +5,6 @@
 
 _catch: e -> print "boot exception: $(e.toText)"
 
-// TODO print false or true -> is error because false becomes function call (parser error)
 or = { left, &right ->
     if not left: return right()
     return left
@@ -30,7 +29,7 @@ _get_random = { ->
     this.get(random(this.size))
 }
 _each = { fn ->
-    block = (args.block) or fn
+    block = args.block or fn
     if not block: _throw "each expects a block or fn"
     len = this.size
     loop = { at =>
@@ -42,7 +41,7 @@ _each = { fn ->
 }
 _times = { fn ->
     if this <= 0: return
-    block = (args.block) or fn
+    block = args.block or fn
     if not block: _throw "times expects a block or fn"
     again = { at ->
         block(at)
@@ -51,9 +50,9 @@ _times = { fn ->
     }; goto again(1)
 }
 _to = { to, fn ->
-    block = (args.block) or fn
+    block = args.block or fn
     if not block: _throw "to expects a block or fn"
-    to = (to) or 1
+    to = to or 1
     if (this <= to): {
         again = { at ->
             block(at)
@@ -81,7 +80,7 @@ _install(Int.class, #to, _to)
 _install(Text.class, #each, _each)
 _install(Text.class, #split, (split = { on ->
     if this.size == 0: return []
-    on = (on) or " " // TODO this is weird in the parser; hence the braces
+    on = on or " "
     onlen = on.size
     loop = { start, at, list ->
         if this.startsWith(on, at): {
@@ -108,7 +107,7 @@ _install(List.class, #random, _get_random)
 _install(List.class, #each, _each)
 _install(List.class, #join, (join = { sep ->
     if this.size == 0: return ""
-    sep = (sep) or ""
+    sep = sep or ""
 
     var $res = this.get(0).toText
     var $i = 1
@@ -119,7 +118,7 @@ _install(List.class, #join, (join = { sep ->
     return $res
 }))
 _install(List.class, #reduce, (reduce = { fn ->
-    block = (args.block) or fn
+    block = args.block or fn
     if not block: _throw "reduce expects a block or fn"
     if this.size == 0: return null
     if this.size == 1: return this.get(0)
@@ -133,7 +132,7 @@ _install(List.class, #reduce, (reduce = { fn ->
     return $res
 }))
 _install(List.class, #map, (map = { fn ->
-    block = (args.block) or fn
+    block = args.block or fn
     if not block: _throw "map expects a block or fn"
     if this.size == 0: return this
 
@@ -155,7 +154,7 @@ _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
 _install(Array.class, #join, (join = { sep ->
     if this.size == 0: return ""
-    sep = (sep) or ""
+    sep = sep or ""
 
     var $res = this.get(0).toText
     var $i = 1

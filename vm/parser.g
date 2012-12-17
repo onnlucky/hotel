@@ -314,7 +314,7 @@ bpexpr = v:value t:ptail _":"_ b:block {
        | "?" { $$ = sa_try_send; }
 
 # // TODO add [] and oop.method: and oop.method arg1: ... etc
- ptail = _!"(" as:pcargs {
+ ptail = _ !"(" !"and" !"or" as:pcargs {
            trace("primary args");
            $$ = tlCallFromList(null, as);
        }
