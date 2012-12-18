@@ -21,7 +21,7 @@ static tlSym s_and, s_or, s_xor, s_not;
 static tlSym s_lt, s_lte, s_gt, s_gte, s_eq, s_neq, s_cmp;
 static tlSym s_add, s_sub, s_mul, s_div, s_mod, s_pow;
 static tlSym s_main;
-static tlSym s_get;
+static tlSym s_get, s_slice;
 static tlSym s_assert;
 static tlSym s_text;
 
@@ -213,7 +213,7 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(L(as), n); }
                              tlCallFrom(tl_active(s_this_set), tl_active(s_this), n, e, null)
                  ));
              }
-#// TODO for now just add and subtract, until we do full operators
+#// TODO for now just add, sub, mul until we do full operators
              | "$" n:name _"+"_"="__ e:bpexpr {
                  $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null);
                  $$ = tlCallFrom(tl_active(s_add), $$, e, null);
@@ -224,6 +224,13 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(L(as), n); }
              | "$" n:name _"-"_"="__ e:bpexpr {
                  $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null);
                  $$ = tlCallFrom(tl_active(s_sub), $$, e, null);
+                 $$ = tlListFrom1(call_activate(
+                             tlCallFrom(tl_active(s_var_set), tl_active(n), $$, null)
+                 ));
+             }
+             | "$" n:name _"*"_"="__ e:bpexpr {
+                 $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null);
+                 $$ = tlCallFrom(tl_active(s_mul), $$, e, null);
                  $$ = tlListFrom1(call_activate(
                              tlCallFrom(tl_active(s_var_set), tl_active(n), $$, null)
                  ));
@@ -287,7 +294,12 @@ selfapply = n:name _ &eosfull {
     $$ = call_activate(tlCallFromList(tl_active(n), tlListEmpty()));
 }
 
-bpexpr = v:value t:ptail _":"_ b:block {
+bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
+           trace("primary args");
+           as = tlCallFromList(null, as);
+           $$ = call_activate(tlCallAddBlock(set_target(as, v), tl_active(b)));
+       }
+       | v:value t:ptail _":"_ b:block {
            $$ = call_activate(tlCallAddBlock(set_target(t, v), tl_active(b)));
        }
        | e:expr _":"_ b:block {
@@ -307,18 +319,20 @@ bpexpr = v:value t:ptail _":"_ b:block {
            $$ = set_target(t, tlCallSendFromList(sa_this_send, tl_active(s_this), n, as));
            $$ = call_activate($$);
        }
+       | v:value !"[" _ !"(" !"and" !"or" as:pcargs &peosfull {
+           trace("primary args");
+           as = tlCallFromList(null, as);
+           $$ = call_activate(set_target(as, v));
+       }
        | v:value t:ptail &peosfull { $$ = call_activate(set_target(t, v)); }
        | e:expr                    { $$ = call_activate(e); }
 
    met = "." { $$ = sa_send; }
        | "?" { $$ = sa_try_send; }
+slicea = expr
+       | _   { $$ = tlNull }
 
-# // TODO add [] and oop.method: and oop.method arg1: ... etc
- ptail = _ !"(" !"and" !"or" as:pcargs {
-           trace("primary args");
-           $$ = tlCallFromList(null, as);
-       }
-       | _ m:met _ n:name _"("__ as:cargs __")" t:ptail {
+ ptail = _ m:met _ n:name _"("__ as:cargs __")" t:ptail {
            trace("primary method + args()");
            $$ = set_target(t, tlCallSendFromList(m, null, n, as));
        }
@@ -329,6 +343,14 @@ bpexpr = v:value t:ptail _":"_ b:block {
        | _ m:met _ n:name t:ptail {
            trace("primary method");
            $$ = set_target(t, tlCallSendFromList(m, null, n, tlListEmpty()));
+       }
+       | _ "["__ e:expr __"]" t:ptail {
+           trace("primary array get");
+           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_get, tlListFrom2(tlNull, e)));
+       }
+       | _ "["__ a1:slicea __":"__ a2:slicea __"]" t:ptail {
+           trace("array get");
+           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_slice, tlListFrom(tlNull, a1, tlNull, a2, null)));
        }
        | _ {
            trace("no tail");
@@ -347,9 +369,13 @@ bpexpr = v:value t:ptail _":"_ b:block {
            trace("method");
            $$ = set_target(t, tlCallSendFromList(m, null, n, tlListEmpty()));
        }
-       | _"["__ e:expr __"]" t:tail {
+       | _ "["__ e:expr __"]" t:tail {
            trace("array get");
-           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_get, as));
+           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_get, tlListFrom2(tlNull, e)));
+       }
+       | _ "["__ a1:slicea __":"__ a2:slicea __"]" t:tail {
+           trace("array get");
+           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_slice, tlListFrom(tlNull, a1, tlNull, a2, null)));
        }
        | _ {
            trace("no tail");
@@ -359,7 +385,7 @@ bpexpr = v:value t:ptail _":"_ b:block {
 pcargs = l:carg __","__
                 (r:carg __","__  { l = tlListCat(L(l), r); }
                 )*
-                r:pcarg          { l = tlListCat(L(l), r); }
+                r:carg          { l = tlListCat(L(l), r); }
                                  { $$ = l; }
        | r:pcarg                 { $$ = r; }
 
@@ -545,7 +571,7 @@ tlHandle tlParse(tlText* text, tlText* file) {
         s_add = tlSYM("add"); s_sub = tlSYM("sub");
         s_mul = tlSYM("mul"); s_div = tlSYM("div");
         s_mod = tlSYM("mod"); s_pow = tlSYM("pow");
-        s_main = tlSYM("main"); s_get = tlSYM("get");
+        s_main = tlSYM("main"); s_get = tlSYM("get"); s_slice = tlSYM("slice");
         s_assert = tlSYM("assert"); s_text = tlSYM("text");
     }
 
