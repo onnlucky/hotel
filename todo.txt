@@ -1,14 +1,35 @@
 # TODO
 
+make undefined capture the stack frame for backtraces, and when dereferencing a undefined throw UndefinedError.cause = original stack
+change the object?maybefield.deref to object.maybefield?deref where ? is false?noexecute true?execute
+
+add "if" to parser and do
+
+return if true
+return unless true
+if true: return
+unless true: return
+
+but nothing more complex then that
+
+instead of if, have
+
+| x == 10: do something
+| y == 20: do something else
+| true: do something else
+
+later do pattern matching in there
+
+----
+
 rename tlMap as tlValue and remove tlValueObject ...
 for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
 add kind->resume for tlFrame and throw using frame.kind.name
 add kind->finalize for finalizers
-add tlFloat and tlNumber both boxed, to complement tlInt
+add tlNumber as unlimited precision decimal, and have a numeric tower from small int to decimal and floats
 
 do class._name for error.toText: this.class._name ": " this.msg ...
 on error, if object, call toText on it ...
-add ls[item] syntax to leg parser
 
 rename List -> Array, and Text -> String; Map -> Table why? because that gives users those very useful names back
 

@@ -78,6 +78,7 @@ get = { url ->
     buf = Buffer.new
     buf.write "GET ", url.request, " HTTP/1.0\r\n"
     buf.write "Host: ", url.host, "\r\n"
+    buf.write "User-Agent: Mozilla/5.0\r\n"
     buf.write "\r\n"
     s.write buf
 

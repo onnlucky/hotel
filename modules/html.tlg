@@ -1,7 +1,12 @@
+// TODO to parse html properly, <p>, <li>, <meta> and others need to be closed if new one is opened, now we just nest them
+// TODO handle roque closing tags, now they collapse the full tree
+// TODO add html escape/unescape for attributes
+// TODO node.text should normalize/remove &nbsp; and such entities
+// TODO upgrade Nodes to a mutable object including a parent reference much more like a real dom so we can manipulate it
 
 tomap = { ls ->
     m = HashMap.new
-    ls.each: e -> m.set(e.k, e.v)
+    ls.each: e -> if e: m.set(e.k, e.v)
     return m
 }
 totext = { b, n ->
@@ -23,7 +28,7 @@ NodeClass = {
     }
 }
 Node = { name, attr, sub ->
-    cs = ((attr.get("class")) or "").split
+    cs = (attr.get("class") or "").split
     return {
         name: name
         id: attr.get("id") or null
@@ -35,32 +40,36 @@ Node = { name, attr, sub ->
 }
 
 parseHtml = parser {
-    start: (.(dir|comment))* .n=node. -> n
-         | .s=sub.                    -> Node("html", [], s)
+   start: (.(dir|comment))* s=(.toplevel)*. -> Node("document", HashMap.new, s)
+
+toplevel: node
+        | text
+        | "<". (!">" _)* ">"     -> null
 
     name: ns=(![ <>=/] _)+       -> ns.toChar
 
-    text: ts=(![<] _)+           -> ts.toChar
-     sub: ns=(node|text)*        -> ns
+    text: ts=(![<] _)+           -> ts.toChar.strip
+     sub: ns=(.node|text)*       -> ns
         | . -> []
 
     attr: k=name ."="."\"" v=(!["] _)* "\"" -> { k: k, v: v.toChar }
         | k=name ."="."'"  v=(!["] _)* "'"  -> { k: k, v: v.toChar }
         | k=name ."=".     v=name           -> { k: k, v: v }
         | k=name . !"\"" !"'"               -> { k: k, v: true }
+        | (!"/" !">" !name _)+              -> null
    attrs: as=(.attr)* -> tomap(as)
 
- comment: "<!"."--" (!"-->" _)* "-->" -> null
-     dir: "<!" (!">" _)* ">"          -> null
+ comment: "<"."!"."--" (!"-"."-".">" _)* "-"."-".">" -> null
+     dir: "<"."!" (!">" _)* ">"                      -> null
   script: "<"."script".a=attrs.">" ts=(!"</script" _)* "</script".attrs.">" -> Node("script", a, [ts.toChar])
    style: "<"."style".a=attrs.">"  ts=(!"</style"  _)* "</style".attrs.">"  -> Node("style", a, [ts.toChar])
 
     node: comment | dir | script | style
-        | "<".n=name.a=attrs."/".">"                                      -> Node(n, a, [])
-        | "<".n=name.a=attrs.">" s=sub "<"."/".m=name ?(n == m).attrs.">" -> Node(n, a, s)
-        | "<".n=name.a=attrs.">" s=sub &("<"."/" | !_)                    -> Node(n, a, s)
-
-// TODO to parse html properly, <p>, <li>, <meta> and others need to be closed if new one is opened, now we just nest them
+        | "<".n=name.a=attrs."/".">"                                          -> Node(n, a, [])
+        | "<".n=name.a=attrs.">" s=sub "<"."/".m=name ?(n == m) (!">" _)* ">" -> Node(n, a, s)
+        | "<".n=name.a=attrs.">" s=sub . &("<"|!_)                            -> Node(n, a, s)
+        | "<". !"/" (!">" _)* ">"                                             -> null
+//        | "<"."/".m=name ?(notinstack(m) (!">" _)* ">"                        -> null
 
 }
 
