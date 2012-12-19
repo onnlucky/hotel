@@ -221,6 +221,32 @@ INTERNAL tlHandle _text_char(tlArgs* args) {
     return tlINT(text->data[at]);
 }
 
+INTERNAL tlHandle _text_lower(tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    int size = tlTextSize(text);
+
+    tlText* res = tlTextFromCopy(tlTextData(text), size);
+    char* buf = (char*)res->data;
+    for (int i = 0; i < size; i++) {
+        buf[i] = tolower(buf[i]);
+    }
+    return res;
+}
+INTERNAL tlHandle _text_upper(tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    int size = tlTextSize(text);
+
+    tlText* res = tlTextFromCopy(tlTextData(text), size);
+    char* buf = (char*)res->data;
+    for (int i = 0; i < size; i++) {
+        buf[i] = toupper(buf[i]);
+    }
+    return res;
+}
 INTERNAL tlHandle _text_slice(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -375,6 +401,8 @@ static void text_init() {
         "find", _text_find,
         "char", _text_char,
         "get", _text_char,
+        "lower", _text_lower,
+        "upper", _text_upper,
         "slice", _text_slice,
         "cat", _text_cat,
         "escape", _text_escape,

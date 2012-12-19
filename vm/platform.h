@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 #include <strings.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
