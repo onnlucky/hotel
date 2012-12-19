@@ -336,7 +336,7 @@ slicea = expr
            trace("primary method + args()");
            $$ = set_target(t, tlCallSendFromList(m, null, n, as));
        }
-       | _ m:met _ n:name _ as:pcargs {
+       | _ m:met _ n:name !"[" _ !"(" !"and" !"or" as:pcargs {
            trace("primary method + args");
            $$ = tlCallSendFromList(m, null, n, as);
        }

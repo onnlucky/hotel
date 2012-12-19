@@ -432,7 +432,6 @@ static tlHandle _Socket_resolve(tlArgs* args) {
 
 static tlHandle _Socket_udp(tlArgs* args) {
     bool broadcast = tl_bool_or(tlArgsGet(args, 0), false);
-    broadcast = broadcast;
 
     trace("udp_open: broadcast: %d", broadcast);
 
