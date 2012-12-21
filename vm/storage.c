@@ -14,6 +14,67 @@ static tlKind _tlStorageKind = {
 };
 tlKind* tlStorageKind = &_tlStorageKind;
 
+// encoding:
+// string: data = "text\0", size = 5 && data[size - 1] == 0
+// int: data = <4 bytes; 1>, size = 5 && data[size - 1] == 1
+// float: data = <8 bytes; 1>, size = 9 && data[size - 1] == 1
+// null/false/true = <1/2/3>, size = 1 && data[size - 1] != 0
+
+static tlHandle decode(DBT* d);
+static int encode(tlHandle h, DBT* d, uint8_t* buf) {
+    // TODO int and double are machine endianess dependent ...
+    if (tlTextIs(h)) {
+        tlText* t = tlTextAs(h);
+        d->data = (char*)tlTextData(t);
+        d->size = tlTextSize(t) + 1;
+    } else if (tlIntIs(h)) {
+        *((int*)buf) = tl_int(h);
+        buf[4] = 1;
+        d->data = buf;
+        d->size = 5;
+    } else if (tlFloatIs(h)) {
+        *((double*)buf) = tl_double(h);
+        buf[8] = 1;
+        d->data = buf;
+        d->size = 9;
+    } else if (h == tlNull) {
+        buf[0] = 1;
+        d->data = buf;
+        d->size = 1;
+    } else if (h == tlFalse) {
+        buf[0] = 2;
+        d->data = buf;
+        d->size = 1;
+    } else if (h == tlTrue) {
+        buf[0] = 3;
+        d->data = buf;
+        d->size = 1;
+    } else {
+        return -1;
+    }
+    assert(tlHandleEquals(decode(d), h));
+    return 0;
+}
+
+tlHandle decode(DBT* d) {
+    uint8_t* buf = (uint8_t*)d->data;
+    if (d->size == 1) {
+        if (buf[0] == 0) return tlTextEmpty();
+        if (buf[0] == 1) return tlNull;
+        if (buf[0] == 2) return tlFalse;
+        if (buf[0] == 3) return tlTrue;
+        assert(false);
+    }
+    if (d->size == 5 && buf[4] == 1) {
+        return tlINT(*((int*)buf));
+    }
+    if (d->size == 9 && buf[8] == 1) {
+        return tlFLOAT(*((double*)buf));
+    }
+    assert(buf[d->size - 1] == 0);
+    return tlTextFromCopy((char*)buf, d->size - 1);
+}
+
 tlStorage* tlStorageNew(tlText* text) {
     const char* name = 0;
     if (text) name = tlTextData(text);
@@ -27,38 +88,50 @@ tlStorage* tlStorageNew(tlText* text) {
 }
 INTERNAL tlHandle _storage_get(tlArgs* args) {
     tlStorage* storage = tlStorageAs(tlArgsTarget(args));
-    tlText* tkey = tlTextCast(tlArgsGet(args, 0));
-    if (!tkey) TL_THROW("get requires a Text key");
+    int r;
 
-    DBT key = { (char*)tlTextData(tkey), tlTextSize(tkey) + 1 };
+    DBT key;
+    uint8_t kbuf[10];
+    r = encode(tlArgsGet(args, 0), &key, kbuf);
+    if (r) TL_THROW("cannot encode key");
+
     DBT val;
-    int r = storage->db->get(storage->db, &key, &val, 0);
+
+    r = storage->db->get(storage->db, &key, &val, 0);
     storage->db->sync(storage->db, 0);
     if (r == -1) TL_THROW("StoreError: %s", strerror(errno));
-    if (r == 0) return tlTextFromCopy(val.data, val.size - 1);
+    if (r == 0) return decode(&val);
     return tlNull;
 }
 INTERNAL tlHandle _storage_set(tlArgs* args) {
     tlStorage* storage = tlStorageAs(tlArgsTarget(args));
-    tlText* tkey = tlTextCast(tlArgsGet(args, 0));
-    if (!tkey) TL_THROW("set requires a Text key");
-    tlText* tval = tlTextCast(tlArgsGet(args, 1));
-    if (!tval) TL_THROW("set requires a Text value");
+    int r;
 
-    DBT key = { (char*)tlTextData(tkey), tlTextSize(tkey) + 1 };
-    DBT val = { (char*)tlTextData(tval), tlTextSize(tval) + 1 };
-    int r = storage->db->put(storage->db, &key, &val, 0);
+    DBT key;
+    uint8_t kbuf[10];
+    r = encode(tlArgsGet(args, 0), &key, kbuf);
+    if (r) TL_THROW("cannot encode key");
+
+    DBT val;
+    uint8_t vbuf[10];
+    r = encode(tlArgsGet(args, 1), &val, vbuf);
+    if (r) TL_THROW("cannot encode value");
+
+    r = storage->db->put(storage->db, &key, &val, 0);
     storage->db->sync(storage->db, 0);
     if (r == -1) TL_THROW("StoreError: %s", strerror(errno));
-    return tval;
+    return tlArgsGet(args, 1);
 }
 INTERNAL tlHandle _storage_del(tlArgs* args) {
     tlStorage* storage = tlStorageAs(tlArgsTarget(args));
-    tlText* tkey = tlTextCast(tlArgsGet(args, 0));
-    if (!tkey) TL_THROW("del requires a Text key");
+    int r;
 
-    DBT key = { (char*)tlTextData(tkey), tlTextSize(tkey) + 1 };
-    int r = storage->db->del(storage->db, &key, 0);
+    DBT key;
+    uint8_t kbuf[10];
+    r = encode(tlArgsGet(args, 0), &key, kbuf);
+    if (r) TL_THROW("cannot encode key");
+
+    r = storage->db->del(storage->db, &key, 0);
     storage->db->sync(storage->db, 0);
     if (r == -1) TL_THROW("StoreError: %s", strerror(errno));
     return tlNull;
