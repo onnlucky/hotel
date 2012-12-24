@@ -49,6 +49,7 @@ struct tlTask {
     tlMap* locals;     // task local storage, for cwd, stdout etc ...
     // TODO remove these in favor a some flags
     tlTaskState state; // state it is currently in
+    bool read;
     void* data;
 };
 
@@ -282,9 +283,16 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
         }
         frame = frame->caller;
     }
-    // report these in finalizer ...
-    warning("uncaught exception: %s", tl_str(thrown));
     return tlTaskError(task, thrown);
+}
+
+void tlTaskFinalize(void* _task, void* data) {
+    tlTask* task = tlTaskAs(_task);
+    if (!task->read && task->throw) {
+        assert(!task->value);
+        // TODO write into special uncaught exception queue
+        warning("uncaught exception: %s", tl_str(task->throw));
+    }
 }
 
 tlTask* tlTaskNew(tlVm* vm, tlMap* locals) {
@@ -293,6 +301,9 @@ tlTask* tlTaskNew(tlVm* vm, tlMap* locals) {
     task->worker = vm->waiter;
     task->locals = locals;
     trace("new %s", tl_str(task));
+#ifdef HAVE_BOEHMGC
+    GC_REGISTER_FINALIZER_NO_ORDER(task, tlTaskFinalize, null, null, null);
+#endif
     return task;
 }
 
@@ -458,23 +469,26 @@ void tlTaskCopyValue(tlTask* task, tlTask* other) {
     assert(!(task->value && task->throw));
     task->value = other->value;
     task->throw = other->throw;
+    other->read = true;
 }
 
 INTERNAL void signalWaiters(tlTask* task) {
     assert(tlTaskIsDone(task));
-    tlHandle waiting = A_PTR(a_swap(A_VAR(task->waiting), null));
-    if (!waiting) return;
-    if (tlTaskIs(waiting)) {
-        tlTaskCopyValue(tlTaskAs(waiting), task);
-        tlTaskReady(tlTaskAs(waiting));
-        return;
-    }
-    tlWaitQueue* queue = tlWaitQueueAs(waiting);
     while (true) {
-        tlTask* waiter = tlWaitQueueGet(queue);
-        if (!waiter) return;
-        tlTaskCopyValue(waiter, task);
-        tlTaskReady(waiter);
+        tlHandle waiting = A_PTR(a_swap(A_VAR(task->waiting), null));
+        if (!waiting) return;
+        if (tlTaskIs(waiting)) {
+            tlTaskCopyValue(tlTaskAs(waiting), task);
+            tlTaskReady(tlTaskAs(waiting));
+            return;
+        }
+        tlWaitQueue* queue = tlWaitQueueAs(waiting);
+        while (true) {
+            tlTask* waiter = tlWaitQueueGet(queue);
+            if (!waiter) return;
+            tlTaskCopyValue(waiter, task);
+            tlTaskReady(waiter);
+        }
     }
 }
 INTERNAL void signalVm(tlTask* task) {
