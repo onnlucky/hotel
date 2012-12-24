@@ -126,6 +126,14 @@ int tlBufferWrite(tlBuffer* buf, const char* from, int count) {
 int tlBufferWriteByte(tlBuffer* buf, const char b) {
     return tlBufferWrite(buf, &b, 1);
 }
+int tlBufferWriteRewind(tlBuffer* buf, int len) {
+    assert(tlBufferIs(buf));
+    assert(len >= 0);
+    if (len > canread(buf)) len = canread(buf);
+    buf->writepos -= len;
+    check(buf);
+    return len;
+}
 int tlBufferReadSkip(tlBuffer* buf, int count) {
     assert(tlBufferIs(buf));
     int len = canread(buf);
@@ -133,6 +141,17 @@ int tlBufferReadSkip(tlBuffer* buf, int count) {
     buf->readpos += len;
     check(buf);
     return len;
+}
+void tlBufferSkipByte(tlBuffer* buf) {
+    assert(tlBufferIs(buf));
+    if (canread(buf) == 0) return;
+    buf->readpos += 1;
+}
+uint8_t tlBufferPeekByte(tlBuffer* buf) {
+    assert(tlBufferIs(buf));
+    if (canread(buf) == 0) return 0;
+    uint8_t r = *((uint8_t*)(buf->data + buf->readpos));
+    return r;
 }
 uint8_t tlBufferReadByte(tlBuffer* buf) {
     assert(tlBufferIs(buf));

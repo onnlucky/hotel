@@ -14,11 +14,11 @@ struct tlArray {
     tlHandle* data;
 };
 
-INTERNAL tlArray* tlArrayNew() {
+tlArray* tlArrayNew() {
     tlArray* array = tlAlloc(tlArrayKind, sizeof(tlArray));
     return array;
 }
-INTERNAL tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
+tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     trace("add: %s.add %s -- %zd -- %zd", tl_str(array), tl_str(v), array->size, array->alloc);
     if (array->size == array->alloc) {
         if (!array->alloc) array->alloc = 8; else array->alloc *= 2;
@@ -28,14 +28,14 @@ INTERNAL tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     array->data[array->size++] = v;
     return array;
 }
-INTERNAL tlHandle tlArrayPop(tlArray* array) {
+tlHandle tlArrayPop(tlArray* array) {
     if (array->size == 0) return tlUndefined;
     array->size--;
     tlHandle v = array->data[array->size];
     array->data[array->size] = 0;
     return v;
 }
-INTERNAL tlHandle tlArrayRemove(tlArray* array, int i) {
+tlHandle tlArrayRemove(tlArray* array, int i) {
     if (i < 0) return tlUndefined;
     if (i >= array->size) return tlUndefined;
     tlHandle v = array->data[i];
@@ -46,7 +46,7 @@ INTERNAL tlHandle tlArrayRemove(tlArray* array, int i) {
 
     return v;
 }
-INTERNAL tlArray* tlArrayInsert(tlArray* array, int i, tlHandle v) {
+tlArray* tlArrayInsert(tlArray* array, int i, tlHandle v) {
     if (i < 0) return array;
     if (i == array->size) return tlArrayAdd(array, v);
 
@@ -77,17 +77,26 @@ INTERNAL tlArray* tlArrayInsert(tlArray* array, int i, tlHandle v) {
 
     return array;
 }
-INTERNAL tlHandle tlArrayGet(tlArray* array, int i) {
+tlHandle tlArrayGet(tlArray* array, int i) {
     if (i < 0) return tlUndefined;
     if (i >= array->size) return tlUndefined;
     return array->data[i];
 }
-INTERNAL tlArray* tlArraySet(tlArray* array, int i, tlHandle v) {
+tlArray* tlArraySet(tlArray* array, int i, tlHandle v) {
     if (i < 0) return tlUndefined;
     if (i == array->size) return tlArrayAdd(array, v);
     if (i > array->size) return tlArrayInsert(array, i, v);
     array->data[i] = v;
     return array;
+}
+tlList* tlArrayToList(tlArray* array) {
+    tlList* list = tlListNew(array->size);
+    for (int i = 0; i < array->size; i++) {
+        tlHandle v = tlArrayGet(array, i);
+        if (!v) v = tlNull;
+        tlListSet_(list, i, v);
+    }
+    return list;
 }
 
 INTERNAL tlHandle _Array_new(tlArgs* args) {
@@ -101,14 +110,7 @@ INTERNAL tlHandle _array_size(tlArgs* args) {
 INTERNAL tlHandle _array_toList(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
-
-    tlList* list = tlListNew(array->size);
-    for (int i = 0; i < array->size; i++) {
-        tlHandle v = tlArrayGet(array, i);
-        if (!v) v = tlNull;
-        tlListSet_(list, i, v);
-    }
-    return list;
+    return tlArrayToList(array);
 }
 INTERNAL tlHandle _array_get(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));

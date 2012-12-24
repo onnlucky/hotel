@@ -323,6 +323,7 @@ void tl_init() {
     time_init();
     openssl_init();
     storage_init();
+    serialize_init();
 
     tl_boot_code = tlTextFromStatic((const char*)boot_tl, boot_tl_len);
 }
@@ -434,9 +435,6 @@ static const tlNativeCbs __vm_natives[] = {
     { "isBuffer", _isBuffer },
 
     { "_set_exitcode", _set_exitcode },
-
-    { "write_blob", _write_blob },
-    { "read_blob", _read_blob },
 
     { 0, 0 },
 };

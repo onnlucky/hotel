@@ -39,6 +39,33 @@ tlHashMap* tlHashMapNew() {
     map->map = lhashmap_new(map_equals, map_hash, map_free);
     return map;
 }
+tlHandle tlHashMapGet(tlHashMap* map, tlHandle k) {
+    return lhashmap_get(map->map, k);
+}
+void tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v) {
+    lhashmap_putif(map->map, k, v, LHASHMAP_IGNORE);
+}
+tlMap* tlHashMapToObject(tlHashMap* map) {
+    int size = lhashmap_size(map->map);
+    tlSet* keys = tlSetNew(size);
+    // TODO might drop a *last* one or so ... auch, grow/shrink keys instead
+    LHashMapIter* iter = lhashmapiter_new(map->map);
+    for (int i = 0; i < size; i++) {
+        tlHandle k;
+        lhashmapiter_get(iter, &k, null);
+        if (!k || !tlSymIs(k)) break;
+        tlSetAdd_(keys, k);
+        lhashmapiter_next(iter);
+    }
+    tlMap* object = tlMapNew(keys);
+    for (int i = 0; i < size; i++) {
+        tlHandle k = tlSetGet(keys, i);
+        tlHandle v = tlHashMapGet(map, k);
+        tlMapSetSym_(object, tlSymAs(k), v);
+    }
+    return object;
+}
+
 INTERNAL tlHandle _HashMap_new(tlArgs* args) {
     // TODO take a map
     return tlHashMapNew();
@@ -50,7 +77,7 @@ INTERNAL tlHandle _hashmap_get(tlArgs* args) {
     if (!key) TL_THROW("expected a key");
     if (!tl_kind(key)->hash) TL_THROW("expected a hashable key");
 
-    tlHandle val = lhashmap_get(map->map, key);
+    tlHandle val = tlHashMapGet(map, key);
     trace("%s == %s", tl_str(key), tl_str(val));
     if (!val) return tlUndefined;
     return val;
@@ -64,7 +91,7 @@ INTERNAL tlHandle _hashmap_set(tlArgs* args) {
     tlHandle val = tlArgsGet(args, 1);
 
     trace("%s = %s", tl_str(key), tl_str(val));
-    lhashmap_putif(map->map, key, val, LHASHMAP_IGNORE);
+    tlHashMapSet(map, key, val);
     return val?val:tlNull;
 }
 INTERNAL tlHandle _hashmap_has(tlArgs* args) {

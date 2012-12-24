@@ -276,18 +276,15 @@ static inline char escape(char c) {
         case '\n': return 'n';
         case '\r': return 'r';
         case '"': return '"';
-        case '$': return '$';
         case '\\': return '\\';
+        case '$': return '$';
         default:
             //assert(c >= 32);
             return 0;
     }
 }
 
-INTERNAL tlHandle _text_escape(tlArgs* args) {
-    trace("");
-    tlText* text = tlTextCast(tlArgsTarget(args));
-    if (!text) TL_THROW("this must be a Text");
+tlText* tlTextEscape(tlText* text) {
     const char* data = tlTextData(text);
     int size = tlTextSize(text);
     int slashes = 0;
@@ -307,6 +304,13 @@ INTERNAL tlHandle _text_escape(tlArgs* args) {
     }
     assert(size + slashes == j);
     return tlTextFromTake(ndata, j);
+}
+
+INTERNAL tlHandle _text_escape(tlArgs* args) {
+    trace("");
+    tlText* text = tlTextCast(tlArgsTarget(args));
+    if (!text) TL_THROW("this must be a Text");
+    return tlTextEscape(text);
 }
 
 INTERNAL tlHandle _text_strip(tlArgs* args) {
