@@ -278,7 +278,7 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
             }
             tlTaskPauseAttach(frame);
             task->stack = task->worker->top;
-            assert(!task->throw);
+            task->throw = null;
             return tlTaskJumping;
         }
         frame = frame->caller;
