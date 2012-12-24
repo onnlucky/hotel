@@ -2,6 +2,7 @@
 
 make undefined capture the stack frame for backtraces, and when dereferencing a undefined throw UndefinedError.cause = original stack
 change the object?maybefield.deref to object.maybefield?deref where ? is false?noexecute true?execute
+add Queue + max depth size or unlimited; MsgQueue and TaskQueue
 
 add "if" to parser and do
 

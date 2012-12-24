@@ -4,29 +4,37 @@
 #include "trace-off.h"
 
 TL_REF_TYPE(tlQueue);
-static tlKind _tlQueueKind = { .name = "MsgQueue" };
+static tlKind _tlQueueKind = { .name = "Queue" };
 tlKind* tlQueueKind = &_tlQueueKind;
 
-TL_REF_TYPE(tlQueueInput);
-static tlKind _tlQueueInputKind = { .name = "MsgQueueInput" };
-tlKind* tlQueueInputKind = &_tlQueueInputKind;
+TL_REF_TYPE(tlTaskQueue);
+static tlKind _tlTaskQueueKind = { .name = "TaskQueue" };
+tlKind* tlTaskQueueKind = &_tlTaskQueueKind;
+
+TL_REF_TYPE(tlMsgQueue);
+static tlKind _tlMsgQueueKind = { .name = "MsgQueue" };
+tlKind* tlMsgQueueKind = &_tlMsgQueueKind;
+
+TL_REF_TYPE(tlMsgQueueInput);
+static tlKind _tlMsgQueueInputKind = { .name = "MsgQueueInput" };
+tlKind* tlMsgQueueInputKind = &_tlMsgQueueInputKind;
 
 TL_REF_TYPE(tlMessage);
 static tlKind _tlMessageKind = { .name = "Message" };
 tlKind* tlMessageKind = &_tlMessageKind;
 
-typedef void(*tlQueueSignalFn)(void);
+typedef void(*tlMsgQueueSignalFn)(void);
 
-struct tlQueue {
+struct tlMsgQueue {
     tlHead head;
     lqueue msg_q;
     lqueue wait_q;
-    tlQueueSignalFn signalcb;
-    tlQueueInput* input;
+    tlMsgQueueSignalFn signalcb;
+    tlMsgQueueInput* input;
 };
-struct tlQueueInput {
+struct tlMsgQueueInput {
     tlHead head;
-    tlQueue* queue;
+    tlMsgQueue* queue;
 };
 struct tlMessage {
     tlHead head;
@@ -40,14 +48,14 @@ tlMessage* tlMessageNew(tlArgs* args) {
     msg->args = args;
     return msg;
 }
-tlQueue* tlQueueNew() {
-    tlQueue* queue = tlAlloc(tlQueueKind, sizeof(tlQueue));
-    queue->input = tlAlloc(tlQueueInputKind, sizeof(tlQueueInput));
+tlMsgQueue* tlMsgQueueNew() {
+    tlMsgQueue* queue = tlAlloc(tlMsgQueueKind, sizeof(tlMsgQueue));
+    queue->input = tlAlloc(tlMsgQueueInputKind, sizeof(tlMsgQueueInput));
     queue->input->queue = queue;
     return queue;
 }
 
-INTERNAL void queueSignal(tlQueue* queue) {
+INTERNAL void queueSignal(tlMsgQueue* queue) {
     if (queue->signalcb) queue->signalcb();
     tlTask* task = tlTaskFromEntry(lqueue_get(&queue->wait_q));
     if (task) tlTaskReady(task);
@@ -57,6 +65,14 @@ tlHandle tlMessageReply(tlMessage* msg, tlHandle res) {
     trace("msg.reply: %s", tl_str(msg));
     if (!res) res = tlNull;
     msg->sender->value = res;
+    tlTaskReady(msg->sender);
+    return res;
+}
+tlHandle tlMessageThrow(tlMessage* msg, tlHandle res) {
+    trace("msg.throw: %s", tl_str(msg));
+    if (!res) res = tlNull;
+    msg->sender->value = null;
+    msg->sender->throw = res;
     tlTaskReady(msg->sender);
     return res;
 }
@@ -71,7 +87,7 @@ INTERNAL tlHandle resumeReply(tlFrame* frame, tlHandle res, tlHandle throw) {
 INTERNAL tlHandle resumeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlTask* task = tlTaskCurrent();
     tlArgs* args = tlArgsAs(res);
-    tlQueue* queue = tlQueueInputAs(tlArgsTarget(args))->queue;
+    tlMsgQueue* queue = tlMsgQueueInputAs(tlArgsTarget(args))->queue;
     tlMessage* msg = tlMessageNew(args);
     trace("queue.send: %s %s", tl_str(queue), tl_str(msg));
     task->value = msg;
@@ -83,14 +99,14 @@ INTERNAL tlHandle resumeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle queueInputReceive(tlArgs* args) {
-    tlQueueInput* input = tlQueueInputCast(tlArgsTarget(args));
+    tlMsgQueueInput* input = tlMsgQueueInputCast(tlArgsTarget(args));
     if (!input) TL_THROW("expected a Queue");
     return tlTaskPauseResuming(resumeEnqueue, args);
 }
 
 INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlArgs* args = tlArgsAs(res);
-    tlQueue* queue = tlQueueCast(tlArgsTarget(args));
+    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     trace("queue.get 2: %s", tl_str(queue));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
@@ -103,7 +119,7 @@ INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle _queue_get(tlArgs* args) {
-    tlQueue* queue = tlQueueCast(tlArgsTarget(args));
+    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
     trace("queue.get: %s", tl_str(task));
 
@@ -113,7 +129,7 @@ INTERNAL tlHandle _queue_get(tlArgs* args) {
     return tlTaskPauseResuming(resumeGet, args);
 }
 INTERNAL tlHandle _queue_poll(tlArgs* args) {
-    tlQueue* queue = tlQueueCast(tlArgsTarget(args));
+    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
     trace("queue.get: %s", tl_str(task));
 
@@ -123,12 +139,12 @@ INTERNAL tlHandle _queue_poll(tlArgs* args) {
     return tlNull;
 }
 INTERNAL tlHandle _queue_input(tlArgs* args) {
-    tlQueue* queue = tlQueueCast(tlArgsTarget(args));
+    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
     return queue->input;
 }
 INTERNAL tlHandle _Queue_new(tlArgs* args) {
-    return tlQueueNew();
+    return tlMsgQueueNew();
 }
 
 INTERNAL tlHandle _message_reply(tlArgs* args) {
@@ -136,6 +152,12 @@ INTERNAL tlHandle _message_reply(tlArgs* args) {
     if (!msg) TL_THROW("expected a Message");
     // TODO do multiple return ...
     return tlMessageReply(msg, tlArgsGet(args, 0));
+}
+INTERNAL tlHandle _message_throw(tlArgs* args) {
+    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
+    if (!msg) TL_THROW("expected a Message");
+    // TODO do multiple return ...
+    return tlMessageThrow(msg, tlArgsGet(args, 0));
 }
 INTERNAL tlHandle _message_name(tlArgs* args) {
     tlMessage* msg = tlMessageCast(tlArgsTarget(args));
@@ -153,8 +175,8 @@ INTERNAL tlHandle _message_get(tlArgs* args) {
 
 static tlMap* queueClass;
 void queue_init() {
-    _tlQueueInputKind.send = queueInputReceive;
-    _tlQueueKind.klass = tlClassMapFrom(
+    _tlMsgQueueInputKind.send = queueInputReceive;
+    _tlMsgQueueKind.klass = tlClassMapFrom(
         "input", _queue_input,
         "get", _queue_get,
         "poll", _queue_poll,
@@ -162,6 +184,7 @@ void queue_init() {
     );
     _tlMessageKind.klass = tlClassMapFrom(
         "reply", _message_reply,
+        "throw", _message_throw,
         "name", _message_name,
         "get", _message_get,
         null

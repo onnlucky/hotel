@@ -375,7 +375,7 @@ static tlHandle _reader_accept(tlArgs* args) {
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
 
-    if (file->ev.fd < 0) TL_THROW("accept: already closed");
+    if (file->ev.fd < 0) return tlNull;
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -1021,8 +1021,7 @@ static tlHandle _io_waitread(tlArgs* args) {
     assert(reader->lock.owner == msg->sender);
     assert(msg->sender->value == msg);
 
-    // TODO we should actually reply to the message instead
-    assert(file->ev.fd >= 0);
+    if (file->ev.fd < 0) TL_THROW("file is closed");
 
     file->ev.events |= EV_READ;
     ev_io_start(&file->ev);
@@ -1048,8 +1047,7 @@ static tlHandle _io_waitwrite(tlArgs* args) {
     assert(writer->lock.owner == msg->sender);
     assert(msg->sender->value == msg);
 
-    // TODO we should actually reply to the message instead
-    assert(file->ev.fd >= 0);
+    if (file->ev.fd < 0) TL_THROW("file is closed");
 
     file->ev.events |= EV_WRITE;
     ev_io_start(&file->ev);
@@ -1091,7 +1089,7 @@ static void async_cb(ev_async* async, int revents) { }
 static void iointerrupt() { ev_async_send(&loop_interrupt); }
 
 static tlHandle _io_init(tlArgs* args) {
-    tlQueue* queue = tlQueueNew();
+    tlMsgQueue* queue = tlMsgQueueNew();
     queue->signalcb = iointerrupt;
     return queue;
 }

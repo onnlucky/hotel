@@ -11,7 +11,7 @@ ioloop = { ->
             msg = _io_queue.poll
             (
                 _match(msg == null): break
-                _catch: e -> print "IO LOOP ERROR:", e
+                _catch: e -> msg.throw(e.msg)
                 _match(msg.name == #waitread): _io_waitread msg.get(0), msg
                 _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
                 _match(msg.name == #wait): _io_wait msg.get(0), msg
