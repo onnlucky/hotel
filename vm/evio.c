@@ -282,6 +282,17 @@ static tlHandle _file_writer(tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _reader_isClosed(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    trace("");
+    tlReader* reader = tlReaderCast(tlArgsTarget(args));
+    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+
+    tlFile* file = tlFileFromReader(reader);
+    assert(tlFileIs(file));
+
+    return tlBOOL(file->ev.fd < 0);
+}
 static tlHandle _reader_close(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
@@ -325,6 +336,17 @@ static tlHandle _reader_read(tlArgs* args) {
     return tlINT(len);
 }
 
+static tlHandle _writer_isClosed(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    trace("");
+    tlWriter* reader = tlWriterCast(tlArgsTarget(args));
+    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Writer");
+
+    tlFile* file = tlFileFromWriter(reader);
+    assert(tlFileIs(file));
+
+    return tlBOOL(file->ev.fd < 0);
+}
 static tlHandle _writer_close(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
@@ -1167,11 +1189,13 @@ void evio_init() {
     _tlReaderKind.klass = tlClassMapFrom(
         "read", _reader_read,
         "accept", _reader_accept,
+        "isClosed", _reader_isClosed,
         "close", _reader_close,
         null
     );
     _tlWriterKind.klass = tlClassMapFrom(
         "write", _writer_write,
+        "isClosed", _writer_isClosed,
         "close", _writer_close,
         null
     );

@@ -107,6 +107,7 @@ Server = {
                 loop: {
                     conn = reader.accept()
                     if conn: return Stream.new(conn)
+                    if reader.isClosed: return
                     _io.waitread reader
                 }
             }

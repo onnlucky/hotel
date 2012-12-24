@@ -56,8 +56,8 @@ Server = {
         serve: { ->
             block = args.block; if not block: _throw "expect a block"
             loop: {
-                _catch: e => return
                 client = this.sock.accept
+                if not client: return
                 conn = HttpConnection(client)
                 !block(conn); conn.end
                 Task.yield
