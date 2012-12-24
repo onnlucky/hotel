@@ -189,12 +189,6 @@ INTERNAL void tlTaskRun(tlTask* task) {
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
 
-    if (task->throw) {
-        assert(!task->value);
-        tlTaskRunThrow(task, task->throw);
-        return;
-    }
-
     while (task->state == TL_STATE_RUN) {
         tlHandle res = task->value;
         if (!res) res = tlNull;
@@ -204,8 +198,16 @@ INTERNAL void tlTaskRun(tlTask* task) {
 
         while (frame && res) {
             assert(task->state == TL_STATE_RUN);
+
+            if (task->throw) {
+                assert(!task->value);
+                res = tlTaskRunThrow(task, task->throw);
+                assert(!(task->value && task->throw));
+            } else if (frame->resumecb) {
+                res = frame->resumecb(frame, res, null);
+            }
+
             //trace("!!frame: %p - %s", frame, tl_str(res));
-            if (frame->resumecb) res = frame->resumecb(frame, res, null);
             if (!res) break;
             if (res == tlTaskNotRunning) return;
             if (res == tlTaskJumping) {
@@ -260,6 +262,7 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
         if (res) {
             task->value = res;
             task->stack = frame->caller;
+            task->throw = null;
             return tlTaskJumping;
         }
         // returning null, but by tlTaskPause, means the throw has been handled too
@@ -274,10 +277,12 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
             }
             tlTaskPauseAttach(frame);
             task->stack = task->worker->top;
+            assert(!task->throw);
             return tlTaskJumping;
         }
         frame = frame->caller;
     }
+    // report these in finalizer ...
     warning("uncaught exception: %s", tl_str(thrown));
     return tlTaskError(task, thrown);
 }
