@@ -175,6 +175,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
             pprint(buf, v, false);
         }
         tlBufferWrite(buf, "]", 1);
+        return false;
     }
 
     if (tlMapOrObjectIs(h)) {
@@ -214,6 +215,8 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
         tlBufferWrite(buf, b, n);
         return false;
     }
+    trace("unable to encode value: %s", tl_str(h));
+    tlBufferWrite(buf, "null", 4);
     return false;
 }
 

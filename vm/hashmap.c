@@ -63,7 +63,7 @@ tlMap* tlHashMapToObject(tlHashMap* map) {
         tlHandle v = tlHashMapGet(map, k);
         tlMapSetSym_(object, tlSymAs(k), v);
     }
-    return object;
+    return tlMapToObject_(object);
 }
 
 INTERNAL tlHandle _HashMap_new(tlArgs* args) {
