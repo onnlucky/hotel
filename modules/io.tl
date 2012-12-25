@@ -157,7 +157,14 @@ File = {
                 return writeFull(writer, buf)
             }
         }
-        open: -> Stream.new(_File_open(this.name, _File_RDWR+_File_TRUNC+_File_CREAT))
+        open: { ->
+            mode = Var.new 0
+            if args.map[#truncate]: $mode += _File_TRUNC
+            if args.map[#create]: $mode += _File_CREAT
+            if not args.map[#readonly]: $mode += _File_RDWR
+            if args.map[#readonly]: $mode += _File_RONLY
+            Stream.new(_File_open(this.name, $mode))
+        }
     }
 }
 
