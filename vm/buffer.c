@@ -218,6 +218,11 @@ INTERNAL tlHandle _buffer_clear(tlArgs* args) {
     tlBufferClear(buf);
     return buf;
 }
+INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
+    tlBufferRewind(buf, -1);
+    return buf;
+}
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
     if (!buf) TL_THROW("expected a Buffer");
@@ -311,7 +316,9 @@ static void buffer_init() {
             "size", _buffer_size,
             "compact", _buffer_compact,
             "clear", _buffer_clear,
+            "rewind", _buffer_rewind,
             "read", _buffer_read,
+            //"readByte", _buffer_readByte,
             "write", _buffer_write,
             "writeByte", _buffer_writeByte,
             "find", _buffer_find,
