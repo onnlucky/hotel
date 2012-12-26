@@ -587,7 +587,7 @@ tlHandle tlParse(tlText* text, tlText* file) {
     yyinit(&g);
     g.data = &data;
     if (!yyparse(&g)) {
-        TL_THROW("parser error: %d", g.pos + g.offset);
+        TL_THROW("parser error around line %d", g.maxline + 1); // humans count from 1
     }
     tlHandle v = g.ss;
     yydeinit(&g);

@@ -31,7 +31,7 @@ boot_tl.h: boot/boot.tl
 
 greg/greg:
 	git clone git://github.com/onnlucky/greg.git
-	cd greg && git checkout 8bc002c0f640c2d93bb9d9dc965d61df8caf4cf4 && make
+	cd greg && git checkout maxline && make
 
 parser.c: vm/parser.g greg/greg
 	greg/greg -o parser.c vm/parser.g
