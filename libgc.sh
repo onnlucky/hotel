@@ -7,16 +7,9 @@ DEBUG="--enable-gc-debug --enable-gc-assertions --enable-debug"
 THREADS="--enable-threads=posix"
 #THREADS+=" --enable-thread-local-alloc --enable-parallel-mark"
 OPS="--disable-dependency-tracking --enable-cplusplus"
-if ! cd libgc; then
-    git clone git://github.com/ivmai/bdwgc.git libgc
-    cd libgc
-    git checkout origin/release-7_2
-fi
+cd libgc
 if ! cd libatomic_ops; then
-    git clone git://github.com/ivmai/libatomic_ops.git
-    cd libatomic_ops
-    git checkout origin/release-7_2
-    cd ..
+    ln -sf ../libatomic_ops .
 else
     cd ..
 fi
