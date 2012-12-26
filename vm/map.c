@@ -334,25 +334,30 @@ const char* valueObjectToText(tlHandle v, char* buf, int size) {
 static tlHandle valueObjectSend(tlArgs* args) {
     tlMap* map = tlMapFromObjectCast(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
+    tlHandle field = null;
+    tlMap* cls;
 
-    tlHandle field = tlMapGet(map, msg);
-    trace("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
-    if (!field) {
-        do {
-            tlMap* klass = tlMapGet(map, s_class);
-            trace("CLASS: %s", tl_str(klass));
-            if (!klass) TL_THROW("%s.%s is undefined", tl_str(tlArgsTarget(args)), tl_str(msg));
-            field = tlMapGet(klass, msg);
-            if (field) {
-                // TODO maybe just try, and catch not callable exceptions?
-                if (!tlCallableIs(field)) return field;
-                return tlEvalArgsFn(args, field);
-            }
-            map = klass;
-        } while (true);
-        return tlUndefined;
+    // search for field
+    cls = map;
+    while (cls) {
+        trace("CLASS: %s %s", tl_str(cls), tl_str(msg));
+        field = tlMapGet(cls, msg);
+        if (field) goto send;
+        cls = tlMapGet(cls, s_class);
     }
-    // TODO maybe just try, like above ...
+
+    // search for getter
+    cls = map;
+    while (cls) {
+        trace("CLASS: %s %s", tl_str(cls), tl_str(s__get));
+        field = tlMapGet(cls, s__get);
+        if (field) goto send;
+        cls = tlMapGet(cls, s_class);
+    }
+
+send:;
+    trace("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
+    if (!field) TL_THROW("%s.%s is undefined", tl_str(tlArgsTarget(args)), tl_str(msg));
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
 }

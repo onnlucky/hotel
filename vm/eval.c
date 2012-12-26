@@ -733,6 +733,7 @@ INTERNAL tlHandle _resolve(tlArgs* args) {
 }
 
 // TODO not so sure about this, user objects which return something on .call are also callable ...
+// TODO and maybe an object.class.call is defined or from a _get it returns something callable ...
 bool tlCallableIs(tlHandle v) {
     if (!tlRefIs(v)) return false;
     if (tlHandleObjectIs(v)) return tlMapGetSym(v, s_call) != null;

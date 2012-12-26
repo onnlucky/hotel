@@ -96,25 +96,32 @@ static tlHandle _args_get(tlArgs* args) {
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at == -1) TL_THROW("Expected an index");
     tlHandle res = tlArgsGet(as, at);
-    if (!res) return tlUndefined;
-    return res;
+    return (res)? res : tlUndefined;
+}
+static tlHandle _args_this(tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlHandle res = tlArgsTarget(as);
+    return (res)? res : tlUndefined;
+}
+static tlHandle _args_msg(tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlHandle res = tlArgsMsg(as);
+    return (res)? res : tlUndefined;
 }
 static tlHandle _args_block(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    if (!as) TL_THROW("Expected a args object");
     tlHandle res = tlArgsBlock(as);
-    if (!res) return tlUndefined;
-    return res;
+    return (res)? res : tlUndefined;
 }
 static tlHandle _args_map(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    if (!as) TL_THROW("Expected a args object");
-    return tlArgsMap(as);
+    tlHandle res = tlArgsMap(as);
+    return (res)? res : tlUndefined;
 }
 static tlHandle _args_names(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    if (!as) TL_THROW("Expected a args object");
-    return tlMapToObject(tlArgsMap(as));
+    tlHandle res = tlMapToObject(tlArgsMap(as));
+    return (res)? res : tlUndefined;
 }
 static tlHandle _args_slice(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
@@ -141,10 +148,14 @@ static void args_init() {
     _tlArgsKind.klass = tlClassMapFrom(
             "size", _args_size,
             "get", _args_get,
+            "slice", _args_slice,
+
+            "this", _args_this,
+            "msg", _args_msg,
             "block", _args_block,
+
             "map", _args_map,
             "names", _args_names,
-            "slice", _args_slice,
             null
     );
     v_args_empty = tlArgsNew(null, null);
