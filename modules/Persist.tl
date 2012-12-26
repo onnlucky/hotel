@@ -9,6 +9,7 @@ new = { name ->
         _name: #PersistObjectClass
         set: k, v -> this._back.set(k, v); record {set:true,id:this._id,k:k,v:v}; return v
         get: k -> this._back.get(k)
+        _get: -> this._back.get(args.msg)
     }
     PersistListClass = {
         _name: #PersistListClass
