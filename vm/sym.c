@@ -19,6 +19,7 @@ static tlSym s_send;
 static tlSym s_op;
 
 static tlSym s__get;
+static tlSym s__set;
 
 static tlSym s_Text_cat;
 static tlSym s_List_clone;
@@ -177,6 +178,7 @@ static void sym_init() {
     s_op     = tlSYM("op");
     s_class  = tlSYM("class");
     s__get   = tlSYM("_get");
+    s__set   = tlSYM("_set");
 
     s_Text_cat = tlSYM("_Text_cat");
     s_List_clone = tlSYM("_List_clone");

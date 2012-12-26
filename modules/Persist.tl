@@ -7,9 +7,8 @@ new = { name ->
     }
     PersistObjectClass = {
         _name: #PersistObjectClass
-        set: k, v -> this._back.set(k, v); record {set:true,id:this._id,k:k,v:v}; return v
-        get: k -> this._back.get(k)
         _get: -> this._back.get(args.msg)
+        _set: k, v -> this._back.set(k, v); record {set:true,id:this._id,k:k,v:v}; return v
     }
     PersistListClass = {
         _name: #PersistListClass
@@ -48,16 +47,19 @@ new = { name ->
         assert(false, "unknown command: $(cmd)")
     }
 
-    loop: {
+    // so we don't leak a buffer
+    (
         buf = Buffer.new
-        fd.read buf
-        if buf.size == 0: break
-        while buf.find("\n"): {
-            cmd = _from_repr(buf)
-            assert buf.read(1) == "\n"
-            replay(cmd)
+        loop: {
+            fd.read buf
+            if buf.size == 0: break
+            while buf.find("\n"): {
+                cmd = _from_repr(buf)
+                assert buf.read(1) == "\n"
+                replay(cmd)
+            }
         }
-    }
+    )
 
     return {
         Object: {

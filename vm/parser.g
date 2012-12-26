@@ -21,7 +21,7 @@ static tlSym s_and, s_or, s_xor, s_not;
 static tlSym s_lt, s_lte, s_gt, s_gte, s_eq, s_neq, s_cmp;
 static tlSym s_add, s_sub, s_mul, s_div, s_mod, s_pow;
 static tlSym s_main;
-static tlSym s_get, s_slice;
+static tlSym s_get, s_set, s_slice, s__set;
 static tlSym s_assert;
 static tlSym s_text;
 
@@ -128,6 +128,22 @@ tlHandle set_target(tlHandle on, tlHandle target) {
             tlHandle oop = tlCallGet(call, 0);
             if (!oop) {
                 tlCallSet_(call, 0, target);
+                if (tlCallGet(call, 1) == s__set || tlCallGet(call, 1) == s_set) {
+                    // try to find a.b.f += 1 (becomes a.b.f = a.b.f + 1)
+                    // it works because we *mutate* the calls a.b sequence is the same call used twice
+                    //$$ = tlCallSendFromList(sa_send, null, n, tlListEmpty());
+                    //$$ = tlCallFrom(tl_active(s_add), $$, e, null);
+                    //$$ = tlCallSendFromList(sa_send, null, s__set, tlListFrom(tlNull, n, tlNull, $$, null));
+                    tlCall* sub = tlCallCast(tlCallGet(call, 3));
+                    if (sub) {
+                        tlCall* sub2 = tlCallCast(tlCallGet(sub, 0));
+                        if (sub2 && tlCallGetFn(sub2) == sa_send && tlCallGet(sub2, 0) == null) {
+                            trace("installing second target for +=");
+                            tlCallSet_(sub2, 0, target);
+                            return on;
+                        }
+                    }
+                }
                 return on;
             } else {
                 set_target(oop, target);
@@ -213,24 +229,9 @@ anames =     n:name _","_ as:anames { $$ = tlListPrepend(L(as), n); }
                              tlCallFrom(tl_active(s_this_set), tl_active(s_this), n, e, null)
                  ));
              }
-#// TODO for now just add, sub, mul until we do full operators
-             | "$" n:name _"+"_"="__ e:bpexpr {
+             | "$" n:name _ o:op "="__ e:bpexpr {
                  $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null);
-                 $$ = tlCallFrom(tl_active(s_add), $$, e, null);
-                 $$ = tlListFrom1(call_activate(
-                             tlCallFrom(tl_active(s_var_set), tl_active(n), $$, null)
-                 ));
-             }
-             | "$" n:name _"-"_"="__ e:bpexpr {
-                 $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null);
-                 $$ = tlCallFrom(tl_active(s_sub), $$, e, null);
-                 $$ = tlListFrom1(call_activate(
-                             tlCallFrom(tl_active(s_var_set), tl_active(n), $$, null)
-                 ));
-             }
-             | "$" n:name _"*"_"="__ e:bpexpr {
-                 $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null);
-                 $$ = tlCallFrom(tl_active(s_mul), $$, e, null);
+                 $$ = tlCallFrom(tl_active(o), $$, e, null);
                  $$ = tlListFrom1(call_activate(
                              tlCallFrom(tl_active(s_var_set), tl_active(n), $$, null)
                  ));
@@ -329,12 +330,28 @@ bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
 
    met = "." { $$ = sa_send; }
        | "?" { $$ = sa_try_send; }
+    op = "+" { $$ = s_add; }
+       | "-" { $$ = s_sub; }
+       | "*" { $$ = s_mul; }
+       | "/" { $$ = s_div; }
+       | "%" { $$ = s_mod; }
+       | "^" { $$ = s_pow; }
 slicea = expr
        | _   { $$ = tlNull }
 
  ptail = _ m:met _ n:name _"("__ as:cargs __")" t:ptail {
            trace("primary method + args()");
            $$ = set_target(t, tlCallSendFromList(m, null, n, as));
+       }
+       | _ "." _ n:name _ o:op "=" __ e:pexpr {
+           trace("set field op");
+           $$ = tlCallSendFromList(sa_send, null, n, tlListEmpty());
+           $$ = tlCallFrom(tl_active(o), $$, e, null);
+           $$ = tlCallSendFromList(sa_send, null, s__set, tlListFrom(tlNull, n, tlNull, $$, null));
+       }
+       | _ "." _ n:name _"=" __ e:pexpr {
+           trace("set field");
+           $$ = tlCallSendFromList(sa_send, null, s__set, tlListFrom(tlNull, n, tlNull, e, null));
        }
        | _ m:met _ n:name !"[" _ !"(" !"and" !"or" as:pcargs {
            trace("primary method + args");
@@ -344,13 +361,23 @@ slicea = expr
            trace("primary method");
            $$ = set_target(t, tlCallSendFromList(m, null, n, tlListEmpty()));
        }
-       | _ "["__ e:expr __"]" t:ptail {
-           trace("primary array get");
-           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_get, tlListFrom2(tlNull, e)));
+       | _ "[" __ i:expr __"]"_ o:op "=" __ e:pexpr {
+           trace("set array op");
+           $$ = tlCallSendFromList(sa_send, null, s_get, tlListFrom2(tlNull, i));
+           $$ = tlCallFrom(tl_active(o), $$, e, null);
+           $$ = tlCallSendFromList(sa_send, null, s_set, tlListFrom(tlNull, i, tlNull, $$, null));
        }
-       | _ "["__ a1:slicea __":"__ a2:slicea __"]" t:ptail {
-           trace("array get");
-           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_slice, tlListFrom(tlNull, a1, tlNull, a2, null)));
+       | _ "["__ i:expr __"]" _ "=" __ e:pexpr {
+           trace("set array");
+           $$ = tlCallSendFromList(sa_send, null, s_set, tlListFrom(tlNull, i, tlNull, e, null));
+       }
+       | _ "["__ i:expr __"]" t:ptail {
+           trace("primary array get");
+           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_get, tlListFrom2(tlNull, i)));
+       }
+       | _ "["__ i1:slicea __":"__ i2:slicea __"]" t:ptail {
+           trace("primary array slice");
+           $$ = set_target(t, tlCallSendFromList(sa_send, null, s_slice, tlListFrom(tlNull, i1, tlNull, i2, null)));
        }
        | _ {
            trace("no tail");
@@ -374,7 +401,7 @@ slicea = expr
            $$ = set_target(t, tlCallSendFromList(sa_send, null, s_get, tlListFrom2(tlNull, e)));
        }
        | _ "["__ a1:slicea __":"__ a2:slicea __"]" t:tail {
-           trace("array get");
+           trace("array slice");
            $$ = set_target(t, tlCallSendFromList(sa_send, null, s_slice, tlListFrom(tlNull, a1, tlNull, a2, null)));
        }
        | _ {
@@ -571,7 +598,7 @@ tlHandle tlParse(tlText* text, tlText* file) {
         s_add = tlSYM("add"); s_sub = tlSYM("sub");
         s_mul = tlSYM("mul"); s_div = tlSYM("div");
         s_mod = tlSYM("mod"); s_pow = tlSYM("pow");
-        s_main = tlSYM("main"); s_get = tlSYM("get"); s_slice = tlSYM("slice");
+        s_main = tlSYM("main"); s_get = tlSYM("get"); s_set = tlSYM("set"); s_slice = tlSYM("slice"); s__set = tlSYM("_set");
         s_assert = tlSYM("assert"); s_text = tlSYM("text");
     }
 
