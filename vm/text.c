@@ -161,22 +161,27 @@ INTERNAL tlHandle _Text_cat(tlArgs* args) {
     return tlTextFromTake(data, size);
 }
 
+/// object Text: represents a series of characters
+/// toText: returns itself
 INTERNAL tlHandle _text_toText(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     return text;
 }
+/// toSym: create a #Symbol from this #String, throws an error if the string cannot be a valid symbol
 INTERNAL tlHandle _text_toSym(tlArgs* args) {
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     return tlSymFromText(text);
 }
+/// size: return the amount of characters in the #String
 INTERNAL tlHandle _text_size(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
     if (!text) TL_THROW("this must be a Text");
     return tlINT(tlTextSize(text));
 }
+/// hash: return the hashcode for this #String
 INTERNAL tlHandle _text_hash(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -185,6 +190,7 @@ INTERNAL tlHandle _text_hash(tlArgs* args) {
     return tlINT(tlTextHash(text));
 }
 
+/// find: find the first occurance of arg[1] in #String, returns null if not found
 INTERNAL tlHandle _text_find(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -199,6 +205,7 @@ INTERNAL tlHandle _text_find(tlArgs* args) {
     return tlINT(p - tlTextData(text));
 }
 
+/// cat: concatenate multiple #"String"s together
 INTERNAL tlHandle _text_cat(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -209,6 +216,7 @@ INTERNAL tlHandle _text_cat(tlArgs* args) {
     return tlTextCat(text, add);
 }
 
+/// char: return character at args[1] characters are just #"Int"s
 INTERNAL tlHandle _text_char(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -221,6 +229,7 @@ INTERNAL tlHandle _text_char(tlArgs* args) {
     return tlINT(text->data[at]);
 }
 
+/// lower: return a new #String with only lower case characters, only works properly for ascii text
 INTERNAL tlHandle _text_lower(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -234,6 +243,8 @@ INTERNAL tlHandle _text_lower(tlArgs* args) {
     }
     return res;
 }
+
+/// upper: return a new #String with all upper case characters, only works properly for ascii text
 INTERNAL tlHandle _text_upper(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -247,6 +258,8 @@ INTERNAL tlHandle _text_upper(tlArgs* args) {
     }
     return res;
 }
+
+/// slice: return a subsection of the #String withing bounds of args[1], args[2]
 INTERNAL tlHandle _text_slice(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -306,6 +319,7 @@ tlText* tlTextEscape(tlText* text) {
     return tlTextFromTake(ndata, j);
 }
 
+/// escape: return a #String that has all special characters escaped by a '\'
 INTERNAL tlHandle _text_escape(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -313,6 +327,7 @@ INTERNAL tlHandle _text_escape(tlArgs* args) {
     return tlTextEscape(text);
 }
 
+/// strip: return a #String that has all leading and trailing whitespace removed (c <= 32)
 INTERNAL tlHandle _text_strip(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -342,6 +357,7 @@ INTERNAL tlHandle _text_strip(tlArgs* args) {
 
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
+/// startsWith: return true when this #String begins with the #String in args[1]
 INTERNAL tlHandle _text_startsWith(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));
@@ -358,6 +374,7 @@ INTERNAL tlHandle _text_startsWith(tlArgs* args) {
     return tlBOOL(r == 0);
 }
 
+/// endsWith: return true when this #String ends with the #String in args[1]
 INTERNAL tlHandle _text_endsWith(tlArgs* args) {
     trace("");
     tlText* text = tlTextCast(tlArgsTarget(args));

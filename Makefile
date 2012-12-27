@@ -72,6 +72,11 @@ distclean: clean
 	rm -rf greg/ libgc/
 dist-clean: distclean
 
+docgen.tl: docgen.tlg
+	TL_MODULE_PATH=./modules ./tl tlmeta.tl docgen.tlg docgen.tl
+doc: all docgen.tl
+	TL_MODULE_PATH=./modules ./tl docgen.tl vm/text.c #boot/*.tl modules/*.tl
+
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib

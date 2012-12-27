@@ -77,7 +77,9 @@ _install(Int.class, #times, _times)
 _install(Int.class, #to, _to)
 
 // TODO should have special boot places for text, list and such
+/// Text.each: for ever character run block or function given
 _install(Text.class, #each, _each)
+/// Text.split: split the text wherever args[1] occurs, returns a list of text fragments
 _install(Text.class, #split, (split = { on ->
     if this.size == 0: return []
     on = on or " "
@@ -93,6 +95,7 @@ _install(Text.class, #split, (split = { on ->
     }
     return loop(0, 0, [])
 }))
+/// Text.replace: replace the first occurance of args[1] with args[2], returns a new #String
 _install(Text.class, #replace, (replace = { from, to ->
     at = this.find(from)
     if not at: return this
@@ -246,6 +249,7 @@ hours   = h -> m * 60 * 60
 days    = d -> d * 60 * 60 * 24
 
 eval2 = { text -> _parse(text)(Env.current) }
+/// Text.eval: evalute the text as a script to run in the current environment
 _install(Text.class, #eval, (_eval_ = { ->
     eval2(this)
 }))
