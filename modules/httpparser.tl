@@ -105,9 +105,19 @@ parseRequestPath = {in ->
     if text.char != "/".char: return path.set("/$(text)")
     return path
 }
+parseQueryKeyVal = {in ->
+    key = pManyOne(pNotChars("=&# \t\n\r"))(in).do: v -> v.toChar
+    eq = pOptional(pChar("=".char))(key)
+    val = pMany(pNotChars("&# \t\n\r"))(eq).do: v -> v.toChar
+    am = pOptional(pChar("&".char))(val)
+    am.set({k:key.value,v:val.value})
+}
 parseQuery = {in ->
     in = pChar("?".char)(in)
-    query = pMany(pNotChars("# \t\n\r"))(in).do: v -> v.toChar
+    keyval = pMany(parseQueryKeyVal)(in)
+    map = HashMap.new
+    keyval.value.each: o -> map.set(o.k, o.v)
+    keyval.set(map)
 }
 parseFragment = {in ->
     in = pChar("#".char)(in)

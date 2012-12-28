@@ -3,12 +3,13 @@
 HttpConnection = { conn ->
     _Object_new {
         _req: null, _didhead: false, _didend: false
-        _type: "text/plain"
         _in: io.Buffer.new
         _body: io.Buffer.new
+        status: 200
+        contentType: "text/plain"
         setContentType: { type ->
             if @_didhead: _throw "Already send headers"
-            @_type = type
+            @contentType = type
         }
         req: { ->
             // read and parse until headers are complete
@@ -22,7 +23,13 @@ HttpConnection = { conn ->
             }
             @_req = httpparser.request(@_in.read)
         }
-        end: { -> if not @_didend: @_didend = true; @flush(true); conn.close }
+        end: { -> @_didend = true; @flush(true); conn.close }
+        error: { ->
+            @status = 500
+            @_didend = true;
+            @_body.clear; @_body.write("500 internal error")
+            @flush(true); conn.close
+        }
         write: { text ->
             if @_didend: _throw "Already Ended Response"
             @_body.write text
@@ -31,19 +38,19 @@ HttpConnection = { conn ->
             if not @_didhead: @_sendheaders(ending)
             while @_body.size > 0: {
                 len = conn.write @_body
-                if len == 0: _throw "IO ERROR"
+                //if len == 0: _throw "IO ERROR"
             }
         }
         _sendheaders: { ending ->
             @_didhead = true
             headers = io.Buffer.new()
-            headers.write "HTTP/1.0 200 Ok\r\n"
-            if @_type: headers.write "Content-Type: $(@_type)\r\n"
+            headers.write "HTTP/1.0 $(@status) Ok\r\n"
+            if @contentType: headers.write "Content-Type: $(@contentType)\r\n"
             if ending: headers.write "Content-Length: $(@_body.size)\r\n"
             headers.write "\r\n"
             while headers.size > 0: {
                 len = conn.write headers
-                if len == 0: _throw "IO ERROR"
+                //if len == 0: _throw "IO ERROR"
             }
         }
     }
@@ -59,7 +66,10 @@ Server = {
                 client = this.sock.accept
                 if not client: return
                 conn = HttpConnection(client)
-                !block(conn); conn.end
+                !{
+                    _catch: e => print e, e?msg; conn.error
+                    block(conn); conn.end
+                }
                 Task.yield
             }
         }
