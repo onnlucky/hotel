@@ -33,7 +33,17 @@ INTERNAL tlHandle objectSend(tlArgs* args) {
     assert(obj->map);
 
     tlHandle field = tlMapGetSym(obj->map, msg);
-    if (!field) TL_THROW("%s.%s is undefined", tl_str(obj), tl_str(msg));
+    if (!field) {
+        if (msg == s__set) {
+            tlHandle field = tlSymCast(tlArgsGet(args, 0));
+            if (!field) return tlUndefined;
+            tlHandle val = tlArgsGet(args, 1);
+            if (!val) val = tlNull;
+            obj->map = tlMapSet(obj->map, msg, val);
+            return val;
+        }
+        TL_THROW("%s.%s is undefined", tl_str(obj), tl_str(msg));
+    }
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
 }
