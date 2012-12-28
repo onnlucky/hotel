@@ -139,6 +139,8 @@ static tlHandle _gte(tlArgs* args) {
 static tlHandle _add(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
+    // TODO when adding text and something else, convert else to text ...
+    if (tlTextIs(l) && tlTextIs(r)) return tlTextCat(tlTextAs(l), tlTextAs(r));
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) + tl_int(r));
     return tlFLOAT(tl_double(l) + tl_double(r));
 }
@@ -265,6 +267,53 @@ static tlHandle _int_parse(tlArgs* args) {
     if (end == begin) return tlNull;
     if (res >= TL_MIN_INT && res <= TL_MAX_INT) return tlINT(res);
     return tlNull;
+}
+
+static tlHandle _urldecode(tlArgs* args) {
+    tlText* text = tlTextCast(tlArgsGet(args, 0));
+    if (!text) TL_THROW("expect a text");
+
+    const char* data = tlTextData(text);
+    int len = tlTextSize(text);
+    int percent = 0;
+    for (int i = 0; i < len; i++) if (data[i] == '%') percent++;
+    if (!percent) return text;
+
+    char* res = malloc(len);
+    int i;
+    int j = 0;
+    for (i = 0; i < len; i++) {
+        if (data[i] != '%') { res[j++] = data[i]; continue; }
+        if (!(i < len - 2)) break;
+        char c = 0;
+        char c1 = data[++i];
+        char c2 = data[++i];
+
+        if (c1 >= '0' && c1 <= '9') {
+            c += (c1 - '0') * 16;
+        } else if (c1 >= 'A' && c1 <= 'F') {
+            c += (10 + c1 - 'A') * 16;
+        } else if (c1 >= 'a' && c1 <= 'f') {
+            c += (10 + c1 - 'a') * 16;
+        } else {
+            i -= 2;
+            continue;
+        }
+        if (c2 >= '0' && c2 <= '9') {
+            c += c2 - '0';
+        } else if (c2 >= 'A' && c2 <= 'F') {
+            c += c2 - 'A';
+        } else if (c2 >= 'a' && c2 <= 'f') {
+            c += c2 - 'a';
+        } else {
+            i -= 2;
+            continue;
+        }
+        if (c < 32 && c != '\n' && c != '\r' && c != '\t') continue;
+        res[j++] = c;
+    }
+    res[j] = 0;
+    return tlTextFromTake(res, j);
 }
 
 static void vm_init();
@@ -430,6 +479,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "tanh", _tanh },
 
     { "_int_parse", _int_parse },
+    { "_urldecode", _urldecode },
 
     { "_Buffer_new", _Buffer_new },
     { "isBuffer", _isBuffer },

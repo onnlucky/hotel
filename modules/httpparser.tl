@@ -106,9 +106,9 @@ parseRequestPath = {in ->
     return path
 }
 parseQueryKeyVal = {in ->
-    key = pManyOne(pNotChars("=&# \t\n\r"))(in).do: v -> v.toChar
+    key = pManyOne(pNotChars("=&# \t\n\r"))(in).do: v -> _urldecode(v.toChar)
     eq = pOptional(pChar("=".char))(key)
-    val = pMany(pNotChars("&# \t\n\r"))(eq).do: v -> v.toChar
+    val = pMany(pNotChars("&# \t\n\r"))(eq).do: v -> _urldecode(v.toChar)
     am = pOptional(pChar("&".char))(val)
     am.set({k:key.value,v:val.value})
 }
