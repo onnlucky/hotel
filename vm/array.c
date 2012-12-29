@@ -173,6 +173,7 @@ static void array_init() {
         "insert", _array_insert,
         "random", null,
         "each", null,
+        "find", null,
         "join", null,
         null
     );

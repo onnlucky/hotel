@@ -39,6 +39,31 @@ _each = { fn ->
     }
     loop(0)
 }
+_find = { fn ->
+    block = args.block or fn
+    if not block: _throw "find expects a block or fn"
+    len = this.size
+    loop = { at =>
+        if at >= len: return null
+        e = this.get(at)
+        if block(e, at): return e, at
+        goto(loop(at + 1))
+    }
+    loop(0)
+}
+_filter = { fn ->
+    block = args.block or fn
+    if not block: _throw "filter expects a block or fn"
+    arr = Array.new
+    len = this.size
+    loop = { at =>
+        if at >= len: return arr.toList
+        e = this.get(at)
+        if block(e, at): arr.add(e)
+        goto(loop(at + 1))
+    }
+    loop(0)
+}
 _times = { fn ->
     if this <= 0: return
     block = args.block or fn
@@ -108,6 +133,8 @@ _install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)
 _install(List.class, #random, _get_random)
 _install(List.class, #each, _each)
+_install(List.class, #find, _find)
+_install(List.class, #filter, _filter)
 _install(List.class, #join, (join = { sep ->
     if this.size == 0: return ""
     sep = sep or ""
@@ -155,6 +182,7 @@ _install(List.class, #flatten, (flatten = { ->
 }))
 _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
+_install(Array.class, #find, _find)
 _install(Array.class, #join, (join = { sep ->
     if this.size == 0: return ""
     sep = sep or ""

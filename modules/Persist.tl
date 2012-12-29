@@ -14,9 +14,12 @@ new = { name ->
         _name: #PersistListClass
         add: v -> i = this._back.add(v); record {set:true,id:this._id,k:i,v:v}; return i
         set: i, v -> this._back.set(i, v); record {set:true,id:this._id,k:i,v:v}; return v
+        remove: at -> r = this._back.remove(at); record {del:true,id:this._id,k:at}; return r
         get: i -> this._back.get(i)
+        // notice these are "delegates" to the _black-ing store
         size: -> this._back.size
         each: fn -> this._back.each(args.block or fn)
+        find: fn -> this._back.find(args.block or fn)
         map: fn -> this._back.map(args.block or fn)
     }
     genid = { -> loop: id = random(); if not ids.has(id): return id }
@@ -43,7 +46,7 @@ new = { name ->
         if cmd?new == #Object: return object_new(cmd.id, true)
         if cmd?new == #List: return list_new(cmd.id, true)
         if cmd?set: return ids[cmd.id]._back.set(cmd.k, revive(cmd.v))
-        if cmd?del: return ids[cmd.id]._back.del(cmd.k)
+        if cmd?del: return ids[cmd.id]._back.remove(cmd.k)
         assert(false, "unknown command: $(cmd)")
     }
 

@@ -140,8 +140,45 @@ INTERNAL tlHandle _hashmap_keys(tlArgs* args) {
         tlArrayAdd(array, key);
         lhashmapiter_next(iter);
     }
-    return array;
-    //return tlArrayToList(array);
+    return tlArrayToList(array);
+}
+
+typedef struct tlHashMapEachFrame {
+    tlFrame frame;
+    LHashMapIter* iter;
+    tlHandle* block;
+} tlHashMapEachFrame;
+
+static tlHandle resumeHashMapEach(tlFrame* _frame, tlHandle res, tlHandle throw) {
+    if (throw && throw == s_break) return tlNull;
+    if (throw && throw != s_continue) return null;
+    if (!throw && !res) return null;
+
+    tlHashMapEachFrame* frame = (tlHashMapEachFrame*)_frame;
+    tlHandle key;
+    tlHandle val;
+
+again:;
+    lhashmapiter_get(frame->iter, &key, &val);
+    lhashmapiter_next(frame->iter);
+    trace("hashmap each: %s %s", tl_str(key), tl_str(val));
+    if (!key) return tlNull;
+    res = tlEval(tlCallFrom(frame->block, key, val, null));
+    if (!res) return tlTaskPauseAttach(frame);
+    goto again;
+    return tlNull;
+}
+
+INTERNAL tlHandle _hashmap_each(tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    tlHandle* block = tlArgsMapGet(args, tlSYM("block"));
+    if (!block) block = tlArgsGet(args, 0);
+    if (!block) TL_THROW("each requires block or function");
+
+    tlHashMapEachFrame* frame = tlFrameAlloc(resumeHashMapEach, sizeof(tlHashMapEachFrame));
+    frame->block = block;
+    frame->iter = lhashmapiter_new(map->map);
+    return resumeHashMapEach((tlHandle)frame, tlNull, null);
 }
 
 static tlMap* hashmapClass;
@@ -153,6 +190,7 @@ void hashmap_init() {
         "del", _hashmap_del,
         "size", _hashmap_size,
         "keys", _hashmap_keys,
+        "each", _hashmap_each,
         null
     );
     hashmapClass = tlClassMapFrom(
