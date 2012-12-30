@@ -8,8 +8,8 @@ tlKind* tlCodeKind = &_tlCodeKind;
 struct tlCode {
     tlHead head;
     tlInt flags;
-    tlText* file;
-    tlText* path;
+    tlString* file;
+    tlString* path;
     tlInt line;
     tlSym name;
     tlList* argnames;
@@ -25,7 +25,7 @@ tlCode* tlCodeNew(int size) {
     code->size = size;
     return code;
 }
-tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line) {
+tlCode* tlCodeFrom(tlList* ops, tlString* file, tlInt line) {
     int size = tlListSize(ops);
     tlCode* code = tlCodeNew(size);
     for (int i = 0; i < size; i++) {
@@ -33,7 +33,7 @@ tlCode* tlCodeFrom(tlList* ops, tlText* file, tlInt line) {
     }
     if (file) {
         code->file = file;
-        code->path = tlTextFromCopy(dirname(strdup(tlTextData(file))), 0);
+        code->path = tlStringFromCopy(dirname(strdup(tlStringData(file))), 0);
     } else {
         code->file = tlNull;
         code->path = tlNull;
@@ -48,7 +48,7 @@ void tlCodeSetIsBlock_(tlCode* code, bool isblock) {
 bool tlCodeIsBlock(tlCode* code) {
     return code->flags == tlOne;
 }
-void tlCodeSetInfo_(tlCode* code, tlText* file, tlInt line, tlSym name) {
+void tlCodeSetInfo_(tlCode* code, tlString* file, tlInt line, tlSym name) {
     assert(!code->name);
     code->name = name;
     if (!code->file) code->file = file;

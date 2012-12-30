@@ -13,7 +13,7 @@
 
 #include "value.c"
 #include "number.c"
-#include "text.c"
+#include "string.c"
 #include "sym.c"
 #include "list.c"
 #include "set.c"
@@ -52,7 +52,7 @@
 
 #include "trace-off.h"
 
-tlText* tl_boot_code;
+tlString* tl_boot_code;
 
 // return a hash
 unsigned tlHandleHash(tlHandle v) {
@@ -90,7 +90,7 @@ static tlHandle _out(tlArgs* args) {
     for (int i = 0; i < 1000; i++) {
         tlHandle v = tlArgsGet(args, i);
         if (!v) break;
-        printf("%s", tlTextData(tlToText(v)));
+        printf("%s", tlStringData(tltoString(v)));
     }
     fflush(stdout);
     return tlNull;
@@ -139,8 +139,8 @@ static tlHandle _gte(tlArgs* args) {
 static tlHandle _add(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
-    // TODO when adding text and something else, convert else to text ...
-    if (tlTextIs(l) && tlTextIs(r)) return tlTextCat(tlTextAs(l), tlTextAs(r));
+    // TODO when adding string and something else, convert else to string ...
+    if (tlStringIs(l) && tlStringIs(r)) return tlStringCat(tlStringAs(l), tlStringAs(r));
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) + tl_int(r));
     return tlFLOAT(tl_double(l) + tl_double(r));
 }
@@ -257,11 +257,11 @@ static tlHandle _tanh(tlArgs* args) {
 }
 
 static tlHandle _int_parse(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expect a text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expect a String");
     int base = tl_int_or(tlArgsGet(args, 1), 10);
     if (base < 2 || base > 36) TL_THROW("invalid base");
-    const char* begin = tlTextData(text);
+    const char* begin = tlStringData(str);
     char* end;
     long long res = strtol(begin, &end, base);
     if (end == begin) return tlNull;
@@ -270,14 +270,14 @@ static tlHandle _int_parse(tlArgs* args) {
 }
 
 static tlHandle _urldecode(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expect a text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expect a String");
 
-    const char* data = tlTextData(text);
-    int len = tlTextSize(text);
+    const char* data = tlStringData(str);
+    int len = tlStringSize(str);
     int percent = 0;
     for (int i = 0; i < len; i++) if (data[i] == '%') percent++;
-    if (!percent) return text;
+    if (!percent) return str;
 
     char* res = malloc(len);
     int i;
@@ -313,7 +313,7 @@ static tlHandle _urldecode(tlArgs* args) {
         res[j++] = c;
     }
     res[j] = 0;
-    return tlTextFromTake(res, j);
+    return tlStringFromTake(res, j);
 }
 
 static void vm_init();
@@ -350,7 +350,7 @@ void tl_init() {
 
     value_init();
     number_init();
-    text_init();
+    string_init();
     args_init();
     call_init();
 
@@ -374,7 +374,7 @@ void tl_init() {
     storage_init();
     serialize_init();
 
-    tl_boot_code = tlTextFromStatic((const char*)boot_tl, boot_tl_len);
+    tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
 }
 
 tlVm* tlVmNew() {
@@ -491,24 +491,24 @@ static const tlNativeCbs __vm_natives[] = {
 
 static void vm_init() {
     tl_register_natives(__vm_natives);
-    tlMap* system = tlObjectFrom("version", tlTEXT(TL_VERSION), null);
+    tlMap* system = tlObjectFrom("version", tlString(TL_VERSION), null);
     tl_register_global("system", system);
 }
 
-tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as) {
-    tlBuffer* buf = tlBufferFromFile(tlTextData(file));
+tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as) {
+    tlBuffer* buf = tlBufferFromFile(tlStringData(file));
     if (!buf) fatal("cannot read file: %s", tl_str(file));
 
     tlBufferWriteByte(buf, 0);
-    tlText* code = tlTextFromTake(tlBufferTakeData(buf), 0);
+    tlString* code = tlStringFromTake(tlBufferTakeData(buf), 0);
     return tlVmEvalCode(vm, code, file, as);
 }
 
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as) {
-    return tlVmEvalCode(vm, tl_boot_code, tlTEXT("<boot>"), as);
+    return tlVmEvalCode(vm, tl_boot_code, tlString("<boot>"), as);
 }
 
-tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as) {
+tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as) {
     tlWorker* worker = tlWorkerNew(vm);
     tlTask* task = tlTaskNew(vm, vm->locals);
     vm->main = task;
@@ -535,38 +535,38 @@ tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as) {
 }
 
 static tlHandle _print(tlArgs* args) {
-    tlText* sep = tlTEXT(" ");
+    tlString* sep = tlString(" ");
     tlHandle v = tlArgsMapGet(args, tlSYM("sep"));
-    if (v) sep = tlToText(v);
+    if (v) sep = tltoString(v);
 
-    tlText* begin = null;
+    tlString* begin = null;
     v = tlArgsMapGet(args, tlSYM("begin"));
-    if (v) begin = tlToText(v);
+    if (v) begin = tltoString(v);
 
-    tlText* end = null;
+    tlString* end = null;
     v = tlArgsMapGet(args, tlSYM("end"));
-    if (v) end = tlToText(v);
+    if (v) end = tltoString(v);
 
-    if (begin) printf("%s", tlTextData(begin));
+    if (begin) printf("%s", tlStringData(begin));
     for (int i = 0; i < 1000; i++) {
         tlHandle v = tlArgsGet(args, i);
         if (!v) break;
-        if (i > 0) printf("%s", tlTextData(sep));
-        printf("%s", tlTextData(tlToText(v)));
+        if (i > 0) printf("%s", tlStringData(sep));
+        printf("%s", tlStringData(tltoString(v)));
     }
-    if (end) printf("%s", tlTextData(end));
+    if (end) printf("%s", tlStringData(end));
     printf("\n");
     fflush(stdout);
     return tlNull;
 }
 
 static tlHandle _assert(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsMapGet(args, tlSYM("text")));
-    if (!text) text = tlTextEmpty();
+    tlString* str = tlStringCast(tlArgsMapGet(args, tlSYM("string")));
+    if (!str) str = tlStringEmpty();
     for (int i = 0; i < 1000; i++) {
         tlHandle v = tlArgsGet(args, i);
         if (!v) break;
-        if (!tl_bool(v)) TL_THROW("Assertion Failed: %s", tlTextData(text));
+        if (!tl_bool(v)) TL_THROW("Assertion Failed: %s", tlStringData(str));
     }
     return tlNull;
 }

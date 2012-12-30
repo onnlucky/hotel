@@ -119,13 +119,13 @@ static tlHandle parse(tlBuffer* buf) {
                 s[i] = 0;
                 tlBufferSkipByte(buf);
                 trace("text: %s (len: %d)", s, i);
-                return tlTextFromTake(s, i);
+                return tlStringFromTake(s, i);
             } else {
                 char* s = malloc(i + 1);
                 tlBufferRead(buf, s, i); s[i] = 0;
                 tlBufferSkipByte(buf);
                 trace("text: %s (len: %d)", s, i);
-                return tlTextFromTake(s, i);
+                return tlStringFromTake(s, i);
             }
         }
         case 'n': { tlBufferReadSkip(buf, 4); return tlNull; }
@@ -150,10 +150,10 @@ tlHandle _from_repr(tlArgs* args) {
 static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
     tlKind* kind = tl_kind(h);
 
-    if (kind == tlTextKind) {
-        tlText* text = tlTextEscape(tlTextAs(h));
+    if (kind == tlStringKind) {
+        tlString* str = tlStringEscape(tlStringAs(h));
         tlBufferWrite(buf, "\"", 1);
-        tlBufferWrite(buf, tlTextData(text), tlTextSize(text));
+        tlBufferWrite(buf, tlStringData(str), tlStringSize(str));
         tlBufferWrite(buf, "\"", 1);
         return true;
     }

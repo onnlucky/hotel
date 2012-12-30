@@ -138,8 +138,8 @@ others. When using your own structures, ensure to be thread safe and fully
 reentrant.
 
 Notice only true/false/null/undefined and float values are guarenteed
-primitives. Especially tlNumber and tlText are tricky. They might be tlInt and
-tlText*, but they might also be higher level values that act as these. So when
+primitives. Especially tlNumber and tlString are tricky. They might be tlInt and
+tlString*, but they might also be higher level values that act as these. So when
 calling primitives you need to know they are, and force numbers and texts to be
 normalized (call toPrimitive on them).
 
@@ -165,16 +165,16 @@ a "simple" log function:
           // there was a continuation, so we called the evaluator, and it returned to us
           // the return value always lives in the value "register" of the current task
           tlValue v = tltask_value(task);
-          tlText* s = tltext_cast(v);
-          printf("%s", s?tltext_data(s):"<null>");
+          tlString* s = tlString_cast(v);
+          printf("%s", s?tlString_data(s):"<null>");
       }
       for (; true; i++) {
           // the iterator will return null when done
           tlValue v = tlmap_value_iter(map, i);
           if (!v) break;
 
-          // tlvalue_toText will return null when it setup a call to the evaluator
-          tlValue v = tlvalue_toText(v);
+          // tlvalue_toString will return null when it setup a call to the evaluator
+          tlValue v = tlvalue_toString(v);
           if (!v) return tlINT(i); // return our current state
       }
       // our function returns null
@@ -186,7 +186,7 @@ a "simple" log function:
 Notice, these sort of functions are likely a lot easier when done as follows:
 
 hotel:
-  log = => args.map(n -> n.toText).join(" ").add("\n").toPrimitive |> output.write
+  log = => args.map(n -> n.toString).join(" ").add("\n").toPrimitive |> output.write
 
 ## c-level task
 

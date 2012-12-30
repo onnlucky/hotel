@@ -313,7 +313,7 @@ static tlHandle _map_toObject(tlArgs* args) {
     if (!map) TL_THROW("Expected a map");
     return tlMapToObject(map);
 }
-const char* mapToText(tlHandle v, char* buf, int size) {
+const char* maptoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Map@%p %d>", v, tlMapSize(tlMapAs(v))); return buf;
 }
 static size_t mapSize(tlHandle v) {
@@ -322,13 +322,13 @@ static size_t mapSize(tlHandle v) {
 static tlKind _tlMapKind = {
     .name = "map",
     .size = mapSize,
-    .toText = mapToText,
+    .toString = maptoString,
 };
 
 static size_t valueObjectSize(tlHandle v) {
     return sizeof(tlMap) + sizeof(tlHandle) * tlMapFromObjectAs(v)->keys->size;
 }
-const char* valueObjectToText(tlHandle v, char* buf, int size) {
+const char* valueObjecttoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<ValueObject@%p %d>", v, tlMapSize(tlMapFromObjectAs(v))); return buf;
 }
 static tlHandle valueObjectSend(tlArgs* args) {
@@ -375,7 +375,7 @@ static tlHandle valueObjectRun(tlHandle fn, tlArgs* args) {
 static tlKind _tlHandleObjectKind = {
     .name = "ValueObject",
     .size = valueObjectSize,
-    .toText = valueObjectToText,
+    .toString = valueObjecttoString,
     .send = valueObjectSend,
     .run = valueObjectRun,
 };

@@ -15,7 +15,7 @@ static tlKind _tlStorageKind = {
 tlKind* tlStorageKind = &_tlStorageKind;
 
 // encoding:
-// string: data = "text\0", size = 5 && data[size - 1] == 0
+// string: data = "string\0", size = 5 && data[size - 1] == 0
 // int: data = <4 bytes; 1>, size = 5 && data[size - 1] == 1
 // float: data = <8 bytes; 1>, size = 9 && data[size - 1] == 1
 // null/false/true = <1/2/3>, size = 1 && data[size - 1] != 0
@@ -23,10 +23,10 @@ tlKind* tlStorageKind = &_tlStorageKind;
 static tlHandle decode(DBT* d);
 static int encode(tlHandle h, DBT* d, uint8_t* buf) {
     // TODO int and double are machine endianess dependent ...
-    if (tlTextIs(h)) {
-        tlText* t = tlTextAs(h);
-        d->data = (char*)tlTextData(t);
-        d->size = tlTextSize(t) + 1;
+    if (tlStringIs(h)) {
+        tlString* t = tlStringAs(h);
+        d->data = (char*)tlStringData(t);
+        d->size = tlStringSize(t) + 1;
     } else if (tlIntIs(h)) {
         *((int*)buf) = tl_int(h);
         buf[4] = 1;
@@ -59,7 +59,7 @@ static int encode(tlHandle h, DBT* d, uint8_t* buf) {
 tlHandle decode(DBT* d) {
     uint8_t* buf = (uint8_t*)d->data;
     if (d->size == 1) {
-        if (buf[0] == 0) return tlTextEmpty();
+        if (buf[0] == 0) return tlStringEmpty();
         if (buf[0] == 1) return tlNull;
         if (buf[0] == 2) return tlFalse;
         if (buf[0] == 3) return tlTrue;
@@ -72,12 +72,12 @@ tlHandle decode(DBT* d) {
         return tlFLOAT(*((double*)buf));
     }
     assert(buf[d->size - 1] == 0);
-    return tlTextFromCopy((char*)buf, d->size - 1);
+    return tlStringFromCopy((char*)buf, d->size - 1);
 }
 
-tlStorage* tlStorageNew(tlText* text) {
+tlStorage* tlStorageNew(tlString* str) {
     const char* name = 0;
-    if (text) name = tlTextData(text);
+    if (str) name = tlStringData(str);
     DB* db = dbopen(name, O_CREAT|O_RDWR, 0666, DB_BTREE, 0);
     if (!db) TL_THROW("unable to open storage '%s': %s", name, strerror(errno));
 
@@ -139,8 +139,8 @@ INTERNAL tlHandle _storage_del(tlArgs* args) {
 
 INTERNAL tlHandle _Storage_new(tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
-    if (h && !tlTextIs(h)) TL_THROW("first argument must be a file name or null for memory store");
-    return tlStorageNew(tlTextAs(h));
+    if (h && !tlStringIs(h)) TL_THROW("first argument must be a file name or null for memory store");
+    return tlStorageNew(tlStringAs(h));
 }
 
 void storage_init() {

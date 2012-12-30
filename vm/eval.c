@@ -32,9 +32,9 @@ INTERNAL tlHandle resumeNewContinuation(tlFrame* frame, tlHandle res, tlHandle t
 tlHandle tlVarSet(tlVar*, tlHandle);
 tlHandle tlVarGet(tlVar*);
 
-static tlText* _t_unknown;
-static tlText* _t_anon;
-static tlText* _t_native;
+static tlString* _t_unknown;
+static tlString* _t_anon;
+static tlString* _t_native;
 
 // various internal structures
 static tlKind _tlClosureKind = { .name = "Function" };
@@ -186,18 +186,18 @@ static tlEnv* tlCodeFrameGetEnv(tlFrame* frame) {
     return ((tlCodeFrame*)frame)->env;
 }
 
-INTERNAL void tlFrameGetInfo(tlFrame* frame, tlText** file, tlText** function, tlInt* line) {
+INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line) {
     assert(file); assert(function); assert(line);
     if (tlCodeFrameIs(frame)) {
         tlCode* code = tlCodeFrameAs(frame)->code;
         *file = code->file;
-        *function = (code->name)?tlTextFromSym(code->name):null;
+        *function = (code->name)?tlStringFromSym(code->name):null;
         *line = code->line;
         if (!(*file)) *file = _t_unknown;
         if (!(*function)) *function = _t_anon;
         if (!(*line)) *line = tlZero;
     } else {
-        *file = tlTextEmpty();
+        *file = tlStringEmpty();
         *function = _t_native;
         *line = tlZero;
     }
@@ -208,7 +208,7 @@ INTERNAL void print_backtrace(tlFrame* frame) {
         if (tlCodeFrameIs(frame)) {
             tlCode* code = tlCodeFrameAs(frame)->code;
             if (code->name) {
-                tlText* n = tlTextFromSym(code->name);
+                tlString* n = tlStringFromSym(code->name);
                 print("%p  %s (%s:%s)", frame, tl_str(n), tl_str(code->file), tl_str(code->line));
             } else if (code->file) {
                 print("%p  <anon> (%s:%s)", frame, tl_str(code->file), tl_str(code->line));
@@ -676,10 +676,10 @@ INTERNAL tlHandle applyCall(tlCall* call) {
 }
 
 // Various high level eval stuff, will piggyback on the task given
-tlText* tlToText(tlHandle v) {
-    if (tlTextIs(v)) return v;
-    // TODO actually invoke toText ...
-    return tlTextFromCopy(tl_str(v), 0);
+tlString* tltoString(tlHandle v) {
+    if (tlStringIs(v)) return v;
+    // TODO actually invoke toString ...
+    return tlStringFromCopy(tl_str(v), 0);
 }
 tlHandle tlEval(tlHandle v) {
     trace("%s", tl_str(v));
@@ -833,21 +833,21 @@ static tlHandle resumeEval(tlFrame* _frame, tlHandle res, tlHandle throw) {
     return res;
 }
 
-static tlHandle _textFromFile(tlArgs* args) {
-    tlText* file = tlTextCast(tlArgsGet(args, 0));
+static tlHandle _stringFromFile(tlArgs* args) {
+    tlString* file = tlStringCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a file name");
-    tlBuffer* buf = tlBufferFromFile(tlTextData(file));
-    if (!buf) TL_THROW("unable to read file: '%s'", tlTextData(file));
+    tlBuffer* buf = tlBufferFromFile(tlStringData(file));
+    if (!buf) TL_THROW("unable to read file: '%s'", tlStringData(file));
 
     tlBufferWriteByte(buf, 0);
-    return tlTextFromTake(tlBufferTakeData(buf), 0);
+    return tlStringFromTake(tlBufferTakeData(buf), 0);
 }
 
 static tlHandle _parse(tlArgs* args) {
-    tlText* code = tlTextCast(tlArgsGet(args, 0));
-    if (!code) TL_THROW("expected a Text");
-    tlText* name = tlTextCast(tlArgsGet(args, 1));
-    if (!name) name = tlTextEmpty();
+    tlString* code = tlStringCast(tlArgsGet(args, 0));
+    if (!code) TL_THROW("expected a String");
+    tlString* name = tlStringCast(tlArgsGet(args, 1));
+    if (!name) name = tlStringEmpty();
 
     tlCode* body = tlCodeAs(tlParse(code, name));
     trace("parsed: %s", tl_str(body));
@@ -874,10 +874,10 @@ static tlHandle _eval(tlArgs* args) {
     if (!var) TL_THROW("expected a Var");
     tlEnv* env = tlEnvCast(tlVarGet(var));
     if (!env) TL_THROW("expected an Env in Var");
-    tlText* code = tlTextCast(tlArgsGet(args, 1));
-    if (!code) TL_THROW("expected a Text");
+    tlString* code = tlStringCast(tlArgsGet(args, 1));
+    if (!code) TL_THROW("expected a String");
 
-    tlCode* body = tlCodeAs(tlParse(code, tlTEXT("eval")));
+    tlCode* body = tlCodeAs(tlParse(code, tlString("eval")));
     trace("parsed: %s", tl_str(body));
     if (!body) return null;
 
@@ -913,7 +913,7 @@ INTERNAL tlHandle _install(tlArgs* args) {
 }
 
 static const tlNativeCbs __eval_natives[] = {
-    { "_textFromFile", _textFromFile },
+    { "_stringFromFile", _stringFromFile },
     { "_parse", _parse },
     { "_eval", _eval },
     { "_with_lock", _with_lock },
@@ -925,7 +925,7 @@ static const tlNativeCbs __eval_natives[] = {
     { "_send", _send },
     { "_try_send", _try_send },
 
-    { "_Text_cat", _Text_cat },
+    { "_String_cat", _String_cat },
     { "_List_clone", _List_clone },
     { "_Map_clone", _Map_clone },
     { "_Map_update", _Map_update },
@@ -940,9 +940,9 @@ static const tlNativeCbs __eval_natives[] = {
 };
 
 static void eval_init() {
-    _t_unknown = tlTEXT("<unknown>");
-    _t_anon = tlTEXT("<anon>");
-    _t_native = tlTEXT("<native>");
+    _t_unknown = tlString("<unknown>");
+    _t_anon = tlString("<anon>");
+    _t_native = tlString("<native>");
 
     tl_register_natives(__eval_natives);
 

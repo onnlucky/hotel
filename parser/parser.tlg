@@ -76,7 +76,7 @@ reference: n=name ?(nreserved n) -> n.toSym
         | !"\"" l=_   -> l.toChar
    stext: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
 
-   embed: !stext e=paren                  -> { type: #call, target: #_Text_ToText, args: [e] }
+   embed: !stext e=paren                  -> { type: #call, target: #_Text_toString, args: [e] }
     text: l=stext (rss=(.e=embed .t=stext -> [e, t]
                        |.e=embed          -> [e]
                        |.t=stext          -> [t]

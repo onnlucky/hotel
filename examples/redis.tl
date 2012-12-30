@@ -16,5 +16,5 @@ connect = { dir ->
 
 conn = connect("test")
 conn.write("*1\r\n\$4\r\nPING\r\n")
-print conn.read.toText
+print conn.read.toString
 

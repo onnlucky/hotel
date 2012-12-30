@@ -87,13 +87,13 @@ void nativeWindowRedraw(NativeWindow* _w) {
     [[w contentView] performSelectorOnMainThread: @selector(setNeedsDisplay:) withObject:w waitUntilDone:NO];
 }
 
-void nativeWindowSetTitle(NativeWindow* _w, tlText* title) {
+void nativeWindowSetTitle(NativeWindow* _w, tlString* title) {
     NWindow* w = (NWindow*)_w;
-    if (title) [w performSelectorOnMainThread:@selector(setTitle:) withObject:[NSString stringWithUTF8String: tlTextData(title)] waitUntilDone:NO];
+    if (title) [w performSelectorOnMainThread:@selector(setTitle:) withObject:[NSString stringWithUTF8String: tlStringData(title)] waitUntilDone:NO];
 }
-tlText* nativeWindowTitle(NativeWindow* _w) {
+tlString* nativeWindowTitle(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
-    return tlTextFromCopy([[w title] UTF8String], 0);
+    return tlStringFromCopy([[w title] UTF8String], 0);
 }
 
 void nativeWindowFrame(NativeWindow* _w, int* x, int* y, int* width, int* height) {
@@ -128,7 +128,7 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
         // crazy way to convert from 'a'/'A' to 65
         default: key = [[[event charactersIgnoringModifiers] uppercaseString] characterAtIndex: 0];
     }
-    windowKeyEvent(window, key, tlTextFromCopy(input, 0));
+    windowKeyEvent(window, key, tlStringFromCopy(input, 0));
 }
 - (void)windowWillClose:(NSNotification *)notification {
     //NSLog(@"close %@", notification);
@@ -205,7 +205,7 @@ static void* tl_main(void* data) {
     graphics_init(vm);
     image_init(vm);
     window_init(vm);
-    tlArgs* args = tlArgsNew(tlListFrom(tlTEXT("run.tl"), null), null);
+    tlArgs* args = tlArgsNew(tlListFrom(tlString("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
     vm_exit_code = tlVmExitCode(vm);
     ns_stop();

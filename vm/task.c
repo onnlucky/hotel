@@ -355,7 +355,7 @@ tlHandle tlTaskThrow(tlHandle err) {
     return tlTaskPauseResuming(resumeTaskThrow, err);
 }
 tlHandle tlTaskThrowTake(char* str) {
-    return tlTaskThrow(tlTextFromTake(str, 0));
+    return tlTaskThrow(tlStringFromTake(str, 0));
 }
 
 bool tlTaskIsDone(tlTask* task) {
@@ -681,7 +681,7 @@ tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
     return res;
 }
 
-INTERNAL const char* _TaskToText(tlHandle v, char* buf, int size) {
+INTERNAL const char* _TasktoString(tlHandle v, char* buf, int size) {
     const char* state = "unknown";
     switch (tlTaskAs(v)->state) {
         case TL_STATE_INIT: state = "init"; break;
@@ -697,7 +697,7 @@ INTERNAL const char* _TaskToText(tlHandle v, char* buf, int size) {
 
 static tlKind _tlTaskKind = {
     .name = "Task",
-    .toText = _TaskToText,
+    .toString = _TasktoString,
 };
 
 static const tlNativeCbs __task_natives[] = {

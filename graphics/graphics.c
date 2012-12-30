@@ -312,8 +312,8 @@ static tlHandle _rectangle(tlArgs* args) {
 };
 
 static tlHandle _textPath(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    const char* utf8 = (text)?tlTextData(text):"";
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    const char* utf8 = (text)?tlStringData(text):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_path(g->cairo, utf8);
     return g;
@@ -343,7 +343,7 @@ static tlHandle _scale(tlArgs* args) {
 
 // ** text **
 static tlHandle _setFont(tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsGet(args, 0));
+    tlString* name = tlStringCast(tlArgsGet(args, 0));
     int size = tl_double_or(tlArgsGet(args, 1), 16);
 
     // TODO set these two also from args
@@ -352,20 +352,20 @@ static tlHandle _setFont(tlArgs* args) {
 
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_font_size(g->cairo, size);
-    cairo_select_font_face(g->cairo, tlTextData(name), slant, weight);
+    cairo_select_font_face(g->cairo, tlStringData(name), slant, weight);
     return g;
 }
 static tlHandle _fillText(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    const char* utf8 = (text)?tlTextData(text):"";
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    const char* utf8 = (text)?tlStringData(text):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_show_text(g->cairo, utf8);
     return g;
 }
 static tlHandle _measureText(tlArgs* args) {
     cairo_text_extents_t extents;
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    const char* utf8 = (text)?tlTextData(text):"";
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    const char* utf8 = (text)?tlStringData(text):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_extents(g->cairo, utf8,  &extents);
     return tlResultFrom(tlINT(extents.width), tlINT(extents.height), null);

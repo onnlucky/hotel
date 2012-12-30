@@ -18,13 +18,13 @@ is basically short (and fast) for:
 
 need to be able to catch only specific type of error
 
-# toText and instanceof
+# toString and instanceof
 
 somehow, Buffer.toBuffer will wish to inspect if other is a buffer object but without knowing it actually is a buffer ...
 
 how about:
   Buffer.toBuffer = (val ->
-     return val?asBuffer or Buffer.new(val.toText)
+     return val?asBuffer or Buffer.new(val.toString)
   )
 
 but now we "fixed" asBuffer to io.Buffer ... maybe others wish to do toBuffer too but in different context

@@ -16,7 +16,7 @@ struct tlStackTrace {
     intptr_t size;
     tlTask* task;
     tlHandle entries[];
-    // [tlText, tlText, tlInt, ...] so size * 3 is entries.length
+    // [tlString, tlString, tlInt, ...] so size * 3 is entries.length
 };
 
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
@@ -48,8 +48,8 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     int at = 0;
     for (tlFrame* frame = start; frame; frame = frame->caller) {
         //if (!tlCodeFrameIs(frame)) continue;
-        tlText* file;
-        tlText* function;
+        tlString* file;
+        tlString* function;
         tlInt line;
         tlFrameGetInfo(frame, &file, &function, &line);
         trace->entries[at++] = file;
@@ -93,12 +93,12 @@ INTERNAL tlHandle _throw(tlArgs* args) {
 }
 
 // TODO put in full stack?
-const char* stackTraceToText(tlHandle v, char* buf, int size) {
+const char* stackTracetoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<StackTrace: %p>", v); return buf;
 }
 static tlKind _tlStackTraceKind = {
     .name = "StackTrace",
-    .toText = stackTraceToText,
+    .toString = stackTracetoString,
 };
 
 static const tlNativeCbs __error_natives[] = {

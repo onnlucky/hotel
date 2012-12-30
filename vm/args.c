@@ -134,14 +134,14 @@ static tlHandle _args_slice(tlArgs* args) {
     return tlListSlice(list, first, last);
 }
 
-const char* _ArgsToText(tlHandle v, char* buf, int size) {
+const char* _ArgstoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
     return buf;
 }
 
 static tlKind _tlArgsKind = {
     .name = "Args",
-    .toText = _ArgsToText,
+    .toString = _ArgstoString,
 };
 
 static void args_init() {

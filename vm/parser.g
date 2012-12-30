@@ -13,7 +13,7 @@
 
 static tlHandle sa_send, sa_try_send, sa_this_send;
 static tlSym s_send, s_try_send;
-static tlSym s_Text_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
+static tlSym s_String_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
 static tlSym s_Var_new, s_var_get, s_var_set;
 static tlSym s_this, s_this_get, s_this_set, s_this_send;
 static tlSym s_Task_new;
@@ -23,12 +23,12 @@ static tlSym s_add, s_sub, s_mul, s_div, s_mod, s_pow;
 static tlSym s_main;
 static tlSym s_get, s_set, s_slice, s__set;
 static tlSym s_assert;
-static tlSym s_text;
+static tlSym s_string;
 
 typedef struct ParseContext {
     tlTask* task;
-    tlText* text;
-    tlText* file;
+    tlString* str;
+    tlString* file;
     int line;
     int at;
     int current_indent;
@@ -36,10 +36,10 @@ typedef struct ParseContext {
 } ParseContext;
 
 static inline int writesome(ParseContext* cx, char* buf, int len) {
-    int towrite = tlTextSize(cx->text) - cx->at;
+    int towrite = tlStringSize(cx->str) - cx->at;
     if (towrite <= 0) return 0;
     if (towrite < len) len = towrite;
-    memcpy(buf, tlTextData(cx->text) + cx->at, len);
+    memcpy(buf, tlStringData(cx->str) + cx->at, len);
     cx->at += len;
     return len;
 }
@@ -309,7 +309,7 @@ bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
        | pexpr
 
  pexpr = "assert" _!"(" < as:pcargs > &peosfull {
-            as = tlListAppend2(L(as), s_text, tlTextFromCopy(yytext, 0));
+            as = tlListAppend2(L(as), s_string, tlStringFromCopy(yytext, 0));
             $$ = call_activate(tlCallFromList(tl_active(s_assert), as));
        }
        | "!" b:block {
@@ -456,7 +456,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, nu
                     )*
 
  paren = "assert"_"("__ < as:cargs > __")" t:tail {
-            as = tlListPrepend2(L(as), s_text, tlTextFromCopy(yytext, 0));
+            as = tlListPrepend2(L(as), s_string, tlStringFromCopy(yytext, 0));
             $$ = set_target(t, tlCallFromList(tl_active(s_assert), as));
        }
        | f:fn t:tail                { $$ = set_target(t, tl_active(f)); }
@@ -498,11 +498,11 @@ number = < "-"? [0-9]+ "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
        | < "-"? [0-9]+ "." !name  > { $$ = tlFLOAT(atof(yytext)); }
        | < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
 
-  text = '"' '"'          { $$ = tlTextEmpty(); }
+  text = '"' '"'          { $$ = tlStringEmpty(); }
        | '"'  t:stext '"' { $$ = t }
-       | '"' ts:ctext '"' { $$ = tlCallFromList(tl_active(s_Text_cat), L(ts)); }
+       | '"' ts:ctext '"' { $$ = tlCallFromList(tl_active(s_String_cat), L(ts)); }
 
- stext = < ("\\$" | "\\\"" | "\\\\" | !"$" !"\"" .)+ > { $$ = tlTextFromTake(unescape(yytext), 0); }
+ stext = < ("\\$" | "\\\"" | "\\\\" | !"$" !"\"" .)+ > { $$ = tlStringFromTake(unescape(yytext), 0); }
  ptext = "$("_ e:paren _")"  { $$ = e }
        | "$("_ b:body  _")"  { tlCodeSetIsBlock_(b, true); $$ = tlCallFrom(tl_active(b), null); }
        | "$" l:lookup        { $$ = l }
@@ -570,8 +570,8 @@ bool check_indent(void* data) {
     return peek_indent(G) == find_indent(G);
 }
 
-tlHandle tlParse(tlText* text, tlText* file) {
-    trace("\n----PARSING----\n%s----", tl_str(text));
+tlHandle tlParse(tlString* str, tlString* file) {
+    trace("\n----PARSING----\n%s----", tl_str(str));
 
     if (!s_send) {
         s_send = tlSYM("_send");
@@ -580,7 +580,7 @@ tlHandle tlParse(tlText* text, tlText* file) {
         sa_send = tl_active(s_send);
         sa_try_send = tl_active(s_try_send);
         sa_this_send = tl_active(s_this_send);
-        s_Text_cat = tlSYM("_Text_cat");
+        s_String_cat = tlSYM("_String_cat");
         s_List_clone = tlSYM("_List_clone");
         s_Map_clone = tlSYM("_Map_clone");
         s_Map_update = tlSYM("_Map_udpate");
@@ -599,14 +599,14 @@ tlHandle tlParse(tlText* text, tlText* file) {
         s_mul = tlSYM("mul"); s_div = tlSYM("div");
         s_mod = tlSYM("mod"); s_pow = tlSYM("pow");
         s_main = tlSYM("main"); s_get = tlSYM("get"); s_set = tlSYM("set"); s_slice = tlSYM("slice"); s__set = tlSYM("_set");
-        s_assert = tlSYM("assert"); s_text = tlSYM("text");
+        s_assert = tlSYM("assert"); s_string = tlSYM("string");
     }
 
     ParseContext data;
     data.file = file;
     data.at = 0;
     data.line = 1;
-    data.text = text;
+    data.str = str;
     data.current_indent = 0;
     data.indents[0] = 0;
 

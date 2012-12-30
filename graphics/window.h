@@ -42,11 +42,11 @@ void nativeWindowFrame(NativeWindow*, int* x, int* y, int* width, int* height);
 void nativeWindowSetPos(NativeWindow*, int x, int y);
 void nativeWindowSetSize(NativeWindow*, int width, int height);
 
-tlText* nativeWindowTitle(NativeWindow*);
-void nativeWindowSetTitle(NativeWindow*, tlText* title);
+tlString* nativeWindowTitle(NativeWindow*);
+void nativeWindowSetTitle(NativeWindow*, tlString* title);
 
 // platform can call the following for callbacks
 void windowPointerEvent(Window* w);
-void windowKeyEvent(Window* w, int code, tlText* input);
+void windowKeyEvent(Window* w, int code, tlString* input);
 
 #endif // _window_h_

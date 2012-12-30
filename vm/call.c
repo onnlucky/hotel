@@ -260,10 +260,10 @@ tlCall* tlCallAddBlock(tlHandle _call, tlCode* block) {
     return ncall;
 }
 
-const char* nativeToText(tlHandle v, char* buf, int size) {
+const char* nativetoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Native@%p: %s>", v, tlSymData((tlNativeName(v)))); return buf;
 }
-const char* callToText(tlHandle v, char* buf, int size) {
+const char* calltoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Call@%p: %d>", v, tlCallSize(v)); return buf;
 }
 static tlHandle nativeRun(tlHandle fn, tlArgs* args) {
@@ -276,12 +276,12 @@ static size_t callSize(tlHandle v) {
 
 static tlKind _tlNativeKind = {
     .name = "Native",
-    .toText = nativeToText,
+    .toString = nativetoString,
     .run = nativeRun,
 };
 static tlKind _tlCallKind = {
     .name = "Call",
-    .toText = callToText,
+    .toString = calltoString,
     .size = callSize,
 };
 static void call_init() {

@@ -34,7 +34,7 @@ static tlHandle _Time(tlArgs* args) {
     tlMapSetSym_(res, _s_mday, tlINT(tm.tm_mday));
     tlMapSetSym_(res, _s_yday, tlINT(tm.tm_yday));
     tlMapSetSym_(res, _s_isdst, tlINT(tm.tm_isdst));
-    tlMapSetSym_(res, _s_zone, tlTextFromCopy(tm.tm_zone, 0));
+    tlMapSetSym_(res, _s_zone, tlStringFromCopy(tm.tm_zone, 0));
     tlMapSetSym_(res, _s_gmtoff, tlINT(tm.tm_gmtoff));
     return res;
 }

@@ -27,7 +27,7 @@ Stream = {
         }
         write: { from ->
             if isBuffer(from): return this._write2(from)
-            buf = Buffer.new; buf.write(from.toText)
+            buf = Buffer.new; buf.write(from.toString)
             return this._write2(buf)
         }
         _write2: { from ->

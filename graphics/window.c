@@ -175,8 +175,8 @@ static tlHandle _window_height(tlArgs* args) {
 static tlHandle _window_title(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
-        tlText* text = tlTextCast(tlArgsGet(args, 0));
-        if (!text) text = tlTextEmpty();
+        tlString* str = tlStringCast(tlArgsGet(args, 0));
+        if (!text) text = tlStringEmpty();
         nativeWindowSetTitle(window->native, text);
         return text;
     }
@@ -201,7 +201,7 @@ static tlHandle _window_focus(tlArgs* args) {
     return tlNull;
 }
 
-void windowKeyEvent(Window* window, int code, tlText* input) {
+void windowKeyEvent(Window* window, int code, tlString* input) {
     if (!window->onkey) return;
 
     tlMap *res = tlClone(_keyEventMap);

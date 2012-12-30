@@ -3,7 +3,7 @@
 #include "trace-off.h"
 
 
-static tlSym s_text;
+static tlSym s_string;
 static tlSym s_block;
 
 static tlSym s_this;
@@ -21,7 +21,7 @@ static tlSym s_op;
 static tlSym s__get;
 static tlSym s__set;
 
-static tlSym s_Text_cat;
+static tlSym s_String_cat;
 static tlSym s_List_clone;
 static tlSym s_Map_clone;
 static tlSym s_Map_update;
@@ -30,8 +30,8 @@ static tlSym s_Map_inherit;
 static LHashMap *symbols = 0;
 static LHashMap *globals = 0;
 
-static tlSym _SYM_FROM_TEXT(tlText* v) { return (tlSym)((intptr_t)v | 2); }
-static tlText* _TEXT_FROM_SYM(tlSym v) { return (tlText*)((intptr_t)v & ~7); }
+static tlSym _SYM_FROM_TEXT(tlString* v) { return (tlSym)((intptr_t)v | 2); }
+static tlString* _TEXT_FROM_SYM(tlSym v) { return (tlString*)((intptr_t)v & ~7); }
 
 static tlKind _tlSymKind;
 tlKind* tlSymKind = &_tlSymKind;
@@ -55,15 +55,15 @@ tlHandle tlACTIVE(tlHandle v) {
     return tl_active(v);
 }
 
-tlText* tlTextFromSym(tlSym sym) {
+tlString* tlStringFromSym(tlSym sym) {
     assert(tlSymIs(sym));
     return _TEXT_FROM_SYM(sym);
 }
 const char* tlSymData(tlSym sym) {
-    return tlTextData(tlTextFromSym(sym));
+    return tlStringData(tlStringFromSym(sym));
 }
 int tlSymSize(tlSym sym) {
-    return tlTextSize(tlTextFromSym(sym));
+    return tlStringSize(tlStringFromSym(sym));
 }
 
 tlSym tlSymFromStatic(const char* s, int len) {
@@ -74,7 +74,7 @@ tlSym tlSymFromStatic(const char* s, int len) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlSymFromText(tlTextFromStatic(s, len));
+    return tlSymFromString(tlStringFromStatic(s, len));
 }
 
 tlSym tlSymFromTake(char* s, int len) {
@@ -83,7 +83,7 @@ tlSym tlSymFromTake(char* s, int len) {
     trace("#%s", s);
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) { free(s); return cur; }
-    return tlSymFromText(tlTextFromTake(s, len));
+    return tlSymFromString(tlStringFromTake(s, len));
 }
 
 tlSym tlSymFromCopy(const char* s, int len) {
@@ -93,23 +93,23 @@ tlSym tlSymFromCopy(const char* s, int len) {
     tlSym cur = (tlSym)lhashmap_get(symbols, s);
     if (cur) return cur;
 
-    return tlSymFromText(tlTextFromCopy(s, len));
+    return tlSymFromString(tlStringFromCopy(s, len));
 }
 
-tlSym tlSymFromText(tlText* text) {
-    assert(tlTextIs(text));
+tlSym tlSymFromString(tlString* str) {
+    assert(tlStringIs(str));
     assert(symbols);
-    trace("#%s", tl_str(text));
+    trace("#%s", tl_str(str));
 
-    tlSym sym = _SYM_FROM_TEXT(text);
-    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tlTextData(text), sym, 0);
+    tlSym sym = _SYM_FROM_TEXT(str);
+    tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tlStringData(str), sym, 0);
 
     if (cur) return cur;
     return sym;
 }
 
-INTERNAL tlHandle _sym_toText(tlArgs* args) {
-    return tlTextFromSym(tlArgsTarget(args));
+INTERNAL tlHandle _sym_toString(tlArgs* args) {
+    return tlStringFromSym(tlArgsTarget(args));
 }
 INTERNAL tlHandle _sym_toSym(tlArgs* args) {
     return tlArgsTarget(args);
@@ -132,7 +132,7 @@ void tl_register_natives(const tlNativeCbs* cbs) {
 static tlHandle tl_global(tlSym sym) {
     assert(tlSymIs(sym));
     assert(globals);
-    return lhashmap_get(globals, tlTextData(_TEXT_FROM_SYM(sym)));
+    return lhashmap_get(globals, tlStringData(_TEXT_FROM_SYM(sym)));
 }
 
 static unsigned int strhash(void *str) {
@@ -143,18 +143,18 @@ static int strequals(void *left, void *right) {
 }
 static void strfree(void *str) { }
 
-const char* symToText(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "#%s", tlTextData(_TEXT_FROM_SYM(v))); return buf;
+const char* symtoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "#%s", tlStringData(_TEXT_FROM_SYM(v))); return buf;
 }
 static unsigned int symHash(tlHandle v) {
-    return tlTextHash(tlTextFromSym(tlSymAs(v)));
+    return tlStringHash(tlStringFromSym(tlSymAs(v)));
 }
 static bool symEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
 static tlKind _tlSymKind = {
     .name = "Symbol",
-    .toText = symToText,
+    .toString = symtoString,
     .hash = symHash,
     .equals = symEquals,
 };
@@ -170,7 +170,7 @@ static void sym_init() {
     s_return = tlSYM("return");
     s_goto   = tlSYM("goto");
     s_break  = tlSYM("break");
-    s_text   = tlSYM("text");
+    s_string = tlSYM("string");
     s_block  = tlSYM("block");
     s_this   = tlSYM("this");
     s_call   = tlSYM("call");
@@ -180,14 +180,14 @@ static void sym_init() {
     s__get   = tlSYM("_get");
     s__set   = tlSYM("_set");
 
-    s_Text_cat = tlSYM("_Text_cat");
+    s_String_cat = tlSYM("_String_cat");
     s_List_clone = tlSYM("_List_clone");
     s_Map_clone = tlSYM("_Map_clone");
     s_Map_update = tlSYM("_Map_update");
     s_Map_inherit = tlSYM("_Map_inherit");
 
     _tlSymKind.klass = tlClassMapFrom(
-        "toText", _sym_toText,
+        "toString", _sym_toString,
         "toSym", _sym_toSym,
         null
     );

@@ -11,36 +11,36 @@ struct tlRegex {
 static tlKind _tlRegexKind = { .name = "Regex" };
 tlKind* tlRegexKind = &_tlRegexKind;
 
-tlRegex* tlRegexNew(tlText* text, int flags) {
+tlRegex* tlRegexNew(tlString* str, int flags) {
     tlRegex* regex = tlAlloc(tlRegexKind, sizeof(tlRegex));
-    int r = regcomp(&regex->compiled, tlTextData(text), flags|REG_EXTENDED);
+    int r = regcomp(&regex->compiled, tlStringData(str), flags|REG_EXTENDED);
     if (r) warning("%d", r);
     return regex;
 }
 
 static tlHandle _Regex_new(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("require a pattern");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("require a pattern");
     int flags = tl_int_or(tlArgsGet(args, 1), 0);
-    return tlRegexNew(text, flags);
+    return tlRegexNew(str, flags);
 }
 
 static tlHandle _regex_match(tlArgs* args) {
     tlRegex* regex = tlRegexAs(tlArgsTarget(args));
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("require a text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("require a String");
 
     int offset = tl_int_or(tlArgsGet(args, 1), 0);
-    if (offset < 0 || offset >= tlTextSize(text)) return tlNull;
+    if (offset < 0 || offset >= tlStringSize(str)) return tlNull;
 
     regmatch_t m[1];
-    int r = regexec(&regex->compiled, tlTextData(text) + offset, 1, m, offset?REG_NOTBOL:0);
+    int r = regexec(&regex->compiled, tlStringData(str) + offset, 1, m, offset?REG_NOTBOL:0);
     if (r == REG_NOMATCH) return tlNull;
     if (r == REG_ESPACE) TL_THROW("oeps");
 
     int b = offset + m[0].rm_so;
     int e = offset + m[0].rm_eo;
-    tlText* res = tlTextFromCopy(tlTextData(text) + b, e - b);
+    tlString* res = tlStringFromCopy(tlStringData(str) + b, e - b);
     return tlResultFrom(res, tlINT(b), tlINT(e), null);
 }
 

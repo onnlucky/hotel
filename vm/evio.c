@@ -31,7 +31,7 @@ static tlSym _s_mem;
 static tlSym _s_pid;
 static tlSym _s_gcs;
 
-tlText* tl_cwd;
+tlString* tl_cwd;
 
 static void io_cb(ev_io *ev, int revents);
 
@@ -61,19 +61,19 @@ static tlHandle _io_getrusage(tlArgs* args) {
     return res;
 }
 static tlHandle _io_getenv(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
-    const char* c = getenv(tlTextData(text));
-    if (!c) return tlNull;
-    return tlTextFromCopy(c, 0);
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
+    const char* s = getenv(tlStringData(str));
+    if (!s) return tlNull;
+    return tlStringFromCopy(s, 0);
 }
 
 // TODO normalize /../ and /./
-static tlText* path_join(tlText* lhs, tlText* rhs) {
+static tlString* path_join(tlString* lhs, tlString* rhs) {
     if (!lhs) return rhs;
     if (!rhs) return lhs;
-    const char* l = tlTextData(lhs);
-    const char* r = tlTextData(rhs);
+    const char* l = tlStringData(lhs);
+    const char* r = tlStringData(rhs);
     if (r[0] == '/') return rhs;
 
     int llen = strlen(l);
@@ -87,22 +87,22 @@ static tlText* path_join(tlText* lhs, tlText* rhs) {
     strcat(buf + llen, "/");
     strcat(buf + llen + 1, r);
 
-    return tlTextFromTake(buf, llen + 1 + rlen);
+    return tlStringFromTake(buf, llen + 1 + rlen);
 }
-static tlText* cwd_join(tlText* path) {
+static tlString* cwd_join(tlString* path) {
     tlTask* task = tlTaskCurrent();
-    tlText* cwd = null;
-    if (task->locals) cwd = tlTextCast(tlMapGetSym(task->locals, _s_cwd));
-    tlText* res = path_join(cwd, path);
+    tlString* cwd = null;
+    if (task->locals) cwd = tlStringCast(tlMapGetSym(task->locals, _s_cwd));
+    tlString* res = path_join(cwd, path);
     return res;
 }
 
 static tlHandle _io_chdir(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
 
-    tlText* path = cwd_join(text);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(str);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("chdir: invalid cwd");
 
     struct stat buf;
@@ -115,11 +115,11 @@ static tlHandle _io_chdir(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _io_mkdir(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
 
-    tlText* path = cwd_join(text);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(str);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("mkdir: invalid cwd");
 
     int perms = 0777;
@@ -129,11 +129,11 @@ static tlHandle _io_mkdir(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _io_rmdir(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
 
-    tlText* path = cwd_join(text);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(str);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("rmdir: invalid cwd");
 
     if (rmdir(p)) {
@@ -142,18 +142,18 @@ static tlHandle _io_rmdir(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _io_rename(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
 
-    tlText* path = cwd_join(text);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(str);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("rename: invalid cwd");
 
-    tlText* totext = tlTextCast(tlArgsGet(args, 1));
-    if (!totext) TL_THROW("expected a Text");
+    tlString* toString = tlStringCast(tlArgsGet(args, 1));
+    if (!toString) TL_THROW("expected a String");
 
-    tlText* topath = cwd_join(totext);
-    const char *to_p = tlTextData(topath);
+    tlString* topath = cwd_join(toString);
+    const char *to_p = tlStringData(topath);
     if (to_p[0] != '/') TL_THROW("rename: invalid cwd");
 
     if (rename(p, to_p)) {
@@ -162,11 +162,11 @@ static tlHandle _io_rename(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _io_unlink(tlArgs* args) {
-    tlText* text = tlTextCast(tlArgsGet(args, 0));
-    if (!text) TL_THROW("expected a Text");
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
 
-    tlText* path = cwd_join(text);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(str);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("unlink: invalid cwd");
 
     if (unlink(p)) {
@@ -414,19 +414,19 @@ static tlHandle _reader_accept(tlArgs* args) {
 }
 
 static tlHandle _File_open(tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsGet(args, 0));
+    tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a file name");
     trace("open: %s", tl_str(name));
     int flags = tl_int_or(tlArgsGet(args, 1), -1);
     if (flags < 0) TL_THROW("expected flags");
     int perms = 0666;
 
-    tlText* path = cwd_join(name);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(name);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("open: invalid cwd");
 
     int fd = open(p, flags|O_NONBLOCK, perms);
-    if (fd < 0) TL_THROW("open: failed: %s file: '%s'", strerror(errno), tlTextData(name));
+    if (fd < 0) TL_THROW("open: failed: %s file: '%s'", strerror(errno), tlStringData(name));
     return tlFileNew(fd);
 }
 
@@ -443,13 +443,13 @@ static tlHandle _File_from(tlArgs* args) {
 
 // TODO this is a blocking call
 static tlHandle _Socket_resolve(tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsGet(args, 0));
-    if (!name) TL_THROW("expected a Text");
+    tlString* name = tlStringCast(tlArgsGet(args, 0));
+    if (!name) TL_THROW("expected a String");
 
-    struct hostent *hp = gethostbyname(tlTextData(name));
+    struct hostent *hp = gethostbyname(tlStringData(name));
     if (!hp) return tlNull;
     if (!hp->h_addr_list[0]) return tlNull;
-    return tlTextFromTake(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
+    return tlStringFromTake(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
 }
 
 static tlHandle _Socket_udp(tlArgs* args) {
@@ -472,7 +472,7 @@ static tlHandle _Socket_udp(tlArgs* args) {
 static tlHandle _Socket_sendto(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a udp socket");
-    tlText* address = tlTextCast(tlArgsGet(args, 1));
+    tlString* address = tlStringCast(tlArgsGet(args, 1));
     if (!address) TL_THROW("expected a ip address");
     int port = tl_int_or(tlArgsGet(args, 2), -1);
     if (port < 0) TL_THROW("expected a port");
@@ -482,7 +482,7 @@ static tlHandle _Socket_sendto(tlArgs* args) {
     trace("udp_sendto: %s:%d", tl_str(address), port);
 
     struct in_addr ip;
-    if (!inet_aton(tlTextData(address), &ip)) TL_THROW("udp_open: invalid ip: %s", tl_str(address));
+    if (!inet_aton(tlStringData(address), &ip)) TL_THROW("udp_open: invalid ip: %s", tl_str(address));
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -500,7 +500,7 @@ static tlHandle _Socket_sendto(tlArgs* args) {
 }
 
 static tlHandle _Socket_connect(tlArgs* args) {
-    tlText* address = tlTextCast(tlArgsGet(args, 0));
+    tlString* address = tlStringCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a ip address");
     int port = tl_int_or(tlArgsGet(args, 1), -1);
     if (port < 0) TL_THROW("expected a port");
@@ -508,7 +508,7 @@ static tlHandle _Socket_connect(tlArgs* args) {
     trace("tcp_open: %s:%d", tl_str(address), port);
 
     struct in_addr ip;
-    if (!inet_aton(tlTextData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
+    if (!inet_aton(tlStringData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -529,7 +529,7 @@ static tlHandle _Socket_connect(tlArgs* args) {
 }
 
 static tlHandle _Socket_connect_unix(tlArgs* args) {
-    tlText* address = tlTextCast(tlArgsGet(args, 0));
+    tlString* address = tlStringCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a unix path");
 
     trace("unix_open: %s", tl_str(address));
@@ -537,7 +537,7 @@ static tlHandle _Socket_connect_unix(tlArgs* args) {
     struct sockaddr_un sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
     sockaddr.sun_family = AF_UNIX;
-    strcpy(sockaddr.sun_path, tlTextData(address));
+    strcpy(sockaddr.sun_path, tlStringData(address));
 
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) TL_THROW("unix_connect: failed: %s", strerror(errno));
@@ -583,11 +583,11 @@ static tlHandle _ServerSocket_listen(tlArgs* args) {
 // ** paths **
 
 static tlHandle _Path_stat(tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsGet(args, 0));
+    tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a name");
 
-    tlText* path = cwd_join(name);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(name);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("stat: invalid cwd");
 
     struct stat buf;
@@ -596,7 +596,7 @@ static tlHandle _Path_stat(tlArgs* args) {
         if (errno == ENOENT || errno == ENOTDIR) {
             bzero(&buf, sizeof(buf));
         } else {
-            TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlTextData(name));
+            TL_THROW("stat failed: %s for: '%s'", strerror(errno), tlStringData(name));
         }
     }
 
@@ -634,11 +634,11 @@ static tlDir* tlDirNew(DIR* p) {
 }
 
 static tlHandle _Dir_open(tlArgs* args) {
-    tlText* name = tlTextCast(tlArgsGet(args, 0));
+    tlString* name = tlStringCast(tlArgsGet(args, 0));
     trace("opendir: %s", tl_str(name));
 
-    tlText* path = cwd_join(name);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(name);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("opendir: invalid cwd");
 
     DIR *dir = opendir(p);
@@ -663,7 +663,7 @@ static tlHandle _DirRead(tlArgs* args) {
     if (readdir_r(dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    return tlTextFromCopy(dp.d_name, 0);
+    return tlStringFromCopy(dp.d_name, 0);
 }
 
 typedef struct tlDirEachFrame {
@@ -684,7 +684,7 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    res = tlEval(tlCallFrom(frame->block, tlTextFromCopy(dp.d_name, 0), null));
+    res = tlEval(tlCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
     if (!res) return tlTaskPauseAttach(frame);
     goto again;
     return tlNull;
@@ -735,17 +735,17 @@ static void launch(const char* cwd, char** argv) {
 static tlHandle _io_exec(tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
-        tlText* text = tlTextCast(tlArgsGet(args, i));
-        if (!text) {
+        tlString* str = tlStringCast(tlArgsGet(args, i));
+        if (!str) {
             free(argv);
-            TL_THROW("expected a Text");
+            TL_THROW("expected a String");
         }
-        argv[i] = (char*)tlTextData(text);
+        argv[i] = (char*)tlStringData(str);
     }
     argv[tlArgsSize(args)] = 0;
 
-    tlText* path = cwd_join(null);
-    const char *p = tlTextData(path);
+    tlString* path = cwd_join(null);
+    const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("exec: invalid cwd");
 
     launch(p, argv);
@@ -856,15 +856,15 @@ static tlHandle _io_launch(tlArgs* args) {
         null_fd = open("/dev/null", O_RDWR);
         if (null_fd < 0) fatal("unable to open(/dev/null): %s", strerror(errno));
     }
-    tlText* cwd = tlTextCast(tlArgsGet(args, 0));
-    if (!cwd) TL_THROW("expected a Text as cwd");
+    tlString* cwd = tlStringCast(tlArgsGet(args, 0));
+    if (!cwd) TL_THROW("expected a String as cwd");
     tlList* as = tlListCast(tlArgsGet(args, 1));
     if (!as) TL_THROW("expected a List");
     char** argv = malloc(sizeof(char*) * (tlListSize(as) + 1));
     for (int i = 0; i < tlListSize(as); i++) {
-        tlText* text = tlTextCast(tlListGet(as, i));
-        if (!text) TL_THROW("expected a Text");
-        argv[i] = (char*)tlTextData(text);
+        tlString* str = tlStringCast(tlListGet(as, i));
+        if (!str) TL_THROW("expected a String");
+        argv[i] = (char*)tlStringData(str);
     }
     argv[tlListSize(as)] = 0;
 
@@ -881,7 +881,7 @@ static tlHandle _io_launch(tlArgs* args) {
     if (env) for (int i = 0;; i++) {
         tlHandle val = tlMapValueIter(env, i);
         if (!val) break;
-        if (!tlTextIs(val)) TL_THROW("expected only Strings in the environment map");
+        if (!tlStringIs(val)) TL_THROW("expected only Strings in the environment map");
     }
     bool reset_env = tl_bool_or(tlArgsGet(args, 7), false);
 
@@ -941,18 +941,18 @@ static tlHandle _io_launch(tlArgs* args) {
         // TODO how?
     }
     if (env) for (int i = 0;; i++) {
-        tlText* text = tlTextCast(tlMapValueIter(env, i));
-        if (!text) break;
+        tlString* str = tlStringCast(tlMapValueIter(env, i));
+        if (!str) break;
         tlSym key = tlSetGet(tlMapKeySet(env), i);
-        setenv(tlSymData(key), tlTextData(text), 1);
+        setenv(tlSymData(key), tlStringData(str), 1);
     }
 
-    launch(tlTextData(cwd), argv);
+    launch(tlStringData(cwd), argv);
     // cannot happen, launch does exit
     TL_THROW("oeps: %s", strerror(errno));
 }
 
-INTERNAL const char* fileToText(tlHandle v, char* buf, int size) {
+INTERNAL const char* filetoString(tlHandle v, char* buf, int size) {
     tlFile* file = tlFileAs(v);
     tlKind* kind = tl_kind(file);
     snprintf(buf, size, "<%s@%d>", kind->name, file->ev.fd);
@@ -1199,7 +1199,7 @@ void evio_init() {
         "close", _writer_close,
         null
     );
-    _tlFileKind.toText = fileToText;
+    _tlFileKind.toString = filetoString;
     _tlFileKind.klass = tlClassMapFrom(
         "isClosed", _file_isClosed,
         "close", _file_close,
@@ -1266,7 +1266,7 @@ void evio_init() {
 
     char buf[MAXPATHLEN + 1];
     char* cwd = getcwd(buf, sizeof(buf));
-    tl_cwd = tlTextFromCopy(cwd, 0);
+    tl_cwd = tlStringFromCopy(cwd, 0);
 
     signal(SIGPIPE, SIG_IGN);
 

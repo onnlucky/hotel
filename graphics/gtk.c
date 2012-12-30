@@ -28,8 +28,8 @@ static void draw(cairo_t *cr) {
     tlVm* vm = tlvm_new();
     tlvm_global_set(vm, tlSYM("graphics"), tlDATA(cr));
     tlvm_global_set(vm, tlSYM("circle"), tlFUN(_circle));
-    tlvm_run(vm, tlTEXT("circle(100, 100, 50)"));
-    //tlvm_run(vm, tltext_from_file("run.tl"));
+    tlvm_run(vm, tlString("circle(100, 100, 50)"));
+    //tlvm_run(vm, tlString_from_file("run.tl"));
     tlvm_delete(vm);
     */
 }

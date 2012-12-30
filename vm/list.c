@@ -324,7 +324,7 @@ INTERNAL tlHandle _list_toChar(tlArgs* args) {
         buf[i] = ch;
     }
     buf[size] = 0;
-    return tlTextFromTake(buf, size);
+    return tlStringFromTake(buf, size);
 }
 
 INTERNAL tlHandle _List_unsafe(tlArgs* args) {

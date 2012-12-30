@@ -87,7 +87,7 @@ Stream = {
                 }
             }
             _with_lock(writer, this.wbuf): {
-                this.wbuf.write val.toText
+                this.wbuf.write val.toString
                 return writeFull(writer, this.wbuf)
             }
         }
@@ -152,7 +152,7 @@ File = {
                     return writeFull(writer, val)
                 }
             }
-            buf = Buffer.new; buf.write val.toText
+            buf = Buffer.new; buf.write val.toString
             _with_lock(writer, buf): {
                 return writeFull(writer, buf)
             }

@@ -26,5 +26,5 @@ static bool tlCodeFrameIs(tlFrame* frame) {
     return frame && (frame->resumecb == resumeCode || frame->resumecb == stopCode);
 }
 
-INTERNAL void tlFrameGetInfo(tlFrame* frame, tlText** file, tlText** function, tlInt* line);
+INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
 

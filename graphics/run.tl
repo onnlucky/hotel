@@ -48,7 +48,7 @@ TextField = { ->
     box.rotate(0.2)
     box.alpha(0.5)
     onkey = { e ->
-        _catch: e -> print e.toText
+        _catch: e -> print e.toString
         if e.key == 37 and left.get.size > 0: {
             right.set left.get.slice(-1).cat(right.get)
             left.set left.get.slice(0, -1)

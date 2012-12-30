@@ -119,9 +119,9 @@ static tlHandle _Image_new(tlArgs* args) {
     int height = tl_int_or(tlArgsGet(args, 1), 0);
     if (width > 0 && height > 0) return ImageNew(width, height);
 
-    tlText* path = tlTextCast(tlArgsGet(args, 0));
+    tlString* path = tlStringCast(tlArgsGet(args, 0));
     if (path) {
-        tlBuffer* buffer = tlBufferFromFile(tlTextData(path));
+        tlBuffer* buffer = tlBufferFromFile(tlStringData(path));
         if (buffer) return ImageFromBuffer(buffer);
         TL_THROW("cannot read file");
     }
@@ -142,9 +142,9 @@ static tlHandle _image_graphics(tlArgs* args) {
 }
 static tlHandle _image_writePNG(tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
-    tlText* path = tlTextCast(tlArgsGet(args, 0));
+    tlString* path = tlStringCast(tlArgsGet(args, 0));
     if (!path) TL_THROW("require a filename");
-    cairo_status_t s = cairo_surface_write_to_png(img->surface, tlTextData(path));
+    cairo_status_t s = cairo_surface_write_to_png(img->surface, tlStringData(path));
     if (s) TL_THROW("oeps: %s", cairo_status_to_string(s));
     return tlNull;
 }

@@ -9,10 +9,10 @@ tomap = { ls ->
     ls.each: e -> if e: m.set(e.k, e.v)
     return m
 }
-totext = { b, n ->
+toString = { b, n ->
     if not n: return
     if isText(n): b.write(n); return
-    n.sub.each: sn -> totext(b, sn)
+    n.sub.each: sn -> toString(b, sn)
 }
 
 NodeClass = {
@@ -23,7 +23,7 @@ NodeClass = {
         if this.sub.size == 0: return ""
         if this.sub.size == 1 and isText(this.sub.get(0)): return this.sub.get(0)
         b = Buffer.new
-        totext(b, this)
+        toString(b, this)
         return b.read
     }
 }

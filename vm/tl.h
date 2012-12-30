@@ -41,7 +41,7 @@ static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
 #define TL_MIN_INT ((int64_t)0xBFFFFFFFFFFFFFFF)
 #endif
 
-// symbols are tlText* tagged with 010 and address > 1024
+// symbols are tlString* tagged with 010 and address > 1024
 // so we use values tagged with 010 and < 1024 to encode some special values
 #define TL_UNDEFINED ((1 << 3)|2)
 #define TL_NULL      ((2 << 3)|2)
@@ -117,7 +117,7 @@ static inline _T* _T##Cast(tlHandle v) { \
     return _T##Is(v)?(_T*)v:null; }
 
 TL_REF_TYPE(tlFloat);
-TL_REF_TYPE(tlText);
+TL_REF_TYPE(tlString);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
@@ -154,9 +154,9 @@ tlHandle tlBOOL(unsigned c);
 tlInt tlINT(intptr_t i);
 tlFloat* tlFLOAT(double d);
 
-// tlTEXT and tlSYM can only be used after tl_init()
+// tlString and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
-#define tlTEXT(x) tlTextFromStatic(x, strlen(x))
+#define tlString(x) tlStringFromStatic(x, strlen(x))
 #define tlSYM(x) tlSymFromStatic(x, strlen(x))
 
 int tl_bool(tlHandle v);
@@ -172,7 +172,7 @@ const char* tl_str(tlHandle v);
 // Any vararg (...) arguments must end with a null.
 // Most getters don't require the current task.
 // Mutable setters (ending with underscore) must only be used after you just created the value.
-// Notice hotel level text, list, etc. values are not necesairy primitive tlTexts or tlLists etc.
+// Notice hotel level text, list, etc. values are not necesairy primitive tlStrings or tlLists etc.
 
 unsigned int tlHandleHash(tlHandle v);
 bool tlHandleEquals(tlHandle left, tlHandle right);
@@ -180,17 +180,17 @@ int tlHandleCompare(tlHandle left, tlHandle right);
 
 
 // ** text **
-int tlTextSize(tlText* text);
-const char* tlTextData(tlText* text);
+int tlStringSize(tlString* str);
+const char* tlStringData(tlString* str);
 
-tlText* tlTextEmpty();
+tlString* tlStringEmpty();
 
-tlText* tlTextFromStatic(const char* s, int len);
-tlText* tlTextFromCopy(const char* s, int len);
-tlText* tlTextFromTake(char* s, int len);
+tlString* tlStringFromStatic(const char* s, int len);
+tlString* tlStringFromCopy(const char* s, int len);
+tlString* tlStringFromTake(char* s, int len);
 
-tlText* tlTextCat(tlText* lhs, tlText* rhs);
-tlText* tlTextSub(tlText* from, int first, int size);
+tlString* tlStringCat(tlString* lhs, tlString* rhs);
+tlString* tlStringSub(tlString* from, int first, int size);
 
 
 // ** symbols **
@@ -198,8 +198,8 @@ tlSym tlSymFromStatic(const char* s, int len);
 tlSym tlSymFromCopy(const char* s, int len);
 tlSym tlSymFromTake(char* s, int len);
 
-tlSym tlSymFromText(tlText* text);
-tlText* tlTextFromSym(tlSym s);
+tlSym tlSymFromString(tlString* str);
+tlString* tlStringFromSym(tlSym s);
 const char* tlSymData(tlSym sym);
 
 
@@ -281,19 +281,19 @@ void tlVmDecExternal(tlVm* vm);
 
 
 // parsing
-tlHandle tlParse(tlText* text, tlText* file);
+tlHandle tlParse(tlString* str, tlString* file);
 
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlHandle v);
 tlTask* tlVmEvalCall(tlVm* vm, tlHandle fn, ...);
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as);
-tlTask* tlVmEvalCode(tlVm* vm, tlText* code, tlText* file, tlArgs* as);
-tlTask* tlVmEvalFile(tlVm* vm, tlText* file, tlArgs* as);
+tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as);
+tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as);
 
 // setup a single task to eval something, returns immedately
 tlHandle tlEval(tlHandle v);
 tlHandle tlEvalCall(tlHandle fn, ...);
-tlTask* tlEvalCode(tlVm* vm, tlText* code, tlArgs* as);
+tlTask* tlEvalCode(tlVm* vm, tlString* code, tlArgs* as);
 
 // reading status from tasks
 bool tlTaskIsDone(tlTask* task);
@@ -308,8 +308,8 @@ tlTask* tlTaskDequeue(lqueue* q);
 tlTask* tlBlockingTaskNew(tlVm* vm);
 tlHandle tlBlockingTaskEval(tlTask* task, tlHandle call);
 
-// invoking toText, almost same as tlEvalCode("v.toText")
-tlText* tlToText(tlHandle v);
+// invoking toString, almost same as tlEvalCode("v.toString")
+tlString* tltoString(tlHandle v);
 
 
 // ** extending hotel with native functions **
@@ -360,10 +360,10 @@ tlHandle tlArgumentErrorThrow(tlHandle msg);
 
 #define TL_THROW(f, x...) do {\
     char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
-    return tlErrorThrow(tlTextFromCopy(_s, _k)); } while (0)
+    return tlErrorThrow(tlStringFromCopy(_s, _k)); } while (0)
 #define TL_ILLARG(f, x...) do {\
     char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
-    return tlArgumentErrorThrow(tlTextFromCopy(_s, _k)); } while (0)
+    return tlArgumentErrorThrow(tlStringFromCopy(_s, _k)); } while (0)
 #define TL_THROW_SET(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     tlTaskThrowTake(strdup(_s)); } while (0)
@@ -429,7 +429,7 @@ tlLock* tlLockAs(tlHandle v);
 tlLock* tlLockCast(tlHandle v);
 tlTask* tlLockOwner(tlLock* lock);
 
-typedef const char*(*tlToTextFn)(tlHandle v, char* buf, int size);
+typedef const char*(*tltoStringFn)(tlHandle v, char* buf, int size);
 typedef unsigned int(*tlHashFn)(tlHandle from);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
 typedef int(*tlCompareFn)(tlHandle left, tlHandle right);
@@ -443,7 +443,7 @@ typedef tlHandle(*tlSendFn)(tlArgs* args);
 // fields with a null value is usually perfectly fine
 struct tlKind {
     const char* name;  // general name of the value
-    tlToTextFn toText; // a toText "printer" function
+    tltoStringFn toString; // a toString "printer" function
 
     tlHashFn hash;     // return a hash value, must be stable
     tlEqualsFn equals; // return left == right, required if hash is not null

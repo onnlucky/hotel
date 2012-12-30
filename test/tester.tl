@@ -8,7 +8,7 @@ io.Dir(".").each: { file ->
     if file == "tester.tl": continue
 
     _catch: { e ->
-        print "FAIL:", file, "ERR:", e.toText
+        print "FAIL:", file, "ERR:", e.toString
         $fail += 1
     }
     // TODO overwrite stdout ...

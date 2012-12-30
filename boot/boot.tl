@@ -3,7 +3,7 @@
 // 2. run the requests file(s) or start a repl
 // 3. drop into the io runloop, exiting when no tasks are left
 
-_catch: e -> print "boot exception: $(e.toText)"
+_catch: e -> print "boot exception: $(e.toString)"
 
 or = { left, &right ->
     if not left: return right()
@@ -101,11 +101,11 @@ _flatten2 = { ls, arr ->
 _install(Int.class, #times, _times)
 _install(Int.class, #to, _to)
 
-// TODO should have special boot places for text, list and such
-/// Text.each: for ever character run block or function given
-_install(Text.class, #each, _each)
-/// Text.split: split the text wherever args[1] occurs, returns a list of text fragments
-_install(Text.class, #split, (split = { on ->
+// TODO should have special boot places for string, list and such
+/// String.each: for ever character run block or function given
+_install(String.class, #each, _each)
+/// String.split: split the string wherever args[1] occurs, returns a list of string fragments
+_install(String.class, #split, (split = { on ->
     if this.size == 0: return []
     on = on or " "
     onlen = on.size
@@ -120,8 +120,8 @@ _install(Text.class, #split, (split = { on ->
     }
     return loop(0, 0, [])
 }))
-/// Text.replace: replace the first occurance of args[1] with args[2], returns a new #String
-_install(Text.class, #replace, (replace = { from, to ->
+/// String.replace: replace the first occurance of args[1] with args[2], returns a new #String
+_install(String.class, #replace, (replace = { from, to ->
     at = this.find(from)
     if not at: return this
 
@@ -129,6 +129,7 @@ _install(Text.class, #replace, (replace = { from, to ->
     after = this.slice(at + from.size)
     return "$before$to$after"
 }))
+
 _install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)
 _install(List.class, #random, _get_random)
@@ -139,10 +140,10 @@ _install(List.class, #join, (join = { sep ->
     if this.size == 0: return ""
     sep = sep or ""
 
-    var $res = this.get(0).toText
+    var $res = this.get(0).toString
     var $i = 1
     while $i < this.size: {
-        $res = $res.cat(sep).cat(this.get($i).toText)
+        $res = $res.cat(sep).cat(this.get($i).toString)
         $i += 1
     }
     return $res
@@ -187,10 +188,10 @@ _install(Array.class, #join, (join = { sep ->
     if this.size == 0: return ""
     sep = sep or ""
 
-    var $res = this.get(0).toText
+    var $res = this.get(0).toString
     var $i = 1
     while $i < this.size: {
-        $res = $res.cat(sep).cat(this.get($i).toText)
+        $res = $res.cat(sep).cat(this.get($i).toString)
         $i += 1
     }
     return $res
@@ -204,7 +205,7 @@ _install(ArgumentError, #call, _errorConstructor);
 _install(UndefinedError, #call, _errorConstructor);
 _install(Error, #class, {
     throw: { -> _throw this }
-    toText: { ->
+    toString: { ->
         ls = Array.new
         ls.add "Error: ", this.msg, "\n"
         x = Var.new 0
@@ -220,11 +221,11 @@ _install(Error, #class, {
 
 inspect = { x ->
     toJSON = { x, indent, buf, inlist -> (
-        _match(isBool(x)): buf.write(x.toText); return false
+        _match(isBool(x)): buf.write(x.toString); return false
         _match(not x): buf.write("null"); return false
-        _match(isNumber(x)): buf.write(x.toText); return false
-        _match(isSym(x)): buf.write("#"); buf.write(x.toText.escape); return false
-        _match(isText(x)): buf.write("\""); buf.write(x.escape); buf.write("\""); return false
+        _match(isNumber(x)): buf.write(x.toString); return false
+        _match(isSym(x)): buf.write("#"); buf.write(x.toString.escape); return false
+        _match(isString(x)): buf.write("\""); buf.write(x.escape); buf.write("\""); return false
         _match(isList(x)): (
             if x.size == 0: buf.write("[]"); return false
             if indent.size > 0: buf.write("\n")
@@ -244,7 +245,7 @@ inspect = { x ->
             keys.each: { key =>
                 if not inlist: buf.write(indent)
                 if inlist: if not $first: buf.write(indent)
-                buf.write(key.toText); buf.write(": ")
+                buf.write(key.toString); buf.write(": ")
                 nl = toJSON(_Map_get(x, key), indent.cat(" "), buf)
                 if not nl: buf.write("\n")
                 $first = false
@@ -263,7 +264,7 @@ inspect = { x ->
 
 // TODO should report line number and such of testcase ...
 test = { ->
-    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toText
+    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
     args.block.call
 }
 
@@ -276,9 +277,9 @@ minutes = m -> m * 60
 hours   = h -> m * 60 * 60
 days    = d -> d * 60 * 60 * 24
 
-eval2 = { text -> _parse(text)(Env.current) }
-/// Text.eval: evalute the text as a script to run in the current environment
-_install(Text.class, #eval, (_eval_ = { ->
+eval2 = { string -> _parse(string)(Env.current) }
+/// String.eval: evalute the string as a script to run in the current environment
+_install(String.class, #eval, (_eval_ = { ->
     eval2(this)
 }))
 
@@ -296,13 +297,12 @@ _fileForModule = { name, path ->
     Error("Undefined: '$name'").throw
 }
 _resolve: { name, path ->
-    //print "RESOLVING:", path, name
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
     if res != undefined: return res
     _catch: e -> _throw "Error reading module: '$name', $(e?msg)"
-    file = _fileForModule("$(name.toText).tl", path)
-    res = _parse(_textFromFile(file), file)(_env)
+    file = _fileForModule("$(name.toString).tl", path)
+    res = _parse(_stringFromFile(file), file)(_env)
     _loaded.set(name, res)
 }
 
@@ -311,11 +311,11 @@ runmain = { as ->
     if as.size == 0: return repl.run
 
     _catch: { e ->
-        print e.toText
+        print e.toString
         _set_exitcode(1)
     }
     file = as.get(0)
-    return _parse(_textFromFile(file), file)(_env, as.slice(1))
+    return _parse(_stringFromFile(file), file)(_env, as.slice(1))
 }
 main = !runmain(args)
 

@@ -20,7 +20,7 @@ double tl_double_or(tlHandle h, double d) {
     return d;
 }
 
-static const char* floatToText(tlHandle v, char* buf, int size) {
+static const char* floattoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "%f", tl_double(v)); return buf;
 }
 static unsigned int floatHash(tlHandle h) {
@@ -38,7 +38,7 @@ static int floatCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlFloatKind = {
     .name = "Float",
-    .toText = floatToText,
+    .toString = floattoString,
     .hash = floatHash,
     .equals = floatEquals,
     .cmp = floatCmp,
@@ -57,11 +57,11 @@ static tlHandle _float_round(tlArgs* args) {
 static tlHandle _float_ceil(tlArgs* args) {
     return tlINT(ceil(tl_double(tlArgsTarget(args))));
 }
-static tlHandle _float_toText(tlArgs* args) {
+static tlHandle _float_toString(tlArgs* args) {
     double c = tl_double(tlArgsTarget(args));
     char buf[255];
     int len = snprintf(buf, sizeof(buf), "%f", c);
-    return tlTextFromCopy(buf, len);
+    return tlStringFromCopy(buf, len);
 }
 
 static void number_init() {
@@ -70,7 +70,7 @@ static void number_init() {
         "floor", _float_floor,
         "round", _float_round,
         "ceil", _float_ceil,
-        "toText", _float_toText,
+        "toString", _float_toString,
         null
     );
 }

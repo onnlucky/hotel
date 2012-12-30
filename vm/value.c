@@ -25,8 +25,8 @@ INTERNAL void tlflag_set(tlHandle v, unsigned flag) {
     set_kptr(v, get_kptr(v) | flag);
 }
 
-static tlText* _t_true;
-static tlText* _t_false;
+static tlString* _t_true;
+static tlString* _t_false;
 
 // creating tagged values
 tlHandle tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
@@ -96,7 +96,7 @@ const char* tl_str(tlHandle v) {
 
     tlKind* kind = tl_kind(v);
     if (kind) {
-        tlToTextFn fn = kind->toText;
+        tltoStringFn fn = kind->toString;
         if (fn) return fn(v, _str_buf, _BUF_SIZE);
         snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", kind->name, v);
         return _str_buf;
@@ -105,22 +105,22 @@ const char* tl_str(tlHandle v) {
     return _str_buf;
 }
 
-static const char* undefinedToText(tlHandle v, char* buf, int size) { return "undefined"; }
-static tlKind _tlUndefinedKind = { .name = "Undefined", .toText = undefinedToText };
+static const char* undefinedtoString(tlHandle v, char* buf, int size) { return "undefined"; }
+static tlKind _tlUndefinedKind = { .name = "Undefined", .toString = undefinedtoString };
 
-static const char* nullToText(tlHandle v, char* buf, int size) { return "null"; }
-static tlKind _tlNullKind = { .name = "Null", .toText = nullToText };
+static const char* nulltoString(tlHandle v, char* buf, int size) { return "null"; }
+static tlKind _tlNullKind = { .name = "Null", .toString = nulltoString };
 
-static const char* boolToText(tlHandle v, char* buf, int size) {
+static const char* booltoString(tlHandle v, char* buf, int size) {
     switch ((intptr_t)v) {
         case TL_FALSE: return "false";
         case TL_TRUE: return "true";
         default: return "<!! error !!>";
     }
 }
-static tlKind _tlBoolKind = { .name = "Bool", .toText = boolToText };
+static tlKind _tlBoolKind = { .name = "Bool", .toString = booltoString };
 
-static const char* intToText(tlHandle v, char* buf, int size) {
+static const char* inttoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "%zd", tl_int(v)); return buf;
 }
 static unsigned int intHash(tlHandle v) {
@@ -135,7 +135,7 @@ static int intCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlIntKind = {
     .name = "Int",
-    .toText = intToText,
+    .toString = inttoString,
     .hash = intHash,
     .equals = intEquals,
     .cmp = intCmp,
@@ -146,7 +146,7 @@ tlKind* tlNullKind = &_tlNullKind;
 tlKind* tlBoolKind = &_tlBoolKind;
 tlKind* tlIntKind = &_tlIntKind;
 
-static tlHandle _bool_toText(tlArgs* args) {
+static tlHandle _bool_toString(tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
     if (b) return _t_true;
     return _t_false;
@@ -161,13 +161,13 @@ static tlHandle _int_toChar(tlArgs* args) {
     if (c < 0) TL_THROW("negative numbers cannot be a char");
     if (c > 255) TL_THROW("utf8 not yet supported");
     const char buf[] = { c, 0 };
-    return tlTextFromCopy(buf, 1);
+    return tlStringFromCopy(buf, 1);
 }
-static tlHandle _int_toText(tlArgs* args) {
+static tlHandle _int_toString(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[255];
     int len = snprintf(buf, sizeof(buf), "%d", c);
-    return tlTextFromCopy(buf, len);
+    return tlStringFromCopy(buf, len);
 }
 static tlHandle _int_self(tlArgs* args) {
     return tlArgsTarget(args);
@@ -183,8 +183,8 @@ static tlHandle _isNumber(tlArgs* args) {
 static tlHandle _isSym(tlArgs* args) {
     return tlBOOL(tlSymIs(tlArgsGet(args, 0)));
 }
-static tlHandle _isText(tlArgs* args) {
-    return tlBOOL(tlTextIs(tlArgsGet(args, 0)));
+static tlHandle _isString(tlArgs* args) {
+    return tlBOOL(tlStringIs(tlArgsGet(args, 0)));
 }
 static tlHandle _isList(tlArgs* args) {
     return tlBOOL(tlListIs(tlArgsGet(args, 0)));
@@ -198,24 +198,24 @@ static const tlNativeCbs __value_natives[] = {
     { "isBool", _isBool },
     { "isNumber", _isNumber },
     { "isSym", _isSym },
-    { "isText", _isText },
+    { "isString", _isString },
     { "isList", _isList },
     { "isObject", _isObject },
     { 0, 0 }
 };
 
 static void value_init() {
-    _t_true = tlTEXT("true");
-    _t_false = tlTEXT("false");
+    _t_true = tlString("true");
+    _t_false = tlString("false");
     tl_register_natives(__value_natives);
     _tlBoolKind.klass = tlClassMapFrom(
-        "toText", _bool_toText,
+        "toString", _bool_toString,
         null
     );
     _tlIntKind.klass = tlClassMapFrom(
         "hash", _int_hash,
         "toChar", _int_toChar,
-        "toText", _int_toText,
+        "toString", _int_toString,
         "floor", _int_self,
         "round", _int_self,
         "ceil", _int_self,
