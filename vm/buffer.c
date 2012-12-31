@@ -225,7 +225,6 @@ INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
 }
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
-    if (!buf) TL_THROW("expected a Buffer");
 
     int max = canread(buf);
     int len = tl_int_or(tlArgsGet(args, 0), max);
@@ -236,6 +235,11 @@ INTERNAL tlHandle _buffer_read(tlArgs* args) {
     int last = tlBufferRead(buf, data, len);
     data[last] = 0;
     return tlStringFromTake(data, last);
+}
+INTERNAL tlHandle _buffer_readByte(tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    if (canread(buf) == 0) return tlNull;
+    return tlINT(tlBufferReadByte(buf));
 }
 
 INTERNAL tlHandle _buffer_write(tlArgs* args) {
@@ -318,7 +322,7 @@ static void buffer_init() {
             "clear", _buffer_clear,
             "rewind", _buffer_rewind,
             "read", _buffer_read,
-            //"readByte", _buffer_readByte,
+            "readByte", _buffer_readByte,
             "write", _buffer_write,
             "writeByte", _buffer_writeByte,
             "find", _buffer_find,

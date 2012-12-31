@@ -20,6 +20,14 @@ while = { &cond ->
         block()
     }
 }
+min = { l, r ->
+    if l <= r: return l
+    return r
+}
+max = { l, r ->
+    if l >= r: return l
+    return r
+}
 try = { ->
     if not args.block: _throw "try expects a block"
     _catch: return null

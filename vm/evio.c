@@ -6,6 +6,8 @@
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
 #include "ev/ev.h"
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #include "trace-off.h"
 
@@ -963,11 +965,11 @@ INTERNAL const char* filetoString(tlHandle v, char* buf, int size) {
 // ** newstyle io, where languages controls all */
 
 static void io_cb(ev_io *ev, int revents) {
-    trace("io_cb: %p", ev);
+    trace("io_cb: %p %d", ev, revents);
     assert(ev->fd >= 0);
     tlFile* file = tlFileFromEv(ev);
     if (revents & EV_READ) {
-        trace("CANREAD");
+        trace("CANREAD: %d", ev->fd);
         assert(file->reader);
         assert(file->reader->lock.owner);
         tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
@@ -977,7 +979,7 @@ static void io_cb(ev_io *ev, int revents) {
         tlMessageReply(msg, null);
     }
     if (revents & EV_WRITE) {
-        trace("CANWRITE");
+        trace("CANWRITE: %d", ev->fd);
         assert(file->writer);
         assert(file->writer->lock.owner);
         tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
@@ -1150,6 +1152,74 @@ static tlHandle _io_run(tlArgs* args) {
     return tlNull;
 }
 
+
+// ** crude terminal handling **
+// TODO should support many ttys :)
+
+static struct termios tty_orig;
+static int tty_fd = - 1;
+static void tty_restore() {
+    if (tty_fd != -1) {
+        setblock(tty_fd);
+        tcsetattr(tty_fd, TCSAFLUSH, &tty_orig);
+        tty_fd = -1;
+        trace("tty restored: %d", tty_fd);
+    }
+}
+static tlHandle _tty_is(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    if (!isatty(file->ev.fd)) return tlFalse;
+    return tlTrue;
+}
+static tlHandle _tty_setRaw(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    int fd = file->ev.fd;
+    if (!isatty(fd)) return tlFalse;
+
+    struct termios raw;
+    if (tcgetattr(fd, &tty_orig) == -1) goto fatal;
+
+    raw = tty_orig;
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 1; raw.c_cc[VTIME] = 0;
+    if (tcsetattr(fd, TCSAFLUSH, &raw) < 0) goto fatal;
+
+    if (tty_fd == -1) {
+        tty_fd = fd;
+        nonblock(fd);
+        atexit(tty_restore);
+    }
+    return tlTrue;
+fatal:
+    return tlFalse;
+}
+static tlHandle _tty_restore(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    int fd = file->ev.fd;
+    if (!isatty(fd)) return tlFalse;
+
+    if (fd == tty_fd) tty_restore();
+    return tlNull;
+}
+static tlHandle _tty_size(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    int fd = file->ev.fd;
+    if (!isatty(fd)) return tlFalse;
+
+    struct winsize ws;
+    if (ioctl(fd, TIOCGWINSZ, &ws) == -1) {
+        ws.ws_col = 80; ws.ws_row = 24;
+    }
+    return tlResultFrom(tlINT(ws.ws_col), tlINT(ws.ws_row), null);
+}
+
 static const tlNativeCbs __evio_natives[] = {
     { "_io_getrusage", _io_getrusage },
     { "_io_getenv", _io_getenv },
@@ -1170,6 +1240,11 @@ static const tlNativeCbs __evio_natives[] = {
     { "_ServerSocket_listen", _ServerSocket_listen },
     { "_Path_stat", _Path_stat },
     { "_Dir_open", _Dir_open },
+
+    { "_tty_is", _tty_is },
+    { "_tty_setRaw", _tty_setRaw },
+    { "_tty_restore", _tty_restore },
+    { "_tty_size", _tty_size },
 
     { "_io_exec", _io_exec },
     { "_io_launch", _io_launch },

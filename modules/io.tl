@@ -226,7 +226,19 @@ run = { cmd ->
 
 wait = s -> _io.wait s
 
-stdin = Stream.new(_File_from(0))
+Terminal = {
+    new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
+    class: {
+        class: Stream.class
+
+        isTTY: -> _tty_is(this.file)
+        setRaw: -> _tty_setRaw(this.file)
+        restore: -> _tty_restore(this.file)
+        size: -> _tty_size(this.file)
+    }
+}
+
+stdin = Terminal.new(_File_from(0))
 stdout = Stream.new(_File_from(1))
 stderr = Stream.new(_File_from(2))
 

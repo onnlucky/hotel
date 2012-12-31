@@ -1,87 +1,162 @@
-db = Persist.new("test.db")
-series = db.List.get("series")
-if series.size < 1: {
-    series.add db.Object.new { name: "The Mentalist", season: 5, episode: 11 }
-}
-listall = { ->
-    print "----"
-    series.each: s -> print "FOUND:", s.name, s.season, s.episode
-    print "----"
-}
-listall()
+if not io.stdin.isTTY: return
+term = io.stdin
+smcup = true
 
-apiList = { conn ->
-    conn.write "["
-    series.each: { s ->
-        conn.write "{'name':'$(s.name)','season':'$(s.season)','episode':'$(s.episode)'}"
+buf = Buffer.new
+if smcup: buf.writeByte 27; buf.write "[?1049h"; term.write buf
+term.setRaw
+
+editor = _Object_new {
+    _width: 80
+    _height: 24
+
+    _lines: Array.new
+    _offset: 0
+    _x: 0
+    _y: 0
+    _left: null
+    _right: null
+
+    // UTILS
+    _debug: Array.new
+    debug: l -> this._debug.add(l)
+
+    ensureLeftRight: { ->
+        if this._left: return
+        line = this._lines[this._y] or ""
+
+        // when moving along tip of lines, we normalize it here
+        if this._x >= line.size: this._x = line.size
+
+        if this._x == 0: this._left = ""; this._right = line; return
+        if this._x == line.size: this._left = line; this._right = ""; return
+        this._left = line[:this._x]
+        this._right = line[this._x:]
     }
-    conn.write "]"
-}
-apiGet = { conn, query ->
-    serie = series.find: e -> e.name == query["name"]
-    if not serie: conn.write "null"; return
-    conn.write "{'name':'$(s.name)','season':'$(s.season)','episode':'$(s.episode)'}"
-}
-apiAdd = { conn, query ->
-    print "add:", query["name"]
-    serie = series.find: e -> e.name == query["name"]
-    if serie: return conn.write "{'ok':false}"
-    series.add db.Object.new {
-        name: query["name"]
-        season: query["season"].eval
-        episode: query["episode"].eval
+    clearLeftRight: { ->
+        if not this._left: return
+        this._lines[this._offset + this._y] = this._left + this._right
+        this._left = this._right = null
     }
-    conn.write "{'ok':true}"
-    listall()
-}
-apiSet = { conn, query ->
-    print "set:", query["name"]
-    serie = series.find: e -> e.name == query["name"]
-    if not serie: return conn.write "{'ok':false'}"
-    query.each: { k, v ->
-        if k == "cmd" or k == "name": continue
-        serie._set(k.toSym, v)
+
+    // QUERING
+    currentline: { ->
+        if this._left: return this._left + this._right
+        this._lines[this._y] or ""
     }
-    conn.write "{'ok':true}"
-    listall()
-}
-apiRemove = { conn, query ->
-    print "remove:", query["name"]
-    serie, at = series.find: e -> e.name == query["name"]
-    if at: series.remove(at)
-    conn.write "{'ok':true}"
-    listall()
-}
-apiCheck = { conn, query ->
-    print "check:", query["name"]
-    serie = series.find: e -> e.name == query["name"]
-    if not serie: return conn.write "{'ok':false'}"
-    // update(serie)
-    conn.write "{'ok':true,'season':serie.season,'episode':serie.episode}"
+
+    // EDITING
+    input: { s ->
+        this.ensureLeftRight
+        this._left += s
+        this._x += s.size
+    }
+    newline: { ->
+        this.ensureLeftRight
+        this._lines[this._y] = this._left
+        this._y += 1
+        this._x = 0
+        this._lines.insert(this._y, this._right)
+        this._left = ""
+        this.debug "line: $(this._y) offset: $(this._offset)"
+    }
+    deleteleft: { ->
+        if this._x <= 0: {
+            if this._y <= 0: return
+            this.clearLeftRight
+            this._y -= 1
+            this._x = this._lines[this._y].size
+        }
+        this.ensureLeftRight
+        this._x -= 1
+        this._left = this._left[:-1]
+    }
+
+    // MOVING
+    moveleft: { ->
+        if this._x <= 0: return
+        this.clearLeftRight
+        if this._x > this.currentline.size: this._x = this.currentline.size - 1; return
+        this._x -= 1
+    }
+    moveright: { ->
+        if this._x >= this._width - 1: return
+        this.clearLeftRight
+        if this._x >= this.currentline.size: this._x = this.currentline.size; return
+        this._x += 1
+    }
+    moveup: { ->
+        if this._y <= 0: return
+        this.clearLeftRight
+        this._y -= 1
+    }
+    movedown: { ->
+        if this._y >= this._lines.size - 1: return
+        this.clearLeftRight
+        this._y += 1
+    }
+
+    // RENDER TO vt100 terminal
+    // TODO more incremental?? more buffer/view based??
+    render: { ->
+        width, height = term.size
+        this._width = width; this._height = height
+
+        buf.writeByte 27; buf.write "[2J"
+        height.times: { i =>
+            y = i - 1 + this._offset
+            buf.writeByte 27; buf.write "[$i;0H"
+
+            if y == this._y and this._left: {
+                assert this._right
+                buf.write this._left; buf.write this._right
+            }
+            if not (y == this._y and this._left): buf.write this._lines[y] or ""
+        }
+        if this._debug.size > 0: {
+            buf.writeByte 27; buf.write "[$(height);0H"
+            buf.writeByte 27; buf.write "[2K"
+            this._debug.each: { l, i ->
+                if i != 0: buf.write " "
+                buf.write l
+            }
+            // TODO this._debug.clear
+            this._debug = Array.new
+        }
+        x = min(this._x, this.currentline.size)
+        buf.writeByte 27; buf.write "[$(this._y + 1);$(x + 1)H"
+        term.write buf
+    }
 }
 
-http.Server.new(8888).serve: { conn ->
-    path = conn.req.url.path
-    if path.startsWith("/api"): {
-        conn.contentType = "text/json"
-        query = conn.req.url.query
-        cmd = query["cmd"]
-        if cmd == "list": return apiList(conn)
-        if cmd == "get": return apiGet(conn, query)
-        if cmd == "add": return apiAdd(conn, query)
-        if cmd == "set": return apiSet(conn, query)
-        if cmd == "remove": return apiRemove(conn, query)
-        if cmd == "check": return apiCheck(conn, query)
-        conn.status = 400
-        conn.write "{'error':true}";
-        return
+inbuf = Buffer.new
+editor.render
+var $running = true
+while $running: {
+    term.read inbuf
+    while inbuf.size > 0: {
+        c = inbuf.readByte
+        editor.debug "in: $(c)"
+        if c == 4: $running = false
+        if c == 3: $running = false
+        if c == 13: editor.newline
+        if c == 127: editor.deleteleft
+        if c == 27: { // escape; 91; ...
+            c2 = inbuf.readByte
+            c3 = inbuf.readByte
+            if c2 == 91: {
+                if c3 == 68: editor.moveleft
+                if c3 == 67: editor.moveright
+                if c3 == 65: editor.moveup
+                if c3 == 66: editor.movedown
+            }
+        }
+        if c > 31 and c < 127: editor.input(c.toChar)
+        // todo more escape sequences and utf8 (when hotel supports that)
     }
-    if io.Path(path).isFile: {
-        conn.write io.File(path).read
-        return
-    }
-    conn.status = 404
-    conn.contentType = "text/html"
-    conn.write "<p>error</p>"
+    editor.render
 }
+
+term.restore
+if smcup: buf.writeByte 27; buf.write "[?1049l"; term.write buf
 
