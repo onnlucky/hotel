@@ -14,7 +14,7 @@ parseSel = parser {
 
 walk = { node, match, result ->
     if not node: return
-    if isText(node): return
+    if isString(node): return
 
     m = Var.new true
     match.get(0).each: { s ->

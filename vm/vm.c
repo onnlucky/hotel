@@ -491,7 +491,7 @@ static const tlNativeCbs __vm_natives[] = {
 
 static void vm_init() {
     tl_register_natives(__vm_natives);
-    tlMap* system = tlObjectFrom("version", tlString(TL_VERSION), null);
+    tlMap* system = tlObjectFrom("version", tlSTR(TL_VERSION), null);
     tl_register_global("system", system);
 }
 
@@ -505,7 +505,7 @@ tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as) {
 }
 
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as) {
-    return tlVmEvalCode(vm, tl_boot_code, tlString("<boot>"), as);
+    return tlVmEvalCode(vm, tl_boot_code, tlSTR("<boot>"), as);
 }
 
 tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as) {
@@ -535,7 +535,7 @@ tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as) {
 }
 
 static tlHandle _print(tlArgs* args) {
-    tlString* sep = tlString(" ");
+    tlString* sep = tlSTR(" ");
     tlHandle v = tlArgsMapGet(args, tlSYM("sep"));
     if (v) sep = tltoString(v);
 

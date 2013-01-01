@@ -15,19 +15,19 @@ int main(int argc, char** argv) {
 
         args = tlArgsNew(tlListNew(argc - 3), null);
         for (int i = 3; i < argc; i++) {
-            tlArgsSet_(args, i - 3, tlString(argv[i]));
+            tlArgsSet_(args, i - 3, tlSTR(argv[i]));
         }
     } else {
         args = tlArgsNew(tlListNew(argc - 1), null);
         for (int i = 1; i < argc; i++) {
-            tlArgsSet_(args, i - 1, tlString(argv[i]));
+            tlArgsSet_(args, i - 1, tlSTR(argv[i]));
         }
     }
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     if (boot) {
-        tlTask* task = tlVmEvalFile(vm, tlString(boot), args);
+        tlTask* task = tlVmEvalFile(vm, tlSTR(boot), args);
         tlHandle h = tlTaskGetValue(task);
         if (tl_bool(h)) printf("%s\n", tl_str(h));
     } else {

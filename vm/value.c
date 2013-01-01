@@ -205,8 +205,8 @@ static const tlNativeCbs __value_natives[] = {
 };
 
 static void value_init() {
-    _t_true = tlString("true");
-    _t_false = tlString("false");
+    _t_true = tlSTR("true");
+    _t_false = tlSTR("false");
     tl_register_natives(__value_natives);
     _tlBoolKind.klass = tlClassMapFrom(
         "toString", _bool_toString,

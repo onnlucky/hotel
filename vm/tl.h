@@ -156,7 +156,7 @@ tlFloat* tlFLOAT(double d);
 
 // tlString and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
-#define tlString(x) tlStringFromStatic(x, strlen(x))
+#define tlSTR(x) tlStringFromStatic(x, strlen(x))
 #define tlSYM(x) tlSymFromStatic(x, strlen(x))
 
 int tl_bool(tlHandle v);

@@ -411,7 +411,7 @@ static tlKind _tlStringKind = {
 };
 
 static void string_init() {
-    _tl_emptyString = tlString("");
+    _tl_emptyString = tlSTR("");
     _tlStringKind.klass = tlClassMapFrom(
         "toString", _string_toString,
         "toSym", _string_toSym,

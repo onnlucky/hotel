@@ -11,7 +11,7 @@ tomap = { ls ->
 }
 toString = { b, n ->
     if not n: return
-    if isText(n): b.write(n); return
+    if isString(n): b.write(n); return
     n.sub.each: sn -> toString(b, sn)
 }
 
@@ -21,7 +21,7 @@ NodeClass = {
     hasClass: { n -> this.classes.each({ c => if c == n: return true }); return false }
     text: { ->
         if this.sub.size == 0: return ""
-        if this.sub.size == 1 and isText(this.sub.get(0)): return this.sub.get(0)
+        if this.sub.size == 1 and isString(this.sub.get(0)): return this.sub.get(0)
         b = Buffer.new
         toString(b, this)
         return b.read

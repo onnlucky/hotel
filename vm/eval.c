@@ -877,7 +877,7 @@ static tlHandle _eval(tlArgs* args) {
     tlString* code = tlStringCast(tlArgsGet(args, 1));
     if (!code) TL_THROW("expected a String");
 
-    tlCode* body = tlCodeAs(tlParse(code, tlString("eval")));
+    tlCode* body = tlCodeAs(tlParse(code, tlSTR("eval")));
     trace("parsed: %s", tl_str(body));
     if (!body) return null;
 
@@ -940,9 +940,9 @@ static const tlNativeCbs __eval_natives[] = {
 };
 
 static void eval_init() {
-    _t_unknown = tlString("<unknown>");
-    _t_anon = tlString("<anon>");
-    _t_native = tlString("<native>");
+    _t_unknown = tlSTR("<unknown>");
+    _t_anon = tlSTR("<anon>");
+    _t_native = tlSTR("<native>");
 
     tl_register_natives(__eval_natives);
 
