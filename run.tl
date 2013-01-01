@@ -46,7 +46,9 @@ editor = _Object_new {
     }
 
     // EDITING
+    // TODO allow input to take "\n" and make lines from that
     input: { s ->
+        assert not s.find("\n")
         this.ensureLeftRight
         this._left += s
         this._x += s.size
@@ -61,15 +63,31 @@ editor = _Object_new {
         this.debug "line: $(this._y) offset: $(this._offset)"
     }
     deleteleft: { ->
+        this.ensureLeftRight
         if this._x <= 0: {
             if this._y <= 0: return
-            this.clearLeftRight
+            line = this._lines[this._y - 1]
+            this._lines.remove(this._y)
             this._y -= 1
-            this._x = this._lines[this._y].size
+            this._x = line.size
+            assert this._left == ""
+            this._left = line
+            return
         }
-        this.ensureLeftRight
         this._x -= 1
         this._left = this._left[:-1]
+    }
+    deleteright: { ->
+        this.ensureLeftRight
+        line = this.currentline
+        if this._x >= line.size: {
+            if this._y >= this._lines.size - 1: return
+            assert this._right == ""
+            this._right = this._lines[this._y + 1]
+            this._lines.remove(this._y + 1)
+            return
+        }
+        this._right = this._right[1:]
     }
 
     // MOVING
@@ -85,6 +103,15 @@ editor = _Object_new {
         if this._x >= this.currentline.size: this._x = this.currentline.size; return
         this._x += 1
     }
+    movelinestart: { ->
+        this.clearLeftRight
+        this._x = 0
+    }
+    movelineend: { ->
+        this.clearLeftRight
+        this._x = this.currentline.size
+    }
+    // TODO take care of offset when moving up/down in lines/pages
     moveup: { ->
         if this._y <= 0: return
         this.clearLeftRight
@@ -94,6 +121,14 @@ editor = _Object_new {
         if this._y >= this._lines.size - 1: return
         this.clearLeftRight
         this._y += 1
+    }
+    movepageup: { ->
+        this.clearLeftRight
+        this._y = max(this._y - this._height, 0)
+    }
+    movepagedown: { ->
+        this.clearLeftRight
+        this._y = min(this._y + this._height, this._lines.size - 1)
     }
 
     // RENDER TO vt100 terminal
@@ -141,14 +176,21 @@ while $running: {
         if c == 3: $running = false
         if c == 13: editor.newline
         if c == 127: editor.deleteleft
-        if c == 27: { // escape; 91; ...
-            c2 = inbuf.readByte
-            c3 = inbuf.readByte
+        if c == 27: { // esc
+            c2 = inbuf.readByte // [
+            c3 = inbuf.readByte // A for up, etc
+            editor.debug "esc: $(c2) $(c3)"
             if c2 == 91: {
                 if c3 == 68: editor.moveleft
                 if c3 == 67: editor.moveright
                 if c3 == 65: editor.moveup
                 if c3 == 66: editor.movedown
+                if c3 == 70: editor.movelineend
+                if c3 == 72: editor.movelinestart
+                // these end with a ~ (always, or maybe they take params?)
+                if c3 == 51: inbuf.readByte; editor.deleteright
+                if c3 == 53: inbuf.readByte; editor.movepageup
+                if c3 == 54: inbuf.readByte; editor.movepagedown
             }
         }
         if c > 31 and c < 127: editor.input(c.toChar)
