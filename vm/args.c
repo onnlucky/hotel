@@ -96,32 +96,32 @@ static tlHandle _args_get(tlArgs* args) {
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at == -1) TL_THROW("Expected an index");
     tlHandle res = tlArgsGet(as, at);
-    return (res)? res : tlUndefined;
+    return tlMAYBE(res);
 }
 static tlHandle _args_this(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlArgsTarget(as);
-    return (res)? res : tlUndefined;
+    return tlMAYBE(res);
 }
 static tlHandle _args_msg(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlArgsMsg(as);
-    return (res)? res : tlUndefined;
+    return tlMAYBE(res);
 }
 static tlHandle _args_block(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlArgsBlock(as);
-    return (res)? res : tlUndefined;
+    return tlMAYBE(res);
 }
 static tlHandle _args_map(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlArgsMap(as);
-    return (res)? res : tlUndefined;
+    return tlMAYBE(res);
 }
 static tlHandle _args_names(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlMapToObject(tlArgsMap(as));
-    return (res)? res : tlUndefined;
+    return tlMAYBE(res);
 }
 static tlHandle _args_slice(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));

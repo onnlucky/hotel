@@ -30,7 +30,7 @@ static tlString* _t_false;
 
 // creating tagged values
 tlHandle tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
-int tl_bool(tlHandle v) { return !(v == null || v == tlUndefined || v == tlNull || v == tlFalse); }
+int tl_bool(tlHandle v) { return !(v == null || v == tlNull || v == tlFalse || tlUndefinedIs(v)); }
 int tl_bool_or(tlHandle v, bool d) { if (!v) return d; return tl_bool(v); }
 
 tlHandle tlINT(intptr_t i) { return (tlHandle)(i << 2 | 1); }
@@ -173,6 +173,15 @@ static tlHandle _int_self(tlArgs* args) {
     return tlArgsTarget(args);
 }
 
+static tlHandle _isUndefined(tlArgs* args) {
+    return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0)));
+}
+static tlHandle _isDefined(tlArgs* args) {
+    return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0)));
+}
+static tlHandle _isNull(tlArgs* args) {
+    return tlBOOL(tlNull == tlArgsGet(args, 0));
+}
 static tlHandle _isBool(tlArgs* args) {
     return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
 }
@@ -195,6 +204,9 @@ static tlHandle _isObject(tlArgs* args) {
 }
 
 static const tlNativeCbs __value_natives[] = {
+    { "isUndefined", _isUndefined },
+    { "isDefined", _isDefined },
+    { "isNull", _isNull },
     { "isBool", _isBool },
     { "isNumber", _isNumber },
     { "isSym", _isSym },

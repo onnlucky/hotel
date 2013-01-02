@@ -215,7 +215,7 @@ static tlHandle _Map_clone(tlArgs* args) {
     map = tlClone(map);
     int argc = 1;
     for (int i = 0; i < size; i++) {
-        if (!map->data[i] || map->data[i] == tlUndefined) {
+        if (!map->data[i] || tlUndefinedIs(map->data[i])) {
             map->data[i] = tlArgsGet(args, argc++);
         }
     }
@@ -266,8 +266,7 @@ static tlHandle _Map_get(tlArgs* args) {
     tlSym key = tlSymCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a symbol");
     tlHandle res = tlMapGetSym(map, key);
-    if (!res) return tlUndefined;
-    return res;
+    return tlMAYBE(res);
 }
 static tlHandle _Map_set(tlArgs* args) {
     trace("");
@@ -295,8 +294,7 @@ static tlHandle _map_get(tlArgs* args) {
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
     tlHandle res = tlMapGet(map, key);
-    if (!res) return tlUndefined;
-    return res;
+    return tlMAYBE(res);
 }
 static tlHandle _map_set(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
@@ -304,7 +302,7 @@ static tlHandle _map_set(tlArgs* args) {
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Expected a key");
     tlHandle val = tlArgsGet(args, 1);
-    if (!val || val == tlUndefined) val = tlNull;
+    if (!val || tlUndefinedIs(val)) val = tlNull;
     tlMap* nmap = tlMapSet(map, key, val);
     return nmap;
 }
@@ -357,7 +355,7 @@ static tlHandle valueObjectSend(tlArgs* args) {
 
 send:;
     trace("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
-    if (!field) TL_THROW("%s.%s is undefined", tl_str(tlArgsTarget(args)), tl_str(msg));
+    if (!field) TL_UNDEF("%s.%s is undefined", tl_str(map), tl_str(msg));
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
 }

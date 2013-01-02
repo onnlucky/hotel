@@ -440,6 +440,7 @@ tlEnv* tlVmGlobalEnv(tlVm* vm) {
 }
 
 static const tlNativeCbs __vm_natives[] = {
+    { "_undefined", _undefined },
     { "out",  _out },
     { "bool", _bool },
     { "not",  _not },

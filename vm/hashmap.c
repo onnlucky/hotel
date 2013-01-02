@@ -79,8 +79,7 @@ INTERNAL tlHandle _hashmap_get(tlArgs* args) {
 
     tlHandle val = tlHashMapGet(map, key);
     trace("%s == %s", tl_str(key), tl_str(val));
-    if (!val) return tlUndefined;
-    return val;
+    return tlMAYBE(val);
 }
 INTERNAL tlHandle _hashmap_set(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
@@ -115,8 +114,7 @@ INTERNAL tlHandle _hashmap_del(tlArgs* args) {
 
     tlHandle val = lhashmap_putif(map->map, key, null, LHASHMAP_IGNORE);
     trace("%s == %s", tl_str(key), tl_str(val));
-    if (!val) return tlUndefined;
-    return val;
+    return tlMAYBE(val);
 }
 INTERNAL tlHandle _hashmap_size(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));

@@ -43,11 +43,9 @@ static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
 
 // symbols are tlString* tagged with 010 and address > 1024
 // so we use values tagged with 010 and < 1024 to encode some special values
-#define TL_UNDEFINED ((1 << 3)|2)
 #define TL_NULL      ((2 << 3)|2)
 #define TL_FALSE     ((3 << 3)|2)
 #define TL_TRUE      ((4 << 3)|2)
-static const tlHandle tlUndefined = (tlHead*)TL_UNDEFINED;
 static const tlHandle tlNull =      (tlHead*)TL_NULL;
 static const tlHandle tlFalse =     (tlHead*)TL_FALSE;
 static const tlHandle tlTrue =      (tlHead*)TL_TRUE;
@@ -87,7 +85,6 @@ static inline tlHead* tl_head(tlHandle v) { assert(tlRefIs(v)); return (tlHead*)
 extern tlKind* tlIntKind;
 extern tlKind* tlSymKind;
 extern tlKind* tlNullKind;
-extern tlKind* tlUndefinedKind;
 extern tlKind* tlBoolKind;
 
 static inline intptr_t get_kptr(tlHandle v) { return ((tlHead*)v)->kind; }
@@ -98,7 +95,6 @@ static inline tlKind* tl_kind(tlHandle v) {
     if (tlSymIs(v)) return tlSymKind;
     // assert(tlTagIs(v));
     switch ((intptr_t)v) {
-        case TL_UNDEFINED: return tlUndefinedKind;
         case TL_NULL: return tlNullKind;
         case TL_FALSE: return tlBoolKind;
         case TL_TRUE: return tlBoolKind;
@@ -116,6 +112,7 @@ static inline _T* _T##As(tlHandle v) { \
 static inline _T* _T##Cast(tlHandle v) { \
     return _T##Is(v)?(_T*)v:null; }
 
+TL_REF_TYPE(tlUndefined);
 TL_REF_TYPE(tlFloat);
 TL_REF_TYPE(tlString);
 TL_REF_TYPE(tlSet);
@@ -150,6 +147,8 @@ TL_REF_TYPE(tlTask);
 bool tlCallableIs(tlHandle v);
 
 // to and from primitive values
+tlHandle tlUndef();
+static inline tlUndefined* tlMAYBE(tlHandle v) { return (v)? v : tlUndef(); }
 tlHandle tlBOOL(unsigned c);
 tlInt tlINT(intptr_t i);
 tlFloat* tlFLOAT(double d);
@@ -357,6 +356,7 @@ tlHandle tlTaskThrow(tlHandle err);
 // throw errors
 tlHandle tlErrorThrow(tlHandle msg);
 tlHandle tlArgumentErrorThrow(tlHandle msg);
+tlHandle tlUndefMsg(tlString* msg);
 
 #define TL_THROW(f, x...) do {\
     char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
@@ -367,6 +367,9 @@ tlHandle tlArgumentErrorThrow(tlHandle msg);
 #define TL_THROW_SET(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     tlTaskThrowTake(strdup(_s)); } while (0)
+#define TL_UNDEF(f, x...) do {\
+    char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
+    return tlUndefMsg(tlStringFromCopy(_s, _k)); } while (0)
 
 // args
 tlArgs* tlArgsNew(tlList* list, tlMap* map);

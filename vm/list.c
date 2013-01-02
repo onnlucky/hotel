@@ -262,8 +262,7 @@ INTERNAL tlHandle _list_get(tlArgs* args) {
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
     tlHandle res = tlListGet(list, at);
-    if (!res) return tlNull;
-    return res;
+    return tlMAYBE(res);
 }
 INTERNAL tlHandle _list_set(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
@@ -271,7 +270,7 @@ INTERNAL tlHandle _list_set(tlArgs* args) {
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 0) TL_THROW("Expected a number >= 0");
     tlHandle val = tlArgsGet(args, 1);
-    if (!val || val == tlUndefined) val = tlNull;
+    if (!val || tlUndefinedIs(val)) val = tlNull;
     fatal("not implemented yet");
     tlList* nlist = tlNull; //tlListSet(list, at, val);
     return nlist;
@@ -280,14 +279,14 @@ INTERNAL tlHandle _list_add(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     tlHandle val = tlArgsGet(args, 0);
-    if (!val || val == tlUndefined) val = tlNull;
+    if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListAppend(list, val);
 }
 INTERNAL tlHandle _list_prepend(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     tlHandle val = tlArgsGet(args, 0);
-    if (!val || val == tlUndefined) val = tlNull;
+    if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListPrepend(list, val);
 }
 INTERNAL tlHandle _list_cat(tlArgs* args) {

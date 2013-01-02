@@ -19,6 +19,12 @@ struct tlStackTrace {
     // [tlString, tlString, tlInt, ...] so size * 3 is entries.length
 };
 
+struct tlUndefined {
+    tlHead head;
+    tlString* msg;
+    tlStackTrace* trace;
+};
+
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
 INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     if (skip < 0) skip = 0;
@@ -90,6 +96,28 @@ INTERNAL tlHandle resumeThrow(tlFrame* frame, tlHandle res, tlHandle throw) {
 INTERNAL tlHandle _throw(tlArgs* args) {
     trace("");
     return tlTaskPauseResuming(resumeThrow, args);
+}
+
+tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
+    tlUndefined* undef = tlAlloc(tlUndefinedKind, sizeof(tlUndefined));
+    undef->msg = msg;
+    undef->trace = trace;
+    return undef;
+}
+
+INTERNAL tlHandle resumeUndefined(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    trace("returning an Undefined: %s", tl_str(res));
+    return tlUndefinedNew(tlStringCast(res), tlStackTraceNew(null, 1));
+}
+tlHandle tlUndef() {
+    return tlTaskPauseResuming(resumeUndefined, tlNull);
+}
+INTERNAL tlHandle _undefined(tlArgs* args) {
+    return tlTaskPauseResuming(resumeUndefined, tlNull);
+}
+tlHandle tlUndefMsg(tlString* msg) {
+    return tlTaskPauseResuming(resumeUndefined, msg);
 }
 
 // TODO put in full stack?

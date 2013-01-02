@@ -2,7 +2,7 @@ ls = Array.new
 ls.insert(10, "hello world!")
 assert ls.get(9) == null
 assert ls.get(10) == "hello world!"
-assert ls.get(11) == undefined
+assert isUndefined ls.get(11)
 
 while ls.size > 0: ls.pop
 
@@ -32,11 +32,13 @@ while ls.size > 0: {
     if v == "auch": $seen_auch = true
     assert not v == "hello"
     assert not v == "world"
+    assert isDefined v
 }
 assert $seen_auch
 
-assert ls.get(-100) == undefined
-assert ls.get(0) == undefined
-assert ls.get(1) == undefined
-assert ls.get(10000) == undefined
+assert isUndefined ls.pop
+assert isUndefined ls.get(-100)
+assert isUndefined ls.get(0)
+assert isUndefined ls.get(1)
+assert isUndefined ls.get(10000)
 

@@ -36,7 +36,7 @@ INTERNAL tlHandle objectSend(tlArgs* args) {
     if (!field) {
         if (msg == s__set) {
             tlHandle key = tlSymCast(tlArgsGet(args, 0));
-            if (!key) return tlUndefined;
+            if (!key) return tlUndef();
             tlHandle val = tlArgsGet(args, 1);
             if (!val) val = tlNull;
             obj->map = tlMapSet(obj->map, key, val);

@@ -307,7 +307,7 @@ _fileForModule = { name, path ->
 _resolve: { name, path ->
     res = _loaded.get(name)
     if res == _loaded: _throw "Undefined: '$name'"
-    if res != undefined: return res
+    if isDefined res: return res
     _catch: e -> _throw "Error reading module: '$name', $(e?msg)"
     file = _fileForModule("$(name.toString).tl", path)
     res = _parse(_stringFromFile(file), file)(_env)

@@ -12,6 +12,7 @@
 #include "trace-off.h"
 
 static tlHandle sa_send, sa_try_send, sa_this_send;
+static tlSym s__undefined;
 static tlSym s_send, s_try_send;
 static tlSym s_String_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
 static tlSym s_Var_new, s_var_get, s_var_set;
@@ -486,7 +487,7 @@ litems = v:expr eom is:litems  { $$ = tlListPrepend(L(is), v); }
    lit = "true"      { $$ = tlTrue; }
        | "false"     { $$ = tlFalse; }
        | "null"      { $$ = tlNull; }
-       | "undefined" { $$ = tlUndefined; }
+       | "undefined" { $$ = tlCallFrom(tl_active(s__undefined), null); }
 
  varref = "$" n:name  { $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null); }
 thisref = "@" n:name  { $$ = tlCallFrom(tl_active(s_this_get), tl_active(s_this), n, null); }
@@ -574,6 +575,7 @@ tlHandle tlParse(tlString* str, tlString* file) {
     trace("\n----PARSING----\n%s----", tl_str(str));
 
     if (!s_send) {
+        s__undefined = tlSYM("_undefined");
         s_send = tlSYM("_send");
         s_try_send = tlSYM("_try_send");
         s_this_send = tlSYM("_this_send");

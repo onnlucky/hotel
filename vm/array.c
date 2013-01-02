@@ -1,4 +1,5 @@
 // a mutable list implementation
+// manually inserting things at > size, will fill array with null's (not undefined values!)
 
 #include "trace-off.h"
 
@@ -29,15 +30,15 @@ tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     return array;
 }
 tlHandle tlArrayPop(tlArray* array) {
-    if (array->size == 0) return tlUndefined;
+    if (array->size == 0) return null;
     array->size--;
     tlHandle v = array->data[array->size];
     array->data[array->size] = 0;
-    return v;
+    return (v)?v : tlNull;
 }
 tlHandle tlArrayRemove(tlArray* array, int i) {
-    if (i < 0) return tlUndefined;
-    if (i >= array->size) return tlUndefined;
+    assert(i >= 0);
+    if (i >= array->size) return null;
     tlHandle v = array->data[i];
 
     trace("remove: %d", i);
@@ -47,7 +48,8 @@ tlHandle tlArrayRemove(tlArray* array, int i) {
     return v;
 }
 tlArray* tlArrayInsert(tlArray* array, int i, tlHandle v) {
-    if (i < 0) return array;
+    assert(i >= 0);
+    assert(i < 1000000); // TODO for now :)
     if (i == array->size) return tlArrayAdd(array, v);
 
     int nsize;
@@ -78,12 +80,13 @@ tlArray* tlArrayInsert(tlArray* array, int i, tlHandle v) {
     return array;
 }
 tlHandle tlArrayGet(tlArray* array, int i) {
-    if (i < 0) return tlUndefined;
-    if (i >= array->size) return tlUndefined;
-    return array->data[i];
+    if (i < 0) return null;
+    if (i >= array->size) return null;
+    tlHandle v = array->data[i];
+    return (v)?v : tlNull;
 }
 tlArray* tlArraySet(tlArray* array, int i, tlHandle v) {
-    if (i < 0) return tlUndefined;
+    assert(i >= 0);
     if (i == array->size) return tlArrayAdd(array, v);
     if (i > array->size) return tlArrayInsert(array, i, v);
     array->data[i] = v;
@@ -117,15 +120,16 @@ INTERNAL tlHandle _array_get(tlArgs* args) {
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    tlHandle v = tlArrayGet(array, tl_int(i));
-    return v?v:tlNull;
+    return tlMAYBE(tlArrayGet(array, tl_int(i)));
 }
 INTERNAL tlHandle _array_set(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    return tlArraySet(array, tl_int(i), tlArgsGet(args, 1));
+    int at = tl_int(i);
+    if (at < 0) TL_THROW("index must be >= 0");
+    return tlArraySet(array, at, tlArgsGet(args, 1));
 }
 INTERNAL tlHandle _array_add(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
@@ -139,8 +143,7 @@ INTERNAL tlHandle _array_add(tlArgs* args) {
 INTERNAL tlHandle _array_pop(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
-    tlHandle v = tlArrayPop(array);
-    return v?v:tlNull;
+    return tlMAYBE(tlArrayPop(array));
 }
 INTERNAL tlHandle _array_insert(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
@@ -154,8 +157,7 @@ INTERNAL tlHandle _array_remove(tlArgs* args) {
     if (!array) TL_THROW("expected an Array");
     tlInt i = tlIntCast(tlArgsGet(args, 0));
     if (!i) TL_THROW("expected a index");
-    tlHandle v = tlArrayRemove(array, tl_int(i));
-    return v?v:tlNull;
+    return tlMAYBE(tlArrayRemove(array, tl_int(i)));
 }
 
 static tlMap* arrayClass;

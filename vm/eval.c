@@ -782,30 +782,11 @@ INTERNAL tlHandle _send(tlArgs* args) {
     if (kind->locked) return evalSendLocked(nargs);
     return evalSend(nargs);
 }
-INTERNAL tlHandle resumeTrySend(tlFrame* frame, tlHandle res, tlHandle throw) {
-    // trysend catches any error and ignores it ...
-    // TODO it should only catch locally thrown undefined errors ... in the future
-    return tlUndefined;
-}
 INTERNAL tlHandle _try_send(tlArgs* args) {
+    // TODO instead, use parser to parse x?y.z as -> (_tmp = x; if x: x.y.z) not (_tmp = x; if x: x.y).z
     tlHandle target = tlArgsGet(args, 0);
-    tlHandle msg = tlArgsGet(args, 1);
-    if (!target || !msg) TL_THROW("internal error: bad _try_send");
-
-    trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
-
-    tlArgs* nargs = tlArgsNew(null, null);
-    nargs->target = target;
-    nargs->msg = msg;
-    nargs->list = tlListSlice(args->list, 2, tlListSize(args->list));
-    nargs->map = args->map;
-
-    tlKind* kind = tl_kind(target);
-    assert(kind);
-    if (kind->locked) return evalSendLocked(nargs);
-    tlHandle res = evalSend(nargs);
-    if (res) return res;
-    return tlTaskPauseAttach(tlFrameAlloc(resumeTrySend, sizeof(tlFrame)));
+    if (!tl_bool(target)) return target;
+    return _send(args);
 }
 
 // implement fn.call ... pretty generic
