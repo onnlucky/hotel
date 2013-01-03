@@ -1,7 +1,5 @@
 # TODO
 
-make undefined capture the stack frame for backtraces, and when dereferencing a undefined throw UndefinedError.cause = original stack
-change the object?maybefield.deref to object.maybefield?deref where ? is false?noexecute true?execute
 add Queue + max depth size or unlimited; MsgQueue and TaskQueue
 
 add "if" to parser and do
@@ -32,7 +30,7 @@ add tlNumber as unlimited precision decimal, and have a numeric tower from small
 do class._name for error.toString: this.class._name ": " this.msg ...
 on error, if object, call toString on it ...
 
-rename List -> Array, and Text -> String; Map -> Table why? because that gives users those very useful names back
+rename List -> Array, Map -> Table why? because that gives users those very useful names back
 
 add objects using:
   Square = Object { width, height ->
@@ -46,20 +44,12 @@ bug: _flatten2 does not work when defined just before _install(List.class, #flat
 remove "foo $(...)" interpolation, do "foo" ... instead ...
 
 upgrade httpparser module, add httpresponse
-add /trigger to autobuilder ... wouldn't that be nice!
 
 classes + objects should not close environments so quickly ... how to handle all this
 see parser example, it cannot be factored into class + object, because class must construct itself
 
-create a tlTTY for stdin/stdout/stderr, handle nonblock and atomic /dev/null open
-* if 0,1,2 are not tty, set to nonblock
-* if multiple threads; don't care, just block
-* otherwise, set to nonblock just before read, and back just after read
-
 simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?
 implement a_var based on libatomic_ops ...
-
-fix foo?bar to only catch local undefined
 
 what about tasks.stop, ... should be workable
 what about "deamon tasks" ... how can that work? maybe those don't go into io waiting?

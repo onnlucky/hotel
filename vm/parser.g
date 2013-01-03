@@ -292,7 +292,7 @@ farg = "&&" n:name { $$ = tlListFrom2(n, tlCollectLazy); }
        }
        | op_log
 
-selfapply = n:name _ &eosfull {
+selfapply = !lit !"and" !"or" !"not" n:name _ &eosfull {
     $$ = call_activate(tlCallFromList(tl_active(n), tlListEmpty()));
 }
 

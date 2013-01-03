@@ -209,8 +209,9 @@ Socket = {
 }
 
 run = { cmd ->
+    // TODO don't just split, parse " and ' too and then handle their escapes
     list = cmd.split
-    check = not (try: not args.names.error)
+    check = not args.names.allowerror
     // no stdin, no stdin, no stderr, joined stdin/stderr
     child = _io.launch(Task.locals.cwd, list, false, true, false, true, args.names?env, false)
     buf = Buffer.new
