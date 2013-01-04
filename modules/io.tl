@@ -208,12 +208,9 @@ Socket = {
     }
 }
 
-run = { cmd ->
-    // TODO don't just split, parse " and ' too and then handle their escapes
-    list = cmd.split
-    check = not args.names.allowerror
+_run = { arglist, env, check ->
     // no stdin, no stdin, no stderr, joined stdin/stderr
-    child = _io.launch(Task.locals.cwd, list, false, true, false, true, args.names?env, false)
+    child = _io.launch(Task.locals.cwd, arglist, false, true, false, true, env, false)
     buf = Buffer.new
     out = Stream.new(child.out)
     loop: {
@@ -223,6 +220,24 @@ run = { cmd ->
     r = child.wait
     if r != 0 and check: Error("'$cmd' exit: $r", output=buf.read).throw
     return buf.read, r
+}
+
+/// run(cmdline, args...) env=null, allowerror=false
+/// execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[1:].cat(args) as arguments
+/// will throw an error when command returns nonzero status
+/// will return output of stdin and stderr combined
+run = { cmd ->
+    arglist = cmd.toString.split.cat(args[1:].map(a -> a.toString))
+    _run(arglist, args.names.env, not args.names.allowerror)
+}
+
+/// shell(cmd, args...) env=null, allowerror=false
+/// execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
+/// will throw an error when command returns nonzero status
+/// will return output of stdin and stderr combined
+shell = { cmd ->
+    arglist = ["sh", "-c", cmd.toString].cat(args[1:].map(a -> a.toString))
+    _run(arglist, args.names.env, not args.names.allowerror)
 }
 
 wait = s -> _io.wait s
@@ -252,6 +267,8 @@ return {
     Socket: Socket
 
     run: run
+    shell: shell
+
     wait: wait
     ioloop: ioloop
 

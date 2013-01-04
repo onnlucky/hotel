@@ -25,6 +25,10 @@ assert out == "hello world\n"
     io.run "false", allowerror=true
 )
 
+io.shell "echo 42 > /tmp/testing"
+assert io.File("/tmp/testing").read == "42\n"
+io.shell "rm -rf /tmp/testing"
+
 out, status = io.run("cat exec.tl")
 assert status == 0
 assert out.size > 100
