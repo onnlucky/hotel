@@ -12,8 +12,8 @@ ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
 advance = { in, adv -> { text: in.text, pos: in.pos + adv, oop: in.oop }}
 error = { in, nr, msg ->
-    if nr: _throw { t: #p, in: in, msg: nr, noreturn: true }
-    _throw {t: #p, in: in, msg: msg }
+    if nr: throw { t: #p, in: in, msg: nr, noreturn: true }
+    throw {t: #p, in: in, msg: msg }
 }
 
 rule_pass = { in, nr ->
@@ -51,9 +51,9 @@ pChar = { in, nr, text ->
 pNot = { in, nr, parser ->
     trace2(in, "pNot")
     in = (
-        _catch: { e =>
-            if e?t != #p: _throw e
-            if e?noreturn: _throw e
+        catch: { e =>
+            if e?t != #p: throw e
+            if e?noreturn: throw e
             return in, null
         }
         parser(in)
@@ -67,18 +67,18 @@ pAhead = { in, nr, parser ->
 }
 pOpt = { in, nr, parser ->
     trace2(in, "pOpt")
-    _catch: { e =>
-        if e?t != #p: _throw e
-        if e?noreturn: _throw e
+    catch: { e =>
+        if e?t != #p: throw e
+        if e?noreturn: throw e
         return in, null
     }
     parser(in)
 }
 _pmany = { in, parser, res ->
     trace2(in, "_pmany: $(res.size)")
-    _catch: { e =>
-        if e?t != #p: _throw e
-        if e?noreturn: _throw e
+    catch: { e =>
+        if e?t != #p: throw e
+        if e?noreturn: throw e
         trace2(in, " << pStar|pPlus");
         return in, res
     }
@@ -102,9 +102,9 @@ pOr = { in, nr, name ->
         if not parser: break
         trace2(in, "pOr: $name: $($i)")
         $i += 1
-        _catch: { e =>
-            if e?t != #p: _throw e
-            if e?noreturn: _throw e
+        catch: { e =>
+            if e?t != #p: throw e
+            if e?noreturn: throw e
         }
         in, v = parser(in)
         trace2(in, "pOr: $name <<")
@@ -115,9 +115,9 @@ pOr = { in, nr, name ->
 }
 
 pHandle = { e, nr, name ->
-    if e?t != #p: _throw e
+    if e?t != #p: throw e
     trace(e.in, " << FAIL $name")
-    if e?noreturn: _throw e
+    if e?noreturn: throw e
     error(e.in, nr, e.msg)
 }
 pAct = { in, v -> return in, v }
@@ -161,17 +161,17 @@ pStart = { rule, text ->
     oop = _Object_new({ _cache: HashMap.new })
     _with_lock(oop): {
         in, v = (
-            _catch: { e ->
-                if e?t != #p: _throw e
+            catch: { e ->
+                if e?t != #p: throw e
                 line, char = lineFromPos(e.in.text, e.in.pos)
-                if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
-                _throw "SyntaxError: on line $line col $char"
+                if e?msg: throw "SyntaxError: expected $(e.msg) on line $line col $char"
+                throw "SyntaxError: on line $line col $char"
             }
             rule({text: text, pos: 0, oop: oop })
         )
         if in.pos < in.text.size: {
             line, char = lineFromPos(in.text, in.pos)
-            _throw "SyntaxError: expected end of input on line $line col $char"
+            throw "SyntaxError: expected end of input on line $line col $char"
         }
         return v
     }

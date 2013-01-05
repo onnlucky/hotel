@@ -900,7 +900,6 @@ static const tlNativeCbs __eval_natives[] = {
     { "_with_lock", _with_lock },
 
     { "_backtrace", _backtrace },
-    { "_catch", _catch },
     { "_resolve", _resolve },
 
     { "_send", _send },
@@ -916,6 +915,8 @@ static const tlNativeCbs __eval_natives[] = {
     { "_Map_set", _Map_set },
 
     { "_install", _install },
+
+    { "catch", _catch },
 
     { 0, 0 }
 };

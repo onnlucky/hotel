@@ -11,7 +11,7 @@ ioloop = { ->
             msg = _io_queue.poll
             (
                 _match(msg == null): break
-                _catch: e -> msg.throw(e.msg)
+                catch: e -> msg.throw(e.msg)
                 _match(msg.name == #waitread): _io_waitread msg.get(0), msg
                 _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
                 _match(msg.name == #wait): _io_wait msg.get(0), msg
@@ -117,7 +117,7 @@ Server = {
             _io.close this.file
         }
         serve: { ->
-            block = args.block; if not block: _throw "serve expects a block"
+            block = args.block; if not block: throw "serve expects a block"
             loop: {
                 client = this.accept
                 block(client); client.close
@@ -173,7 +173,7 @@ Dir = {
     class: {
         each: { fn ->
             block = (args.block) or fn
-            if not block: _throw "each expects a block or fn"
+            if not block: throw "each expects a block or fn"
             _Dir_open(this.name).each(block=block)
         }
     }

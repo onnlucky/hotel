@@ -10,7 +10,7 @@ run = (stream ->
     loop: (
         stream.write "> "
         input = stream.read
-        _catch: e -> stream.write("Error: $e\n")
+        catch: e -> stream.write("Error: $e\n")
         res = eval(env, input)
         if res: print res
     )
@@ -32,7 +32,7 @@ run = { ->
                 if len == null: _io.waitread reader
             }
         }
-        _catch: e -> out("error: $e\n")
+        catch: e -> out("error: $e\n")
         res = eval(env, buf.read)
         if res: print res
     }

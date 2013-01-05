@@ -8,18 +8,18 @@ HttpConnection = { conn ->
         status: 200
         contentType: "text/plain"
         setContentType: { type ->
-            if @_didhead: _throw "Already send headers"
+            if @_didhead: throw "Already send headers"
             @contentType = type
         }
         req: { ->
             // read and parse until headers are complete
             if @_req: return @_req
             loop: {
-                if @_in.size > 2048: print @_in.read; conn.close; _throw "REQUEST TOO LONG"
+                if @_in.size > 2048: print @_in.read; conn.close; throw "REQUEST TOO LONG"
                 if @_in.find("\r\n\r\n"): break
                 if @_in.find("\n\n"): break
                 _, len = conn.read @_in
-                if len == 0: _throw "IO ERROR"
+                if len == 0: throw "IO ERROR"
             }
             @_req = httpparser.request(@_in.read)
         }
@@ -31,14 +31,14 @@ HttpConnection = { conn ->
             @flush(true); conn.close
         }
         write: { text ->
-            if @_didend: _throw "Already Ended Response"
+            if @_didend: throw "Already Ended Response"
             @_body.write text
         }
         flush: { ending ->
             if not @_didhead: @_sendheaders(ending)
             while @_body.size > 0: {
                 len = conn.write @_body
-                //if len == 0: _throw "IO ERROR"
+                //if len == 0: throw "IO ERROR"
             }
         }
         _sendheaders: { ending ->
@@ -50,7 +50,7 @@ HttpConnection = { conn ->
             headers.write "\r\n"
             while headers.size > 0: {
                 len = conn.write headers
-                //if len == 0: _throw "IO ERROR"
+                //if len == 0: throw "IO ERROR"
             }
         }
     }
@@ -61,13 +61,13 @@ Server = {
     class: {
         close: -> this.sock.close
         serve: { ->
-            block = args.block; if not block: _throw "expect a block"
+            block = args.block; if not block: throw "expect a block"
             loop: {
                 client = this.sock.accept
                 if not client: return
                 conn = HttpConnection(client)
                 !{
-                    _catch: e => print e, e?msg; conn.error
+                    catch: e => print e, e?msg; conn.error
                     block(conn); conn.end
                 }
                 Task.yield

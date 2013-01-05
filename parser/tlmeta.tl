@@ -14,8 +14,8 @@ ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
 advance = { in, adv -> { text: in.text, pos: in.pos + adv, oop: in.oop }}
 error = { in, nr, msg ->
-    if nr: _throw { t: #p, in: in, msg: nr, noreturn: true }
-    _throw {t: #p, in: in, msg: msg }
+    if nr: throw { t: #p, in: in, msg: nr, noreturn: true }
+    throw {t: #p, in: in, msg: msg }
 }
 
 rule_pass = { in, nr ->
@@ -53,9 +53,9 @@ pChar = { in, nr, text ->
 pNot = { in, nr, parser ->
     trace2(in, "pNot")
     in = (
-        _catch: { e =>
-            if e?t != #p: _throw e
-            if e?noreturn: _throw e
+        catch: { e =>
+            if e?t != #p: throw e
+            if e?noreturn: throw e
             return in, null
         }
         parser(in)
@@ -69,18 +69,18 @@ pAhead = { in, nr, parser ->
 }
 pOpt = { in, nr, parser ->
     trace2(in, "pOpt")
-    _catch: { e =>
-        if e?t != #p: _throw e
-        if e?noreturn: _throw e
+    catch: { e =>
+        if e?t != #p: throw e
+        if e?noreturn: throw e
         return in, null
     }
     parser(in)
 }
 _pmany = { in, parser, res ->
     trace2(in, "_pmany: $(res.size)")
-    _catch: { e =>
-        if e?t != #p: _throw e
-        if e?noreturn: _throw e
+    catch: { e =>
+        if e?t != #p: throw e
+        if e?noreturn: throw e
         trace2(in, " << pStar|pPlus");
         return in, res
     }
@@ -104,9 +104,9 @@ pOr = { in, nr, name ->
         if not parser: break
         trace2(in, "pOr: $name: $($i)")
         $i += 1
-        _catch: { e =>
-            if e?t != #p: _throw e
-            if e?noreturn: _throw e
+        catch: { e =>
+            if e?t != #p: throw e
+            if e?noreturn: throw e
         }
         in, v = parser(in)
         trace2(in, "pOr: $name <<")
@@ -117,9 +117,9 @@ pOr = { in, nr, name ->
 }
 
 pHandle = { e, nr, name ->
-    if e?t != #p: _throw e
+    if e?t != #p: throw e
     trace(e.in, " << FAIL $name")
-    if e?noreturn: _throw e
+    if e?noreturn: throw e
     error(e.in, nr, e.msg)
 }
 pAct = { in, v -> return in, v }
@@ -163,17 +163,17 @@ pStart = { rule, text ->
     oop = _Object_new({ _cache: HashMap.new })
     _with_lock(oop): {
         in, v = (
-            _catch: { e ->
-                if e?t != #p: _throw e
+            catch: { e ->
+                if e?t != #p: throw e
                 line, char = lineFromPos(e.in.text, e.in.pos)
-                if e?msg: _throw "SyntaxError: expected $(e.msg) on line $line col $char"
-                _throw "SyntaxError: on line $line col $char"
+                if e?msg: throw "SyntaxError: expected $(e.msg) on line $line col $char"
+                throw "SyntaxError: on line $line col $char"
             }
             rule({text: text, pos: 0, oop: oop })
         )
         if in.pos < in.text.size: {
             line, char = lineFromPos(in.text, in.pos)
-            _throw "SyntaxError: expected end of input on line $line col $char"
+            throw "SyntaxError: expected end of input on line $line col $char"
         }
         return v
     }
@@ -213,7 +213,7 @@ rule_sp = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = pText(_in, _nr, " ")
@@ -232,7 +232,7 @@ rule_nl = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = pText(_in, _nr, "\r\n")
@@ -257,7 +257,7 @@ rule_slcomment = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pText(_in, _nr, "//")
   _in, _v = pStar(_in, _nr, {_in, _nr ->
     _in, _v = {_in, _nr ->
@@ -277,7 +277,7 @@ rule_icomment = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pText(_in, _nr, "/*")
   _in, _v = pStar(_in, _nr, {_in, _nr ->
     _in, _v = {_in, _nr ->
@@ -307,7 +307,7 @@ rule_comment = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = {_in, _nr ->
     _in, _v = pOr(_in, _nr, _name
       ,{_in, _nr ->
@@ -338,7 +338,7 @@ rule_ws = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pStar(_in, _nr, {_in, _nr ->
     _in, _v = {_in, _nr ->
       _in, _v = pOr(_in, _nr, _name
@@ -364,7 +364,7 @@ rule_name = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pPlus(_in, _nr, {_in, _nr ->
     _in, _v = rule_alpha(_in, _nr)
   })
@@ -380,7 +380,7 @@ rule_escape = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = pText(_in, _nr, "\\\"")
@@ -425,7 +425,7 @@ rule_text = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pText(_in, _nr, "\"")
   _in, _v = pStar(_in, _nr, {_in, _nr ->
     _in, _v = rule_escape(_in, _nr)
@@ -444,7 +444,7 @@ rule_cscape = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = pText(_in, _nr, "\\]")
@@ -489,7 +489,7 @@ rule_char = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pText(_in, _nr, "[")
   _in, _v = pStar(_in, _nr, {_in, _nr ->
     _in, _v = rule_cscape(_in, _nr)
@@ -508,7 +508,7 @@ rule_act = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pText(_in, _nr, "->")
   _in, _v = rule_ws(_in, _nr)
   _in, _v = pStar(_in, _nr, {_in, _nr ->
@@ -531,7 +531,7 @@ rule_cond = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pText(_in, _nr, "?")
   _in, _v = rule_ws(_in, _nr)
   _in, _v = pText(_in, _nr, "(")
@@ -557,7 +557,7 @@ rule_term = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = pText(_in, _nr, "(")
@@ -615,7 +615,7 @@ rule_post = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = pText(_in, _nr, "!")
@@ -663,7 +663,7 @@ rule_named = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pOr(_in, _nr, _name
     ,{_in, _nr ->
       _in, _v = rule_name(_in, _nr)
@@ -694,7 +694,7 @@ rule_and = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = rule_named(_in, _nr)
   h = _v; pAct(_in, _v)
   _in, _v = pStar(_in, _nr, {_in, _nr ->
@@ -720,7 +720,7 @@ rule_or = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _nr = "some terms"
   _in, _v = rule_and(_in, _nr)
   h = _v; pAct(_in, _v)
@@ -744,7 +744,7 @@ rule_rule = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = rule_ws(_in, _nr)
   _in, _v = rule_name(_in, _nr)
   n = _v; pAct(_in, _v)
@@ -765,7 +765,7 @@ rule_parser = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = rule_name(_in, _nr)
   n = _v; pAct(_in, _v)
   _in, _v = rule_ws(_in, _nr)
@@ -792,7 +792,7 @@ rule_start = {_in, _nr ->
   _pos = _in.pos
   _hit = _tllookup(this, _name, _pos)
   if _hit: return _hit.in, _hit.v
-  _catch: e -> pHandle(e, _nr, _name)
+  catch: e -> pHandle(e, _nr, _name)
   _in, _v = pStar(_in, _nr, {_in, _nr ->
     _in, _v = {_in, _nr ->
       _in, _v = pNot(_in, _nr, {_in, _nr ->
@@ -846,7 +846,7 @@ emit = { r, buf, ind, name ->
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
     _match(r.type == #Wsnl): buf.write("$ind  _in, _v = rule_wsnl(_in, _nr)\n")
     _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
-    _match(true): _throw "InternalError emit unknown: $(r.type)"
+    _match(true): throw "InternalError emit unknown: $(r.type)"
     _nomatch
 }
 emitAhead = { r, buf, ind ->
@@ -906,14 +906,14 @@ emitRule = { r, buf ->
     buf.write("  _pos = _in.pos\n")
     buf.write("  _hit = _tllookup(this, _name, _pos)\n")
     buf.write("  if _hit: return _hit.in, _hit.v\n");
-    buf.write("  _catch: e -> pHandle(e, _nr, _name)\n")
+    buf.write("  catch: e -> pHandle(e, _nr, _name)\n")
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")
     buf.write("  goto _tlcache(this, _name, _pos, _in, _v)\n")
     buf.write("}\n")
 }
 
-if not args.get(1): _throw "Usage: <input.tl> <output.tl>"
+if not args.get(1): throw "Usage: <input.tl> <output.tl>"
 
 ast = parserParser(io.File(args.get(0)).read)
 

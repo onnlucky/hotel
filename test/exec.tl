@@ -10,18 +10,18 @@ assert out == "hello world\n"
 )).wait
 
 (
-    _catch: e -> true
+    catch: e -> true
     io.run "false"
     assert false
 )
 (
-    _catch: e -> true
+    catch: e -> true
     io.run "false", allowerror=false
     assert false
 )
 
 (
-    _catch: e -> assert false
+    catch: e -> assert false
     io.run "false", allowerror=true
 )
 

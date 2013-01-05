@@ -65,6 +65,7 @@ modules/sizzle.tl: modules/sizzle.tlg tl tlmeta.tl
 
 clean:
 	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
+	rm modules/html.tl modules/sizzle.tl
 	$(MAKE) -C graphics clean
 distclean: clean
 	rm -rf greg/ libgc/

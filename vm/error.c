@@ -130,7 +130,7 @@ static tlKind _tlStackTraceKind = {
 };
 
 static const tlNativeCbs __error_natives[] = {
-    { "_throw", _throw },
+    { "throw", _throw },
     { 0, 0 }
 };
 

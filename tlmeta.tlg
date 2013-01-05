@@ -79,7 +79,7 @@ emit = { r, buf, ind, name ->
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
     _match(r.type == #Wsnl): buf.write("$ind  _in, _v = rule_wsnl(_in, _nr)\n")
     _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
-    _match(true): _throw "InternalError emit unknown: $(r.type)"
+    _match(true): throw "InternalError emit unknown: $(r.type)"
     _nomatch
 }
 emitAhead = { r, buf, ind ->
@@ -139,14 +139,14 @@ emitRule = { r, buf ->
     buf.write("  _pos = _in.pos\n")
     buf.write("  _hit = _tllookup(this, _name, _pos)\n")
     buf.write("  if _hit: return _hit.in, _hit.v\n");
-    buf.write("  _catch: e -> pHandle(e, _nr, _name)\n")
+    buf.write("  catch: e -> pHandle(e, _nr, _name)\n")
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")
     buf.write("  goto _tlcache(this, _name, _pos, _in, _v)\n")
     buf.write("}\n")
 }
 
-if not args.get(1): _throw "Usage: <input.tl> <output.tl>"
+if not args.get(1): throw "Usage: <input.tl> <output.tl>"
 
 ast = parserParser(io.File(args.get(0)).read)
 

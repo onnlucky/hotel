@@ -37,7 +37,7 @@ io.chdir src
 loop: {
     (
         // TODO need a syntax for try/catch ...
-        _catch: { e ->
+        catch: { e ->
             print "Error:", $at
             $fail = { at: $at, output: e?output }
         }

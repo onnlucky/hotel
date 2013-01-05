@@ -7,7 +7,7 @@ server = http.Server.new(18080)
 }
 
 // ensure failing tests still close server ...
-_catch: e -> server.close; _throw e
+catch: e -> server.close; throw e
 
 out, status = io.run("curl -s http://localhost:18080/")
 assert status == 0

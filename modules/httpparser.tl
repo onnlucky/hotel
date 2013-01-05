@@ -16,28 +16,28 @@ input = { text, pos, value -> {
         set: val -> input(this.text, this.pos, val)
         do: block -> this.set(block(this.value))
         next: val -> input(this.text, this.pos + 1, val)
-        error: val -> _throw this.set(val)
+        error: val -> throw this.set(val)
     }
 }
 rule = fn -> { a1, a2, a3, a4 -> {in -> fn(in, a1, a2, a3, a4)}}
 
 parse = { parser, text ->
     out = (
-        _catch: e -> _throw "syntax error"
+        catch: e -> throw "syntax error"
         parser(input(text, 0, null))
     )
-    if not out.end: _throw "expected end of input"
+    if not out.end: throw "expected end of input"
     return out.value
 }
 
 pOptional = rule({in, parser ->
     trace(in, "pOptional")
-    _catch: e -> trace(in, "ERROR: $e"); return in.set(null)
+    catch: e -> trace(in, "ERROR: $e"); return in.set(null)
     in = parser(in)
 })
 _pmany = {in, parser, res ->
     trace(in, "_pmany")
-    _catch: e -> trace(in, "ERROR: $e"); return in.set(res)
+    catch: e -> trace(in, "ERROR: $e"); return in.set(res)
     in = parser(in)
     goto _pmany(in, parser, res.add(in.value))
 }

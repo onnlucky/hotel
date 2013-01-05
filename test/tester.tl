@@ -7,7 +7,7 @@ io.Dir(".").each: { file ->
     if not file.endsWith(".tl"): continue
     if file == "tester.tl": continue
 
-    _catch: { e ->
+    catch: { e ->
         print "FAIL:", file, "ERR:", e.toString
         $fail += 1
     }

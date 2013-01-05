@@ -3,7 +3,7 @@
 // 2. run the requests file(s) or start a repl
 // 3. drop into the io runloop, exiting when no tasks are left
 
-_catch: e -> print "boot exception: $(e.toString)"
+catch: e -> print "boot exception: $(e.toString)"
 
 or = { left, &right ->
     if not left: return right()
@@ -14,7 +14,7 @@ and = { left, &right ->
     return left
 }
 while = { &cond ->
-    block = args.block; if not block: _throw "while expects a block"
+    block = args.block; if not block: throw "while expects a block"
     loop: {
         if not cond(): break
         block()
@@ -29,8 +29,8 @@ max = { l, r ->
     return r
 }
 try = { ->
-    if not args.block: _throw "try expects a block"
-    _catch: return null
+    if not args.block: throw "try expects a block"
+    catch: return null
     args.block.call()
 }
 _get_random = { ->
@@ -38,7 +38,7 @@ _get_random = { ->
 }
 _each = { fn ->
     block = args.block or fn
-    if not block: _throw "each expects a block or fn"
+    if not block: throw "each expects a block or fn"
     len = this.size
     loop = { at =>
         if at >= len: return
@@ -49,7 +49,7 @@ _each = { fn ->
 }
 _find = { fn ->
     block = args.block or fn
-    if not block: _throw "find expects a block or fn"
+    if not block: throw "find expects a block or fn"
     len = this.size
     loop = { at =>
         if at >= len: return null
@@ -61,7 +61,7 @@ _find = { fn ->
 }
 _filter = { fn ->
     block = args.block or fn
-    if not block: _throw "filter expects a block or fn"
+    if not block: throw "filter expects a block or fn"
     arr = Array.new
     len = this.size
     loop = { at =>
@@ -75,7 +75,7 @@ _filter = { fn ->
 _times = { fn ->
     if this <= 0: return
     block = args.block or fn
-    if not block: _throw "times expects a block or fn"
+    if not block: throw "times expects a block or fn"
     again = { at ->
         block(at)
         if at >= this: return
@@ -84,7 +84,7 @@ _times = { fn ->
 }
 _to = { to, fn ->
     block = args.block or fn
-    if not block: _throw "to expects a block or fn"
+    if not block: throw "to expects a block or fn"
     to = to or 1
     if (this <= to): {
         again = { at ->
@@ -158,7 +158,7 @@ _install(List.class, #join, (join = { sep ->
 }))
 _install(List.class, #reduce, (reduce = { fn ->
     block = args.block or fn
-    if not block: _throw "reduce expects a block or fn"
+    if not block: throw "reduce expects a block or fn"
     if this.size == 0: return null
     if this.size == 1: return this.get(0)
 
@@ -172,7 +172,7 @@ _install(List.class, #reduce, (reduce = { fn ->
 }))
 _install(List.class, #map, (map = { fn ->
     block = args.block or fn
-    if not block: _throw "map expects a block or fn"
+    if not block: throw "map expects a block or fn"
     if this.size == 0: return this
 
     res = _List_unsafe(this.size)
@@ -212,7 +212,7 @@ _install(Error, #call, _errorConstructor);
 _install(ArgumentError, #call, _errorConstructor);
 _install(UndefinedError, #call, _errorConstructor);
 _install(Error, #class, {
-    throw: { -> _throw this }
+    throw: { -> throw this }
     toString: { ->
         ls = Array.new
         ls.add "Error: ", this.msg, "\n"
@@ -272,7 +272,7 @@ inspect = { x ->
 
 // TODO should report line number and such of testcase ...
 test = { ->
-    _catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
+    catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
     args.block.call
 }
 
@@ -306,9 +306,9 @@ _fileForModule = { name, path ->
 }
 _resolve: { name, path ->
     res = _loaded.get(name)
-    if res == _loaded: _throw "Undefined: '$name'"
+    if res == _loaded: throw "Undefined: '$name'"
     if isDefined res: return res
-    _catch: e -> _throw "Error reading module: '$name', $(e?msg)"
+    catch: e -> throw "Error reading module: '$name', $(e?msg)"
     file = _fileForModule("$(name.toString).tl", path)
     res = _parse(_stringFromFile(file), file)(_env)
     _loaded.set(name, res)
@@ -318,7 +318,7 @@ _resolve: { name, path ->
 runmain = { as ->
     if as.size == 0: return repl.run
 
-    _catch: { e ->
+    catch: { e ->
         print e.toString
         _set_exitcode(1)
     }

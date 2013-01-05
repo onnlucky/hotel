@@ -74,7 +74,7 @@ new = { name ->
             get: { name ->
                 object = ids[name]
                 if object: {
-                    if object.class != PersistObjectClass: _throw "TypeError"
+                    if object.class != PersistObjectClass: throw "TypeError"
                     return object
                 }
                 object_new(name)
@@ -89,7 +89,7 @@ new = { name ->
             get: { name ->
                 list = ids[name]
                 if list: {
-                    if list.class != PersistListClass: _throw "TypeError"
+                    if list.class != PersistListClass: throw "TypeError"
                     return list
                 }
                 list_new(name)
@@ -101,7 +101,7 @@ new = { name ->
             get: { name ->
                 var = ids[name]
                 if var: {
-                    if var.class != PersistVarClass: _throw "TypeError"
+                    if var.class != PersistVarClass: throw "TypeError"
                     return var
                 }
                 var_new(name)

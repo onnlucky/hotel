@@ -22,7 +22,7 @@ input = { text, pos, value -> {
         set: val -> input(this.text, this.pos, val)
         do: block -> this.set(block(this.value))
         next: val -> input(this.text, this.pos + 1, val)
-        error: val -> _throw this.set(val)
+        error: val -> throw this.set(val)
         class: Input
     }
 }
@@ -31,32 +31,32 @@ rule = fn -> { a1, a2, a3, a4, a5, a6, a7, a8, a9 -> { in -> fn(in, a1, a2, a3, 
 
 parse = { parser, text ->
     out = (
-        _catch: { e =>
-            if e?class == Input: _throw "syntax error: ".cat(e.value)
-            _throw e
+        catch: { e =>
+            if e?class == Input: throw "syntax error: ".cat(e.value)
+            throw e
         }
         parser(input(text, 0, null))
     )
-    if not out.end: _throw "expected end of input"
+    if not out.end: throw "expected end of input"
     return out.value
 }
 pNot = rule({ in, parser ->
     trace(in, "pNot")
     out = (
-        _catch: { e =>
+        catch: { e =>
             if e?class == Input: trace(in, "pNot: OK: $(e)"); return in
-            _throw e
+            throw e
         }
         parser(in)
     )
     trace(out, "pNot: Error")
-    _throw out
+    throw out
 })
 pOptional = rule({ in, parser ->
     trace(in, "pOptional")
-    _catch: { e =>
+    catch: { e =>
         if e?class == Input: trace(in, "ERROR: $e"); return in.set(null)
-        _throw e
+        throw e
     }
     in = parser(in)
 })
@@ -79,9 +79,9 @@ pOr = rule({ in ->
         if not parser: break
         trace(in, "pOr: $($i)")
         $i += 1
-        _catch: { e =>
+        catch: { e =>
             trace(in, "ERROR: $e")
-            if e?class != Input: _throw e
+            if e?class != Input: throw e
         }
         return parser(in)
     }
@@ -90,9 +90,9 @@ pOr = rule({ in ->
 })
 _pmany = { in, parser, res ->
     trace(in, "_pmany")
-    _catch: { e =>
+    catch: { e =>
         if e?class == Input: trace(in, "ERROR: $e"); return in.set(res)
-        _throw e
+        throw e
     }
     in = parser(in)
     goto _pmany(in, parser, res.add(in.value))
@@ -272,7 +272,7 @@ parseTerm = { in ->
     a1 = { in ->
         in = pText("(")(in)
         trace2(in, ">> paren >> PAREN >> PAREN >>")
-        _catch: e => print "!! !! SYNTAX ERROR::", e, ":: !! !!"
+        catch: e => print "!! !! SYNTAX ERROR::", e, ":: !! !!"
         in = parseWs(in)
         t=parseOr(in)
         in = parseWs(t)
@@ -331,7 +331,7 @@ emit = { r, buf, ind ->
     _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
     _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
     _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
-    _match(true): _throw "InternalError emit unknown: $(r.type)"
+    _match(true): throw "InternalError emit unknown: $(r.type)"
     _nomatch
 }
 emitNot = { r, buf, ind ->
@@ -386,7 +386,7 @@ emitRule = { r, buf ->
     buf.write("  _pos = _in.pos\n")
     buf.write("  _hit = _tllookup(this, _name, _pos)\n")
     buf.write("  if _hit: return _hit.in, _hit.v\n")
-    buf.write("  _catch: e -> pHandle(e, _nr, _name)\n")
+    buf.write("  catch: e -> pHandle(e, _nr, _name)\n")
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")
     buf.write("  goto _tlcache(this, _name, _pos, _in, _v)\n")
