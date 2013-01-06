@@ -99,12 +99,6 @@ _to = { to, fn ->
             goto again(at - 1)
     }; goto again(this)
 }
-_flatten2 = { ls, arr ->
-    ls.each: { e ->
-        if isList(e): _flatten2(e, arr); return
-        arr.add(e)
-    }
-}
 
 _install(Int.class, #times, _times)
 _install(Int.class, #to, _to)
@@ -184,6 +178,12 @@ _install(List.class, #map, (map = { fn ->
     }
     return res
 }))
+_flatten2 = { ls, arr ->
+    ls.each: { e ->
+        if isList(e): _flatten2(e, arr); return
+        arr.add(e)
+    }
+}
 _install(List.class, #flatten, (flatten = { ->
     arr = Array.new
     _flatten2(this, arr)

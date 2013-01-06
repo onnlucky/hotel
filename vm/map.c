@@ -113,6 +113,12 @@ tlMap* tlMapFromPairs(tlList* pairs) {
         tlSym name = tlSymAs(tlListGet(pair, 0));
         tlSetAdd_(keys, name);
     }
+    int realsize = size;
+    for (int i = 0; i < size; i++) {
+        if (tlSetGet(keys, size - 1 - i)) break;
+        realsize--;
+    }
+    if (realsize != size) keys->size = realsize;
 
     tlMap* map = tlMapNew(keys);
     for (int i = 0; i < size; i++) {

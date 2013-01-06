@@ -39,8 +39,6 @@ add objects using:
     }
   }
 
-bug: _flatten2 does not work when defined just before _install(List.class, #flatten, ...)
-
 remove "foo $(...)" interpolation, do "foo" ... instead ...
 
 upgrade httpparser module, add httpresponse
@@ -62,7 +60,6 @@ allow multiple vm's per loop, and muliple loops per vm (io and gui loops...) han
 what about close() and stat(); they might still block or eintr ... do them on yet another thread?
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
-bug: { x: 42, x: runtime } is error due to duplicate x
 
 add {{ foo }} as sugar for { foo: foo } so modules just do {{ publicFn1, publicFn2, ... }}
 do private using $: { public: 42, $private: -1 } accessed just by $private ...
