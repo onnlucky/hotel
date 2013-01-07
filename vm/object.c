@@ -28,11 +28,37 @@ INTERNAL tlHandle objectSend(tlArgs* args) {
     tlObject* obj = tlObjectCast(tlArgsTarget(args));
     if (!obj) TL_THROW("expected an Object");
     assert(tlLockOwner(tlLockAs(obj)) == task);
-    tlSym msg = tlArgsMsg(args);
-    assert(msg);
+
+    assert(tlArgsMsg(args));
     assert(obj->map);
 
-    tlHandle field = tlMapGetSym(obj->map, msg);
+    tlMap* map = obj->map;
+    tlSym msg = tlArgsMsg(args);
+    tlHandle field = null;
+    tlMap* cls;
+
+    // search for field
+    cls = map;
+    while (cls) {
+        trace("CLASS: %s %s", tl_str(cls), tl_str(msg));
+        field = tlMapGet(cls, msg);
+        if (field) goto send;
+        cls = tlMapGet(cls, s_class);
+    }
+
+    // search for getter
+    if (msg == s__set) goto send;
+    cls = map;
+    while (cls) {
+        trace("CLASS: %s %s", tl_str(cls), tl_str(s__get));
+        field = tlMapGet(cls, s__get);
+        if (field) goto send;
+        cls = tlMapGet(cls, s_class);
+    }
+
+send:;
+    trace("OBJECT SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
+
     if (!field) {
         if (msg == s__set) {
             tlHandle key = tlSymCast(tlArgsGet(args, 0));
@@ -42,11 +68,12 @@ INTERNAL tlHandle objectSend(tlArgs* args) {
             obj->map = tlMapSet(obj->map, key, val);
             return val;
         }
-        TL_THROW("%s.%s is undefined", tl_str(obj), tl_str(msg));
+        TL_UNDEF("%s.%s is undefined", tl_str(map), tl_str(msg));
     }
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
 }
+
 INTERNAL tlHandle _this_get(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
