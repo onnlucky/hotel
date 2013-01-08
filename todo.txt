@@ -1,5 +1,6 @@
 # TODO
 
+add closure.invoke or such where all params are given as maps and lists, to use
 add Queue + max depth size or unlimited; MsgQueue and TaskQueue
 
 add "if" to parser and do
@@ -130,8 +131,6 @@ syntax for branches:
 
 # not so nice:
 
-args.block(42) will not execute block ... it will ignore the fact block is callable
-args.block.call(42) will ignore param; why actually?
 @ is not a word ... for method(42, this=something)
 block: (arg ->
     return // returns way too much, should return block ... do => for functions, -> for block?

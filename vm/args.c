@@ -91,12 +91,15 @@ static tlHandle _args_size(tlArgs* args) {
     return tlINT(tlArgsSize(as));
 }
 static tlHandle _args_get(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    if (!as) TL_THROW("Expected a args object");
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
+
     int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at == -1) TL_THROW("Expected an index");
-    tlHandle res = tlArgsGet(as, at);
-    return tlMAYBE(res);
+    if (at == -1) {
+        tlSym key = tlSymCast(tlArgsGet(args, 0));
+        if (!key) TL_THROW("Expected an index or name");
+        return tlMAYBE(tlArgsMapGet(as, key));
+    }
+    return tlMAYBE(tlArgsGet(as, at));
 }
 static tlHandle _args_this(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));

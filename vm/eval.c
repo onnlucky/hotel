@@ -793,8 +793,8 @@ INTERNAL tlHandle _try_send(tlArgs* args) {
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
 INTERNAL tlHandle _call(tlArgs* args) {
     tlHandle* fn = tlArgsTarget(args);
-    tlList* list = tlListCast(tlArgsGet(args, 0));
-    tlArgs* nargs = tlArgsNew(list, null);
+    //tlList* list = tlListCast(tlArgsGet(args, 0));
+    tlArgs* nargs = tlArgsNew(args->list, args->map);
     return tlEvalArgsFn(nargs, fn);
 }
 

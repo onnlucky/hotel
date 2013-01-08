@@ -31,7 +31,7 @@ max = { l, r ->
 try = { ->
     if not args.block: throw "try expects a block"
     catch: return null
-    args.block.call()
+    args.block.call
 }
 _get_random = { ->
     this.get(random(this.size))
