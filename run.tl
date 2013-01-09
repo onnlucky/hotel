@@ -59,7 +59,14 @@ editor = _Object_new {
         this._y += 1
         this._x = 0
         this._lines.insert(this._y, this._right)
+        up = this._left
         this._left = ""
+
+        // figure out indentation of previous line and follow that
+        var $indent = 0
+        while up[$indent] <= 32: $indent += 1
+        this._x = $indent
+        if $indent > 0: this._left = up[:$indent]
         this.debug "line: $(this._y) offset: $(this._offset)"
     }
     deleteleft: { ->
