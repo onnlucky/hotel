@@ -45,13 +45,9 @@ remove "foo $(...)" interpolation, do "foo" ... instead ...
 
 upgrade httpparser module, add httpresponse
 
-classes + objects should not close environments so quickly ... how to handle all this
-see parser example, it cannot be factored into class + object, because class must construct itself
-
 simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?
 implement a_var based on libatomic_ops ...
 
-what about tasks.stop, ... should be workable
 what about "deamon tasks" ... how can that work? maybe those don't go into io waiting?
 
 implement print in user code, or have it call toString properly ...
