@@ -245,17 +245,23 @@ static tlHandle _List_clone(tlArgs* args) {
     }
     return list;
 }
+/// object List: a list containing elements, immutable
+
+/// size: returns amount of elements in the list
 INTERNAL tlHandle _list_size(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     return tlINT(tlListSize(list));
 }
 static unsigned int listHash(tlHandle v);
+/// hash: traverse all elements for a hash, then calculate a final hash
+/// throws an exception if elements could not be hashed
 INTERNAL tlHandle _list_hash(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
     return tlINT(listHash(list));
 }
+/// get(index): return the element from the list at index
 INTERNAL tlHandle _list_get(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -264,6 +270,8 @@ INTERNAL tlHandle _list_get(tlArgs* args) {
     tlHandle res = tlListGet(list, at);
     return tlMAYBE(res);
 }
+/// set(index, element): return a new list, replacing or adding element at index
+/// will pad the list with elements set to null index is beyond the end of the current list
 INTERNAL tlHandle _list_set(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -275,6 +283,7 @@ INTERNAL tlHandle _list_set(tlArgs* args) {
     tlList* nlist = tlNull; //tlListSet(list, at, val);
     return nlist;
 }
+/// add(element): return a new list, with element added to the end
 INTERNAL tlHandle _list_add(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -282,6 +291,7 @@ INTERNAL tlHandle _list_add(tlArgs* args) {
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListAppend(list, val);
 }
+/// prepend(element): return a new list, with element added to the front of the list
 INTERNAL tlHandle _list_prepend(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -289,6 +299,7 @@ INTERNAL tlHandle _list_prepend(tlArgs* args) {
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListPrepend(list, val);
 }
+/// cat(list): return a new list, concatenating this with list
 INTERNAL tlHandle _list_cat(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -296,6 +307,7 @@ INTERNAL tlHandle _list_cat(tlArgs* args) {
     if (!l1) TL_THROW("Expected a list");
     return tlListCat(list, l1);
 }
+/// slice(left, right): return a new list, from the range between left and right
 INTERNAL tlHandle _list_slice(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
@@ -307,6 +319,8 @@ INTERNAL tlHandle _list_slice(tlArgs* args) {
 }
 
 // TODO by lack of better name; akin to int.toChar ...
+/// toChar: return a string, formed from a list of numbers
+/// if the list contains numbers that are not valid characters, it throws an exception
 INTERNAL tlHandle _list_toChar(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
