@@ -3,48 +3,42 @@
 Stream = {
     new: stream -> { stream: stream, ssl: SSL.new, class: this.class }
     class: {
-        read: { into ->
+        read: (into ->
             if into: return this._read2(into)
             buf = Buffer.new
-            loop: {
+            loop:
                 res = this._read2(buf)
                 if not res: break
-            }
             if buf.size > 0: return buf.read
             return null
-        }
-        _read2: { into ->
+        )
+        _read2: (into ->
             ssl = this.ssl
-            _with_lock(ssl, into): {
-                loop: {
+            _with_lock(ssl, into):
+                loop:
                     len = ssl.read(into)
                     if ssl.wbuf.size > 0: this.stream.write ssl.wbuf
                     if len > 0: return into
                     res = this.stream.read ssl.rbuf
                     if not res: return null
-                }
-            }
-        }
-        write: { from ->
+        )
+        write: (from ->
             if isBuffer(from): return this._write2(from)
             buf = Buffer.new; buf.write(from.toString)
             return this._write2(buf)
-        }
-        _write2: { from ->
+        )
+        _write2: (from ->
             ssl = this.ssl
-            _with_lock(ssl, from): {
-                loop: {
+            _with_lock(ssl, from):
+                loop:
                     mustread = ssl.write(from)
                     this.stream.write ssl.wbuf
-                    if mustread: {
+                    if mustread:
                         res = this.stream.read ssl.rbuf
                         if not res: return 1 // TODO figure out how much was written ...
                         continue
-                    }
                     if from.size == 0 and ssl.wbuf.size == 0: return
-                }
-            }
-        }
+        )
     }
 }
 

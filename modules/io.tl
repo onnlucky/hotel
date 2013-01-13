@@ -201,7 +201,7 @@ _run = arglist, env, check ->
         res = out.read buf
         if not res: break
     r = child.wait
-    if r != 0 and check: Error("'$cmd' exit: $r", output=buf.read).throw
+    if r != 0 and check: Error("'$(arglist[0])' exit: $r", output=buf.read).throw
     return buf.read, r
 
 /// run(cmdline, args...) env=null, allowerror=false

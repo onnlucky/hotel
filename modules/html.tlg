@@ -4,30 +4,29 @@
 // TODO node.text should normalize/remove &nbsp; and such entities
 // TODO upgrade Nodes to a mutable object including a parent reference much more like a real dom so we can manipulate it
 
-tomap = { ls ->
+tomap = ls ->
     m = HashMap.new
     ls.each: e -> if e: m.set(e.k, e.v)
     return m
-}
-toString = { b, n ->
+
+toString = b, n ->
     if not n: return
     if isString(n): b.write(n); return
     n.sub.each: sn -> toString(b, sn)
-}
 
 NodeClass = {
-    find: { sel -> sizzle.find(sel, this) }
-    findAll: { sel -> sizzle.findAll(sel, this) }
-    hasClass: { n -> this.classes.each({ c => if c == n: return true }); return false }
-    text: { ->
+    find: sel -> sizzle.find(sel, this)
+    findAll: sel -> sizzle.findAll(sel, this)
+    hasClass: n -> this.classes.each(c => if c == n: return true); return false
+    text: ( ->
         if this.sub.size == 0: return ""
         if this.sub.size == 1 and isString(this.sub.get(0)): return this.sub.get(0)
         b = Buffer.new
         toString(b, this)
         return b.read
-    }
+    )
 }
-Node = { name, attr, sub ->
+Node = name, attr, sub ->
     cs = (attr.get("class") or "").split
     return {
         name: name
@@ -37,7 +36,6 @@ Node = { name, attr, sub ->
         sub: sub
         class: NodeClass
     }
-}
 
 parseHtml = parser {
    start: (.(dir|comment))* s=(.toplevel)*. -> Node("document", HashMap.new, s)

@@ -12,47 +12,41 @@ parseSel = parser {
     start: rs=(. match+)* . !_      -> rs
 }
 
-walk = { node, match, result ->
+walk = node, match, result ->
     if not node: return
     if isString(node): return
 
     m = Var.new true
-    match.get(0).each: { s ->
+    match.get(0).each: s ->
         _match(s.match == #node and s.name == node.name): 1
         _match(s.match == #class and s.name == node.attr.get("class")): 1
         _match(s.match == #id and s.name == node.attr.get("id")): 1
         _match(true): m.set false
-    }
-    if m.get: {
-        if match.size == 1: {
+    if m.get:
+        if match.size == 1:
             if not result: return node
             result.add node
-        }
-        if match.size > 1: {
-            node.sub.each: { n => r = walk(n, match.slice(1), result); if r: return r }
-        }
-    }
-    node.sub.each: { n => r = walk(n, match, result); if r: return r }
+        if match.size > 1:
+            node.sub.each: n => r = walk(n, match.slice(1), result); if r: return r
+    node.sub.each: n => r = walk(n, match, result); if r: return r
     return
-}
-query = { node, match ->
+
+query = node, match ->
     ls = Array.new
     walk(node, match, ls)
     return ls
-}
-select = { node, match ->
+
+select = node, match ->
     return walk(node, match)
-}
 
 // TODO add a local cache for sel -> parseSel(sel) mappings
-find = { sel, node ->
+find = sel, node ->
     match = parseSel(sel)
     select(node, match)
-}
-findAll = { sel, node ->
+
+findAll = sel, node ->
     match = parseSel(sel)
     query(node, match)
-}
 
 { find: find, findAll: findAll }
 

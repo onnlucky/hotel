@@ -59,7 +59,7 @@ slcomment: "//" (!nl _)*
 }
 
 // emitting
-emit = { r, buf, ind, name ->
+emit = r, buf, ind, name ->
     _match(r.type == #Or): goto emitOr r, buf, ind
     _match(r.type == #And): goto emitAnd r, buf, ind
     _match(r.type == #Sub): goto emitSub r, buf, ind
@@ -81,58 +81,57 @@ emit = { r, buf, ind, name ->
     _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
     _match(true): throw "InternalError emit unknown: $(r.type)"
     _nomatch
-}
-emitAhead = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pAhead(_in, _nr, {_in, _nr ->\n")
+
+emitAhead = r, buf, ind ->
+    buf.write("$ind  _in, _v = pAhead(_in, _nr, (_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  })\n")
-}
-emitNot = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pNot(_in, _nr, {_in, _nr ->\n")
+    buf.write("$ind  ))\n")
+
+emitNot = r, buf, ind ->
+    buf.write("$ind  _in, _v = pNot(_in, _nr, (_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  })\n")
-}
-emitOpt = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pOpt(_in, _nr, {_in, _nr ->\n")
+    buf.write("$ind  ))\n")
+
+emitOpt = r, buf, ind ->
+    buf.write("$ind  _in, _v = pOpt(_in, _nr, (_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  })\n")
-}
-emitStar = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pStar(_in, _nr, {_in, _nr ->\n")
+    buf.write("$ind  ))\n")
+
+emitStar = r, buf, ind ->
+    buf.write("$ind  _in, _v = pStar(_in, _nr, (_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  })\n")
-}
-emitPlus = { r, buf, ind ->
-    buf.write("$ind  _in, _v = pPlus(_in, _nr, {_in, _nr ->\n")
+    buf.write("$ind  ))\n")
+
+emitPlus = r, buf, ind ->
+    buf.write("$ind  _in, _v = pPlus(_in, _nr, (_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  })\n")
-}
-emitAnd = { r, buf, ind ->
+    buf.write("$ind  ))\n")
+
+emitAnd = r, buf, ind ->
     var $n = 0
     // TODO maybe collect all binds, and "call" r.act
     r.terms.each: r -> emit r, buf, ind
     if r.act: buf.write("$ind  _in, _v = pAct(_in, ($(r.act)))\n")
-}
-emitOr = { r, buf, ind ->
+
+emitOr = r, buf, ind ->
     if r.terms.size == 0: return
     if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
 
     buf.write("$ind  _in, _v = pOr(_in, _nr, _name\n")
-    r.terms.each: { r =>
-        buf.write("$ind    ,{_in, _nr ->\n")
+    r.terms.each: r =>
+        buf.write("$ind    ,(_in, _nr ->\n")
         emit r, buf, ind.cat("    ")
-        buf.write("$ind     }\n")
-    }
+        buf.write("$ind     )\n")
     buf.write("$ind  )\n")
-}
-emitSub = { r, buf, ind ->
-    buf.write("$ind  _in, _v = {_in, _nr ->\n")
+
+emitSub = r, buf, ind ->
+    buf.write("$ind  _in, _v = (_in, _nr ->\n")
     emit r.term, buf, ind.cat("  ")
-    buf.write("$ind  }(_in, _nr)\n")
-}
-emitRule = { r, buf ->
+    buf.write("$ind  )(_in, _nr)\n")
+
+emitRule = r, buf ->
     name = r.name
-    buf.write("rule_$name = {_in, _nr ->\n")
+    buf.write("rule_$name = (_in, _nr ->\n")
     buf.write("  trace(_in, \" >>  TRY $name\", _nr)\n")
     buf.write("  this = _in.oop\n")
     buf.write("  _name = \"$name\"\n")
@@ -143,8 +142,8 @@ emitRule = { r, buf ->
     emit r.term, buf, ""
     buf.write("  trace(_in, \" << !OK! $name\")\n")
     buf.write("  goto _tlcache(this, _name, _pos, _in, _v)\n")
-    buf.write("}\n")
-}
+    buf.write(")\n")
+
 
 if not args.get(1): throw "Usage: <input.tl> <output.tl>"
 
@@ -156,10 +155,9 @@ buf.write("\n// --- tlmeta-base.tl ---\n")
 buf.write(io.File("tlmeta-base.tl").read)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
-ast.rules.each: { r ->
+ast.rules.each: r ->
     if r.name == "start": $hasstart = true
     emitRule r, buf
-}
 start = (if $hasstart: "start") or ast.rules.get(0).name
 buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
 buf.write("\n// ---\n")

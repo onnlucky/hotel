@@ -1,13 +1,13 @@
 // http request and url parser
 DEBUG=false
-trace = { in, &msg -> if DEBUG: print in.pos, msg() }
+trace = in, &msg -> if DEBUG: print in.pos, msg()
 
 lower = "abcdefghijklmnopqrstuvwxyz"
 upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 numbers = "0123456789"
 
 // TODO should be a class/object but class needs constructor and constructor needs class ...
-input = { text, pos, value -> {
+input = text, pos, value -> {
         text: text
         pos: pos
         value: value
@@ -18,112 +18,109 @@ input = { text, pos, value -> {
         next: val -> input(this.text, this.pos + 1, val)
         error: val -> throw this.set(val)
     }
-}
-rule = fn -> { a1, a2, a3, a4 -> {in -> fn(in, a1, a2, a3, a4)}}
+rule = fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4)))
 
-parse = { parser, text ->
+parse = parser, text ->
     out = (
         catch: e -> throw "syntax error"
         parser(input(text, 0, null))
     )
     if not out.end: throw "expected end of input"
     return out.value
-}
 
-pOptional = rule({in, parser ->
+pOptional = rule(in, parser ->
     trace(in, "pOptional")
     catch: e -> trace(in, "ERROR: $e"); return in.set(null)
     in = parser(in)
-})
-_pmany = {in, parser, res ->
+)
+_pmany = in, parser, res ->
     trace(in, "_pmany")
     catch: e -> trace(in, "ERROR: $e"); return in.set(res)
     in = parser(in)
     goto _pmany(in, parser, res.add(in.value))
-}
-pMany = rule({in, parser ->
+
+pMany = rule(in, parser ->
     trace(in, "pMany")
     _pmany(in, parser, [])
-})
-pManyOne = rule({in, parser ->
+)
+pManyOne = rule(in, parser ->
     trace(in, "pManyOne")
     in = parser(in)
     _pmany(in, parser, [in.value])
-})
-pChar = rule({in, ch ->
+)
+pChar = rule(in, ch ->
     trace(in, "pChar: $(in.item.toChar) == $(ch.toChar)")
     if in.item == ch: return in.next(ch)
     in.error(ch.toChar)
-})
-pChars = rule({in, chars ->
+)
+pChars = rule(in, chars ->
     trace(in, "pChars: $(in.item.toChar) in $(chars)")
     if chars.find(in.item.toChar): return in.next(in.item)
     in.error(chars)
-})
-pNotChars = rule({in, chars ->
+)
+pNotChars = rule(in, chars ->
     trace(in, "pNotChars: $(in.item.toChar) not in $(chars)")
     if chars.find(in.item.toChar): return in.error("not $chars")
     in.next(in.item)
-})
-pText = rule({in, text ->
+)
+pText = rule(in, text ->
     trace(in, "pText: $(text)")
     if in.text.startsWith(text, in.pos): return input(in.text, in.pos + text.size, text)
     in.error(text)
-})
+)
 
 // URL PARSING
-parseType = {in ->
+parseType = in ->
     type = pManyOne(pNotChars(":/?# \n\r"))(in).do: v -> v.toChar
     pChar(":".char)(type).set(type.value)
-}
-parseHost = {in ->
+
+parseHost = in ->
     in = pOptional(pText("//"))(in)
-    if not in.value: {
+    if not in.value:
         // TODO this is cheating ... just a bit ...
         colon = in.text.find(":", in.pos)
         slash = in.text.find("/", in.pos)
         if not colon: return in
         if slash and slash > colon: return in
-    }
     host = pManyOne(pNotChars(":/?#;& \t\n\r"))(in).do: v -> v.toChar
-}
-parsePort = {in ->
+
+parsePort = in ->
     in = pChar(":".char)(in)
     port = pMany(pChars(numbers))(in).do: v -> v.toChar.eval
-}
-parsePath = {in ->
+
+parsePath = in ->
     path = pMany(pNotChars("?# \t\n\r"))(in).do: v -> v.toChar
     text = path.value
     if text.size == 0: return path.set("/")
     if text.char != "/".char: return path.set("/$(text)")
     return path
-}
-parseRequestPath = {in ->
+
+parseRequestPath = in ->
     path = pMany(pNotChars("# \t\n\r"))(in).do: v -> v.toChar
     text = path.value
     if text.size == 0: return path.set("/")
     if text.char != "/".char: return path.set("/$(text)")
     return path
-}
-parseQueryKeyVal = {in ->
+
+parseQueryKeyVal = in ->
     key = pManyOne(pNotChars("=&# \t\n\r"))(in).do: v -> _urldecode(v.toChar)
     eq = pOptional(pChar("=".char))(key)
     val = pMany(pNotChars("&# \t\n\r"))(eq).do: v -> _urldecode(v.toChar)
     am = pOptional(pChar("&".char))(val)
     am.set({k:key.value,v:val.value})
-}
-parseQuery = {in ->
+
+parseQuery = in ->
     in = pChar("?".char)(in)
     keyval = pMany(parseQueryKeyVal)(in)
     map = HashMap.new
     keyval.value.each: o -> map.set(o.k, o.v)
     keyval.set(map)
-}
-parseFragment = {in ->
+
+parseFragment = in ->
     in = pChar("#".char)(in)
     fragment = pMany(pNotChars(" \r\n\t"))(in).do: v -> v.toChar
-}
-parseUrl = {in ->
+
+parseUrl = in ->
     trace(in, "parseUrl")
     type = pOptional(parseType)(in)
     trace(type, "TYPE: $(type.value)")
@@ -142,18 +139,18 @@ parseUrl = {in ->
         path: path.value
         query: query.value
     })
-}
-parseSpaces = {in ->
+
+parseSpaces = in ->
     pManyOne(pChars("\t "))(in)
-}
-parseNewline = {in ->
+
+parseNewline = in ->
     trace(in, "parseNewline")
     try: return pText("\r\n")(in)
     try: return pText("\n\r")(in)
     try: return pText("\n")(in)
     pText("\r")(in)
-}
-parseHeader = {in ->
+
+parseHeader = in ->
     trace(in, "parseHeader")
     key = pManyOne(pNotChars(":\r\n"))(in).do: v -> v.toChar
     colon = pChar(":".char)(key)
@@ -165,13 +162,13 @@ parseHeader = {in ->
         key: key.value
         value: value.value
     })
-}
-createmap = { ls ->
+
+createmap = ls ->
     map = HashMap.new
-    ls.each: { e -> map.set e.key, e.value }
+    ls.each: e -> map.set e.key, e.value
     return map
-}
-parseHttpRequest = {in ->
+
+parseHttpRequest = in ->
     method = pManyOne(pChars(upper))(in).do: v -> v.toChar
     trace(method, "METHOD: $(method.value)")
     sp = parseSpaces(method)
@@ -189,8 +186,8 @@ parseHttpRequest = {in ->
         version: version.value
         headers: createmap(headers.value)
     })
-}
-parseHttpResponse = {in ->
+
+parseHttpResponse = in ->
     http = pMany(pNotChars(" \r\n"))(in)
     sp = pOptional(parseSpaces)(http)
     status = pMany(pChars(numbers))(sp).do: v -> v.toChar.eval
@@ -202,11 +199,11 @@ parseHttpResponse = {in ->
         status: status.value
         headers: createmap(headers.value)
     })
-}
+
 
 {
-    request: {text -> parse(parseHttpRequest, text) }
-    response: { text -> parse(parseHttpResponse, text) }
-    url: { text -> parse(parseUrl, text) }
+    request: text -> parse(parseHttpRequest, text)
+    response: text -> parse(parseHttpResponse, text)
+    url: text -> parse(parseUrl, text)
 }
 

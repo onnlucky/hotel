@@ -19,24 +19,20 @@ run = (stream ->
 
 // TODO this should be a stream and called ...
 reader = _File_from(0).reader
-run = { ->
+run = ->
     buf = _Buffer_new()
     var $env = Env.new(_env)
-    loop: {
+    loop:
         out "> "
-        _with_lock(buf, reader): {
-            loop: {
+        _with_lock(buf, reader):
+            loop:
                 len = reader.read buf
                 if len == 0: return
                 if len: break
                 if len == null: _io.waitread reader
-            }
-        }
         catch: e -> out("error: $e\n")
         res = eval(env, buf.read)
         if res: print res
-    }
-}
 
 { run: run }
 
