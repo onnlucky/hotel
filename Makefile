@@ -17,7 +17,7 @@ run: tl
 	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
 	#TL_MODULE_PATH=./modules $(TOOL) ./tl --noboot run.tl
 
-test: tl
+test: tl $(TLG_MODULES)
 	cd test/noboot/ && ./run.sh
 	cd test/ && TL_MODULE_PATH=../modules $(TOOL) ../tl tester.tl
 
@@ -54,7 +54,7 @@ tl: libtl.a vm/tl.c
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lportaudio -lssl -lcrypto
 
 # meta parser and modules depending on it
-tlmeta.tl: tlmeta.tlg tl tlmeta-base.tl
+tlmeta.tl: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl
 	TL_MODULE_PATH=./modules ./tl boot-tlmeta.tl tlmeta.tlg tlmeta.tl
 
 modules/html.tl: modules/html.tlg tl tlmeta.tl
