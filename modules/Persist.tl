@@ -100,7 +100,6 @@ new = name ->
         }
         */
     }
-}
 
 return { new: new }
 
