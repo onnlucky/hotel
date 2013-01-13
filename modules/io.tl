@@ -4,10 +4,10 @@ _io_queue = _io_init()
 _io = _io_queue.input
 
 // the boot task will call this, this is basically hotelvm's mainloop
-ioloop = { ->
-    loop: {
+ioloop = ->
+    loop:
         Task.yield
-        loop: {
+        loop:
             msg = _io_queue.poll
             (
                 _match(msg == null): break
@@ -23,169 +23,153 @@ ioloop = { ->
                         ))
                 _nomatch
             )
-        }
         if not _io_haswaiting(): break
         _io_run
-    }
-}
 
 // reader/writer utils
-readSome = { reader, buf ->
-    loop: {
+readSome = reader, buf ->
+    loop:
         len = reader.read buf
         if len: return len
         _io.waitread reader
-    }
-}
-readFull = { reader, buf ->
+
+readFull = reader, buf ->
     total = Var.new 0
-    loop: {
+    loop:
         len = reader.read buf
         if len == 0: return $total
         if len: $total += len; continue
         _io.waitread reader
-    }
-}
-writeFull = { writer, buf ->
+
+writeFull = writer, buf ->
     total = Var.new 0
-    loop: {
+    loop:
         if buf.size == 0: return
         len = writer.write buf
         if len == 0: return buf.size
         if not len: _io.waitwrite writer
-    }
-}
 
 Stream = {
     // TODO optimize the read/write buffer usage
     new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
     class: {
-        read: { buf ->
+
+        read: (buf ->
             reader = this.file.reader
-            if buf: {
-                _with_lock(reader, buf): {
+            if buf:
+                _with_lock(reader, buf):
                     buf.write this.rbuf
                     len = readSome(reader, buf)
                     if len == 0: return null
                     return buf
-                }
-            }
-            _with_lock(reader, this.rbuf): {
+            _with_lock(reader, this.rbuf):
                 len = readFull(reader, this.rbuf)
                 if len == 0: return null
                 return this.rbuf.read
-            }
-        }
-        write: { val ->
+        )
+
+        write: (val ->
             assert val
             // TODO throw exception if not all could be written
             writer = this.file.writer
-            if isBuffer(val): {
-                _with_lock(writer, val): {
+            if isBuffer(val):
+                _with_lock(writer, val):
                     assert(this.wbuf.size == 0)
                     return writeFull(writer, val)
-                }
-            }
-            _with_lock(writer, this.wbuf): {
+            _with_lock(writer, this.wbuf):
                 this.wbuf.write val.toString
                 return writeFull(writer, this.wbuf)
-            }
-        }
-        close: { ->
+        )
+
+        close: (->
             if this.file.isClosed: return
             _io.close this.file
-        }
+        )
     }
 }
 
 Server = {
     new: file -> { file: file, class: this.class }
     class: {
-        accept: { ->
+        accept: (->
             reader = this.file.reader
-            _with_lock(reader): {
-                loop: {
+            _with_lock(reader):
+                loop:
                     conn = reader.accept()
                     if conn: return Stream.new(conn)
                     if reader.isClosed: return
                     _io.waitread reader
-                }
-            }
-        }
-        close: { ->
+        )
+        close: (->
             if this.file.isClosed: return
             _io.close this.file
-        }
-        serve: { ->
+        )
+
+        serve: (->
             block = args.block; if not block: throw "serve expects a block"
-            loop: {
+            loop:
                 client = this.accept
                 block(client); client.close
-            }
-        }
+        )
     }
 }
 
 File = {
     call: name -> { name: name, class: this.class }
     class: {
-        read: { buf ->
+        read: (buf ->
             reader = _File_open(this.name, _File_RDONLY).reader
-            if buf: {
-                _with_lock(reader, buf): {
+            if buf:
+                _with_lock(reader, buf):
                     len = readFull(reader, buf)
                     if len == 0: return null
                     return buf
-                }
-            }
             buf = Buffer.new
-            _with_lock(reader, buf): {
+            _with_lock(reader, buf):
                 len = readFull(reader, buf)
                 if len == 0: return null
                 return buf.read
-            }
-        }
-        write: { val ->
+        )
+
+        write: (val ->
             writer = _File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT).writer
-            if isBuffer(val): {
-                _with_lock(writer, val): {
+            if isBuffer(val):
+                _with_lock(writer, val):
                     return writeFull(writer, val)
-                }
-            }
             buf = Buffer.new; buf.write val.toString
-            _with_lock(writer, buf): {
+            _with_lock(writer, buf):
                 return writeFull(writer, buf)
-            }
-        }
-        open: { ->
+        )
+
+        open: (->
             mode = Var.new 0
             if args.map[#truncate]: $mode += _File_TRUNC
             if args.map[#create]: $mode += _File_CREAT
             if not args.map[#readonly]: $mode += _File_RDWR
             if args.map[#readonly]: $mode += _File_RONLY
             Stream.new(_File_open(this.name, $mode))
-        }
+        )
     }
 }
 
 Dir = {
     call: name -> { name: name, class: this.class }
     class: {
-        each: { fn ->
+        each: (fn ->
             block = (args.block) or fn
             if not block: throw "each expects a block or fn"
             _Dir_open(this.name).each(block=block)
-        }
+        )
     }
 }
 
 Path = {
     call: name -> { name: name, class: this.class, _stat: _Var_new() }
     class: {
-        stat: { ->
+        stat: (->
             if not _var_get(this._stat): _var_set(this._stat, _Path_stat(this.name))
             _var_get(this._stat)
-        }
+        )
         exists: -> this.stat.ino != 0
         isFile: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFREG
         isDir:  -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFDIR
@@ -199,46 +183,42 @@ Path = {
 }
 
 Socket = {
-    open: { address, port ->
+    open: (address, port ->
         ip = _Socket_resolve(address)
         Stream.new(_Socket_connect(ip, port))
-    }
-    listen: { port ->
+    )
+    listen: (port ->
         Server.new(_ServerSocket_listen(port))
-    }
+    )
 }
 
-_run = { arglist, env, check ->
+_run = arglist, env, check ->
     // no stdin, no stdin, no stderr, joined stdin/stderr
     child = _io.launch(Task.locals.cwd, arglist, false, true, false, true, env, false)
     buf = Buffer.new
     out = Stream.new(child.out)
-    loop: {
+    loop:
         res = out.read buf
         if not res: break
-    }
     r = child.wait
     if r != 0 and check: Error("'$cmd' exit: $r", output=buf.read).throw
     return buf.read, r
-}
 
 /// run(cmdline, args...) env=null, allowerror=false
 /// execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[1:].cat(args) as arguments
 /// will throw an error when command returns nonzero status
 /// will return output of stdin and stderr combined
-run = { cmd ->
+run = cmd ->
     arglist = cmd.toString.split.cat(args[1:].map(a -> a.toString))
     _run(arglist, args.names.env, not args.names.allowerror)
-}
 
 /// shell(cmd, args...) env=null, allowerror=false
 /// execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
 /// will throw an error when command returns nonzero status
 /// will return output of stdin and stderr combined
-shell = { cmd ->
+shell = cmd ->
     arglist = ["sh", "-c", cmd.toString].cat(args[1:].map(a -> a.toString))
     _run(arglist, args.names.env, not args.names.allowerror)
-}
 
 wait = s -> _io.wait s
 

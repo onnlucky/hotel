@@ -1,10 +1,9 @@
 var $hits = 0
 
 server = http.Server.new(18080)
-!server.serve: { client ->
+!server.serve: client ->
     $hits += 1
     client.write "hello world!"
-}
 
 // ensure failing tests still close server ...
 catch: e -> server.close; throw e

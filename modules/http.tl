@@ -1,89 +1,82 @@
 // hotel http library
 
-HttpConnection = { conn ->
+HttpConnection = conn ->
     _Object_new {
         _req: null, _didhead: false, _didend: false
         _in: io.Buffer.new
         _body: io.Buffer.new
         status: 200
         contentType: "text/plain"
-        setContentType: { type ->
+        setContentType: (type ->
             if @_didhead: throw "Already send headers"
             @contentType = type
-        }
-        req: { ->
+        )
+        req: (->
             // read and parse until headers are complete
             if @_req: return @_req
-            loop: {
+            loop:
                 if @_in.size > 2048: print @_in.read; conn.close; throw "REQUEST TOO LONG"
                 if @_in.find("\r\n\r\n"): break
                 if @_in.find("\n\n"): break
                 _, len = conn.read @_in
                 if len == 0: throw "IO ERROR"
-            }
             @_req = httpparser.request(@_in.read)
-        }
-        end: { -> @_didend = true; @flush(true); conn.close }
-        error: { ->
+        )
+        end: -> @_didend = true; @flush(true); conn.close
+        error: (->
             @status = 500
-            @_didend = true;
+            @_didend = true
             @_body.clear; @_body.write("500 internal error")
             @flush(true); conn.close
-        }
-        write: { text ->
+        )
+        write: (text ->
             if @_didend: throw "Already Ended Response"
             @_body.write text
-        }
-        flush: { ending ->
+        )
+        flush: (ending ->
             if not @_didhead: @_sendheaders(ending)
-            while @_body.size > 0: {
+            while @_body.size > 0:
                 len = conn.write @_body
                 //if len == 0: throw "IO ERROR"
-            }
-        }
-        _sendheaders: { ending ->
+        )
+        _sendheaders: (ending ->
             @_didhead = true
             headers = io.Buffer.new()
             headers.write "HTTP/1.0 $(@status) Ok\r\n"
             if @contentType: headers.write "Content-Type: $(@contentType)\r\n"
             if ending: headers.write "Content-Length: $(@_body.size)\r\n"
             headers.write "\r\n"
-            while headers.size > 0: {
+            while headers.size > 0:
                 len = conn.write headers
                 //if len == 0: throw "IO ERROR"
-            }
-        }
+        )
     }
-}
 
 Server = {
-    new: { port -> { sock: io.Socket.listen(port), class: this.class }}
+    new: port -> { sock: io.Socket.listen(port), class: this.class }
     class: {
         close: -> this.sock.close
-        serve: { ->
+        serve: ( ->
             block = args.block; if not block: throw "expect a block"
-            loop: {
+            loop:
                 client = this.sock.accept
                 if not client: return
                 conn = HttpConnection(client)
-                !{
+                !(
                     catch: e => print e, e?msg; conn.error
                     block(conn); conn.end
-                }
+                )
                 Task.yield
-            }
-        }
+        )
     }
 }
 
-openstream = { url ->
-    if url.type == "https": {
+openstream = url ->
+    if url.type == "https":
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
-    }
     return io.Socket.open(url.host, url.port or 80)
-}
 
-get = { url ->
+get = url ->
     url = httpparser.url(url)
     s = openstream(url)
     buf = Buffer.new
@@ -93,33 +86,27 @@ get = { url ->
     buf.write "\r\n"
     s.write buf
 
-    loop: {
+    loop:
         len = s.read buf
         at = buf.find("\r\n\r\n")
-        if not at: {
+        if not at:
             if len == 0: Error("No headers received").throw
             if buf.size > 8000: Error("Headers too long").throw
             continue
-        }
         res = httpparser.response(buf.read(at + 4))
         body = buf.compact
 
         length = res.headers.get("Content-Length")
-        if length: {
+        if length:
             length = length.eval
-            loop: {
+            loop:
                 if buf.size >= length: break
                 read = s.read buf
                 if not read: Error("Incomplete body received").throw
-            }
             return body, res
-        }
-        loop: {
+        loop:
             read = s.read buf
             if not read: return buf, res
-        }
-    }
-}
 
 return { Server: Server, get: get }
 

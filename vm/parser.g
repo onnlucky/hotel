@@ -200,14 +200,18 @@ static char* unescape(const char* s) {
 hashbang = __ "#"_"!" (!nl .)* nle __
          | __
 
-  body = l:line ts:stms    { $$ = tlCodeFrom(ts, FILE, l); }
+  body = __ &{push_indent(G)} (l:line ts:stmsnl { $$ = tlCodeFrom(ts, FILE, l) }
+                              |l:line           { $$ = tlCodeFrom(tlListEmpty(), FILE, l) }
+                              ) &{pop_indent(G)}
 
-  stms = t:stm (eos t2:stm { t = tlListCat(L(t), L(t2)); }
-               |eos)*      { $$ = t }
-       |                   { $$ = tlListEmpty(); }
+stmsnl = __ &{check_indent(G)} t:stmssl (
+            __ &{check_indent(G)} t2:stmssl { t = tlListCat(L(t), L(t2)) }
+       )* { $$ = t }
 
-stmsnl =  t:stm ssep ts:stmsnl { $$ = tlListCat(L(t), L(ts)); }
-       |  t:stm                { $$ = L(t); }
+stmssl = t:stm (
+            ssep t2:stm { t = tlListCat(L(t), L(t2)) }
+          | ssep
+       )* { $$ = t }
 
    stm = varassign | singleassign | multiassign | noassign
 
@@ -246,32 +250,29 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(tl_active(e), n, null)
 
 
  block = fn
-       | "{"__ b:body __ "}" {
+       | "("__ b:body __ ")" {
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
-       | l:line ts:stmsnl &ssepend {
-           b = tlCodeFrom(ts, FILE, l);
+       | __ b:body __ {
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
 
-    fn = "{" __ as:fargs __"->"__ b:body __ "}" {
+    fn = "(" __ as:fargs __"->"__ b:body __ ")" {
            tlCodeSetArgs_(tlCodeAs(b), L(as));
            $$ = b;
        }
-       | "{" __ as:fargs __"=>"__ b:body __ "}" {
+       | "(" __ as:fargs __"=>"__ b:body __ ")" {
            tlCodeSetArgs_(tlCodeAs(b), L(as));
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
-       | as:fargs _"->"_ l:line ts:stmsnl &ssepend {
-           b = tlCodeFrom(ts, FILE, l);
+       | as:fargs _"->"_ b:body {
            tlCodeSetArgs_(tlCodeAs(b), L(as));
            $$ = b;
        }
-       | as:fargs _"=>"_ l:line ts:stmsnl &ssepend {
-           b = tlCodeFrom(ts, FILE, l);
+       | as:fargs _"=>"_ b:body {
            tlCodeSetArgs_(tlCodeAs(b), L(as));
            tlCodeSetIsBlock_(b, true);
            $$ = b;
@@ -417,7 +418,9 @@ pcargs = l:carg __","__
                                  { $$ = l; }
        | r:pcarg                 { $$ = r; }
 
- cargs = l:carg
+ cargs = f:fn                   { $$ = tlListFrom2(tlNull, tl_active(f)); }
+#tlListFrom2(tlNull, f); }
+       | l:carg
                 (__","__ r:carg { l = tlListCat(L(l), r); }
                 )*              { $$ = l; }
        |                        { $$ = tlListEmpty(); }
@@ -461,6 +464,7 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, nu
             $$ = set_target(t, tlCallFromList(tl_active(s_assert), as));
        }
        | f:fn t:tail                { $$ = set_target(t, tl_active(f)); }
+       | "("__ f:fn __")" t:tail    { $$ = set_target(t, tl_active(f)); }
        | "("__ e:pexpr __")" t:tail { $$ = set_target(t, e); }
        | "("__ b:body  __")" t:tail {
            tlCodeSetIsBlock_(b, true);
@@ -521,6 +525,7 @@ slcomment = "//" (!nl .)*
      ssep = _ ";" _
   ssepend = _ (nl | "}" | ")" | "]" | slcomment nle | !.) __
 
+    eosnl = _ (nl | slcomment nle) __
       eos = _ (nl | ";" | slcomment nle) __
   eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.) __
  peosfull = _ (nl | ":" | ";" | "}" | ")" | "]" | slcomment nle | !.) __
@@ -537,14 +542,13 @@ slcomment = "//" (!nl .)*
 
 int find_indent(GREG* G) {
     int indent = 1;
-    while (G->pos - indent >= 0) {
+    while (true) {
+        if (indent > G->pos) break;
         char c = G->buf[G->pos - indent];
-        //trace("char=%c, pos=%d, indent=%d", c, G->pos, indent);
         if (c == '\n' || c == '\r') break;
         indent++;
     }
-    if (G->pos - indent < 0) return 65535;
-    indent--;
+    trace("FOUND INDENT: %d", indent);
     return indent;
 }
 int peek_indent(GREG* G) {
@@ -556,19 +560,21 @@ bool push_indent(void* data) {
     G->data->current_indent++;
     assert(G->data->current_indent < 100);
     G->data->indents[G->data->current_indent] = indent;
-    //trace("NEW INDENT: %d", peek_indent(G));
+    trace("PUSH NEW INDENT: %d", peek_indent(G));
     return true;
 }
 bool pop_indent(void* data) {
     GREG* G = (GREG*)data;
     G->data->current_indent--;
     assert(G->data->current_indent >= 0);
-    //trace("NEW INDENT: %d", peek_indent(G));
-    return false;
+    trace("POP INDENT, CURRENT: %d", peek_indent(G));
+    return true;
 }
 bool check_indent(void* data) {
     GREG* G = (GREG*)data;
-    return peek_indent(G) == find_indent(G);
+    bool res = peek_indent(G) == find_indent(G);
+    trace("CHECK INDENT: %s", res?"true":"false");
+    return res;
 }
 
 tlHandle tlParse(tlString* str, tlString* file) {
@@ -616,6 +622,7 @@ tlHandle tlParse(tlString* str, tlString* file) {
     yyinit(&g);
     g.data = &data;
     if (!yyparse(&g)) {
+        warning("parser error around line %d", g.maxline + 1); // humans count from 1
         TL_THROW("parser error around line %d", g.maxline + 1); // humans count from 1
     }
     tlHandle v = g.ss;
