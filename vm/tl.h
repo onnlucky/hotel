@@ -173,9 +173,14 @@ const char* tl_str(tlHandle v);
 // Mutable setters (ending with underscore) must only be used after you just created the value.
 // Notice hotel level text, list, etc. values are not necesairy primitive tlStrings or tlLists etc.
 
+extern tlHandle tlEqual;
+extern tlHandle tlSmaller;
+extern tlHandle tlLarger;
+tlHandle tlCOMPARE(intptr_t); // returns one of tlEqual, tlSmaller, tlLarger
+
 unsigned int tlHandleHash(tlHandle v);
 bool tlHandleEquals(tlHandle left, tlHandle right);
-int tlHandleCompare(tlHandle left, tlHandle right);
+tlHandle tlHandleCompare(tlHandle left, tlHandle right);
 
 
 // ** text **
@@ -435,7 +440,7 @@ tlTask* tlLockOwner(tlLock* lock);
 typedef const char*(*tltoStringFn)(tlHandle v, char* buf, int size);
 typedef unsigned int(*tlHashFn)(tlHandle from);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
-typedef int(*tlCompareFn)(tlHandle left, tlHandle right);
+typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
 typedef size_t(*tlByteSizeFn)(tlHandle from);
 typedef tlHandle(*tlCallFn)(tlCall* args);
 typedef tlHandle(*tlRunFn)(tlHandle fn, tlArgs* args);
@@ -450,7 +455,7 @@ struct tlKind {
 
     tlHashFn hash;     // return a hash value, must be stable
     tlEqualsFn equals; // return left == right, required if hash is not null
-    tlCompareFn cmp;   // return left - right
+    tlCompareFn cmp;   // return tlCOMPARE(left - right) or undefined
 
     tlByteSizeFn size; // return memory use in bytes, e.g. `return sizeof(tlTask)`
 

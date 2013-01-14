@@ -202,9 +202,9 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
     if (!find) TL_THROW("expected a String");
     int from = tl_int_or(tlArgsGet(args, 1), 0);
 
-    if (from >= tlStringSize(str)) return tlNull;
+    if (from >= tlStringSize(str)) return tlUndef();
     const char* p = strstr(tlStringData(str) + from, tlStringData(find));
-    if (!p) return tlNull;
+    if (!p) return tlUndef();
     return tlINT(p - tlStringData(str));
 }
 
@@ -228,7 +228,7 @@ INTERNAL tlHandle _string_get(tlArgs* args) {
     int at = tl_int_or(tlArgsGet(args, 0), 0);
     int size = tlStringSize(str);
     if (at < 0) at = size + at;
-    if (!(at >=0 && at < size)) return tlNull;
+    if (!(at >=0 && at < size)) return tlUndef();
     return tlINT(str->data[at]);
 }
 
@@ -402,8 +402,8 @@ INTERNAL unsigned int stringHash(tlHandle v) {
 INTERNAL int stringEquals(tlHandle left, tlHandle right) {
     return tlStringEquals(tlStringAs(left), tlStringAs(right));
 }
-INTERNAL int stringCmp(tlHandle left, tlHandle right) {
-    return tlStringCmp(tlStringAs(left), tlStringAs(right));
+INTERNAL tlHandle stringCmp(tlHandle left, tlHandle right) {
+    return tlCOMPARE(tlStringCmp(tlStringAs(left), tlStringAs(right)));
 }
 static tlKind _tlStringKind = {
     .name = "str",

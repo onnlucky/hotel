@@ -130,8 +130,8 @@ static unsigned int intHash(tlHandle v) {
 static bool intEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
-static int intCmp(tlHandle left, tlHandle right) {
-    return tl_int(left) - tl_int(right);
+static tlHandle intCmp(tlHandle left, tlHandle right) {
+    return tlCOMPARE(tl_int(left) - tl_int(right));
 }
 static tlKind _tlIntKind = {
     .name = "Int",

@@ -27,6 +27,13 @@ static tlSym s_Map_clone;
 static tlSym s_Map_update;
 static tlSym s_Map_inherit;
 
+static tlSym s_equal;
+static tlSym s_smaller;
+static tlSym s_larger;
+tlHandle tlEqual;
+tlHandle tlSmaller;
+tlHandle tlLarger;
+
 static LHashMap *symbols = 0;
 static LHashMap *globals = 0;
 
@@ -185,6 +192,11 @@ static void sym_init() {
     s_Map_clone = tlSYM("_Map_clone");
     s_Map_update = tlSYM("_Map_update");
     s_Map_inherit = tlSYM("_Map_inherit");
+
+
+    s_equal = tlSYM("equal"); tlEqual = s_equal;
+    s_smaller = tlSYM("smaller"); tlSmaller = s_smaller;
+    s_larger = tlSYM("larger"); tlLarger = s_larger;
 
     _tlSymKind.klass = tlClassMapFrom(
         "toString", _sym_toString,

@@ -382,16 +382,16 @@ static bool listEquals(tlHandle _left, tlHandle _right) {
     }
     return true;
 }
-static int listCmp(tlHandle _left, tlHandle _right) {
+static tlHandle listCmp(tlHandle _left, tlHandle _right) {
     if (_left == _right) return 0;
 
     tlList* left = tlListAs(_left);
     tlList* right = tlListAs(_right);
     for (int i = 0; i < left->size; i++) {
-        int cmp = tlHandleCompare(tlListGet(left, i), tlListGet(right, i));
-        if (cmp != 0) return cmp;
+        tlHandle cmp = tlHandleCompare(tlListGet(left, i), tlListGet(right, i));
+        if (cmp != tlEqual) return cmp;
     }
-    return left->size - right->size;
+    return tlCOMPARE(left->size - right->size);
 }
 
 // TODO eval: { "_list_clone", _list_clone },

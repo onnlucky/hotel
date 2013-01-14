@@ -29,12 +29,13 @@ static unsigned int floatHash(tlHandle h) {
 static bool floatEquals(tlHandle left, tlHandle right) {
     return tl_double(left) == tl_double(right);
 }
-static int floatCmp(tlHandle left, tlHandle right) {
+static tlHandle floatCmp(tlHandle left, tlHandle right) {
     double l = tl_double(left);
     double r = tl_double(right);
-    if (l == r) return 0;
-    if (l > r) return 1;
-    return -1;
+    if (l > r) return tlLarger;
+    if (l < r) return tlSmaller;
+    if (l == r) return tlEqual;
+    return tlUndef();
 }
 static tlKind _tlFloatKind = {
     .name = "Float",

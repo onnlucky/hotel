@@ -72,17 +72,27 @@ bool tlHandleEquals(tlHandle left, tlHandle right) {
 // TODO this makes absolute ordering depending on runtime pointers ...
 // TODO also, returning just -1, 0, 1 is better because this can overflow ...
 // return left - right
-int tlHandleCompare(tlHandle left, tlHandle right) {
+tlHandle tlCOMPARE(intptr_t i) {
+    if (i < 0) return tlSmaller;
+    if (i > 0) return tlLarger;
+    return tlEqual;
+}
+tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
+    if (tlUndefinedIs(left)) return left;
+    if (tlUndefinedIs(right)) return right;
+
     if (left == right) return 0;
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
     if (kleft != kright) {
         if (kleft == tlIntKind && kright == tlFloatKind) return kright->cmp(left, right);
         if (kleft == tlFloatKind && kright == tlIntKind) return kleft->cmp(left, right);
-        return (intptr_t)kleft - (intptr_t)kright;
+        return tlCOMPARE((intptr_t)kleft - (intptr_t)kright);
     }
-    if (!kleft->cmp) return (intptr_t)left - (intptr_t)right;
-    return kleft->cmp(left, right);
+    if (!kleft->cmp) return tlCOMPARE((intptr_t)left - (intptr_t)right);
+    tlHandle res = kleft->cmp(left, right);
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger || tlUndefinedIs(res));
+    return res;
 }
 
 static tlHandle _out(tlArgs* args) {
@@ -116,23 +126,23 @@ static tlHandle _neq(tlArgs* args) {
 }
 static tlHandle _lt(tlArgs* args) {
     trace("%s < %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
-    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(cmp < 0);
+    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp == tlSmaller);
 }
 static tlHandle _lte(tlArgs* args) {
     trace("%d <= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(cmp <= 0);
+    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp != tlLarger);
 }
 static tlHandle _gt(tlArgs* args) {
     trace("%d > %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(cmp > 0);
+    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp == tlLarger);
 }
 static tlHandle _gte(tlArgs* args) {
     trace("%d >= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    int cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return tlBOOL(cmp >= 0);
+    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
+    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp != tlSmaller);
 }
 
 // int/float
