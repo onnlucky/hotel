@@ -1,15 +1,3 @@
-TEST = "12345"
-assert 1 < 2, 1 <= 2, 1 <= 1, 1 == 1
-assert 2 > 1, 2 >= 1, 2 >= 2, 2 == 2
-assert 1 == 1
-
-assert TEST[0:] == TEST
-assert TEST[:0] == ""
-assert TEST[TEST.size:] == ""
-assert TEST[:TEST.size] == TEST
-
-print "STARTING"
-
 if not io.stdin.isTTY: return
 term = io.stdin
 smcup = true

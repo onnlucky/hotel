@@ -219,7 +219,8 @@ INTERNAL tlList* tlListSlice(tlList* list, int first, int last) {
     if (first < 0) return tlListEmpty();
     if (first >= size) return tlListEmpty();
     if (last < 0) last = size + last;
-    if (last <= first) return tlListEmpty();
+    if (last < first) return tlListEmpty();
+    if (last >= size) last = size;
 
     int len = last - first;
     trace("%d %d %d (size: %d)", first, last, len, size);
