@@ -254,7 +254,7 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(tl_active(e), n, null)
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
-       | __ b:body __ {
+       | __ b:body {
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }

@@ -1,12 +1,5 @@
 # TODO
 
-fix the following parser bug:
-{
-    test: -> if true: print "hello"
-    other: true
-}
-a weird one, likely due to eating a nl as whitespace ...
-
 slicing and zero work really badly together: line[:$upto] when $upto == 0 it borks, start using 1 indexed arrays!!
 add closure.invoke or such where all params are given as maps and lists, to use
 add Queue + max depth size or unlimited; MsgQueue and TaskQueue
