@@ -16,7 +16,7 @@ input = text, pos, value -> {
         text: text
         pos: pos
         value: value
-        item: text.char(pos)
+        item: text.get(pos)
         end: -> this.pos >= this.text.size
         set: val -> input(this.text, this.pos, val)
         do: block -> this.set(block(this.value))
@@ -270,7 +270,7 @@ parseTerm = in ->
 
     a2 = in -> pText(".")(in).set({ type: #Ws })
     a3 = in -> pText("_")(in).set({ type: #Any })
-    a4 = in -> n = parseName(in); pNot(pChar(":".char))(n).set({ type: #Call, rule: n.value })
+    a4 = in -> n = parseName(in); pNot(pChar(":".get))(n).set({ type: #Call, rule: n.value })
     a5 = in -> parseText(in).do: v -> { type: #Text, text: v }
     in = pOr(a1, a2, a3, a4, a5)(in)
     trace2(in, "<< term: $(in.value)")

@@ -72,7 +72,7 @@ pText = rule(in, text ->
 // URL PARSING
 parseType = in ->
     type = pManyOne(pNotChars(":/?# \n\r"))(in).do: v -> v.toChar
-    pChar(":".char)(type).set(type.value)
+    pChar(":".get)(type).set(type.value)
 
 parseHost = in ->
     in = pOptional(pText("//"))(in)
@@ -85,39 +85,39 @@ parseHost = in ->
     host = pManyOne(pNotChars(":/?#;& \t\n\r"))(in).do: v -> v.toChar
 
 parsePort = in ->
-    in = pChar(":".char)(in)
+    in = pChar(":".get)(in)
     port = pMany(pChars(numbers))(in).do: v -> v.toChar.eval
 
 parsePath = in ->
     path = pMany(pNotChars("?# \t\n\r"))(in).do: v -> v.toChar
     text = path.value
     if text.size == 0: return path.set("/")
-    if text.char != "/".char: return path.set("/$(text)")
+    if text.get != "/".get: return path.set("/$(text)")
     return path
 
 parseRequestPath = in ->
     path = pMany(pNotChars("# \t\n\r"))(in).do: v -> v.toChar
     text = path.value
     if text.size == 0: return path.set("/")
-    if text.char != "/".char: return path.set("/$(text)")
+    if text.get != "/".get: return path.set("/$(text)")
     return path
 
 parseQueryKeyVal = in ->
     key = pManyOne(pNotChars("=&# \t\n\r"))(in).do: v -> _urldecode(v.toChar)
-    eq = pOptional(pChar("=".char))(key)
+    eq = pOptional(pChar("=".get))(key)
     val = pMany(pNotChars("&# \t\n\r"))(eq).do: v -> _urldecode(v.toChar)
-    am = pOptional(pChar("&".char))(val)
+    am = pOptional(pChar("&".get))(val)
     am.set({k:key.value,v:val.value})
 
 parseQuery = in ->
-    in = pChar("?".char)(in)
+    in = pChar("?".get)(in)
     keyval = pMany(parseQueryKeyVal)(in)
     map = HashMap.new
     keyval.value.each: o -> map.set(o.k, o.v)
     keyval.set(map)
 
 parseFragment = in ->
-    in = pChar("#".char)(in)
+    in = pChar("#".get)(in)
     fragment = pMany(pNotChars(" \r\n\t"))(in).do: v -> v.toChar
 
 parseUrl = in ->
@@ -153,7 +153,7 @@ parseNewline = in ->
 parseHeader = in ->
     trace(in, "parseHeader")
     key = pManyOne(pNotChars(":\r\n"))(in).do: v -> v.toChar
-    colon = pChar(":".char)(key)
+    colon = pChar(":".get)(key)
     sp = pOptional(parseSpaces)(colon)
     value = pManyOne(pNotChars("\r\n"))(sp).do: v -> v.toChar
     nl = parseNewline(value)

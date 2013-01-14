@@ -50,6 +50,7 @@ const char* tlStringData(tlString *str) {
     return str->data;
 }
 
+// TODO this returns the byte size, not the character count! UTF8
 int tlStringSize(tlString* str) {
     assert(tlStringIs(str));
     return str->len;
@@ -103,6 +104,8 @@ tlString* tlStringSub(tlString* from, int first, int size) {
     if (tlStringSize(from) == size) return from;
     char* data = malloc_atomic(size + 1);
     if (!data) return null;
+    assert(first >= 0);
+    assert(size <= tlStringSize(from));
     memcpy(data, from->data + first, size);
     data[size] = 0;
 
@@ -216,8 +219,8 @@ INTERNAL tlHandle _string_cat(tlArgs* args) {
     return tlStringCat(str, add);
 }
 
-/// char: return character at args[1] characters are just #"Int"s
-INTERNAL tlHandle _string_char(tlArgs* args) {
+/// get: return character at args[1] characters are just #"Int"s
+INTERNAL tlHandle _string_get(tlArgs* args) {
     trace("");
     tlString* str = tlStringCast(tlArgsTarget(args));
     if (!str) TL_THROW("this must be a String");
@@ -273,7 +276,7 @@ INTERNAL tlHandle _string_slice(tlArgs* args) {
     if (first < 0) first = size + first;
     if (first < 0) return tlStringEmpty();
     if (first >= size) return tlStringEmpty();
-    if (last <= 0) last = size + last;
+    if (last < 0) last = size + last;
     if (last < first) return tlStringEmpty();
     if (last >= size) last = size;
 
@@ -420,8 +423,7 @@ static void string_init() {
         "startsWith", _string_startsWith,
         "endsWith", _string_endsWith,
         "find", _string_find,
-        "char", _string_char,
-        "get", _string_char,
+        "get", _string_get,
         "lower", _string_lower,
         "upper", _string_upper,
         "slice", _string_slice,

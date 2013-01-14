@@ -1,3 +1,11 @@
+TEST = "12345"
+assert TEST[0:] == TEST
+assert TEST[:0] == ""
+assert TEST[TEST.size:] == ""
+assert TEST[:TEST.size] == TEST
+
+print "STARTING"
+
 if not io.stdin.isTTY: return
 term = io.stdin
 smcup = true
@@ -28,8 +36,6 @@ editor = _Object_new {
         // when moving along tip of lines, we normalize it here
         if this._x >= line.size: this._x = line.size
 
-        if this._x == 0: this._left = ""; this._right = line; return
-        if this._x == line.size: this._left = line; this._right = ""; return
         this._left = line[:this._x]
         this._right = line[this._x:]
     )
@@ -60,13 +66,12 @@ editor = _Object_new {
         this._x = 0
         this._lines.insert(this._y, this._right)
         up = this._left
-        this._left = ""
 
         // figure out indentation of previous line and follow that
         var $indent = 0
         while up[$indent] <= 32: $indent += 1
         this._x = $indent
-        if $indent > 0: this._left = up[:$indent]
+        this._left = up[:$indent]
         this.debug "line: $(this._y) offset: $(this._offset)"
     )
     deleteleft: (->
