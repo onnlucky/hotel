@@ -157,13 +157,22 @@ static unsigned int symHash(tlHandle v) {
     return tlStringHash(tlStringFromSym(tlSymAs(v)));
 }
 static bool symEquals(tlHandle left, tlHandle right) {
-    return left == right;
+    trace("SYMBOL EQUALS? %s == %s", tl_str(left), tl_str(right));
+    if (left == right) return true;
+    if (tlSymIs(left) && tlSymIs(right)) return false;
+    return tlStringEquals(_TEXT_FROM_SYM(left), _TEXT_FROM_SYM(right));
+}
+static tlHandle symCmp(tlHandle left, tlHandle right) {
+    trace("SYMBOL CMP? %s <> %s", tl_str(left), tl_str(right));
+    if (left == right) return tlEqual;
+    return tlCOMPARE(tlStringCmp(_TEXT_FROM_SYM(left), _TEXT_FROM_SYM(right)));
 }
 static tlKind _tlSymKind = {
     .name = "Symbol",
     .toString = symtoString,
     .hash = symHash,
     .equals = symEquals,
+    .cmp = symCmp,
 };
 
 static void sym_init() {

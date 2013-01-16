@@ -65,18 +65,23 @@ bool tlHandleEquals(tlHandle left, tlHandle right) {
     if (left == right) return true;
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
-    if (kleft != kright) return false;
+    if (kleft != kright) {
+        if (kleft == tlIntKind && kright == tlFloatKind) return tlFloatKind->equals(left, right);
+        if (kleft == tlFloatKind && kright == tlIntKind) return tlFloatKind->equals(left, right);
+        if (kleft == tlSymKind && kright == tlStringKind) return tlSymKind->equals(left, right);
+        if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->equals(left, right);
+        return false;
+    }
     if (!kleft->equals) return false;
     return kleft->equals(left, right);
 }
-// TODO this makes absolute ordering depending on runtime pointers ...
-// TODO also, returning just -1, 0, 1 is better because this can overflow ...
 // return left - right
 tlHandle tlCOMPARE(intptr_t i) {
     if (i < 0) return tlSmaller;
     if (i > 0) return tlLarger;
     return tlEqual;
 }
+// TODO this makes absolute ordering depending on runtime pointers ...
 tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
     if (tlUndefinedIs(left)) return left;
     if (tlUndefinedIs(right)) return right;
@@ -85,8 +90,12 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
     if (kleft != kright) {
-        if (kleft == tlIntKind && kright == tlFloatKind) return kright->cmp(left, right);
-        if (kleft == tlFloatKind && kright == tlIntKind) return kleft->cmp(left, right);
+        if (kleft == tlIntKind && kright == tlFloatKind) return tlFloatKind->cmp(left, right);
+        if (kleft == tlFloatKind && kright == tlIntKind) return tlFloatKind->cmp(left, right);
+        if (kleft == tlSymKind && kright == tlStringKind) return tlSymKind->cmp(left, right);
+        if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->cmp(left, right);
+        // TODO maybe return undefined because compare cannot be done here?
+        // but actually, we need to let the interpreter execute user level code here
         return tlCOMPARE((intptr_t)kleft - (intptr_t)kright);
     }
     if (!kleft->cmp) return tlCOMPARE((intptr_t)left - (intptr_t)right);

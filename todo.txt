@@ -1,5 +1,6 @@
 # TODO
 
+strings and symbols are the same thing now, mostly, integrate deeper
 add closure.invoke or such where all params are given as maps and lists, to use
 add Queue + max depth size or unlimited; MsgQueue and TaskQueue
 
