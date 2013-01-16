@@ -144,6 +144,10 @@ static tlHandle _Env_localObject(tlArgs* args) {
     trace("");
     return tlTaskPauseResuming(resumeEnvLocalObject, tlNull);
 }
+static tlHandle _Env_path(tlArgs* args) {
+    assert(tlWorkerCurrent()->codeframe);
+    return tlWorkerCurrent()->codeframe->code->path;
+}
 
 static tlMap* envClass;
 static void env_init() {
@@ -155,6 +159,7 @@ static void env_init() {
         "new", _Env_new,
         "current", _Env_current,
         "localObject", _Env_localObject,
+        "path", _Env_path,
         null
     );
 }

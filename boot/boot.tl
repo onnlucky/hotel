@@ -272,28 +272,38 @@ _install(String.class, #eval, (_eval_ = (->
     eval2(this)
 )))
 
+// this is crazy and should go away, later ...
+_module_paths = Array.new
+addModulePath = path -> _module_paths.add(path)
+
+// this captured env is the root of all defined things
+_env = Env.current
+
 // unresolved names will call this, for auto module loading
 // TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
 // TODO besides, need to have a dedicated task for this, to prevent races
-_env = Env.current
-_loaded = HashMap.new
-_module_path = _io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl"
+_modules = HashMap.new
 _fileForModule = name, path ->
     file = "$path/$name"
     if _Path_stat(file).ino != 0: return file
-    file = "$(_module_path)/$name"
-    if _Path_stat(file).ino != 0: return file
+    _module_paths.each: p =>
+        file = "$p/$name"
+        if _Path_stat(file).ino != 0: return file
     Error("Undefined: '$name'").throw
 
 // NOT A MISTAKE ... crazy, sorry ...
 _resolve: name, path ->
-    res = _loaded.get(name)
-    if res == _loaded: throw "Undefined: '$name'"
+    //print("RESOLVING: $name ($path)")
+    res = _modules[name]
+    if res == _modules: throw "Undefined: '$name'"
     if isDefined res: return res
     catch: e -> throw "Error reading module: '$name', $(e?msg)"
     file = _fileForModule("$(name.toString).tl", path)
     res = _parse(_stringFromFile(file), file)(_env)
-    _loaded.set(name, res)
+    _modules.set(name, res)
+
+// default module path
+(_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
 
 // run a repl, or every argument as a file
 runmain = as ->
