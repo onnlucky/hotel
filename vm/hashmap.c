@@ -16,15 +16,8 @@ struct tlHashMap {
 };
 
 static int map_equals(void* left, void* right) {
-    trace("map_equals: %s == %s", tl_str(left), tl_str(right));
-    if (left == right) return true;
-    tlKind* kleft = tl_kind(left);
-    tlKind* kright = tl_kind(right);
-    if (kleft != kright) return false;
-    assert(kleft->equals);
-    return kleft->equals(left, right);
+    return tlHandleEquals(left, right);
 }
-
 static unsigned int map_hash(void* key) {
     trace("map_hash: %s", tl_str(key));
     tlKind* kind = tl_kind(key);

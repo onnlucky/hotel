@@ -55,12 +55,14 @@ tlMap* tlMapToObject(tlMap* map) {
 
 tlHandle tlMapGet(tlMap* map, tlHandle key) {
     assert(tlMapOrObjectIs(map));
+    if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
     assert(at < tlMapSize(map));
     return map->data[at];
 }
 tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v) {
+    if (tlStringIs(key)) key = tlSymFromString(key);
     trace("set map: %s = %s", tl_str(key), tl_str(v));
 
     int at = 0;
