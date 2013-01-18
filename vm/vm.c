@@ -361,7 +361,7 @@ void tl_init() {
     trace("frame overhead: %zd (%zd)", sizeof(tlFrame), sizeof(tlFrame)/sizeof(tlHandle));
     trace(" task overhead: %zd (%zd)", sizeof(tlTask), sizeof(tlTask)/sizeof(tlHandle));
 
-    sym_init();
+    sym_string_init();
 
     list_init();
     set_init();
@@ -369,7 +369,6 @@ void tl_init() {
 
     value_init();
     number_init();
-    string_init();
     args_init();
     call_init();
 

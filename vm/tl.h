@@ -112,9 +112,22 @@ static inline _T* _T##As(tlHandle v) { \
 static inline _T* _T##Cast(tlHandle v) { \
     return _T##Is(v)?(_T*)v:null; }
 
+typedef struct tlString tlString;
+extern tlKind* tlStringKind;
+static inline bool tlStringIs(tlHandle v) {
+    return tl_kind(v) == tlStringKind || tl_kind(v) == tlSymKind;
+}
+static inline tlString* tlStringAs(tlHandle v) {
+    assert(tlStringIs(v));
+    return (tlString*)((intptr_t)v & ~7);
+}
+static inline tlString* tlStringCast(tlHandle v) {
+    if (!tlStringIs(v)) return null;
+    return (tlString*)((intptr_t)v & ~7);
+}
+
 TL_REF_TYPE(tlUndefined);
 TL_REF_TYPE(tlFloat);
-TL_REF_TYPE(tlString);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);

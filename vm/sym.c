@@ -104,6 +104,8 @@ tlSym tlSymFromCopy(const char* s, int len) {
 }
 
 tlSym tlSymFromString(tlString* str) {
+    if (tlSymIs(str)) return str;
+
     assert(tlStringIs(str));
     assert(symbols);
     trace("#%s", tl_str(str));
@@ -169,13 +171,13 @@ static tlHandle symCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlSymKind = {
     .name = "Symbol",
-    .toString = symtoString,
+    .toString = stringtoString,
     .hash = symHash,
     .equals = symEquals,
     .cmp = symCmp,
 };
 
-static void sym_init() {
+static void sym_string_init() {
     trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
     globals = lhashmap_new(strequals, strhash, strfree);
@@ -207,10 +209,9 @@ static void sym_init() {
     s_smaller = tlSYM("smaller"); tlSmaller = s_smaller;
     s_larger = tlSYM("larger"); tlLarger = s_larger;
 
-    _tlSymKind.klass = tlClassMapFrom(
-        "toString", _sym_toString,
-        "toSym", _sym_toSym,
-        null
-    );
+    string_init();
+
+    assert(_tlStringKind.klass);
+    _tlSymKind.klass = _tlStringKind.klass;
 }
 
