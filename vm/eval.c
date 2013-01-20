@@ -677,6 +677,7 @@ INTERNAL tlHandle applyCall(tlCall* call) {
 
 // Various high level eval stuff, will piggyback on the task given
 tlString* tltoString(tlHandle v) {
+    if (tlSymIs(v)) return tlStringAs(v);
     if (tlStringIs(v)) return v;
     // TODO actually invoke toString ...
     return tlStringFromCopy(tl_str(v), 0);

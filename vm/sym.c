@@ -152,12 +152,6 @@ static int strequals(void *left, void *right) {
 }
 static void strfree(void *str) { }
 
-const char* symtoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "#%s", tlStringData(_TEXT_FROM_SYM(v))); return buf;
-}
-static unsigned int symHash(tlHandle v) {
-    return tlStringHash(tlStringFromSym(tlSymAs(v)));
-}
 static bool symEquals(tlHandle left, tlHandle right) {
     trace("SYMBOL EQUALS? %s == %s", tl_str(left), tl_str(right));
     if (left == right) return true;
@@ -170,9 +164,9 @@ static tlHandle symCmp(tlHandle left, tlHandle right) {
     return tlCOMPARE(tlStringCmp(_TEXT_FROM_SYM(left), _TEXT_FROM_SYM(right)));
 }
 static tlKind _tlSymKind = {
-    .name = "Symbol",
+    .name = "String",
     .toString = stringtoString,
-    .hash = symHash,
+    .hash = stringHash,
     .equals = symEquals,
     .cmp = symCmp,
 };

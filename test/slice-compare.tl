@@ -13,3 +13,7 @@ assert LIST[:0] == []
 assert LIST[LIST.size:] == []
 assert LIST[:LIST.size] == LIST
 
+assert #hello == "hello"
+assert #hello.hash == "hello".hash
+assert #hello[1:-1] == "hello"[1:-1]
+
