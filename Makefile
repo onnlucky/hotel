@@ -17,8 +17,9 @@ run: tl
 	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
 	#TL_MODULE_PATH=./modules $(TOOL) ./tl --noboot run.tl
 
-test: tl $(TLG_MODULES)
+test-noboot: tl
 	cd test/noboot/ && ./run.sh
+test: test-noboot $(TLG_MODULES)
 	cd test/ && TL_MODULE_PATH=../modules $(TOOL) ../tl tester.tl
 
 $(LIBGC):
