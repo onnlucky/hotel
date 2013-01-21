@@ -17,3 +17,4 @@ assert #hello == "hello"
 assert #hello.hash == "hello".hash
 assert #hello[1:-1] == "hello"[1:-1]
 
+assert "1X3".replace("X", "2") == "123"

@@ -20,17 +20,17 @@ NodeClass = {
     hasClass: n -> this.classes.each(c => if c == n: return true); return false
     text: ( ->
         if this.sub.size == 0: return ""
-        if this.sub.size == 1 and isString(this.sub.get(0)): return this.sub.get(0)
+        if this.sub.size == 1 and isString(this.sub[1]): return this.sub[1]
         b = Buffer.new
         toString(b, this)
         return b.read
     )
 }
 Node = name, attr, sub ->
-    cs = (attr.get("class") or "").split
+    cs = (attr["class"] or "").split
     return {
         name: name
-        id: attr.get("id") or null
+        id: attr["id"] or null
         classes: cs
         attr: attr
         sub: sub

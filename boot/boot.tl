@@ -120,7 +120,7 @@ _install(String.class, #replace, (replace = (from, to ->
     if not at: return this
 
     before = this.slice(0, at)
-    after = this.slice(at + from.size)
+    after = this.slice(at + 1 + from.size)
     return "$before$to$after"
 )))
 
