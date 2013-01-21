@@ -17,17 +17,17 @@ walk = node, match, result ->
     if isString(node): return
 
     m = Var.new true
-    match.get(0).each: s ->
+    match[1].each: s ->
         _match(s.match == #node and s.name == node.name): 1
-        _match(s.match == #class and s.name == node.attr.get("class")): 1
-        _match(s.match == #id and s.name == node.attr.get("id")): 1
+        _match(s.match == #class and s.name == node.attr["class"]): 1
+        _match(s.match == #id and s.name == node.attr["id"]): 1
         _match(true): m.set false
     if m.get:
         if match.size == 1:
             if not result: return node
             result.add node
         if match.size > 1:
-            node.sub.each: n => r = walk(n, match.slice(1), result); if r: return r
+            node.sub.each: n => r = walk(n, match[2:], result); if r: return r
     node.sub.each: n => r = walk(n, match, result); if r: return r
     return
 

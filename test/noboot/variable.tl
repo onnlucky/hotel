@@ -6,7 +6,7 @@ Variable = v ->
         loop = v ->
             msg = queue.get
             if msg.name == #get: msg.reply v; goto loop v
-            if msg.name == #set: msg.reply msg.get(0); goto loop msg.get(0)
+            if msg.name == #set: msg.reply msg[1]; goto loop msg[1]
             print("ERROR: unknown message:", msg.name)
             msg.reply
             goto loop v

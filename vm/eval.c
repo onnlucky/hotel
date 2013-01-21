@@ -775,7 +775,7 @@ INTERNAL tlHandle _send(tlArgs* args) {
     tlArgs* nargs = tlArgsNew(null, null);
     nargs->target = target;
     nargs->msg = msg;
-    nargs->list = tlListSlice(args->list, 2, tlListSize(args->list));
+    nargs->list = tlListSub(args->list, 2, tlListSize(args->list) - 2);
     nargs->map = args->map;
 
     tlKind* kind = tl_kind(target);

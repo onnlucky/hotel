@@ -3,6 +3,8 @@
 
 #include "trace-off.h"
 
+static int at_offset(tlHandle v, int size);
+
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)
 
@@ -278,13 +280,12 @@ INTERNAL tlHandle _buffer_writeByte(tlArgs* args) {
 
 INTERNAL tlHandle _buffer_find(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
-    if (!buf) TL_THROW("expected a Buffer");
 
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
-    int from = tl_int_or(tlArgsGet(args, 1), 0);
 
-    if (from >= tlBufferSize(buf)) return tlNull;
+    int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
+    if (from < 0) return tlNull;
 
     const char* begin = readbuf(buf);
     char* at = strnstr(begin + from, tlStringData(str), max(canread(buf) - from, tlStringSize(str)));
@@ -294,11 +295,12 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
 
 INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
-    if (!buf) TL_THROW("expected a Buffer");
 
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
-    int from = tl_int_or((tlArgsGet(args, 1)), 0);
+
+    int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
+    if (from < 0) return tlFalse;
 
     int bufsize = tlBufferSize(buf);
     int startsize = tlStringSize(start);

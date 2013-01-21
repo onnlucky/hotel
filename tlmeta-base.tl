@@ -1,7 +1,7 @@
 DEBUG=false
 DEBUG2=false
-trace = in, &msg -> if DEBUG: print in.pos, in.text.escape.slice(in.pos, in.pos + 10), "--", msg()
-trace2 = in, &msg -> if DEBUG2: print in.pos, in.text.escape.slice(in.pos, in.pos + 10), "--", msg()
+trace = in, &msg -> if DEBUG: print in.pos, in.text.escape[in.pos:in.pos + 10], "--", msg()
+trace2 = in, &msg -> if DEBUG2: print in.pos, in.text.escape[in.pos:in.pos + 10], "--", msg()
 
 WS = " \t\n\r"
 LOWER = "abcdefghijklmnopqrstuvwxyz"
@@ -21,13 +21,13 @@ rule_pass = in, nr ->
 
 rule_any = in, nr ->
     trace2(in, "any")
-    c = in.text.get(in.pos)
+    c = in.text[in.pos]
     if not c: error(in, nr, "eof")
     return advance(in, 1), c
 
 rule_end = in, nr ->
     trace2(in, "end")
-    c = in.text.get(in.pos)
+    c = in.text[in.pos]
     if c: error(in, nr, "end")
     return in, null
 
@@ -41,7 +41,7 @@ pText = in, nr, text ->
 
 pChar = in, nr, text ->
     trace2(in, "pChar: $text")
-    c = in.text.get(in.pos)
+    c = in.text[in.pos]
     if not c: error(in, nr, "[$text]")
     if text.find(c.toChar): return advance(in, 1), c
     error(in, nr, "[$text]")
@@ -90,10 +90,10 @@ pPlus = in, nr, parser ->
     _pmany(in, parser, [v])
 
 pOr = in, nr, name ->
-    var $i = 3
+    var $i = 4
     // TODO instead of just the last one, collect all alternatives
     loop:
-        parser = args.get($i)
+        parser = args[$i]
         if not parser: break
         trace2(in, "pOr: $name: $($i)")
         $i += 1
@@ -124,16 +124,16 @@ colFromPos = text, pos ->
 
 lineFromPos = text, pos ->
     // TODO bit inefficient ... but works
-    lines = text.slice(0, pos).split("\n")
-    var $last = lines.size - 1
+    lines = text[:pos].split("\n")
+    var $last = lines.size
     loop:
         if $last < 0: return 1
-        line = lines.get($last)
+        line = lines[$last]
         if line.strip.size == 0: $last -= 1; continue
-        return $last + 1, line.size + 1
+        return $last, line.size + 1
 
 _tllookup = oop, name, pos ->
-    hit = oop._cache.get("$name-$pos")
+    hit = oop._cache["$name-$pos"]
     if hit:
         //print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'";
         return hit
@@ -153,7 +153,7 @@ pStart = rule, text ->
                 line, char = lineFromPos(e.in.text, e.in.pos)
                 if e?msg: throw "SyntaxError: expected $(e.msg) on line $line col $char"
                 throw "SyntaxError: on line $line col $char"
-            rule({text: text, pos: 0, oop: oop })
+            rule({text: text, pos: 1, oop: oop })
         )
         if in.pos < in.text.size:
             line, char = lineFromPos(in.text, in.pos)
@@ -171,14 +171,14 @@ rule_alphanumeric = in, nr -> pChar(in, nr, ALPHANUMERIC)
 
 rule_ws = in, nr ->
     trace2(in, "rule_ws")
-    c = in.text.get(in.pos)
+    c = in.text[in.pos]
     if not c: return in, null
     if WS.find(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null
 
 rule_wsnl = in ->
     trace(in, "rule_ws")
-    c = in.text.get(in.pos)
+    c = in.text[in.pos]
     if not c: return in, null
     if WS.find(c.toChar): goto(rule_ws(advance(in, 1)))
     return in, null

@@ -11,8 +11,8 @@ input = text, pos, value -> {
         text: text
         pos: pos
         value: value
-        item: text.get(pos)
-        end: -> this.pos >= this.text.size
+        item: text[pos]
+        end: -> this.pos > this.text.size
         set: val -> input(this.text, this.pos, val)
         do: block -> this.set(block(this.value))
         next: val -> input(this.text, this.pos + 1, val)
@@ -23,7 +23,7 @@ rule = fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4)))
 parse = parser, text ->
     out = (
         catch: e -> throw "syntax error"
-        parser(input(text, 0, null))
+        parser(input(text, 1, null))
     )
     if not out.end: throw "expected end of input"
     return out.value
@@ -199,6 +199,9 @@ parseHttpResponse = in ->
         status: status.value
         headers: createmap(headers.value)
     })
+
+test "should parse urls":
+    assert parse(parseUrl, "http://www.google.com/search?q=test").query["q"] == "test"
 
 
 {

@@ -40,21 +40,21 @@ _each = fn ->
     if not block: throw "each expects a block or fn"
     len = this.size
     loop = at =>
-        if at >= len: return
+        if at > len: return
         block(this.get(at), at)
         goto(loop(at + 1))
-    loop(0)
+    loop(1)
 
 _find = fn ->
     block = args.block or fn
     if not block: throw "find expects a block or fn"
     len = this.size
     loop = at =>
-        if at >= len: return null
+        if at > len: return null
         e = this.get(at)
         if block(e, at): return e, at
         goto(loop(at + 1))
-    loop(0)
+    loop(1)
 
 _filter = fn ->
     block = args.block or fn
@@ -62,11 +62,11 @@ _filter = fn ->
     arr = Array.new
     len = this.size
     loop = at =>
-        if at >= len: return arr.toList
+        if at > len: return arr.toList
         e = this.get(at)
         if block(e, at): arr.add(e)
         goto(loop(at + 1))
-    loop(0)
+    loop(1)
 
 _times = fn ->
     if this <= 0: return
@@ -108,11 +108,11 @@ _install(String.class, #split, (split = (on ->
     onlen = on.size
     loop = start, at, list ->
         if this.startsWith(on, at):
-            goto(loop(at + onlen, at + onlen, list.add(this.slice(start, at))))
-        if this.size <= at:
-            return list.add(this.slice(start, at))
+            goto(loop(at + onlen, at + onlen, list.add(this[start:at - 1])))
+        if this.size < at:
+            return list.add(this[start:at - 1])
         goto(loop(start, at + 1, list))
-    return loop(0, 0, [])
+    return loop(1, 1, [])
 )))
 /// String.replace: replace the first occurance of args[1] with args[2], returns a new #String
 _install(String.class, #replace, (replace = (from, to ->
@@ -134,9 +134,9 @@ _install(List.class, #join, (join = (sep ->
     if this.size == 0: return ""
     sep = sep or ""
 
-    var $res = this.get(0).toString
-    var $i = 1
-    while $i < this.size:
+    var $res = this[1].toString
+    var $i = 2
+    while $i <= this.size:
         $res = $res.cat(sep).cat(this.get($i).toString)
         $i += 1
     return $res
@@ -145,10 +145,10 @@ _install(List.class, #reduce, (reduce = (fn ->
     block = args.block or fn
     if not block: throw "reduce expects a block or fn"
     if this.size == 0: return null
-    if this.size == 1: return this.get(0)
+    if this.size == 1: return this[1]
 
-    var $i = 1
-    var $res = this.get(0)
+    var $i = 2
+    var $res = this[1]
     while $i < this.size:
         $res = block($res, this.get($i))
         $i += 1
@@ -161,8 +161,8 @@ _install(List.class, #map, (map = (fn ->
 
     res = _List_unsafe(this.size)
 
-    var $i = 0
-    while $i < this.size:
+    var $i = 1
+    while $i <= this.size:
         _list_set_(res, $i, block(this.get($i)))
         $i += 1
     return res
@@ -184,9 +184,9 @@ _install(Array.class, #join, (join = (sep ->
     if this.size == 0: return ""
     sep = sep or ""
 
-    var $res = this.get(0).toString
+    var $res = this[1].toString
     var $i = 1
-    while $i < this.size:
+    while $i <= this.size:
         $res = $res.cat(sep).cat(this.get($i).toString)
         $i += 1
     return $res
@@ -203,7 +203,7 @@ _install(Error, #class, {
     toString: ->
         ls = Array.new
         ls.add "Error: ", this.msg, "\n"
-        x = Var.new 0
+        x = Var.new 1
         loop:
             file, fn, line = this.stack.get($x)
             if not file: break
@@ -256,6 +256,10 @@ inspect = x ->
 test = ->
     catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
     args.block.call
+
+test "split":
+    sp = "hello world".split
+    assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
 
 // TODO should not sleep in ms, but need float ... should also add Time module
 sleep =   s -> io.wait s
@@ -310,8 +314,8 @@ runmain = as ->
     if as.size == 0: return repl.run
 
     catch: e -> print e.toString; _set_exitcode(1)
-    file = as.get(0)
-    return _parse(_stringFromFile(file), file)(_env, as.slice(1))
+    file = as[1]
+    return _parse(_stringFromFile(file), file)(_env, as[2:])
 
 main = !runmain(args)
 

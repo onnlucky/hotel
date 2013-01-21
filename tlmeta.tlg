@@ -115,7 +115,7 @@ emitAnd = r, buf, ind ->
 
 emitOr = r, buf, ind ->
     if r.terms.size == 0: return
-    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
+    if r.terms.size == 1: return emit(r.terms[1], buf, ind)
 
     buf.write("$ind  _in, _v = pOr(_in, _nr, _name\n")
     r.terms.each: r =>
@@ -145,9 +145,9 @@ emitRule = r, buf ->
     buf.write(")\n")
 
 
-if not args.get(1): throw "Usage: <input.tl> <output.tl>"
+if args.size != 2: throw "Usage: <input.tl> <output.tl>"
 
-ast = parserParser(io.File(args.get(0)).read)
+ast = parserParser(io.File(args[1]).read)
 
 buf = io.Buffer.new
 buf.write(ast.before)
@@ -158,11 +158,11 @@ var $hasstart = false
 ast.rules.each: r ->
     if r.name == "start": $hasstart = true
     emitRule r, buf
-start = (if $hasstart: "start") or ast.rules.get(0).name
+start = (if $hasstart: "start") or ast.rules[1].name
 buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
 buf.write("\n// ---\n")
 buf.write(ast.after)
 
-io.File(args.get(1)).write(buf)
-print "written '$(args.get(1))'"
+io.File(args[2]).write(buf)
+print "written '$(args[2])'"
 

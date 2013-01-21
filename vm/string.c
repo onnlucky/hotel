@@ -16,6 +16,49 @@ struct tlString {
     const char* data;
 };
 
+// returns length of to be returned elements, and fills in (0-based!) offset on where to start
+// negative indexes means size - index
+// if first < 1 it is corrected to 1
+// if last > size it is corrected to size
+static int sub_offset(int first, int last, int size, int* offset) {
+    trace("before: %d %d (%d): %d", first, last, size, last - first + 1);
+    if (first < 0) first = size + first + 1;
+    if (first <= 0) first = 1;
+    if (first > size) return 0;
+
+    if (last < 0) last = size + last + 1;
+    if (last < first) return 0;
+    if (last >= size) last = size;
+
+    trace("after: %d %d (%d): %d", first, last, size, last - first + 1);
+    if (offset) *offset = first - 1;
+    return last - first + 1;
+}
+
+// returns offset from index based number
+static int at_offset_raw(tlHandle v) {
+    if (tlIntIs(v)) return tl_int(v) - 1;
+    if (tlFloatIs(v)) return ((int)tl_double(v)) - 1;
+    return -1;
+}
+
+// returns offset from index based number
+static int at_offset(tlHandle v, int size) {
+    trace("before: %s (%d)", tl_str(v), size);
+    if (!v) return 0;
+
+    int at;
+    if (tlIntIs(v)) at = tl_int(v);
+    else if (tlFloatIs(v)) at = (int)tl_double(v);
+    else return -1;
+
+    if (at < 0) at = size + at + 1;
+    if (at <= 0) return -1;
+    if (at > size) return -1;
+    trace("after: %s (%d)", tl_str(v), size);
+    return at - 1;
+}
+
 tlString* tlStringEmpty() { return _tl_emptyString; }
 
 tlString* tlStringFromStatic(const char* s, int len) {
@@ -100,16 +143,19 @@ int tlStringCmp(tlString* left, tlString* right) {
     return strcmp(left->data, right->data);
 }
 
-tlString* tlStringSub(tlString* from, int first, int size) {
-    if (tlStringSize(from) == size) return from;
-    char* data = malloc_atomic(size + 1);
-    if (!data) return null;
-    assert(first >= 0);
-    assert(size <= tlStringSize(from));
-    memcpy(data, from->data + first, size);
-    data[size] = 0;
+tlString* tlStringSub(tlString* from, int offset, int len) {
+    if (tlStringSize(from) == len) return from;
+    if (len == 0) return tlStringEmpty();
 
-    return tlStringFromTake(data, size);
+    assert(len > 0);
+    assert(offset >= 0);
+    assert(offset + len <= tlStringSize(from));
+
+    char* data = malloc_atomic(len + 1);
+    memcpy(data, from->data + offset, len);
+    data[len] = 0;
+
+    return tlStringFromTake(data, len);
 }
 
 tlString* tlStringCat(tlString* left, tlString* right) {
@@ -186,23 +232,20 @@ INTERNAL tlHandle _string_size(tlArgs* args) {
 }
 /// hash: return the hashcode for this #String
 INTERNAL tlHandle _string_hash(tlArgs* args) {
-    trace("");
     tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
     // TODO this can overflow/underflow ... sometimes, need to fix
     return tlINT(tlStringHash(str));
 }
 
 /// find: find the first occurance of arg[1] in #String, returns null if not found
 INTERNAL tlHandle _string_find(tlArgs* args) {
-    trace("");
     tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
     tlString* find = tlStringCast(tlArgsGet(args, 0));
     if (!find) TL_THROW("expected a String");
-    int from = tl_int_or(tlArgsGet(args, 1), 0);
 
-    if (from >= tlStringSize(str)) return tlUndef();
+    int from = at_offset(tlArgsGet(args, 1), tlStringSize(str));
+    if (from < 0) return tlUndef();
+
     const char* p = strstr(tlStringData(str) + from, tlStringData(find));
     if (!p) return tlUndef();
     return tlINT(p - tlStringData(str));
@@ -225,10 +268,8 @@ INTERNAL tlHandle _string_get(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsTarget(args));
     if (!str) TL_THROW("this must be a String");
 
-    int at = tl_int_or(tlArgsGet(args, 0), 0);
-    int size = tlStringSize(str);
-    if (at < 0) at = size + at;
-    if (!(at >=0 && at < size)) return tlUndef();
+    int at = at_offset(tlArgsGet(args, 0), tlStringSize(str));
+    if (at < 0) return tlUndef();
     return tlINT(str->data[at]);
 }
 
@@ -267,22 +308,12 @@ INTERNAL tlHandle _string_slice(tlArgs* args) {
     trace("");
     tlString* str = tlStringCast(tlArgsTarget(args));
     if (!str) TL_THROW("this must be a String");
-    int size = tlStringSize(str);
-    int first = tl_int_or(tlArgsGet(args, 0), 0);
-    int last = tl_int_or(tlArgsGet(args, 1), size);
+    int first = tl_int_or(tlArgsGet(args, 0), 1);
+    int last = tl_int_or(tlArgsGet(args, 1), -1);
 
-    trace("%d %d (%s)%d", first, last, str->data, size);
-
-    if (first < 0) first = size + first;
-    if (first < 0) return tlStringEmpty();
-    if (first >= size) return tlStringEmpty();
-    if (last < 0) last = size + last;
-    if (last < first) return tlStringEmpty();
-    if (last >= size) last = size;
-
-    trace("%d %d (%s)%d", first, last, str->data, size);
-
-    return tlStringSub(str, first, last - first);
+    int offset;
+    int len = sub_offset(first, last, tlStringSize(str), &offset);
+    return tlStringSub(str, offset, len);
 }
 
 static inline char escape(char c) {
@@ -362,13 +393,11 @@ static int intmin(int left, int right) { return (left<right)?left:right; }
 
 /// startsWith: return true when this #String begins with the #String in args[1]
 INTERNAL tlHandle _string_startsWith(tlArgs* args) {
-    trace("");
     tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
-    int from = tl_int_or((tlArgsGet(args, 1)), 0);
 
+    int from = at_offset((tlArgsGet(args, 1)), tlStringSize(str));
     int strsize = tlStringSize(str);
     int startsize = tlStringSize(start);
     if (strsize + from < startsize) return tlFalse;

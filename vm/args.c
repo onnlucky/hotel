@@ -93,13 +93,16 @@ static tlHandle _args_size(tlArgs* args) {
 static tlHandle _args_get(tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
 
-    int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at == -1) {
-        tlSym key = tlSymCast(tlArgsGet(args, 0));
-        if (!key) TL_THROW("Expected an index or name");
+    tlHandle v = tlArgsGet(args, 0);
+    if (!v || tlIntIs(v) || tlFloatIs(v)) {
+        int at = at_offset(tlArgsGet(args, 0), tlArgsSize(as));
+        return tlMAYBE(tlArgsGet(as, at));
+    }
+    if (tlSymIs(v)) {
+        tlSym key = tlSymAs(tlArgsGet(args, 0));
         return tlMAYBE(tlArgsMapGet(as, key));
     }
-    return tlMAYBE(tlArgsGet(as, at));
+    TL_THROW("Expected an index or name");
 }
 static tlHandle _args_this(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
@@ -131,10 +134,11 @@ static tlHandle _args_slice(tlArgs* args) {
     if (!as) TL_THROW("Expected a args object");
 
     tlList* list = as->list;
-    int size = tlListSize(list);
     int first = tl_int_or(tlArgsGet(args, 0), 0);
-    int last = tl_int_or(tlArgsGet(args, 1), size);
-    return tlListSlice(list, first, last);
+    int last = tl_int_or(tlArgsGet(args, 1), -1);
+    int offset;
+    int len = sub_offset(first, last, tlListSize(list), &offset);
+    return tlListSub(list, offset, len);
 }
 
 const char* _ArgstoString(tlHandle v, char* buf, int size) {

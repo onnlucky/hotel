@@ -1,3 +1,3 @@
 out("hello".size, "\n")
-"hello".slice(1, -1)
+"hello".slice(2, -2)
 

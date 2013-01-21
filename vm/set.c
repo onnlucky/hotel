@@ -33,6 +33,7 @@ tlSet* tlSetNew(int size) {
 }
 
 tlHandle tlSetGet(tlSet* set, int at) {
+    if (at < 0 || at >= tlSetSize(set)) return null;
     return set->data[at];
 }
 
@@ -108,11 +109,9 @@ int tlSetAdd_(tlSet* set, tlHandle key) {
 
 static tlHandle _set_get(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
-    if (!set) TL_THROW("expected a Set");
-    int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at < 0 || at >= tlSetSize(set)) return tlNull;
-    tlHandle res = tlSetGet(set, at);
-    return (res)?res:tlNull;
+    int at = at_offset(tlArgsGet(args, 0), tlSetSize(set));
+    if (at < 0) return tlNull;
+    return tlMAYBE(tlSetGet(set, at));
 }
 static tlHandle _set_size(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));

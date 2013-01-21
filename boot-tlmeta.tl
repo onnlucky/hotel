@@ -16,8 +16,8 @@ input = text, pos, value -> {
         text: text
         pos: pos
         value: value
-        item: text.get(pos)
-        end: -> this.pos >= this.text.size
+        item: text[pos]
+        end: -> this.pos > this.text.size
         set: val -> input(this.text, this.pos, val)
         do: block -> this.set(block(this.value))
         next: val -> input(this.text, this.pos + 1, val)
@@ -33,7 +33,7 @@ parse = parser, text ->
         catch: e =>
             if e?class == Input: throw "syntax error: ".cat(e.value)
             throw e
-        parser(input(text, 0, null))
+        parser(input(text, 1, null))
     )
     if not out.end: throw "expected end of input"
     return out.value
@@ -59,18 +59,18 @@ pOptional = rule(in, parser ->
 // returns only last result; make subrule if semantic actions are needed
 pAnd = rule(in ->
     var $res = in
-    var $i = 1
+    var $i = 2
     loop:
-        parser = args.get($i)
+        parser = args[$i]
         if not parser: trace(in, "pAnd: done $($i)"); return $res
         trace(in, "pAnd: $($i) of $(args.size)")
         $i += 1
         $res = parser($res)
 )
 pOr = rule(in ->
-    var $i = 1
+    var $i = 2
     loop:
-        parser = args.get($i)
+        parser = args[$i]
         if not parser: break
         trace(in, "pOr: $($i)")
         $i += 1
@@ -344,14 +344,13 @@ emitPlus = r, buf, ind ->
     buf.write("$ind  ))\n")
 
 emitAnd = r, buf, ind ->
-    var $n = 0
     // TODO maybe collect all binds, and "call" r.act
     r.terms.each: r -> emit r, buf, ind
     if r.act: buf.write("$ind  _in, _v = pAct(_in, ($(r.act)))\n")
 
 emitOr = r, buf, ind ->
     if r.terms.size == 0: return
-    if r.terms.size == 1: return emit(r.terms.get(0), buf, ind)
+    if r.terms.size == 1: return emit(r.terms[1], buf, ind)
 
     buf.write("$ind  _in, _v = pOr(_in, _nr, _name\n")
     r.terms.each: r =>
@@ -390,7 +389,7 @@ var $hasstart = false
 ast.rules.each: r =>
     if r.name == "start": $hasstart = true
     emitRule r, buf
-start = (if $hasstart: "start") or ast.rules.get(0).name
+start = (if $hasstart: "start") or ast.rules[1].name
 buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
 buf.write("\n// ---\n")
 buf.write(ast.after)

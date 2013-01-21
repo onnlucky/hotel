@@ -12,14 +12,14 @@ ioloop = ->
             (
                 _match(msg == null): break
                 catch: e -> msg.throw(e.msg)
-                _match(msg.name == #waitread): _io_waitread msg.get(0), msg
-                _match(msg.name == #waitwrite): _io_waitwrite msg.get(0), msg
-                _match(msg.name == #wait): _io_wait msg.get(0), msg
-                _match(msg.name == #close): _io_close msg.get(0); msg.reply
+                _match(msg.name == #waitread): _io_waitread msg[1], msg
+                _match(msg.name == #waitwrite): _io_waitwrite msg[1], msg
+                _match(msg.name == #wait): _io_wait msg[1], msg
+                _match(msg.name == #close): _io_close msg[1]; msg.reply
                 _match(msg.name == #launch): msg.reply(_io_launch(
-                        msg.get(0), msg.get(1),
-                        msg.get(2), msg.get(3), msg.get(4), msg.get(5),
-                        msg.get(6), msg.get(7)
+                        msg[1], msg[2],
+                        msg[3], msg[4], msg[5], msg[6],
+                        msg[7], msg[8]
                         ))
                 _nomatch
             )
@@ -201,7 +201,7 @@ _run = arglist, env, check ->
         res = out.read buf
         if not res: break
     r = child.wait
-    if r != 0 and check: Error("'$(arglist[0])' exit: $r", output=buf.read).throw
+    if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=buf.read).throw
     return buf.read, r
 
 /// run(cmdline, args...) env=null, allowerror=false
@@ -209,7 +209,7 @@ _run = arglist, env, check ->
 /// will throw an error when command returns nonzero status
 /// will return output of stdin and stderr combined
 run = cmd ->
-    arglist = cmd.toString.split.cat(args[1:].map(a -> a.toString))
+    arglist = cmd.toString.split.cat(args[2:].map(a -> a.toString))
     _run(arglist, args.names.env, not args.names.allowerror)
 
 /// shell(cmd, args...) env=null, allowerror=false
@@ -217,7 +217,7 @@ run = cmd ->
 /// will throw an error when command returns nonzero status
 /// will return output of stdin and stderr combined
 shell = cmd ->
-    arglist = ["sh", "-c", cmd.toString].cat(args[1:].map(a -> a.toString))
+    arglist = ["sh", "-c", cmd.toString].cat(args[2:].map(a -> a.toString))
     _run(arglist, args.names.env, not args.names.allowerror)
 
 wait = s -> _io.wait s

@@ -169,7 +169,7 @@ INTERNAL tlHandle _message_get(tlArgs* args) {
     if (!msg) TL_THROW("expected a Message");
     tlHandle key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));
-    if (tlIntIs(key)) return tlArgsGet(msg->args, tl_int(key));
+    if (tlIntIs(key)) return tlArgsGet(msg->args, at_offset(key, tlArgsSize(msg->args)));
     return tlArgsMapGet(msg->args, key);
 }
 

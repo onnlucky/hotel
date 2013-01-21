@@ -12,8 +12,8 @@ Latch = max ->
                 print "EXITING:", hold.size
                 msg.reply
                 if hold.size == 0: goto loop(count - 1, hold)
-                hold.get(0).reply
-                goto loop(count - 1, hold.slice(1))
+                hold[1].reply
+                goto loop(count - 1, hold[2:])
             print "********ERROR*********"
             msg.reply; loop(count, hold)
         loop(0, [])

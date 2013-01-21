@@ -74,8 +74,8 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
 INTERNAL tlHandle _stackTrace_get(tlArgs* args) {
     tlStackTrace* trace = tlStackTraceCast(tlArgsTarget(args));
     if (!trace) TL_THROW("expected a StackTrace");
-    int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at < 0 || at >= trace->size) return tlNull;
+    int at = at_offset(tlArgsGet(args, 0), trace->size);
+    if (at < 0) return tlUndef();
     at *= 3;
     trace("%d -- %s %s %s ..", at,
             tl_str(trace->entries[at]), tl_str(trace->entries[at + 1]), tl_str(trace->entries[at + 2]));

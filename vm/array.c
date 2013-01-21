@@ -19,6 +19,9 @@ tlArray* tlArrayNew() {
     tlArray* array = tlAlloc(tlArrayKind, sizeof(tlArray));
     return array;
 }
+int tlArraySize(tlArray* array) {
+    return array->size;
+}
 tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     trace("add: %s.add %s -- %zd -- %zd", tl_str(array), tl_str(v), array->size, array->alloc);
     if (array->size == array->alloc) {
@@ -108,7 +111,7 @@ INTERNAL tlHandle _Array_new(tlArgs* args) {
 INTERNAL tlHandle _array_size(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
-    return tlINT(array->size);
+    return tlINT(tlArraySize(array));
 }
 INTERNAL tlHandle _array_toList(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
@@ -117,23 +120,19 @@ INTERNAL tlHandle _array_toList(tlArgs* args) {
 }
 INTERNAL tlHandle _array_get(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
-    if (!array) TL_THROW("expected an Array");
-    tlInt i = tlIntCast(tlArgsGet(args, 0));
-    if (!i) TL_THROW("expected a index");
-    return tlMAYBE(tlArrayGet(array, tl_int(i)));
+    if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
+    int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
+    return tlMAYBE(tlArrayGet(array, at));
 }
 INTERNAL tlHandle _array_set(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
-    if (!array) TL_THROW("expected an Array");
-    tlInt i = tlIntCast(tlArgsGet(args, 0));
-    if (!i) TL_THROW("expected a index");
-    int at = tl_int(i);
-    if (at < 0) TL_THROW("index must be >= 0");
+    if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
+    int at = at_offset_raw(tlArgsGet(args, 0));
+    if (at < 0) TL_THROW("index must be >= 1");
     return tlArraySet(array, at, tlArgsGet(args, 1));
 }
 INTERNAL tlHandle _array_add(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
-    if (!array) TL_THROW("expected an Array");
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlHandle v = tlArgsGet(args, i);
         tlArrayAdd(array, v);
@@ -147,17 +146,17 @@ INTERNAL tlHandle _array_pop(tlArgs* args) {
 }
 INTERNAL tlHandle _array_insert(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
-    if (!array) TL_THROW("expected an Array");
-    tlInt i = tlIntCast(tlArgsGet(args, 0));
-    if (!i) TL_THROW("expected a index");
-    return tlArrayInsert(array, tl_int(i), tlArgsGet(args, 1));
+    if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
+    int at = at_offset_raw(tlArgsGet(args, 0));
+    if (at < 0) TL_THROW("index must be >= 1");
+    return tlArrayInsert(array, at, tlArgsGet(args, 1));
 }
 INTERNAL tlHandle _array_remove(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
-    if (!array) TL_THROW("expected an Array");
-    tlInt i = tlIntCast(tlArgsGet(args, 0));
-    if (!i) TL_THROW("expected a index");
-    return tlMAYBE(tlArrayRemove(array, tl_int(i)));
+    if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
+    int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
+    if (at < 0) TL_THROW("index must be >= 1");
+    return tlMAYBE(tlArrayRemove(array, at));
 }
 
 static tlMap* arrayClass;

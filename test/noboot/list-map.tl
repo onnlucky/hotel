@@ -1,11 +1,11 @@
 x = [1, 2, 3]
-out(x.get(2), " == 3\n")
+out(x[3], " == 3\n")
 
 y = [foo: 1, bar: 2, baz: 3]
-out(y.get(#baz), " == 3\n")
-out(y.get(#bar), " == 2\n")
-out(y.get(#foo), " == 1\n")
-out(y.get(#not), " == undefined\n")
+out(y[#baz], " == 3\n")
+out(y[#bar], " == 2\n")
+out(y[#foo], " == 1\n")
+out(y[#not], " == undefined\n")
 
 //z = %set_new(#foo, 1, 2, 3, #baz)
 //out(%set_has(z, #foo))
@@ -19,6 +19,6 @@ test = [
 ]
 
 out(test.size, "\n")
-out(test.get(test.size - 1), "\n")
-out(test.get(9), "\n")
-out(test.get(19), "\n")
+out(test[test.size], "\n")
+out(test.get(10), "\n")
+out(test.get(20), "\n")

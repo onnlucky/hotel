@@ -212,25 +212,16 @@ tlList* tlListCat(tlList* left, tlList* right) {
     return nlist;
 }
 
-INTERNAL tlList* tlListSlice(tlList* list, int first, int last) {
-    int size = tlListSize(list);
-    trace("%d %d %d", first, last, size);
-    if (first < 0) first = size + first;
-    if (first < 0) return tlListEmpty();
-    if (first >= size) return tlListEmpty();
-    if (last < 0) last = size + last;
-    if (last < first) return tlListEmpty();
-    if (last >= size) last = size;
+tlList* tlListSub(tlList* list, int offset, int len) {
+    if (len == tlListSize(list)) return list;
+    if (len == 0) return tlListEmpty();
 
-    int len = last - first;
-    trace("%d %d %d (size: %d)", first, last, len, size);
-    if (len < 0) len = 0;
-    if (len > list->size) len = list->size;
+    assert(len > 0);
+    assert(offset < tlListSize(list));
+    assert(offset + len <= tlListSize(list));
+
     tlList* nlist = tlListNew(len);
-
-    for (int i = 0; i < len; i++) {
-        nlist->data[i] = list->data[first + i];
-    }
+    for (int i = 0; i < len; i++) nlist->data[i] = list->data[offset + i];
     return nlist;
 }
 
@@ -266,18 +257,16 @@ INTERNAL tlHandle _list_hash(tlArgs* args) {
 INTERNAL tlHandle _list_get(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at < 0) TL_THROW("Expected a number >= 0");
-    tlHandle res = tlListGet(list, at);
-    return tlMAYBE(res);
+    int at = at_offset(tlArgsGet(args, 0), tlListSize(list));
+    return tlMAYBE(tlListGet(list, at));
 }
 /// set(index, element): return a new list, replacing or adding element at index
 /// will pad the list with elements set to null index is beyond the end of the current list
 INTERNAL tlHandle _list_set(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at < 0) TL_THROW("Expected a number >= 0");
+    int at = at_offset_raw(tlArgsGet(args, 0));
+    if (at < 0) TL_THROW("index out of bounds");
     tlHandle val = tlArgsGet(args, 1);
     if (!val || tlUndefinedIs(val)) val = tlNull;
     fatal("not implemented yet");
@@ -313,10 +302,12 @@ INTERNAL tlHandle _list_slice(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
     if (!list) TL_THROW("Expected a list");
 
-    int size = tlListSize(list);
     int first = tl_int_or(tlArgsGet(args, 0), 0);
-    int last = tl_int_or(tlArgsGet(args, 1), size);
-    return tlListSlice(list, first, last);
+    int last = tl_int_or(tlArgsGet(args, 1), -1);
+
+    int offset;
+    int len = sub_offset(first, last, tlListSize(list), &offset);
+    return tlListSub(list, offset, len);
 }
 
 // TODO by lack of better name; akin to int.toChar ...
@@ -349,11 +340,10 @@ INTERNAL tlHandle _List_unsafe(tlArgs* args) {
 INTERNAL tlHandle _list_set_(tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     if (!list) TL_THROW("Expected a list");
-    int at = tl_int_or(tlArgsGet(args, 1), -1);
-    if (at < 0) TL_THROW("Expected a index");
+    int at = at_offset(tlArgsGet(args, 1), tlListSize(list));
+    if (at < 0) TL_THROW("index out of bounds");
     tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("Expected a value");
-    if (at >= tlListSize(list)) TL_THROW("index out of bounds");
     tlListSet_(list, at, val);
     return tlNull;
 }
