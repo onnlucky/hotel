@@ -1,3 +1,5 @@
+#!/usr/bin/env tl
+
 parserParser = parser {
 
        sp: " " | "\t"
@@ -147,12 +149,13 @@ emitRule = r, buf ->
 
 if args.size != 2: throw "Usage: <input.tl> <output.tl>"
 
+base = io.File(fileFromModulePath("tlmeta-base.tl", ".")).read
 ast = parserParser(io.File(args[1]).read)
 
 buf = io.Buffer.new
 buf.write(ast.before)
 buf.write("\n// --- tlmeta-base.tl ---\n")
-buf.write(io.File("tlmeta-base.tl").read)
+buf.write(base)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: r ->

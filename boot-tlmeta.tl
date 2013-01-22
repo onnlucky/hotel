@@ -394,6 +394,6 @@ buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
 buf.write("\n// ---\n")
 buf.write(ast.after)
 
-io.File("tlmeta.tl").write(buf)
-print "written 'tlmeta.tl'"
+io.File("tlmeta").write(buf)
+print "written 'tlmeta'"
 

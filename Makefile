@@ -55,25 +55,27 @@ tl: libtl.a vm/tl.c
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lportaudio -lssl -lcrypto
 
 # meta parser and modules depending on it
-tlmeta.tl: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl
-	TL_MODULE_PATH=./modules ./tl boot-tlmeta.tl tlmeta.tlg tlmeta.tl
+tlmeta: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl
+	TL_MODULE_PATH=./modules ./tl boot-tlmeta.tl tlmeta.tlg tlmeta
+	chmod 755 tlmeta
 
-modules/html.tl: modules/html.tlg tl tlmeta.tl
-	TL_MODULE_PATH=./modules ./tl tlmeta.tl modules/html.tlg modules/html.tl
+modules/html.tl: modules/html.tlg tl tlmeta
+	TL_MODULE_PATH=./modules ./tl tlmeta modules/html.tlg modules/html.tl
 
-modules/sizzle.tl: modules/sizzle.tlg tl tlmeta.tl
-	TL_MODULE_PATH=./modules ./tl tlmeta.tl modules/sizzle.tlg modules/sizzle.tl
+modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
+	TL_MODULE_PATH=./modules ./tl tlmeta modules/sizzle.tlg modules/sizzle.tl
 
 clean:
 	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
-	rm modules/html.tl modules/sizzle.tl
+	rm -f modules/html.tl modules/sizzle.tl
+	rm -f tlmeta
 	$(MAKE) -C graphics clean
 distclean: clean
 	rm -rf greg/ libgc/
 dist-clean: distclean
 
 docgen.tl: docgen.tlg
-	TL_MODULE_PATH=./modules ./tl tlmeta.tl docgen.tlg docgen.tl
+	TL_MODULE_PATH=./modules ./tl tlmeta docgen.tlg docgen.tl
 doc: all docgen.tl
 	TL_MODULE_PATH=./modules ./tl docgen.tl vm/text.c #boot/*.tl modules/*.tl
 
@@ -82,7 +84,7 @@ BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib
 INCDIR:=$(DESTDIR)$(PREFIX)/include
 MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
-install: libtl.a tl $(TLG_MODULES)
+install: libtl.a tl tlmeta $(TLG_MODULES)
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
 	mkdir -p $(INCDIR)
@@ -91,6 +93,8 @@ install: libtl.a tl $(TLG_MODULES)
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
 	cp -r modules/*.tl $(MODDIR)/
+	cp tlmeta $(BINDIR)/
+	cp tlmeta-base.tl $(MODDIR)/
 uninstall:
 	rm -rf $(BINDIR)/tl
 	rm -rf $(LIBDIR)/libtl.a

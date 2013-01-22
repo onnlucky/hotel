@@ -1,6 +1,6 @@
 # TODO
 
-strings and symbols are the same thing now, mostly, integrate deeper
+remove last symbol holdouts
 add closure.invoke or such where all params are given as maps and lists, to use
 add Queue + max depth size or unlimited; MsgQueue and TaskQueue
 
@@ -129,7 +129,4 @@ syntax for branches:
 # not so nice:
 
 @ is not a word ... for method(42, this=something)
-block: (arg ->
-    return // returns way too much, should return block ... do => for functions, -> for block?
-)
 

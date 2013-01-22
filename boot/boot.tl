@@ -277,33 +277,36 @@ _install(String.class, #eval, (_eval_ = (->
     eval2(this)
 )))
 
-// this is crazy and should go away, later ...
 _module_paths = Array.new
+
+// add a path to the global module path
 addModulePath = path -> _module_paths.add(path)
 
-// this captured env is the root of all defined things
-_env = Env.current
-
-// unresolved names will call this, for auto module loading
-// TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
-// TODO besides, need to have a dedicated task for this, to prevent races
-_modules = HashMap.new
-_fileForModule = name, path ->
-    file = "$path/$name"
-    if _Path_stat(file).ino != 0: return file
+// resolve the first file from a certain module path
+fileFromModulePath = name, path ->
+    if path:
+        file = "$path/$name"
+        if _Path_stat(file).ino != 0: return file
     _module_paths.each: p =>
         file = "$p/$name"
         if _Path_stat(file).ino != 0: return file
     Error("Undefined: '$name'").throw
 
+// this captured env is the root of all defined things
+_env = Env.current
+
+// unresolved names will call this, for auto module loading
 // NOT A MISTAKE ... crazy, sorry ...
+// TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
+// TODO besides, need to have a dedicated task for this, to prevent races
+_modules = HashMap.new
 _resolve: name, path ->
     //print("RESOLVING: $name ($path)")
     res = _modules[name]
     if res == _modules: throw "Undefined: '$name'"
     if isDefined res: return res
     catch: e -> throw "Error reading module: '$name', $(e?msg)"
-    file = _fileForModule("$(name.toString).tl", path)
+    file = fileFromModulePath("$(name.toString).tl", path)
     res = _parse(_stringFromFile(file), file)(_env)
     _modules.set(name, res)
 
