@@ -68,6 +68,17 @@ _filter = fn ->
         goto(loop(at + 1))
     loop(1)
 
+_join = sep ->
+    if this.size == 0: return ""
+    sep = sep or ""
+
+    var $res = this[1].toString
+    var $i = 2
+    while $i <= this.size:
+        $res = $res.cat(sep).cat(this[$i].toString)
+        $i += 1
+    return $res
+
 _times = fn ->
     if this <= 0: return
     block = args.block or fn
@@ -131,17 +142,7 @@ _install(List.class, #random, _get_random)
 _install(List.class, #each, _each)
 _install(List.class, #find, _find)
 _install(List.class, #filter, _filter)
-_install(List.class, #join, (join = (sep ->
-    if this.size == 0: return ""
-    sep = sep or ""
-
-    var $res = this[1].toString
-    var $i = 2
-    while $i <= this.size:
-        $res = $res.cat(sep).cat(this.get($i).toString)
-        $i += 1
-    return $res
-)))
+_install(List.class, #join, _join)
 _install(List.class, #reduce, (reduce = (fn ->
     block = args.block or fn
     if not block: throw "reduce expects a block or fn"
@@ -181,17 +182,8 @@ _install(List.class, #flatten, (flatten = (->
 _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
 _install(Array.class, #find, _find)
-_install(Array.class, #join, (join = (sep ->
-    if this.size == 0: return ""
-    sep = sep or ""
+_install(Array.class, #join, _join)
 
-    var $res = this[1].toString
-    var $i = 1
-    while $i <= this.size:
-        $res = $res.cat(sep).cat(this.get($i).toString)
-        $i += 1
-    return $res
-)))
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
     args.map.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
