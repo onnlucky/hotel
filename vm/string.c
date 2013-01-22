@@ -398,6 +398,8 @@ INTERNAL tlHandle _string_startsWith(tlArgs* args) {
     if (!start) TL_THROW("arg must be a String");
 
     int from = at_offset((tlArgsGet(args, 1)), tlStringSize(str));
+    if (from == -1) return tlFalse;
+
     int strsize = tlStringSize(str);
     int startsize = tlStringSize(start);
     if (strsize + from < startsize) return tlFalse;
