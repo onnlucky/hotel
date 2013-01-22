@@ -137,7 +137,7 @@ INTERNAL tlHandle _array_add(tlArgs* args) {
         tlHandle v = tlArgsGet(args, i);
         tlArrayAdd(array, v);
     }
-    return tlINT(array->size - 1);
+    return tlINT(array->size);
 }
 INTERNAL tlHandle _array_pop(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
