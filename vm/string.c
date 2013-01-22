@@ -248,7 +248,7 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
 
     const char* p = strstr(tlStringData(str) + from, tlStringData(find));
     if (!p) return tlUndef();
-    return tlINT(p - tlStringData(str));
+    return tlINT(1 + p - tlStringData(str));
 }
 
 /// cat: concatenate multiple #"String"s together

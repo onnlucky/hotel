@@ -105,12 +105,13 @@ _install(String.class, #each, _each)
 _install(String.class, #split, (split = (on ->
     if this.size == 0: return []
     on = on or " "
+    if on.size == 0: return this
     onlen = on.size
     loop = start, at, list ->
         if this.startsWith(on, at):
             goto(loop(at + onlen, at + onlen, list.add(this[start:at - 1])))
-        if this.size < at:
-            return list.add(this[start:at - 1])
+        if at > this.size:
+            return list.add(this[start:])
         goto(loop(start, at + 1, list))
     return loop(1, 1, [])
 )))
@@ -119,8 +120,8 @@ _install(String.class, #replace, (replace = (from, to ->
     at = this.find(from)
     if not at: return this
 
-    before = this.slice(0, at)
-    after = this.slice(at + 1 + from.size)
+    before = this[:at - 1]
+    after = this[at + from.size:]
     return "$before$to$after"
 )))
 

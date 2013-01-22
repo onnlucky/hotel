@@ -93,7 +93,7 @@ get = url ->
             if len == 0: Error("No headers received").throw
             if buf.size > 8000: Error("Headers too long").throw
             continue
-        res = httpparser.response(buf.read(at + 4))
+        res = httpparser.response(buf.read(at - 1 + 4))
         body = buf.compact
 
         length = res.headers.get("Content-Length")

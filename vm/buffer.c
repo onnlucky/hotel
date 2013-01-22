@@ -290,7 +290,7 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     const char* begin = readbuf(buf);
     char* at = strnstr(begin + from, tlStringData(str), max(canread(buf) - from, tlStringSize(str)));
     if (!at) return tlNull;
-    return tlINT(at - begin);
+    return tlINT(1 + at - begin);
 }
 
 INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
