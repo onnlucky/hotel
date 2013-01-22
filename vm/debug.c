@@ -3,6 +3,8 @@
 #else
 #endif
 
+void tlDumpTaskTrace();
+
 static bool didbacktrace = false;
 static bool doabort = true;
 void tlabort() {
@@ -21,6 +23,8 @@ void tlabort() {
         fprintf(stderr, "%s\n", strings[i]);
     }
     fflush(stderr);
+
+    tlDumpTaskTrace();
 
     if (doabort) {
         doabort = false;
