@@ -2,43 +2,14 @@
 // TODO handle roque closing tags, now they collapse the full tree
 // TODO add html escape/unescape for attributes
 // TODO node.text should normalize/remove &nbsp; and such entities
-// TODO upgrade Nodes to a mutable object including a parent reference much more like a real dom so we can manipulate it
 
 tomap = ls ->
     m = HashMap.new
     ls.each: e -> if e: m.set(e.k, e.v)
     return m
 
-toString = b, n ->
-    if not n: return
-    if isString(n): b.write(n); return
-    n.sub.each: sn -> toString(b, sn)
-
-NodeClass = {
-    find: sel -> sizzle.find(sel, this)
-    findAll: sel -> sizzle.findAll(sel, this)
-    hasClass: n -> this.classes.each(c => if c == n: return true); return false
-    text: ( ->
-        if this.sub.size == 0: return ""
-        if this.sub.size == 1 and isString(this.sub[1]): return this.sub[1]
-        b = Buffer.new
-        toString(b, this)
-        return b.read
-    )
-}
-Node = name, attr, sub ->
-    cs = (attr["class"] or "").split
-    return {
-        name: name
-        id: attr["id"] or null
-        classes: cs
-        attr: attr
-        sub: sub
-        class: NodeClass
-    }
-
 parseHtml = parser {
-   start: (.(dir|comment))* s=(.toplevel)*. -> Node("document", HashMap.new, s)
+   start: (.(dir|comment))* s=(.toplevel)*. -> dom.Node.new("doc", s)
 
 toplevel: node
         | text
@@ -59,13 +30,13 @@ toplevel: node
 
  comment: "<"."!"."--" (!"-"."-".">" _)* "-"."-".">" -> null
      dir: "<"."!" (!">" _)* ">"                      -> null
-  script: "<"."script".a=attrs.">" ts=(!"</script" _)* "</script".attrs.">" -> Node("script", a, [ts.toChar])
-   style: "<"."style".a=attrs.">"  ts=(!"</style"  _)* "</style".attrs.">"  -> Node("style", a, [ts.toChar])
+  script: "<"."script".a=attrs.">" ts=(!"</script" _)* "</script".attrs.">" -> dom.Node.new("script", ts.toChar, a)
+   style: "<"."style".a=attrs.">"  ts=(!"</style"  _)* "</style".attrs.">"  -> dom.Node.new("style", ts.toChar, a)
 
     node: comment | dir | script | style
-        | "<".n=name.a=attrs."/".">"                                          -> Node(n, a, [])
-        | "<".n=name.a=attrs.">" s=sub "<"."/".m=name ?(n == m) (!">" _)* ">" -> Node(n, a, s)
-        | "<".n=name.a=attrs.">" s=sub . &("<"|!_)                            -> Node(n, a, s)
+        | "<".n=name.a=attrs."/".">"                                          -> dom.Node.new(n, null, a)
+        | "<".n=name.a=attrs.">" s=sub "<"."/".m=name ?(n == m) (!">" _)* ">" -> dom.Node.new(n, s, a)
+        | "<".n=name.a=attrs.">" s=sub . &("<"|!_)                            -> dom.Node.new(n, s, a)
         | "<". !"/" (!">" _)* ">"                                             -> null
 //        | "<"."/".m=name ?(notinstack(m) (!">" _)* ">"                        -> null
 
