@@ -67,7 +67,7 @@ all run the initial statment unchanged
   print fac 10
   sometimes print fact 10
 
-same for: (impossible! how did parser know true is not a function? ... well true is the simple case)
+same for:
   if true: print "foo"
   timed if true: print "foo"
 
