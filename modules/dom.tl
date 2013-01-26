@@ -2,10 +2,12 @@
 // TODO add a Document too, for some meta stuff like doctype and such
 
 // TODO use a set instead ...
-selfclosing = [img:1,meta:1]
+selfclosing = [img:1,meta:1,link:1]
 isSelfClosing = name -> return selfclosing[name] or false
 
-blocks = [h1:1,h2:1,h3:1,p:1,div:1,ul:1,ol:1,article:1,section:1,header:1,footer:1,nav:1,figure:1,error:1,script:1,style:1,doc:1,meta:1]
+blocks = [h1:1,h2:1,h3:1,p:1,div:1,ul:1,ol:1,article:1,section:1,header:1,footer:1,nav:1
+          figure:1,table:1,thead:1,tr:1,td:1,
+          error:1,script:1,style:1,doc:1,title:1,meta:1,link:1]
 isBlock = name -> return blocks[name] or false
 
 iter2 = node, fn ->
@@ -93,6 +95,11 @@ DomNode = {
         this._add(node)
         return this
 
+    clear: ->
+        @firstChild = null
+        @lastChild = null
+        return this
+
     attr: key, value ->
         if args.size == 1: return @attrs[key]
         @attrs[key] = value
@@ -128,7 +135,8 @@ DomNode = {
         fn = args.block or fn
         if not fn: throw "expect a block or function"
         var $n = @firstChild
-        while $n: fn($n); $n = $n.next
+        var $m = $n?next
+        while $n: fn($n); $n = $m; $m = $n?next
         return this
 
     find: sel -> sizzle.find(sel, this)
