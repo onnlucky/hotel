@@ -271,20 +271,20 @@ static tlHandle _Map_get(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
-    tlSym key = tlSymCast(tlArgsGet(args, 1));
+    tlString* key = tlStringCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a symbol");
-    tlHandle res = tlMapGetSym(map, key);
+    tlHandle res = tlMapGetSym(map, tlSymFromString(key));
     return tlMAYBE(res);
 }
 static tlHandle _Map_set(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
-    tlSym key = tlSymCast(tlArgsGet(args, 1));
+    tlString* key = tlStringCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a symbol");
     tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("Expected a value");
-    return tlMapSet(map, key, val);
+    return tlMapSet(map, tlSymFromString(key), val);
 }
 static tlHandle _map_size(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
