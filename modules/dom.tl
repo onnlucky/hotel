@@ -10,6 +10,9 @@ blocks = [h1:1,h2:1,h3:1,p:1,div:1,ul:1,ol:1,article:1,section:1,header:1,footer
           error:1,script:1,style:1,doc:1,title:1,meta:1,link:1]
 isBlock = name -> return blocks[name] or false
 
+containers = [html:1,body:1,div:1,article:1,section:1,header:1,footer:1,nav:1,table:1]
+isContainer = name -> return containers[name] or false
+
 iter2 = node, fn ->
     fn(node)
     var $n = node.firstChild
@@ -111,8 +114,12 @@ DomNode = {
         if mode != #children:
             sb.add("<$(@name)")
             @attrs.each: k, v -> sb.add(" $k=\"$v\"")
-            if ((not @firstChild) and isSelfClosing(@name)): sb.add("/>"); return sb.join
+            if ((not @firstChild) and isSelfClosing(@name)):
+                sb.add("/>")
+                if isBlock(@name): sb.add("\n")
+                return sb.join
             sb.add(">")
+            if isContainer(@name): sb.add("\n")
 
         var $n = @firstChild
         while $n:

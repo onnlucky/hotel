@@ -1,15 +1,29 @@
-// TODO to parse html properly, <p>, <li>, <meta> and others need to be closed if new one is opened, now we just nest them
+// TODO to parse html properly, <p>, <li>, <meta> and others need to be closed if new one is opened, now we just nest them. <meta> and <link> are supposed to be even different
 // TODO handle roque closing tags, now they collapse the full tree
 // TODO add html escape/unescape for attributes
 // TODO node.text should normalize/remove &nbsp; and such entities
+// TODO handle comments node
 
 tomap = ls ->
     m = HashMap.new
     ls.each: e -> if e: m.set(e.k, e.v)
     return m
 
+normalizews = str ->
+    at = str.find("\t")
+    if at: goto normalizews(str[:at - 1] +" "+ str[at + 1:])
+    at = str.find("  ")
+    if at: goto normalizews(str[:at - 1] +" "+ str[at + 2:])
+    return str
+
+test "string normalize":
+    assert normalizews("    ") == " "
+    assert normalizews(" \t   ") == " "
+    assert normalizews(" hello  world!   ") == " hello world! "
+
 parseHtml = parser {
    start: (.(dir|comment))* s=(.toplevel)*. -> dom.Node.new("doc", s)
+
 
 toplevel: node
         | text
@@ -17,7 +31,7 @@ toplevel: node
 
     name: ns=(![ <>=/] _)+       -> ns.toChar
 
-    text: ts=(![<] _)+           -> ts.toChar.strip
+    text: ts=(![<] _)+           -> normalizews(ts.toChar)
      sub: ns=(.node|text)*       -> ns
         | . -> []
 
