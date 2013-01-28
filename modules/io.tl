@@ -80,7 +80,11 @@ Stream = {
                 this.wbuf.write val.toString
                 return writeFull(writer, this.wbuf)
         )
-
+        writeclose: (->
+            if this.file.isClosed: return
+            writer = this.file.writer
+            _with_lock(writer): writer.close
+        )
         close: (->
             if this.file.isClosed: return
             _io.close this.file
