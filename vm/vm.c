@@ -26,7 +26,6 @@
 #include "call.c"
 #include "worker.c"
 #include "task.c"
-#include "queue.c"
 #include "lock.c"
 #include "object.c"
 #include "code.c"
@@ -37,6 +36,7 @@
 #include "array.c"
 #include "hashmap.c"
 #include "controlflow.c"
+#include "queue.c"
 
 // extras
 #include "evio.c"

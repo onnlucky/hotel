@@ -25,6 +25,16 @@ tlKind* tlMessageKind = &_tlMessageKind;
 
 typedef void(*tlMsgQueueSignalFn)(void);
 
+// TODO how can we do this effeciently? should be possible
+struct tlQueue {
+    tlHead head;
+    lqueue add_q;
+    lqueue get_q;
+
+    int size;
+    tlHandle buf[];
+};
+
 struct tlMsgQueue {
     tlHead head;
     lqueue msg_q;
@@ -41,6 +51,36 @@ struct tlMessage {
     tlTask* sender;
     tlArgs* args;
 };
+
+
+tlQueue* tlQueueNew(int buffer) {
+    tlQueue* queue = tlAlloc(tlQueueKind, sizeof(tlQueue));
+    assert(queue);
+    return queue;
+}
+tlHandle _Queue_new(tlArgs* args) {
+    int size = tl_int_or(tlArgsGet(args, 0), 0);
+    return tlQueueNew(size);
+}
+tlHandle _queue_add(tlArgs* args) {
+    return tlNull;
+}
+tlHandle _queue_poll(tlArgs* args) {
+    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
+    tlTask* adder = tlTaskFromEntry(lqueue_get(&queue->add_q));
+    trace("ADDER: %s", tl_str(adder));
+    if (!adder) return tlNull;
+
+    assert(adder->value);
+    tlHandle res = adder->value;
+    tlTaskReady(adder);
+    return res;
+}
+tlHandle _queue_get(tlArgs* args) {
+    return tlNull;
+}
+
+// Message Queue
 
 tlMessage* tlMessageNew(tlArgs* args) {
     tlMessage* msg = tlAlloc(tlMessageKind, sizeof(tlMessage));
@@ -118,7 +158,7 @@ INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     lqueue_put(&queue->wait_q, &task->entry);
     return tlTaskNotRunning;
 }
-INTERNAL tlHandle _queue_get(tlArgs* args) {
+INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
     trace("queue.get: %s", tl_str(task));
@@ -128,7 +168,7 @@ INTERNAL tlHandle _queue_get(tlArgs* args) {
     if (sender) return sender->value;
     return tlTaskPauseResuming(resumeGet, args);
 }
-INTERNAL tlHandle _queue_poll(tlArgs* args) {
+INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
     trace("queue.get: %s", tl_str(task));
@@ -138,12 +178,12 @@ INTERNAL tlHandle _queue_poll(tlArgs* args) {
     if (sender) return sender->value;
     return tlNull;
 }
-INTERNAL tlHandle _queue_input(tlArgs* args) {
+INTERNAL tlHandle _msg_queue_input(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
     if (!queue) TL_THROW("expected a Queue");
     return queue->input;
 }
-INTERNAL tlHandle _Queue_new(tlArgs* args) {
+INTERNAL tlHandle _MsgQueue_new(tlArgs* args) {
     return tlMsgQueueNew();
 }
 
@@ -174,12 +214,22 @@ INTERNAL tlHandle _message_get(tlArgs* args) {
 }
 
 static tlMap* queueClass;
+static tlMap* msgQueueClass;
 void queue_init() {
+    queueClass = tlClassMapFrom("new", _Queue_new, null);
+    _tlQueueKind.klass = tlClassMapFrom(
+        "add", _queue_add,
+        "poll", _queue_poll,
+        "get", _queue_get,
+        null
+    );
+
+    msgQueueClass = tlClassMapFrom("new", _MsgQueue_new, null);
     _tlMsgQueueInputKind.send = queueInputReceive;
     _tlMsgQueueKind.klass = tlClassMapFrom(
-        "input", _queue_input,
-        "get", _queue_get,
-        "poll", _queue_poll,
+        "input", _msg_queue_input,
+        "get", _msg_queue_get,
+        "poll", _msg_queue_poll,
         null
     );
     _tlMessageKind.klass = tlClassMapFrom(
@@ -189,9 +239,9 @@ void queue_init() {
         "get", _message_get,
         null
     );
-    queueClass = tlClassMapFrom("new", _Queue_new, null);
 }
 static void queue_vm_default(tlVm* vm) {
-   tlVmGlobalSet(vm, tlSYM("MsgQueue"), queueClass);
+   tlVmGlobalSet(vm, tlSYM("Queue"), queueClass);
+   tlVmGlobalSet(vm, tlSYM("MsgQueue"), msgQueueClass);
 }
 
