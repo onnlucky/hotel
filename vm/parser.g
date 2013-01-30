@@ -25,6 +25,7 @@ static tlSym s_main;
 static tlSym s_get, s_set, s_slice, s__set;
 static tlSym s_assert;
 static tlSym s_string;
+static tlSym s_block, s__match, s__nomatch;
 
 typedef struct ParseContext {
     tlTask* task;
@@ -215,6 +216,20 @@ stmssl = t:stm (
 
    stm = varassign | singleassign | multiassign | noassign
 
+ guard = __ &{check_indent(G)} "|" _ e:expr _ "|" _ b:body {
+           tlCodeSetIsBlock_(b, true);
+           tlList* as = tlListFrom(tlNull, e, s_block, tl_active(b), null);
+           $$ = call_activate(tlCallFromList(tl_active(s__match), as));
+       }
+guards = gs:guard { gs = tlListFrom1(gs); } (g:guard { gs = tlListAppend(gs, g); })* { $$ = gs; }
+ gexpr = __ &{push_indent(G)} gs:guards l:line &{pop_indent(G)} {
+           gs = tlListAppend(gs, call_activate(tlCallFromList(tl_active(s__nomatch), tlListEmpty())));
+           $$ = tl_active(tlCodeFrom(gs, FILE, l));
+           $$ = call_activate(tlCallFromList($$, tlListEmpty()));
+       }
+       | &{!pop_indent(G)}
+
+
 anames =     n:name _","_ as:anames { $$ = tlListPrepend(L(as), n); }
        #| "*" n:name                 { $$ = tlListFrom1(n); }
        |     n:name                 { $$ = tlListFrom1(n); }
@@ -297,7 +312,9 @@ selfapply = !lit !"and" !"or" !"not" n:name _ &eosfull {
     $$ = call_activate(tlCallFromList(tl_active(n), tlListEmpty()));
 }
 
-bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
+
+bpexpr = gexpr
+       | v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(tlCallAddBlock(set_target(as, v), tl_active(b)));
@@ -608,6 +625,7 @@ tlHandle tlParse(tlString* str, tlString* file) {
         s_mod = tlSYM("mod"); s_pow = tlSYM("pow");
         s_main = tlSYM("main"); s_get = tlSYM("get"); s_set = tlSYM("set"); s_slice = tlSYM("slice"); s__set = tlSYM("_set");
         s_assert = tlSYM("assert"); s_string = tlSYM("string");
+        s_block = tlSYM("block"); s__match = tlSYM("_match"); s__nomatch = tlSYM("_nomatch");
     }
 
     ParseContext data;
