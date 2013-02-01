@@ -11,15 +11,7 @@ return unless true
 if true: return
 unless true: return
 
-but nothing more complex then that
-
-instead of if, have
-
-| x == 10: do something
-| y == 20: do something else
-| true: do something else
-
-later do pattern matching in there
+but nothing more complex then that, we have guarded expressions for those
 
 ----
 

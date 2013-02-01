@@ -222,7 +222,7 @@ stmssl = t:stm (
            $$ = call_activate(tlCallFromList(tl_active(s__match), as));
        }
 guards = gs:guard { gs = tlListFrom1(gs); } (g:guard { gs = tlListAppend(gs, g); })* { $$ = gs; }
- gexpr = __ &{push_indent(G)} gs:guards l:line &{pop_indent(G)} {
+ gexpr = _ &{push_indent(G)} gs:guards l:line &{pop_indent(G)} {
            gs = tlListAppend(gs, call_activate(tlCallFromList(tl_active(s__nomatch), tlListEmpty())));
            $$ = tl_active(tlCodeFrom(gs, FILE, l));
            $$ = call_activate(tlCallFromList($$, tlListEmpty()));
@@ -313,8 +313,7 @@ selfapply = !lit !"and" !"or" !"not" n:name _ &eosfull {
 }
 
 
-bpexpr = gexpr
-       | v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
+bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(tlCallAddBlock(set_target(as, v), tl_active(b)));
@@ -339,6 +338,7 @@ bpexpr = gexpr
            $$ = set_target(t, tlCallSendFromList(sa_this_send, tl_active(s_this), n, as));
            $$ = call_activate($$);
        }
+       | gexpr
        | v:value !"[" _ !"(" !"and" !"or" as:pcargs &peosfull {
            trace("primary args");
            as = tlCallFromList(null, as);
