@@ -76,10 +76,10 @@ openstream = url ->
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
     return io.Socket.open(url.host, url.port or 80)
 
-get = url ->
+get = url, givenbuf ->
     url = httpparser.url(url)
     s = openstream(url)
-    buf = Buffer.new
+    buf = givenbuf or Buffer.new
     buf.write "GET ", url.request, " HTTP/1.0\r\n"
     buf.write "Host: ", url.host, "\r\n"
     buf.write "User-Agent: Mozilla/5.0\r\n"
@@ -94,7 +94,7 @@ get = url ->
             if buf.size > 8000: Error("Headers too long").throw
             continue
         res = httpparser.response(buf.read(at - 1 + 4))
-        body = buf.compact
+        buf.compact
 
         length = res.headers.get("Content-Length")
         if length:
@@ -103,10 +103,13 @@ get = url ->
                 if buf.size >= length: break
                 read = s.read buf
                 if not read: Error("Incomplete body received").throw
-            return body, res
+            if givenbuf: return buf, res
+            return buf.read, res
         loop:
             read = s.read buf
-            if not read: return buf, res
+            if not read: break
+        if givenbuf: return buf, res
+        return buf.read, res
 
 return { Server: Server, get: get }
 

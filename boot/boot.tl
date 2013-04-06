@@ -126,14 +126,11 @@ _install(String.class, #split, (split = (on ->
         goto(loop(start, at + 1, list))
     return loop(1, 1, [])
 )))
-/// String.replace: replace the first occurance of args[1] with args[2], returns a new #String
+/// String.replace: replace all occurances of args[1] with args[2], returns a new #String
 _install(String.class, #replace, (replace = (from, to ->
-    at = this.find(from)
-    if not at: return this
-
-    before = this[:at - 1]
-    after = this[at + from.size:]
-    return "$before$to$after"
+    if from.size == 0: return this
+    if not this.find(from): return this
+    return this.split(from).join(to)
 )))
 
 _install(Set.class, #random, _get_random)

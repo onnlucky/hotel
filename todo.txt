@@ -15,6 +15,10 @@ but nothing more complex then that, we have guarded expressions for those
 
 ----
 
+have interpreter run for N ticks per task, where N is 'somewhat' random instead of alway till the end ...
+
+----
+
 # <test>hello world!</test>
 test("hello world!")
 
