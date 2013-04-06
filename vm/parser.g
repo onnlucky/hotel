@@ -428,7 +428,8 @@ slicea = expr
            $$ = null;
        }
 
-pcargs = l:carg __","__
+# // without carg1, 1000 + x parses as 1000(x=true)
+pcargs = l:carg1 __","__
                 (r:carg __","__  { l = tlListCat(L(l), r); }
                 )*
                 r:carg          { l = tlListCat(L(l), r); }
@@ -442,10 +443,10 @@ pcargs = l:carg __","__
                 )*              { $$ = l; }
        |                        { $$ = tlListEmpty(); }
 
- pcarg = "+"_ n:name            { $$ = tlListFrom2(n, tlTrue); }
-       | "-"_ n:name            { $$ = tlListFrom2(n, tlFalse); }
-       | n:name _"="__ v:expr   { $$ = tlListFrom2(n, v); }
+ pcarg = n:name _"="__ v:expr   { $$ = tlListFrom2(n, v); }
        | v:pexpr                { $$ = tlListFrom2(tlNull, v); }
+ carg1 = n:name _"="__ v:expr   { $$ = tlListFrom2(n, v); }
+       | v:expr                 { $$ = tlListFrom2(tlNull, v); }
 
   carg = "+"_ n:name            { $$ = tlListFrom2(n, tlTrue); }
        | "-"_ n:name            { $$ = tlListFrom2(n, tlFalse); }
