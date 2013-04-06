@@ -15,6 +15,16 @@ but nothing more complex then that, we have guarded expressions for those
 
 ----
 
+# <test>hello world!</test>
+test("hello world!")
+
+# <foo><a1>test</a1><a2 value=true>${1 + 1}</a2></foo>
+foo(a1("test"),a2(value=true,1 + 1))
+
+or somehow more namespaced? and maybe more flat, this will cost in lazyness ...
+
+----
+
 rename tlMap as tlValue and remove tlValueObject ...
 for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
 add kind->resume for tlFrame and throw using frame.kind.name

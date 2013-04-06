@@ -161,31 +161,36 @@ static tlHandle _add(tlArgs* args) {
     // TODO when adding string and something else, convert else to string ...
     if (tlStringIs(l) && tlStringIs(r)) return tlStringCat(tlStringAs(l), tlStringAs(r));
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) + tl_int(r));
-    return tlFLOAT(tl_double(l) + tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) + tl_double(r));
+    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
 }
 static tlHandle _sub(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) - tl_int(r));
-    return tlFLOAT(tl_double(l) - tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) - tl_double(r));
+    TL_THROW("'-' not implemented for: %s - %s", tl_str(l), tl_str(r));
 }
 static tlHandle _mul(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) * tl_int(r));
-    return tlFLOAT(tl_double(l) * tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) * tl_double(r));
+    TL_THROW("'*' not implemented for: %s * %s", tl_str(l), tl_str(r));
 }
 static tlHandle _div(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) / tl_int(r));
-    return tlFLOAT(tl_double(l) / tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
+    TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
 static tlHandle _mod(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) % tl_int(r));
-    return tlFLOAT(fmod(tl_double(l), tl_double(r)));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(fmod(tl_double(l), tl_double(r)));
+    TL_THROW("'%%' not implemented for: %s %% %s", tl_str(l), tl_str(r));
 }
 static tlHandle _binand(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));

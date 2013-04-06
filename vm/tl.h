@@ -165,6 +165,7 @@ static inline tlUndefined* tlMAYBE(tlHandle v) { return (v)? v : tlUndef(); }
 tlHandle tlBOOL(unsigned c);
 tlInt tlINT(intptr_t i);
 tlFloat* tlFLOAT(double d);
+static inline bool tlNumberIs(tlHandle v) { return tlIntIs(v) || tlFloatIs(v); }
 
 // tlString and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
