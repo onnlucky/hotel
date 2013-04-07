@@ -126,6 +126,7 @@ static inline tlString* tlStringCast(tlHandle v) {
     return (tlString*)((intptr_t)v & ~7);
 }
 
+TL_REF_TYPE(tlBin);
 TL_REF_TYPE(tlUndefined);
 TL_REF_TYPE(tlFloat);
 TL_REF_TYPE(tlSet);

@@ -1,6 +1,7 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/md5.h>
 
 #include "tl.h"
 
@@ -190,6 +191,23 @@ INTERNAL tlHandle _ssl_read(tlArgs* args) {
     return tlZero;
 }
 
+INTERNAL tlHandle _ssl_md5(tlArgs* args) {
+    tlString* s = tlStringCast(tlArgsGet(args, 0));
+    if (!s) TL_THROW("md5 requires a string");
+
+    unsigned char res[MD5_DIGEST_LENGTH];
+    MD5((const unsigned char*)tlStringData(s), tlStringSize(s), res);
+    return tlBinFromCopy(res, sizeof(res));
+}
+INTERNAL tlHandle _ssl_sha1(tlArgs* args) {
+    tlString* s = tlStringCast(tlArgsGet(args, 0));
+    if (!s) TL_THROW("sha1 requires a string");
+
+    unsigned char res[SHA_DIGEST_LENGTH];
+    SHA1((const unsigned char*)tlStringData(s), tlStringSize(s), res);
+    return tlBinFromCopy(res, sizeof(res));
+}
+
 static tlKind _tlSSLKind = {
     .name = "SSL",
     .locked = true,
@@ -212,6 +230,8 @@ static void openssl_init() {
 static void openssl_init_vm(tlVm* vm) {
     tlMap* SSLStatic = tlClassMapFrom(
         "new", _SSL_new,
+        "md5", _ssl_md5,
+        "sha1", _ssl_sha1,
         null
     );
     tlVmGlobalSet(vm, tlSYM("SSL"), SSLStatic);

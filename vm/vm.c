@@ -14,6 +14,7 @@
 #include "value.c"
 #include "number.c"
 #include "string.c"
+#include "bin.c"
 #include "sym.c"
 #include "list.c"
 #include "set.c"
@@ -368,6 +369,7 @@ void tl_init() {
 
     sym_string_init();
 
+    bin_init();
     list_init();
     set_init();
     map_init();
