@@ -313,7 +313,7 @@ selfapply = !lit !"and" !"or" !"not" n:name _ &eosfull {
 }
 
 
-bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
+bpexpr = v:value !"[" !"(" _ !"and" !"or" as:pcargs _":"_ b:block {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(tlCallAddBlock(set_target(as, v), tl_active(b)));
@@ -326,7 +326,7 @@ bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
        }
        | pexpr
 
- pexpr = "assert" _!"(" < as:pcargs > &peosfull {
+ pexpr = "assert" !"[" !"(" _ !"and" !"or" < as:pcargs > &peosfull {
             as = tlListAppend2(L(as), s_string, tlStringFromCopy(yytext, 0));
             $$ = call_activate(tlCallFromList(tl_active(s_assert), as));
        }
@@ -339,7 +339,7 @@ bpexpr = v:value !"[" _ !"(" !"and" !"or" as:pcargs _":"_ b:block {
            $$ = call_activate($$);
        }
        | gexpr
-       | v:value !"[" _ !"(" !"and" !"or" as:pcargs &peosfull {
+       | v:value !"[" !"(" _ !"and" !"or" as:pcargs &peosfull {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(set_target(as, v));
@@ -372,7 +372,7 @@ slicea = expr
            trace("set field");
            $$ = tlCallSendFromList(sa_send, null, s__set, tlListFrom(tlNull, n, tlNull, e, null));
        }
-       | _ m:met _ n:name !"[" _ !"(" !"and" !"or" as:pcargs {
+       | _ m:met _ n:name !"[" !"(" _ !"and" !"or" as:pcargs {
            trace("primary method + args");
            $$ = tlCallSendFromList(m, null, n, as);
        }

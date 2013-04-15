@@ -93,7 +93,7 @@ _to = to, fn ->
     block = args.block or fn
     if not block: throw "to expects a block or fn"
     to = to or 1
-    if (this <= to):
+    if this <= to:
         again = at ->
             block(at)
             if at >= to: return
