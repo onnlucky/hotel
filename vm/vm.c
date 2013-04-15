@@ -182,7 +182,7 @@ static tlHandle _mul(tlArgs* args) {
 static tlHandle _div(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
     tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) / tl_int(r));
+    //if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) / tl_int(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
