@@ -221,6 +221,11 @@ stmssl = t:stm (
            tlList* as = tlListFrom(tlNull, e, s_block, tl_active(b), null);
            $$ = call_activate(tlCallFromList(tl_active(s__match), as));
        }
+       | __ &{check_indent(G)} "|" _ "|" _ b:body {
+           tlCodeSetIsBlock_(b, true);
+           tlList* as = tlListFrom(tlNull, tlTrue, s_block, tl_active(b), null);
+           $$ = call_activate(tlCallFromList(tl_active(s__match), as));
+       }
 guards = gs:guard { gs = tlListFrom1(gs); } (g:guard { gs = tlListAppend(gs, g); })* { $$ = gs; }
  gexpr = _ &{push_indent(G)} gs:guards l:line &{pop_indent(G)} {
            gs = tlListAppend(gs, call_activate(tlCallFromList(tl_active(s__nomatch), tlListEmpty())));
