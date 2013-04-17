@@ -3,12 +3,56 @@
 
 #include "trace-off.h"
 
+static tlHandle parsestring(tlBuffer* buf, char quote) {
+    tlBufferSkipByte(buf);
+    char c;
+    int i;
+    int escape = 0;
+    for (i = 0;; i++) {
+        c = tlBufferReadByte(buf);
+        if (c == 0) return null;
+        if (c == quote) break;
+        if (c == '\\') { escape++; i++; tlBufferSkipByte(buf); }
+    }
+    tlBufferRewind(buf, i + 1); // correct final quote
+    if (escape) {
+        int len = i - escape;
+        assert(i > 0);
+        char* s = malloc(i + 1);
+        for (i = 0; i < len; i++) {
+            c = tlBufferReadByte(buf);
+            if (c == '\\') {
+                c = tlBufferReadByte(buf);
+                switch (c) {
+                    case '0': s[i] = '\0'; break;
+                    case 't': s[i] = '\t'; break;
+                    case 'n': s[i] = '\n'; break;
+                    case 'r': s[i] = '\r'; break;
+                    case '\\': s[i] = '\\'; break;
+                    default: s[i] = c; break;
+                }
+            } else {
+                s[i] = c;
+            }
+        }
+        s[i] = 0;
+        tlBufferSkipByte(buf);
+        trace("string: %s (len: %d)", s, i);
+        return tlStringFromTake(s, i);
+    } else {
+        char* s = malloc(i + 1);
+        tlBufferRead(buf, s, i); s[i] = 0;
+        tlBufferSkipByte(buf);
+        trace("string: %s (len: %d)", s, i);
+        return tlStringFromTake(s, i);
+    }
+}
 static tlHandle parsesym(tlBuffer* buf) {
     char c;
     int i;
     for (i = 0;; i++) {
         c = tlBufferReadByte(buf);
-        if (c == ':' || c == ',' || c == ']' || c == '}' || c == 0) break;
+        if (c <= 32 || c == ':' || c == ',' || c == ']' || c == '}') break;
     }
     tlBufferRewind(buf, i + 1); // we read beyond
     char* s = malloc(i + 1);
@@ -37,8 +81,19 @@ static tlHandle parsenum(tlBuffer* buf) {
         return tlINT((int)strtol(b, 0, 10));
     }
 }
+static tlHandle parsekey(tlBuffer* buf) {
+    trace("parsekey");
+    char c;
+    do { c = tlBufferReadByte(buf); } while (c && c <= 32);
+    trace("probing: %c", c);
+    if (!c) return null;
+    tlBufferRewind(buf, 1);
+    if (c == '"' || c == '\'') return tlSymFromString(parsestring(buf, c));
+    return parsesym(buf);
+}
 static tlHandle parse(tlBuffer* buf) {
-    char c = tlBufferPeekByte(buf);
+    char c;
+    do { c = tlBufferPeekByte(buf); } while (c && c <= 32);
     trace("probing: %c", c);
     switch (c) {
         case '{': {
@@ -46,16 +101,15 @@ static tlHandle parse(tlBuffer* buf) {
             trace("{");
             tlHashMap* map = tlHashMapNew();
             while (true) {
-                tlHandle k = parsesym(buf);
+                tlHandle k = parsekey(buf);
                 if (!k) break;
-                c = tlBufferReadByte(buf);
+                do { c = tlBufferReadByte(buf); } while (c && c <= 32);
                 if (c != ':') { warning("no ':' %c", c); return null; }
                 tlHandle v = parse(buf);
                 if (!v) { warning("no value"); return null; }
                 tlHashMapSet(map, k, v);
-                c = tlBufferPeekByte(buf);
-                if (c != ',') break;
-                tlBufferSkipByte(buf);
+                do { c = tlBufferReadByte(buf); } while (c && c <= 32);
+                if (c != ',') { tlBufferRewind(buf, 1); break; }
             }
             c = tlBufferReadByte(buf);
             if (c != '}') { warning("no '}' %c", c); return null; }
@@ -72,62 +126,16 @@ static tlHandle parse(tlBuffer* buf) {
                 tlHandle h = parse(buf);
                 if (!h) break;
                 tlArrayAdd(ls, h);
-                c = tlBufferPeekByte(buf);
-                if (c != ',') break;
-                tlBufferSkipByte(buf);
+                do { c = tlBufferReadByte(buf); } while (c && c <= 32);
+                if (c != ',') { tlBufferRewind(buf, 1); break; }
             }
             c = tlBufferReadByte(buf);
             if (c != ']') { warning("no ']' %c", c); return null; }
             trace("]");
             return tlArrayToList(ls);
         }
-        case '#': {
-            tlBufferSkipByte(buf);
-            return parsesym(buf);
-        }
-        case '"': {
-            tlBufferSkipByte(buf);
-            int i;
-            int escape = 0;
-            for (i = 0;; i++) {
-                c = tlBufferReadByte(buf);
-                if (c == 0) return null;
-                if (c == '"') break;
-                if (c == '\\') { escape++; i++; tlBufferSkipByte(buf); }
-            }
-            tlBufferRewind(buf, i + 1); // correct final '"'
-            if (escape) {
-                int len = i - escape;
-                assert(i > 0);
-                char* s = malloc(i + 1);
-                for (i = 0; i < len; i++) {
-                    c = tlBufferReadByte(buf);
-                    if (c == '\\') {
-                        c = tlBufferReadByte(buf);
-                        switch (c) {
-                            case '0': s[i] = '\0'; break;
-                            case 't': s[i] = '\t'; break;
-                            case 'n': s[i] = '\n'; break;
-                            case 'r': s[i] = '\r'; break;
-                            case '\\': s[i] = '\\'; break;
-                            default: s[i] = c; break;
-                        }
-                    } else {
-                        s[i] = c;
-                    }
-                }
-                s[i] = 0;
-                tlBufferSkipByte(buf);
-                trace("text: %s (len: %d)", s, i);
-                return tlStringFromTake(s, i);
-            } else {
-                char* s = malloc(i + 1);
-                tlBufferRead(buf, s, i); s[i] = 0;
-                tlBufferSkipByte(buf);
-                trace("text: %s (len: %d)", s, i);
-                return tlStringFromTake(s, i);
-            }
-        }
+        case '"': case '\'':
+            return parsestring(buf, c);
         case 'n': { tlBufferReadSkip(buf, 4); return tlNull; }
         case 'f': { tlBufferReadSkip(buf, 5); return tlFalse; }
         case 't': { tlBufferReadSkip(buf, 4); return tlTrue; }
@@ -150,17 +158,16 @@ tlHandle _from_repr(tlArgs* args) {
 static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
     tlKind* kind = tl_kind(h);
 
-    if (kind == tlStringKind) {
+    if (askey && kind == tlSymKind) {
+        tlSym* sym = tlSymAs(h);
+        tlBufferWrite(buf, tlSymData(sym), tlSymSize(sym));
+        return true;
+    }
+    if (kind == tlStringKind || kind == tlSymKind) {
         tlString* str = tlStringEscape(tlStringAs(h));
         tlBufferWrite(buf, "\"", 1);
         tlBufferWrite(buf, tlStringData(str), tlStringSize(str));
         tlBufferWrite(buf, "\"", 1);
-        return true;
-    }
-    if (kind == tlSymKind) {
-        tlSym* sym = tlSymAs(h);
-        if (!askey) tlBufferWrite(buf, "#", 1);
-        tlBufferWrite(buf, tlSymData(sym), tlSymSize(sym));
         return true;
     }
     if (askey) return false;
