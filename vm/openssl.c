@@ -101,7 +101,7 @@ INTERNAL tlHandle _SSL_new(tlArgs* args) {
     ssl->rbuf = ssl->rbio->ptr = tlBufferNew();
     ssl->wbuf = ssl->wbio->ptr = tlBufferNew();
 
-    SSL_METHOD *m = SSLv23_client_method();
+    const SSL_METHOD *m = SSLv23_client_method();
     assert(m);
     SSL_CTX* ctx = SSL_CTX_new(m);
     assert(ctx);

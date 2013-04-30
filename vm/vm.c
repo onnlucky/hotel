@@ -44,9 +44,9 @@
 #include "time.c"
 #include "regex.c"
 #include "openssl.c"
-#include "audio.c"
+//#include "audio.c"
 #include "serialize.c"
-#include "storage.c"
+//#include "storage.c"
 
 // super extra
 //#include "http.c"
@@ -396,7 +396,7 @@ void tl_init() {
     evio_init();
     time_init();
     openssl_init();
-    storage_init();
+    //storage_init();
     serialize_init();
 
     tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
@@ -418,8 +418,8 @@ tlVm* tlVmNew() {
     buffer_init_vm(vm);
     regex_init_vm(vm);
     openssl_init_vm(vm);
-    audio_init_vm(vm);
-    storage_init_vm(vm);
+    //audio_init_vm(vm);
+    //storage_init_vm(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;

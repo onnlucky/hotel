@@ -8,6 +8,8 @@
 #include "ev/ev.h"
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "trace-off.h"
 

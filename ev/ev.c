@@ -1340,6 +1340,7 @@ evpipe_write (EV_P_ EV_ATOMIC_T *flag)
         }
       else
 #endif
+      {
         /* win32 people keep sending patches that change this write() to send() */
         /* and then run away. but send() is wrong, it wants a socket handle on win32 */
         /* so when you think this write should be a send instead, please find out */
@@ -1347,6 +1348,7 @@ evpipe_write (EV_P_ EV_ATOMIC_T *flag)
         /* tell me. thank you. */
         dummy = 0;
         write (evpipe [1], &dummy, 1);
+      }
 
       errno = old_errno;
     }
