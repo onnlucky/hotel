@@ -8,10 +8,10 @@ Queue = {
                 msg = queue.get
                 | msg.name == "put" |
                     | $running < depth | $running += 1; msg.reply
-                    | true             | holding.add msg
+                    |                  | holding.add msg
                 | msg.name == "get" |
                     | holding.size > 0 | msg.reply; holding.remove(1).reply
-                    | true             | $running -= 1; msg.reply
+                    |                  | $running -= 1; msg.reply
         )
         return queue.input
     )
