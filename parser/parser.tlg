@@ -1,39 +1,42 @@
-set_target = { call, fn ->
+set_target = call, fn ->
     if not call: return fn
     if not call.target: return _Map_set(call, #target, fn)
     _Map_set(call, #target, set_target(call.target, fn))
-}
-add_block = { call, block ->
+
+add_block = call, block ->
     if not block: return call
     _Map_set(call, #block, block)
-}
-nvalue = { name ->
+
+nvalue = name ->
     if name == "null": return false
     if name == "undefined": return false
     if name == "true": return false
     if name == "false": return false
     return true
-}
-nreserved = { name ->
+
+nreserved = name ->
     if name == "not": return false
     if name == "and": return false
     if name == "or": return false
     return nvalue(name)
-}
+
 
 var $current_indent = [0]
-begin_body = { indent ->
+begin_body = indent ->
     if indent <= $current_indent.get(0): return false
     $current_indent = $current_indent.prepend(indent)
     return true
-}
-in_body = { indent, i ->
+
+in_body = indent, i ->
     return indent <= i
-}
-end_body = { indent ->
+
+end_body = indent ->
     $current_indent = $current_indent.slice(1)
     return true
-}
+
+isTopcall = x ->
+    if isString x: return false
+    return x.topcall
 
 parse = parser {
       sp: " " | "\t"
@@ -56,14 +59,14 @@ slcomment: "//" (!nl _)*
 nonident: punct | "/" | "\\" | "<" | ">" | "^"
    first: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
     name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
-   ident: n=name ?(nvalue n) -> n.toSym
-reference: n=name ?(nreserved n) -> n.toSym
+   ident: n=name ?(nvalue n) -> n
+reference: n=name ?(nreserved n) -> n
 
  opchars: rs=(!letter !punct !"//" _)+ -> rs.toChar
    binop: "or"                        -> #or
         | "and"                       -> #and
         // TODO test n for ^, ~ and others (non binops)
-        | !"@" !"$" !"->" n=opchars   -> n.toSym
+        | !"@" !"$" !"->" n=opchars   -> n
   textop: "or" | "and" | "not"
 
 // ---- TEXT ----
@@ -80,7 +83,7 @@ reference: n=name ?(nreserved n) -> n.toSym
     text: l=stext (rss=(.e=embed .t=stext -> [e, t]
                        |.e=embed          -> [e]
                        |.t=stext          -> [t]
-                       )+                 -> { type: #call, target: #_Text_Cat, args: rss.reduce({l, r -> l.cat(r)}).prepend(l) }
+                       )+                 -> { type: #call, target: #_Text_Cat, args: rss.reduce(l, r -> l.cat(r)).prepend(l) }
                   | pass                  -> l
                   )
 
@@ -89,7 +92,7 @@ reference: n=name ?(nreserved n) -> n.toSym
     sign: "-"  -> -1
         | "+"  ->  1
         | pass ->  1
-     num: s=sign n=numr        -> s * n.reduce({l, r -> l * 10 + r})
+     num: s=sign n=numr        -> s * n.reduce(l, r -> l * 10 + r)
     numr: n=numeric "_" b=numr -> b.prepend(n - 48)
         | n=numeric b=numr     -> b.prepend(n - 48)
         | n=numeric            -> [n - 48]
@@ -113,10 +116,10 @@ reference: n=name ?(nreserved n) -> n.toSym
 
     this: "@" n=ident -> { type: #self, name: n }
   varref: "\$" n=ident -> { type: #varref, name: n }
-  symbol: "#" n=name  -> {type: #sym, name: n }
+  symbol: "#" n=name  -> { type: #sym, name: n }
 
    value: function
-        | ident
+        | n=ident                                  -> { type: #ref, name: n }
         | this | varref
         | num | symbol | text
         | list | object | map
@@ -180,7 +183,7 @@ reference: n=name ?(nreserved n) -> n.toSym
         )
         // certain calls can be used as topcall, e.g. print.call debug.inspect 42
         // notice, this fn=call backtracks a lot, without caching this sucks ...
-        | !"(" !"{" fn=call ?(fn?topcall) sp. !"(" !binop (
+        | !"(" !"{" fn=call ?(isTopcall fn) sp. !"(" !binop (
               a=topcall                     -> { type: #call, target: fn, args: [a] }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
@@ -221,7 +224,7 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
         | as=slots          ."=".. e=rhs        -> [e].cat(as)
         | e=rhs                                 -> [e]
 
-    stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).reduce({l, r -> l.cat(r)})
+    stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).reduce(l, r -> l.cat(r))
 
    block: ":".. @"a block or function" (
            // this first one is needed, otherwise bodynl will produce paren at a very high indent
@@ -231,10 +234,10 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
            | bodynl
            )
 
-    body: ts=stms tss=(.. stms)* -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
+    body: ts=stms tss=(.. stms)* -> tss.prepend(ts).reduce(l, r -> l.cat(r))
 
   bodynl: c=column ?(begin_body c) ts=stms
-          tss=(.. cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce({l, r -> l.cat(r)})
+          tss=(.. cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce(l, r -> l.cat(r))
 
 bodyempty: body
          | pass    -> []
@@ -242,6 +245,6 @@ bodyempty: body
    start: .. b=bodyempty .. end -> b
 }
 
-data = process parse(io.File(args.get(0)).read)
+data = process parse(io.File(args[1]).read)
 
 

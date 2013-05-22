@@ -1,8 +1,8 @@
-parser.tl: parser.tlg tlmeta.tl tlmeta-base.tl
-	tl tlmeta.tl parser.tlg parser.tl
+parser.tl: parser.tlg
+	tlmeta parser.tlg parser.tl
 
-test.tl: test.tlg tlmeta.tl tlmeta-base.tl
-	tl tlmeta.tl test.tlg test.tl
+test.tl: test.tlg
+	tlmeta test.tlg test.tl
 
 run: parser.tl
 	tl parser.tl test-input.tl
