@@ -148,7 +148,7 @@ _install(List.class, #reduce, (reduce = (fn ->
 
     var $i = 2
     var $res = this[1]
-    while $i < this.size:
+    while $i <= this.size:
         $res = block($res, this.get($i))
         $i += 1
     return $res
