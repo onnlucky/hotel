@@ -35,6 +35,7 @@ end_body = indent ->
     return true
 
 isTopcall = x ->
+    if isNumber x: return false
     if isString x: return false
     return x.topcall
 
@@ -83,7 +84,7 @@ reference: n=name ?(nreserved n) -> n
     text: l=stext (rss=(.e=embed .t=stext -> [e, t]
                        |.e=embed          -> [e]
                        |.t=stext          -> [t]
-                       )+                 -> { type: #call, target: #_Text_Cat, args: rss.reduce(l, r -> l.cat(r)).prepend(l) }
+                       )+                 -> { type: #call, target: #_Text_Cat, args: rss.prepend(l).flatten }
                   | pass                  -> l
                   )
 
@@ -224,7 +225,7 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
         | as=slots          ."=".. e=rhs        -> [e].cat(as)
         | e=rhs                                 -> [e]
 
-    stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).reduce(l, r -> l.cat(r))
+    stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).flatten
 
    block: ":".. @"a block or function" (
            // this first one is needed, otherwise bodynl will produce paren at a very high indent
@@ -234,10 +235,10 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
            | bodynl
            )
 
-    body: ts=stms tss=(.. stms)* -> tss.prepend(ts).reduce(l, r -> l.cat(r))
+    body: ts=stms tss=(.. stms)* -> tss.prepend(ts).flatten
 
   bodynl: c=column ?(begin_body c) ts=stms
-          tss=(.. cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).reduce(l, r -> l.cat(r))
+          tss=(.. cc=column ?(in_body c, cc) stms)* ?(end_body c) -> tss.prepend(ts).flatten
 
 bodyempty: body
          | pass    -> []

@@ -1,6 +1,8 @@
 
+ArgRef = n, s -> [#arg, s]
 LocalRef = n, s -> [#local, s]
-ScopeRef = n, d, s -> [#scope, d, s]
+ScopeRef = n, d, s -> [#env, d, s]
+ScopeArgRef = n, d, s -> [#envarg, d, s]
 GlobalRef = n, s -> [#global, s]
 
 Module = -> {
@@ -25,33 +27,41 @@ Module = -> {
         n = this.data.size
         this.data.add(datum)
         this.dataIndex.set(datum, n)
-        assert this.data.size == this.dataIndex.size
+        assert this.data.size >= this.dataIndex.size
         return [#module, n]
-    addData: datum ->
+    addFunction: fn ->
         n = this.data.size
-        this.data.add(datum)
-        return [#module, n]
+        this.data.add(fn)
+        return [#bind, n]
 }
 
 Scope = parent, module -> {
     parent: parent
     module: module
 
+    args: HashMap.new
     localnames: Array.new
     locals: HashMap.new
     lookup: name ->
+        // locals might shadow args
         ref = this.locals.get name
         if ref: return LocalRef(name, ref)
+        arg = this.args.get name
+        if arg: return ArgRef(name, arg)
         this.parent.scopeLookup name, 0
     scopeLookup: name, depth ->
         ref = this.locals.get name
-        if ref: return ScopeRef(name, ref)
+        if ref: return ScopeRef(name, depth, ref)
+        arg = this.args.get name
+        if arg: return ScopeArgRef(name, depth, arg)
         this.parent.scopeLookup name, depth + 1
-    bind: name ->
-        n = this.locals.size + 1
+    arg: name ->
+        this.args.set(name, this.args.size)
+    store: name ->
+        n = this.locals.size
         this.locals.set(name, n)
         this.localnames.add(name)
-        assert this.localnames.get(n) == name
+        assert this.localnames.get(this.locals.get(name) + 1) == name
         return n
 }
 
@@ -77,8 +87,8 @@ emit = scope, what ->
     if isFunc what: return emitFunc scope, what
     _throw "missing ... $(inspect what)"
 
-emitBind = scope, bind ->
-    b = scope.bind bind.name
+emitBind = scope, store ->
+    b = scope.store store.name
     return [#store, b]
 
 emitCall = scope, call ->
@@ -96,23 +106,20 @@ emitFunc = parent, func ->
     print "FUNC", inspect(func)
     scope = Scope(parent, parent.module)
 
-    names = Array.new
+    args = Array.new
+    lazies = Array.new
+    defaults = Array.new
     defaults = HashMap.new
-    args = func.args.map: arg ->
-        index = scope.bind(arg.name)
-        names.add(arg.name)
-        assert index == names.size
-        if arg.default: defaults.set(arg.name, arg.default)
-        [arg.type, index]
-    body = func.body.map: expr -> emit scope, expr
-    code = args.cat(body).flatten
+
+    args = func.args.map: arg -> scope.arg arg.name; [arg.name, arg.type == #lazy, arg.default or null]
+    body = func.body.map(expr -> emit scope, expr).add(#end)
     fn = {
-        locals: scope.localnames.toList
-        defaults: null
         name: "<anon>"
-        code: code
+        args: args
+        locals: scope.localnames.toList
+        code: body.flatten
     }
-    return scope.module.addData(fn)
+    return scope.module.addFunction(fn)
 
 ( mod ->
     print inspect mod
