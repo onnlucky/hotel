@@ -144,21 +144,31 @@ module = emitParse name, parser.parse(io.File(name).read)
 // bytes: 128| 64 | 32 | 16 |  8 |  4 |  2 |  1
 
 // format: tl01 ref [literals]*ref -> only a list of literals if ref is not a direct literal itself, last literal is root
-// literal: number | string | list | map
+// literal: number | string | list | map | set | binary | bytecode
 
 // string: 1... .... byte*size      -> 7 bits size, utf8 encoded (0-127)
-// list:   010. .... [ref]*size     -> 5 bits size (0-31)
-// map:    011. .... [ref,ref]*size -> 5 bits size (0-31)
-// number: 0000 0... sizebyte*n byte*size -> 1-8 byte signed int
-// number: 0000 1... sizebyte*n byte*size -> 1-8 byte double
-// number: 0001 0... sizebyte*n byte*size -> bignum encoded number
-// string: 0001 1... sizebyte*n byte*size -> long string, utf8 encoded
-// list:   0010 0... sizebyte*n [ref]*size     -> long string, utf8 encoded
-// map:    0010 1... sizebyte*n [ref,ref]*size -> long string, utf8 encoded
+// list:   0100 .... [ref]*size     -> 4 bits size (0-15)
+// map:    0101 .... [ref,ref]*size -> 4 bits size (0-15)
+// binary: 0110 .... byte*size      -> 4 bits size, raw bytes (0-15)
+// bcode:  0111 .... byte*size      -> 4 bits size, byte code (0-15)
+// number: 0010 00.. sizebyte*n byte*size -> bignum encoded number, any length
+// string: 0010 01.. sizebyte*n byte*size -> utf8 encoded
+// binary: 0010 10.. sizebyte*n byte*size -> raw bytes
+// bcode:  0010 11.. sizebyte*n byte*size -> byte code
+//         0011 ....
+// list:   0001 00.. sizebyte*n [ref]*size
+// set:    0001 01.. sizebyte*n [ref]*size
+// map:    0001 10.. sizebyte*n [ref,ref]*size
+//         0001 11..
+// number: 0000 0... byte*size      -> 1-8 byte signed int
+// number: 0000 1000 byte*4         -> 4 byte double
+// number: 0000 1001 byte*8         -> 8 byte double
+//         0000 101.
+//         0000 11..
 
 //ref:
-// 0... ....         -> reference: 7 bits                0     1      2     3   4   5   6   7   8
-// 10.. ....         -> direct literal: 0-63, mapped as: null, false, true, "", [], {}, -2, -1, 0, 1, ..
+// 0... ....         -> reference: 7 bits        0     1      2     3   4   5   6   7   8 .. 63
+// 10.. ....         -> literal: 6 bits, mapped: null, false, true, "", [], {}, -2, -1, 0, 1, ..
 // 110. ....  byte*1 -> reference: 13 bits
 // 1110 ....  byte*2 -> reference: 20 bits
 // 1111 0...  byte*3 -> reference: 27 bits
@@ -245,10 +255,12 @@ write = v, main, sub, top ->
         if top: return
         writeRef sub, ref
 
+test = {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3]}
+test = {a:1,b:2}
 out = Buffer.new
 out.write "tl01"
 main = Buffer.new
-write {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3]}, main, out, true
+write test, main, out, true
 if main.size > 0:
     assert out.size == 4
     assert $size > 0
