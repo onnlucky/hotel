@@ -155,6 +155,28 @@ static tlHandle _gte(tlArgs* args) {
     return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp != tlSmaller);
 }
 
+// shift operators
+static tlHandle _band(tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) & tl_int(r));
+    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+}
+static tlHandle _bor(tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) | tl_int(r));
+    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+}
+static tlHandle _lshift(tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) << tl_int(r));
+    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+}
+static tlHandle _rshift(tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) >> tl_int(r));
+    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+}
+
 // int/float
 static tlHandle _add(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0);
@@ -477,6 +499,11 @@ static const tlNativeCbs __vm_natives[] = {
     { "lte",  _lte },
     { "gt",   _gt },
     { "gte",  _gte },
+
+    { "band",  _band },
+    { "bor",  _bor },
+    { "lsh",  _lshift },
+    { "rsh",  _rshift },
 
     { "add",  _add },
     { "sub",  _sub },

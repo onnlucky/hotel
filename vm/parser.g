@@ -20,6 +20,7 @@ static tlSym s_this, s_this_get, s_this_set, s_this_send;
 static tlSym s_Task_new;
 static tlSym s_and, s_or, s_xor, s_not;
 static tlSym s_lt, s_lte, s_gt, s_gte, s_eq, s_neq, s_cmp;
+static tlSym s_band, s_bor, s_bxor, s_bnot, s_lshift, s_rshift;
 static tlSym s_add, s_sub, s_mul, s_div, s_mod, s_pow;
 static tlSym s_main;
 static tlSym s_get, s_set, s_slice, s__set;
@@ -465,12 +466,19 @@ op_log = l:op_not _ ("or"  __ r:op_not { l = tlCallFrom(tl_active(s_or), l, r, n
                     )*                 { $$ = l }
 op_not = "not" __ r:op_cmp             { $$ = tlCallFrom(tl_active(s_not), r, null); }
        | op_cmp
-op_cmp = l:op_add _ ("<=" __ r:op_add { l = tlCallFrom(tl_active(s_lte), l, r, null); }
-                    |"<"  __ r:op_add { l = tlCallFrom(tl_active(s_lt), l, r, null); }
-                    |">"  __ r:op_add { l = tlCallFrom(tl_active(s_gt), l, r, null); }
-                    |">=" __ r:op_add { l = tlCallFrom(tl_active(s_gte), l, r, null); }
-                    |"==" __ r:op_add { l = tlCallFrom(tl_active(s_eq), l, r, null); }
-                    |"!=" __ r:op_add { l = tlCallFrom(tl_active(s_neq), l, r, null); }
+op_cmp = l:op_bit _ ("<=" __ r:op_bit { l = tlCallFrom(tl_active(s_lte), l, r, null); }
+                    |"<"  __ r:op_bit { l = tlCallFrom(tl_active(s_lt), l, r, null); }
+                    |">"  __ r:op_bit { l = tlCallFrom(tl_active(s_gt), l, r, null); }
+                    |">=" __ r:op_bit { l = tlCallFrom(tl_active(s_gte), l, r, null); }
+                    |"==" __ r:op_bit { l = tlCallFrom(tl_active(s_eq), l, r, null); }
+                    |"!=" __ r:op_bit { l = tlCallFrom(tl_active(s_neq), l, r, null); }
+                    )*                { $$ = l; }
+op_bit = l:op_sht _ ("&"  __ r:op_sht { l = tlCallFrom(tl_active(s_band), l, r, null); }
+#// conflicts with guarded expressions ... sadly ...
+#|"|"  __ r:op_sht { l = tlCallFrom(tl_active(s_bor), l, r, null); }
+                    )*                { $$ = l; }
+op_sht = l:op_add _ ("<<" __ r:op_add { l = tlCallFrom(tl_active(s_lshift), l, r, null); }
+                    |">>" __ r:op_add { l = tlCallFrom(tl_active(s_rshift), l, r, null); }
                     )*                { $$ = l; }
 op_add = l:op_mul _ ("+" __ r:op_mul { l = tlCallFrom(tl_active(s_add), l, r, null); }
                     |"-" __ r:op_mul { l = tlCallFrom(tl_active(s_sub), l, r, null); }
@@ -625,6 +633,8 @@ tlHandle tlParse(tlString* str, tlString* file) {
         s_Task_new = tlSYM("_Task_new");
         s_and = tlSYM("and"); s_or = tlSYM("or"), s_xor = tlSYM("xor"), s_not = tlSYM("not");
         s_lt = tlSYM("lt"); s_lte = tlSYM("lte"); s_gt = tlSYM("gt"); s_gte = tlSYM("gte");
+        s_band = tlSYM("band"); s_bor = tlSYM("bor"); s_bxor = tlSYM("bxor"); s_bnot = tlSYM("bnot");
+        s_lshift = tlSYM("lsh"); s_rshift = tlSYM("rsh");
         s_eq = tlSYM("eq"); s_neq = tlSYM("neq"); s_cmp = tlSYM("cmp");
         s_add = tlSYM("add"); s_sub = tlSYM("sub");
         s_mul = tlSYM("mul"); s_div = tlSYM("div");
