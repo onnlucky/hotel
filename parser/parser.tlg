@@ -61,7 +61,6 @@ nonident: punct | "/" | "\\" | "<" | ">" | "^"
    first: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
     name: n=first rs=(!nonident _)*  -> rs.prepend(n).toChar
    ident: n=name ?(nvalue n) -> n
-reference: n=name ?(nreserved n) -> n
 
  opchars: rs=(!letter !punct !"//" _)+ -> rs.toChar
    binop: "or"                        -> #or
@@ -117,17 +116,18 @@ reference: n=name ?(nreserved n) -> n
 
     this: "@" n=ident -> { type: #self, name: n }
   varref: "\$" n=ident -> { type: #varref, name: n }
-  symbol: "#" n=name  -> { type: #sym, name: n }
 
    value: function
         | n=ident                                  -> { type: #ref, name: n }
         | this | varref
-        | num | symbol | text
+        | num | text
         | list | object | map
         | "true"                                   -> true
         | "false"                                  -> false
         | "null"                                   -> { type: #value, value: #null }
         | "undefined"                              -> { type: #value, value: #undefined }
+
+reference: n=name ?(nreserved n)                   -> { type: #ref, name: n }
 
 // TODO this is a bit cludgy ...
     expr: "!"!"=" b=bodynl                         -> { type: #call, target: #vm_task, args: [b] }
@@ -246,6 +246,5 @@ bodyempty: body
    start: .. b=bodyempty .. end -> b
 }
 
-data = process parse(io.File(args[1]).read)
-
+{ parse: parse }
 
