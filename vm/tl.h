@@ -515,6 +515,7 @@ const char* tlBufferData(tlBuffer* buf);
 
 int tlBufferFind(tlBuffer* buf, const char* text, int len);
 int tlBufferRead(tlBuffer* buf, char* to, int count);
+uint8_t tlBufferReadByte(tlBuffer* buf);
 
 
 #endif // _tl_h_
