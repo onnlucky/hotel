@@ -8,8 +8,8 @@ GlobalRef = n, s -> [#global, s]
 Module = -> {
     globals: Array.new
     globalsIndex: HashMap.new
-    data: Array.new
     dataIndex: HashMap.new
+    module: -> return this
 
     scopeLookup: name ->
         ref = this.globalsIndex.get name
@@ -20,19 +20,10 @@ Module = -> {
         this.globalsIndex.set(name, n)
         assert this.globals.size == this.globalsIndex.size
         return GlobalRef(name, n)
-    getData: datum ->
-        ref = this.dataIndex.get(datum)
-        if ref: return [#module, ref]
-
-        n = this.data.size
-        this.data.add(datum)
-        this.dataIndex.set(datum, n)
-        assert this.data.size >= this.dataIndex.size
-        return [#module, n]
+    getData: d ->
+        return [#module, d]
     addFunction: fn ->
-        n = this.data.size
-        this.data.add(fn)
-        return [#bind, n]
+        return [#bind, fn]
 }
 
 Scope = parent, module -> {
@@ -102,38 +93,38 @@ emitSend = scope, send ->
     msg = scope.module.getData(send.msg)
     return [#mcall, args.size, target, msg].cat(args).cat([#invoke])
 
+isCode = o -> return isObject(o) and o.code and o.args and o.argnames
 emitFunc = parent, func ->
     scope = Scope(parent, parent.module)
 
     args = Array.new
-    lazies = Array.new
-    defaults = Array.new
-    defaults = HashMap.new
+    argnames = HashMap.new
 
     args = func.args.map: arg -> scope.arg arg.name; [arg.name, arg.type == #lazy, arg.default or null]
+    args.each: a, n -> if a[1]: argnames[a[1]] = n - 1
     body = func.body.map(expr -> emit scope, expr).add(#end)
     fn = {
         name: "<anon>"
         args: args
+        argnames: argnames.toMap
         locals: scope.localnames.toList
         code: body.flatten
     }
+    if parent == parent.module: return fn
     return scope.module.addFunction(fn)
 
 emitParse = name, parse ->
+    print inspect parse
+    print
     module = Module()
-    scope = Scope(module, module)
-
-    body = parse.map: expr -> emit scope, expr
-    code = body.cat([#end]).flatten
+    code = emitFunc(module, {body:parse, args:[], name:name})
 
     mod = {
-        data: module.data.toList
+        link: module.globals.toList
         body: code
-        globals: module.globals.toList
-        name: name
     }
     print inspect mod
+    print
     return mod
 
 name = args[1]
@@ -192,8 +183,7 @@ literals = HashMap.new
 var $size = 0
 
 write = v, main, sub, top ->
-    assert main
-    assert sub
+    | isCode(v)   | sub.writeByte 128 + 0
     | v == null   | sub.writeByte 128 + 0
     | v == false  | sub.writeByte 128 + 1
     | v == true   | sub.writeByte 128 + 2
@@ -262,11 +252,11 @@ write = v, main, sub, top ->
         if top: return
         writeRef sub, ref
 
-test = {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3, 0.0, 100]}
+//test = {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3, 0.0, 100]}
 out = Buffer.new
 out.write "tl01"
 main = Buffer.new
-write test, main, out, true
+write module, main, out, true
 if main.size > 0:
     assert out.size == 4
     assert $size > 0
