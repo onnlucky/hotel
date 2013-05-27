@@ -142,7 +142,7 @@ module = emitParse name, parser.parse(io.File(name).read)
 // ** write **
 //         8 |  7 |  6 |  5 |  4 |  3 |  2 |  1
 // bytes: 128| 64 | 32 | 16 |  8 |  4 |  2 |  1
-
+// TODO add -1.0 0.0 1.0 NaN -Inf +Inf ?
 // format: tl01 ref [literals]*ref -> only a list of literals if ref is not a direct literal itself, last literal is root
 // literal: number | string | list | map | set | binary | bytecode
 
@@ -197,38 +197,45 @@ write = v, main, sub, top ->
     | v == null   | sub.writeByte 128 + 0
     | v == false  | sub.writeByte 128 + 1
     | v == true   | sub.writeByte 128 + 2
+    | isFloat(v)  |
+        return sub.writeByte 128 + 8
+        if literals[v]: return writeRef sub, literals[v]
+        ref = literals[v] = $size; $size += 1
+
+        main.writeByte 9
+        main.writeFloat v
+        return writeRef sub, ref
     | isNumber(v) |
         if v >= -2 and v + 8 < 64: return sub.writeByte 128 + 8 + v
         if literals[v]: return writeRef sub, literals[v]
-
         ref = literals[v] = $size; $size += 1
+
         main.writeByte 0 + 3
-        1.upto 4: n -> main.writeByte v >> n * 8
+        3.to 0: n -> main.writeByte v >> n * 8
         return writeRef sub, ref
     | isString(v) |
         if v.size == 0: return sub.writeByte 128 + 3
         if literals[v]: return writeRef sub, literals[v]
-
         ref = literals[v] = $size; $size += 1
+
         | v.size < 128 |
             main.writeByte 128 + v.size
-            main.write v
         |              |
             bytes = sizebytes v.size
-            main.writeByte 24 + bytes
-            bytes.upto 0: n -> main.writeByte v.size >> n * 8
-            main.write v
+            main.writeByte 36 + bytes
+            bytes.to 0: n -> main.writeByte v.size >> n * 8
+        main.write v
         return writeRef sub, ref
     | isList(v)   |
         if v.size == 0: return sub.writeByte 128 + 4
 
         list = Buffer.new
-        | v.size < 32 |
+        | v.size < 16 |
             list.writeByte 64 + v.size
         |             |
             bytes = sizebytes v.size
-            list.writeByte 24 + bytes
-            bytes.upto 0: n -> list.writeByte v.size >> n * 8
+            list.writeByte 16 + bytes
+            bytes.to 0: n -> list.writeByte v.size >> n * 8
         v.each: v => write v, main, list
         assert list.size >= 1 + v.size
         main.write list
@@ -240,12 +247,12 @@ write = v, main, sub, top ->
         if keys.size == 0: return sub.writeByte 128 + 5
 
         map = Buffer.new
-        | keys.size < 32 |
-            map.writeByte 96 + keys.size
+        | keys.size < 16 |
+            map.writeByte 80 + keys.size
         |                |
             bytes = sizebytes keys.size
             map.writeByte 24 + bytes
-            bytes.upto 0: n -> map.writeByte keys.size >> n * 8
+            bytes.to 0: n -> map.writeByte keys.size >> n * 8
         keys.each: k ->
             write k, main, map
             write _Map_get(v, k), main, map
@@ -255,8 +262,7 @@ write = v, main, sub, top ->
         if top: return
         writeRef sub, ref
 
-test = {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3]}
-test = {a:1,b:2}
+test = {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3, 0.0, 100]}
 out = Buffer.new
 out.write "tl01"
 main = Buffer.new

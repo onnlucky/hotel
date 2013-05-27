@@ -16,7 +16,7 @@ tlHandle readref(tlBuffer* buf, tlList* data, int* val) {
             case 3: return tlStringEmpty();
             case 4: return tlListEmpty();
             case 5: return tlMapEmpty();
-            default: return tlINT(lit - 7);
+            default: return tlINT(lit - 8);
         }
     }
 
@@ -68,8 +68,8 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
         data[size] = 0;
         return tlStringFromTake(data, size);
     }
-    if ((b1 & 0xE0) == 0x40) { // short list
-        int size = b1 & 0x1F;
+    if ((b1 & 0xF0) == 0x40) { // short list
+        int size = b1 & 0x0F;
         print("short list: %d", size);
         tlList* list = tlListNew(size);
         for (int i = 0; i < size; i++) {
@@ -80,8 +80,8 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
         }
         return list;
     }
-    if ((b1 & 0xE0) == 0x60) { // short map
-        int size = b1 & 0x1F;
+    if ((b1 & 0xF0) == 0x50) { // short map
+        int size = b1 & 0x0F;
         print("short map: %d (%d)", size, tlBufferSize(buf));
         tlMap* map = tlMapEmpty();
         for (int i = 0; i < size; i++) {
@@ -95,9 +95,22 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
         return map;
     }
 
-    int sizebytes = b1 & 7;
+    if ((b1 & 0xF8) == 0x00) { // number
+        int size = b1 & 3;
+        int value = readsizebytes(buf, size);
+        print("number: %d", value);
+        return tlINT(value);
+    }
+    if (b1 == 0x08) { // float
+        fatal("not implemented");
+    }
+    if (b1 == 0x09) { // double
+        fatal("not implemented");
+    }
+
+    int sizebytes = b1 & 3;
     int size = readsizebytes(buf, sizebytes);
-    switch (b1 & 0xF8) {
+    switch (b1 & 0xFC) {
         case 0x00: // number
             print("number");
             break;
@@ -120,7 +133,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
             fatal("unknown value type: %d", b1);
             break;
     }
-    print("something: %d %d", sizebytes, size);
+    fatal("not implemented: %d %d", sizebytes, size);
     return null;
 }
 

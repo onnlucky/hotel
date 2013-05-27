@@ -185,6 +185,9 @@ static tlHandle _isNull(tlArgs* args) {
 static tlHandle _isBool(tlArgs* args) {
     return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
 }
+static tlHandle _isFloat(tlArgs* args) {
+    return tlBOOL(tlFloatIs(tlArgsGet(args, 0)));
+}
 static tlHandle _isNumber(tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     return tlBOOL(tlIntIs(v) || tlFloatIs(v));
@@ -208,6 +211,7 @@ static const tlNativeCbs __value_natives[] = {
     { "isDefined", _isDefined },
     { "isNull", _isNull },
     { "isBool", _isBool },
+    { "isFloat", _isFloat },
     { "isNumber", _isNumber },
     { "isSym", _isSym },
     { "isString", _isString },
