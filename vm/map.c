@@ -89,16 +89,18 @@ tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v) {
     return nmap;
 }
 
-tlHandle tlMapGetSym(tlMap* map, tlSym key) {
+tlHandle tlMapGetSym(tlMap* map, tlHandle key) {
     assert(tlMapOrObjectIs(map));
+    if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
     assert(at < tlMapSize(map));
     trace("keys get: %s = %s", tl_str(key), tl_str(map->data[at]));
     return map->data[at];
 }
-void tlMapSetSym_(tlMap* map, tlSym key, tlHandle v) {
+void tlMapSetSym_(tlMap* map, tlHandle key, tlHandle v) {
     assert(tlMapOrObjectIs(map));
+    if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(map->keys, key);
     assert(at >= 0 && at < tlMapSize(map));
     trace("keys set_: %s = %s", tl_str(key), tl_str(map->data[at]));

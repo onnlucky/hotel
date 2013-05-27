@@ -165,8 +165,10 @@ tlHandle deserialize(tlBuffer* buf) {
 int main(int argc, char** argv) {
     tl_init();
 
+#if 0
     deserialize(tlBufferFromFile("test.tlb"));
     return 0;
+#endif
 
     const char* boot = null;
     tlArgs* args = null;

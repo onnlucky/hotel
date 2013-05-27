@@ -70,6 +70,7 @@ int tlSetIndexof2(tlSet* set, tlHandle key) {
 }
 
 int tlSetIndexof(tlSet* set, tlHandle key) {
+    if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof2(set, key);
     if (set->data[at] != key) return -1;
     return at;
@@ -77,6 +78,7 @@ int tlSetIndexof(tlSet* set, tlHandle key) {
 
 tlSet* tlSetAdd(tlSet* set, tlHandle key, int* at) {
     trace();
+    if (tlStringIs(key)) key = tlSymFromString(key);
     *at = tlSetIndexof(set, key);
     if (key == null || *at >= 0) return set;
 
@@ -96,6 +98,7 @@ tlSet* tlSetAdd(tlSet* set, tlHandle key, int* at) {
 
 int tlSetAdd_(tlSet* set, tlHandle key) {
     int size = tlSetSize(set);
+    if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof2(set, key);
     assert(at >= 0 && at < size);
     trace("adding key: %s", tl_str(key));

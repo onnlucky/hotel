@@ -7,7 +7,7 @@
 
 TL_REF_TYPE(tlHashMap);
 
-static tlKind _tlHashMapKind = { .name = "Map" };
+static tlKind _tlHashMapKind = { .name = "HashMap" };
 tlKind* tlHashMapKind = &_tlHashMapKind;
 
 struct tlHashMap {
@@ -46,15 +46,16 @@ tlMap* tlHashMapToObject(tlHashMap* map) {
     for (int i = 0; i < size; i++) {
         tlHandle k;
         lhashmapiter_get(iter, &k, null);
-        if (!k || !tlSymIs(k)) break;
+        if (!k) break;
         tlSetAdd_(keys, k);
         lhashmapiter_next(iter);
     }
     tlMap* object = tlMapNew(keys);
     for (int i = 0; i < size; i++) {
         tlHandle k = tlSetGet(keys, i);
+        if (!k) break;
         tlHandle v = tlHashMapGet(map, k);
-        tlMapSetSym_(object, tlSymAs(k), v);
+        tlMapSetSym_(object, k, v);
     }
     return tlMapToObject_(object);
 }
@@ -172,6 +173,10 @@ INTERNAL tlHandle _hashmap_each(tlArgs* args) {
     return resumeHashMapEach((tlHandle)frame, tlNull, null);
 }
 
+INTERNAL tlHandle _hashmap_toMap(tlArgs* args) {
+    return tlHashMapToObject(tlHashMapAs(tlArgsTarget(args)));
+}
+
 static tlMap* hashmapClass;
 void hashmap_init() {
     _tlHashMapKind.klass = tlClassMapFrom(
@@ -182,6 +187,7 @@ void hashmap_init() {
         "size", _hashmap_size,
         "keys", _hashmap_keys,
         "each", _hashmap_each,
+        "toMap", _hashmap_toMap,
         null
     );
     hashmapClass = tlClassMapFrom(
