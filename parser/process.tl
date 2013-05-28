@@ -182,8 +182,40 @@ writeRef = buf, ref ->
 literals = HashMap.new
 var $size = 0
 
+writeCode = v, main, sub, top ->
+    code = Buffer.new
+    write v.args, main, code
+    write v.argnames, main, code
+    write v.locals, main, code
+    write v.name, main, code
+
+    var $pc = 0
+    loop:
+        op = v.code[($pc += 1)]
+        | op == #end  |
+            code.writeByte 0; break
+        | op == #bind |
+            code.writeByte 192 + 13
+            write v.code[($pc += 1)], main, code
+        | op == #module |
+            code.writeByte 192 + 6
+            write v.code[($pc += 1)], main, code
+        |               | print "skipping", op
+
+    | code.size < 16 |
+        main.writeByte 80 + code.size
+    |             |
+        bytes = sizebytes code.size
+        main.writeByte 44 + bytes
+        bytes.to 0: n -> main.writeByte code.size >> n * 8
+
+    main.write code
+    ref = $size; $size += 1
+    if top: return
+    writeRef sub, ref
+
 write = v, main, sub, top ->
-    | isCode(v)   | sub.writeByte 128 + 0
+    | isCode(v)   | writeCode v, main, sub, top
     | v == null   | sub.writeByte 128 + 0
     | v == false  | sub.writeByte 128 + 1
     | v == true   | sub.writeByte 128 + 2
