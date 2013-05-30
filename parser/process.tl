@@ -137,33 +137,36 @@ module = emitParse name, parser.parse(io.File(name).read)
 // format: tl01 ref [literals]*ref -> only a list of literals if ref is not a direct literal itself, last literal is root
 // literal: number | string | list | map | set | binary | bytecode
 
-// string: 1... .... byte*size      -> 7 bits size, utf8 encoded (0-127)
-// list:   0100 .... [ref]*size     -> 4 bits size (0-15)
-// map:    0101 .... [ref,ref]*size -> 4 bits size (0-15)
-// binary: 0110 .... byte*size      -> 4 bits size, raw bytes (0-15)
-// bcode:  0111 .... byte*size      -> 4 bits size, byte code (0-15)
-// number: 0010 00.. sizebyte*n byte*size -> bignum encoded number, any length
-// string: 0010 01.. sizebyte*n byte*size -> utf8 encoded
-// binary: 0010 10.. sizebyte*n byte*size -> raw bytes
-// bcode:  0010 11.. sizebyte*n byte*size -> byte code
-//         0011 ....
-// list:   0001 00.. sizebyte*n [ref]*size
-// set:    0001 01.. sizebyte*n [ref]*size
-// map:    0001 10.. sizebyte*n [ref,ref]*size
-//         0001 11..
-// number: 0000 0... byte*size      -> 1-8 byte signed int
-// number: 0000 1000 byte*4         -> 4 byte double
-// number: 0000 1001 byte*8         -> 8 byte double
-//         0000 101.
-//         0000 11..
+// string: 000. .... byte*size       -> 5 bits size, utf8 encoded (1-32)
+// list:   001. .... [ref]*size      -> 5 bits size (1-32)
+// set:    010. .... [ref]*size      -> 5 bits size (1-32)
+// map:    011. .... [ref,ref]*size  -> 5 bits size (1-32)
+// raw:    100. .... byte*size       -> 5 bits size, raw bytes (1-32)
+// bcode:  101. .... byte*size       -> 5 bits size, bytecode (1-32)
 
-//ref:
-// 0... ....         -> reference: 7 bits        0     1      2     3   4   5   6   7   8 .. 63
-// 10.. ....         -> literal: 6 bits, mapped: null, false, true, "", [], {}, -2, -1, 0, 1, ..
-// 110. ....  byte*1 -> reference: 13 bits
-// 1110 ....  byte*2 -> reference: 20 bits
-// 1111 0...  byte*3 -> reference: 27 bits
-// 1111 10..  byte*4 -> reference: 34 bits
+// number  1100 0... bytes*size      -> 1-8 byte signed int
+// number  1100 1000 bytes*4         -> 4 byte float
+// number  1100 1001 bytes*8         -> 8 byte float
+// number  1100 1... bytes*size      -> (4,8,12,16,20,24,28,32) bytes bignum encoded number
+
+// string  1110 0000 size byte*size  -> string, utf8 encoded
+// list    1110 0001 size [ref]*size
+// set     1110 0010 size [ref]*size
+// map     1110 0011 size [ref,ref]*size
+// raw     1110 0100 size byte*size  -> raw bytes
+// bcode   1110 0101 size byte*size  -> byte code
+// number  1110 0110 size byte*size  -> bignum encoded number
+
+// references, direct literals, lengths   0     1      2     3   4   5   6   7   8
+// 11.. .... -> 6 bits literals, indexed [null, false, true, "", [], {}, -2, -1, 0, 1, ...]
+// 11.. .... -> in bytecode, an instruction, replaces literals
+// 0... ....                               -> 7
+// 10.. .... 0... ....                     -> 13
+// 10.. .... 10.. .... 0... ....           -> 19
+// 10.. .... 10.. .... 10.. .... 0... .... -> 25
+// notice, there is madness in there: 111. .... is the mask for all CALL opcodes, and 1100 1011 is
+// INVOKE, when opcode reference module data, they can still reference the empty list using
+// 1100 0100 oeps ;) it will work, but maybe better have instructions to load those?
 
 sizebytes = size ->
     | size < 256      | 0

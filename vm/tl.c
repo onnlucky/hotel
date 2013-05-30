@@ -1,44 +1,43 @@
-// starting point of hotel
-
 #include "tl.h"
 #include "debug.h"
 
-tlHandle readref(tlBuffer* buf, tlList* data, int* val) {
-    if (tlBufferSize(buf) < 1) fatal("buffer too small");
+// 11.. ....
+static tlHandle decodelit(uint8_t b1) {
+    int lit = b1 & 0x3F;
+    switch (lit) {
+        case 0: return tlNull;
+        case 1: return tlFalse;
+        case 2: return tlTrue;
+        case 3: return tlStringEmpty();
+        case 4: return tlListEmpty();
+        case 5: return tlMapEmpty();
+    }
+    return tlINT(lit - 8);
+}
 
-    uint8_t b1 = tlBufferReadByte(buf);
-    if ((b1 & 0x80) == 0x80) {
-        int lit = b1 & 0x3F;
-        switch (lit) {
-            case 0: return tlNull;
-            case 1: return tlFalse;
-            case 2: return tlTrue;
-            case 3: return tlStringEmpty();
-            case 4: return tlListEmpty();
-            case 5: return tlMapEmpty();
-            default: return tlINT(lit - 8);
+// 0... ....
+// 10.. .... 0... ....
+static int decoderef(tlBuffer* buf, uint8_t b1) {
+    if ((b1 & 0x80) == 0x00) return b1 & 0x7F;
+    int res = b1 & 0x3F;
+    for (int i = 0; i < 4; i++) {
+        b1 = tlBufferReadByte(buf);
+        if ((b1 & 0x80) == 0x00) {
+            res = (res << 7) + (b1 & 0x7F);
+            break;
         }
+        assert((b1 & 0x80) == 0x80);
+        res = (res << 6) + (b1 & 0x3F);
     }
+    return res;
+}
 
-    int at;
-    if ((b1 & 0x80) == 0x00) {
-        at = b1 & 0x7F;
-    } else if ((b1 & 0xC0) == 0xC0) {
-        assert("fucked");
-        if (tlBufferSize(buf) < 1) fatal("buffer too small");
-        uint8_t b2 = tlBufferReadByte(buf);
-        at = (b1 & 0x1F) << 8 | b2;
-    } else if ((b1 & 0xE0) == 0xE0) {
-        assert("fucked");
-        if (tlBufferSize(buf) < 2) fatal("buffer too small");
-        uint8_t b2 = tlBufferReadByte(buf);
-        uint8_t b3 = tlBufferReadByte(buf);
-        at = (b1 & 0x0F) << 16 | b2 << 8 | b3;
-    } else {
-        fatal("reference too big");
-        return null;
-    }
+tlHandle readref(tlBuffer* buf, tlList* data, int* val) {
+    uint8_t b1 = tlBufferReadByte(buf);
 
+    if ((b1 & 0xC0) == 0xC0) return decodelit(b1);
+
+    int at = decoderef(buf, b1);
     if (val) *val = at;
     if (data) return tlListGet(data, at);
     return null;
@@ -165,7 +164,7 @@ tlHandle deserialize(tlBuffer* buf) {
 int main(int argc, char** argv) {
     tl_init();
 
-#if 0
+#if 1
     deserialize(tlBufferFromFile("test.tlb"));
     return 0;
 #endif
