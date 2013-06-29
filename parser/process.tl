@@ -8,7 +8,6 @@ GlobalRef = n, s -> [#global, s]
 Module = -> {
     globals: Array.new
     globalsIndex: HashMap.new
-    dataIndex: HashMap.new
     module: -> return this
 
     scopeLookup: name ->
@@ -205,12 +204,11 @@ writeCode = v, main, sub, top ->
             write v.code[($pc += 1)], main, code
         |               | print "skipping", op
 
-    | code.size < 16 |
-        main.writeByte 80 + code.size
+    | code.size < 32 |
+        main.writeByte 160 + code.size
     |             |
-        bytes = sizebytes code.size
-        main.writeByte 44 + bytes
-        bytes.to 0: n -> main.writeByte code.size >> n * 8
+        main.writeByte 224 + 5
+        writeSize main, v.size
 
     main.write code
     ref = $size; $size += 1
@@ -218,10 +216,11 @@ writeCode = v, main, sub, top ->
     writeRef sub, ref
 
 write = v, main, sub, top ->
+    print("encoding:", v)
     | isCode(v)   | writeCode v, main, sub, top
-    | v == null   | sub.writeByte 128 + 0
-    | v == false  | sub.writeByte 128 + 1
-    | v == true   | sub.writeByte 128 + 2
+    | v == null   | sub.writeByte 192 + 0
+    | v == false  | sub.writeByte 192 + 1
+    | v == true   | sub.writeByte 192 + 2
     | isFloat(v)  |
         return sub.writeByte 128 + 8
         if literals[v]: return writeRef sub, literals[v]
@@ -231,53 +230,52 @@ write = v, main, sub, top ->
         main.writeFloat v
         return writeRef sub, ref
     | isNumber(v) |
-        if v >= -2 and v + 8 < 64: return sub.writeByte 128 + 8 + v
+        if v >= -2 and v + 8 < 50: return sub.writeByte 192 + 8 + v
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
 
-        main.writeByte 0 + 3
+        main.writeByte 192 + 4
         3.to 0: n -> main.writeByte v >> n * 8
         return writeRef sub, ref
     | isString(v) |
-        if v.size == 0: return sub.writeByte 128 + 3
+        if v.size == 0: return sub.writeByte 192 + 3
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
 
-        | v.size < 128 |
-            main.writeByte 128 + v.size
+        | v.size < 32 |
+            main.writeByte 0 + v.size
+            print "short string", v.size, v
         |              |
-            bytes = sizebytes v.size
-            main.writeByte 36 + bytes
-            bytes.to 0: n -> main.writeByte v.size >> n * 8
+            main.writeByte 224 + 0
+            writeSize main, v.size
         main.write v
         return writeRef sub, ref
     | isList(v)   |
-        if v.size == 0: return sub.writeByte 128 + 4
+        if v.size == 0: return sub.writeByte 192 + 4
 
         list = Buffer.new
-        | v.size < 16 |
-            list.writeByte 64 + v.size
+        | v.size < 32 |
+            list.writeByte 32 + v.size
         |             |
-            bytes = sizebytes v.size
-            list.writeByte 16 + bytes
-            bytes.to 0: n -> list.writeByte v.size >> n * 8
+            list.writeByte 224 + 1
+            writeSize main, v.size
         v.each: v => write v, main, list
         assert list.size >= 1 + v.size
+        print "list", list.size
         main.write list
         ref = $size; $size += 1
         if top: return
         writeRef sub, ref
     | isObject(v) |
         keys = _Map_keys(v)
-        if keys.size == 0: return sub.writeByte 128 + 5
+        if keys.size == 0: return sub.writeByte 192 + 5
 
         map = Buffer.new
-        | keys.size < 16 |
-            map.writeByte 80 + keys.size
+        | keys.size < 32 |
+            map.writeByte 96 + keys.size
         |                |
-            bytes = sizebytes keys.size
-            map.writeByte 24 + bytes
-            bytes.to 0: n -> map.writeByte keys.size >> n * 8
+            list.writeByte 224 + 3
+            writeSize main, v.size
         keys.each: k ->
             write k, main, map
             write _Map_get(v, k), main, map
@@ -287,11 +285,11 @@ write = v, main, sub, top ->
         if top: return
         writeRef sub, ref
 
-//test = {hello:"world",test:[true, false, null, "", -1, 0, 1, 2, 3, 0.0, 100]}
+test = {hello:"world",test:[true, false, null, "", [], {}, -1, 0, 1, 2, 50, 100]}
 out = Buffer.new
 out.write "tl01"
 main = Buffer.new
-write module, main, out, true
+write test, main, out, true
 if main.size > 0:
     assert out.size == 4
     assert $size > 0

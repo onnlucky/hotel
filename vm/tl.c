@@ -17,7 +17,7 @@ static tlHandle decodelit(uint8_t b1) {
 
 // 0... ....
 // 10.. .... 0... ....
-static int decoderef(tlBuffer* buf, uint8_t b1) {
+static int decoderef2(tlBuffer* buf, uint8_t b1) {
     if ((b1 & 0x80) == 0x00) return b1 & 0x7F;
     int res = b1 & 0x3F;
     for (int i = 0; i < 4; i++) {
@@ -37,102 +37,107 @@ tlHandle readref(tlBuffer* buf, tlList* data, int* val) {
 
     if ((b1 & 0xC0) == 0xC0) return decodelit(b1);
 
-    int at = decoderef(buf, b1);
+    int at = decoderef2(buf, b1);
     if (val) *val = at;
     if (data) return tlListGet(data, at);
     return null;
 }
 
-int readsizebytes(tlBuffer* buf, int bytes) {
-    bytes += 1;
-    if (tlBufferSize(buf) < bytes) fatal("buffer too small");
-    int res = 0;
-    for (int i = 0; i < bytes; i++) {
-        res = res << 8 | tlBufferReadByte(buf);
-    }
-    print("readsizebytes: %d %d", bytes, res);
-    return res;
+static int readsize(tlBuffer* buf) {
+    return decoderef2(buf, tlBufferReadByte(buf));
 }
 
-tlHandle readvalue(tlBuffer* buf, tlList* data) {
-    if (tlBufferSize(buf) < 1) fatal("buffer too small");
-    uint8_t b1 = tlBufferReadByte(buf);
-
-    if ((b1 & 0x80) == 0x80) { // short string
-        int size = b1 & 0x7F;
-        print("short string: %d", size);
-        if (tlBufferSize(buf) < size) fatal("buffer too small");
-        char *data = malloc_atomic(size + 1);
-        tlBufferRead(buf, data, size);
-        data[size] = 0;
-        return tlStringFromTake(data, size);
-    }
-    if ((b1 & 0xF0) == 0x40) { // short list
-        int size = b1 & 0x0F;
-        print("short list: %d", size);
-        tlList* list = tlListNew(size);
-        for (int i = 0; i < size; i++) {
-            tlHandle v = readref(buf, data, null);
-            assert(v);
-            print("LIST: %d: %s", i, tl_str(v));
-            tlListSet_(list, i, v);
-        }
-        return list;
-    }
-    if ((b1 & 0xF0) == 0x50) { // short map
-        int size = b1 & 0x0F;
-        print("short map: %d (%d)", size, tlBufferSize(buf));
-        tlMap* map = tlMapEmpty();
-        for (int i = 0; i < size; i++) {
-            tlHandle key = readref(buf, data, null);
-            assert(key);
-            tlHandle v = readref(buf, data, null);
-            assert(v);
-            print("MAP: %s: %s", tl_str(key), tl_str(v));
-            //tlMapSet_(map, i, key, v);
-        }
-        return map;
-    }
-
-    if ((b1 & 0xF8) == 0x00) { // number
-        int size = b1 & 3;
-        int value = readsizebytes(buf, size);
-        print("number: %d", value);
-        return tlINT(value);
-    }
-    if (b1 == 0x08) { // float
-        fatal("not implemented");
-    }
-    if (b1 == 0x09) { // double
-        fatal("not implemented");
-    }
-
-    int sizebytes = b1 & 3;
-    int size = readsizebytes(buf, sizebytes);
-    switch (b1 & 0xFC) {
-        case 0x00: // number
-            print("number");
+tlHandle readsizedvalue(tlBuffer* buf, tlList* data, uint8_t b1) {
+    int size = readsize(buf);
+    assert(size > 0 && size < 1000);
+    switch (b1) {
+        case 0xE0: // string
+            fatal("string %d", size);
             break;
-        case 0x07: // float
-            print("number");
+        case 0xE1: // list
+            fatal("list %d", size);
             break;
-        case 0x10: // bignum
-            print("number");
+        case 0xE2: // set
+            fatal("set %d", size);
             break;
-        case 0x17: // string
-            print("string");
+        case 0xE3: // map
+            fatal("map %d", size);
             break;
-        case 0x20: // list
-            print("list");
+        case 0xE4: // raw
+            fatal("raw %d", size);
             break;
-        case 0x27: // map
-            print("map");
+        case 0xE5: // bytecode
+            fatal("bytecode %d", size);
+            break;
+        case 0xE6: // bignum
+            fatal("bignum %d", size);
             break;
         default:
             fatal("unknown value type: %d", b1);
             break;
     }
-    fatal("not implemented: %d %d", sizebytes, size);
+    fatal("not reached");
+    return null;
+}
+
+tlHandle readvalue(tlBuffer* buf, tlList* data) {
+    if (tlBufferSize(buf) < 1) fatal("buffer too small");
+    uint8_t b1 = tlBufferReadByte(buf);
+    uint8_t type = b1 & 0xE0;
+    uint8_t size = b1 & 0x1F;
+
+    switch (type) {
+        case 0x00: { // short string
+            print("short string: %d", size);
+            if (tlBufferSize(buf) < size) fatal("buffer too small");
+            char *data = malloc_atomic(size + 1);
+            tlBufferRead(buf, data, size);
+            data[size] = 0;
+            return tlStringFromTake(data, size);
+        }
+        case 0x20: { // short list
+            print("short list: %d", size);
+            tlList* list = tlListNew(size);
+            for (int i = 0; i < size; i++) {
+                tlHandle v = readref(buf, data, null);
+                assert(v);
+                print("LIST: %d: %s", i, tl_str(v));
+                tlListSet_(list, i, v);
+            }
+            return list;
+        }
+        case 0x40: // short set
+            fatal("set %d", size);
+        case 0x60: { // short map
+            print("short map: %d (%d)", size, tlBufferSize(buf));
+            tlMap* map = tlMapEmpty();
+            for (int i = 0; i < size; i++) {
+                tlHandle key = readref(buf, data, null);
+                assert(key);
+                tlHandle v = readref(buf, data, null);
+                assert(v);
+                print("MAP: %s: %s", tl_str(key), tl_str(v));
+                //tlMapSet_(map, i, key, v);
+            }
+            return map;
+        }
+        case 0x80: // short raw
+            fatal("raw %d", size);
+        case 0xA0: // short bytecode
+            fatal("bytecode %d", size);
+        case 0xC0: { // short size number
+            assert(size <= 8); // otherwise it is a float ... not implemented yet
+            print("int %d", size);
+            int val = 0;
+            for (int i = 0; i < size; i++) {
+                val = (val << 8) + tlBufferReadByte(buf);
+            }
+            return tlINT(val);
+        }
+        case 0xE0: // sized types
+            return readsizedvalue(buf, data, b1);
+    }
+    fatal("not reached");
     return null;
 }
 
@@ -165,7 +170,7 @@ int main(int argc, char** argv) {
     tl_init();
 
 #if 1
-    deserialize(tlBufferFromFile("test.tlb"));
+    deserialize(tlBufferFromFile("test-input.tlb"));
     return 0;
 #endif
 
