@@ -167,11 +167,6 @@ module = emitParse name, parser.parse(io.File(name).read)
 // INVOKE, when opcode reference module data, they can still reference the empty list using
 // 1100 0100 oeps ;) it will work, but maybe better have instructions to load those?
 
-sizebytes = size ->
-    | size < 256      | 0
-    | size < 65536    | 1
-    | size < 16777216 | 2
-
 writeRef = buf, ref ->
     assert ref >= 0
     if ref < 128: buf.writeByte ref; return
@@ -185,6 +180,7 @@ literals = HashMap.new
 var $size = 0
 
 writeCode = v, main, sub, top ->
+    print "code"
     code = Buffer.new
     write v.args, main, code
     write v.argnames, main, code
@@ -194,15 +190,20 @@ writeCode = v, main, sub, top ->
     var $pc = 0
     loop:
         op = v.code[($pc += 1)]
-        | op == #end  |
-            code.writeByte 0; break
-        | op == #bind |
-            code.writeByte 192 + 13
+        print "OP:", op
+        | op == #end    | code.writeByte 0; break
+        | op == #invoke | code.writeByte 192 + 13
+        | op == #bind   |
+            code.writeByte 192 + 11
             write v.code[($pc += 1)], main, code
         | op == #module |
             code.writeByte 192 + 6
             write v.code[($pc += 1)], main, code
-        |               | print "skipping", op
+        | op == #global | code.writeByte 192 + 6; writeRef code, v.code[($pc += 1)]
+        | op == #mcall  | code.writeByte 224 + 0; writeRef code, v.code[($pc += 1)]
+        | op == #fcall  | code.writeByte 224 + 1; writeRef code, v.code[($pc += 1)]
+        | op == #bcall  | code.writeByte 224 + 2; writeRef code, v.code[($pc += 1)]
+        |               | print "WARNING: skipping", op
 
     | code.size < 32 |
         main.writeByte 160 + code.size
@@ -216,7 +217,6 @@ writeCode = v, main, sub, top ->
     writeRef sub, ref
 
 write = v, main, sub, top ->
-    print("encoding:", v)
     | isCode(v)   | writeCode v, main, sub, top
     | v == null   | sub.writeByte 192 + 0
     | v == false  | sub.writeByte 192 + 1
@@ -289,7 +289,7 @@ test = {hello:"world",test:[true, false, null, "", [], {}, -1, 0, 1, 2, 50, 100]
 out = Buffer.new
 out.write "tl01"
 main = Buffer.new
-write test, main, out, true
+write module, main, out, true
 if main.size > 0:
     assert out.size == 4
     assert $size > 0

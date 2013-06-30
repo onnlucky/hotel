@@ -123,8 +123,15 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
         }
         case 0x80: // short raw
             fatal("raw %d", size);
-        case 0xA0: // short bytecode
-            fatal("bytecode %d", size);
+        case 0xA0: { // short bytecode
+            print("short bytecode: %d", size);
+            if (tlBufferSize(buf) < size) fatal("buffer too small");
+            char *data = malloc_atomic(size);
+            tlBufferRead(buf, data, size);
+            return tlNull;
+            //return tlStringFromTake(data, size);
+            //fatal("bytecode %d", size);
+        }
         case 0xC0: { // short size number
             assert(size <= 8); // otherwise it is a float ... not implemented yet
             print("int %d", size);
