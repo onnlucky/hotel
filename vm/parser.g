@@ -47,6 +47,18 @@ static inline int writesome(ParseContext* cx, char* buf, int len) {
     return len;
 }
 
+// remove underscores from c string
+static inline char* rmu(char* c) {
+    char* r = c;
+    char* res = c;
+    while (true) {
+        if (*c == '_') { c++; continue; }
+        if (*c == 0) { *r = 0; break; }
+        *r = *c; c++; r++;
+    }
+    return res;
+}
+
 bool push_indent(void* data);
 bool pop_indent(void* data);
 bool check_indent(void* data);
@@ -529,10 +541,12 @@ thisref = "@" n:name  { $$ = tlCallFrom(tl_active(s_this_get), tl_active(s_this)
  lookup = n:name      { $$ = tl_active(n); }
 
    sym = "#" n:name                 { $$ = n }
-number = < "-"? [0-9]+ "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
+number = "0x" < [_0-9A-F]+ >        { $$ = tlINT((int)strtol(rmu(yytext), 0, 16)); }
+       | "0b" < [_0-1]+ >           { $$ = tlINT((int)strtol(rmu(yytext), 0, 2)); }
+       | < "-"? [0-9]+ "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
        | < "-"?        "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
        | < "-"? [0-9]+ "." !name  > { $$ = tlFLOAT(atof(yytext)); }
-       | < "-"? [0-9]+ >            { $$ = tlINT(atoi(yytext)); }
+       | < "-"? [0-9]+ >           { $$ = tlINT(atoi((yytext)));   }
 
   text = '"' '"'          { $$ = tlStringEmpty(); }
        | '"'  t:stext '"' { $$ = t }
