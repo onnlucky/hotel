@@ -186,6 +186,21 @@ Path = {
     }
 }
 
+UdpSocket = {
+    new: file -> { file: file, class: this.class }
+    class: {
+        sendto: ip, port, buf -> _Socket_sendto(this.file, ip, port, buf)
+        recvfrom: (buf ->
+            reader = this.file.reader
+            loop:
+                _with_lock(reader, buf):
+                    buf, ip, port = _Socket_recvfrom(this.file, buf)
+                    if buf: return buf, ip, port
+                    _io.waitread reader
+        )
+    }
+}
+
 Socket = {
     open: (address, port ->
         ip = _Socket_resolve(address)
@@ -193,6 +208,9 @@ Socket = {
     )
     listen: (port ->
         Server.new(_ServerSocket_listen(port))
+    )
+    udp: (port, broadcast ->
+        UdpSocket.new(_Socket_udp(port, broadcast))
     )
 }
 

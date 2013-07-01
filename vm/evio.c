@@ -457,20 +457,55 @@ static tlHandle _Socket_resolve(tlArgs* args) {
 }
 
 static tlHandle _Socket_udp(tlArgs* args) {
+    int port = tl_int_or(tlArgsGet(args, 0), 0);
     bool broadcast = tl_bool_or(tlArgsGet(args, 0), false);
 
-    trace("udp_open: broadcast: %d", broadcast);
+    trace("udp_open: port: %d, broadcast: %d", port, broadcast);
 
     int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (fd < 0) TL_THROW("udp_connect: failed: %s", strerror(errno));
+    if (fd < 0) TL_THROW("udp socket failed: %s", strerror(errno));
+
+    if (port) {
+        struct sockaddr_in sockaddr;
+        bzero(&sockaddr, sizeof(sockaddr));
+        sockaddr.sin_family = AF_INET;
+        sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+        sockaddr.sin_port = htons(port);
+        int r = bind(fd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
+        if (r < 0) TL_THROW("udp bind failed: %s", strerror(errno));
+    }
 
     if (broadcast) {
         int r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
-        if (r < 0) TL_THROW("oeps: %s", strerror(errno));
+        if (r < 0) TL_THROW("udp set broadcast failed: %s", strerror(errno));
     }
 
-    if (nonblock(fd) < 0) TL_THROW("udp_connect: nonblock failed: %s", strerror(errno));
+    if (nonblock(fd) < 0) TL_THROW("udp nonblock failed: %s", strerror(errno));
     return tlFileNew(fd);
+}
+
+static tlHandle _Socket_recvfrom(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a udp socket");
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 1));
+    if (!buf) TL_THROW("expected a buffer");
+
+    trace("recvfrom: %d", canwrite(buf));
+
+    tlBufferBeforeWrite(buf, 65535); // max UDP packet
+    assert(canwrite(buf));
+
+    struct sockaddr_in from;
+    unsigned int from_len = sizeof(from);
+    int r = recvfrom(file->ev.fd, writebuf(buf), canwrite(buf), 0, (struct sockaddr*)&from, &from_len);
+    if (r < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) { trace("EGAIN"); return tlNull; }
+        TL_THROW("%d: recvfrom: failed: %s", file->ev.fd, strerror(errno));
+    }
+    didwrite(buf, r);
+    trace("recvfrom: %s:%d - %d", inet_ntoa(from.sin_addr), ntohs(from.sin_port), r);
+    tlString* ip = tlStringFromTake(inet_ntoa(from.sin_addr), 0);
+    return tlResultFrom(buf, ip, tlINT(ntohs(from.sin_port)));
 }
 
 static tlHandle _Socket_sendto(tlArgs* args) {
@@ -483,10 +518,10 @@ static tlHandle _Socket_sendto(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 3));
     if (!buf) TL_THROW("expected a buffer");
 
-    trace("udp_sendto: %s:%d", tl_str(address), port);
+    trace("sendto: %s:%d", tl_str(address), port);
 
     struct in_addr ip;
-    if (!inet_aton(tlStringData(address), &ip)) TL_THROW("udp_open: invalid ip: %s", tl_str(address));
+    if (!inet_aton(tlStringData(address), &ip)) TL_THROW("sendto: invalid ip: %s", tl_str(address));
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -497,7 +532,7 @@ static tlHandle _Socket_sendto(tlArgs* args) {
     int len = tlBufferSize(buf);
     int r = sendto(file->ev.fd, tlBufferData(buf), len, 0, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
     if (r < 0) {
-        TL_THROW("oeps: %s", strerror(errno));
+        TL_THROW("%d: sendto: failed: %s", file->ev.fd, strerror(errno));
     }
     tlBufferClear(buf);
     return tlINT(len);
@@ -1236,6 +1271,7 @@ static const tlNativeCbs __evio_natives[] = {
     { "_File_from", _File_from },
     { "_Socket_udp", _Socket_udp },
     { "_Socket_sendto", _Socket_sendto },
+    { "_Socket_recvfrom", _Socket_recvfrom },
     { "_Socket_connect", _Socket_connect },
     { "_Socket_connect_unix", _Socket_connect_unix },
     { "_Socket_resolve", _Socket_resolve },

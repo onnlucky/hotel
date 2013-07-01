@@ -176,7 +176,7 @@ tlHandle deserialize(tlBuffer* buf) {
 int main(int argc, char** argv) {
     tl_init();
 
-#if 1
+#if 0
     deserialize(tlBufferFromFile("test-input.tlb"));
     return 0;
 #endif
