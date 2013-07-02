@@ -169,11 +169,20 @@ module = emitParse name, parser.parse(io.File(name).read)
 
 writeRef = buf, ref ->
     assert ref >= 0
-    if ref < 128: buf.writeByte ref; return
-    ref = ref - 128
-    if ref < 8192: buf.writeByte 192 + ref >> 8; buf.writeByte ref; return
-    ref = ref - 8192
-    if ref < 1048576: buf.writeByte 224 + ref >> 16; buf.writeByte ref >> 8; buf.writeByte ref; return
+    if ref < 1 << 7:
+        buf.writeByte ref
+        return
+    ref = ref - 1 << 7
+    if ref < 1 << 13:
+        buf.writeByte 0b1000_0000 + ref >> 7
+        buf.writeByte ref & 0b0111_1111
+        return
+    ref = ref - 1 << 13
+    if ref < 1 << 19:
+        buf.writeByte 0b1000_0000 + ref >> 13
+        buf.writeByte 0b1000_0000 + (ref >> 7) & 0b0111_1111
+        buf.writeByte ref & 0b0111_1111
+        return
     assert false
 
 literals = HashMap.new
