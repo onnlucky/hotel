@@ -199,24 +199,38 @@ writeCode = v, main, sub, top ->
     var $pc = 0
     loop:
         op = v.code[($pc += 1)]
-        print "OP:", op
-        | op == #end    | code.writeByte 0; break
-        | op == #invoke | code.writeByte 192 + 13
-        | op == #bind   |
-            code.writeByte 192 + 11
-            write v.code[($pc += 1)], main, code
+        | op == #system |
+            code.writeByte 0b1100_0000 + 5
+            write v.code[($pc += 1)], main, code // a reference to a string
         | op == #module |
-            code.writeByte 192 + 6
-            write v.code[($pc += 1)], main, code
-        | op == #global | code.writeByte 192 + 6; writeRef code, v.code[($pc += 1)]
-        | op == #mcall  | code.writeByte 224 + 0; writeRef code, v.code[($pc += 1)]
-        | op == #fcall  | code.writeByte 224 + 1; writeRef code, v.code[($pc += 1)]
-        | op == #bcall  | code.writeByte 224 + 2; writeRef code, v.code[($pc += 1)]
-        |               | print "WARNING: skipping", op
+            code.writeByte 0b1100_0000 + 6
+            write v.code[($pc += 1)], main, code // a reference to data
+        | op == #bind   |
+            code.writeByte 0b1100_0000 + 11
+            write v.code[($pc += 1)], main, code // a reference to another bytecode block
+        | op == #end    |
+            code.writeByte 0; break
+        | op == #global |
+            code.writeByte 0b1100_0000 + 6;
+            writeRef code, v.code[($pc += 1)]    // a index into the linker list
+        | op == #true   | code.writeByte 0b1100_0000 + 0
+        | op == #false  | code.writeByte 0b1100_0000 + 1
+        | op == #null   | code.writeByte 0b1100_0000 + 2
+        | op == #undef  | code.writeByte 0b1100_0000 + 3
+        | op == #int    | code.writeByte 0b1100_0000 + 4; writeRef code, v.code[($pc += 1)]
+        | op == #env    | code.writeByte 0b1100_0000 + 7; writeRef code, v.code[($pc += 1)]; writeRef code, v.code[($pc += 1)]
+        | op == #local  | code.writeByte 0b1100_0000 + 8; writeRef code, v.code[($pc += 1)]
+        | op == #arg    | code.writeByte 0b1100_0000 + 9; writeRef code, v.code[($pc += 1)]
+        | op == #result | code.writeByte 0b1100_0000 + 10; writeRef code, v.code[($pc += 1)]
+        | op == #store  | code.writeByte 0b1100_0000 + 12; writeRef code, v.code[($pc += 1)]
+        | op == #invoke | code.writeByte 0b1100_0000 + 13
+        | op == #mcall  | code.writeByte 0b1110_0000 + 0; writeRef code, v.code[($pc += 1)]
+        | op == #fcall  | code.writeByte 0b1110_0000 + 1; writeRef code, v.code[($pc += 1)]
+        | op == #bcall  | code.writeByte 0b1110_0000 + 2; writeRef code, v.code[($pc += 1)]
 
     | code.size < 32 |
         main.writeByte 160 + code.size
-    |             |
+    |                |
         main.writeByte 224 + 5
         writeSize main, v.size
 

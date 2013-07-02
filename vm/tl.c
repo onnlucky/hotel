@@ -1,6 +1,77 @@
 #include "tl.h"
 #include "debug.h"
 
+enum {
+    OP_END = 0,
+
+    OP_TRUE = 0xC0, OP_FALSE, OP_NULL, OP_UNDEF, OP_INT,        // literals
+    OP_SYSTEM, OP_MODULE, OP_ENV, OP_LOCAL, OP_ARG, OP_RESULT,  // access data
+    OP_BIND, OP_STORE, OP_INVOKE,                               // bind closures, store into locals, invoke calls
+
+    OP_MCALL  = 0xE0, OP_FCALL, OP_BCALL,                       // building calls
+    OP_MCALLN = 0xF0, OP_FCALLN, OP_BCALLN,                     // building calls with named arguments
+
+    OP_LAST
+};
+
+static tlHandle decodelit(uint8_t b);
+static int dreadsize(uint8_t** code2) {
+    uint8_t* code = *code2;
+    int res = 0;
+    while (true) {
+        uint8_t b = *code; code++;
+        if (b < 0x80) { *code2 = code; return (res << 7) | b; }
+        res = res << 6 | (b & 0x3F);
+    }
+}
+static tlHandle dreadref(uint8_t** code, tlList* data) {
+    uint8_t b = **code;
+    if (b > 0xC0) {
+        *code = *code + 1;
+        return decodelit(b);
+    }
+    int r = dreadsize(code);
+    return tlListGet(data, r);
+}
+static void disasm(uint8_t* code, tlList* data) {
+    print("<code>");
+    int r = 0; int r2 = 0; tlHandle o = null;
+    tlHandle args = dreadref(&code, data);
+    tlHandle argnames = dreadref(&code, data);
+    tlHandle localnames = dreadref(&code, data);
+    tlHandle name = dreadref(&code, data);
+    print(" %s -- %s %s %s", tl_str(name), tl_str(args), tl_str(argnames), tl_str(localnames));
+    while (true) {
+        uint8_t op = *code; code++;
+        switch (op) {
+            case OP_END: goto exit;
+            case OP_TRUE:  print(" true"); break;
+            case OP_FALSE: print(" false"); break;
+            case OP_NULL: print(" null"); break;
+            case OP_UNDEF: print(" undef"); break;
+            case OP_INT: r = dreadsize(&code); print(" int %d", r); break;
+            case OP_SYSTEM: o = dreadref(&code, data); print(" system %s", tl_str(o)); break;
+            case OP_MODULE: o = dreadref(&code, data); print(" data %s", tl_str(o)); break;
+            case OP_ENV: r = dreadsize(&code); r2 = dreadsize(&code); print(" env %d %d", r, r2); break;
+            case OP_LOCAL: r = dreadsize(&code); print(" local %d", r); break;
+            case OP_ARG: r = dreadsize(&code); print(" arg %d", r); break;
+            case OP_RESULT: r = dreadsize(&code); print(" result %d", r); break;
+            case OP_BIND: o = dreadref(&code, data); print(" data %s", tl_str(o)); break;
+            case OP_STORE: r = dreadsize(&code); print(" store %d", r); break;
+            case OP_INVOKE: print(" invoke"); break;
+            case OP_MCALL: r = dreadsize(&code); print(" mcall %d", r); break;
+            case OP_FCALL: r = dreadsize(&code); print(" fcall %d", r); break;
+            case OP_BCALL: r = dreadsize(&code); print(" bcall %d", r); break;
+            case OP_MCALLN: r = dreadsize(&code); print(" mcalln %d", r); break;
+            case OP_FCALLN: r = dreadsize(&code); print(" fcalln %d", r); break;
+            case OP_BCALLN: r = dreadsize(&code); print(" bcalln %d", r); break;
+            default: print("OEPS: %x", op);
+        }
+    }
+exit:;
+    print("</code>");
+}
+
 // 11.. ....
 static tlHandle decodelit(uint8_t b1) {
     int lit = b1 & 0x3F;
@@ -126,8 +197,9 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
         case 0xA0: { // short bytecode
             print("short bytecode: %d", size);
             if (tlBufferSize(buf) < size) fatal("buffer too small");
-            char *data = malloc_atomic(size);
-            tlBufferRead(buf, data, size);
+            uint8_t *code = malloc_atomic(size);
+            tlBufferRead(buf, (char*)code, size);
+            disasm(code, data);
             return tlNull;
             //return tlStringFromTake(data, size);
             //fatal("bytecode %d", size);
