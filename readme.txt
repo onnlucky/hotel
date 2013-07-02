@@ -4,7 +4,7 @@
 /h1: Overview
 
 Hotel is a dynamic programming languages, it borrows from functional languages
-and has concurrency build in. Language wise, it is inpsired a lot by javascript
+and has concurrency build in. Language wise, it is inspired a lot by javascript
 and ruby and a little bit by erlang and ocaml.
 
 /h1: High Level
@@ -15,15 +15,15 @@ to do this because it solves a very important problem holding other languages
 back: global effects. Hotel simply does not have them.
 
 Why is this important? Any kind of global effect cannot be isolated. You can
-put them inside of functions or objects, but that is just a convenience, it
-does not create an abstraction; an higher level. You still have to document the
+use them inside of functions or objects, but that does not hide them (they are
+global after all). It might be convenient, but it is not an abstraction, and
+therefor it does not create a higher level. You still have to document the
 effect, and handle that function or object as special. Effectively you must
-create usage patterns around the global effects, in order not to create
-interference.
+create usage patterns around the global effects.
 
-What are these global effects? Usually, doing io (files/network), loading
-modules, threads (if they share), blocking, resources, singletons and (mutable)
-globals.
+What are these global effects? Usually, doing io (files/network/syscalls),
+defining classes, loading modules, threads (if they share), blocking, resources,
+singletons and (mutable) globals.
 
 Hotel does not permit any of these. More specifically, it allows all of them,
 but in such a way they do not have global effects. Hotel only affords two
@@ -37,10 +37,10 @@ algorithm, you document that fact, and allow the programmer to choose its
 impact by making it easy to do the io (or heavy computation) in the background.
 
 Note, usually (pure) functional programming is put forward as a solution to the
-above problem. But it cannot be, because it does not allow you to hide side
-effects, thus the side effects become global effects. Pointed out clearly,
-which is a good thing. But it disallows creating abstractions around side
-effects, any abstraction are merely conveniences.
+above problem. But it cannot be, because it does not allow you to hide the side
+effects, thus the side effects become global effects. Pointed out clearly;
+definitely is a good thing. But it disallows creating abstractions around side
+effects, the best you can get is create conveniences.
 
 
 /h1: Hotel - The Name
@@ -52,7 +52,7 @@ focus on the problem at hand.
 hotel |hōˈtel|
 noun
 1. an establishment providing accommodations, meals, and other services for
-   travelers and tourists.
+   travellers and tourists.
 2. a code word representing the letter H, used in radio communication.
 3. a programming language providing many services for programmers and
    developers.
@@ -60,9 +60,9 @@ noun
 
 # syntax design
 
-Must be able to not type parens all the time. So you kan skip them for the "primary" expressions and for blocks. Especially for the primary expressions, you should be able to insert a primary expression to the left of it and it should mean the same thing:
+Must be able to not type parens all the time. So you can skip them for the "primary" expressions and for blocks. Especially for the primary expressions, you should be able to insert a primary expression to the left of it and it should mean the same thing:
 
-all run the initial statment unchanged
+all run the initial statement unchanged
   fac 10
   print fac 10
   sometimes print fact 10
@@ -73,13 +73,13 @@ same for:
 
 # selfapplication
 
-If a name appears all by itself in single statement, it selfactivates ... the only other use for such a statment would be if it is at the end of an code block to return that value. In that case you can use return name instead.
+If a name appears all by itself in single statement, it selfactivates ... the only other use for such a statement would be if it is at the end of an code block to return that value. In that case you can use return name instead.
 
 so:
     print
 would actually print a newline ...
 
-implications, any bare statment is executed, so returning last value only works by typing:
+implications, any bare statement is executed, so returning last value only works by typing:
   return value
 not
   value
@@ -89,11 +89,11 @@ and fail
 
 # about continuations and flow control
 
-There are three fundamental control flow functions. return, goto and continuation. These always have a tRunCode as reference. Because we try to be very lazy when to materialize tRun's the host (c) stack implies the native caller flow. But non linear flow by these functions makes this a delicate situation.
+There are three fundamental control flow functions. return, goto and continuation. These always have a tRunCode as reference. Because we try to be very lazy when to materialise tRun's the host (c) stack implies the native caller flow. But non linear flow by these functions makes this a delicate situation.
 
 # macros
 
-Before any optimization, macros may run. Basically after parsing, but before optimizing/compiling, macros may run. As we see a macro definitions, we take it out of the source, compile it and have it defined for the current scope. As we see symbols in apply position, if they refer to a macro, we apply the macro, the arguments are unevaluated syntax tree elements.
+Before any optimisation, macros may run. Basically after parsing, but before optimising/compiling, macros may run. As we see a macro definitions, we take it out of the source, compile it and have it defined for the current scope. As we see symbols in apply position, if they refer to a macro, we apply the macro, the arguments are unevaluated syntax tree elements.
 
 macro repeat = () {
     if args.size > 0: throw "repeat expects a single block"
@@ -131,23 +131,23 @@ The function prototype looks as follows: `void name(tlFun* fn, tlMap* args)`. Re
 There are some rules to adhere:
 * don't call tlcall_call() or friends
 * don't modify tlTask, tlFun or tlMap
-* hotel may run using many threads concurrently, and your functions might be called on any thread, even simultaniously, even this excact same call might run concurrently (all receiving the same tlMap*).
+* hotel may run using many threads concurrently, and your functions might be called on any thread, even simultaneously, even this excact same call might run concurrently (all receiving the same tlMap*).
 
 Return only hotel values. Anything primitive can be placed under tlPointer or
 others. When using your own structures, ensure to be thread safe and fully
 reentrant.
 
-Notice only true/false/null/undefined and float values are guarenteed
+Notice only true/false/null/undefined and float values are guaranteed
 primitives. Especially tlNumber and tlString are tricky. They might be tlInt and
 tlString*, but they might also be higher level values that act as these. So when
 calling primitives you need to know they are, and force numbers and texts to be
-normalized (call toPrimitive on them).
+normalised (call toPrimitive on them).
 
 ## full functions
 
 Full functions may re-enter the evaluator. But the hotel language supports full
 continuations and forks and other such constructs, and cannot therefor be
-evaulated on a simple stack. So your full functions cannot use the c-level
+evaluated on a simple stack. So your full functions cannot use the c-level
 stack, only as temporary space. Full functions must implement continuations
 manually. Basically your function will get called many more times, and you have
 to figure out what to do each time you are called.
@@ -193,7 +193,7 @@ hotel:
 Hotel is build using the actor model, light weight threads called a task. A task is a share nothing thread, and you push messages onto its queue, it will respond at its own leisure.
 
 Funny thing is, this is much like an event loop, except that you write a
-response back to the event. This is excatly how you implement a c level task.
+response back to the event. This is exactly how you implement a c level task.
 Your choice is to "sacrifice" a os level thread.
 
 The idea is simple, whenever messages became available, a callback is invoked.
