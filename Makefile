@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-LJACK:=$(shell if ls /usr/lib/libjack.* /usr/lib64/libjack.* 2>/dev/null ; then echo "-ljack"; fi)
+LJACK:=$(shell if ls /usr/lib*/libjack.* /usr/lib/*/libjack.* 2>/dev/null ; then echo "-ljack"; fi)
 
 CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
 ifeq ($(VALGRIND),1)
