@@ -186,10 +186,12 @@ TL_REF_TYPE(tlWriter);
 struct tlReader {
     tlLock lock;
     tlFile* file;
+    bool closed;
 };
 struct tlWriter {
     tlLock lock;
     tlFile* file;
+    bool closed;
 };
 // TODO how thread save is tlFile like this? does it need to be?
 struct tlFile {
@@ -295,7 +297,7 @@ static tlHandle _reader_isClosed(tlArgs* args) {
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
 
-    return tlBOOL(file->ev.fd < 0);
+    return tlBOOL(file->ev.fd < 0 || reader->closed);
 }
 static tlHandle _reader_close(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
@@ -324,6 +326,7 @@ static tlHandle _reader_read(tlArgs* args) {
     assert(tlFileIs(file));
 
     if (file->ev.fd < 0) TL_THROW("read: already closed");
+    if (reader->closed) TL_THROW("reader: already closed");
 
     // TODO figure out how much data there is to read ...
     // TODO do this in a while loop until all data from kernel is read?
@@ -335,6 +338,7 @@ static tlHandle _reader_read(tlArgs* args) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) { trace("EGAIN"); return tlNull; }
         TL_THROW("%d: read: failed: %s", file->ev.fd, strerror(errno));
     }
+    if (len == 0) reader->closed = true;
     didwrite(buf, len);
     trace("read: %d %d", file->ev.fd, len);
     return tlINT(len);
@@ -343,13 +347,13 @@ static tlHandle _reader_read(tlArgs* args) {
 static tlHandle _writer_isClosed(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
-    tlWriter* reader = tlWriterCast(tlArgsTarget(args));
-    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Writer");
+    tlWriter* writer = tlWriterCast(tlArgsTarget(args));
+    if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
 
-    tlFile* file = tlFileFromWriter(reader);
+    tlFile* file = tlFileFromWriter(writer);
     assert(tlFileIs(file));
 
-    return tlBOOL(file->ev.fd < 0);
+    return tlBOOL(file->ev.fd < 0 || writer->closed);
 }
 static tlHandle _writer_close(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
@@ -364,6 +368,7 @@ static tlHandle _writer_close(tlArgs* args) {
     if (file->ev.fd < 0) return tlNull;
     int r = shutdown(file->ev.fd, SHUT_WR);
     if (r) trace("error in shutdown: %s", strerror(errno));
+    writer->closed = true;
     return tlNull;
 }
 static tlHandle _writer_write(tlArgs* args) {
@@ -378,6 +383,7 @@ static tlHandle _writer_write(tlArgs* args) {
     assert(tlFileIs(file));
 
     if (file->ev.fd < 0) TL_THROW("write: already closed");
+    if (writer->closed) TL_THROW("writer: already closed");
 
     if (tlBufferSize(buf) <= 0) TL_THROW("write: failed: buffer empty");
 

@@ -225,6 +225,7 @@ INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
     tlBufferRewind(buf, -1);
     return buf;
 }
+// TODO this should return bytes, not strings ...
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
 
@@ -244,38 +245,41 @@ INTERNAL tlHandle _buffer_readByte(tlArgs* args) {
     return tlINT(tlBufferReadByte(buf));
 }
 
+INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
+    if (tlIntIs(v)) {
+        return tlBufferWriteByte(buf, tl_int(v));
+    }
+    if (tlNumberIs(v)) {
+        return tlBufferWriteByte(buf, (int)tl_double(v));
+    }
+    if (tlStringIs(v)) {
+        tlString* str = tlStringAs(v);
+        return tlBufferWrite(buf, tlStringData(str), tlStringSize(str));
+    }
+    if (tlBufferIs(v)) {
+        tlBuffer* from = tlBufferAs(v);
+        int size = canread(from);
+        tlBufferWrite(buf, readbuf(from), size);
+        didread(from, size);
+        return size;
+    }
+    if (error) *error = "expected a String or Buffer or Bin to write";
+    return 0;
+}
+
 INTERNAL tlHandle _buffer_write(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
     if (!buf) TL_THROW("expected a Buffer");
 
     int written = 0;
-    for (int i = 0; i < 1000; i++) {
+    const char* error = null;
+    for (int i = 0;; i++) {
         tlHandle v = tlArgsGet(args, i);
         if (!v) return tlINT(written);
-
-        if (tlStringIs(v)) {
-            tlString* str = tlStringAs(v);
-            written += tlBufferWrite(buf, tlStringData(str), tlStringSize(str));
-        } else if (tlBufferIs(v)) {
-            tlBuffer* from = tlBufferAs(v);
-            int size = canread(from);
-            tlBufferWrite(buf, readbuf(from), size);
-            didread(from, size);
-            written += size;
-        } else {
-            // TODO this leaves buffer in half state ... do prepass?
-            TL_THROW("expected a String or Buffer or Bin to write");
-        }
+        written += buffer_write_object(buf, v, &error);
+        if (error) TL_THROW("%s", error);
     }
     return tlNull;
-}
-INTERNAL tlHandle _buffer_writeByte(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
-    if (!buf) TL_THROW("expected a Buffer");
-
-    int b = tl_int_or(tlArgsGet(args, 0), 0);
-    tlBufferWriteByte(buf, (uint8_t)b);
-    return tlOne;
 }
 
 INTERNAL tlHandle _buffer_find(tlArgs* args) {
@@ -284,11 +288,15 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
 
-    int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
+    int from = max(0, tl_int_or(tlArgsGet(args, 1), 1) - 1);
     if (from < 0) return tlNull;
 
+    int upto = min(tlBufferSize(buf), tl_int_or(tlArgsGet(args, 2), tlBufferSize(buf)));
+    if (from >= upto) return tlNull;
+
+    assert(tlBufferSize(buf) == canread(buf));
     const char* begin = readbuf(buf);
-    char* at = strnstr(begin + from, tlStringData(str), max(canread(buf) - from, tlStringSize(str)));
+    char* at = strnstr(begin + from, tlStringData(str), max(upto - from, tlStringSize(str)));
     if (!at) return tlNull;
     return tlINT(1 + at - begin);
 }
@@ -325,7 +333,15 @@ INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
 }
 
 INTERNAL tlHandle _Buffer_new(tlArgs* args) {
-    return tlBufferNew();
+    tlBuffer* buf = tlBufferNew();
+
+    const char* error = null;
+    for (int i = 0;; i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (!v) return buf;
+        buffer_write_object(buf, v, &error);
+        if (error) TL_THROW("%s", error);
+    }
 }
 static tlHandle _isBuffer(tlArgs* args) {
     return tlBOOL(tlBufferIs(tlArgsGet(args, 0)));
@@ -338,11 +354,11 @@ static void buffer_init() {
             "clear", _buffer_clear,
             "rewind", _buffer_rewind,
             "read", _buffer_read,
+            "readString", _buffer_read,
             "readByte", _buffer_readByte,
-            "write", _buffer_write,
-            "writeByte", _buffer_writeByte,
             "find", _buffer_find,
-            "findByte", _buffer_findByte,
+            "findByte", _buffer_findByte, // TODO remove
+            "write", _buffer_write,
             "startsWith", _buffer_startsWith,
             null
     );

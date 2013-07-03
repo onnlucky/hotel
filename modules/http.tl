@@ -76,40 +76,33 @@ openstream = url ->
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
     return io.Socket.open(url.host, url.port or 80)
 
-get = url, givenbuf ->
+get = url ->
     url = httpparser.url(url)
-    s = openstream(url)
-    buf = givenbuf or Buffer.new
-    buf.write "GET ", url.request, " HTTP/1.0\r\n"
-    buf.write "Host: ", url.host, "\r\n"
-    buf.write "User-Agent: Mozilla/5.0\r\n"
-    buf.write "\r\n"
-    s.write buf
+    conn = openstream(url)
+    conn.write "GET "+ url.request +" HTTP/1.0\r\n"
+    conn.write "Host: "+ url.host +"\r\n"
+    conn.write "User-Agent: Mozilla/5.0\r\n"
+    conn.write "\r\n"
 
-    loop:
-        len = s.read buf
-        at = buf.find("\r\n\r\n")
-        if not at:
-            if len == 0: Error("No headers received").throw
-            if buf.size > 8000: Error("Headers too long").throw
-            continue
-        res = httpparser.response(buf.read(at - 1 + 4))
-        buf.compact
+    // TODO now we can just parse without "finding" first ...
+    at = conn.find("\r\n\r\n", 0, 8000)
+    if not at:
+        if conn.size >= 8000: Error("Headers too long").throw
+        Error("No headers received").throw
 
-        length = res.headers.get("Content-Length")
-        if length:
-            length = length.eval
-            loop:
-                if buf.size >= length: break
-                read = s.read buf
-                if not read: Error("Incomplete body received").throw
-            if givenbuf: return buf, res
-            return buf.read, res
-        loop:
-            read = s.read buf
-            if not read: break
-        if givenbuf: return buf, res
-        return buf.read, res
+    // TODO implement encodings and taking back the stream after body is done ...
+    res = httpparser.response(conn.read(at - 1 + 4))
+    if args.names.stream:
+        return conn, res
+
+    length = res.headers.get("Content-Length")
+    if length:
+        length = length.eval
+        body = conn.read length
+        if not body or body.size < length:
+            Error("Incomplete body received").throw
+        return body, res
+    return conn.read, res
 
 return { Server: Server, get: get }
 

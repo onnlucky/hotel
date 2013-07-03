@@ -152,6 +152,7 @@ static tlKind _tlArgsKind = {
 };
 
 static void args_init() {
+    v_args_empty = tlArgsNew(null, null);
     _tlArgsKind.klass = tlClassMapFrom(
             "size", _args_size,
             "get", _args_get,
@@ -163,8 +164,14 @@ static void args_init() {
 
             "map", _args_map,
             "names", _args_names,
+            "each", null,
             null
     );
-    v_args_empty = tlArgsNew(null, null);
+    tlMap* constructor = tlClassMapFrom(
+        "class", null,
+        null
+    );
+    tlMapSetSym_(constructor, s_class, _tlArgsKind.klass);
+    tl_register_global("Args", constructor);
 }
 

@@ -49,46 +49,62 @@ writeFull = writer, buf ->
         if len == 0: return buf.size
         if not len: _io.waitwrite writer
 
+/// A Stream is a lot like a buffer, but we read and write from some source
 Stream = {
     // TODO optimize the read/write buffer usage
     new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
     class: {
-
-        read: (buf ->
+        _readSome: ->
             reader = this.file.reader
-            if buf:
-                _with_lock(reader, buf):
-                    buf.write this.rbuf
-                    len = readSome(reader, buf)
-                    if len == 0: return null
-                    return buf
             _with_lock(reader, this.rbuf):
-                len = readFull(reader, this.rbuf)
-                if len == 0: return null
-                return this.rbuf.read
-        )
-
-        write: (val ->
-            assert val
-            // TODO throw exception if not all could be written
+                len = readSome(reader, this.rbuf)
+        _readFull: ->
+            reader = this.file.reader
+            _with_lock(reader, this.rbuf): readFull(reader, this.rbuf)
+        _writeOne: val ->
+            if not val: return
             writer = this.file.writer
+            // TODO throw exception if not all could be written
             if isBuffer(val):
                 _with_lock(writer, val):
-                    assert(this.wbuf.size == 0)
                     return writeFull(writer, val)
             _with_lock(writer, this.wbuf):
-                this.wbuf.write val.toString
+                this.wbuf.write val
                 return writeFull(writer, this.wbuf)
-        )
-        writeclose: (->
+
+        readClosed: ->
+            return this.rbuf.size == 0 and this.file.reader.isClosed
+        size: ->
+            return this.rbuf.size
+        readByte: ->
+            if this.rbuf.size == 0: this._readSome
+            return this.rbuf.readByte
+        readString: len ->
+            return this.read len
+        read: len ->
+            if len:
+                while this.rbuf.size < len: this._readSome
+                return this.rbuf.read len
+            this._readFull
+            return this.rbuf.read
+        find: what, from, upto ->
+            loop:
+                r = this.rbuf.find what, from, upto
+                if r: return r
+                if upto and this.rbuf.size >= upto: return null
+                if this.file.reader.isClosed: return null
+                this._readSome
+
+        /// write many of Buffer, String, Binary, or byte (any number); skipping nulls
+        write: ->
+            args.each: v -> this._writeOne v
+        writeclose: ->
             if this.file.isClosed: return
             writer = this.file.writer
             _with_lock(writer): writer.close
-        )
-        close: (->
+        close: ->
             if this.file.isClosed: return
             _io.close this.file
-        )
     }
 }
 
@@ -217,14 +233,10 @@ Socket = {
 _run = arglist, env, check ->
     // no stdin, no stdin, no stderr, joined stdin/stderr
     child = _io.launch(Task.locals.cwd, arglist, false, true, false, true, env, false)
-    buf = Buffer.new
-    out = Stream.new(child.out)
-    loop:
-        res = out.read buf
-        if not res: break
+    output = Stream.new(child.out).read
     r = child.wait
-    if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=buf.read).throw
-    return buf.read, r
+    if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=output).throw
+    return output, r
 
 /// run(cmdline, args...) env=null, allowerror=false
 /// execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[1:].cat(args) as arguments

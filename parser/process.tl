@@ -170,18 +170,18 @@ module = emitParse name, parser.parse(io.File(name).read)
 writeRef = buf, ref ->
     assert ref >= 0
     if ref < 1 << 7:
-        buf.writeByte ref
+        buf.write ref
         return
     ref = ref - 1 << 7
     if ref < 1 << 13:
-        buf.writeByte 0b1000_0000 + ref >> 7
-        buf.writeByte ref & 0b0111_1111
+        buf.write 0b1000_0000 + ref >> 7
+        buf.write ref & 0b0111_1111
         return
     ref = ref - 1 << 13
     if ref < 1 << 19:
-        buf.writeByte 0b1000_0000 + ref >> 13
-        buf.writeByte 0b1000_0000 + (ref >> 7) & 0b0111_1111
-        buf.writeByte ref & 0b0111_1111
+        buf.write 0b1000_0000 + ref >> 13
+        buf.write 0b1000_0000 + (ref >> 7) & 0b0111_1111
+        buf.write ref & 0b0111_1111
         return
     assert false
 
@@ -200,38 +200,38 @@ writeCode = v, main, sub, top ->
     loop:
         op = v.code[($pc += 1)]
         | op == #system |
-            code.writeByte 0b1100_0000 + 5
+            code.write 0b1100_0000 + 5
             write v.code[($pc += 1)], main, code // a reference to a string
         | op == #module |
-            code.writeByte 0b1100_0000 + 6
+            code.write 0b1100_0000 + 6
             write v.code[($pc += 1)], main, code // a reference to data
         | op == #bind   |
-            code.writeByte 0b1100_0000 + 11
+            code.write 0b1100_0000 + 11
             write v.code[($pc += 1)], main, code // a reference to another bytecode block
         | op == #end    |
-            code.writeByte 0; break
+            code.write 0; break
         | op == #global |
-            code.writeByte 0b1100_0000 + 6;
+            code.write 0b1100_0000 + 6;
             writeRef code, v.code[($pc += 1)]    // a index into the linker list
-        | op == #true   | code.writeByte 0b1100_0000 + 0
-        | op == #false  | code.writeByte 0b1100_0000 + 1
-        | op == #null   | code.writeByte 0b1100_0000 + 2
-        | op == #undef  | code.writeByte 0b1100_0000 + 3
-        | op == #int    | code.writeByte 0b1100_0000 + 4; writeRef code, v.code[($pc += 1)]
-        | op == #env    | code.writeByte 0b1100_0000 + 7; writeRef code, v.code[($pc += 1)]; writeRef code, v.code[($pc += 1)]
-        | op == #local  | code.writeByte 0b1100_0000 + 8; writeRef code, v.code[($pc += 1)]
-        | op == #arg    | code.writeByte 0b1100_0000 + 9; writeRef code, v.code[($pc += 1)]
-        | op == #result | code.writeByte 0b1100_0000 + 10; writeRef code, v.code[($pc += 1)]
-        | op == #store  | code.writeByte 0b1100_0000 + 12; writeRef code, v.code[($pc += 1)]
-        | op == #invoke | code.writeByte 0b1100_0000 + 13
-        | op == #mcall  | code.writeByte 0b1110_0000 + 0; writeRef code, v.code[($pc += 1)]
-        | op == #fcall  | code.writeByte 0b1110_0000 + 1; writeRef code, v.code[($pc += 1)]
-        | op == #bcall  | code.writeByte 0b1110_0000 + 2; writeRef code, v.code[($pc += 1)]
+        | op == #true   | code.write 0b1100_0000 + 0
+        | op == #false  | code.write 0b1100_0000 + 1
+        | op == #null   | code.write 0b1100_0000 + 2
+        | op == #undef  | code.write 0b1100_0000 + 3
+        | op == #int    | code.write 0b1100_0000 + 4; writeRef code, v.code[($pc += 1)]
+        | op == #env    | code.write 0b1100_0000 + 7; writeRef code, v.code[($pc += 1)]; writeRef code, v.code[($pc += 1)]
+        | op == #local  | code.write 0b1100_0000 + 8; writeRef code, v.code[($pc += 1)]
+        | op == #arg    | code.write 0b1100_0000 + 9; writeRef code, v.code[($pc += 1)]
+        | op == #result | code.write 0b1100_0000 + 10; writeRef code, v.code[($pc += 1)]
+        | op == #store  | code.write 0b1100_0000 + 12; writeRef code, v.code[($pc += 1)]
+        | op == #invoke | code.write 0b1100_0000 + 13
+        | op == #mcall  | code.write 0b1110_0000 + 0; writeRef code, v.code[($pc += 1)]
+        | op == #fcall  | code.write 0b1110_0000 + 1; writeRef code, v.code[($pc += 1)]
+        | op == #bcall  | code.write 0b1110_0000 + 2; writeRef code, v.code[($pc += 1)]
 
     | code.size < 32 |
-        main.writeByte 160 + code.size
+        main.write 160 + code.size
     |                |
-        main.writeByte 224 + 5
+        main.write 224 + 5
         writeSize main, v.size
 
     main.write code
@@ -241,46 +241,46 @@ writeCode = v, main, sub, top ->
 
 write = v, main, sub, top ->
     | isCode(v)   | writeCode v, main, sub, top
-    | v == null   | sub.writeByte 192 + 0
-    | v == false  | sub.writeByte 192 + 1
-    | v == true   | sub.writeByte 192 + 2
+    | v == null   | sub.write 192 + 0
+    | v == false  | sub.write 192 + 1
+    | v == true   | sub.write 192 + 2
     | isFloat(v)  |
-        return sub.writeByte 128 + 8
+        return sub.write 128 + 8
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
 
-        main.writeByte 9
+        main.write 9
         main.writeFloat v
         return writeRef sub, ref
     | isNumber(v) |
-        if v >= -2 and v + 8 < 50: return sub.writeByte 192 + 8 + v
+        if v >= -2 and v + 8 < 50: return sub.write 192 + 8 + v
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
 
-        main.writeByte 192 + 4
-        3.to 0: n -> main.writeByte v >> n * 8
+        main.write 192 + 4
+        3.to 0: n -> main.write v >> n * 8
         return writeRef sub, ref
     | isString(v) |
-        if v.size == 0: return sub.writeByte 192 + 3
+        if v.size == 0: return sub.write 192 + 3
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
 
         | v.size < 32 |
-            main.writeByte 0 + v.size
+            main.write 0 + v.size
             print "short string", v.size, v
         |              |
-            main.writeByte 224 + 0
+            main.write 224 + 0
             writeSize main, v.size
         main.write v
         return writeRef sub, ref
     | isList(v)   |
-        if v.size == 0: return sub.writeByte 192 + 4
+        if v.size == 0: return sub.write 192 + 4
 
         list = Buffer.new
         | v.size < 32 |
-            list.writeByte 32 + v.size
+            list.write 32 + v.size
         |             |
-            list.writeByte 224 + 1
+            list.write 224 + 1
             writeSize main, v.size
         v.each: v => write v, main, list
         assert list.size >= 1 + v.size
@@ -291,13 +291,13 @@ write = v, main, sub, top ->
         writeRef sub, ref
     | isObject(v) |
         keys = _Map_keys(v)
-        if keys.size == 0: return sub.writeByte 192 + 5
+        if keys.size == 0: return sub.write 192 + 5
 
         map = Buffer.new
         | keys.size < 32 |
-            map.writeByte 96 + keys.size
+            map.write 96 + keys.size
         |                |
-            list.writeByte 224 + 3
+            list.write 224 + 3
             writeSize main, v.size
         keys.each: k ->
             write k, main, map

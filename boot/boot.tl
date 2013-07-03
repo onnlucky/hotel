@@ -133,6 +133,8 @@ _install(String.class, #replace, (replace = (from, to ->
     return this.split(from).join(to)
 )))
 
+_install(Args.class, #each, _each)
+
 _install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)
 _install(List.class, #random, _get_random)

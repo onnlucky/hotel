@@ -44,19 +44,12 @@ new = name ->
         if cmd?new == #List: return list_new(cmd.id, true)
         if cmd?set: return ids[cmd.id]._back.set(cmd.k, revive(cmd.v))
         if cmd?del: return ids[cmd.id]._back.remove(cmd.k)
-        assert(false, "unknown command: $(cmd)")
+        assert(false, "unknown command: $cmd")
 
-    // so we don't leak a buffer
-    (
-        buf = Buffer.new
-        loop:
-            fd.read buf
-            if buf.size == 0: break
-            while buf.find("\n"):
-                cmd = _from_repr(buf)
-                assert buf.read(1) == "\n"
-                replay(cmd)
-    )
+    while fd.find("\n"):
+        cmd = _from_repr(fd.rbuf) // TODO this is cheating!!
+        assert fd.read(1) == "\n"
+        replay(cmd)
 
     return {
         Object: {
