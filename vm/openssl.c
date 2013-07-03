@@ -7,6 +7,13 @@
 
 #include "trace-off.h"
 
+#ifdef PLATFORM_MACOSX
+#define SSLCONST
+#else
+#define SSLCONST const
+#endif
+
+
 static int sb_write(BIO* bio, const char* from, int len) {
     trace("write: %d", len);
     BIO_clear_retry_flags(bio);
@@ -101,7 +108,7 @@ INTERNAL tlHandle _SSL_new(tlArgs* args) {
     ssl->rbuf = ssl->rbio->ptr = tlBufferNew();
     ssl->wbuf = ssl->wbio->ptr = tlBufferNew();
 
-    const SSL_METHOD *m = SSLv23_client_method();
+    SSLCONST SSL_METHOD *m = SSLv23_client_method();
     assert(m);
     SSL_CTX* ctx = SSL_CTX_new(m);
     assert(ctx);

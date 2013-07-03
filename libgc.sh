@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+git submodule init
+git submodule update
+
 CFLAGS="-g -O3"
 DEBUG="--enable-gc-debug --enable-gc-assertions --enable-debug"
 #NOTHREADS="--disable-threads"
