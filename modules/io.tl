@@ -111,6 +111,7 @@ Stream = {
 Server = {
     new: file -> { file: file, class: this.class }
     class: {
+        port: -> this.file.port
         accept: (->
             reader = this.file.reader
             _with_lock(reader):
@@ -124,7 +125,6 @@ Server = {
             if this.file.isClosed: return
             _io.close this.file
         )
-
         serve: (->
             block = args.block; if not block: throw "serve expects a block"
             loop:

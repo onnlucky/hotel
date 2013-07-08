@@ -250,6 +250,17 @@ static tlFile* tlFileNew(int fd) {
     return file;
 }
 
+static tlHandle _file_port(tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsTarget(args));
+    if (!file) TL_THROW("expected a File");
+
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    socklen_t len = sizeof(sockaddr);
+    int r = getsockname(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    if (r < 0) TL_THROW("file.port: %s", strerror(errno));
+    return tlINT(ntohs(sockaddr.sin_port));
+}
 static tlHandle _file_isClosed(tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsTarget(args));
     if (!file) TL_THROW("expected a File");
@@ -598,7 +609,7 @@ static tlHandle _Socket_connect_unix(tlArgs* args) {
 
 // TODO make backlog configurable
 static tlHandle _ServerSocket_listen(tlArgs* args) {
-    int port = tl_int_or(tlArgsGet(args, 0), -1);
+    int port = tl_int_or(tlArgsGet(args, 0), 0);
     trace("tcp_listen: 0.0.0.0:%d", port);
 
     struct sockaddr_in sockaddr;
@@ -1320,6 +1331,7 @@ void evio_init() {
     );
     _tlFileKind.toString = filetoString;
     _tlFileKind.klass = tlClassMapFrom(
+        "port", _file_port,
         "isClosed", _file_isClosed,
         "close", _file_close,
         "reader", _file_reader,

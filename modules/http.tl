@@ -55,6 +55,7 @@ HttpConnection = conn ->
 Server = {
     new: port -> { sock: io.Socket.listen(port), class: this.class }
     class: {
+        port: -> this.sock.port
         close: -> this.sock.close
         serve: ( ->
             block = args.block; if not block: throw "expect a block"
