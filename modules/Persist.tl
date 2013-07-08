@@ -55,7 +55,7 @@ new = name ->
         Object: {
             new: (from ->
                 object = object_new()
-                if from: _Map_keys(from).each: k -> object._set(k, _Map_get(from, k))
+                if from: Map(from).each: k, v -> object._set(k, v)
                 return object
             )
             get: (name ->

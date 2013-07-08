@@ -184,10 +184,27 @@ _install(List.class, #flatten, (flatten = (->
     _flatten2(this, arr)
     return arr.toList
 )))
+
+_map_each = (m, fn ->
+    block = args.block or fn
+    if not block: throw "each expects a block or fn"
+    keys = Map.keys(m)
+    keys.each: k -> block(k, m[k])
+)
+_install(Map.class, #each, (each = ( fn ->
+    block = args.block or fn
+    if not block: throw "each expects a block or fn"
+    keys = Map.keys(this)
+    keys.each: k -> block(k, this[k])
+)))
+_install(Map, #each, _map_each)
+_install(Object, #each, _map_each)
+
 _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
 _install(Array.class, #find, _find)
 _install(Array.class, #join, _join)
+
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
@@ -227,7 +244,7 @@ inspect = x ->
             return true
         )
         _match(isObject(x)): (
-            keys = _Map_keys(x)
+            keys = Map.keys(x)
             if keys.size == 0: buf.write("{}"); return false
             if (not inlist and indent.size > 0): buf.write("\n")
             indent = bool(inlist, indent.cat(" "), indent)
@@ -236,7 +253,7 @@ inspect = x ->
                 if not inlist: buf.write(indent)
                 if inlist: if not $first: buf.write(indent)
                 buf.write(key.toString); buf.write(": ")
-                nl = toJSON(_Map_get(x, key), indent.cat(" "), buf)
+                nl = toJSON(Map.get(x, key), indent.cat(" "), buf)
                 if not nl: buf.write("\n")
                 $first = false
             return true

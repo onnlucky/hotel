@@ -290,19 +290,19 @@ write = v, main, sub, top ->
         if top: return
         writeRef sub, ref
     | isObject(v) |
-        keys = _Map_keys(v)
-        if keys.size == 0: return sub.write 192 + 5
+        m = Map(v)
+        if m.size == 0: return sub.write 192 + 5
 
         map = Buffer.new
-        | keys.size < 32 |
-            map.write 96 + keys.size
+        | m.size < 32 |
+            map.write 96 + m.size
         |                |
             list.write 224 + 3
             writeSize main, v.size
-        keys.each: k ->
+        m.each: k, v ->
             write k, main, map
-            write _Map_get(v, k), main, map
-        assert map.size >= 1 + keys.size * 2
+            write v, main, map
+        assert map.size >= 1 + m.size * 2
         main.write map
         ref = $size; $size += 1
         if top: return

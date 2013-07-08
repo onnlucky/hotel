@@ -1,11 +1,11 @@
 set_target = call, fn ->
     if not call: return fn
-    if not call.target: return _Map_set(call, #target, fn)
-    _Map_set(call, #target, set_target(call.target, fn))
+    if not call.target: return Object.set(call, #target, fn)
+    Object.set(call, #target, set_target(call.target, fn))
 
 add_block = call, block ->
     if not block: return call
-    _Map_set(call, #block, block)
+    Object.set(call, #block, block)
 
 nvalue = name ->
     if name == "null": return false

@@ -239,10 +239,17 @@ static tlHandle _Map_clone(tlArgs* args) {
 }
 
 tlMap* tlHashMapToMap(tlHashMap*);
+tlMap* tlHashMapToObject(tlHashMap*);
 static tlHandle _Map_from(tlArgs* args) {
     tlHandle a1 = tlArgsGet(args, 0);
     if (tlHashMapIs(a1)) return tlHashMapToMap(a1);
     if (tlMapOrObjectIs(a1)) return tlObjectToMap(a1);
+    TL_THROW("expect a object, map, or HashMap");
+}
+static tlHandle _Object_from(tlArgs* args) {
+    tlHandle a1 = tlArgsGet(args, 0);
+    if (tlHashMapIs(a1)) return tlHashMapToObject(a1);
+    if (tlMapOrObjectIs(a1)) return tlMapToObject(a1);
     TL_THROW("expect a object, map, or HashMap");
 }
 
@@ -291,6 +298,16 @@ static tlHandle _Map_get(tlArgs* args) {
     if (!key) TL_THROW("Expected a symbol");
     tlHandle res = tlMapGetSym(map, tlSymFromString(key));
     return tlMAYBE(res);
+}
+static tlHandle _Object_set(tlArgs* args) {
+    trace("");
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
+    tlString* key = tlStringCast(tlArgsGet(args, 1));
+    if (!key) TL_THROW("Expected a symbol");
+    tlHandle val = tlArgsGet(args, 2);
+    if (!val) TL_THROW("Expected a value");
+    return tlMapToObject_(tlMapSet(map, tlSymFromString(key), val));
 }
 static tlHandle _Map_set(tlArgs* args) {
     trace("");
@@ -410,16 +427,28 @@ static void map_init() {
         "set", _map_set,
         "keys", _map_keys,
         "toObject", _map_toObject,
+        "each", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(
         "call", _Map_from,
+        "set", _Map_set,
         "keys", _Map_keys,
         "get", _Map_get,
         "class", null,
+        "each", null,
+        null
+    );
+    tlMap* oconstructor = tlClassMapFrom(
+        "call", _Object_from,
+        "set", _Object_set,
+        "keys", _Map_keys,
+        "get", _Map_get,
+        "each", null,
         null
     );
     tlMapSetSym_(constructor, s_class, _tlMapKind.klass);
     tl_register_global("Map", constructor);
+    tl_register_global("Object", oconstructor);
 }
 
