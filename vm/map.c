@@ -52,6 +52,11 @@ tlMap* tlMapToObject(tlMap* map) {
     for (int i = 0; i < tlMapSize(map); i++) nmap->data[i] = map->data[i];
     return tlMapToObject_(nmap);
 }
+tlMap* tlObjectToMap(tlMap* map) {
+    tlMap* nmap = tlMapNew(map->keys);
+    for (int i = 0; i < tlMapSize(map); i++) nmap->data[i] = map->data[i];
+    return nmap;
+}
 
 tlHandle tlMapGet(tlMap* map, tlHandle key) {
     assert(tlMapOrObjectIs(map));
@@ -232,6 +237,15 @@ static tlHandle _Map_clone(tlArgs* args) {
     assert(argc == tlArgsSize(args));
     return map;
 }
+
+tlMap* tlHashMapToMap(tlHashMap*);
+static tlHandle _Map_from(tlArgs* args) {
+    tlHandle a1 = tlArgsGet(args, 0);
+    if (tlHashMapIs(a1)) return tlHashMapToMap(a1);
+    if (tlMapOrObjectIs(a1)) return tlObjectToMap(a1);
+    TL_THROW("expect a object, map, or HashMap");
+}
+
 // TODO these functions create way to many intermediates ... add more code :(
 static tlHandle _Map_update(tlArgs* args) {
     trace("");
@@ -389,6 +403,7 @@ static tlKind _tlHandleObjectKind = {
 };
 
 static void map_init() {
+    _tl_emptyMap = tlMapNew(null);
     _tlMapKind.klass = tlClassMapFrom(
         "size", _map_size,
         "get", _map_get,
@@ -397,6 +412,14 @@ static void map_init() {
         "toObject", _map_toObject,
         null
     );
-    _tl_emptyMap = tlMapNew(null);
+    tlMap* constructor = tlClassMapFrom(
+        "call", _Map_from,
+        "keys", _Map_keys,
+        "get", _Map_get,
+        "class", null,
+        null
+    );
+    tlMapSetSym_(constructor, s_class, _tlMapKind.klass);
+    tl_register_global("Map", constructor);
 }
 

@@ -5,8 +5,6 @@
 
 #include "trace-off.h"
 
-TL_REF_TYPE(tlHashMap);
-
 static tlKind _tlHashMapKind = { .name = "HashMap" };
 tlKind* tlHashMapKind = &_tlHashMapKind;
 
@@ -38,7 +36,7 @@ tlHandle tlHashMapGet(tlHashMap* map, tlHandle k) {
 void tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v) {
     lhashmap_putif(map->map, k, v, LHASHMAP_IGNORE);
 }
-tlMap* tlHashMapToObject(tlHashMap* map) {
+tlMap* tlHashMapToMap(tlHashMap* map) {
     int size = lhashmap_size(map->map);
     tlSet* keys = tlSetNew(size);
     // TODO might drop a *last* one or so ... auch, grow/shrink keys instead
@@ -57,12 +55,22 @@ tlMap* tlHashMapToObject(tlHashMap* map) {
         tlHandle v = tlHashMapGet(map, k);
         tlMapSetSym_(object, k, v);
     }
-    return tlMapToObject_(object);
+    return object;
+}
+tlMap* tlHashMapToObject(tlHashMap* map) {
+    return tlMapToObject_(tlHashMapToMap(map));
 }
 
 INTERNAL tlHandle _HashMap_new(tlArgs* args) {
-    // TODO take a map
-    return tlHashMapNew();
+    tlHashMap* hash = tlHashMapNew();
+    for (int i = 0; i < 1000; i++) {
+        tlMap* map = tlMapFromObjectCast(tlArgsGet(args, i));
+        if (!map) break;
+        for (int i = 0; i < tlMapSize(map); i++) {
+            tlHashMapSet(hash, map->keys->data[i], map->data[i]);
+        }
+    }
+    return hash;
 }
 INTERNAL tlHandle _hashmap_get(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));

@@ -6,8 +6,6 @@
 static tlKind _tlArrayKind = { .name = "Array", .locked = true };
 tlKind* tlArrayKind = &_tlArrayKind;
 
-TL_REF_TYPE(tlArray);
-
 struct tlArray {
     tlLock lock;
     intptr_t size;

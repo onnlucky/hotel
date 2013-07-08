@@ -144,6 +144,9 @@ TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlNative);
 TL_REF_TYPE(tlCode);
 
+TL_REF_TYPE(tlHashMap);
+TL_REF_TYPE(tlArray);
+
 // TODO these 6 don't need to be exposed
 TL_REF_TYPE(tlVar);
 TL_REF_TYPE(tlObject);
