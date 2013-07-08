@@ -529,7 +529,7 @@ object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs
 litems = v:expr eom is:litems  { $$ = tlListPrepend(L(is), v); }
        | v:expr                { $$ = tlListFrom1(v); }
 
- value = lit | number | text | object | map | list | sym | varref | thisref | lookup
+ value = lit | number | chr | text | object | map | list | sym | varref | thisref | lookup
 
    lit = "true"      { $$ = tlTrue; }
        | "false"     { $$ = tlFalse; }
@@ -546,7 +546,12 @@ number = "0x" < [_0-9A-F]+ >        { $$ = tlINT((int)strtol(rmu(yytext), 0, 16)
        | < "-"? [0-9]+ "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
        | < "-"?        "." [0-9]+ > { $$ = tlFLOAT(atof(yytext)); }
        | < "-"? [0-9]+ "." !name  > { $$ = tlFLOAT(atof(yytext)); }
-       | < "-"? [0-9]+ >           { $$ = tlINT(atoi((yytext)));   }
+       | < "-"? [0-9]+ >            { $$ = tlINT(atoi((yytext)));   }
+
+   chr = "'\\r'"          { $$ = tlINT('\r'); }
+       | "'\\n'"          { $$ = tlINT('\n'); }
+       | "'\\t'"          { $$ = tlINT('\t'); }
+       | '\'' < . > '\''  { $$ = tlINT(yytext[0]); }
 
   text = '"' '"'          { $$ = tlStringEmpty(); }
        | '"'  t:stext '"' { $$ = t }

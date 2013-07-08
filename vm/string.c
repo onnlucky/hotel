@@ -462,6 +462,7 @@ static void string_init() {
         "escape", _string_escape,
         "strip", _string_strip,
         "each", null,
+        "map", null,
         "split", null,
         "replace", null,
         "eval", null,
