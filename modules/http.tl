@@ -72,6 +72,50 @@ Server = {
     }
 }
 
+SizedStream = stream, size ->
+    var $toread = size
+    {
+        read: len ->
+            if $toread == 0: return null
+            if not len: return stream.read $toread
+            len = min($toread, len)
+            $toread -= len
+            return stream.read len
+        readByte: -> this.read(1)[1]
+        close: ->
+            this.read
+            return null
+    }
+
+readchunklen = stream, len ->
+    b = stream.readByte
+    | b == '\r'             | assert stream.read(1) == "\n"; return len
+    | b >= '0' and b <= '9' | return readchunklen(stream, len * 16 + b - '0')
+    | b >= 'A' and b <= 'F' | return readchunklen(stream, len * 16 + b - 'A' + 10)
+    | b >= 'a' and b <= 'f' | return readchunklen(stream, len * 16 + b - 'a' + 10)
+
+readchunk = stream, into ->
+    len = readchunklen(stream, 0)
+    if len == 0: return null
+    res = into.write stream.read len
+    assert stream.read(2) == "\r\n"
+    return res
+
+readsomechunks = stream, into, min ->
+    while into.size < min:
+        res = readchunk stream, into
+        if not res: return
+
+ChuckedStream = stream ->
+    buf = Buffer.new
+    {
+        read: len ->
+            readsomechunks(stream, buf, len)
+            buf.read len
+        readByte: -> this.read(1)[1]
+        close: -> stream.close
+    }
+
 openstream = url ->
     if url.type == "https":
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
@@ -91,19 +135,17 @@ get = url ->
         if conn.size >= 8000: Error("Headers too long").throw
         Error("No headers received").throw
 
-    // TODO implement encodings and taking back the stream after body is done ...
+    // TODO take back the stream after body is done ...
     res = httpparser.response(conn.read(at - 1 + 4))
-    if args.names.stream:
-        return conn, res
-
     length = res.headers.get("Content-Length")
-    if length:
-        length = length.eval
-        body = conn.read length
-        if not body or body.size < length:
-            Error("Incomplete body received").throw
-        return body, res
-    return conn.read, res
+    encoding = res.headers.get("Transfer-Encoding")
+    body = | length                | SizedStream(conn, length.eval)
+           | encoding == "chunked" | ChuckedStream(conn)
+           | not encoding          | id conn
+           |                       | print length, encoding; assert false
+
+    if args.names.stream: return body, res
+    return body.read, res
 
 return { Server: Server, get: get }
 
