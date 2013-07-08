@@ -238,8 +238,21 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
 }
 
 /// find: find the first occurance of arg[1] in #String, returns null if not found
+// TODO find bytes, find from, find upto, like buffer ...
 INTERNAL tlHandle _string_find(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsTarget(args));
+    if (tlNumberIs(tlArgsGet(args, 0))) {
+        uint8_t b = (int)tl_double(tlArgsGet(args, 0));
+
+        int from = at_offset(tlArgsGet(args, 1), tlStringSize(str));
+        if (from < 0) return tlUndef();
+
+        const char* data = tlStringData(str);
+        for (int at = from; at < tlStringSize(str); at++) {
+            if (data[at] == b) return tlINT(at + 1);
+        }
+        return tlUndef();
+    }
     tlString* find = tlStringCast(tlArgsGet(args, 0));
     if (!find) TL_THROW("expected a String");
 
