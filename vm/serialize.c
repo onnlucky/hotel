@@ -70,7 +70,7 @@ static tlHandle parsenum(tlBuffer* buf) {
         if (c == '.' && !f) { f = true; continue; }
         break;
     }
-    if (i == 0 || i > 16) return null;
+    if (i == 0 || i > 20) { warning("no number: %d", i); return null; }
     char b[20];
     tlBufferRewind(buf, i + 1);
     tlBufferRead(buf, b, i); b[i] = 0;
@@ -141,6 +141,7 @@ static tlHandle parse(tlBuffer* buf) {
         case 't': { tlBufferReadSkip(buf, 4); return tlTrue; }
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
+        case '-': case '+': case '.':
             return parsenum(buf);
     }
     warning("unparsable: %c", c);
