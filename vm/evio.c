@@ -551,7 +551,8 @@ static tlHandle _Socket_sendto(tlArgs* args) {
     if (r < 0) {
         TL_THROW("%d: sendto: failed: %s", file->ev.fd, strerror(errno));
     }
-    tlBufferClear(buf);
+    assert(len == r);
+    didread(buf, len);
     return tlINT(len);
 }
 

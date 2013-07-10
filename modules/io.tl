@@ -211,8 +211,9 @@ Path = {
 UdpSocket = {
     new: file -> { file: file, class: this.class }
     class: {
-        sendto: ip, port, buf -> _Socket_sendto(this.file, ip, port, buf)
-        recvfrom: (buf ->
+        send: ip, port, buf -> _Socket_sendto(this.file, ip, port, buf)
+        receive: (buf ->
+            buf = buf or Buffer.new
             reader = this.file.reader
             loop:
                 _with_lock(reader, buf):

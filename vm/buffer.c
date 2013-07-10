@@ -66,6 +66,7 @@ const char* tlBufferData(tlBuffer* buf) {
 
 // on every write, we compact the buffer and ensure there is enough space to write, growing if needed
 INTERNAL void tlBufferCompact(tlBuffer* buf) {
+    if (buf->readpos == 0) return;
     int len = canread(buf);
     trace("len: %d", len);
     if (len > 0) memmove(buf->data, buf->data + buf->readpos, len);
