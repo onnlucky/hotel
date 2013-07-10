@@ -3,7 +3,7 @@ term = io.stdin
 smcup = true
 
 buf = Buffer.new
-if smcup: buf.writeByte 27; buf.write "[?1049h"; term.write buf
+if smcup: buf.write 27; buf.write "[?1049h"; term.write buf
 term.setRaw
 
 editor = _Object_new {
@@ -146,10 +146,10 @@ editor = _Object_new {
         width, height = term.size
         this._width = width; this._height = height
 
-        buf.writeByte 27; buf.write "[2J"
+        buf.write 27; buf.write "[2J"
         height.times: i =>
             y = i + this._offset
-            buf.writeByte 27; buf.write "[$i;0H"
+            buf.write 27; buf.write "[$i;0H"
 
             if y == this._y and this._left:
                 assert this._right
@@ -158,8 +158,8 @@ editor = _Object_new {
 
         this.debug "$(this._x),$(this._y)"
         if this._debug.size > 0:
-            buf.writeByte 27; buf.write "[$(height);0H"
-            buf.writeByte 27; buf.write "[2K"
+            buf.write 27; buf.write "[$(height);0H"
+            buf.write 27; buf.write "[2K"
             this._debug.each: l, i ->
                 if i != 1: buf.write " "
                 buf.write l
@@ -169,7 +169,7 @@ editor = _Object_new {
         assert this._x > 0
         assert this._y > 0
         x = min(this._x, this.currentline.size + 1)
-        buf.writeByte 27; buf.write "[$(this._y);$(x)H"
+        buf.write 27; buf.write "[$(this._y);$(x)H"
         term.write buf
     )
 }
@@ -178,7 +178,7 @@ inbuf = Buffer.new
 editor.render
 var $running = true
 while $running:
-    term.read inbuf
+    term.readInto inbuf
     while inbuf.size > 0:
         c = inbuf.readByte
         editor.debug "in: $(c)"
@@ -206,5 +206,5 @@ while $running:
     editor.render
 
 term.restore
-if smcup: buf.writeByte 27; buf.write "[?1049l"; term.write buf
+if smcup: buf.write 27; buf.write "[?1049l"; term.write buf
 

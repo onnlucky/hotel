@@ -54,10 +54,11 @@ Stream = {
     // TODO optimize the read/write buffer usage
     new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
     class: {
-        _readSome: ->
+        _readSome: buf ->
+            buf = buf or this.rbuf
             reader = this.file.reader
-            _with_lock(reader, this.rbuf):
-                len = readSome(reader, this.rbuf)
+            _with_lock(reader, buf):
+                len = readSome(reader, buf)
         _readFull: ->
             reader = this.file.reader
             _with_lock(reader, this.rbuf): readFull(reader, this.rbuf)
@@ -87,6 +88,11 @@ Stream = {
                 return this.rbuf.read len
             this._readFull
             return this.rbuf.read
+        readInto: buf ->
+            assert isBuffer buf
+            if this.rbuf.size > 0:
+                return buf.write this.rbuf
+            this._readSome buf
         find: what, from, upto ->
             loop:
                 r = this.rbuf.find what, from, upto
