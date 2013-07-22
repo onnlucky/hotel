@@ -38,15 +38,15 @@ doTheFoo = ->
     latch.exit
     //print "DONE..."
 
-!doTheFoo
-!doTheFoo
-!doTheFoo
-!doTheFoo
-!doTheFoo
-!doTheFoo
-!doTheFoo
+!doTheFoo()
+!doTheFoo()
+!doTheFoo()
+!doTheFoo()
+!doTheFoo()
+!doTheFoo()
+!doTheFoo()
 Task.yield
-doTheFoo
+doTheFoo()
 Task.yield
 
 return null

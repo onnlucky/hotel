@@ -9,22 +9,20 @@ ioloop = ->
         Task.yield
         loop:
             msg = _io_queue.poll
-            (
-                _match(msg == null): break
-                catch: e -> msg.throw(e.msg)
-                _match(msg.name == #waitread): _io_waitread msg[1], msg
-                _match(msg.name == #waitwrite): _io_waitwrite msg[1], msg
-                _match(msg.name == #wait): _io_wait msg[1], msg
-                _match(msg.name == #close): _io_close msg[1]; msg.reply
-                _match(msg.name == #launch): msg.reply(_io_launch(
-                        msg[1], msg[2],
-                        msg[3], msg[4], msg[5], msg[6],
-                        msg[7], msg[8]
-                        ))
-                _nomatch
-            )
+            if msg == null: break
+            catch: e -> msg.throw(e.msg)
+            | msg.name == #waitread  :: _io_waitread msg[1], msg
+            | msg.name == #waitwrite :: _io_waitwrite msg[1], msg
+            | msg.name == #wait      :: _io_wait msg[1], msg
+            | msg.name == #close     :: _io_close msg[1]; msg.reply
+            | msg.name == #launch    ::
+                msg.reply(_io_launch(
+                    msg[1], msg[2],
+                    msg[3], msg[4], msg[5], msg[6],
+                    msg[7], msg[8]
+                ))
         if not _io_haswaiting(): break
-        _io_run
+        _io_run()
 
 // reader/writer utils
 readSome = reader, buf ->

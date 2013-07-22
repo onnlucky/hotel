@@ -89,10 +89,10 @@ SizedStream = stream, size ->
 
 readchunklen = stream, len ->
     b = stream.readByte
-    | b == '\r'             | assert stream.read(1) == "\n"; return len
-    | b >= '0' and b <= '9' | return readchunklen(stream, len * 16 + b - '0')
-    | b >= 'A' and b <= 'F' | return readchunklen(stream, len * 16 + b - 'A' + 10)
-    | b >= 'a' and b <= 'f' | return readchunklen(stream, len * 16 + b - 'a' + 10)
+    | b == '\r'             :: assert stream.read(1) == "\n"; return len
+    | b >= '0' and b <= '9' :: return readchunklen(stream, len * 16 + b - '0')
+    | b >= 'A' and b <= 'F' :: return readchunklen(stream, len * 16 + b - 'A' + 10)
+    | b >= 'a' and b <= 'f' :: return readchunklen(stream, len * 16 + b - 'a' + 10)
 
 readchunk = stream, into ->
     len = readchunklen(stream, 0)
@@ -139,10 +139,10 @@ get = url ->
     res = httpparser.response(conn.read(at - 1 + 4))
     length = res.headers.get("Content-Length")
     encoding = res.headers.get("Transfer-Encoding")
-    body = | length                | SizedStream(conn, length.eval)
-           | encoding == "chunked" | ChuckedStream(conn)
-           | not encoding          | id conn
-           |                       | print length, encoding; assert false
+    body = | length                :: SizedStream(conn, length.eval)
+           | encoding == "chunked" :: ChuckedStream(conn)
+           | not encoding          :: id conn
+           |                       :: print length, encoding; assert false
 
     if args.names.stream: return body, res
     return body.read, res

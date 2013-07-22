@@ -229,12 +229,12 @@ stmssl = t:stm (
 
    stm = varassign | singleassign | multiassign | noassign
 
- guard = __ &{check_indent(G)} "|" _ e:expr _ "|" _ b:body {
+ guard = __ &{check_indent(G)} "|" _ e:expr _ "::" _ b:body {
            tlCodeSetIsBlock_(b, true);
            tlList* as = tlListFrom(tlNull, e, s_block, tl_active(b), null);
            $$ = call_activate(tlCallFromList(tl_active(s__match), as));
        }
-       | __ &{check_indent(G)} "|" _ "|" _ b:body {
+       | __ &{check_indent(G)} "|" _ "::" _ b:body {
            tlCodeSetIsBlock_(b, true);
            tlList* as = tlListFrom(tlNull, tlTrue, s_block, tl_active(b), null);
            $$ = call_activate(tlCallFromList(tl_active(s__match), as));
@@ -326,10 +326,15 @@ farg = "&&" n:name { $$ = tlListFrom2(n, tlCollectLazy); }
        }
        | op_log
 
-selfapply = !lit !"and" !"or" !"not" n:name _ &eosfull {
-    $$ = call_activate(tlCallFromList(tl_active(n), tlListEmpty()));
-}
-
+selfapply = "return" &eosfull {
+            $$ = call_activate(tlCallFromList(tl_active(tlSYM("return")), tlListEmpty()));
+          }
+          | "break" &eosfull {
+            $$ = call_activate(tlCallFromList(tl_active(tlSYM("break")), tlListEmpty()));
+          }
+          | "continue" &eosfull {
+            $$ = call_activate(tlCallFromList(tl_active(tlSYM("continue")), tlListEmpty()));
+          }
 
 bpexpr = v:value !"[" !"(" _ !"and" !"or" as:pcargs _":"_ b:block {
            trace("primary args");
@@ -486,8 +491,7 @@ op_cmp = l:op_bit _ ("<=" __ r:op_bit { l = tlCallFrom(tl_active(s_lte), l, r, n
                     |"!=" __ r:op_bit { l = tlCallFrom(tl_active(s_neq), l, r, null); }
                     )*                { $$ = l; }
 op_bit = l:op_sht _ ("&"  __ r:op_sht { l = tlCallFrom(tl_active(s_band), l, r, null); }
-#// conflicts with guarded expressions ... sadly ...
-#|"|"  __ r:op_sht { l = tlCallFrom(tl_active(s_bor), l, r, null); }
+                    |"|"  __ r:op_sht { l = tlCallFrom(tl_active(s_bor), l, r, null); }
                     )*                { $$ = l; }
 op_sht = l:op_add _ ("<<" __ r:op_add { l = tlCallFrom(tl_active(s_lshift), l, r, null); }
                     |">>" __ r:op_add { l = tlCallFrom(tl_active(s_rshift), l, r, null); }

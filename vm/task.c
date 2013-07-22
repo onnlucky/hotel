@@ -702,7 +702,6 @@ static tlKind _tlTaskKind = {
 
 static const tlNativeCbs __task_natives[] = {
     { "_Task_new", _Task_new },
-    { "yield", _Task_yield },
     { 0, 0 }
 };
 

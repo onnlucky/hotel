@@ -5,9 +5,6 @@
 
 catch: e -> print "boot exception: $(e.toString)"
 
-// crappy self evaluation ... remove it
-id = i -> return i
-
 or = left, &right ->
     if not left: return right()
     return left
