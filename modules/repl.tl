@@ -1,38 +1,16 @@
 // hotel repl
-// TODO a bit primitive ... but works .. use higher level io lib, and return function?
+// example: io.Socket.listen(2222).serve: c -> repl.run(c)
 
-_env = Env.current
-
-/*
-run = (stream ->
-    buf = _Buffer_new()
+repl = stream ->
+    _env = Env.current
     var $env = Env.new(_env)
-    loop: (
+    while not stream.readClosed:
         stream.write "> "
-        input = stream.read
-        catch: e -> stream.write("Error: $e\n")
-        res = eval(env, input)
-        if res: print res
-    )
-)
-*/
-
-// TODO this should be a stream and called ...
-reader = _File_from(0).reader
-run = ->
-    buf = _Buffer_new()
-    var $env = Env.new(_env)
-    loop:
-        out "> "
-        _with_lock(buf, reader):
-            loop:
-                len = reader.read buf
-                if len == 0: return
-                if len: break
-                if len == null: _io.waitread reader
-        catch: e -> out("error: $e\n")
-        res = eval(env, buf.read)
-        if res: print res
+        catch: e -> stream.write("error: $(e.toString)\n")
+        nl = stream.find("\n")
+        if not nl: return
+        res = eval(env, stream.read(nl))
+        if res: stream.write("$res\n")
 
 {{ run }}
 
