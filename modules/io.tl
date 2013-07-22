@@ -278,22 +278,24 @@ stdout = Stream.new(_File_from(1))
 stderr = Stream.new(_File_from(2))
 
 return {
-    Buffer: Buffer
-    Stream: Stream
-    File: File
-    Dir: Dir
-    Path: Path
-    Socket: Socket
-
-    run: run
-    shell: shell
-
-    wait: wait
-    ioloop: ioloop
-
-    stdin: stdin, stdout: stdout, stderr: stderr
     chdir: _io_chdir
     mkdir: _io_mkdir
     getenv: _io_getenv
+    {
+        Buffer
+        Stream
+        File
+        Dir
+        Path
+        Socket
+
+        run
+        shell
+
+        wait
+        ioloop
+
+        stdin, stdout, stderr
+    }
 }
 

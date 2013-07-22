@@ -147,5 +147,5 @@ get = url ->
     if args.names.stream: return body, res
     return body.read, res
 
-return { Server: Server, get: get }
+{{ Server, get }}
 

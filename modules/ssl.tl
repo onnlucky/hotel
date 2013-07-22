@@ -42,5 +42,5 @@ Stream = {
     }
 }
 
-{ Stream: Stream }
+{{ Stream }}
 

@@ -94,5 +94,5 @@ new = name ->
         */
     }
 
-return { new: new }
+{{ new }}
 

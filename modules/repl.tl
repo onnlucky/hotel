@@ -34,5 +34,5 @@ run = ->
         res = eval(env, buf.read)
         if res: print res
 
-{ run: run }
+{{ run }}
 

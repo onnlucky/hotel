@@ -197,8 +197,5 @@ test "dom nodes":
     assert n.lastChild.prev.prev.firstChild.text == "1"
     assert p4.attr(#foo) == 42
 
-{
-    Text: Text
-    Node: Node
-}
+{{ Text, Node }}
 

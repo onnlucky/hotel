@@ -524,9 +524,15 @@ object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs
        | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlMapEmpty())); }
    map = "["__ is:items __"]"  { $$ = map_activate(tlMapFromPairs(L(is))); }
        | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
- items = i:item eom is:items   { $$ = tlListPrepend(L(is), i); }
+ items = "{"__ ts:tms __"}" eom is:items
+                               { $$ = tlListCat(L(ts), L(is)); }
+       | "{"__ ts:tms __"}"    { $$ = L(ts); }
+       | i:item eom is:items   { $$ = tlListPrepend(L(is), i); }
        | i:item                { $$ = tlListFrom1(i) }
   item = n:name _":"__ v:expr  { $$ = tlListFrom2(n, v); try_name(n, v, yyxvar); }
+   tms = i:tm eom is:tms       { $$ = tlListPrepend(L(is), i); }
+       | i:tm                  { $$ = tlListFrom1(i) }
+    tm = n:name                { $$ = tlListFrom2(n, tl_active(n)); }
 
   list = "["__ is:litems __"]" { $$ = list_activate(L(is)); }
        | "["__"]"              { $$ = list_activate(tlListEmpty()); }
