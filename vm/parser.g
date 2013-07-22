@@ -336,7 +336,9 @@ selfapply = "return" &eosfull {
             $$ = call_activate(tlCallFromList(tl_active(tlSYM("continue")), tlListEmpty()));
           }
 
-bpexpr = v:value !"[" !"(" _ !"and" !"or" as:pcargs _":"_ b:block {
+andor = !"[" !"(" _ !("and" !namechar) !("or" !namechar) _
+
+bpexpr = v:value andor as:pcargs _":"_ b:block {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(tlCallAddBlock(set_target(as, v), tl_active(b)));
@@ -349,7 +351,7 @@ bpexpr = v:value !"[" !"(" _ !"and" !"or" as:pcargs _":"_ b:block {
        }
        | pexpr
 
- pexpr = "assert" !"[" !"(" _ !"and" !"or" < as:pcargs > &peosfull {
+ pexpr = "assert" andor < as:pcargs > &peosfull {
             as = tlListAppend2(L(as), s_string, tlStringFromCopy(yytext, 0));
             $$ = call_activate(tlCallFromList(tl_active(s_assert), as));
        }
@@ -362,7 +364,7 @@ bpexpr = v:value !"[" !"(" _ !"and" !"or" as:pcargs _":"_ b:block {
            $$ = call_activate($$);
        }
        | gexpr
-       | v:value !"[" !"(" _ !"and" !"or" as:pcargs &peosfull {
+       | v:value andor as:pcargs &peosfull {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(set_target(as, v));
@@ -395,7 +397,7 @@ slicea = expr
            trace("set field");
            $$ = tlCallSendFromList(sa_send, null, s__set, tlListFrom(tlNull, n, tlNull, e, null));
        }
-       | _ m:met _ n:name !"[" !"(" _ !"and" !"or" as:pcargs {
+       | _ m:met _ n:name andor as:pcargs {
            trace("primary method + args");
            $$ = tlCallSendFromList(m, null, n, as);
        }
@@ -541,10 +543,10 @@ litems = v:expr eom is:litems  { $$ = tlListPrepend(L(is), v); }
 
  value = lit | number | chr | text | object | map | list | sym | varref | thisref | lookup
 
-   lit = "true"      { $$ = tlTrue; }
-       | "false"     { $$ = tlFalse; }
-       | "null"      { $$ = tlNull; }
-       | "undefined" { $$ = tlCallFrom(tl_active(s__undefined), null); }
+   lit = "true" !namechar      { $$ = tlTrue; }
+       | "false" !namechar     { $$ = tlFalse; }
+       | "null" !namechar      { $$ = tlNull; }
+       | "undefined" !namechar { $$ = tlCallFrom(tl_active(s__undefined), null); }
 
  varref = "$" n:name  { $$ = tlCallFrom(tl_active(s_var_get), tl_active(n), null); }
 thisref = "@" n:name  { $$ = tlCallFrom(tl_active(s_this_get), tl_active(s_this), n, null); }
@@ -577,6 +579,7 @@ number = "0x" < [_0-9A-F]+ >        { $$ = tlINT((int)strtol(rmu(yytext), 0, 16)
        | t:stext             { $$ = tlListFrom2(tlNull, t); }
 
   name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tlSymFromCopy(yytext, 0); }
+namechar = [a-zA-Z_][a-zA-Z0-9_]
 
 slcomment = "//" (!nl .)*
  icomment = "/*" (!"*/" (nl|.))* ("*/"|!.)
