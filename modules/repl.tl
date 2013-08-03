@@ -1,7 +1,7 @@
 // hotel repl
 // example: io.Socket.listen(2222).serve: c -> repl.run(c)
 
-repl = stream ->
+run = stream ->
     _env = Env.current
     var $env = Env.new(_env)
     while not stream.readClosed:

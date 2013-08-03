@@ -329,9 +329,10 @@ _resolve: name, path ->
 
 // run a repl, or every argument as a file
 runmain = as ->
+    catch: e -> print e.toString; _set_exitcode(1)
+
     if as.size == 0: return repl.run io.stdin
 
-    catch: e -> print e.toString; _set_exitcode(1)
     file = as[1]
     return _parse(_stringFromFile(file), file)(_env, as[2:])
 

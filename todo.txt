@@ -65,15 +65,9 @@ what about close() and stat(); they might still block or eintr ... do them on ye
 
 bug: tlCallableIs does not know complex user objects, just try and catch not callable?
 
-add {{ foo }} as sugar for { foo: foo } so modules just do {{ publicFn1, publicFn2, ... }}
 do private using $: { public: 42, $private: -1 } accessed just by $private ...
 use * for vars; like this: x = var 0; *x += 1 ... add .increment/decrement and such to var
-syntax change: do symbols using 'symbol
 
-fix return from blocks, how about -> for block => for function wich allows return?
-Or/and break with value ... ?
-
-add @method arg, arg
 instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
 
 start preparing a first release:
@@ -128,9 +122,6 @@ finalizers
 default arguments
 splays on either side
 complex lhs assigns
-syntax for branches:
-  | false -> ...
-  | true -> ...
 
 # not so nice:
 
