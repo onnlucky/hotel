@@ -204,7 +204,7 @@ INTERNAL tlHandle _ssl_md5(tlArgs* args) {
 
     unsigned char res[MD5_DIGEST_LENGTH];
     MD5((const unsigned char*)tlStringData(s), tlStringSize(s), res);
-    return tlBinFromCopy(res, sizeof(res));
+    return tlBinFromCopy((char*)res, sizeof(res));
 }
 INTERNAL tlHandle _ssl_sha1(tlArgs* args) {
     tlString* s = tlStringCast(tlArgsGet(args, 0));
@@ -212,7 +212,7 @@ INTERNAL tlHandle _ssl_sha1(tlArgs* args) {
 
     unsigned char res[SHA_DIGEST_LENGTH];
     SHA1((const unsigned char*)tlStringData(s), tlStringSize(s), res);
-    return tlBinFromCopy(res, sizeof(res));
+    return tlBinFromCopy((char*)res, sizeof(res));
 }
 
 static tlKind _tlSSLKind = {

@@ -226,7 +226,18 @@ INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
     tlBufferRewind(buf, -1);
     return buf;
 }
-// TODO this should return bytes, not strings ...
+INTERNAL tlHandle _buffer_readOld(tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+
+    int max = canread(buf);
+    int len = tl_int_or(tlArgsGet(args, 0), max);
+    if (len > max) len = max;
+
+    trace("canread: %d", len);
+    const char* from = readbuf(buf);
+    didread(buf, len);
+    return tlStringFromCopy(from, len);
+}
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
 
@@ -235,10 +246,85 @@ INTERNAL tlHandle _buffer_read(tlArgs* args) {
     if (len > max) len = max;
 
     trace("canread: %d", len);
+    const char* from = readbuf(buf);
+    didread(buf, len);
+    return tlBinFromCopy(from, len);
+}
+#define CONT(b) ((b & 0xC0) == 0x80)
+#define SKIP_OR_THROW() if (!skip) { TL_THROW("illegal utf8 at: %d", i); } else { print("illegal utf8 at: %d", i); }
+INTERNAL tlHandle _buffer_readString(tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+
+    int max = canread(buf);
+    int len = tl_int_or(tlArgsGet(args, 0), max);
+    bool skip = true;
+    if (len > max) len = max;
+    trace("canread: %d", len);
+
+    const char* from = readbuf(buf);
     char* data = malloc_atomic(len + 1);
-    int last = tlBufferRead(buf, data, len);
-    data[last] = 0;
-    return tlStringFromTake(data, last);
+    int j = 0;
+    int i = 0;
+    int count = 0;
+    for (; i < len;) {
+        char c1 = from[i++];
+        if ((c1 & 0x80) == 0) { // 0xxx_xxxx
+            count++;
+            data[j++] = c1;
+        } else if ((c1 & 0xE0) == 0xC0) { // 110x_xxxx
+            if (i + 1 > len) { i--; break; }
+            char c2 = from[i++];
+            if ((c2 & 0xC0) == 0x80) {
+                count++;
+                data[j++] = c1; data[j++] = c2;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xF0) == 0xE0) { // 1110_xxxx
+            if (i + 2 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++];
+            if (CONT(c2) && CONT(c3)) {
+                count++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xF8) == 0xF0) { // 1111_0xxx
+            if (i + 3 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++];
+            if (CONT(c2) && CONT(c3) && CONT(c4)) {
+                count++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xFC) == 0xF8) { // 1111_10xx
+            if (i + 4 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++]; char c5 = from[i++];
+            if (CONT(c2) && CONT(c3) && CONT(c4) && CONT(c5)) {
+                count++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xFE) == 0xFC) { // 1111_110x
+            if (i + 5 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++]; char c5 = from[i++]; char c6 = from[i++];
+            if (CONT(c2) && CONT(c3) && CONT(c4) && CONT(c5) && CONT(c6)) {
+                count++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5; data[j++] = c6;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else {
+            SKIP_OR_THROW()
+        }
+    }
+    trace("i: %d, j: %d, len: %d, chars: %d", i, j, len, count);
+    assert(i <= len);
+    data[j] = 0;
+    didread(buf, i);
+    return tlStringFromTake(data, j);
 }
 INTERNAL tlHandle _buffer_readByte(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
@@ -354,8 +440,8 @@ static void buffer_init() {
             "compact", _buffer_compact,
             "clear", _buffer_clear,
             "rewind", _buffer_rewind,
-            "read", _buffer_read,
-            "readString", _buffer_read,
+            "read", _buffer_readOld,
+            "readString", _buffer_readString,
             "readByte", _buffer_readByte,
             "find", _buffer_find,
             "findByte", _buffer_findByte, // TODO remove

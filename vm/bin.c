@@ -16,7 +16,7 @@ struct tlBin {
 
 tlBin* tlBinEmpty() { return _tl_emptyBin; }
 
-tlBin* tlBinFromCopy(const uint8_t* s, int len) {
+tlBin* tlBinFromCopy(const char* s, int len) {
     trace("%s", s);
     assert(len >= 0);
 
@@ -81,7 +81,7 @@ static tlKind _tlBinKind = {
 };
 
 static void bin_init() {
-    uint8_t buf[0];
+    char buf[0];
     _tl_emptyBin = tlBinFromCopy(buf, 0);
 
     _tlBinKind.klass = tlClassMapFrom(

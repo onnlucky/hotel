@@ -520,6 +520,8 @@ int tlBufferFind(tlBuffer* buf, const char* text, int len);
 int tlBufferRead(tlBuffer* buf, char* to, int count);
 uint8_t tlBufferReadByte(tlBuffer* buf);
 
+tlBin* tlBinFromCopy(const char* data, int len);
+
 
 #endif // _tl_h_
 
