@@ -141,7 +141,7 @@ get = url ->
     encoding = res.headers.get("Transfer-Encoding")
     body = | length                :: SizedStream(conn, length.eval)
            | encoding == "chunked" :: ChuckedStream(conn)
-           | not encoding          :: id conn
+           | not encoding          :: conn
            |                       :: print length, encoding; assert false
 
     if args.names.stream: return body, res
