@@ -127,6 +127,82 @@ static unsigned int murmurhash2a(const void * key, int len) {
     return h;
 }
 
+#define CONT(b) ((b & 0xC0) == 0x80)
+#define SKIP_OR_THROW() if (!skip) { return -i; }
+static int process_utf8(const char* from, int len, char** into, int* intolen, int* intochars) {
+    assert(into);
+    bool skip = true;
+    trace("%d", len);
+
+    char* data = *into;
+    if (!data) *into = data = malloc_atomic(len + 1);
+
+    int j = 0;
+    int i = 0;
+    int chars = 0;
+    for (; i < len;) {
+        char c1 = from[i++];
+        if ((c1 & 0x80) == 0) { // 0xxx_xxxx
+            chars++;
+            data[j++] = c1;
+        } else if ((c1 & 0xE0) == 0xC0) { // 110x_xxxx
+            if (i + 1 > len) { i--; break; }
+            char c2 = from[i++];
+            if ((c2 & 0xC0) == 0x80) {
+                chars++;
+                data[j++] = c1; data[j++] = c2;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xF0) == 0xE0) { // 1110_xxxx
+            if (i + 2 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++];
+            if (CONT(c2) && CONT(c3)) {
+                chars++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xF8) == 0xF0) { // 1111_0xxx
+            if (i + 3 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++];
+            if (CONT(c2) && CONT(c3) && CONT(c4)) {
+                chars++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xFC) == 0xF8) { // 1111_10xx
+            if (i + 4 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++]; char c5 = from[i++];
+            if (CONT(c2) && CONT(c3) && CONT(c4) && CONT(c5)) {
+                chars++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else if ((c1 & 0xFE) == 0xFC) { // 1111_110x
+            if (i + 5 > len) { i--; break; }
+            char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++]; char c5 = from[i++]; char c6 = from[i++];
+            if (CONT(c2) && CONT(c3) && CONT(c4) && CONT(c5) && CONT(c6)) {
+                chars++;
+                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5; data[j++] = c6;
+            } else {
+                SKIP_OR_THROW()
+            }
+        } else {
+            SKIP_OR_THROW()
+        }
+    }
+    trace("i: %d, j: %d, len: %d, chars: %d", i, j, len, chars);
+    assert(i <= len);
+    data[j] = 0;
+
+    if (into) *into = data;
+    if (intolen) *intolen = j;
+    if (intochars) *intochars = chars;
+    return i;
+}
 unsigned int tlStringHash(tlString* str) {
     assert(tlStringIs(str));
     if (str->hash) return str->hash;

@@ -79,7 +79,7 @@ Stream = {
             if this.rbuf.size == 0: this._readSome
             return this.rbuf.readByte
         readString: len ->
-            return this.read len
+            return this.readString len
         read: len ->
             if len:
                 while this.rbuf.size < len: this._readSome
