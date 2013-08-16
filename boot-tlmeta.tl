@@ -300,7 +300,7 @@ parseName = in ->
     trace2(in, "<< name: $(in.value)")
 
 
-text = io.File("tlmeta.tlg").read
+text = io.File("tlmeta.tlg").readString
 ast = parse(parseStart, text)
 //print inspect(ast)
 
@@ -383,7 +383,7 @@ emitRule = r, buf ->
 buf = io.Buffer.new
 buf.write(ast.before)
 buf.write("\n// --- tlmeta-base.tl ---\n")
-buf.write(io.File("tlmeta-base.tl").read)
+buf.write(io.File("tlmeta-base.tl").readString)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
 ast.rules.each: r =>

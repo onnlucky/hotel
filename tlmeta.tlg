@@ -149,8 +149,8 @@ emitRule = r, buf ->
 
 if args.size != 2: throw "Usage: <input.tl> <output.tl>"
 
-base = io.File(fileFromModulePath("tlmeta-base.tl", ".")).read
-ast = parserParser(io.File(args[1]).read)
+base = io.File(fileFromModulePath("tlmeta-base.tl", ".")).readString
+ast = parserParser(io.File(args[1]).readString)
 
 buf = io.Buffer.new
 buf.write(ast.before)
