@@ -37,6 +37,19 @@ int tlBinSize(tlBin* bin) {
     return bin->len;
 }
 
+INTERNAL tlHandle _Bin_new(tlArgs* args) {
+    tlBuffer* buf = tlBufferNew();
+
+    const char* error = null;
+    for (int i = 0;; i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (!v) break;
+        buffer_write_object(buf, v, &error);
+        if (error) TL_THROW("%s", error);
+    }
+    return tlBinFromCopy(tlBufferData(buf), tlBufferSize(buf));
+}
+
 INTERNAL tlHandle _bin_size(tlArgs* args) {
     return tlINT(tlBinAs(tlArgsTarget(args))->len);
 }
@@ -65,6 +78,7 @@ INTERNAL unsigned int binHash(tlHandle v) {
     return tlBinHash(tlBinAs(v));
 }
 INTERNAL int binEquals(tlHandle left, tlHandle right) {
+    const char* data = 
     return tlBinEquals(tlBinAs(left), tlBinAs(right));
 }
 INTERNAL tlHandle binCmp(tlHandle left, tlHandle right) {
@@ -94,7 +108,7 @@ static void bin_init() {
         null
     );
     tlMap* constructor = tlClassMapFrom(
-        //"call", _Bin_new,
+        "call", _Bin_new,
         "class", null,
         null
     );

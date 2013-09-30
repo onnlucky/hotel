@@ -13,7 +13,7 @@ io.Dir(".").each: file ->
 
     // TODO overwrite stdout ...
     print "TEST: $(file)"
-    io.File(file).read.eval
+    io.File(file).readString.eval
     $pass += 1
 
 if $fail > 0: print "FAIL:", $fail, "PASS:", $pass; return

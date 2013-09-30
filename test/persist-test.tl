@@ -9,7 +9,7 @@ list.add "hello world!"
 list.add "the end"
 // db.close or db.flush ??
 
-assert io.File(FILE).read.find("TESTING")
+assert io.File(FILE).readString.find("TESTING")
 
 db = Persist.new(FILE)
 obj = db.Object.get("hello")

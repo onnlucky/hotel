@@ -155,6 +155,11 @@ File = {
                 return buf.read
         )
 
+        readString: ->
+            buf = Buffer.new
+            this.read buf
+            return buf.readString
+
         write: (val ->
             writer = _File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT).writer
             if isBuffer(val):

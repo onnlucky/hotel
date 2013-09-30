@@ -226,18 +226,6 @@ INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
     tlBufferRewind(buf, -1);
     return buf;
 }
-INTERNAL tlHandle _buffer_readOld(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
-
-    int max = canread(buf);
-    int len = tl_int_or(tlArgsGet(args, 0), max);
-    if (len > max) len = max;
-
-    trace("canread: %d", len);
-    const char* from = readbuf(buf);
-    didread(buf, len);
-    return tlStringFromCopy(from, len);
-}
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
 
@@ -385,7 +373,7 @@ static void buffer_init() {
             "compact", _buffer_compact,
             "clear", _buffer_clear,
             "rewind", _buffer_rewind,
-            "read", _buffer_readOld,
+            "read", _buffer_read,
             "readString", _buffer_readString,
             "readByte", _buffer_readByte,
             "find", _buffer_find,
