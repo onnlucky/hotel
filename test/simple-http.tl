@@ -10,11 +10,11 @@ catch: e -> server.close; throw e
 
 out, status = io.run("curl -s http://localhost:18080/")
 assert status == 0
-assert out == Bin("hello world!")
+assert out == "hello world!"
 
 out, status = io.run("curl -s http://localhost:18080/")
 assert status == 0
-assert out == Bin("hello world!")
+assert out == "hello world!"
 
 server.close
 

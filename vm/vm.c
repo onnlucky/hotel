@@ -71,6 +71,10 @@ bool tlHandleEquals(tlHandle left, tlHandle right) {
         if (kleft == tlFloatKind && kright == tlIntKind) return tlFloatKind->equals(left, right);
         if (kleft == tlSymKind && kright == tlStringKind) return tlSymKind->equals(left, right);
         if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->equals(left, right);
+        if (kleft == tlBinKind && kright == tlStringKind) return tlBinKind->equals(left, right);
+        if (kleft == tlStringKind && kright == tlBinKind) return tlBinKind->equals(left, right);
+        if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->equals(left, _TEXT_FROM_SYM(right));
+        if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->equals(_TEXT_FROM_SYM(left), right);
         return false;
     }
     if (!kleft->equals) return false;
@@ -95,6 +99,10 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
         if (kleft == tlFloatKind && kright == tlIntKind) return tlFloatKind->cmp(left, right);
         if (kleft == tlSymKind && kright == tlStringKind) return tlSymKind->cmp(left, right);
         if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->cmp(left, right);
+        if (kleft == tlBinKind && kright == tlStringKind) return tlBinKind->cmp(left, right);
+        if (kleft == tlStringKind && kright == tlBinKind) return tlBinKind->cmp(left, right);
+        if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->cmp(left, _TEXT_FROM_SYM(right));
+        if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->cmp(_TEXT_FROM_SYM(left), right);
         // TODO maybe return undefined because compare cannot be done here?
         // but actually, we need to let the interpreter execute user level code here
         return tlCOMPARE((intptr_t)kleft - (intptr_t)kright);

@@ -204,7 +204,7 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
     return i;
 }
 unsigned int tlStringHash(tlString* str) {
-    assert(tlStringIs(str));
+    assert(tlStringIs(str) || tlBinIs(str));
     if (str->hash) return str->hash;
     str->hash = murmurhash2a(str->data, str->len);
     if (!str->hash) str->hash = 1;

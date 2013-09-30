@@ -10,8 +10,9 @@ static tlBin* _tl_emptyBin;
 
 struct tlBin {
     tlHead head;
-    int len;
-    const uint8_t* data;
+    unsigned int hash;
+    unsigned int len;
+    const char* data;
 };
 
 tlBin* tlBinEmpty() { return _tl_emptyBin; }
@@ -20,16 +21,18 @@ tlBin* tlBinFromCopy(const char* s, int len) {
     trace("%s", s);
     assert(len >= 0);
 
+    char* data = malloc_atomic(len + 1);
+    memcpy(data, s, len);
+    data[len] = 0;
     tlBin* bin = tlAlloc(tlBinKind, sizeof(tlBin));
-    bin->data = malloc_atomic(len);
-    memcpy((uint8_t*)bin->data, s, len);
     bin->len = len;
+    bin->data = data;
     return bin;
 }
 
 const uint8_t* tlBinData(tlBin *bin) {
     assert(tlBinIs(bin));
-    return bin->data;
+    return (uint8_t*)bin->data;
 }
 
 int tlBinSize(tlBin* bin) {
@@ -73,25 +76,20 @@ INTERNAL tlHandle _bin_toString(tlArgs* args) {
     buf[len] = 0;
     return tlStringFromTake(buf, len);
 }
-/*
 INTERNAL unsigned int binHash(tlHandle v) {
-    return tlBinHash(tlBinAs(v));
+    return tlStringHash((tlString*)v);
 }
 INTERNAL int binEquals(tlHandle left, tlHandle right) {
-    const char* data = 
-    return tlBinEquals(tlBinAs(left), tlBinAs(right));
+    return tlStringEquals((tlString*)left, (tlString*)right);
 }
 INTERNAL tlHandle binCmp(tlHandle left, tlHandle right) {
-    return tlCOMPARE(tlBinCmp(tlBinAs(left), tlBinAs(right)));
+    return tlCOMPARE(tlStringCmp((tlString*)left, (tlString*)right));
 }
-*/
 static tlKind _tlBinKind = {
     .name = "bin",
-    /*
     .hash = binHash,
     .equals = binEquals,
     .cmp = binCmp,
-    */
 };
 
 static void bin_init() {
