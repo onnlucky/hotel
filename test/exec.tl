@@ -1,7 +1,6 @@
 out, status = io.run("echo hello world")
 assert status == 0
-print out.toString
-assert out == bin("hello world\n")
+assert out == "hello world\n"
 
 (!(
     io.chdir "noboot"
@@ -27,7 +26,7 @@ assert out == bin("hello world\n")
 )
 
 io.shell "echo 42 > /tmp/testing"
-assert io.File("/tmp/testing").readString == "42\n"
+assert io.File("/tmp/testing").read == "42\n"
 io.shell "rm -rf /tmp/testing"
 
 out, status = io.run("cat exec.tl")

@@ -81,6 +81,12 @@ SizedStream = stream, size ->
             len = min($toread, len)
             $toread -= len
             return stream.read len
+        readString: len ->
+            if $toread == 0: return null
+            if not len: return stream.readString $toread
+            len = min($toread, len)
+            $toread -= len
+            return stream.readString len
         readByte: -> this.read(1)[1]
         close: ->
             this.read
@@ -112,6 +118,9 @@ ChuckedStream = stream ->
         read: len ->
             readsomechunks(stream, buf, len)
             buf.read len
+        readString: len ->
+            readsomechunks(stream, buf, len)
+            buf.readString len
         readByte: -> this.read(1)[1]
         close: -> stream.close
     }
@@ -136,7 +145,8 @@ get = url ->
         Error("No headers received").throw
 
     // TODO take back the stream after body is done ...
-    res = httpparser.response(conn.read(at - 1 + 4))
+    header = conn.readString(at - 1 + 4)
+    res = httpparser.response(header)
     length = res.headers.get("Content-Length")
     encoding = res.headers.get("Transfer-Encoding")
     body = | length                :: SizedStream(conn, length.eval)
@@ -144,8 +154,9 @@ get = url ->
            | not encoding          :: conn
            |                       :: print length, encoding; assert false
 
+    // TODO read text encoding and not assume utf8
     if args.names.stream: return body, res
-    return body.read, res
+    return body.readString, res
 
 {{ Server, get }}
 
