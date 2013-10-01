@@ -5,7 +5,8 @@ enum {
     OP_END = 0,
 
     OP_TRUE = 0xC0, OP_FALSE, OP_NULL, OP_UNDEF, OP_INT,        // literals
-    OP_SYSTEM, OP_MODULE, OP_ENV, OP_LOCAL, OP_ARG, OP_RESULT,  // access data
+    OP_SYSTEM, OP_MODULE, OP_GLOBAL,                            // access to global data
+    OP_ENV, OP_LOCAL, OP_ARG, OP_RESULT,                        // access local data
     OP_BIND, OP_STORE, OP_INVOKE,                               // bind closures, store into locals, invoke calls
 
     OP_MCALL  = 0xE0, OP_FCALL, OP_BCALL,                       // building calls
@@ -31,9 +32,10 @@ static tlHandle dreadref(uint8_t** code, tlList* data) {
         return decodelit(b);
     }
     int r = dreadsize(code);
-    return tlListGet(data, r);
+    if (data) return tlListGet(data, r);
+    return null;
 }
-static void disasm(uint8_t* code, tlList* data) {
+static void disasm(uint8_t* code, tlList* data, tlList* globals) {
     print("<code>");
     int r = 0; int r2 = 0; tlHandle o = null;
     tlHandle args = dreadref(&code, data);
@@ -52,6 +54,7 @@ static void disasm(uint8_t* code, tlList* data) {
             case OP_INT: r = dreadsize(&code); print(" int %d", r); break;
             case OP_SYSTEM: o = dreadref(&code, data); print(" system %s", tl_str(o)); break;
             case OP_MODULE: o = dreadref(&code, data); print(" data %s", tl_str(o)); break;
+            case OP_GLOBAL: o = dreadref(&code, globals); print(" global %s", tl_str(o)); break;
             case OP_ENV: r = dreadsize(&code); r2 = dreadsize(&code); print(" env %d %d", r, r2); break;
             case OP_LOCAL: r = dreadsize(&code); print(" local %d", r); break;
             case OP_ARG: r = dreadsize(&code); print(" arg %d", r); break;
@@ -181,16 +184,16 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
             fatal("set %d", size);
         case 0x60: { // short map
             print("short map: %d (%d)", size, tlBufferSize(buf));
-            tlMap* map = tlMapEmpty();
+            tlList* pairs = tlListNew(size);
             for (int i = 0; i < size; i++) {
                 tlHandle key = readref(buf, data, null);
                 assert(key);
                 tlHandle v = readref(buf, data, null);
                 assert(v);
                 print("MAP: %s: %s", tl_str(key), tl_str(v));
-                //tlMapSet_(map, i, key, v);
+                tlListSet_(pairs, i, tlListFrom2(tlSymFromString(key), v));
             }
-            return map;
+            return tlMapFromPairs(pairs);
         }
         case 0x80: // short raw
             fatal("raw %d", size);
@@ -199,7 +202,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
             if (tlBufferSize(buf) < size) fatal("buffer too small");
             uint8_t *code = malloc_atomic(size);
             tlBufferRead(buf, (char*)code, size);
-            disasm(code, data);
+            disasm(code, data, null);
             return tlNull;
             //return tlStringFromTake(data, size);
             //fatal("bytecode %d", size);

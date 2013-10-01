@@ -199,38 +199,38 @@ writeCode = v, main, sub, top ->
     var $pc = 0
     loop:
         op = v.code[($pc += 1)]
-        | op == #system |
+        | op == #system ::
             code.write 0b1100_0000 + 5
             write v.code[($pc += 1)], main, code // a reference to a string
-        | op == #module |
+        | op == #module ::
             code.write 0b1100_0000 + 6
             write v.code[($pc += 1)], main, code // a reference to data
-        | op == #bind   |
-            code.write 0b1100_0000 + 11
+        | op == #bind   ::
+            code.write 0b1100_0000 + 12
             write v.code[($pc += 1)], main, code // a reference to another bytecode block
-        | op == #end    |
+        | op == #end    ::
             code.write 0; break
-        | op == #global |
-            code.write 0b1100_0000 + 6;
+        | op == #global ::
+            code.write 0b1100_0000 + 7;
             writeRef code, v.code[($pc += 1)]    // a index into the linker list
-        | op == #true   | code.write 0b1100_0000 + 0
-        | op == #false  | code.write 0b1100_0000 + 1
-        | op == #null   | code.write 0b1100_0000 + 2
-        | op == #undef  | code.write 0b1100_0000 + 3
-        | op == #int    | code.write 0b1100_0000 + 4; writeRef code, v.code[($pc += 1)]
-        | op == #env    | code.write 0b1100_0000 + 7; writeRef code, v.code[($pc += 1)]; writeRef code, v.code[($pc += 1)]
-        | op == #local  | code.write 0b1100_0000 + 8; writeRef code, v.code[($pc += 1)]
-        | op == #arg    | code.write 0b1100_0000 + 9; writeRef code, v.code[($pc += 1)]
-        | op == #result | code.write 0b1100_0000 + 10; writeRef code, v.code[($pc += 1)]
-        | op == #store  | code.write 0b1100_0000 + 12; writeRef code, v.code[($pc += 1)]
-        | op == #invoke | code.write 0b1100_0000 + 13
-        | op == #mcall  | code.write 0b1110_0000 + 0; writeRef code, v.code[($pc += 1)]
-        | op == #fcall  | code.write 0b1110_0000 + 1; writeRef code, v.code[($pc += 1)]
-        | op == #bcall  | code.write 0b1110_0000 + 2; writeRef code, v.code[($pc += 1)]
+        | op == #true   :: code.write 0b1100_0000 + 0
+        | op == #false  :: code.write 0b1100_0000 + 1
+        | op == #null   :: code.write 0b1100_0000 + 2
+        | op == #undef  :: code.write 0b1100_0000 + 3
+        | op == #int    :: code.write 0b1100_0000 + 4; writeRef code, v.code[($pc += 1)]
+        | op == #env    :: code.write 0b1100_0000 + 8; writeRef code, v.code[($pc += 1)]; writeRef code, v.code[($pc += 1)]
+        | op == #local  :: code.write 0b1100_0000 + 9; writeRef code, v.code[($pc += 1)]
+        | op == #arg    :: code.write 0b1100_0000 + 10; writeRef code, v.code[($pc += 1)]
+        | op == #result :: code.write 0b1100_0000 + 11; writeRef code, v.code[($pc += 1)]
+        | op == #store  :: code.write 0b1100_0000 + 13; writeRef code, v.code[($pc += 1)]
+        | op == #invoke :: code.write 0b1100_0000 + 14
+        | op == #mcall  :: code.write 0b1110_0000 + 0; writeRef code, v.code[($pc += 1)]
+        | op == #fcall  :: code.write 0b1110_0000 + 1; writeRef code, v.code[($pc += 1)]
+        | op == #bcall  :: code.write 0b1110_0000 + 2; writeRef code, v.code[($pc += 1)]
 
-    | code.size < 32 |
+    | code.size < 32 ::
         main.write 160 + code.size
-    |                |
+    |                ::
         main.write 224 + 5
         writeSize main, v.size
 
@@ -240,11 +240,11 @@ writeCode = v, main, sub, top ->
     writeRef sub, ref
 
 write = v, main, sub, top ->
-    | isCode(v)   | writeCode v, main, sub, top
-    | v == null   | sub.write 192 + 0
-    | v == false  | sub.write 192 + 1
-    | v == true   | sub.write 192 + 2
-    | isFloat(v)  |
+    | isCode(v)   :: writeCode v, main, sub, top
+    | v == null   :: sub.write 192 + 0
+    | v == false  :: sub.write 192 + 1
+    | v == true   :: sub.write 192 + 2
+    | isFloat(v)  ::
         return sub.write 128 + 8
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
@@ -252,7 +252,7 @@ write = v, main, sub, top ->
         main.write 9
         main.writeFloat v
         return writeRef sub, ref
-    | isNumber(v) |
+    | isNumber(v) ::
         if v >= -2 and v + 8 < 50: return sub.write 192 + 8 + v
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
@@ -260,26 +260,26 @@ write = v, main, sub, top ->
         main.write 192 + 4
         3.to 0: n -> main.write v >> n * 8
         return writeRef sub, ref
-    | isString(v) |
+    | isString(v) ::
         if v.size == 0: return sub.write 192 + 3
         if literals[v]: return writeRef sub, literals[v]
         ref = literals[v] = $size; $size += 1
 
-        | v.size < 32 |
+        | v.size < 32 ::
             main.write 0 + v.size
             print "short string", v.size, v
-        |              |
+        |             ::
             main.write 224 + 0
             writeSize main, v.size
         main.write v
         return writeRef sub, ref
-    | isList(v)   |
+    | isList(v)   ::
         if v.size == 0: return sub.write 192 + 4
 
         list = Buffer.new
-        | v.size < 32 |
+        | v.size < 32 ::
             list.write 32 + v.size
-        |             |
+        |             ::
             list.write 224 + 1
             writeSize main, v.size
         v.each: v => write v, main, list
@@ -289,14 +289,14 @@ write = v, main, sub, top ->
         ref = $size; $size += 1
         if top: return
         writeRef sub, ref
-    | isObject(v) |
+    | isObject(v) ::
         m = Map(v)
         if m.size == 0: return sub.write 192 + 5
 
         map = Buffer.new
-        | m.size < 32 |
+        | m.size < 32 ::
             map.write 96 + m.size
-        |                |
+        |             ::
             list.write 224 + 3
             writeSize main, v.size
         m.each: k, v ->
