@@ -9,7 +9,7 @@ run = stream ->
         catch: e -> stream.write("error: $(e.toString)\n")
         nl = stream.find("\n")
         if not nl: return
-        res = eval(env, stream.read(nl))
+        res = eval(env, stream.readString(nl))
         if res: stream.write("$res\n")
 
 {{ run }}
