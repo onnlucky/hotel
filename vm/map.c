@@ -144,6 +144,11 @@ tlHandle tlMapValueIter(tlMap* map, int i) {
     if (i >= tlMapSize(map)) return null;
     return map->data[i];
 }
+tlHandle tlMapKeyIter(tlMap* map, int i) {
+    assert(i >= 0);
+    if (i >= tlMapSize(map)) return null;
+    return map->keys->data[i];
+}
 
 void tlMapValueIterSet_(tlMap* map, int i, tlHandle v) {
     assert(i >= 0 && i < tlMapSize(map));

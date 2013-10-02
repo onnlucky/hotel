@@ -127,7 +127,7 @@ emitParse = name, parse ->
     return mod
 
 name = args[1]
-module = emitParse name, parser.parse(io.File(name).read)
+module = emitParse name, parser.parse(io.File(name).readString)
 
 // ** write **
 //         8 |  7 |  6 |  5 |  4 |  3 |  2 |  1
