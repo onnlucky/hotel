@@ -1,5 +1,8 @@
 # TODO
 
+start bytecode interpreter
+implement bignum; start math test suite; add list.mean, list.avg etc ...
+
 remove last symbol holdouts
 add closure.invoke or such where all params are given as maps and lists, to use
 add Queue + max depth size or unlimited; MsgQueue and TaskQueue

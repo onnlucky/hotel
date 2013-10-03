@@ -260,6 +260,14 @@ INTERNAL tlHandle _list_get(tlArgs* args) {
     int at = at_offset(tlArgsGet(args, 0), tlListSize(list));
     return tlMAYBE(tlListGet(list, at));
 }
+INTERNAL tlHandle _list_first(tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    return tlMAYBE(tlListGet(list, 0));
+}
+INTERNAL tlHandle _list_last(tlArgs* args) {
+    tlList* list = tlListCast(tlArgsTarget(args));
+    return tlMAYBE(tlListGet(list, tlListSize(list) - 1));
+}
 /// set(index, element): return a new list, replacing or adding element at index
 /// will pad the list with elements set to null index is beyond the end of the current list
 INTERNAL tlHandle _list_set(tlArgs* args) {
@@ -400,6 +408,8 @@ static void list_init() {
         "size", _list_size,
         "hash", _list_hash,
         "get", _list_get,
+        "first", _list_first,
+        "last", _list_last,
         "set", _list_set,
         "add", _list_add,
         "prepend", _list_prepend,
@@ -414,6 +424,9 @@ static void list_init() {
         "filter", null,
         "map", null,
         "reduce", null,
+        "min", null,
+        "max", null,
+        "sum", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(

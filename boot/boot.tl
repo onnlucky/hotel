@@ -184,6 +184,25 @@ _install(List.class, #flatten, (flatten = (->
     _flatten2(this, arr)
     return arr.toList
 )))
+_install(List.class, #min, (min = (->
+    if this.size == 0: return undefined
+    if this.size == 1: return this[1]
+    var $min = this[1]
+    this.each: e -> if e < $min: $min = e
+    return $min
+)))
+_install(List.class, #max, (max = (->
+    if this.size == 0: return undefined
+    if this.size == 1: return this[1]
+    var $max = this[1]
+    this.each: e -> if e > $max: $max = e
+    return $max
+)))
+_install(List.class, #sum, (sum = (->
+    var $sum = 0
+    this.each: e -> $sum += e
+    return $sum
+)))
 
 _map_each = (m, fn ->
     block = args.block or fn
