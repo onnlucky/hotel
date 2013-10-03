@@ -149,6 +149,7 @@ get = url ->
     res = httpparser.response(header)
     length = res.headers.get("Content-Length")
     encoding = res.headers.get("Transfer-Encoding")
+    type = res.headers.get("Content-Type")
     body = | length                :: SizedStream(conn, length.eval)
            | encoding == "chunked" :: ChuckedStream(conn)
            | not encoding          :: conn
@@ -156,7 +157,8 @@ get = url ->
 
     // TODO read text encoding and not assume utf8
     if args.names.stream: return body, res
-    return body.readString, res
+    if type and type.startsWith("text"): return body.readString, res
+    return body.read, res
 
 {{ Server, get }}
 
