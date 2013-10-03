@@ -272,6 +272,10 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
     if (tlNumberIs(v)) {
         return tlBufferWriteByte(buf, (int)tl_double(v));
     }
+    if (tlBinIs(v)) {
+        tlBin* bin = tlBinAs(v);
+        return tlBufferWrite(buf, (const char*)tlBinData(bin), tlBinSize(bin));
+    }
     if (tlStringIs(v)) {
         tlString* str = tlStringAs(v);
         return tlBufferWrite(buf, tlStringData(str), tlStringSize(str));

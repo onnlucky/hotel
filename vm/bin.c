@@ -76,6 +76,9 @@ INTERNAL tlHandle _bin_toString(tlArgs* args) {
     buf[len] = 0;
     return tlStringFromTake(buf, len);
 }
+INTERNAL tlHandle _isBin(tlArgs* args) {
+    return tlBOOL(tlBinIs(tlArgsGet(args, 0)));
+}
 INTERNAL unsigned int binHash(tlHandle v) {
     return tlStringHash((tlString*)v);
 }

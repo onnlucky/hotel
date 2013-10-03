@@ -544,6 +544,7 @@ static const tlNativeCbs __vm_natives[] = {
 
     { "_Buffer_new", _Buffer_new },
     { "isBuffer", _isBuffer },
+    { "isBin", _isBin },
 
     { "_set_exitcode", _set_exitcode },
 

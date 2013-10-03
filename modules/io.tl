@@ -169,7 +169,9 @@ File = {
             if isBuffer(val):
                 _with_lock(writer, val):
                     return writeFull(writer, val)
-            buf = Buffer.new; buf.write val.toString
+            buf = Buffer.new
+            | isBin(val) :: buf.write val
+            |            :: buf.write val.toString
             _with_lock(writer, buf):
                 return writeFull(writer, buf)
         )

@@ -523,6 +523,8 @@ int tlBufferRead(tlBuffer* buf, char* to, int count);
 uint8_t tlBufferReadByte(tlBuffer* buf);
 
 tlBin* tlBinFromCopy(const char* data, int len);
+int tlBinSize(tlBin* bin);
+const uint8_t* tlBinData(tlBin* bin);
 
 
 #endif // _tl_h_
