@@ -129,6 +129,7 @@ static inline tlString* tlStringCast(tlHandle v) {
 TL_REF_TYPE(tlBin);
 TL_REF_TYPE(tlUndefined);
 TL_REF_TYPE(tlFloat);
+TL_REF_TYPE(tlNum);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlMap);
@@ -167,9 +168,11 @@ bool tlCallableIs(tlHandle v);
 tlHandle tlUndef();
 static inline tlUndefined* tlMAYBE(tlHandle v) { return (v)? v : tlUndef(); }
 tlHandle tlBOOL(unsigned c);
-tlInt tlINT(intptr_t i);
-tlFloat* tlFLOAT(double d);
-static inline bool tlNumberIs(tlHandle v) { return tlIntIs(v) || tlFloatIs(v); }
+tlHandle tlINT(intptr_t i);
+tlHandle tlFLOAT(double d);
+tlHandle tlNUM(intptr_t n);
+tlHandle tlPARSENUM(const char* s, int radix);
+static inline bool tlNumberIs(tlHandle v) { return tlIntIs(v) || tlFloatIs(v) || tlNumIs(v); }
 
 // tlString and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...

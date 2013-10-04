@@ -553,12 +553,12 @@ thisref = "@" n:name  { $$ = tlCallFrom(tl_active(s_this_get), tl_active(s_this)
  lookup = n:name      { $$ = tl_active(n); }
 
    sym = "#" n:name                 { $$ = n }
-number = "0x" < [_0-9A-F]+ >        { $$ = tlINT((int)strtol(rmu(yytext), 0, 16)); }
-       | "0b" < [_0-1]+ >           { $$ = tlINT((int)strtol(rmu(yytext), 0, 2)); }
+number = "0x" < [_0-9A-F]+ >        { $$ = tlPARSENUM(rmu(yytext), 16); }
+       | "0b" < [_0-1]+ >           { $$ = tlPARSENUM(rmu(yytext), 2); }
        | < "-"? [0-9] [_0-9]* "." [0-9] [_0-9]* > { $$ = tlFLOAT(atof(rmu(yytext))); }
        | < "-"?               "." [0-9] [_0-9]* > { $$ = tlFLOAT(atof(rmu(yytext))); }
        | < "-"? [0-9] [_0-9]* "." !name >         { $$ = tlFLOAT(atof(rmu(yytext))); }
-       | < "-"? [0-9] [_0-9]* >                   { $$ = tlINT(atoi((rmu(yytext)))); }
+       | < "-"? [0-9] [_0-9]* >                   { $$ = tlPARSENUM(rmu(yytext), 10); }
 
    chr = "'\\r'"          { $$ = tlINT('\r'); }
        | "'\\n'"          { $$ = tlINT('\n'); }

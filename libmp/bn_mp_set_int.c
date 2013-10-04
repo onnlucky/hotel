@@ -41,6 +41,40 @@ int mp_set_int (mp_int * a, unsigned long b)
   mp_clamp (a);
   return MP_OKAY;
 }
+
+int mp_set_signed(mp_int * a, intptr_t b)
+{
+  int     x, res;
+
+  /* keep track of sign */
+  int sign = 0;
+  if (b < 0) {
+      sign = 1;
+      b *= -1;
+  }
+
+  mp_zero (a);
+
+  /* set four bits at a time */
+  for (x = 0; x < (int)(sizeof(intptr_t)*2); x++) {
+    /* shift the number up four bits */
+    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
+      return res;
+    }
+
+    /* OR in the top four bits of the source */
+    a->dp[0] |= (b >> (sizeof(b)*CHAR_BIT-4)) & 15;
+
+    /* shift the source up to the next four bits */
+    b <<= 4;
+
+    /* ensure that digits are not clamped off */
+    a->used += 1;
+  }
+  a->sign = sign; // set sign
+  mp_clamp (a);
+  return MP_OKAY;
+}
 #endif
 
 /* $Source$ */

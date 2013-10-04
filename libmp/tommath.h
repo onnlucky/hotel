@@ -231,8 +231,14 @@ void mp_set(mp_int *a, mp_digit b);
 /* set a 32-bit const */
 int mp_set_int(mp_int *a, unsigned long b);
 
+/* set a platform word value */
+int mp_set_signed(mp_int *a, intptr_t b);
+
 /* get a 32-bit value */
 unsigned long mp_get_int(mp_int * a);
+
+/* get a plaform word value, clamped to min or max */
+intptr_t mp_get_signed(mp_int * a);
 
 /* initialize and set a digit */
 int mp_init_set (mp_int * a, mp_digit b);

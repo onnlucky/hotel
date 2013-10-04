@@ -34,7 +34,7 @@ int tl_bool(tlHandle v) { return !(v == null || v == tlNull || v == tlFalse || t
 int tl_bool_or(tlHandle v, bool d) { if (!v) return d; return tl_bool(v); }
 
 tlHandle tlINT(intptr_t i) { return (tlHandle)(i << 2 | 1); }
-intptr_t tl_int(tlHandle v) {
+intptr_t tlIntToInt(tlHandle v) {
     assert(tlIntIs(v));
     intptr_t i = (intptr_t)v;
     if (i < 0) {
@@ -46,9 +46,8 @@ intptr_t tl_int(tlHandle v) {
     }
     return i >> 2;
 }
-intptr_t tl_int_or(tlHandle v, int d) {
-    if (!tlIntIs(v)) return d;
-    return tl_int(v);
+double tlIntToDouble(tlHandle v) {
+    return (double)tlIntToInt(v);
 }
 
 // creating value objects
