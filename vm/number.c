@@ -42,13 +42,13 @@ static tlHandle _float_hash(tlArgs* args) {
     return tlINT(floatHash(tlArgsTarget(args)));
 }
 static tlHandle _float_floor(tlArgs* args) {
-    return tlINT(floor(tl_double(tlArgsTarget(args))));
+    return tlNUM(floor(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_round(tlArgs* args) {
-    return tlINT(round(tl_double(tlArgsTarget(args))));
+    return tlNUM(round(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_ceil(tlArgs* args) {
-    return tlINT(ceil(tl_double(tlArgsTarget(args))));
+    return tlNUM(ceil(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_toString(tlArgs* args) {
     double c = tl_double(tlArgsTarget(args));
@@ -63,7 +63,7 @@ struct tlNum {
     tlHead* head;
     mp_int value;
 };
-
+// TODO implement from double ...
 tlNum* tlNumNew(intptr_t l) {
     tlNum* num = tlAlloc(tlNumKind, sizeof(tlNum));
     mp_init(&num->value);
@@ -75,11 +75,43 @@ tlNum* tlNumFrom(mp_int n) {
     num->value = n;
     return num;
 }
+tlNum* tlNumTo(tlHandle h) {
+    assert(tlNumberIs(h));
+    if (tlNumIs(h)) return tlNumAs(h);
+    return tlNumNew(tl_int(h));
+}
+
 intptr_t tlNumToInt(tlNum* num) {
     return mp_get_int(&num->value);
 }
 intptr_t tlNumToDouble(tlNum* num) {
     return (double)mp_get_int(&num->value);
+}
+static tlNum* tlNumAdd(tlNum* l, tlNum* r) {
+    mp_int res; mp_init(&res);
+    mp_add(&l->value, &r->value, &res);
+    return tlNumFrom(res);
+}
+static tlNum* tlNumSub(tlNum* l, tlNum* r) {
+    mp_int res; mp_init(&res);
+    mp_sub(&l->value, &r->value, &res);
+    return tlNumFrom(res);
+}
+static tlNum* tlNumMul(tlNum* l, tlNum* r) {
+    mp_int res; mp_init(&res);
+    mp_mul(&l->value, &r->value, &res);
+    return tlNumFrom(res);
+}
+static tlNum* tlNumDiv(tlNum* l, tlNum* r) {
+    mp_int res; mp_init(&res);
+    mp_int remainder; mp_init(&remainder);
+    mp_div(&l->value, &r->value, &res, &remainder);
+    return tlNumFrom(res);
+}
+static tlNum* tlNumMod(tlNum* l, tlNum* r) {
+    mp_int res; mp_init(&res);
+    mp_mod(&l->value, &r->value, &res);
+    return tlNumFrom(res);
 }
 
 static const char* numtoString(tlHandle v, char* buf, int size) {
@@ -119,7 +151,6 @@ tlHandle tlPARSENUM(const char* s, int radix) {
     if (mp_cmp(&n, &MIN_INT_BIGNUM) >= 0 && mp_cmp(&n, &MAX_INT_BIGNUM) <= 0) {
         return tlINT(mp_get_signed(&n));
     }
-    warning("BIGNUM: %s", s);
     return tlNumFrom(n);
 }
 

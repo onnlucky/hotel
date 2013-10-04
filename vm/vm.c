@@ -187,40 +187,44 @@ static tlHandle _rshift(tlArgs* args) {
 
 // int/float
 static tlHandle _add(tlArgs* args) {
-    tlHandle l = tlArgsGet(args, 0);
-    tlHandle r = tlArgsGet(args, 1);
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) + tl_int(r));
+    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) + tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlNumAdd(tlNumTo(l), tlNumTo(r));
     // TODO when adding string and something else, convert else to string ...
     if (tlStringIs(l) && tlStringIs(r)) return tlStringCat(tlStringAs(l), tlStringAs(r));
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) + tl_int(r));
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) + tl_double(r));
     TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
 }
 static tlHandle _sub(tlArgs* args) {
-    tlHandle l = tlArgsGet(args, 0);
-    tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) - tl_int(r));
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) - tl_double(r));
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) - tl_int(r));
+    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) - tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlNumSub(tlNumTo(l), tlNumTo(r));
     TL_THROW("'-' not implemented for: %s - %s", tl_str(l), tl_str(r));
 }
 static tlHandle _mul(tlArgs* args) {
-    tlHandle l = tlArgsGet(args, 0);
-    tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) * tl_int(r));
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) * tl_double(r));
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) * tl_int(r));
+    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMul(tlNumTo(l), tlNumTo(r));
     TL_THROW("'*' not implemented for: %s * %s", tl_str(l), tl_str(r));
 }
 static tlHandle _div(tlArgs* args) {
-    tlHandle l = tlArgsGet(args, 0);
-    tlHandle r = tlArgsGet(args, 1);
-    //if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) / tl_int(r));
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
+static tlHandle _idiv(tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) / tl_int(r)); // TODO return remainder as well?
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlNumDiv(tlNumTo(l), tlNumTo(r));
+    TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
+}
 static tlHandle _mod(tlArgs* args) {
-    tlHandle l = tlArgsGet(args, 0);
-    tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) % tl_int(r));
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(fmod(tl_double(l), tl_double(r)));
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) % tl_int(r));
+    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
     TL_THROW("'%%' not implemented for: %s %% %s", tl_str(l), tl_str(r));
 }
 static tlHandle _binand(tlArgs* args) {
@@ -525,6 +529,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "mul",  _mul },
     { "div",  _div },
     { "mod",  _mod },
+    { "idiv",  _idiv },
 
     { "binand",  _binand },
     { "binor",  _binor },
