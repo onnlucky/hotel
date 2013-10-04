@@ -379,8 +379,10 @@ void tl_init() {
     tl_inited = true;
 
 #ifdef HAVE_BOEHMGC
-    //GC_set_handle_fork(0);
-    GC_INIT();
+    GC_set_handle_fork(0);
+    GC_set_dont_expand(0);
+    GC_set_free_space_divisor(1); // default is 3; space vs collections, lower is more space
+    GC_init();
 #endif
     signal(SIGSEGV, tlbacktrace_fatal);
     signal(SIGBUS, tlbacktrace_fatal);
