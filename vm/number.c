@@ -1,7 +1,13 @@
+#include <tommath.h>
 
 struct tlFloat {
     tlHead* head;
     double value;
+};
+
+struct tlBigNum {
+    tlHead* head;
+    mp_int num;
 };
 
 tlFloat* tlFLOAT(double d) {

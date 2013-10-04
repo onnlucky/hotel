@@ -11,6 +11,7 @@ endif
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
 LIBGC:=libgc/objs/libgc.a
+LIBBN:=libmp/libbn.a
 
 TLG_MODULES=modules/html.tl modules/sizzle.tl
 
@@ -29,6 +30,9 @@ test: test-noboot $(TLG_MODULES)
 $(LIBGC):
 	./libgc.sh
 
+$(LIBBN):
+	cd libmp && make
+
 boot_tl.h: boot/boot.tl
 	cd boot && xxd -i boot.tl ../boot_tl.h
 
@@ -44,16 +48,17 @@ parser.o: parser.c vm/tl.h config.h $(LIBGC)
 ev.o: ev/*.c ev/*.h config.h $(LIBGC)
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
-libtl.a: $(LIBGC) parser.o ev.o vm.o
+libtl.a: $(LIBGC) $(LIBBN) parser.o ev.o vm.o
 	rm -f libtl.a
 	ar -q libtl.a parser.o ev.o vm.o
+	ar -q libtl.a libmp/*.o
 ifneq ($(BOEHM),)
 	ar -q libtl.a libgc/objs/*.o
 endif
 	ar -s libtl.a
 
-vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC)
-	$(CC) $(CFLAGS) -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
+vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBBN)
+	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lportaudio $(LJACK) -lssl -lcrypto
