@@ -378,7 +378,10 @@ void tl_init() {
     if (tl_inited) return;
     tl_inited = true;
 
+#ifdef HAVE_BOEHMGC
+    //GC_set_handle_fork(0);
     GC_INIT();
+#endif
     signal(SIGSEGV, tlbacktrace_fatal);
     signal(SIGBUS, tlbacktrace_fatal);
     signal(SIGSYS, tlbacktrace_fatal);
@@ -457,10 +460,12 @@ tlVm* tlVmNew() {
 }
 
 void tlVmDelete(tlVm* vm) {
+#ifdef HAVE_BOEHMGC
     GC_gcollect();
     GC_gcollect();
     GC_gcollect();
     GC_gcollect();
+#endif
     free(vm);
 }
 

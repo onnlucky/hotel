@@ -971,7 +971,10 @@ static tlHandle _io_launch(tlArgs* args) {
         assert(_err[0] >= 0 && _err[1] >= 0);
     } while (false);
     int pid = -1;
-    if (!errno) pid = fork();
+    if (!errno) {
+        pid = fork();
+        if (pid == 0) errno = 0; // clear errno in child, if success, osx seems to set it to invalid arguments
+    }
     if (errno) {
         TL_THROW_SET("child exec: failed: %s", strerror(errno));
         close(_in[0]); close(_in[1]);
@@ -987,6 +990,10 @@ static tlHandle _io_launch(tlArgs* args) {
         tlChild* child = tlChildNew(pid, _in[1], _out[0], _err[0]);
         return child;
     }
+#ifdef HAVE_BOEHMGC
+    // stop gc in child process, we don't need it and it is fragile on OSX
+    GC_disable();
+#endif
 
     // child
     dup2(_in[0], 0);

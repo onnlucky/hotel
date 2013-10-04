@@ -10,7 +10,7 @@ ioloop = ->
         loop:
             msg = _io_queue.poll
             if msg == null: break
-            catch: e -> msg.throw(e.msg)
+            catch: e -> msg.throw(e)
             | msg.name == #waitread  :: _io_waitread msg[1], msg
             | msg.name == #waitwrite :: _io_waitwrite msg[1], msg
             | msg.name == #wait      :: _io_wait msg[1], msg
