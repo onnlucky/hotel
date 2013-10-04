@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include <tommath_class.h>
 
