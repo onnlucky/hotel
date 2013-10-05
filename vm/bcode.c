@@ -5,16 +5,20 @@
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBCode);
 
+// against better judgement, modules are linked by mutating, or copying if already linked
 struct tlBModule {
     tlHead head;
-    tlString* name;
-    tlList* data;
-    tlList* links;
-    tlHandle* value;
+    tlString* name; // name of this module, usually filename
+    tlList* data;   // list of constants
+    tlList* links;  // names of all global things referenced
+    tlList* linked; // when linked, resolved values for all globals
+    tlBCode* body;  // starting point; will reference linked and data
 };
 
 struct tlBCode {
     tlHead head;
+    tlBModule* mod; // back reference to module it belongs
+
     tlString* name;
     tlList* args;
     tlMap* argnames;
@@ -36,8 +40,9 @@ tlBModule* tlBModuleNew(tlString* name) {
     return mod;
 }
 
-tlBCode* tlBCodeNew() {
+tlBCode* tlBCodeNew(tlBModule* mod) {
     tlBCode* code = tlAlloc(tlBCodeKind, sizeof(tlBCode));
+    code->mod = mod;
     return code;
 }
 
@@ -141,7 +146,7 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, uint8_t b1) {
     return null;
 }
 
-tlHandle readvalue(tlBuffer* buf, tlList* data) {
+tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
     if (tlBufferSize(buf) < 1) fatal("buffer too small");
     uint8_t b1 = tlBufferReadByte(buf);
     uint8_t type = b1 & 0xE0;
@@ -188,7 +193,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data) {
             trace("short bytecode: %d", size);
             if (tlBufferSize(buf) < size) fatal("buffer too small");
 
-            tlBCode* bcode = tlBCodeNew();
+            tlBCode* bcode = tlBCodeNew(mod);
 
             uint8_t *code = malloc_atomic(size + 1);
             tlBufferRead(buf, (char*)code, size);
@@ -237,19 +242,25 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     tlHandle v = null;
     tlList* data = tlListNew(size);
     for (int i = 0; i < size; i++) {
-        v = readvalue(buf, data);
+        v = readvalue(buf, data, mod);
         trace("%d: %s", i, tl_str(v));
         assert(v);
         tlListSet_(data, i, v);
     }
-    if (mod) mod->data = data;
+    if (mod) {
+        mod->data = data;
+        mod->links = tlListAs(tlMapGet(v, tlSYM("link")));
+        mod->body = tlBCodeAs(tlMapGet(v, tlSYM("body")));
+    }
     return v;
 }
 
-static void disasm(tlBCode* bcode, tlBModule* mod) {
+static void disasm(tlBCode* bcode) {
+    assert(bcode->mod);
     uint8_t* code = (uint8_t*)bcode->code;
-    tlList* data = mod->data;
-    tlList* links = mod->links;
+    tlList* data = bcode->mod->data;
+    tlList* links = bcode->mod->links;
+    tlList* linked = bcode->mod->linked;
 
     print("<code>");
     int r = 0; int r2 = 0; tlHandle o = null;
@@ -268,7 +279,7 @@ static void disasm(tlBCode* bcode, tlBModule* mod) {
             case OP_INT: r = dreadsize(&code); print(" int %d", r); break;
             case OP_SYSTEM: o = dreadref(&code, data); print(" system %s", tl_str(o)); break;
             case OP_MODULE: o = dreadref(&code, data); print(" data %s", tl_str(o)); break;
-            case OP_GLOBAL: o = dreadref(&code, links); print(" linked %s", tl_str(o)); break;
+            case OP_GLOBAL: r = dreadsize(&code); print(" linked %s (%s)", tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r))); break;
             case OP_ENV: r = dreadsize(&code); r2 = dreadsize(&code); print(" env %d %d", r, r2); break;
             case OP_LOCAL: r = dreadsize(&code); print(" local %d", r); break;
             case OP_ARG: r = dreadsize(&code); print(" arg %d", r); break;
@@ -289,11 +300,11 @@ exit:;
     print("</code>");
 }
 
-void pprint(tlHandle v, tlBModule* mod) {
+void pprint(tlHandle v) {
     if (tlBCodeIs(v)) {
         tlBCode* code = tlBCodeAs(v);
-        print("BYTECODE: %s", tl_str(code->name));
-        disasm(code, mod);
+        print("BYTECODE: %s::%s", tl_str(code->mod->name), tl_str(code->name));
+        disasm(code);
         return;
     }
     if (tlMapIs(v)) {
@@ -304,7 +315,7 @@ void pprint(tlHandle v, tlBModule* mod) {
             if (!v) break;
             tlHandle k = tlMapKeyIter(map, i);
             print("%s:", tl_str(k));
-            pprint(v, mod);
+            pprint(v);
         }
         print("}");
         return;
@@ -315,11 +326,27 @@ void pprint(tlHandle v, tlBModule* mod) {
         for (int i = 0;; i++) {
             tlHandle v = tlListGet(list, i);
             if (!v) break;
-            pprint(v, mod);
+            pprint(v);
         }
         print("]");
         return;
     }
     print("%s", tl_str(v));
+}
+
+tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
+    assert(!mod->linked);
+    mod->linked = tlListNew(tlListSize(mod->links));
+    for (int i = 0; i < tlListSize(mod->links); i++) {
+        tlHandle name = tlListGet(mod->links, i);
+        tlHandle v = tlEnvGet(env, name);
+        print("linking: %s as %s", tl_str(name), tl_str(v));
+        tlListSet_(mod->linked, i, v);
+    }
+    return mod;
+}
+
+void beval(tlTask* task, tlBModule* mod) {
+    assert(mod->linked);
 }
 

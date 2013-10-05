@@ -5,12 +5,19 @@
 int main(int argc, char** argv) {
     tl_init();
 
-#if 0
+#if 1
+    tlVm* vm = tlVmNew();
+    tlVmInitDefaultEnv(vm);
+    tlTask* task = tlTaskNew(vm, tlMapEmpty());
+
     tlBModule* mod = tlBModuleNew(tlSTR("test-input"));
     tlHandle v = deserialize(tlBufferFromFile("test-input.tlb"), mod);
-    pprint(v, mod);
+    tlBModuleLink(mod, tlVmGlobalEnv(vm));
+    pprint(v);
+    beval(task, mod);
     return 0;
-#endif
+
+#else
 
     const char* boot = null;
     tlArgs* args = null;
@@ -43,5 +50,6 @@ int main(int argc, char** argv) {
     int exitcode = tlVmExitCode(vm);
     tlVmDelete(vm);
     return exitcode;
+#endif
 }
 
