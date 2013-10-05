@@ -113,6 +113,11 @@ static tlNum* tlNumMod(tlNum* l, tlNum* r) {
     mp_mod(&l->value, &r->value, &res);
     return tlNumFrom(res);
 }
+static tlNum* tlNumPow(tlNum* l, intptr_t r) {
+    mp_int res; mp_init(&res);
+    mp_expt_d(&l->value, r, &res);
+    return tlNumFrom(res);
+}
 
 static const char* numtoString(tlHandle v, char* buf, int size) {
     mp_toradix_n(&tlNumAs(v)->value, buf, 10, size); return buf;

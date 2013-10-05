@@ -204,7 +204,12 @@ static tlHandle _sub(tlArgs* args) {
 }
 static tlHandle _mul(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) * tl_int(r));
+    if (tlIntIs(l) && tlIntIs(r)) {
+        // TODO figure out better limits, or let tlNum be smarter when to return small int
+        if (tl_int(l) > -32000 && tl_int(l) < 32000 && tl_int(r) > -32000 && tl_int(r) < 32000) {
+            return tlNUM(tl_int(l) * tl_int(r));
+        }
+    }
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMul(tlNumTo(l), tlNumTo(r));
     TL_THROW("'*' not implemented for: %s * %s", tl_str(l), tl_str(r));
@@ -226,6 +231,17 @@ static tlHandle _mod(tlArgs* args) {
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
     TL_THROW("'%%' not implemented for: %s %% %s", tl_str(l), tl_str(r));
+}
+static tlHandle _pow(tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(pow(tl_double(l), tl_double(r)));
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        int p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
+        if (p < 0) return tlFLOAT(pow(tl_double(l), p));
+        if (p < 1000) return tlNumPow(tlNumTo(l), p);
+        TL_THROW("'^' out of range: %s ^ %d", tl_str(l), p);
+    }
+    TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
 }
 static tlHandle _binand(tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
@@ -528,8 +544,9 @@ static const tlNativeCbs __vm_natives[] = {
     { "sub",  _sub },
     { "mul",  _mul },
     { "div",  _div },
-    { "mod",  _mod },
     { "idiv",  _idiv },
+    { "mod",  _mod },
+    { "pow", _pow },
 
     { "binand",  _binand },
     { "binor",  _binor },

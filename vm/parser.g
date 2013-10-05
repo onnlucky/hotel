@@ -21,7 +21,7 @@ static tlSym s_Task_new;
 static tlSym s_and, s_or, s_xor, s_not;
 static tlSym s_lt, s_lte, s_gt, s_gte, s_eq, s_neq, s_cmp;
 static tlSym s_band, s_bor, s_bxor, s_bnot, s_lshift, s_rshift;
-static tlSym s_add, s_sub, s_mul, s_div, s_mod, s_pow;
+static tlSym s_add, s_sub, s_mul, s_div, s_idiv, s_mod, s_pow;
 static tlSym s_main;
 static tlSym s_get, s_set, s_slice, s__set;
 static tlSym s_assert;
@@ -378,6 +378,7 @@ bpexpr = v:value andor as:pcargs _":"_ b:block {
        | "-" { $$ = s_sub; }
        | "*" { $$ = s_mul; }
        | "/" { $$ = s_div; }
+       | "/|" { $$ = s_idiv; }
        | "%" { $$ = s_mod; }
        | "^" { $$ = s_pow; }
 slicea = expr
@@ -503,10 +504,11 @@ op_add = l:op_mul _ ("+" __ r:op_mul { l = tlCallFrom(tl_active(s_add), l, r, nu
                     )*               { $$ = l; }
 op_mul = l:op_pow _ ("*" __ r:op_pow { l = tlCallFrom(tl_active(s_mul), l, r, null); }
                     |"/" __ r:op_pow { l = tlCallFrom(tl_active(s_div), l, r, null); }
+                    |"/|" __ r:op_pow { l = tlCallFrom(tl_active(s_idiv), l, r, null); }
                     |"%" __ r:op_pow { l = tlCallFrom(tl_active(s_mod), l, r, null); }
                     )*               { $$ = l; }
 op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, null); }
-                    )*
+                    )*               { $$ = l; }
 
  paren = "assert"_"("__ < as:cargs > __")" t:tail {
             as = tlListPrepend2(L(as), s_string, tlStringFromCopy(yytext, 0));
@@ -669,7 +671,7 @@ tlHandle tlParse(tlString* str, tlString* file) {
         s_lshift = tlSYM("lsh"); s_rshift = tlSYM("rsh");
         s_eq = tlSYM("eq"); s_neq = tlSYM("neq"); s_cmp = tlSYM("cmp");
         s_add = tlSYM("add"); s_sub = tlSYM("sub");
-        s_mul = tlSYM("mul"); s_div = tlSYM("div");
+        s_mul = tlSYM("mul"); s_div = tlSYM("div"); s_idiv = tlSYM("idiv");
         s_mod = tlSYM("mod"); s_pow = tlSYM("pow");
         s_main = tlSYM("main"); s_get = tlSYM("get"); s_set = tlSYM("set"); s_slice = tlSYM("slice"); s__set = tlSYM("_set");
         s_assert = tlSYM("assert"); s_string = tlSYM("string");
