@@ -4,6 +4,7 @@
 
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBCode);
+TL_REF_TYPE(tlBCall);
 
 // against better judgement, modules are linked by mutating, or copying if already linked
 struct tlBModule {
@@ -28,11 +29,22 @@ struct tlBCode {
     const uint8_t* code;
 };
 
+struct tlBCall {
+    tlHead head;
+    int size;
+    tlHandle target;
+    tlHandle fn;
+    tlHandle args[];
+};
+
 static tlKind _tlBModuleKind;
 tlKind* tlBModuleKind = &_tlBModuleKind;
 
 static tlKind _tlBCodeKind;
 tlKind* tlBCodeKind = &_tlBCodeKind;
+
+static tlKind _tlBCallKind;
+tlKind* tlBCallKind = &_tlBCallKind;
 
 tlBModule* tlBModuleNew(tlString* name) {
     tlBModule* mod = tlAlloc(tlBModuleKind, sizeof(tlBModule));
@@ -46,9 +58,32 @@ tlBCode* tlBCodeNew(tlBModule* mod) {
     return code;
 }
 
+tlBCall* tlBCallNew(int size) {
+    tlBCall* call = tlAlloc(tlBCallKind, sizeof(tlBCall) + sizeof(tlHandle) * size);
+    call->size = size;
+    return call;
+}
+void tlBCallAdd(tlBCall* call, tlHandle o) {
+    trace("call add: %s %s %s", tl_str(call->target), tl_str(call->fn), tl_str(call->args[0]));
+    if (!call->target) { call->target = o; return; }
+    if (!call->fn) { call->fn = o; return; }
+    for (int i = 0;; i++) {
+        assert(i < 128);
+        if (call->args[i]) continue;
+        call->args[i] = o;
+        break;
+    }
+}
+tlHandle* tlBCallGetTarget(tlBCall* call) {
+    return call->target;
+}
+tlHandle* tlBCallGetFn(tlBCall* call) {
+    return call->fn;
+}
+
 static tlHandle decodelit(uint8_t b);
-static int dreadsize(uint8_t** code2) {
-    uint8_t* code = *code2;
+static int dreadsize(const uint8_t** code2) {
+    const uint8_t* code = *code2;
     int res = 0;
     while (true) {
         uint8_t b = *code; code++;
@@ -56,7 +91,7 @@ static int dreadsize(uint8_t** code2) {
         res = res << 6 | (b & 0x3F);
     }
 }
-static tlHandle dreadref(uint8_t** code, tlList* data) {
+static tlHandle dreadref(const uint8_t** code, tlList* data) {
     uint8_t b = **code;
     if (b > 0xC0) {
         *code = *code + 1;
@@ -192,20 +227,23 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
         case 0xA0: { // short bytecode
             trace("short bytecode: %d", size);
             if (tlBufferSize(buf) < size) fatal("buffer too small");
+            int start = tlBufferSize(buf);
 
             tlBCode* bcode = tlBCodeNew(mod);
+            bcode->args = tlListAs(readref(buf, data, null));
+            bcode->argnames = tlMapAs(readref(buf, data, null));
+            bcode->localnames = tlListAs(readref(buf, data, null));
+            bcode->name = tlStringAs(readref(buf, data, null));
+            trace(" %s -- %s %s %s", tl_str(bcode->name), tl_str(bcode->args), tl_str(bcode->argnames), tl_str(bcode->localnames));
 
-            uint8_t *code = malloc_atomic(size + 1);
+            // we don't want above data in the bcode ... so skip it
+            size -= start - tlBufferSize(buf);
+            assert(size > 0);
+            uint8_t *code = malloc_atomic(size);
             tlBufferRead(buf, (char*)code, size);
-            code[size] = 0;
+            assert(code[size - 1] == 0);
             bcode->size = size;
             bcode->code = code;
-
-            bcode->args = tlListAs(dreadref(&code, data));
-            bcode->argnames = tlMapAs(dreadref(&code, data));
-            bcode->localnames = tlListAs(dreadref(&code, data));
-            bcode->name = tlStringAs(dreadref(&code, data));
-            trace(" %s -- %s %s %s", tl_str(bcode->name), tl_str(bcode->args), tl_str(bcode->argnames), tl_str(bcode->localnames));
 
             return bcode;
         }
@@ -257,17 +295,13 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
 
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
-    uint8_t* code = (uint8_t*)bcode->code;
+    const uint8_t* code = bcode->code;
     tlList* data = bcode->mod->data;
     tlList* links = bcode->mod->links;
     tlList* linked = bcode->mod->linked;
 
     print("<code>");
     int r = 0; int r2 = 0; tlHandle o = null;
-    dreadref(&code, data);
-    dreadref(&code, data);
-    dreadref(&code, data);
-    dreadref(&code, data);
     while (true) {
         uint8_t op = *code; code++;
         switch (op) {
@@ -348,5 +382,75 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
 
 void beval(tlTask* task, tlBModule* mod) {
     assert(mod->linked);
+    assert(mod->body->mod);
+    assert(mod == mod->body->mod);
+
+    tlBCode* bcode = mod->body;
+    const uint8_t* code = bcode->code;
+    tlList* data = bcode->mod->data;
+    tlList* links = bcode->mod->links;
+    tlList* linked = bcode->mod->linked;
+
+    tlBCall* call = null;
+    int r = 0;
+    int r2 = 0;
+    tlHandle o = null;
+    while (true) {
+        uint8_t op = *code; code++;
+        switch (op) {
+            case OP_END: goto exit;
+            case OP_TRUE:  fatal(" true"); break;
+            case OP_FALSE: fatal(" false"); break;
+            case OP_NULL: fatal(" null"); break;
+            case OP_UNDEF: fatal(" undef"); break;
+            case OP_INT: r = dreadsize(&code); fatal(" int %d", r); break;
+            case OP_SYSTEM: o = dreadref(&code, data); fatal(" system %s", tl_str(o)); break;
+            case OP_MODULE:
+                r = dreadsize(&code);
+                o = tlListGet(data, r);
+                trace(" %s data %s", tl_str(call), tl_str(o));
+                tlBCallAdd(call, o);
+            break;
+            case OP_GLOBAL:
+                r = dreadsize(&code);
+                o = tlListGet(linked, r);
+                trace(" %s linked %s (%s)", tl_str(call), tl_str(o), tl_str(tlListGet(links, r)));
+                tlBCallAdd(call, o);
+            break;
+
+            case OP_ENV: r = dreadsize(&code); r2 = dreadsize(&code); fatal(" env %d %d", r, r2); break;
+            case OP_LOCAL: r = dreadsize(&code); fatal(" local %d", r); break;
+            case OP_ARG: r = dreadsize(&code); fatal(" arg %d", r); break;
+            case OP_RESULT: r = dreadsize(&code); fatal(" result %d", r); break;
+            case OP_BIND: o = dreadref(&code, data); fatal(" data %s", tl_str(o)); break;
+            case OP_STORE: r = dreadsize(&code); fatal(" store %d", r); break;
+            case OP_INVOKE:
+                o = tlBCallGetFn(call);
+                trace(" %s invoke %s", tl_str(call), tl_str(o));
+                if (tlNativeIs(o)) {
+                    tlArgs* args = tlArgsNew(tlListNew(call->size), null);
+                    tlArgsSetTarget_(args, call->target);
+                    tlArgsSetFn_(args, call->fn);
+                    for (int i = 0; i < call->size; i++) tlArgsSet_(args, i, call->args[i]);
+                    tlNativeKind->run(tlNativeAs(o), args);
+                    break;
+                }
+                fatal("don't know how to call: %s", tl_str(o));
+            break;
+            case OP_FCALL:
+                r = dreadsize(&code);
+                call = tlBCallNew(r);
+                tlBCallAdd(call, tlNull); // no target
+                trace(" %s fcall %d", tl_str(call), r);
+            break;
+            case OP_MCALL: r = dreadsize(&code); fatal(" mcall %d", r); break;
+            case OP_BCALL: r = dreadsize(&code); fatal(" bcall %d", r); break;
+            case OP_MCALLN: r = dreadsize(&code); fatal(" mcalln %d", r); break;
+            case OP_FCALLN: r = dreadsize(&code); fatal(" fcalln %d", r); break;
+            case OP_BCALLN: r = dreadsize(&code); fatal(" bcalln %d", r); break;
+            default: fatal("OEPS: %x", op);
+        }
+    }
+exit:;
 }
 

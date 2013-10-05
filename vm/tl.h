@@ -401,6 +401,8 @@ tlHandle tlUndefMsg(tlString* msg);
 
 // args
 tlArgs* tlArgsNew(tlList* list, tlMap* map);
+void tlArgsSetTarget_(tlArgs* args, tlHandle target);
+void tlArgsSetFn_(tlArgs* args, tlHandle fn);
 void tlArgsSet_(tlArgs* args, int at, tlHandle v);
 void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v);
 

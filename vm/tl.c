@@ -5,7 +5,8 @@
 int main(int argc, char** argv) {
     tl_init();
 
-#if 1
+#if 0
+
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     tlTask* task = tlTaskNew(vm, tlMapEmpty());
@@ -50,6 +51,7 @@ int main(int argc, char** argv) {
     int exitcode = tlVmExitCode(vm);
     tlVmDelete(vm);
     return exitcode;
+
 #endif
 }
 

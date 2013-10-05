@@ -71,6 +71,11 @@ tlHandle tlArgsBlock(tlArgs* args) {
     return tlArgsMapGet(args, s_block);
 }
 
+void tlArgsSetTarget_(tlArgs* args, tlHandle target) {
+    assert(tlArgsIs(args));
+    assert(!args->target);
+    args->target = target;
+}
 void tlArgsSetFn_(tlArgs* args, tlHandle fn) {
     assert(tlArgsIs(args));
     assert(!args->fn);
