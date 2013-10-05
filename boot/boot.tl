@@ -284,7 +284,7 @@ inspect = x ->
     )
     buf = io.Buffer.new
     toJSON(x, "", buf)
-    buf.read
+    buf.readString
 
 // TODO should report line number and such of testcase ...
 test = ->

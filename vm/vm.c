@@ -285,6 +285,7 @@ static tlHandle _sqrt(tlArgs* args) {
 static tlHandle _random(tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);
+    if (upto <= 0) return tlINT(0);
     int res = random() % upto;
     trace("RND: %d", res);
     return tlINT(res);
