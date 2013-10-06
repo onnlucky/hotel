@@ -1,6 +1,5 @@
 // test if map works; have a function a -> b; generate random lists of a's verify list are equal
 
-
 randomInt = t ->
     | t < 0.25 :: 2 - random(4)
     | t < 0.50 :: 100 - random(200)
@@ -17,28 +16,24 @@ randomList = element ->
     return (t ->
         size = randomSize(t)
         list = Array.new
-        random(size).times: list.add(element(t))
+        sub = t * 7 - (t * 7).floor // cycle faster through the range of our sub
+        size.times: list.add(element(sub))
         return list.toList
     )
 
 test = fn, verify, what ->
-    total = 11
+    total = 110
     total.times: t ->
         o = what(t/total)
         n = fn(o)
-        print (t/total*100).round, "testing", inspect(o), inspect(n)
         verify(o, n)
     print "ran $total tests"
 
 trans = a -> a + 1
 verify = o, r -> assert o == r - 1
-test trans, verify, randomInt
+//test trans, verify, randomInt
 
 map = a -> a.map(trans)
 verify = o, r -> o.each: e, i -> assert r[i] == trans(e)
 test map, verify, randomList(randomInt)
-
-/*
-
-print inspect randomList(randomInt)
 

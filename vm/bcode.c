@@ -245,6 +245,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
             bcode->size = size;
             bcode->code = code;
 
+            trace("code: %s", tl_str(bcode));
             return bcode;
         }
         case 0xC0: { // short size number
@@ -312,13 +313,19 @@ static void disasm(tlBCode* bcode) {
             case OP_UNDEF: print(" undef"); break;
             case OP_INT: r = dreadsize(&code); print(" int %d", r); break;
             case OP_SYSTEM: o = dreadref(&code, data); print(" system %s", tl_str(o)); break;
-            case OP_MODULE: o = dreadref(&code, data); print(" data %s", tl_str(o)); break;
+            case OP_MODULE:
+                o = dreadref(&code, data); print(" data %s", tl_str(o));
+                if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
+                break;
             case OP_GLOBAL: r = dreadsize(&code); print(" linked %s (%s)", tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r))); break;
             case OP_ENV: r = dreadsize(&code); r2 = dreadsize(&code); print(" env %d %d", r, r2); break;
             case OP_LOCAL: r = dreadsize(&code); print(" local %d", r); break;
             case OP_ARG: r = dreadsize(&code); print(" arg %d", r); break;
             case OP_RESULT: r = dreadsize(&code); print(" result %d", r); break;
-            case OP_BIND: o = dreadref(&code, data); print(" data %s", tl_str(o)); break;
+            case OP_BIND:
+                o = dreadref(&code, data); print(" bind %s", tl_str(o));
+                if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
+                break;
             case OP_STORE: r = dreadsize(&code); print(" store %d", r); break;
             case OP_INVOKE: print(" invoke"); break;
             case OP_MCALL: r = dreadsize(&code); print(" mcall %d", r); break;
@@ -373,7 +380,7 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->links); i++) {
         tlHandle name = tlListGet(mod->links, i);
-        tlHandle v = tlEnvGet(env, name);
+        tlHandle v = tlEnvGet(env, tlSymFromString(name));
         print("linking: %s as %s", tl_str(name), tl_str(v));
         tlListSet_(mod->linked, i, v);
     }
@@ -422,7 +429,10 @@ void beval(tlTask* task, tlBModule* mod) {
             case OP_LOCAL: r = dreadsize(&code); fatal(" local %d", r); break;
             case OP_ARG: r = dreadsize(&code); fatal(" arg %d", r); break;
             case OP_RESULT: r = dreadsize(&code); fatal(" result %d", r); break;
-            case OP_BIND: o = dreadref(&code, data); fatal(" data %s", tl_str(o)); break;
+            case OP_BIND:
+                o = dreadref(&code, data);
+                fatal(" bind %s", tl_str(o));
+                break;
             case OP_STORE: r = dreadsize(&code); fatal(" store %d", r); break;
             case OP_INVOKE:
                 o = tlBCallGetFn(call);
