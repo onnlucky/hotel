@@ -4,7 +4,9 @@
 
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBCode);
-TL_REF_TYPE(tlBCall);
+TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
+TL_REF_TYPE(tlBClosure);
+TL_REF_TYPE(tlBFrame);
 
 // against better judgement, modules are linked by mutating, or copying if already linked
 struct tlBModule {
@@ -37,6 +39,18 @@ struct tlBCall {
     tlHandle args[];
 };
 
+struct tlBClosure {
+    tlHead head;
+    tlBCode* code;
+    tlEnv* env;
+};
+
+struct tlBFrame {
+    tlHead head;
+    tlBClosure* fn;
+    tlEnv* locals;
+};
+
 static tlKind _tlBModuleKind;
 tlKind* tlBModuleKind = &_tlBModuleKind;
 
@@ -46,22 +60,37 @@ tlKind* tlBCodeKind = &_tlBCodeKind;
 static tlKind _tlBCallKind;
 tlKind* tlBCallKind = &_tlBCallKind;
 
+static tlKind _tlBClosureKind;
+tlKind* tlBClosureKind = &_tlBClosureKind;
+
+static tlKind _tlBFrameKind;
+tlKind* tlBFrameKind = &_tlBFrameKind;
+
 tlBModule* tlBModuleNew(tlString* name) {
     tlBModule* mod = tlAlloc(tlBModuleKind, sizeof(tlBModule));
     mod->name = name;
     return mod;
 }
-
 tlBCode* tlBCodeNew(tlBModule* mod) {
     tlBCode* code = tlAlloc(tlBCodeKind, sizeof(tlBCode));
     code->mod = mod;
     return code;
 }
-
 tlBCall* tlBCallNew(int size) {
     tlBCall* call = tlAlloc(tlBCallKind, sizeof(tlBCall) + sizeof(tlHandle) * size);
     call->size = size;
     return call;
+}
+tlBClosure* tlBClosureNew(tlBCode* code, tlEnv* env) {
+    tlBClosure* fn = tlAlloc(tlBClosureKind, sizeof(tlBClosure));
+    fn->code = code;
+    fn->env = env;
+    return fn;
+}
+tlBFrame* tlBFrameNew(tlBClosure* fn) {
+    tlBFrame* frame = tlAlloc(tlBFrameKind, sizeof(tlBFrame));
+    frame->fn = fn;
+    return frame;
 }
 void tlBCallAdd(tlBCall* call, tlHandle o) {
     trace("call add: %s %s %s", tl_str(call->target), tl_str(call->fn), tl_str(call->args[0]));
@@ -375,6 +404,77 @@ void pprint(tlHandle v) {
     print("%s", tl_str(v));
 }
 
+void tlBCodeVerify(tlBCode* bcode) {
+    int locals = 0;
+    int maxdepth = 0;
+    int depth = 0;
+
+    assert(bcode->mod);
+    const uint8_t* code = bcode->code;
+    tlList* data = bcode->mod->data;
+
+    tlHandle v;
+    int parent;
+    int at;
+
+    while (true) {
+        uint8_t op = *code; code++;
+        switch (op) {
+            case OP_END: goto exit;
+            case OP_TRUE: break;
+            case OP_FALSE: break;
+            case OP_NULL: break;
+            case OP_UNDEF: break;
+            case OP_INT: dreadsize(&code); break;
+            case OP_SYSTEM: dreadsize(&code); break;
+            case OP_MODULE: dreadsize(&code); break;
+            case OP_GLOBAL: dreadsize(&code); break;
+            case OP_ENV:
+                parent = dreadsize(&code);
+                at = dreadsize(&code);
+                assert(parent >= 0 && parent <= 200);
+                assert(at >= 0); // todo and check parent locals
+                break;
+            case OP_LOCAL:
+                at = dreadsize(&code);
+                assert(at <= locals);
+                break;
+            case OP_ARG: dreadsize(&code); break;
+            case OP_RESULT: dreadsize(&code); break;
+            case OP_BIND:
+                v = dreadref(&code, data);
+                tlBCodeVerify(tlBCodeAs(v)); // TODO pass in our locals somehow for ENV
+                break;
+            case OP_STORE:
+                at = dreadsize(&code);
+                assert(locals == at);
+                locals++;
+                break;
+
+            case OP_INVOKE:
+                assert(depth > 0);
+                if (depth > maxdepth) maxdepth = depth;
+                depth--;
+                print("DEPTH--: %d", depth);
+                break;
+            case OP_MCALL:
+            case OP_FCALL:
+            case OP_BCALL:
+            case OP_MCALLN:
+            case OP_FCALLN:
+            case OP_BCALLN:
+                dreadsize(&code);
+                depth++;
+                print("DEPTH++: %d", depth);
+                break;
+            default: print("OEPS: %x", op);
+        }
+    }
+exit:;
+     assert(depth == 0);
+     print("verified; locals: %d, calldepth: %d, %s", locals, maxdepth, tl_str(bcode));
+}
+
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
     assert(!mod->linked);
     mod->linked = tlListNew(tlListSize(mod->links));
@@ -384,6 +484,7 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
         print("linking: %s as %s", tl_str(name), tl_str(v));
         tlListSet_(mod->linked, i, v);
     }
+    tlBCodeVerify(mod->body);
     return mod;
 }
 
@@ -431,7 +532,8 @@ void beval(tlTask* task, tlBModule* mod) {
             case OP_RESULT: r = dreadsize(&code); fatal(" result %d", r); break;
             case OP_BIND:
                 o = dreadref(&code, data);
-                fatal(" bind %s", tl_str(o));
+                o = tlBClosureNew(tlBCodeAs(o), null);
+                trace(" bind %s", tl_str(o));
                 break;
             case OP_STORE: r = dreadsize(&code); fatal(" store %d", r); break;
             case OP_INVOKE:
