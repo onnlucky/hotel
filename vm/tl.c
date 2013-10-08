@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
     tlHandle v = deserialize(tlBufferFromFile("test-input.tlb"), mod);
     tlBModuleLink(mod, tlVmGlobalEnv(vm));
     pprint(v);
-    beval(task, mod);
+    beval_module(task, mod);
     return 0;
 
 #else

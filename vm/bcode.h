@@ -12,3 +12,4 @@ enum {
     OP_LAST
 };
 
+const char* op_name(uint8_t op);
