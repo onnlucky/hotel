@@ -55,9 +55,9 @@ struct tlBCode {
     tlMap* argnames;
     tlList* localnames;
 
-    uint32_t locals;
-    uint32_t calldepth;
-    uint32_t size;
+    int locals;
+    int calldepth;
+    int size;
     const uint8_t* code;
 };
 
@@ -87,19 +87,19 @@ struct tlBFrame {
     tlBCall** calls;
 };
 
-static tlKind _tlBModuleKind;
+static tlKind _tlBModuleKind = { .name = "BModule" };
 tlKind* tlBModuleKind = &_tlBModuleKind;
 
-static tlKind _tlBCodeKind;
+static tlKind _tlBCodeKind = { .name = "BCode" };
 tlKind* tlBCodeKind = &_tlBCodeKind;
 
-static tlKind _tlBCallKind;
+static tlKind _tlBCallKind = { .name = "BCall" };
 tlKind* tlBCallKind = &_tlBCallKind;
 
-static tlKind _tlBClosureKind;
+static tlKind _tlBClosureKind = { .name = "BClosure" };
 tlKind* tlBClosureKind = &_tlBClosureKind;
 
-static tlKind _tlBFrameKind;
+static tlKind _tlBFrameKind = { .name = "BFrame" };
 tlKind* tlBFrameKind = &_tlBFrameKind;
 
 tlBModule* tlBModuleNew(tlString* name) {
@@ -129,12 +129,20 @@ tlBFrame* tlBFrameNew(tlBClosure* fn) {
     return frame;
 }
 void tlBCallAdd_(tlBCall* call, tlHandle o) {
-    trace("call add: %s %s %s", tl_str(call->target), tl_str(call->fn), tl_str(call->args[0]));
-    if (!call->target) { call->target = o; return; }
-    if (!call->fn) { call->fn = o; return; }
+    if (!call->target) {
+        trace("%s.target <- %s", tl_str(call), tl_str(o));
+        call->target = o;
+        return;
+    }
+    if (!call->fn) {
+        trace("%s.fn <- %s", tl_str(call), tl_str(o));
+        call->fn = o;
+        return;
+    }
     for (int i = 0;; i++) {
-        assert(i < 128);
+        assert(i < 256);
         if (call->args[i]) continue;
+        trace("%s[%d] <- %s", tl_str(call), i, tl_str(o));
         call->args[i] = o;
         break;
     }
@@ -165,7 +173,7 @@ static int dreadsize(const uint8_t** code2) {
 static int pcreadsize(const uint8_t* ops, int* pc) {
     int res = 0;
     while (true) {
-        uint8_t b = ops[*pc++];
+        uint8_t b = ops[(*pc)++];
         if (b < 0x80) { return (res << 7) | b; }
         res = res << 6 | (b & 0x3F);
     }
@@ -525,6 +533,8 @@ void tlBCodeVerify(tlBCode* bcode) {
 exit:;
      assert(depth == 0);
      print("verified; locals: %d, calldepth: %d, %s", locals, maxdepth, tl_str(bcode));
+     bcode->locals = locals;
+     bcode->calldepth = maxdepth;
 }
 
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
@@ -540,7 +550,9 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
     return mod;
 }
 
-tlHandle tlInvoke(tlBCall* call) {
+tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args);
+
+tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
     trace(" %s invoke %s", tl_str(call), tl_str(fn));
     if (tlNativeIs(fn)) {
@@ -549,6 +561,9 @@ tlHandle tlInvoke(tlBCall* call) {
         tlArgsSetFn_(args, call->fn);
         for (int i = 0; i < call->size; i++) tlArgsSet_(args, i, call->args[i]);
         return tlNativeKind->run(tlNativeAs(fn), args);
+    }
+    if (tlBClosureIs(fn)) {
+        return beval(task, null, call);
     }
     fatal("don't know how to invoke: %s", tl_str(fn));
     return null;
@@ -605,20 +620,22 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
         //calls = frame->calls;
         v = tlNull; // task->value;
         goto resume; // for speed and code density
+    } else {
+        trace("new eval; %s locals: %d calldepth: %d", tl_str(bcode), bcode->locals, bcode->calldepth);
     }
 
 again:;
     op = ops[pc++];
     if (!op) return tlNull; //task->value; // OP_END
-    trace("op: 0x%X %s", op, op_name(op));
-    //assert(op & 0xC0);
+    assert(op & 0xC0);
+    //trace("%d op: 0x%X %s", pc, op, op_name(op));
 
     lazy = call >= 0 && calls[call]->lazy;
 
     // is it a call
     if (op & 0x20) {
         int size = pcreadsize(ops, &pc);
-        trace("call op: %s - %d", op_name(op), size);
+        trace("%d call op: 0x%X %s - %d", pc, op, op_name(op), size);
 
         if (lazy) {
             trace("lazy call");
@@ -630,7 +647,7 @@ again:;
         call++;
         calls[call] = tlBCallNew(size);
         // for non methods, skip target
-        if (op & 0x0F) tlBCallAdd_(calls[call], null);
+        if (op & 0x0F) tlBCallAdd_(calls[call], tlNull);
         // load names if it is a named call
         if (op & 0x10) {
             int at = pcreadsize(ops, &pc);
@@ -639,7 +656,7 @@ again:;
         goto again;
     }
 
-    trace("data op: %s", op_name(op));
+    trace("%d data op: 0x%X %s", pc, op, op_name(op));
     int at;
     int depth;
 
@@ -648,8 +665,9 @@ again:;
             assert(call >= 0);
             assert(!lazy);
             trace("invoke: %s", tl_str(calls[call]));
-            v = tlInvoke(calls[call]);
+            v = tlInvoke(task, calls[call]);
             if (!v) return v; // task paused instead of actually doing work
+            call--;
             break;
         }
         case OP_SYSTEM:
@@ -661,13 +679,11 @@ again:;
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
             trace("data %s", tl_str(v));
-            tlBCallAdd_(calls[call], v);
         break;
         case OP_GLOBAL:
             at = pcreadsize(ops, &pc);
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
-            tlBCallAdd_(calls[call], v);
         break;
         case OP_ENV:
             depth = pcreadsize(ops, &pc);
@@ -681,6 +697,7 @@ again:;
             break;
         case OP_LOCAL:
             at = pcreadsize(ops, &pc);
+            assert(at >= 0 && at < bcode->locals);
             v = locals[at];
             trace("local %d -> %s", at, tl_str(v));
             break;
@@ -688,7 +705,7 @@ again:;
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
             v = tlBClosureNew(tlBCodeAs(v), null);
-            trace("bind %s", tl_str(v));
+            trace("%d bind %s", pc, tl_str(v));
             break;
         case OP_RESULT:
             at = pcreadsize(ops, &pc);
@@ -697,6 +714,8 @@ again:;
             trace("result %d <- %s", at, tl_str(v));
         case OP_STORE:
             at = pcreadsize(ops, &pc);
+            assert(at >= 0 && at < bcode->locals);
+            locals[at] = v;
             trace("store %d <- %s", at, tl_str(v));
             break;
 
