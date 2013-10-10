@@ -188,6 +188,16 @@ static tlHandle dreadref(const uint8_t** code, tlList* data) {
     if (data) return tlListGet(data, r);
     return null;
 }
+static tlHandle pcreadref(const uint8_t* ops, int* pc, tlList* data) {
+    uint8_t b = ops[*pc];
+    if (b > 0xC0) {
+        (*pc)++;
+        return decodelit(b);
+    }
+    int r = pcreadsize(ops, pc);
+    if (data) return tlListGet(data, r);
+    return null;
+}
 
 // 11.. ....
 static tlHandle decodelit(uint8_t b1) {
@@ -383,46 +393,79 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
 
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
-    const uint8_t* code = bcode->code;
+    const uint8_t* ops = bcode->code;
     tlList* data = bcode->mod->data;
     tlList* links = bcode->mod->links;
     tlList* linked = bcode->mod->linked;
 
     print("<code>");
+    print(" name: %s::%s", tl_str(bcode->mod->name), tl_str(bcode->name));
+    print(" <args>");
+    for (int i = 0;; i++) {
+        tlHandle arg = tlListGet(bcode->args, i);
+        if (!arg) break;
+        print("   %s, %s, %s", tl_str(tlListGet(arg, 0)), tl_str(tlListGet(arg, 1)), tl_str(tlListGet(arg, 2)));
+    }
+    print(" </args>");
+    print(" <argnames>");
+    for (int i = 0;; i++) {
+        tlHandle key = tlMapKeyIter(bcode->argnames, i);
+        if (!key) break;
+        tlHandle value = tlMapValueIter(bcode->argnames, i);
+        print("  %s -> %s", tl_str(key), tl_str(value));
+    }
+    print(" </argnames>");
+    print(" <locals>");
+    for (int i = 0;; i++) {
+        tlHandle name = tlListGet(bcode->localnames, i);
+        if (!name) break;
+        print("  %d: %s", i, tl_str(name));
+    }
+    print(" </locals>");
+    int pc = 0;
     int r = 0; int r2 = 0; tlHandle o = null;
     while (true) {
-        uint8_t op = *code; code++;
-        print("op: 0x%X %s", op, op_name(op));
+        int opc = pc;
+        uint8_t op = ops[pc++];
         switch (op) {
             case OP_END: goto exit;
-            case OP_TRUE:  print(" true"); break;
-            case OP_FALSE: print(" false"); break;
-            case OP_NULL: print(" null"); break;
-            case OP_UNDEF: print(" undef"); break;
-            case OP_INT: r = dreadsize(&code); print(" int %d", r); break;
-            case OP_SYSTEM: o = dreadref(&code, data); print(" system %s", tl_str(o)); break;
-            case OP_MODULE:
-                o = dreadref(&code, data); print(" data %s", tl_str(o));
-                if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
+            case OP_TRUE: case OP_FALSE: case OP_NULL: case OP_UNDEF: case OP_INVOKE:
+                print(" % 3d 0x%X %s", opc, op, op_name(op));
                 break;
-            case OP_GLOBAL: r = dreadsize(&code); print(" linked %s (%s)", tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r))); break;
-            case OP_ENV: r = dreadsize(&code); r2 = dreadsize(&code); print(" env %d %d", r, r2); break;
-            case OP_LOCAL: r = dreadsize(&code); print(" local %d", r); break;
-            case OP_ARG: r = dreadsize(&code); print(" arg %d", r); break;
-            case OP_RESULT: r = dreadsize(&code); print(" result %d", r); break;
+            case OP_INT: case OP_LOCAL: case OP_ARG:
+            case OP_MCALL: case OP_FCALL: case OP_BCALL:
+            case OP_MCALLN: case OP_FCALLN: case OP_BCALLN:
+                r = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
+                break;
+            case OP_SYSTEM: case OP_MODULE:
+                o = pcreadref(ops, &pc, data);
+                print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
+                break;
+            case OP_GLOBAL:
+                r = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %s(%s)", opc, op, op_name(op),
+                        tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r)));
+                break;
+            case OP_ENV:
+                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
+                break;
+            case OP_RESULT:
+                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d(%s) <- %d", opc, op, op_name(op),
+                        r2, tl_str(tlListGet(bcode->localnames, r2)), r);
+                break;
             case OP_BIND:
-                o = dreadref(&code, data); print(" bind %s", tl_str(o));
+                o = pcreadref(ops, &pc, data);
+                print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
                 if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
                 break;
-            case OP_STORE: r = dreadsize(&code); print(" store %d", r); break;
-            case OP_INVOKE: print(" invoke"); break;
-            case OP_MCALL: r = dreadsize(&code); print(" mcall %d", r); break;
-            case OP_FCALL: r = dreadsize(&code); print(" fcall %d", r); break;
-            case OP_BCALL: r = dreadsize(&code); print(" bcall %d", r); break;
-            case OP_MCALLN: r = dreadsize(&code); print(" mcalln %d", r); break;
-            case OP_FCALLN: r = dreadsize(&code); print(" fcalln %d", r); break;
-            case OP_BCALLN: r = dreadsize(&code); print(" bcalln %d", r); break;
-            default: print("OEPS: %x", op);
+            case OP_STORE:
+                r = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d(%s) <-", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
+                break;
+            default: print("OEPS: %d 0x%X %s", opc, op, op_name(op));
         }
     }
 exit:;
@@ -432,7 +475,6 @@ exit:;
 void pprint(tlHandle v) {
     if (tlBCodeIs(v)) {
         tlBCode* code = tlBCodeAs(v);
-        print("BYTECODE: %s::%s", tl_str(code->mod->name), tl_str(code->name));
         disasm(code);
         return;
     }
@@ -500,7 +542,7 @@ void tlBCodeVerify(tlBCode* bcode) {
                 assert(at <= locals);
                 break;
             case OP_ARG: dreadsize(&code); break;
-            case OP_RESULT: dreadsize(&code); break;
+            case OP_RESULT: dreadsize(&code); dreadsize(&code); break;
             case OP_BIND:
                 v = dreadref(&code, data);
                 tlBCodeVerify(tlBCodeAs(v)); // TODO pass in our locals somehow for ENV
@@ -666,8 +708,8 @@ again:;
             assert(!lazy);
             trace("invoke: %s", tl_str(calls[call]));
             v = tlInvoke(task, calls[call]);
-            if (!v) return v; // task paused instead of actually doing work
             call--;
+            if (!v) return v; // task paused instead of actually doing work
             break;
         }
         case OP_SYSTEM:
@@ -679,21 +721,22 @@ again:;
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
             trace("data %s", tl_str(v));
-        break;
+            break;
         case OP_GLOBAL:
             at = pcreadsize(ops, &pc);
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
-        break;
+            break;
         case OP_ENV:
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
             fatal("env; depth: %d at: %d", depth, at);
+            break;
         case OP_ARG:
             at = pcreadsize(ops, &pc);
             v = tlBCallGet(args, at);
-            trace("arg %s", tl_str(v));
+            trace("args[%d] %s", at, tl_str(v));
             break;
         case OP_LOCAL:
             at = pcreadsize(ops, &pc);
@@ -712,19 +755,18 @@ again:;
             v = tlResultGet(v, at);
             at = pcreadsize(ops, &pc);
             trace("result %d <- %s", at, tl_str(v));
+            break;
         case OP_STORE:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
             locals[at] = v;
             trace("store %d <- %s", at, tl_str(v));
             break;
-
         case OP_TRUE: v = tlTrue; break;
         case OP_FALSE: v = tlFalse; break;
         case OP_NULL: v = tlNull; break;
         case OP_UNDEF: v = tlUndef(); break;
         case OP_INT: v = tlINT(pcreadsize(ops, &pc)); break;
-
         default: fatal("unknown op: %d (%s)", op, op_name(op));
     }
 
