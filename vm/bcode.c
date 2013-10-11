@@ -33,6 +33,7 @@ const char* op_name(uint8_t op) {
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBCode);
 TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
+TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
 TL_REF_TYPE(tlBFrame);
 
@@ -63,28 +64,34 @@ struct tlBCode {
 
 struct tlBCall {
     tlHead head;
-    bool lazy;
     int size;
     tlHandle target;
     tlHandle fn;
     tlHandle args[];
 };
 
+struct tlBEnv {
+    tlHead head;
+    tlBEnv* parent;
+    tlList* names;
+    tlHandle data[];
+};
+
 struct tlBClosure {
     tlHead head;
     tlBCode* code;
-    tlEnv* env;
+    tlBEnv* env;
 };
 
+typedef struct CallEntry { int at; tlBCall* call; } CallEntry;
 struct tlBFrame {
     tlHead head;
     tlBClosure* fn;
-    tlEnv* locals;
+    tlBEnv* locals;
 
     // save/restore
     uint32_t pc;
-    uint32_t call;
-    tlBCall** calls;
+    CallEntry calls[];
 };
 
 static tlKind _tlBModuleKind = { .name = "BModule" };
@@ -95,6 +102,9 @@ tlKind* tlBCodeKind = &_tlBCodeKind;
 
 static tlKind _tlBCallKind = { .name = "BCall" };
 tlKind* tlBCallKind = &_tlBCallKind;
+
+static tlKind _tlBEnvKind = { .name = "BEnv" };
+tlKind* tlBEnvKind = &_tlBEnvKind;
 
 static tlKind _tlBClosureKind = { .name = "BClosure" };
 tlKind* tlBClosureKind = &_tlBClosureKind;
@@ -117,7 +127,13 @@ tlBCall* tlBCallNew(int size) {
     call->size = size;
     return call;
 }
-tlBClosure* tlBClosureNew(tlBCode* code, tlEnv* env) {
+tlBEnv* tlBEnvNew(tlList* names, tlBEnv* parent) {
+    tlBEnv* env = tlAlloc(tlBEnvKind, sizeof(tlBEnv) + sizeof(tlHandle) * tlListSize(names));
+    env->names = names;
+    env->parent = parent;
+    return env;
+}
+tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     tlBClosure* fn = tlAlloc(tlBClosureKind, sizeof(tlBClosure));
     fn->code = code;
     fn->env = env;
@@ -128,24 +144,31 @@ tlBFrame* tlBFrameNew(tlBClosure* fn) {
     frame->fn = fn;
     return frame;
 }
-void tlBCallAdd_(tlBCall* call, tlHandle o) {
-    if (!call->target) {
+bool tlBCallIsLazy(tlBCall* call, int arg) {
+    arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
+    if (arg < 0 || !call || arg >= call->size || !tlBClosureIs(call->fn)) return false;
+    tlHandle entry = tlListGet(tlBClosureAs(call->fn)->code->args, arg);
+    return tlTrue == tlListGet(tlListAs(entry), 1);
+}
+void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
+    assert(arg >= 0);
+    if (arg == 0) {
         trace("%s.target <- %s", tl_str(call), tl_str(o));
+        assert(!call->target);
         call->target = o;
         return;
     }
-    if (!call->fn) {
+    if (arg == 1) {
         trace("%s.fn <- %s", tl_str(call), tl_str(o));
+        assert(!call->fn || tlStringIs(call->fn));
         call->fn = o;
         return;
     }
-    for (int i = 0;; i++) {
-        assert(i < 256);
-        if (call->args[i]) continue;
-        trace("%s[%d] <- %s", tl_str(call), i, tl_str(o));
-        call->args[i] = o;
-        break;
-    }
+    arg -= 2;
+    assert(arg < call->size);
+    trace("%s[%d] <- %s", tl_str(call), arg, tl_str(o));
+    assert(!call->args[arg]);
+    call->args[arg] = o;
 }
 void tlBCallSetNames_(tlBCall* call, tlList* names) {
 }
@@ -615,7 +638,7 @@ tlHandle create_lazy(const uint8_t* ops, int* ppc, tlBFrame* frame) {
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
-    int start = pc - 2; // we re-interpret OP_CALL and SIZE when working on lazy
+    int start = pc - 2; // we re-interpret OP_CALL and SIZE when working on lazy; TODO - 2 is not always correct?
     int depth = 1;
     while (true) {
         uint8_t op = ops[pc++];
@@ -623,7 +646,7 @@ tlHandle create_lazy(const uint8_t* ops, int* ppc, tlBFrame* frame) {
             depth--;
             if (!depth) {
                 *ppc = pc;
-                print("%d", start);
+                trace("%d", start);
                 return tlNull;// tlBLazyCallNew(args, locals, start);
             }
         } else if (op & 0x20) { // OP_CALL mask
@@ -641,13 +664,20 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
     tlList* data = mod->data;
     const uint8_t* ops = bcode->code;
 
-    // call stack and program counter; saved and restored into frame
+    // program counter, call stack, locals; saved and restored into frame
     int pc = 0;
-    int call = -1;
-    tlBCall* calls[bcode->calldepth];
-    tlHandle locals[bcode->locals];
+    CallEntry (*calls)[]; // floeps, c, are you high? ... a pointer to an array of CallEntry's
+    tlHandle (*locals)[]; // idem; so we can use the c-stack as initial backing store, but can also use the frame
 
-    bool lazy = false; // if current call is lazy
+    // on stack storage if there is no frame yet
+    CallEntry _calls[frame? 0 : bcode->calldepth];
+    tlHandle _locals[frame? 0 : bcode->locals];
+
+    int calltop = -1; // current call index in the call stack
+    tlBCall* call = null; // current call, if any
+    int arg = 0; // current argument to a call
+    bool lazy = false; // if current call[arg] is lazy
+
     uint8_t op = 0; // current opcode
     tlHandle v = null; // tmp result register
 
@@ -656,23 +686,37 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
     // 2. we start a lazy call
     // 3. we did an invoke, and paused the task, but now the result is ready
     // 4. we set a method name to a call, and resolving it paused the task
-    if (frame) {
+    if (frame) { // 3 or 4
         pc = frame->pc;
-        call = frame->call;
-        //calls = frame->calls;
-        v = tlNull; // task->value;
+        calls = &frame->calls;
+        locals = &frame->locals->data;
+        v = tlNull; // TODO tlTaskValue(task);
+
+        // find current call, we mark non current call by setting sign bit
+        assert(bcode->calldepth > 0); // cannot be zero, or we would never suspend
+        for (calltop = 0; (*calls)[calltop].at < 0; calltop++);
+        call = (*calls)[calltop].call;
+        arg = (*calls)[calltop].at;
+        assert(calltop >= 0 && calltop < bcode->calldepth);
+        assert(call || calltop == 0);
+
+        trace("resume eval; %s %s; %s locals: %d call: %d/%d", tl_str(frame), tl_str(v),
+                tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
         goto resume; // for speed and code density
     } else {
-        trace("new eval; %s locals: %d calldepth: %d", tl_str(bcode), bcode->locals, bcode->calldepth);
+        calls = &_calls;
+        locals = &_locals;
+        trace("new eval; %s locals: %d call: %d/%d",
+                tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
     }
 
 again:;
     op = ops[pc++];
-    if (!op) return tlNull; //task->value; // OP_END
+    if (!op) return v; // OP_END
     assert(op & 0xC0);
-    //trace("%d op: 0x%X %s", pc, op, op_name(op));
 
-    lazy = call >= 0 && calls[call]->lazy;
+    lazy = tlBCallIsLazy(call, arg);
+    trace("LAZY? %d[%d] %s", calltop, arg - 2, lazy?"yes":"no");
 
     // is it a call
     if (op & 0x20) {
@@ -681,19 +725,25 @@ again:;
 
         if (lazy) {
             trace("lazy call");
-            create_lazy(ops, &pc, frame);
+            v = create_lazy(ops, &pc, frame);
+            tlBCallAdd_(call, v, arg++);
             goto again;
         }
 
-        assert(call >= -1 && call < bcode->calldepth);
-        call++;
-        calls[call] = tlBCallNew(size);
+        // create a new call
+        if (calltop >= 0) (*calls)[calltop].at = -arg; // store current arg, marked as not current
+        arg = 0;
+        call = tlBCallNew(size);
+        calltop++;
+        assert(calltop >= 0 && calltop < bcode->calldepth);
+        (*calls)[calltop] = (CallEntry){ .at = 0, .call = call };
+
         // for non methods, skip target
-        if (op & 0x0F) tlBCallAdd_(calls[call], tlNull);
+        if (op & 0x0F) tlBCallAdd_(call, tlNull, arg++);
         // load names if it is a named call
         if (op & 0x10) {
             int at = pcreadsize(ops, &pc);
-            tlBCallSetNames_(calls[call], tlListAs(tlListGet(data, at)));
+            tlBCallSetNames_(call, tlListAs(tlListGet(data, at)));
         }
         goto again;
     }
@@ -704,11 +754,20 @@ again:;
 
     switch (op) {
         case OP_INVOKE: {
-            assert(call >= 0);
+            assert(call);
             assert(!lazy);
-            trace("invoke: %s", tl_str(calls[call]));
-            v = tlInvoke(task, calls[call]);
-            call--;
+            assert(arg - 2 == call->size); // must be done with args here
+            tlBCall* invoke = call;
+            calltop--;
+            if (calltop >= 0) {
+                call = (*calls)[calltop].call;
+                arg = (*calls)[calltop].at *= -1; // mark as current again
+            } else {
+                call = null;
+                args = 0;
+            }
+            trace("invoke: %s", tl_str(invoke));
+            v = tlInvoke(task, invoke);
             if (!v) return v; // task paused instead of actually doing work
             break;
         }
@@ -741,7 +800,7 @@ again:;
         case OP_LOCAL:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            v = locals[at];
+            v = (*locals)[at];
             trace("local %d -> %s", at, tl_str(v));
             break;
         case OP_BIND:
@@ -759,7 +818,7 @@ again:;
         case OP_STORE:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            locals[at] = v;
+            (*locals)[at] = v;
             trace("store %d <- %s", at, tl_str(v));
             break;
         case OP_TRUE: v = tlTrue; break;
@@ -774,7 +833,7 @@ resume:;
     assert(v);
 
     // if not in a call, store results in the task
-    if (call == -1) {
+    if (!call) {
         //tlTaskSetValue(task, v);
         //if (lazyeval) return v;
         goto again;
@@ -787,11 +846,11 @@ resume:;
     }
 
     // set the data to the call
-    assert(call >= 0);
-    tlBCallAdd_(calls[call], v);
+    assert(call);
+    tlBCallAdd_(call, v, arg++);
 
     // resolve method at object ...
-    if (calls[call]->target && tlSymIs(calls[call]->fn)) {
+    if (call->target && tlStringIs(call->fn)) {
         fatal("oeps ... hehe methods");
     }
 
