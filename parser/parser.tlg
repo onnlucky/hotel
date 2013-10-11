@@ -210,7 +210,7 @@ function: "{".. as=fargs .."->"..@"a closing '}'"
 selfcall: fn=reference                         -> { type: #call, target: fn, args: [] }
 
      rhs: e=topcall .b=block?            &eostm -> add_block(e, b)
-        | e=selfcall .b=block?           &eostm -> add_block(e, b)
+        | e=selfcall .b=block            &eostm -> add_block(e, b)
         | e=call .b=block?               &eostm -> add_block(e, b)
         | e=expr     @"end of statement" &eostm -> e
 

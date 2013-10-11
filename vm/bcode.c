@@ -161,7 +161,8 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     return fn;
 }
 tlBFrame* tlBFrameNew(tlBCall* args) {
-    tlBFrame* frame = tlAlloc(tlBFrameKind, sizeof(tlBFrame));
+    int calldepth = tlBClosureAs(args->fn)->code->calldepth;
+    tlBFrame* frame = tlAlloc(tlBFrameKind, sizeof(tlBFrame) + sizeof(tlHandle) * calldepth);
     frame->args = args;
     return frame;
 }
@@ -208,15 +209,26 @@ void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
 }
 void tlBCallSetNames_(tlBCall* call, tlList* names) {
 }
-tlHandle* tlBCallGet(tlBCall* call, int at) {
+tlHandle tlBCallGet(tlBCall* call, int at) {
     assert(at >= 0 && at <= call->size);
     return call->args[at];
 }
-tlHandle* tlBCallGetTarget(tlBCall* call) {
+tlHandle tlBCallGetTarget(tlBCall* call) {
     return call->target;
 }
-tlHandle* tlBCallGetFn(tlBCall* call) {
+tlHandle tlBCallGetFn(tlBCall* call) {
     return call->fn;
+}
+
+tlHandle tlBEnvGet(tlBEnv* env, int at) {
+    assert(env);
+    assert(at >= 0 && at <= tlListSize(env->names));
+    return env->data[at];
+}
+tlBEnv* tlBEnvGetParentAt(tlBEnv* env, int depth) {
+    if (depth == 0) return env;
+    if (env == null) return null;
+    return tlBEnvGetParentAt(env->parent, depth - 1);
 }
 
 static tlHandle decodelit(uint8_t b);
@@ -674,7 +686,7 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     return null;
 }
 
-tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv* locals) {
+static tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv* locals) {
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
@@ -693,6 +705,38 @@ tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv* locals
             depth++;
         }
     }
+}
+
+// TODO this is not really needed, compiler or verifier can tell if a real locals needs to be realized
+static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlBClosure* fn) {
+    if (*locals) {
+        assert(&(*locals)->data == *data);
+        return;
+    }
+    *locals = tlBEnvNew(fn->code->localnames, fn->env);
+    int size = tlListSize(fn->code->localnames);
+    for (int i = 0; i < size; i++) {
+        (*locals)->data[i] = (**data)[i];
+    }
+    *data = &(*locals)->data; // switch backing store
+}
+
+// ensure both frame and locals exist or are created and switch the calls and locals backing stores
+static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** frame, tlBEnv** locals, tlBCall* args) {
+    if (*frame) {
+        assert(*locals);
+        assert(&(*locals)->data == *data);
+        assert(&(*frame)->calls == *calls);
+        return;
+    }
+    ensure_locals(data, locals, tlBClosureAs(args->fn));
+    *frame = tlBFrameNew(args);
+    (*frame)->locals = *locals;
+    int calldepth = tlBClosureAs(args->fn)->code->calldepth;
+    for (int i = 0; i < calldepth; i++) {
+        (*frame)->calls[i] = (**calls)[i];
+    }
+    *calls = &(*frame)->calls; // switch backing store
 }
 
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
@@ -724,14 +768,15 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     // when we get here, it is because of the following reasons:
     // 1. we start a closure
     // 2. we start a lazy call
-    // 3. we did an invoke, and paused the task, but now the result is ready
-    // 4. we set a method name to a call, and resolving it paused the task
+    // 3. we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
+    // 4. we set a method name to a call, and resolving it paused the task; see end of this function
     if (frame) { // 3 or 4
         assert(!args);
         args = frame->args;
         pc = frame->pc;
         calls = &frame->calls;
-        locals = &frame->locals->data;
+        lazylocals = frame->locals;
+        locals = &lazylocals->data;
         v = tlNull; // TODO tlTaskValue(task);
 
         // find current call, we mark non current call by setting sign bit
@@ -773,7 +818,7 @@ again:;
 
         if (lazy) {
             trace("lazy call");
-            //ensure_locals(locals, &lazylocals);
+            ensure_locals(&locals, &lazylocals, closure);
             v = create_lazy(ops, &pc, args, lazylocals);
             tlBCallAdd_(call, v, arg++);
             goto again;
@@ -817,7 +862,12 @@ again:;
             }
             trace("invoke: %s", tl_str(invoke));
             v = tlInvoke(task, invoke);
-            if (!v) return v; // task paused instead of actually doing work
+            if (!v) { // task paused instead of actually doing work, suspend and return
+                ensure_frame(&calls, &locals, &frame, &lazylocals, args);
+                frame->pc = pc;
+                fatal("almost :)");
+                return v;
+            }
             break;
         }
         case OP_SYSTEM:
@@ -839,7 +889,9 @@ again:;
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
-            fatal("env; depth: %d at: %d", depth, at);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            v = tlBEnvGet(parent, at);
+            trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
         case OP_ARG:
             at = pcreadsize(ops, &pc);
@@ -855,7 +907,8 @@ again:;
         case OP_BIND:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
-            v = tlBClosureNew(tlBCodeAs(v), null);
+            ensure_locals(&locals, &lazylocals, closure);
+            v = tlBClosureNew(tlBCodeAs(v), lazylocals);
             trace("%d bind %s", pc, tl_str(v));
             break;
         case OP_RESULT:
@@ -880,28 +933,21 @@ again:;
 
 resume:;
     assert(v);
-
-    // if not in a call, store results in the task
     if (!call) {
-        //tlTaskSetValue(task, v);
         if (lazypc) return v; // if we were evaulating a lazy call, and we are back at "top"
         goto again;
     }
 
     // if setting a lazy argument, wrap the data
-    if (lazy) {
-        v = tlBLazyDataNew(v);
-    }
+    if (lazy) v = tlBLazyDataNew(v);
 
     // set the data to the call
-    assert(call);
     tlBCallAdd_(call, v, arg++);
 
-    // resolve method at object ...
-    if (call->target && tlStringIs(call->fn)) {
+    // TODO resolve method at object ...
+    if (arg == 2 && call->target && tlStringIs(call->fn)) {
         fatal("oeps ... hehe methods");
     }
-
     goto again;
 }
 
