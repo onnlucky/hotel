@@ -36,6 +36,8 @@ TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
 TL_REF_TYPE(tlBFrame);
+TL_REF_TYPE(tlBLazy);
+TL_REF_TYPE(tlBLazyData);
 
 // against better judgement, modules are linked by mutating, or copying if already linked
 struct tlBModule {
@@ -86,12 +88,25 @@ struct tlBClosure {
 typedef struct CallEntry { int at; tlBCall* call; } CallEntry;
 struct tlBFrame {
     tlHead head;
-    tlBClosure* fn;
+    tlBCall* args;
+
+    // mutable! but only by addition ...
     tlBEnv* locals;
 
     // save/restore
-    uint32_t pc;
+    int pc;
     CallEntry calls[];
+};
+
+struct tlBLazy {
+    tlHead head;
+    tlBCall* args;
+    tlBEnv* locals;
+    int pc; // where the actuall call is located in the code
+};
+struct tlBLazyData {
+    tlHead ehad;
+    tlHandle data;
 };
 
 static tlKind _tlBModuleKind = { .name = "BModule" };
@@ -111,6 +126,12 @@ tlKind* tlBClosureKind = &_tlBClosureKind;
 
 static tlKind _tlBFrameKind = { .name = "BFrame" };
 tlKind* tlBFrameKind = &_tlBFrameKind;
+
+static tlKind _tlBLazyKind = { .name = "BLazy" };
+tlKind* tlBLazyKind = &_tlBLazyKind;
+
+static tlKind _tlBLazyDataKind = { .name = "BLazyData" };
+tlKind* tlBLazyDataKind = &_tlBLazyDataKind;
 
 tlBModule* tlBModuleNew(tlString* name) {
     tlBModule* mod = tlAlloc(tlBModuleKind, sizeof(tlBModule));
@@ -139,11 +160,26 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     fn->env = env;
     return fn;
 }
-tlBFrame* tlBFrameNew(tlBClosure* fn) {
+tlBFrame* tlBFrameNew(tlBCall* args) {
     tlBFrame* frame = tlAlloc(tlBFrameKind, sizeof(tlBFrame));
-    frame->fn = fn;
+    frame->args = args;
     return frame;
 }
+tlBLazy* tlBLazyNew(tlBCall* args, tlBEnv* locals, int pc) {
+    assert(args);
+    assert(pc > 0);
+    tlBLazy* lazy = tlAlloc(tlBLazyKind, sizeof(tlBLazy));
+    lazy->args = args;
+    lazy->locals = locals;
+    lazy->pc = pc;
+    return lazy;
+}
+tlBLazyData* tlBLazyDataNew(tlHandle data) {
+    tlBLazyData* lazy = tlAlloc(tlBLazyDataKind, sizeof(tlBLazyData));
+    lazy->data = data;
+    return lazy;
+}
+
 bool tlBCallIsLazy(tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size || !tlBClosureIs(call->fn)) return false;
@@ -615,7 +651,7 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
     return mod;
 }
 
-tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args);
+tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* locals);
 
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
@@ -628,13 +664,17 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         return tlNativeKind->run(tlNativeAs(fn), args);
     }
     if (tlBClosureIs(fn)) {
-        return beval(task, null, call);
+        return beval(task, null, call, 0, null);
+    }
+    if (tlBLazyIs(fn)) {
+        tlBLazy* lazy = tlBLazyAs(fn);
+        return beval(task, null, lazy->args, lazy->pc, lazy->locals);
     }
     fatal("don't know how to invoke: %s", tl_str(fn));
     return null;
 }
 
-tlHandle create_lazy(const uint8_t* ops, int* ppc, tlBFrame* frame) {
+tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv* locals) {
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
@@ -647,7 +687,7 @@ tlHandle create_lazy(const uint8_t* ops, int* ppc, tlBFrame* frame) {
             if (!depth) {
                 *ppc = pc;
                 trace("%d", start);
-                return tlNull;// tlBLazyCallNew(args, locals, start);
+                return tlBLazyNew(args, locals, start);
             }
         } else if (op & 0x20) { // OP_CALL mask
             depth++;
@@ -655,7 +695,7 @@ tlHandle create_lazy(const uint8_t* ops, int* ppc, tlBFrame* frame) {
     }
 }
 
-tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
+tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
     assert(task);
     assert(frame || args);
     tlBClosure* closure = tlBClosureAs(args->fn);
@@ -671,7 +711,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
 
     // on stack storage if there is no frame yet
     CallEntry _calls[frame? 0 : bcode->calldepth];
-    tlHandle _locals[frame? 0 : bcode->locals];
+    tlHandle _locals[(frame || lazylocals)? 0 : bcode->locals];
 
     int calltop = -1; // current call index in the call stack
     tlBCall* call = null; // current call, if any
@@ -687,6 +727,8 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
     // 3. we did an invoke, and paused the task, but now the result is ready
     // 4. we set a method name to a call, and resolving it paused the task
     if (frame) { // 3 or 4
+        assert(!args);
+        args = frame->args;
         pc = frame->pc;
         calls = &frame->calls;
         locals = &frame->locals->data;
@@ -703,7 +745,13 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args) {
         trace("resume eval; %s %s; %s locals: %d call: %d/%d", tl_str(frame), tl_str(v),
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
         goto resume; // for speed and code density
-    } else {
+    } else if (lazypc) { // 2
+        pc = lazypc;
+        calls = &_calls;
+        locals = &lazylocals->data;
+        trace("lazy eval; %s locals: %d call: %d/%d",
+                tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
+    } else { // 1
         calls = &_calls;
         locals = &_locals;
         trace("new eval; %s locals: %d call: %d/%d",
@@ -725,7 +773,8 @@ again:;
 
         if (lazy) {
             trace("lazy call");
-            v = create_lazy(ops, &pc, frame);
+            //ensure_locals(locals, &lazylocals);
+            v = create_lazy(ops, &pc, args, lazylocals);
             tlBCallAdd_(call, v, arg++);
             goto again;
         }
@@ -835,14 +884,13 @@ resume:;
     // if not in a call, store results in the task
     if (!call) {
         //tlTaskSetValue(task, v);
-        //if (lazyeval) return v;
+        if (lazypc) return v; // if we were evaulating a lazy call, and we are back at "top"
         goto again;
     }
 
     // if setting a lazy argument, wrap the data
     if (lazy) {
-        fatal("oeps .. hehe lazy");
-        //v = tlLazyDataNew(v);
+        v = tlBLazyDataNew(v);
     }
 
     // set the data to the call
@@ -861,6 +909,6 @@ tlHandle beval_module(tlTask* task, tlBModule* mod) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     tlBCall* call = tlBCallNew(0);
     call->fn = fn;
-    return beval(task, null, call);
+    return beval(task, null, call, 0, null);
 }
 
