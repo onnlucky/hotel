@@ -9,12 +9,12 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
-    tlTask* task = tlTaskNew(vm, tlMapEmpty());
 
     tlBModule* mod = tlBModuleNew(tlSTR("test-input"));
     tlHandle v = deserialize(tlBufferFromFile("test-input.tlb"), mod);
     tlBModuleLink(mod, tlVmGlobalEnv(vm));
     pprint(v);
+    tlTask* task = tlTaskNew(vm, tlMapEmpty());
     beval_module(task, mod);
     return 0;
 

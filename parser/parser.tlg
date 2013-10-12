@@ -225,7 +225,8 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
 
      stm: "\$" n=ident .o=binop."=".. e=rhs     -> [{ type: #call, fn: o, args: [{ type: #varref, name: n}, e]}, { type: #varassign, name: n }]
         | "@"  n=ident .o=binop."=".. e=rhs     -> [{ type: #call, fn: o, args: [{ type: #selfref, name: n}, e]}, { type: #selfassign, name: n }]
-        | as=slots          ."=".. e=rhs        -> [e].cat(as)
+        | n=ident             ."=".. e=rhs        -> { type: #assign, name: n, value: e }
+        //| as=slots          ."=".. e=rhs        -> { type: #multiassign, slots: as, value: e }
         | e=rhs                                 -> [e]
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)*     -> ts.prepend(t).flatten

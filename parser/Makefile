@@ -7,6 +7,7 @@ test.tl: test.tlg
 run: parser.tl
 	tl process.tl test-input.tl
 	hexdump -C test-input.tlb
+	../tl
 
 clean:
 	rm -rf parser.tl test.tl

@@ -1,6 +1,6 @@
 #include "bcode.h"
 #define HAVE_DEBUG 1
-#include "trace-on.h"
+#include "trace-off.h"
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -465,6 +465,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     return v;
 }
 
+#include "trace-on.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;
@@ -631,7 +632,6 @@ void tlBCodeVerify(tlBCode* bcode) {
                 assert(depth > 0);
                 if (depth > maxdepth) maxdepth = depth;
                 depth--;
-                print("DEPTH--: %d", depth);
                 break;
             case OP_MCALL:
             case OP_FCALL:
@@ -641,7 +641,6 @@ void tlBCodeVerify(tlBCode* bcode) {
             case OP_BCALLN:
                 dreadsize(&code);
                 depth++;
-                print("DEPTH++: %d", depth);
                 break;
             default: print("OEPS: %x", op);
         }

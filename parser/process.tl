@@ -23,6 +23,8 @@ Module = -> {
         return [#module, d]
     addFunction: fn ->
         return [#bind, fn]
+    addOpenFunction: fn ->
+        return [#bindopen, fn]
 }
 
 Scope = parent, module -> {
@@ -35,35 +37,34 @@ Scope = parent, module -> {
     lookup: name ->
         // locals might shadow args
         ref = this.locals.get name
-        if ref: return LocalRef(name, ref)
+        if ref: close(ref.value); return LocalRef(name, ref.at)
         arg = this.args.get name
         if arg: return ArgRef(name, arg)
         this.parent.scopeLookup name, 0
     scopeLookup: name, depth ->
         ref = this.locals.get name
-        if ref: return ScopeRef(name, depth, ref)
+        if ref: close(ref.value); return ScopeRef(name, depth, ref.at)
         arg = this.args.get name
         if arg: return ScopeArgRef(name, depth, arg)
         this.parent.scopeLookup name, depth + 1
     arg: name ->
         this.args.set(name, this.args.size)
-    store: name ->
-        n = this.locals.size
-        this.locals.set(name, n)
+    store: name, value ->
+        at = this.locals.size
+        this.locals.set(name, {{at, value}})
         this.localnames.add(name)
-        assert this.localnames.get(this.locals.get(name) + 1) == name
-        return n
+        assert this.localnames.get(this.locals.get(name).at + 1) == name
+        return at
 }
 
 isRef = what -> return what.type == #ref
 isCall = what -> return what.type == #call
 isSend = what -> return what.type == #send
-isBind = what -> return what.type == #assign
-
+isStore = what -> return what.type == #assign
 isFunc = what -> return what.type == #fn
 
 emit = scope, what ->
-    //print "EMIT:", inspect(what)
+    print "EMIT:", inspect(what)
     if isNumber what:
         if what >= -16 and what < 111: return [#int, what]
         return scope.module.getData(what)
@@ -72,14 +73,23 @@ emit = scope, what ->
     if isRef what: return scope.lookup what.name
     if isCall what: return emitCall scope, what
     if isSend what: return emitSend scope, what
-    if isBind what: return emitBind scope, what
-
+    if isStore what: return emitStore scope, what
     if isFunc what: return emitFunc scope, what
     _throw "missing ... $(inspect what)"
 
-emitBind = scope, store ->
-    b = scope.store store.name
-    return [#store, b]
+close = what ->
+    if what and what[1] == #bindopen:
+        obj = what[2]
+        if obj.func and not obj.closed.get:
+            obj.closed.set "working on it" // mark, so circular things still work
+            obj.closed.set closeFunc(obj.parent, obj.func, obj.name)
+    what
+
+emitStore = scope, store ->
+    value = | isFunc(store.value) :: emitFuncOpen scope, store.value, store.name
+            |                     :: emit scope, store.value
+    b = scope.store store.name, value
+    return value.cat [#store, b]
 
 emitCall = scope, call ->
     target = emit scope, call.target
@@ -93,7 +103,10 @@ emitSend = scope, send ->
     return [#mcall, args.size, target, msg].cat(args).cat([#invoke])
 
 isCode = o -> return isObject(o) and o.code and o.args and o.argnames
-emitFunc = parent, func ->
+
+closeFunc = parent, func, name ->
+    name = name or func.name or "<anon>"
+    print "CLOSING:", name
     scope = Scope(parent, parent.module)
 
     args = Array.new
@@ -102,15 +115,24 @@ emitFunc = parent, func ->
     args = func.args.map: arg -> scope.arg arg.name; [arg.name, arg.type == #lazy, arg.default or null]
     args.each: a, n -> if a[1]: argnames[a[1]] = n - 1
     body = func.body.map(expr -> emit scope, expr).add(#end)
-    fn = {
-        name: "<anon>"
-        args: args
+
+    // ensure all locals are closed after this point
+    scope.locals.each: _, v -> close(v.value)
+    return {{ name, args }
         argnames: argnames.toMap
         locals: scope.localnames.toList
         code: body.flatten
     }
+
+emitFunc = parent, func ->
+    fn = closeFunc(parent, func)
     if parent == parent.module: return fn
-    return scope.module.addFunction(fn)
+    return parent.module.addFunction(fn)
+
+emitFuncOpen = parent, func, name ->
+    fn = {closed: Var.new, {parent, func, name}}
+    return parent.module.addOpenFunction(fn)
+
 
 emitParse = name, parse ->
     print inspect parse
@@ -210,6 +232,9 @@ writeCode = v, main, sub, top ->
         | op == #bind   ::
             code.write 0b1100_0000 + 12
             write v.code[($pc += 1)], main, code // a reference to another bytecode block
+        | op == #bindopen ::
+            code.write 0b1100_0000 + 12
+            write v.code[($pc += 1)].closed.get, main, code // a reference to another bytecode block
         | op == #end    ::
             code.write 0; break
         | op == #global ::
