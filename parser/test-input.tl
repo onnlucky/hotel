@@ -1,7 +1,8 @@
-//if = { c, &t, &f -> bool(c, t, f)() }
-//if("cond",print("yes"),print("no"))
+if = { c, &t, &f -> bool(c, t, f)() }
 
-test = print
-test("1 2 3")
-{ -> test("hello") }()
+fib = { n ->
+    if(n < 2, 1, fib(n - 1) + fib(n - 2))
+}
+a = fib(1)
+print a
 

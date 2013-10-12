@@ -39,6 +39,8 @@ isTopcall = x ->
     if isString x: return false
     return x.topcall
 
+ref = n -> { type: #ref, name: n }
+
 parse = parser {
       sp: " " | "\t"
       nl: "\r\n" | "\n\r" | "\n" | "\r"
@@ -130,34 +132,35 @@ nonident: punct | "/" | "\\" | "<" | ">" | "^"
 reference: n=name ?(nreserved n)                   -> { type: #ref, name: n }
 
 // TODO this is a bit cludgy ...
-    expr: "!"!"=" b=bodynl                         -> { type: #call, target: #vm_task, args: [b] }
+    expr: "!"!"=" b=bodynl                         -> { type: #call, target: ref(#vm_task), args: [b] }
         | oplog
 
-   oplog: l=opnot .("or"  .. r=oplog       -> { type: #call, target: #or,  args: [l, r] }
-                   |"and" .. r=oplog       -> { type: #call, target: #and, args: [l, r] }
-                   | pass                    -> l
+   oplog: l=opnot .("or"  .. r=oplog       -> { type: #call, target: ref(#or),  args: [l, r] }
+                   |"and" .. r=oplog       -> { type: #call, target: ref(#and), args: [l, r] }
+                   | pass                  -> l
                    )
-   opnot: "not" .. r=opcmp                 -> { type: #call, target: #not, args: [r] }
+   opnot: "not" .. r=opcmp                 -> { type: #call, target: ref(#not), args: [r] }
         | opcmp
-   opcmp: l=opadd .("<=" .. r=opcmp        -> { type: #call, target: #lte, args: [l, r] }
-                   |"<"  .. r=opcmp        -> { type: #call, target: #lt,  args: [l, r] }
-                   |">=" .. r=opcmp        -> { type: #call, target: #gte, args: [l, r] }
-                   |">"  .. r=opcmp        -> { type: #call, target: #gt,  args: [l, r] }
-                   |"==" .. r=opcmp        -> { type: #call, target: #eq,  args: [l, r] }
-                   |"!=" .. r=opcmp        -> { type: #call, target: #neq, args: [l, r] }
-                   | pass                    -> l
+   opcmp: l=opadd .("<=" .. r=opcmp        -> { type: #call, target: ref(#lte), args: [l, r] }
+                   |"<"  .. r=opcmp        -> { type: #call, target: ref(#lt),  args: [l, r] }
+                   |">=" .. r=opcmp        -> { type: #call, target: ref(#gte), args: [l, r] }
+                   |">"  .. r=opcmp        -> { type: #call, target: ref(#gt),  args: [l, r] }
+                   |"==" .. r=opcmp        -> { type: #call, target: ref(#eq),  args: [l, r] }
+                   |"!=" .. r=opcmp        -> { type: #call, target: ref(#neq), args: [l, r] }
+                   | pass                  -> l
                    )
-   opadd: l=opmul .("+" .. r=opadd         -> { type: #call, target: #add, args: [l, r] }
-                   |"-" .. r=opadd         -> { type: #call, target: #sub, args: [l, r] }
-                   | pass                    -> l
+   opadd: l=opmul .("+" .. r=opadd         -> { type: #call, target: ref(#add), args: [l, r] }
+                   |"-" .. r=opadd         -> { type: #call, target: ref(#sub), args: [l, r] }
+                   | pass                  -> l
                    )
-   opmul: l=oppow .("*" .. r=opmul         -> { type: #call, target: #mul, args: [l, r] }
-                   |"/" .. r=opmul         -> { type: #call, target: #div, args: [l, r] }
-                   |"%" .. r=opmul         -> { type: #call, target: #mod, args: [l, r] }
-                   | pass                    -> l
+   opmul: l=oppow .("*" .. r=opmul         -> { type: #call, target: ref(#mul), args: [l, r] }
+                   |"/" .. r=opmul         -> { type: #call, target: ref(#div), args: [l, r] }
+                   |"/|" .. r=opmul        -> { type: #call, target: ref(#idiv), args: [l, r] }
+                   |"%" .. r=opmul         -> { type: #call, target: ref(#mod), args: [l, r] }
+                   | pass                  -> l
                    )
-   oppow: l=paren .("^" .. r=oppow         -> { type: #call, target: #pow, args: [l, r] }
-                   | pass                    -> l
+   oppow: l=paren .("^" .. r=oppow         -> { type: #call, target: ref(#pow), args: [l, r] }
+                   | pass                  -> l
                    )
 
         // the first is an optimization of the second

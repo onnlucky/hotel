@@ -185,6 +185,8 @@ writeRef = buf, ref ->
         return
     assert false
 
+writeSize = buf, size -> writeRef buf, size
+
 literals = HashMap.new
 var $size = 0
 
@@ -232,7 +234,7 @@ writeCode = v, main, sub, top ->
         main.write 160 + code.size
     |                ::
         main.write 224 + 5
-        writeSize main, v.size
+        writeSize main, code.size
 
     main.write code
     ref = $size; $size += 1

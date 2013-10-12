@@ -316,7 +316,31 @@ static int readsize(tlBuffer* buf) {
     return decoderef2(buf, tlBufferReadByte(buf));
 }
 
-tlHandle readsizedvalue(tlBuffer* buf, tlList* data, uint8_t b1) {
+tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
+    if (tlBufferSize(buf) < size) fatal("buffer too small");
+    int start = tlBufferSize(buf);
+
+    tlBCode* bcode = tlBCodeNew(mod);
+    bcode->args = tlListAs(readref(buf, data, null));
+    bcode->argnames = tlMapAs(readref(buf, data, null));
+    bcode->localnames = tlListAs(readref(buf, data, null));
+    bcode->name = tlStringAs(readref(buf, data, null));
+    trace(" %s -- %s %s %s", tl_str(bcode->name), tl_str(bcode->args), tl_str(bcode->argnames), tl_str(bcode->localnames));
+
+    // we don't want above data in the bcode ... so skip it
+    size -= start - tlBufferSize(buf);
+    assert(size > 0);
+    uint8_t *code = malloc_atomic(size);
+    tlBufferRead(buf, (char*)code, size);
+    assert(code[size - 1] == 0);
+    bcode->size = size;
+    bcode->code = code;
+
+    trace("code: %s", tl_str(bcode));
+    return bcode;
+}
+
+tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1) {
     int size = readsize(buf);
     assert(size > 0 && size < 1000);
     switch (b1) {
@@ -336,8 +360,8 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, uint8_t b1) {
             fatal("raw %d", size);
             break;
         case 0xE5: // bytecode
-            fatal("bytecode %d", size);
-            break;
+            trace("bytecode %d", size);
+            return readbytecode(buf, data, mod, size);
         case 0xE6: // bignum
             fatal("bignum %d", size);
             break;
@@ -392,30 +416,9 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
         }
         case 0x80: // short raw
             fatal("raw %d", size);
-        case 0xA0: { // short bytecode
+        case 0xA0: // short bytecode
             trace("short bytecode: %d", size);
-            if (tlBufferSize(buf) < size) fatal("buffer too small");
-            int start = tlBufferSize(buf);
-
-            tlBCode* bcode = tlBCodeNew(mod);
-            bcode->args = tlListAs(readref(buf, data, null));
-            bcode->argnames = tlMapAs(readref(buf, data, null));
-            bcode->localnames = tlListAs(readref(buf, data, null));
-            bcode->name = tlStringAs(readref(buf, data, null));
-            trace(" %s -- %s %s %s", tl_str(bcode->name), tl_str(bcode->args), tl_str(bcode->argnames), tl_str(bcode->localnames));
-
-            // we don't want above data in the bcode ... so skip it
-            size -= start - tlBufferSize(buf);
-            assert(size > 0);
-            uint8_t *code = malloc_atomic(size);
-            tlBufferRead(buf, (char*)code, size);
-            assert(code[size - 1] == 0);
-            bcode->size = size;
-            bcode->code = code;
-
-            trace("code: %s", tl_str(bcode));
-            return bcode;
-        }
+            return readbytecode(buf, data, mod, size);
         case 0xC0: { // short size number
             assert(size <= 8); // otherwise it is a float ... not implemented yet
             trace("int %d", size);
@@ -426,7 +429,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
             return tlINT(val);
         }
         case 0xE0: // sized types
-            return readsizedvalue(buf, data, b1);
+            return readsizedvalue(buf, data, mod, b1);
     }
     fatal("not reached");
     return null;
@@ -681,6 +684,9 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     if (tlBLazyIs(fn)) {
         tlBLazy* lazy = tlBLazyAs(fn);
         return beval(task, null, lazy->args, lazy->pc, lazy->locals);
+    }
+    if (tlBLazyDataIs(fn)) {
+        return tlBLazyDataAs(fn)->data;
     }
     fatal("don't know how to invoke: %s", tl_str(fn));
     return null;

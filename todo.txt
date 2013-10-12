@@ -1,7 +1,6 @@
 # TODO
 
-start bytecode interpreter
-implement bignum; start math test suite; add list.mean, list.avg etc ...
+in bytecode, we don't need argnames, we can calculate and store that map when we need it, als we can size the args list dynamically, saves space ...
 
 remove last symbol holdouts
 add closure.invoke or such where all params are given as maps and lists, to use
