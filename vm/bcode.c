@@ -863,7 +863,7 @@ again:;
                 arg = (*calls)[calltop].at *= -1; // mark as current again
             } else {
                 call = null;
-                args = 0;
+                arg = 0;
             }
             trace("invoke: %s", tl_str(invoke));
             v = tlInvoke(task, invoke);
