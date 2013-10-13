@@ -2,11 +2,16 @@ CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arg
 LJACK:=$(shell if ls /usr/lib*/libjack.* /usr/lib/*/libjack.* 2>/dev/null ; then echo "-ljack"; fi)
 
 CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+
 ifeq ($(VALGRIND),1)
 TOOL=valgrind -q --track-origins=yes
 endif
 ifeq ($(GDB),1)
+ifneq ($(shell which gdb),)
 TOOL=gdb --args
+else
+TOOL=lldb --
+endif
 endif
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
