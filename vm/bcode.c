@@ -181,7 +181,7 @@ tlBLazyData* tlBLazyDataNew(tlHandle data) {
     return lazy;
 }
 
-bool tlBCallIsLazy(tlBCall* call, int arg) {
+bool tlBCallIsLazy(const tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size || !tlBClosureIs(call->fn)) return false;
     tlHandle entry = tlListGet(tlBClosureAs(call->fn)->code->args, arg);
@@ -241,7 +241,7 @@ static int dreadsize(const uint8_t** code2) {
         res = res << 6 | (b & 0x3F);
     }
 }
-static int pcreadsize(const uint8_t* ops, int* pc) {
+static inline int pcreadsize(const uint8_t* ops, int* pc) {
     int res = 0;
     while (true) {
         uint8_t b = ops[(*pc)++];
@@ -249,7 +249,7 @@ static int pcreadsize(const uint8_t* ops, int* pc) {
         res = res << 6 | (b & 0x3F);
     }
 }
-static tlHandle dreadref(const uint8_t** code, tlList* data) {
+static tlHandle dreadref(const uint8_t** code, const tlList* data) {
     uint8_t b = **code;
     if (b > 0xC0) {
         *code = *code + 1;
@@ -259,7 +259,7 @@ static tlHandle dreadref(const uint8_t** code, tlList* data) {
     if (data) return tlListGet(data, r);
     return null;
 }
-static tlHandle pcreadref(const uint8_t* ops, int* pc, tlList* data) {
+static inline tlHandle pcreadref(const uint8_t* ops, int* pc, const tlList* data) {
     uint8_t b = ops[*pc];
     if (b > 0xC0) {
         (*pc)++;
@@ -271,7 +271,7 @@ static tlHandle pcreadref(const uint8_t* ops, int* pc, tlList* data) {
 }
 
 // 11.. ....
-static tlHandle decodelit(uint8_t b1) {
+static inline tlHandle decodelit(uint8_t b1) {
     int lit = b1 & 0x3F;
     switch (lit) {
         case 0: return tlNull;
@@ -465,7 +465,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     return v;
 }
 
-#include "trace-on.h"
+#include "trace-off.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;

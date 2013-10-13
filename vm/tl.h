@@ -105,7 +105,7 @@ static inline tlKind* tl_kind(tlHandle v) {
 #define TL_REF_TYPE(_T) \
 typedef struct _T _T; \
 extern tlKind* _T##Kind; \
-static inline bool _T##Is(tlHandle v) { \
+static inline bool _T##Is(const tlHandle v) { \
     return tl_kind(v) == _T##Kind; } \
 static inline _T* _T##As(tlHandle v) { \
     assert(_T##Is(v) || !v); return (_T*)v; } \
@@ -114,7 +114,7 @@ static inline _T* _T##Cast(tlHandle v) { \
 
 typedef struct tlString tlString;
 extern tlKind* tlStringKind;
-static inline bool tlStringIs(tlHandle v) {
+static inline bool tlStringIs(const tlHandle v) {
     return tl_kind(v) == tlStringKind || tl_kind(v) == tlSymKind;
 }
 static inline tlString* tlStringAs(tlHandle v) {
@@ -229,9 +229,9 @@ const char* tlSymData(tlSym sym);
 
 
 // ** list **
-int tlListSize(tlList* list);
-int tlListIsEmpty(tlList* list);
-tlHandle tlListGet(tlList* list, int at);
+int tlListSize(const tlList* list);
+int tlListIsEmpty(const tlList* list);
+tlHandle tlListGet(const tlList* list, int at);
 
 tlList* tlListEmpty();
 tlList* tlListNew(int size);
@@ -253,13 +253,13 @@ void tlListSet_(tlList* list, int at, tlHandle v);
 
 
 // ** map **
-int tlMapSize(tlMap* map);
-int tlMapIsEmpty(tlMap* map);
-tlSet* tlMapKeySet(tlMap* map);
-tlHandle tlMapGetInt(tlMap* map, int key);
-tlHandle tlMapGetSym(tlMap* map, tlSym key);
-tlHandle tlMapValueIter(tlMap* map, int i);
-tlHandle tlMapKeyIter(tlMap* map, int i);
+int tlMapSize(const tlMap* map);
+int tlMapIsEmpty(const tlMap* map);
+tlSet* tlMapKeySet(const tlMap* map);
+tlHandle tlMapGetInt(const tlMap* map, int key);
+tlHandle tlMapGetSym(const tlMap* map, tlSym key);
+tlHandle tlMapValueIter(const tlMap* map, int i);
+tlHandle tlMapKeyIter(const tlMap* map, int i);
 
 void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
 void tlMapSetInt_(tlMap* map, int key, tlHandle v);
@@ -411,7 +411,7 @@ tlSym tlArgsMsg(tlArgs* args);
 
 tlHandle tlArgsFn(tlArgs* args);
 int tlArgsSize(tlArgs* args);
-tlHandle tlArgsGet(tlArgs* args, int at);
+tlHandle tlArgsGet(const tlArgs* args, int at);
 int tlArgsMapSize(tlArgs* args);
 tlHandle tlArgsMapGet(tlArgs* args, tlSym name);
 

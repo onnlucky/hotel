@@ -58,8 +58,7 @@ tlMap* tlArgsMap(tlArgs* args) {
     assert(tlArgsIs(args));
     return args->map;
 }
-tlHandle tlArgsGet(tlArgs* args, int at) {
-    assert(tlArgsIs(args));
+tlHandle tlArgsGet(const tlArgs* args, int at) {
     return tlListGet(args->list, at);
 }
 tlHandle tlArgsMapGet(tlArgs* args, tlSym name) {

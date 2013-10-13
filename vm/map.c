@@ -32,11 +32,10 @@ tlMap* tlMapToObject_(tlMap* map) {
     assert((map->head.kind & 0x7) == 0);
     map->head.kind = (intptr_t)tlHandleObjectKind; return map;
 }
-int tlMapSize(tlMap* map) {
-    assert(tlMapOrObjectIs(map));
+int tlMapSize(const tlMap* map) {
     return map->keys->size;
 }
-tlSet* tlMapKeySet(tlMap* map) {
+tlSet* tlMapKeySet(const tlMap* map) {
     return map->keys;
 }
 void tlMapDump(tlMap* map) {
@@ -94,8 +93,7 @@ tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v) {
     return nmap;
 }
 
-tlHandle tlMapGetSym(tlMap* map, tlHandle key) {
-    assert(tlMapOrObjectIs(map));
+tlHandle tlMapGetSym(const tlMap* map, tlHandle key) {
     if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(map->keys, key);
     if (at < 0) return null;
@@ -139,12 +137,12 @@ tlMap* tlMapFromPairs(tlList* pairs) {
     return map;
 }
 
-tlHandle tlMapValueIter(tlMap* map, int i) {
+tlHandle tlMapValueIter(const tlMap* map, int i) {
     assert(i >= 0);
     if (i >= tlMapSize(map)) return null;
     return map->data[i];
 }
-tlHandle tlMapKeyIter(tlMap* map, int i) {
+tlHandle tlMapKeyIter(const tlMap* map, int i) {
     assert(i >= 0);
     if (i >= tlMapSize(map)) return null;
     return map->keys->data[i];

@@ -66,14 +66,11 @@ tlList* tlListFrom_a(tlHandle* as, int size) {
     return list;
 }
 
-int tlListSize(tlList* list) {
-    assert(tlListIs(list));
+int tlListSize(const tlList* list) {
     return list->size;
 }
 
-tlHandle tlListGet(tlList* list, int at) {
-    assert(tlListIs(list));
-
+tlHandle tlListGet(const tlList* list, int at) {
     if (at < 0 || at >= tlListSize(list)) {
         trace("%d, %d = undefined", tlListSize(list), at);
         return null;
