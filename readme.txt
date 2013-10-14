@@ -200,3 +200,12 @@ The idea is simple, whenever messages became available, a callback is invoked.
 This callback may signal your thread, or may run your message queue. If you
 don't use your own thread, don't use any blocking calls.
 
+# requirements
+
+$ apt-get install ssl-dev portaudio19-dev
+
+probably in the future
+
+$ apt-get install libgc-dev
+
+but for now libgc is bundled together with libatomic
