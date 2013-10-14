@@ -192,12 +192,12 @@ reference: n=name ?(nreserved n)                   -> { type: #ref, name: n }
             | as=topargs                    -> { type: #call, target: fn, args: as  }
         )
 
-function: "{".. as=fargs .."->"..@"a closing '}'"
+function: "(".. as=fargs .."->"..@"a closing ')'"
                 b=bodyempty
-          .."}"                                   -> { type: #fn, args: as, body: b }
-        | "{".. as=fargs .."=>"..@"a closing '}'"
+          ..")"                                   -> { type: #fn, args: as, body: b }
+        | "(".. as=fargs .."=>"..@"a closing ')'"
                 b=bodyempty
-          .."}"                                   -> { type: #block, args: as, body: b }
+          ..")"                                   -> { type: #block, args: as, body: b }
         | as=fargs ."->".. b=bodynl               -> { type: #fn, args: as, body: b }
         | as=fargs ."=>".. b=bodynl               -> { type: #block, args: as, body: b }
 
@@ -212,7 +212,8 @@ function: "{".. as=fargs .."->"..@"a closing '}'"
 
 selfcall: fn=reference                         -> { type: #call, target: fn, args: [] }
 
-     rhs: e=topcall .b=block?            &eostm -> add_block(e, b)
+     rhs: e=function                     &eostm -> e
+        | e=topcall .b=block?            &eostm -> add_block(e, b)
         | e=selfcall .b=block            &eostm -> add_block(e, b)
         | e=call .b=block?               &eostm -> add_block(e, b)
         | e=expr     @"end of statement" &eostm -> e
@@ -235,7 +236,7 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
            // this first one is needed, otherwise bodynl will produce paren at a very high indent
              "("..@"a closing ')'" b=body ..")"           -> b
            | function
-           | "{"..@"a closing '}'" b=body .."}"           -> b
+           | "("..@"a closing ')'" b=body ..")"           -> b
            | bodynl
            )
 
