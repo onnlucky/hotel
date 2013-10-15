@@ -248,7 +248,8 @@ selfcall: fn=reference                         -> { type: #call, target: fn, arg
 bodyempty: body
          | pass    -> []
 
-   start: .. b=bodyempty .. end -> b
+hashbang: "#!" (!nl _)*
+   start: .. hashbang .. b=bodyempty .. end -> b
 }
 
 { parse: parse }

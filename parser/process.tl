@@ -75,7 +75,7 @@ emit = scope, what ->
     if isSend what: return emitSend scope, what
     if isStore what: return emitStore scope, what
     if isFunc what: return emitFunc scope, what
-    _throw "missing ... $(inspect what)"
+    throw "missing ... $(inspect what)"
 
 close = what ->
     if what and what[1] == #bindopen:
