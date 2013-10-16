@@ -337,6 +337,7 @@ selfapply = "return" &eosfull {
           }
 
 andor = !"[" !"(" _ !("and" !namechar) !("or" !namechar) _
+not = ("not" !namechar)
 
 bpexpr = v:value andor as:pcargs _":"_ b:block {
            trace("primary args");
@@ -364,7 +365,7 @@ bpexpr = v:value andor as:pcargs _":"_ b:block {
            $$ = call_activate($$);
        }
        | gexpr
-       | v:value andor as:pcargs &peosfull {
+       | !not v:value andor as:pcargs &peosfull {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(set_target(as, v));
