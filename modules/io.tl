@@ -206,6 +206,9 @@ Path = {
             _var_get(this._stat)
         )
         exists: -> this.stat.ino != 0
+        mtime: -> this.stat.mtime
+        atime: -> this.stat.atime
+        size: -> this.stat.size
         isFile: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFREG
         isDir:  -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFDIR
         isLink: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFLNK
