@@ -216,6 +216,26 @@ static void number_init() {
     mp_set_signed(&test, TL_MIN_INT);
     assert(TL_MIN_INT == mp_get_signed(&test));
 
+    mp_set_double(&test, 0.1);
+    assert(0 == mp_get_signed(&test));
+    mp_set_double(&test, -0.1);
+    assert(0 == mp_get_signed(&test));
+
+    mp_set_double(&test, 1.1);
+    assert(1 == mp_get_signed(&test));
+    mp_set_double(&test, -1.1);
+    assert(-1 == mp_get_signed(&test));
+
+    mp_set_double(&test, 1.9);
+    assert(2 == mp_get_signed(&test));
+
+    mp_set_double(&test, 5000000.752341);
+    assert(5000001 == mp_get_signed(&test));
+    mp_set_double(&test, -5000000.752341);
+    assert(-5000001 == mp_get_signed(&test));
+
+    // TODO test really big doubles ...
+
     _tlFloatKind.klass = tlClassMapFrom(
         "hash", _float_hash,
         "floor", _float_floor,

@@ -235,6 +235,9 @@ int mp_set_int(mp_int *a, unsigned long b);
 /* set a platform word value */
 int mp_set_signed(mp_int *a, intptr_t b);
 
+/* set a double value */
+int mp_set_double(mp_int *a, double b);
+
 /* get a 32-bit value */
 unsigned long mp_get_int(mp_int * a);
 

@@ -75,6 +75,29 @@ int mp_set_signed(mp_int * a, intptr_t b)
   mp_clamp (a);
   return MP_OKAY;
 }
+
+#include <math.h>
+int mp_set_double(mp_int * a, double b)
+{
+  /* keep track of sign */
+  int sign = 0;
+  if (b < 0) {
+      sign = 1;
+      b *= -1;
+  }
+
+  b = round(b);
+
+  if (b < 1) {
+      mp_zero (a);
+      return MP_OKAY;
+  }
+
+  // TODO actually take the bits and then shift it by exponent
+  mp_set_signed (a, (intptr_t)b);
+  a->sign = sign; // set sign
+  return MP_OKAY;
+}
 #endif
 
 /* $Source$ */
