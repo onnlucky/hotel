@@ -228,13 +228,17 @@ static void number_init() {
 
     mp_set_double(&test, 1.9);
     assert(2 == mp_get_signed(&test));
+    mp_set_double(&test, 5);
+    assert(5 == mp_get_signed(&test));
 
     mp_set_double(&test, 5000000.752341);
     assert(5000001 == mp_get_signed(&test));
     mp_set_double(&test, -5000000.752341);
     assert(-5000001 == mp_get_signed(&test));
 
-    // TODO test really big doubles ...
+    mp_set_double(&test, 1e100);
+    assert(mp_cmp(&MAX_INT_BIGNUM, &test) == -1);
+    // TODO assert ("%.0f", 1e100) == mp_to_char(test);
 
     _tlFloatKind.klass = tlClassMapFrom(
         "hash", _float_hash,

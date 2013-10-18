@@ -79,24 +79,25 @@ int mp_set_signed(mp_int * a, intptr_t b)
 #include <math.h>
 int mp_set_double(mp_int * a, double b)
 {
-  /* keep track of sign */
-  int sign = 0;
-  if (b < 0) {
-      sign = 1;
-      b *= -1;
-  }
+    b = round(b);
+    if (-1 < b && b < 1) {
+        mp_zero(a);
+        return MP_OKAY;
+    }
 
-  b = round(b);
+    union { double d; uint64_t bits; } n;
+    n.d = b;
+    int64_t fraction = (n.bits & 0x000FFFFFFFFFFFFFL) | 0x0010000000000000L;
+    int exp = ((n.bits & 0x7FF0000000000000L) >> 52) - 1023;
 
-  if (b < 1) {
-      mp_zero (a);
-      return MP_OKAY;
-  }
-
-  // TODO actually take the bits and then shift it by exponent
-  mp_set_signed (a, (intptr_t)b);
-  a->sign = sign; // set sign
-  return MP_OKAY;
+    if (exp <= 52) {
+        mp_set_signed(a, fraction >> (52 - exp));
+    } else {
+        mp_set_signed(a, fraction);
+        mp_mul_2d(a, exp - 52, a);
+    }
+    a->sign = (n.bits & 0x8000000000000000L) > 0; // set sign
+    return MP_OKAY;
 }
 #endif
 
