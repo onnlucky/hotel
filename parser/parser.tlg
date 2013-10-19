@@ -124,8 +124,8 @@ nonident: punct | "/" | "\\" | "<" | ">" | "^"
         | this | varref
         | num | text
         | list | object | map
-        | "true"                                   -> true
-        | "false"                                  -> false
+        | "true"                                   -> { type: #value, value: true }
+        | "false"                                  -> { type: #value, value: false }
         | "null"                                   -> { type: #value, value: #null }
         | "undefined"                              -> { type: #value, value: #undefined }
 
