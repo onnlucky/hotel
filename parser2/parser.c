@@ -127,15 +127,15 @@ int parser_rule_accept(Parser* p, int token, const char* name) {
     return 1;
 }
 
-char parser_peek_ahead(Parser* p, int ahead) {
+int parser_peek_ahead(Parser* p, int ahead) {
     if (p->at + ahead >= p->len) return 0;
     return p->input[p->at + ahead];
 }
-char parser_peek(Parser* p) {
+int parser_peek(Parser* p) {
     if (p->at >= p->len) return 0;
     return p->input[p->at];
 }
-bool parser_expect(Parser* p, char c) {
+bool parser_expect(Parser* p, int c) {
     print("EXPECT: %c", c);
     return c == parser_peek(p);
 }
@@ -160,57 +160,80 @@ bool parser_check_recurse(Parser* p, const char* rule) {
 RULE(end)
     if (PEEK()) REJECT();
 END_RULE()
-
 RULE(wsnl)
     while (true) {
-        char c = PEEK();
+        int c = PEEK();
         if (!c || c > 32) break;
         NEXT();
     }
 END_RULE()
 RULE(ws)
     while (true) {
-        char c = PEEK();
+        int c = PEEK();
         if (!c || c > 32) break;
         if (c == '\n' || c == '\r') break;
         NEXT();
     }
 END_RULE()
 
-RULE(number)
-    int sign = 1;
-    int n = 0;
-    int f = 0;
-    char c = PEEK();
-    if (c == '+' || c == '-') {
-        sign = (c == '-')? -1 : 1;
-        NEXT();
-        c = PEEK();
-    }
-    if (!(c >= '0' && c <= '9')) REJECT();
-    n = c - '0';
-    NEXT();
+RULE(sign)
+    int c = PEEK();
+    if (c == '+' || c == '-') NEXT();
+END_RULE()
+RULE(whole)
     while (true) {
-        c = PEEK();
-        if (!(c >= '0' && c <= '9')) break;
-        n = n * 10 + (c - '0');
+        int c = PEEK();
+        if (!(c == '_' || (c >= '0' && c <= '9'))) break;
         NEXT();
     }
-    if (PEEK() == '.') {
-        c = PEEK_AHEAD(1);
-        if (c >= '0' && c <= '9') {
-            f = c - '0';
-            NEXT(); NEXT();
-            while (true) {
-                c = PEEK();
-                if (!(c >= '0' && c <= '9')) break;
-                f = f * 10 + (c - '0');
-                NEXT();
-            }
+END_RULE()
+RULE(fraction)
+    while (true) {
+        int c = PEEK();
+        if (!(c == '_' || (c >= '0' && c <= '9'))) break;
+        NEXT();
+    }
+END_RULE()
+RULE(exp)
+    int c = PEEK();
+    if (c == 'e' || c == 'E') {
+        ANCHOR("expect number");
+        NEXT();
+        c = PEEK();
+        if (c == '+' || c == '-') {
+            NEXT();
+            c = PEEK();
+        }
+        if (c < '0' || c > '9') REJECT();
+        NEXT();
+        while (true) {
+            c = PEEK();
+            if (!(c == '_' || (c >= '0' && c <= '9'))) break;
+            NEXT();
         }
     }
-    n = sign * n;
-    //print("%d.%d", n, f);
+END_RULE()
+RULE(number)
+    int c;
+    PARSE(sign);
+    c = PEEK();
+    if (c == '.') {
+        PARSE(whole);
+        NEXT();
+        c = PEEK();
+        if (c < '0' || c > '9') REJECT();
+        PARSE(fraction);
+    } else {
+        c = PEEK();
+        if (c < '0' || c > '9') REJECT();
+        PARSE(whole);
+        c = PEEK();
+        if (c == '.') {
+            NEXT();
+            PARSE(fraction);
+        }
+    }
+    PARSE(exp);
 END_RULE()
 
 RULE(identifier)
@@ -331,7 +354,7 @@ END_RULE()
 
 int main(int argc, char** argv) {
     Parser p;
-    parser_parse(&p, "foo.bar(42, x)", 0);
+    parser_parse(&p, "42_11____1_._33__33__e100; 1; .0; 1.", 0);
     if (p.error) {
         print("error: line %d, char: %d", p.error, p.error_char);
 
