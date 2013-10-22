@@ -213,7 +213,7 @@ RULE(exp)
         }
     }
 END_RULE()
-RULE(number)
+RULE(decimal)
     int c;
     PARSE(sign);
     c = PEEK();
@@ -235,14 +235,34 @@ RULE(number)
     }
     PARSE(exp);
 END_RULE()
+RULE(string)
+    int c = PEEK();
+    if (c != '"') REJECT();
+    NEXT();
+    ANCHOR("expect a closing '\"'");
+    while (true) {
+        c = PEEK();
+        if (!c) REJECT();
+        NEXT();
+        if (c == '"') break;
+    }
+END_RULE()
 
+static inline bool isIdentChar(int c, bool start) {
+    if (c >= 'a' && c <= 'z') return true;
+    if (c >= 'A' && c <= 'Z') return true;
+    if (c == '_') return true;
+    if (start) return false;
+    if (c >= '0' && c <= '9') return true;
+    return false;
+}
 RULE(identifier)
-    char c = PEEK();
-    if (!(c >= 'a' && c <= 'z')) REJECT();
+    int c = PEEK();
+    if (!isIdentChar(c, true)) REJECT();
     NEXT();
     while (true) {
-        char c = PEEK();
-        if (!(c >= 'a' && c <= 'z')) break;
+        c = PEEK();
+        if (!isIdentChar(c, false)) break;
         NEXT();
     }
 END_RULE()
@@ -277,7 +297,8 @@ RULE(args)
 END_RULE()
 
 RULE(prim)
-    OR(number);
+    OR(string);
+    OR(decimal);
     OR(identifier);
     REJECT();
 END_RULE()
@@ -354,7 +375,7 @@ END_RULE()
 
 int main(int argc, char** argv) {
     Parser p;
-    parser_parse(&p, "42_11____1_._33__33__e100; 1; .0; 1.", 0);
+    parser_parse(&p, "xxXXx__123; \"42_\";11____1_._33__33__e100; 1; .0; 1.", 0);
     if (p.error) {
         print("error: line %d, char: %d", p.error, p.error_char);
 
