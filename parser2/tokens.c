@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 
 #define TRACE
@@ -61,7 +63,7 @@ typedef struct Parser {
 
 HAVE_RULE(start);
 int parser_parse(Parser* p, const char* input, int len) {
-    print("starting: %s", input);
+    //print("starting: %s", input);
     p->input = input;
     p->len = (len)? len : strlen(input);
     p->at = 0;
@@ -176,6 +178,22 @@ RULE(ws)
     }
 END_RULE()
 
+RULE(slcomment)
+    int c;
+    c = PEEK();
+    if (c != '/') REJECT();
+    NEXT();
+    c = PEEK();
+    if (c != '/') REJECT();
+    NEXT();
+    while (true) {
+        c = PEEK();
+        if (!c) break;
+        if (c == '\n' || c == '\r') break;
+        NEXT();
+    }
+END_RULE()
+
 RULE(sign)
     int c = PEEK();
     if (c == '+' || c == '-') NEXT();
@@ -254,6 +272,7 @@ static inline bool isIdentChar(int c, bool start) {
     if (c == '_') return true;
     if (start) return false;
     if (c >= '0' && c <= '9') return true;
+    //if (c == '$') return true;
     return false;
 }
 RULE(identifier)
@@ -266,20 +285,48 @@ RULE(identifier)
         NEXT();
     }
 END_RULE()
-
-RULE(semicolon)
+static inline bool isOperatorChar(int c) {
+    if (c <= 32) return false;
+    if (c >= 'a' && c <= 'z') return false;
+    if (c >= 'A' && c <= 'Z') return false;
+    if (c >= '0' && c <= '9') return false;
+    if (c == '"' || c == '\'') return false;
+    if (c == '(' || c == ')') return false;
+    if (c == '[' || c == ']') return false;
+    if (c == '{' || c == '}') return false;
+    if (c == '_') return false;
+    return true;
+}
+RULE(operator)
     int c = PEEK();
-    if (c != ';') REJECT();
+    if (!isOperatorChar(c)) REJECT();
     NEXT();
-END_RULE()
-
-RULE(dot)
-    int c = PEEK();
-    if (c != '.') REJECT();
-    NEXT();
+    while (true) {
+        c = PEEK();
+        if (!isOperatorChar(c)) break;
+        NEXT();
+    }
+    // TODO test that it is not :: or // or some others that cannot be operators ...
 END_RULE()
 
 HAVE_RULE(tokens);
+
+RULE(guards)
+    int c = PEEK();
+    if (c != '|') REJECT();
+    NEXT();
+
+HAVE_RULE(tokens);
+    // TODO peek ahead for '::' by "cheating"
+    PARSE(tokens);
+
+    PARSE(ws);
+    if (c != ':') REJECT();
+    NEXT();
+    if (c != ':') REJECT();
+    NEXT();
+END_RULE()
+
 RULE(brace)
     int c = PEEK();
     if (c != '(') REJECT();
@@ -291,14 +338,39 @@ RULE(brace)
     if (c != ')') REJECT();
     NEXT();
 END_RULE()
+RULE(cbrace)
+    int c = PEEK();
+    if (c != '{') REJECT();
+    ANCHOR("expect '}'");
+    NEXT();
+    PARSE(tokens);
+    PARSE(wsnl);
+    c = PEEK();
+    if (c != '}') REJECT();
+    NEXT();
+END_RULE()
+RULE(sbrace)
+    int c = PEEK();
+    if (c != '[') REJECT();
+    ANCHOR("expect ']'");
+    NEXT();
+    PARSE(tokens);
+    PARSE(wsnl);
+    c = PEEK();
+    if (c != ']') REJECT();
+    NEXT();
+END_RULE()
 
 RULE(token)
+    OR(slcomment);
+    //OR(guards); // TODO implement
     OR(string);
     OR(decimal);
     OR(identifier);
-    OR(semicolon);
-    OR(dot);
+    OR(operator);
     OR(brace);
+    OR(cbrace);
+    OR(sbrace);
     REJECT();
 END_RULE()
 
@@ -315,9 +387,30 @@ RULE(start)
     AND(end);
 END_RULE()
 
+const char* readfile(const char* file) {
+    int fd = open(file, O_RDONLY, 0);
+    if (fd < 0) abort();
+
+    char* data = malloc(1024*1024); // 1 mb
+
+    int len = 0;
+    while (true) {
+        int r = read(fd, data + len, 1024*1024);
+        if (r < 0) abort();
+        if (r == 0) break;
+        len += r;
+    }
+    close(fd);
+
+    return data;
+}
+
 int main(int argc, char** argv) {
+    const char* input = "xxXXx__123; \"(42_\";(11____[1_._33__33__e100; 1; .0)]; 1.";
+    if (argc > 1) input = readfile(argv[1]);
+
     Parser p;
-    parser_parse(&p, "xxXXx__123; \"(42_\";(11____1_._33__33__e100; 1; .0); 1.", 0);
+    parser_parse(&p, input, 0);
     if (p.error) {
         print("error: line %d, char: %d", p.error, p.error_char);
 
