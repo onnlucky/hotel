@@ -1,3 +1,3 @@
 run:
-	clang -Wall -Werror parser.c -o parser
-	./parser
+	clang -Wall -Werror tokens.c -o tokens
+	./tokens
