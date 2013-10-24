@@ -298,6 +298,7 @@ static inline bool isOperatorChar(int c) {
     return true;
 }
 RULE(operator)
+    int at = p->at;
     int c = PEEK();
     if (!isOperatorChar(c)) REJECT();
     NEXT();
@@ -305,6 +306,14 @@ RULE(operator)
         c = PEEK();
         if (!isOperatorChar(c)) break;
         NEXT();
+    }
+    if (p->at - at == 2) {
+        if (strncmp(p->input + at, "::", 2) == 0) REJECT();
+    }
+    if (p->at - at >= 2) {
+        if (strncmp(p->input + at, "//", 2) == 0) REJECT();
+        if (strncmp(p->input + at, "/*", 2) == 0) REJECT();
+        if (strncmp(p->input + at, "*/", 2) == 0) REJECT();
     }
     // TODO test that it is not :: or // or some others that cannot be operators ...
 END_RULE()
