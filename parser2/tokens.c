@@ -158,6 +158,17 @@ bool parser_check_recurse(Parser* p, const char* rule) {
     }
     return false;
 }
+#define STRING(s) parser_string(p, s)
+bool parser_string(Parser* p, const char* s) {
+    if (!s[0]) return true;
+    int at = p->at;
+    for (int i = 0; s[i]; i++, at++) {
+        if (!p->input[at]) return false;
+        if (s[i] != p->input[at]) return false;
+    }
+    p->at = at;
+    return true;
+}
 
 RULE(end)
     if (PEEK()) REJECT();
@@ -177,19 +188,28 @@ RULE(ws)
         NEXT();
     }
 END_RULE()
+RULE(indent)
+    int c = PEEK();
+    if (!(c == '\n' || c == '\r')) REJECT();
+    NEXT();
+    PARSE(ws);
+END_RULE()
 
 RULE(slcomment)
-    int c;
-    c = PEEK();
-    if (c != '/') REJECT();
-    NEXT();
-    c = PEEK();
-    if (c != '/') REJECT();
-    NEXT();
+    if (!STRING("//")) REJECT();
     while (true) {
-        c = PEEK();
+        int c = PEEK();
         if (!c) break;
         if (c == '\n' || c == '\r') break;
+        NEXT();
+    }
+END_RULE()
+RULE(mlcomment)
+    if (!STRING("/*")) REJECT();
+    while (true) {
+        if (PARSE(mlcomment)) continue;
+        if (STRING("*/")) break;
+        if (!PEEK()) break;
         NEXT();
     }
 END_RULE()
@@ -298,7 +318,6 @@ static inline bool isOperatorChar(int c) {
     return true;
 }
 RULE(operator)
-    int at = p->at;
     int c = PEEK();
     if (!isOperatorChar(c)) REJECT();
     NEXT();
@@ -307,34 +326,9 @@ RULE(operator)
         if (!isOperatorChar(c)) break;
         NEXT();
     }
-    if (p->at - at == 2) {
-        if (strncmp(p->input + at, "::", 2) == 0) REJECT();
-    }
-    if (p->at - at >= 2) {
-        if (strncmp(p->input + at, "//", 2) == 0) REJECT();
-        if (strncmp(p->input + at, "/*", 2) == 0) REJECT();
-        if (strncmp(p->input + at, "*/", 2) == 0) REJECT();
-    }
-    // TODO test that it is not :: or // or some others that cannot be operators ...
 END_RULE()
 
 HAVE_RULE(tokens);
-
-RULE(guards)
-    int c = PEEK();
-    if (c != '|') REJECT();
-    NEXT();
-
-HAVE_RULE(tokens);
-    // TODO peek ahead for '::' by "cheating"
-    PARSE(tokens);
-
-    PARSE(ws);
-    if (c != ':') REJECT();
-    NEXT();
-    if (c != ':') REJECT();
-    NEXT();
-END_RULE()
 
 RULE(brace)
     int c = PEEK();
@@ -371,8 +365,6 @@ RULE(sbrace)
 END_RULE()
 
 RULE(token)
-    OR(slcomment);
-    //OR(guards); // TODO implement
     OR(string);
     OR(decimal);
     OR(identifier);
@@ -385,8 +377,12 @@ END_RULE()
 
 RULE(tokens)
     while (true) {
-        PARSE(wsnl);
-        if (!PARSE(token)) break;
+        PARSE(ws);
+        if (PARSE(indent)) continue;
+        if (PARSE(slcomment)) continue;
+        if (PARSE(mlcomment)) continue;
+        if (PARSE(token)) continue;
+        break;
     }
 END_RULE()
 
