@@ -332,35 +332,18 @@ HAVE_RULE(tokens);
 
 RULE(brace)
     int c = PEEK();
-    if (c != '(') REJECT();
-    ANCHOR("expect ')'");
+    int b = 0;
+    const char* m = 0;
+         if (c == '(') { b = ')'; m = "expect closing ')'"; }
+    else if (c == '[') { b = ']'; m = "expect closing ']'"; }
+    else if (c == '{') { b = '}'; m = "expect closing '}'"; }
+    else REJECT();
+    ANCHOR(m);
     NEXT();
     PARSE(tokens);
     PARSE(wsnl);
     c = PEEK();
-    if (c != ')') REJECT();
-    NEXT();
-END_RULE()
-RULE(cbrace)
-    int c = PEEK();
-    if (c != '{') REJECT();
-    ANCHOR("expect '}'");
-    NEXT();
-    PARSE(tokens);
-    PARSE(wsnl);
-    c = PEEK();
-    if (c != '}') REJECT();
-    NEXT();
-END_RULE()
-RULE(sbrace)
-    int c = PEEK();
-    if (c != '[') REJECT();
-    ANCHOR("expect ']'");
-    NEXT();
-    PARSE(tokens);
-    PARSE(wsnl);
-    c = PEEK();
-    if (c != ']') REJECT();
+    if (c != b) REJECT();
     NEXT();
 END_RULE()
 
@@ -370,8 +353,6 @@ RULE(token)
     OR(identifier);
     OR(operator);
     OR(brace);
-    OR(cbrace);
-    OR(sbrace);
     REJECT();
 END_RULE()
 
