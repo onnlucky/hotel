@@ -391,6 +391,21 @@ const char* readfile(const char* file) {
     return data;
 }
 
+bool token_is(Parser* p, int at, const char* name) {
+    if (at > p->last_token) return false;
+    return strcmp(p->tokens[at].name, name) == 0;
+}
+
+int pcall(Parser* p, int at) {
+    if (!token_is(p, at, "identifier")) return 0;
+    at++;
+    if (!token_is(p, at, "brace")) return 0;
+    at++;
+    if (!token_is(p, at, "string")) return 0;
+    at++;
+    return at;
+}
+
 int main(int argc, char** argv) {
     const char* input = "xxXXx__123; \"(42_\";(11____[1_._33__33__e100; 1; .0)]; 1.";
     if (argc > 1) input = readfile(argv[1]);
@@ -461,6 +476,8 @@ int main(int argc, char** argv) {
            // emit_value(p, i, p.tokens[i].end);
         }
     }
+
+    pcall(&p, 1);
 
     return 0;
 }
