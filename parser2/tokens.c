@@ -158,6 +158,14 @@ bool parser_check_recurse(Parser* p, const char* rule) {
     }
     return false;
 }
+
+#define CHAR(c) parse_char(p, c)
+bool parse_char(Parser* p, char c) {
+    if (p->input[p->at] != c) return false;
+    p->at++;
+    return true;
+}
+
 #define STRING(s) parser_string(p, s)
 bool parser_string(Parser* p, const char* s) {
     if (!s[0]) return true;
@@ -252,35 +260,25 @@ RULE(exp)
     }
 END_RULE()
 RULE(decimal)
-    int c;
     PARSE(sign);
-    c = PEEK();
-    if (c == '.') {
-        PARSE(whole);
-        NEXT();
-        c = PEEK();
+    if (CHAR('.')) {
+        int c = PEEK();
         if (c < '0' || c > '9') REJECT();
         PARSE(fraction);
     } else {
-        c = PEEK();
+        int c = PEEK();
         if (c < '0' || c > '9') REJECT();
         PARSE(whole);
-        c = PEEK();
-        if (c == '.') {
-            NEXT();
-            PARSE(fraction);
-        }
+        if (CHAR('.')) PARSE(fraction);
     }
     PARSE(exp);
 END_RULE()
 RULE(string)
-    int c = PEEK();
-    if (c != '"') REJECT();
-    NEXT();
+    if (!CHAR('"')) REJECT();
     ANCHOR("expect a closing '\"'");
     while (true) {
-        c = PEEK();
-        if (!c) REJECT();
+        int c = PEEK();
+        if (c < 32) REJECT();
         NEXT();
         if (c == '"') break;
     }
@@ -296,15 +294,14 @@ static inline bool isIdentChar(int c, bool start) {
     return false;
 }
 RULE(identifier)
-    int c = PEEK();
-    if (!isIdentChar(c, true)) REJECT();
+    if (!isIdentChar(PEEK(), true)) REJECT();
     NEXT();
     while (true) {
-        c = PEEK();
-        if (!isIdentChar(c, false)) break;
+        if (!isIdentChar(PEEK(), false)) break;
         NEXT();
     }
 END_RULE()
+
 static inline bool isOperatorChar(int c) {
     if (c <= 32) return false;
     if (c >= 'a' && c <= 'z') return false;
@@ -318,33 +315,31 @@ static inline bool isOperatorChar(int c) {
     return true;
 }
 RULE(operator)
-    int c = PEEK();
-    if (!isOperatorChar(c)) REJECT();
+    if (!isOperatorChar(PEEK())) REJECT();
     NEXT();
     while (true) {
-        c = PEEK();
-        if (!isOperatorChar(c)) break;
+        if (!isOperatorChar(PEEK())) break;
         NEXT();
     }
 END_RULE()
 
-HAVE_RULE(tokens);
-
-RULE(brace)
-    int c = PEEK();
-    int b = 0;
-    const char* m = 0;
-         if (c == '(') { b = ')'; m = "expect closing ')'"; }
-    else if (c == '[') { b = ']'; m = "expect closing ']'"; }
-    else if (c == '{') { b = '}'; m = "expect closing '}'"; }
-    else REJECT();
-    ANCHOR(m);
-    NEXT();
-    PARSE(tokens);
-    PARSE(wsnl);
-    c = PEEK();
-    if (c != b) REJECT();
-    NEXT();
+RULE(brace_open)
+    if (!CHAR('(')) REJECT();
+END_RULE()
+RULE(cbrace_open)
+    if (!CHAR('{')) REJECT();
+END_RULE()
+RULE(sbrace_open)
+    if (!CHAR('[')) REJECT();
+END_RULE()
+RULE(brace_close)
+    if (!CHAR(')')) REJECT();
+END_RULE()
+RULE(cbrace_close)
+    if (!CHAR('}')) REJECT();
+END_RULE()
+RULE(sbrace_close)
+    if (!CHAR(']')) REJECT();
 END_RULE()
 
 RULE(token)
@@ -352,7 +347,12 @@ RULE(token)
     OR(decimal);
     OR(identifier);
     OR(operator);
-    OR(brace);
+    OR(brace_open);
+    OR(cbrace_open);
+    OR(sbrace_open);
+    OR(brace_close);
+    OR(cbrace_close);
+    OR(sbrace_close);
     REJECT();
 END_RULE()
 
@@ -399,10 +399,13 @@ bool token_is(Parser* p, int at, const char* name) {
 int pcall(Parser* p, int at) {
     if (!token_is(p, at, "identifier")) return 0;
     at++;
-    if (!token_is(p, at, "brace")) return 0;
+    if (!token_is(p, at, "brace_open")) return 0;
     at++;
     if (!token_is(p, at, "string")) return 0;
     at++;
+    if (!token_is(p, at, "brace_close")) return 0;
+    at++;
+    print("!!CALL!!");
     return at;
 }
 
