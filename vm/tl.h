@@ -280,6 +280,8 @@ tlMap* tlMapFromMany(tlHandle vs[], int len /*multiple of 2*/);
 tlMap* tlMapFromList(tlList* ls);
 tlMap* tlMapFromPairs(tlList* ls);
 
+tlMap* tlObjectFrom(const char* n1, tlHandle v1, ...);
+
 tlHandle tlMapGet(tlMap* map, tlHandle key);
 tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v);
 tlMap* tlMapDel(tlMap* map, tlHandle key);
@@ -530,6 +532,9 @@ uint8_t tlBufferReadByte(tlBuffer* buf);
 tlBin* tlBinFromCopy(const char* data, int len);
 int tlBinSize(tlBin* bin);
 const uint8_t* tlBinData(tlBin* bin);
+
+tlArray* tlArrayNew();
+tlArray* tlArrayAdd(tlArray* array, tlHandle v);
 
 
 #endif // _tl_h_

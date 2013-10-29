@@ -4,19 +4,7 @@
 #include <fcntl.h>
 #include <string.h>
 
-#define TRACE
-
-#define print(fmt, x...) ((void)(fprintf(stdout, fmt"\n", ##x), fflush(stdout), 0))
-#ifdef TRACE
-#define trace(fmt, x...) ((void)(fprintf(stderr, fmt"\n", ##x), fflush(stderr), 0))
-#else
-#define trace(fmt, x...)
-#endif
-
-#define null 0
-#define true 1
-#define false 0
-typedef int bool;
+#include <tl.h>
 
 typedef struct Token {
     const char* name;
@@ -391,25 +379,47 @@ const char* readfile(const char* file) {
     return data;
 }
 
-bool token_is(Parser* p, int at, const char* name) {
-    if (at > p->last_token) return false;
-    return strcmp(p->tokens[at].name, name) == 0;
+tlHandle parser_rewind(Parser* p, int at) {
+    p->at = at;
+    return null;
 }
-
-int pcall(Parser* p, int at) {
-    if (!token_is(p, at, "identifier")) return 0;
-    at++;
-    if (!token_is(p, at, "brace_open")) return 0;
-    at++;
-    if (!token_is(p, at, "string")) return 0;
-    at++;
-    if (!token_is(p, at, "brace_close")) return 0;
-    at++;
-    print("!!CALL!!");
-    return at;
+tlHandle parser_error(Parser* p, const char* msg) {
+    fatal("msg %s", msg);
+    return null;
+}
+bool parse_token(Parser* p, const char* name) {
+    if (p->at > p->last_token) return false;
+    if (strcmp(p->tokens[p->at].name, name) != 0) return false;
+    p->at += 1;
+    return true;
+}
+tlHandle parse_value(Parser* p) {
+    int start = p->at;
+    if (parse_token(p, "string")) return tlTrue;
+    if (parse_token(p, "identifier")) return tlTrue;
+    return parser_rewind(p, start);
+}
+tlHandle parse_args(Parser* p) {
+    tlArray* res = tlArrayNew();
+    while (true) {
+        tlHandle h = parse_value(p);
+        if (!h) break;
+        tlArrayAdd(res, h);
+    }
+    return res;
+}
+tlHandle parse_call(Parser* p) {
+    int start = p->at;
+    tlHandle fn = parse_value(p);
+    if (!fn) return parser_rewind(p, start);
+    if (!parse_token(p, "brace_open")) return parser_rewind(p, start);
+    tlHandle args = parse_args(p);
+    if (!parse_token(p, "brace_close")) return parser_error(p, "expected closing ')'");
+    return tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null);
 }
 
 int main(int argc, char** argv) {
+    tl_init();
     const char* input = "xxXXx__123; \"(42_\";(11____[1_._33__33__e100; 1; .0)]; 1.";
     if (argc > 1) input = readfile(argv[1]);
 
@@ -480,7 +490,9 @@ int main(int argc, char** argv) {
         }
     }
 
-    pcall(&p, 1);
+    p.at = 1;
+    tlHandle h = parse_call(&p);
+    print("parsed: %s", tl_str(h));
 
     return 0;
 }
