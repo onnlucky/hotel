@@ -11,10 +11,12 @@ typedef struct Token {
     int begin;
     int end;
     bool anchor;
+    tlHandle value;
 } Token;
 
 typedef struct Parser {
-    const char* input;
+    const char* input; // later we switch inputs
+    Token* input_tokens;
     int len;
     int at;
 
@@ -30,13 +32,14 @@ typedef struct Parser {
 
 #define STR2(x) #x
 #define STR(x) STR2(x)
-#define HAVE_RULE(name) int rule_##name(Parser*)
-#define RULE(name) int rule_##name(Parser* p){\
+#define HAVE_RULE(name) tlHandle rule_##name(Parser*)
+#define RULE(name) tlHandle rule_##name(Parser* p){\
     static const char __name[]=#name;\
-    if (p->error) return false;\
+    if (p->error) return null;\
     int __token=parser_rule_enter(p, __name);
-#define END_RULE() __end: return parser_rule_accept(p, __token, __name); goto __end;}
+#define END_RULE() __end: return parser_rule_accept(p, __token, __name, null); goto __end;}
 #define REJECT() return parser_rule_reject(p, __token, __name)
+#define ACCEPT(v) return parser_rule_accept(p, __token, __name, v)
 #define ANCHOR(reason) parser_anchor(p, __token, reason)
 
 #define PARSE(name) rule_##name(p)
@@ -44,13 +47,13 @@ typedef struct Parser {
 #define OR(name) if (rule_##name(p)) goto __end;
 
 #define RECURSE(name) parser_check_recurse(p, name)
-#define PEEK_AHEAD(n) parser_peek_ahead(p, n)
-#define PEEK() parser_peek(p)
 #define NEXT() parser_next(p)
-#define EXPECT(c) parser_expect(p, c)
+
+#define CPEEK() parser_peek(p)
+#define TPEEK() parser_peek_token(p)
 
 HAVE_RULE(start);
-int parser_parse(Parser* p, const char* input, int len) {
+tlHandle parser_parse(Parser* p, const char* input, int len) {
     //print("starting: %s", input);
     p->input = input;
     p->len = (len)? len : strlen(input);
@@ -81,7 +84,7 @@ int parser_rule_enter(Parser* p, const char* name) {
     print(" try: %s", name);
     return token;
 }
-int parser_rule_reject(Parser* p, int token, const char* name) {
+tlHandle parser_rule_reject(Parser* p, int token, const char* name) {
     trace("fail: %s", name);
     if (!p->error) {
         if (p->tokens[token].anchor) {
@@ -101,20 +104,21 @@ int parser_rule_reject(Parser* p, int token, const char* name) {
     }
     p->tokens[token].end = 0;
     p->tokens[token].name = name;
-    return 0;
+    return null;
 }
-int parser_rule_accept(Parser* p, int token, const char* name) {
+tlHandle parser_rule_accept(Parser* p, int token, const char* name, tlHandle v) {
     trace("  OK: %s (%d-%d)", name, p->tokens[token].begin, p->at);
     // skip zero char consuming rules, like ws
     if (token == p->last_token) {
         if (p->tokens[token].begin == p->at || !strcmp(name, "wsnl") || !strcmp(name, "ws")) {
             p->last_token = token - 1;
-            return 1;
+            return tlNull;
         }
     }
     p->tokens[token].name = name;
     p->tokens[token].end = p->at;
-    return 1;
+    p->tokens[token].value = v;
+    return v?v:tlNull;
 }
 
 int parser_peek_ahead(Parser* p, int ahead) {
@@ -125,9 +129,9 @@ int parser_peek(Parser* p) {
     if (p->at >= p->len) return 0;
     return p->input[p->at];
 }
-bool parser_expect(Parser* p, int c) {
-    print("EXPECT: %c", c);
-    return c == parser_peek(p);
+Token* parser_peek_token(Parser* p) {
+    if (p->at >= p->len) return 0;
+    return &p->input_tokens[p->at];
 }
 void parser_next(Parser* p) {
     p->at += 1;
@@ -166,26 +170,28 @@ bool parser_string(Parser* p, const char* s) {
     return true;
 }
 
+// **** tokenizer rules ****
+
 RULE(end)
-    if (PEEK()) REJECT();
+    if (CPEEK()) REJECT();
 END_RULE()
 RULE(wsnl)
     while (true) {
-        int c = PEEK();
+        int c = CPEEK();
         if (!c || c > 32) break;
         NEXT();
     }
 END_RULE()
 RULE(ws)
     while (true) {
-        int c = PEEK();
+        int c = CPEEK();
         if (!c || c > 32) break;
         if (c == '\n' || c == '\r') break;
         NEXT();
     }
 END_RULE()
 RULE(indent)
-    int c = PEEK();
+    int c = CPEEK();
     if (!(c == '\n' || c == '\r')) REJECT();
     NEXT();
     PARSE(ws);
@@ -194,7 +200,7 @@ END_RULE()
 RULE(slcomment)
     if (!STRING("//")) REJECT();
     while (true) {
-        int c = PEEK();
+        int c = CPEEK();
         if (!c) break;
         if (c == '\n' || c == '\r') break;
         NEXT();
@@ -205,43 +211,43 @@ RULE(mlcomment)
     while (true) {
         if (PARSE(mlcomment)) continue;
         if (STRING("*/")) break;
-        if (!PEEK()) break;
+        if (!CPEEK()) break;
         NEXT();
     }
 END_RULE()
 
 RULE(sign)
-    int c = PEEK();
+    int c = CPEEK();
     if (c == '+' || c == '-') NEXT();
 END_RULE()
 RULE(whole)
     while (true) {
-        int c = PEEK();
+        int c = CPEEK();
         if (!(c == '_' || (c >= '0' && c <= '9'))) break;
         NEXT();
     }
 END_RULE()
 RULE(fraction)
     while (true) {
-        int c = PEEK();
+        int c = CPEEK();
         if (!(c == '_' || (c >= '0' && c <= '9'))) break;
         NEXT();
     }
 END_RULE()
 RULE(exp)
-    int c = PEEK();
+    int c = CPEEK();
     if (c == 'e' || c == 'E') {
         ANCHOR("expect number");
         NEXT();
-        c = PEEK();
+        c = CPEEK();
         if (c == '+' || c == '-') {
             NEXT();
-            c = PEEK();
+            c = CPEEK();
         }
         if (c < '0' || c > '9') REJECT();
         NEXT();
         while (true) {
-            c = PEEK();
+            c = CPEEK();
             if (!(c == '_' || (c >= '0' && c <= '9'))) break;
             NEXT();
         }
@@ -250,11 +256,11 @@ END_RULE()
 RULE(decimal)
     PARSE(sign);
     if (CHAR('.')) {
-        int c = PEEK();
+        int c = CPEEK();
         if (c < '0' || c > '9') REJECT();
         PARSE(fraction);
     } else {
-        int c = PEEK();
+        int c = CPEEK();
         if (c < '0' || c > '9') REJECT();
         PARSE(whole);
         if (CHAR('.')) PARSE(fraction);
@@ -265,7 +271,7 @@ RULE(string)
     if (!CHAR('"')) REJECT();
     ANCHOR("expect a closing '\"'");
     while (true) {
-        int c = PEEK();
+        int c = CPEEK();
         if (c < 32) REJECT();
         NEXT();
         if (c == '"') break;
@@ -282,10 +288,10 @@ static inline bool isIdentChar(int c, bool start) {
     return false;
 }
 RULE(identifier)
-    if (!isIdentChar(PEEK(), true)) REJECT();
+    if (!isIdentChar(CPEEK(), true)) REJECT();
     NEXT();
     while (true) {
-        if (!isIdentChar(PEEK(), false)) break;
+        if (!isIdentChar(CPEEK(), false)) break;
         NEXT();
     }
 END_RULE()
@@ -303,10 +309,10 @@ static inline bool isOperatorChar(int c) {
     return true;
 }
 RULE(operator)
-    if (!isOperatorChar(PEEK())) REJECT();
+    if (!isOperatorChar(CPEEK())) REJECT();
     NEXT();
     while (true) {
-        if (!isOperatorChar(PEEK())) break;
+        if (!isOperatorChar(CPEEK())) break;
         NEXT();
     }
 END_RULE()
@@ -361,6 +367,53 @@ RULE(start)
     AND(end);
 END_RULE()
 
+// **** parser rules ****
+
+tlHandle parser_rewind(Parser* p, int at) {
+    p->at = at;
+    return null;
+}
+tlHandle parser_error(Parser* p, const char* msg) {
+    fatal("msg %s", msg);
+    return null;
+}
+
+#define TOKEN(n) parse_token(p, n)
+tlHandle parse_token(Parser* p, const char* name) {
+    Token* token = parser_peek_token(p);
+    print("TOKEN: %s == %s", token?token->name:"null", name);
+    if (!token) return null;
+    if (strcmp(token->name, name) != 0) return null;
+    print("TOKEN: ACCEPT");
+    parser_next(p);
+    return token->value? token->value : tlNull;
+}
+
+RULE(value)
+    tlHandle v;
+    if ((v = TOKEN("identifier"))) ACCEPT(v);
+    if ((v = TOKEN("string"))) ACCEPT(v);
+    REJECT();
+END_RULE()
+RULE(args)
+    tlArray* res = tlArrayNew();
+    while (true) {
+        tlHandle v = PARSE(value);
+        if (!v) break;
+        tlArrayAdd(res, v);
+    }
+    ACCEPT(res);
+END_RULE()
+RULE(call)
+    tlHandle fn = PARSE(value);
+    if (!fn) REJECT();
+    if (!TOKEN("brace_open")) REJECT();
+    ANCHOR("expect ')'");
+    tlHandle args = PARSE(args);
+    if (!TOKEN("brace_close")) REJECT();
+    ACCEPT(tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null));
+END_RULE()
+
 const char* readfile(const char* file) {
     int fd = open(file, O_RDONLY, 0);
     if (fd < 0) abort();
@@ -377,45 +430,6 @@ const char* readfile(const char* file) {
     close(fd);
 
     return data;
-}
-
-tlHandle parser_rewind(Parser* p, int at) {
-    p->at = at;
-    return null;
-}
-tlHandle parser_error(Parser* p, const char* msg) {
-    fatal("msg %s", msg);
-    return null;
-}
-bool parse_token(Parser* p, const char* name) {
-    if (p->at > p->last_token) return false;
-    if (strcmp(p->tokens[p->at].name, name) != 0) return false;
-    p->at += 1;
-    return true;
-}
-tlHandle parse_value(Parser* p) {
-    int start = p->at;
-    if (parse_token(p, "string")) return tlTrue;
-    if (parse_token(p, "identifier")) return tlTrue;
-    return parser_rewind(p, start);
-}
-tlHandle parse_args(Parser* p) {
-    tlArray* res = tlArrayNew();
-    while (true) {
-        tlHandle h = parse_value(p);
-        if (!h) break;
-        tlArrayAdd(res, h);
-    }
-    return res;
-}
-tlHandle parse_call(Parser* p) {
-    int start = p->at;
-    tlHandle fn = parse_value(p);
-    if (!fn) return parser_rewind(p, start);
-    if (!parse_token(p, "brace_open")) return parser_rewind(p, start);
-    tlHandle args = parse_args(p);
-    if (!parse_token(p, "brace_close")) return parser_error(p, "expected closing ')'");
-    return tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null);
 }
 
 int main(int argc, char** argv) {
@@ -490,8 +504,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    p.input_tokens = p.tokens;
+    p.len = p.last_token;
+    p.at = 0;
+
+    p.tokens = null;
+    p.tokens_len = 0;
+    p.last_token = -1;
+
     p.at = 1;
-    tlHandle h = parse_call(&p);
+    tlHandle h = rule_call(&p);
     print("parsed: %s", tl_str(h));
 
     return 0;
