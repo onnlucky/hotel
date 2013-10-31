@@ -301,11 +301,13 @@ static inline bool isOperatorChar(int c) {
     if (c >= 'a' && c <= 'z') return false;
     if (c >= 'A' && c <= 'Z') return false;
     if (c >= '0' && c <= '9') return false;
+    if (c == '_') return false;
     if (c == '"' || c == '\'') return false;
     if (c == '(' || c == ')') return false;
     if (c == '[' || c == ']') return false;
     if (c == '{' || c == '}') return false;
-    if (c == '_') return false;
+    if (c == ',') return false;
+    if (c == ':') return false;
     return true;
 }
 RULE(operator)
@@ -317,24 +319,15 @@ RULE(operator)
     }
 END_RULE()
 
-RULE(brace_open)
-    if (!CHAR('(')) REJECT();
-END_RULE()
-RULE(cbrace_open)
-    if (!CHAR('{')) REJECT();
-END_RULE()
-RULE(sbrace_open)
-    if (!CHAR('[')) REJECT();
-END_RULE()
-RULE(brace_close)
-    if (!CHAR(')')) REJECT();
-END_RULE()
-RULE(cbrace_close)
-    if (!CHAR('}')) REJECT();
-END_RULE()
-RULE(sbrace_close)
-    if (!CHAR(']')) REJECT();
-END_RULE()
+RULE(brace_open) if (!CHAR('(')) REJECT(); END_RULE()
+RULE(brace_close) if (!CHAR(')')) REJECT(); END_RULE()
+RULE(cbrace_open) if (!CHAR('{')) REJECT(); END_RULE()
+RULE(cbrace_close) if (!CHAR('}')) REJECT(); END_RULE()
+RULE(sbrace_open) if (!CHAR('[')) REJECT(); END_RULE()
+RULE(sbrace_close) if (!CHAR(']')) REJECT(); END_RULE()
+RULE(comma) if (!CHAR(',')) REJECT(); END_RULE()
+RULE(colon) if (!CHAR(':')) REJECT(); END_RULE()
+RULE(semicolon) if (!CHAR(';')) REJECT(); END_RULE()
 
 RULE(token)
     OR(string);
@@ -347,6 +340,9 @@ RULE(token)
     OR(brace_close);
     OR(cbrace_close);
     OR(sbrace_close);
+    OR(comma);
+    OR(colon);
+    OR(semicolon);
     REJECT();
 END_RULE()
 
@@ -397,9 +393,13 @@ RULE(value)
 END_RULE()
 RULE(args)
     tlArray* res = tlArrayNew();
+    tlHandle v = PARSE(value);
+    if (!v) ACCEPT(res);
+    tlArrayAdd(res, v);
     while (true) {
+        if (!TOKEN("comma")) break;
         tlHandle v = PARSE(value);
-        if (!v) break;
+        if (!v) REJECT();
         tlArrayAdd(res, v);
     }
     ACCEPT(res);
