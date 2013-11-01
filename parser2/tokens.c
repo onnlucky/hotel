@@ -81,7 +81,7 @@ int parser_rule_enter(Parser* p, const char* name) {
     int token = p->last_token;
     p->tokens[token].begin = p->at;
     p->tokens[token].name = name;
-    print(" try: %s", name);
+    print(" try: %s %d", name, p->at);
     return token;
 }
 tlHandle parser_rule_reject(Parser* p, int token, const char* name) {
@@ -107,7 +107,7 @@ tlHandle parser_rule_reject(Parser* p, int token, const char* name) {
     return null;
 }
 tlHandle parser_rule_accept(Parser* p, int token, const char* name, tlHandle v) {
-    trace("  OK: %s (%d-%d)", name, p->tokens[token].begin, p->at);
+    print("  OK: %s (%d-%d)", name, p->tokens[token].begin, p->at);
     // skip zero char consuming rules, like ws
     if (token == p->last_token) {
         if (p->tokens[token].begin == p->at || !strcmp(name, "wsnl") || !strcmp(name, "ws")) {
@@ -145,8 +145,11 @@ bool parser_check_recurse(Parser* p, const char* rule) {
     int begin = p->tokens[p->last_token].begin;
     for (int i = p->last_token - 1; i >= 0; i--) {
         if (p->tokens[i].begin != begin) return false;
-        print("%s", p->tokens[i].name);
-        if (!strcmp(p->tokens[i].name, "value")) return true;
+        print("RECURSE? %s %d (%s)", p->tokens[i].name, begin, rule);
+        if (!strcmp(p->tokens[i].name, rule)) {
+            print("YES");
+            return true;
+        }
     }
     return false;
 }
@@ -377,16 +380,18 @@ tlHandle parser_error(Parser* p, const char* msg) {
 #define TOKEN(n) parse_token(p, n)
 tlHandle parse_token(Parser* p, const char* name) {
     Token* token = parser_peek_token(p);
-    print("TOKEN: %s == %s", token?token->name:"null", name);
     if (!token) return null;
     if (strcmp(token->name, name) != 0) return null;
-    print("TOKEN: ACCEPT");
     parser_next(p);
     return token->value? token->value : tlNull;
 }
 
+HAVE_RULE(call);
 RULE(value)
     tlHandle v;
+    if (!RECURSE("call")) {
+        if ((v = PARSE(call))) ACCEPT(v);
+    }
     if ((v = TOKEN("identifier"))) ACCEPT(v);
     if ((v = TOKEN("string"))) ACCEPT(v);
     REJECT();
@@ -412,6 +417,13 @@ RULE(call)
     tlHandle args = PARSE(args);
     if (!TOKEN("brace_close")) REJECT();
     ACCEPT(tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null));
+END_RULE()
+RULE(start2)
+    //ANCHOR("end");
+    tlHandle res = PARSE(call);
+    print("call: %s", tl_str(res));
+    //AND(end);
+    ACCEPT(res);
 END_RULE()
 
 const char* readfile(const char* file) {
@@ -493,16 +505,7 @@ int main(int argc, char** argv) {
     print("%zd", p.last_token * sizeof(Token));
 
 
-    // value[prim, args] -> call(prim, args)
-    // value X tail X
-    for (int i = 0; i <= p.last_token; i++) {
-        if (!strcmp(p.tokens[i].name, "value")) {
-            print("call");
-            //find_caller(p, i);
-            //find_
-           // emit_value(p, i, p.tokens[i].end);
-        }
-    }
+    // ** switch to high level parsing **
 
     p.input_tokens = p.tokens;
     p.len = p.last_token;
@@ -513,7 +516,17 @@ int main(int argc, char** argv) {
     p.last_token = -1;
 
     p.at = 1;
-    tlHandle h = rule_call(&p);
+    tlHandle h = rule_start2(&p);
+    if (p.error) {
+        print("error: line %d, char: %d", p.error, p.error_char);
+        if (p.error_reason) {
+            print("%s (%s)", p.error_reason, p.error_rule);
+        }
+        for (int i = p.last_token; i >= 0; i--) {
+            print("error: %s (%d-%d)", p.tokens[i].name, p.tokens[i].begin, p.tokens[i].end);
+        }
+        return 0;
+    }
     print("parsed: %s", tl_str(h));
 
     return 0;
