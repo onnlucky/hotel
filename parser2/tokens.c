@@ -394,6 +394,7 @@ RULE(value)
     }
     if ((v = TOKEN("identifier"))) ACCEPT(v);
     if ((v = TOKEN("string"))) ACCEPT(v);
+    if ((v = TOKEN("whole"))) ACCEPT(v);
     REJECT();
 END_RULE()
 RULE(args)
