@@ -52,7 +52,7 @@ typedef struct Parser {
 #define CPEEK() parser_peek(p)
 #define TPEEK() parser_peek_token(p)
 
-HAVE_RULE(start);
+HAVE_RULE(tokens);
 tlHandle parser_parse(Parser* p, const char* input, int len) {
     //print("starting: %s", input);
     p->input = input;
@@ -65,7 +65,7 @@ tlHandle parser_parse(Parser* p, const char* input, int len) {
     p->tokens_len = 0;
     p->tokens = null;
     p->last_token = -1;
-    return rule_start(p);
+    return rule_tokens(p);
 }
 void parser_anchor(Parser* p, int token, const char* reason) {
     p->tokens[token].anchor = true;
@@ -108,11 +108,15 @@ tlHandle parser_rule_reject(Parser* p, int token, const char* name) {
 }
 tlHandle parser_rule_accept(Parser* p, int token, const char* name, tlHandle v) {
     print("  OK: %s (%d-%d)", name, p->tokens[token].begin, p->at);
-    // skip zero char consuming rules, like ws
     if (token == p->last_token) {
-        if (p->tokens[token].begin == p->at || !strcmp(name, "wsnl") || !strcmp(name, "ws")) {
+        // skip rules of no importance like ws
+        if (strcmp(name, "ws") == 0) {
             p->last_token = token - 1;
             return tlNull;
+        }
+        // collapse indents when they have zero tokens after them
+        if (token > 0 && strcmp(name, "indent") == 0 && strcmp(p->tokens[token - 1].name, "indent") == 0) {
+            p->last_token = token = token - 1;
         }
     }
     p->tokens[token].name = name;
@@ -178,13 +182,6 @@ bool parser_string(Parser* p, const char* s) {
 RULE(end)
     if (CPEEK()) REJECT();
 END_RULE()
-RULE(wsnl)
-    while (true) {
-        int c = CPEEK();
-        if (!c || c > 32) break;
-        NEXT();
-    }
-END_RULE()
 RULE(ws)
     while (true) {
         int c = CPEEK();
@@ -194,9 +191,12 @@ RULE(ws)
     }
 END_RULE()
 RULE(indent)
-    int c = CPEEK();
-    if (!(c == '\n' || c == '\r')) REJECT();
-    NEXT();
+    if (p->at == 0 && p->last_token == 1) {
+    } else {
+        int c = CPEEK();
+        if (!(c == '\n' || c == '\r')) REJECT();
+        NEXT();
+    }
     PARSE(ws);
 END_RULE()
 
@@ -350,6 +350,7 @@ RULE(token)
 END_RULE()
 
 RULE(tokens)
+    ANCHOR("end");
     while (true) {
         PARSE(ws);
         if (PARSE(indent)) continue;
@@ -358,13 +359,9 @@ RULE(tokens)
         if (PARSE(token)) continue;
         break;
     }
-END_RULE()
-
-RULE(start)
-    ANCHOR("end");
-    PARSE(tokens);
     AND(end);
 END_RULE()
+
 
 // **** parser rules ****
 
@@ -420,10 +417,16 @@ RULE(call)
     ACCEPT(tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null));
 END_RULE()
 RULE(start2)
-    //ANCHOR("end");
+    ANCHOR("end");
+    TOKEN("indent");
     tlHandle res = PARSE(call);
     print("call: %s", tl_str(res));
-    //AND(end);
+    TOKEN("indent");
+    TOKEN("slcomment");
+    TOKEN("indent");
+    TOKEN("slcomment");
+    TOKEN("indent");
+    AND(end);
     ACCEPT(res);
 END_RULE()
 
