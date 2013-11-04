@@ -331,12 +331,13 @@ RULE(sbrace_close) if (!CHAR(']')) REJECT(); END_RULE()
 RULE(comma) if (!CHAR(',')) REJECT(); END_RULE()
 RULE(colon) if (!CHAR(':')) REJECT(); END_RULE()
 RULE(semicolon) if (!CHAR(';')) REJECT(); END_RULE()
+RULE(arrow) if (!STRING("->")) REJECT(); if (isOperatorChar(CPEEK())) REJECT(); END_RULE()
+RULE(fatarrow) if (!STRING("=>")) REJECT(); if (isOperatorChar(CPEEK())) REJECT(); END_RULE()
 
 RULE(token)
     OR(string);
     OR(decimal);
     OR(identifier);
-    OR(operator);
     OR(brace_open);
     OR(cbrace_open);
     OR(sbrace_open);
@@ -346,6 +347,9 @@ RULE(token)
     OR(comma);
     OR(colon);
     OR(semicolon);
+    OR(arrow);
+    OR(fatarrow);
+    OR(operator);
     REJECT();
 END_RULE()
 
