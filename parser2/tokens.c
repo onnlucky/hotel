@@ -420,18 +420,25 @@ RULE(call)
     if (!TOKEN("brace_close")) REJECT();
     ACCEPT(tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null));
 END_RULE()
+RULE(line)
+    if (!TOKEN("indent")) REJECT();
+    if (TOKEN("slcomment")) ACCEPT(tlNull);
+    if (PARSE(end)) ACCEPT(tlNull);
+
+    if (!PARSE(value)) REJECT();
+    while (true) {
+        if (!TOKEN("semicolon")) break;
+        if (!PARSE(value)) REJECT();
+    }
+END_RULE()
 RULE(start2)
     ANCHOR("end");
-    TOKEN("indent");
-    tlHandle res = PARSE(call);
-    print("call: %s", tl_str(res));
-    TOKEN("indent");
-    TOKEN("slcomment");
-    TOKEN("indent");
-    TOKEN("slcomment");
-    TOKEN("indent");
+    while (true) {
+        if (TOKEN("slcomment")) continue;
+        if (TOKEN("mlcomment")) continue;
+        if (!PARSE(line)) break;
+    }
     AND(end);
-    ACCEPT(res);
 END_RULE()
 
 const char* readfile(const char* file) {
