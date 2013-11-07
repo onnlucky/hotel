@@ -422,7 +422,6 @@ RULE(call)
 END_RULE()
 RULE(line)
     if (!TOKEN("indent")) REJECT();
-    if (TOKEN("slcomment")) ACCEPT(tlNull);
     if (PARSE(end)) ACCEPT(tlNull);
 
     if (!PARSE(value)) REJECT();
@@ -434,8 +433,6 @@ END_RULE()
 RULE(start2)
     ANCHOR("end");
     while (true) {
-        if (TOKEN("slcomment")) continue;
-        if (TOKEN("mlcomment")) continue;
         if (!PARSE(line)) break;
     }
     AND(end);
@@ -500,10 +497,12 @@ int main(int argc, char** argv) {
     for (int i = 0; i <= p.last_token; i++) {
         if (p.tokens[j].begin == p.tokens[i].begin && p.tokens[j].end == p.tokens[i].end) {
             p.tokens[j] = p.tokens[i];
-        } else {
-            j++;
-            p.tokens[j] = p.tokens[i];
+            continue;
         }
+        if (strcmp(p.tokens[i].name, "slcomment") == 0) continue;
+        if (strcmp(p.tokens[i].name, "mlcomment") == 0) continue;
+        j++;
+        p.tokens[j] = p.tokens[i];
     }
     p.last_token = j;
 
