@@ -333,6 +333,7 @@ RULE(colon) if (!CHAR(':')) REJECT(); END_RULE()
 RULE(semicolon) if (!CHAR(';')) REJECT(); END_RULE()
 RULE(arrow) if (!STRING("->")) REJECT(); if (isOperatorChar(CPEEK())) REJECT(); END_RULE()
 RULE(fatarrow) if (!STRING("=>")) REJECT(); if (isOperatorChar(CPEEK())) REJECT(); END_RULE()
+RULE(assign) if (!CHAR('=')) REJECT(); if (isOperatorChar(CPEEK())) REJECT(); END_RULE()
 
 RULE(token)
     OR(string);
@@ -349,6 +350,7 @@ RULE(token)
     OR(semicolon);
     OR(arrow);
     OR(fatarrow);
+    OR(assign);
     OR(operator);
     REJECT();
 END_RULE()
@@ -420,14 +422,25 @@ RULE(call)
     if (!TOKEN("brace_close")) REJECT();
     ACCEPT(tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null));
 END_RULE()
+RULE(assign2)
+    if (!TOKEN("identifier")) REJECT();
+    if (!TOKEN("assign")) REJECT();
+    ANCHOR("expect a value");
+    AND(value);
+END_RULE()
+RULE(statement)
+    tlHandle v;
+    if ((v = PARSE(assign2))) ACCEPT(v);
+    if ((v = PARSE(value))) ACCEPT(v);
+    REJECT();
+END_RULE()
 RULE(line)
     if (!TOKEN("indent")) REJECT();
-    if (PARSE(end)) ACCEPT(tlNull);
 
-    if (!PARSE(value)) REJECT();
+    if (!PARSE(statement)) REJECT();
     while (true) {
         if (!TOKEN("semicolon")) break;
-        if (!PARSE(value)) REJECT();
+        if (!PARSE(statement)) REJECT();
     }
 END_RULE()
 RULE(start2)
@@ -435,6 +448,7 @@ RULE(start2)
     while (true) {
         if (!PARSE(line)) break;
     }
+    TOKEN("indent");
     AND(end);
 END_RULE()
 
@@ -501,6 +515,7 @@ int main(int argc, char** argv) {
         }
         if (strcmp(p.tokens[i].name, "slcomment") == 0) continue;
         if (strcmp(p.tokens[i].name, "mlcomment") == 0) continue;
+        if (strcmp(p.tokens[i].name, "indent") == 0 && p.tokens[j].name == p.tokens[i].name) continue;
         j++;
         p.tokens[j] = p.tokens[i];
     }

@@ -1,4 +1,3 @@
-print( x )
-42
-//x = y
+x = "42"
+x = y
 //fib = (n => print(n))
