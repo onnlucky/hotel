@@ -85,7 +85,7 @@ int parser_rule_enter(Parser* p, const char* name) {
     return token;
 }
 tlHandle parser_rule_reject(Parser* p, int token, const char* name) {
-    trace("fail: %s", name);
+    print(" fail: %s", name);
     if (!p->error) {
         if (p->tokens[token].anchor) {
             int l = 1; int c = 0;
@@ -390,11 +390,15 @@ tlHandle parse_token(Parser* p, const char* name) {
 }
 
 HAVE_RULE(call);
+HAVE_RULE(function);
+HAVE_RULE(line);
+HAVE_RULE(statement);
 RULE(value)
     tlHandle v;
     if (!RECURSE("call")) {
         if ((v = PARSE(call))) ACCEPT(v);
     }
+    if ((v = PARSE(function))) ACCEPT(v);
     if ((v = TOKEN("identifier"))) ACCEPT(v);
     if ((v = TOKEN("string"))) ACCEPT(v);
     if ((v = TOKEN("whole"))) ACCEPT(v);
@@ -422,6 +426,16 @@ RULE(call)
     if (!TOKEN("brace_close")) REJECT();
     ACCEPT(tlObjectFrom("target", fn, "args", args, "type", tlSYM("call"), null));
 END_RULE()
+RULE(fargs)
+    if (!TOKEN("identifier")) REJECT();
+END_RULE()
+RULE(function)
+    tlHandle args = PARSE(fargs);
+    if (!args) REJECT();
+    if (!TOKEN("arrow")) REJECT();
+    ANCHOR("expect a function body");
+    if (!PARSE(statement)) REJECT();
+END_RULE()
 RULE(assign2)
     if (!TOKEN("identifier")) REJECT();
     if (!TOKEN("assign")) REJECT();
@@ -436,7 +450,6 @@ RULE(statement)
 END_RULE()
 RULE(line)
     if (!TOKEN("indent")) REJECT();
-
     if (!PARSE(statement)) REJECT();
     while (true) {
         if (!TOKEN("semicolon")) break;
