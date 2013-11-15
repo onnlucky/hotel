@@ -229,14 +229,17 @@ stmssl = t:stm (
 
    stm = varassign | singleassign | multiassign | noassign
 
- guard = __ &{check_indent(G)} "|" _ e:expr _ "::" _ b:body {
-           tlCodeSetIsBlock_(b, true);
-           tlList* as = tlListFrom(tlNull, e, s_block, tl_active(b), null);
-           $$ = call_activate(tlCallFromList(tl_active(s__match), as));
-       }
-       | __ &{check_indent(G)} "|" _ "::" _ b:body {
+ empty = "(" _ empty _ ")"
+       | _
+
+ guard = __ &{check_indent(G)} "{"_ empty _"}:" _ b:body {
            tlCodeSetIsBlock_(b, true);
            tlList* as = tlListFrom(tlNull, tlTrue, s_block, tl_active(b), null);
+           $$ = call_activate(tlCallFromList(tl_active(s__match), as));
+       }
+       | __ &{check_indent(G)} "{" _ e:expr _ "}:" _ b:body {
+           tlCodeSetIsBlock_(b, true);
+           tlList* as = tlListFrom(tlNull, e, s_block, tl_active(b), null);
            $$ = call_activate(tlCallFromList(tl_active(s__match), as));
        }
 guards = gs:guard { gs = tlListFrom1(gs); } (g:guard { gs = tlListAppend(gs, g); })* { $$ = gs; }

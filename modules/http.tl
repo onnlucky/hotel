@@ -95,10 +95,10 @@ SizedStream = stream, size ->
 
 readchunklen = stream, len ->
     b = stream.readByte
-    | b == '\r'             :: assert stream.read(1) == "\n"; return len
-    | b >= '0' and b <= '9' :: return readchunklen(stream, len * 16 + b - '0')
-    | b >= 'A' and b <= 'F' :: return readchunklen(stream, len * 16 + b - 'A' + 10)
-    | b >= 'a' and b <= 'f' :: return readchunklen(stream, len * 16 + b - 'a' + 10)
+    { b == '\r'             }: assert stream.read(1) == "\n"; return len
+    { b >= '0' and b <= '9' }: return readchunklen(stream, len * 16 + b - '0')
+    { b >= 'A' and b <= 'F' }: return readchunklen(stream, len * 16 + b - 'A' + 10)
+    { b >= 'a' and b <= 'f' }: return readchunklen(stream, len * 16 + b - 'a' + 10)
 
 readchunk = stream, into ->
     len = readchunklen(stream, 0)
@@ -150,10 +150,10 @@ get = url ->
     length = res.headers.get("Content-Length")
     encoding = res.headers.get("Transfer-Encoding")
     type = res.headers.get("Content-Type")
-    body = | length                :: SizedStream(conn, length.eval)
-           | encoding == "chunked" :: ChuckedStream(conn)
-           | not encoding          :: conn
-           |                       :: print length, encoding; assert false
+    body = { length                }: SizedStream(conn, length.eval)
+           { encoding == "chunked" }: ChuckedStream(conn)
+           { not encoding          }: conn
+           {                       }: print length, encoding; assert false
 
     // TODO read text encoding and not assume utf8
     if args.names.stream: return body, res

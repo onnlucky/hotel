@@ -11,11 +11,11 @@ ioloop = ->
             msg = _io_queue.poll
             if msg == null: break
             catch: e -> msg.throw(e)
-            | msg.name == #waitread  :: _io_waitread msg[1], msg
-            | msg.name == #waitwrite :: _io_waitwrite msg[1], msg
-            | msg.name == #wait      :: _io_wait msg[1], msg
-            | msg.name == #close     :: _io_close msg[1]; msg.reply
-            | msg.name == #launch    ::
+            { msg.name == #waitread  }: _io_waitread msg[1], msg
+            { msg.name == #waitwrite }: _io_waitwrite msg[1], msg
+            { msg.name == #wait      }: _io_wait msg[1], msg
+            { msg.name == #close     }: _io_close msg[1]; msg.reply
+            { msg.name == #launch    }:
                 msg.reply(_io_launch(
                     msg[1], msg[2],
                     msg[3], msg[4], msg[5], msg[6],
@@ -170,8 +170,8 @@ File = {
                 _with_lock(writer, val):
                     return writeFull(writer, val)
             buf = Buffer.new
-            | isBin(val) :: buf.write val
-            |            :: buf.write val.toString
+            { isBin(val) }: buf.write val
+            {            }: buf.write val.toString
             _with_lock(writer, buf):
                 return writeFull(writer, buf)
         )
