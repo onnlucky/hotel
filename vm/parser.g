@@ -342,7 +342,8 @@ selfapply = "return" &eosfull {
 andor = !"[" !"(" _ !("and" !namechar) !("or" !namechar) _
 not = ("not" !namechar)
 
-bpexpr = v:value andor as:pcargs _":"_ b:block {
+bpexpr = gexpr
+       | v:value andor as:pcargs _":"_ b:block {
            trace("primary args");
            as = tlCallFromList(null, as);
            $$ = call_activate(tlCallAddBlock(set_target(as, v), tl_active(b)));
@@ -528,13 +529,13 @@ op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, nu
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-object = "{"__ is:items __"}"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs(L(is)))); }
-       | "{"__"}"              { $$ = map_activate(tlMapToObject_(tlMapEmpty())); }
+object = "{"__ is:items __"}"!":"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs(L(is)))); }
+       | "{"__"}"!":"              { $$ = map_activate(tlMapToObject_(tlMapEmpty())); }
    map = "["__ is:items __"]"  { $$ = map_activate(tlMapFromPairs(L(is))); }
        | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
- items = "{"__ ts:tms __"}" eom is:items
+ items = "{"__ ts:tms __"}"!":" eom is:items
                                { $$ = tlListCat(L(ts), L(is)); }
-       | "{"__ ts:tms __"}"    { $$ = L(ts); }
+       | "{"__ ts:tms __"}"!":"    { $$ = L(ts); }
        | i:item eom is:items   { $$ = tlListPrepend(L(is), i); }
        | i:item                { $$ = tlListFrom1(i) }
   item = n:name _":"__ v:expr  { $$ = tlListFrom2(n, v); try_name(n, v, yyxvar); }

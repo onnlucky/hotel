@@ -131,7 +131,7 @@ nonident: punct | "/" | "\\" | "<" | ">" | "^"
 
 reference: n=name ?(nreserved n)                   -> { type: #ref, name: n }
 
-   guard: "|". e=expr ."::".. b=bodynl             -> { epr: e, body: b }
+   guard: "{". e=expr ."}:".. b=bodynl             -> { epr: e, body: b }
 guardsnl: c=column ?(begin_body c) ts=guard
           tss=(.. cc=column ?(in_body c, cc) guard)* ?(end_body c) -> tss.prepend(ts).flatten
   guards: gs=guardsnl                              -> { type: #guards, guards: gs }

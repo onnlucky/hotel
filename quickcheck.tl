@@ -1,16 +1,16 @@
 // test if map works; have a function a -> b; generate random lists of a's verify list are equal
 
 randomInt = t ->
-    | t < 0.25 :: 2 - random(4)
-    | t < 0.50 :: 100 - random(200)
-    | t < 0.75 :: 2^23 - random(2^24)
-    |          :: (2^29 - random(2^30)) *(2^29 - random(2^30)) * (2^29 - random(2^30)) // random doesn't work with bignum
+    { t < 0.25 }: 2 - random(4)
+    { t < 0.50 }: 100 - random(200)
+    { t < 0.75 }: 2^23 - random(2^24)
+    {          }: (2^29 - random(2^30)) *(2^29 - random(2^30)) * (2^29 - random(2^30)) // random doesn't work with bignum
 
 randomSize = t ->
-    | t < 0.25 :: random(4)
-    | t < 0.50 :: random(33)
-    | t < 0.75 :: random(100)
-    |          :: random(1050)
+    { t < 0.25 }: random(4)
+    { t < 0.50 }: random(33)
+    { t < 0.75 }: random(100)
+    {          }: random(1050)
 
 randomList = element ->
     return (t ->

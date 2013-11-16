@@ -1,7 +1,7 @@
 #!/usr/bin/env tl
 
-test = | true ::
+test = { true  }:
          print "yes"
-       | false ::
+       { false }:
          print "no"
 
