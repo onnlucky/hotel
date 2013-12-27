@@ -80,7 +80,9 @@ to_call = t, name ->
             return to_call(t.term.terms[1], name)
         { type: "call", target: to_sub(t.term, name) }
     { t.type == "name"    }: { type: "name", name: t.name, term: to_call(t.term) }
-    { t.type == "call"    }: { type: "call", target: "r_$(t.target)" }
+    { t.type == "call"    }:
+        if not rules[t.target]: throw "rule without a definition: '$(t.target)'"
+        { type: "call", target: "r_$(t.target)" }
     { t.type == "starsep" }: { type: "meta", target: "star", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
     { t.type == "plussep" }: { type: "meta", target: "plus", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
     { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name),"null"] }
@@ -116,6 +118,8 @@ if not rules["wsnl"]:
 ast.rules.each: rule ->
     name = "r_$(rule.name)"
     to_sub(rule.term, name, name)
+if not rules["start"] and ast.rules.size > 0:
+    to_sub({ type: "and", terms: [{ type: "call", target: ast.rules.last.name }] }, "r_start", "r_start")
 
 emit = term ->
     { term.type == "call" }: "$(term.target)(p, pos);"

@@ -8,6 +8,5 @@ parser = parser {
     value: num|var
     op: "+"|"-"
     term: lhs=value .op=op. rhs=term | value
-    start: . t=term .
 }
 
