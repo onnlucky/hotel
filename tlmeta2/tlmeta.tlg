@@ -30,22 +30,22 @@ slcomment: "//" (!nl _)*
     char: "[" ts=cscape* @"closing ']'" "]" -> ts.join
 
     term: "(". t=or @"a closing ')'" .")" -> { type: "sub", term: t }
-        | ".."                            -> { type: "wsnl" }
-        | "."                             -> { type: "ws" }
-        | "_"                             -> { type: "any" }
+        | ".."                            -> { type: "call", target: "wsnl" }
+        | "."                             -> { type: "call", target: "ws" }
+        | "_"                             -> { type: "prim", target: "any" }
+        | t=text                          -> { type: "prim", target: "text", text: t }
+        | t=char                          -> { type: "prim", target: "char", text: t }
         | n=name !":"                     -> { type: "call", target: n }
-        | t=text                          -> { type: "text", text: t }
-        | t=char                          -> { type: "char", text: t }
-    post: "!" @"a term" t=term            -> { type: #Not, term: t }
-        | "&" @"a term" t=term            -> { type: #Ahead, term: t }
+    post: "!" @"a term" t=term            -> { type: "not", term: t }
+        | "&" @"a term" t=term            -> { type: "ahead", term: t }
         | t=term "*(". @"a closing ')'" s=or .")" -> { type: "starsep", term: t, sep: s }
         | t=term "+(". @"a closing ')'" s=or .")" -> { type: "plussep", term: t, sep: s }
-        | t=term "*"                      -> { type: "star", term: t }
-        | t=term "+"                      -> { type: "plus", term: t }
+        | t=term "*"                      -> { type: "star", term: t, sep: null }
+        | t=term "+"                      -> { type: "plus", term: t, sep: null }
         | t=term "?"                      -> { type: "opt", term: t }
         | term
    named: n=name "=" @"a term"  t=post    -> { type: "name", name: n, term: t }
-        | "@" t=text                      -> { type: #NoReturn, msg: t }
+        | "@" t=text                      -> { type: "noreturn", msg: t }
         | post
 
      and: h=named rs=(.named)*            -> { type: "and", terms: [h].cat(rs) }
@@ -64,13 +64,10 @@ slcomment: "//" (!nl _)*
 subs = Array.new
 
 to_arg = t, name ->
-    { t.type == "sub" }: to_sub(t.term, name)
-    { t.type == "and" }: to_sub(t, name)
-    { t.type == "or"  }: to_sub(t, name)
-    { t.type == "ws"      }: to_sub({ type: "and", terms: [t] }, name)
-    { t.type == "wsnl"    }: to_sub({ type: "and", terms: [t] }, name)
-    { t.type == "text"    }: to_sub({ type: "and", terms: [t] }, name)
-    { t.type == "char"    }: to_sub({ type: "and", terms: [t] }, name)
+    { t.type == "sub"  }: to_sub(t.term, name)
+    { t.type == "and"  }: to_sub(t, name)
+    { t.type == "or"   }: to_sub(t, name)
+    { t.type == "prim" }: to_sub({ type: "and", terms: [t] }, name)
     { }: throw "ERROR to arg:"+ inspect(t)
 
 to_call = t, name ->
@@ -83,16 +80,13 @@ to_call = t, name ->
         { type: "call", target: to_sub(t.term, name) }
     { t.type == "name"    }: { type: "name", name: t.name, term: to_call(t.term) }
     { t.type == "call"    }: { type: "call", target: "r_$(t.target)" }
-    { t.type == "starsep" }: { type: "meta", target: "starsep", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
-    { t.type == "plussep" }: { type: "meta", target: "plussep", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
-    { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name)] }
-    { t.type == "plus"    }: { type: "meta", target: "plus", args: [to_arg(t.term, name)] }
+    { t.type == "starsep" }: { type: "meta", target: "star", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "plussep" }: { type: "meta", target: "plus", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name),"null"] }
+    { t.type == "plus"    }: { type: "meta", target: "plus", args: [to_arg(t.term, name),"null"] }
     { t.type == "opt"     }: { type: "meta", target: "opt", args: [to_arg(t.term, name)] }
 
-    { t.type == "ws"      }: { type: "call", target: "r_ws" }
-    { t.type == "wsnl"    }: { type: "call", target: "r_wsnl" }
-    { t.type == "text"    }: { type: "prim", target: "text", arg: t.text }
-    { t.type == "char"    }: { type: "prim", target: "char", arg: t.text }
+    { t.type == "prim"    }: t
     { }: throw "ERROR to call:"+ inspect(t)
 
 to_sub = t, name, rule ->
@@ -113,45 +107,48 @@ ast = parserParser(io.File(args[1]).readString)
 ast.rules.each(r -> to_sub(r.term, "r_$(r.name)", "r_$(r.name)"))
 
 emit = term ->
-    { term.type == "call" }: "$(term.target)(p, s);"
-    { term.type == "meta" }: "meta_$(term.target)(p, s$(term.args.map(a -> ", $a").join));"
-    { term.type == "prim" }: "prim_$(term.target)(p, s, \"$(term.arg.escape)\");"
+    { term.type == "call" }: "$(term.target)(p, pos);"
+    { term.type == "meta" }: "meta_$(term.target)(p, pos$(term.args.map(a -> ", $a").join));"
+    { term.type == "prim" and term.text }: "prim_$(term.target)(p, pos, \"$(term.text.escape)\");"
+    { term.type == "prim" }: "prim_$(term.target)(p, pos);"
     { term.type == "name" }: emit(term.term)
     { }: throw "ERROR emit:"+ inspect(term)
 
 lines = Array.new
 lines.add "#include \"tlmeta.c\""
-emit_declare = rule -> lines.add "static State $(rule.name)(Parser* p, State s);"
+emit_declare = rule -> lines.add "static State $(rule.name)(Parser*, int);"
 subs.each(r -> emit_declare(r))
 lines.add ""
 
 emit_rule = rule ->
-    lines.add "static State $(rule.name)(Parser* p, State s) { // $(rule.type)"
-    lines.add " print(\">> rule $(rule.name): %d\", s.pos);"
+    lines.add "static State $(rule.name)(Parser* p, int pos) { // $(rule.type)"
+    lines.add " print(\">> rule $(rule.name): %d\", pos);"
     { rule.terms.size == 1 and not rule.terms[1].type == "name" }:
-        lines.add " s = "+ emit(rule.terms[1])
-        lines.add " if (s.ok) return pass(\"$(rule.name)\", s);"
-        lines.add " return fail(\"$(rule.name)\", Fail);"
+        lines.add " State r = "+ emit(rule.terms[1])
+        lines.add " if (r.ok) return pass(\"$(rule.name)\", r.pos, r.value);"
+        lines.add " return fail(\"$(rule.name)\", pos);"
     { rule.type == "or" }:
         lines.add " State r;"
         rule.terms.each: term ->
             lines.add " r = "+ emit(term)
-            lines.add " if (r.ok) return pass(\"$(rule.name)\", r);"
-        lines.add " return fail(\"$(rule.name)\", Fail);"
+            lines.add " if (r.ok) return pass(\"$(rule.name)\", r.pos, r.value);"
+        lines.add " return fail(\"$(rule.name)\", pos);"
     { rule.type == "and" }:
         names = Array.new
+        lines.add " State r;"
         rule.terms.each: term ->
-            lines.add " s = "+ emit(term)
-            lines.add " if (!s.ok) return fail(\"$(rule.name)\", Fail);"
+            lines.add " r = "+ emit(term)
+            lines.add " if (!r.ok) return fail(\"$(rule.name)\", pos);"
+            lines.add " pos = r.pos;"
             if term.type == "name":
                 names.add term.name
-                lines.add " State _$(term.name) = s;"
+                lines.add " tlHandle _$(term.name) = r.value;"
         if names.size > 0:
-            inner = names.toList.map(n -> "\"$n\", _$n.value").join(", ")
+            inner = names.toList.map(n -> "\"$n\", _$n").join(", ")
             lines.add " tlHandle v = tlObjectFrom($inner, null);"
         if names.size == 0:
-            lines.add " tlHandle v = s.value;"
-        lines.add " return pass(\"$(rule.name)\", (State){1,s.pos,v});"
+            lines.add " tlHandle v = r.value;"
+        lines.add " return pass(\"$(rule.name)\", pos, v);"
     lines.add "}"
 subs.each(r -> emit_rule(r))
 
