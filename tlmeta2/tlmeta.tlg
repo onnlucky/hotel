@@ -1,0 +1,159 @@
+#!/usr/bin/env tl
+
+parserParser = parser {
+
+       sp: " " | "\t"
+       nl: "\r\n" | "\n\r" | "\n" | "\r"
+slcomment: "//" (!nl _)*
+ icomment: "/*" (!"*/" _)* ("*/"|end)
+  comment: (slcomment (nl|end) | icomment)
+       ws: (sp | nl | comment)*
+
+    name: ls=alpha+   -> ls.toChar
+
+  escape: "\\\""      -> "\""
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\$"       -> "\$"
+        | "\\\\"      -> "\\"
+        | !"\"" l=_   -> l.toChar
+    text: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
+
+  cscape: "\\]"       -> "]"
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\$"       -> "\$"
+        | "\\\\"      -> "\\"
+        | !"]" l=_    -> l.toChar
+    char: "[" ts=cscape* @"closing ']'" "]" -> ts.join
+
+    term: "(". t=or @"a closing ')'" .")" -> { type: "sub", term: t }
+        | ".."                            -> { type: "wsnl" }
+        | "."                             -> { type: "ws" }
+        | "_"                             -> { type: "any" }
+        | n=name !":"                     -> { type: "call", target: n }
+        | t=text                          -> { type: "text", text: t }
+        | t=char                          -> { type: "char", text: t }
+    post: "!" @"a term" t=term            -> { type: #Not, term: t }
+        | "&" @"a term" t=term            -> { type: #Ahead, term: t }
+        | t=term "*(". @"a closing ')'" s=or .")" -> { type: "starsep", term: t, sep: s }
+        | t=term "+(". @"a closing ')'" s=or .")" -> { type: "plussep", term: t, sep: s }
+        | t=term "*"                      -> { type: "star", term: t }
+        | t=term "+"                      -> { type: "plus", term: t }
+        | t=term "?"                      -> { type: "opt", term: t }
+        | term
+   named: n=name "=" @"a term"  t=post    -> { type: "name", name: n, term: t }
+        | "@" t=text                      -> { type: #NoReturn, msg: t }
+        | post
+
+     and: h=named rs=(.named)*            -> { type: "and", terms: [h].cat(rs) }
+      or: @"some terms"
+          h=and rs=(."|". and)*           -> { type: "or", terms: [h].cat(rs) }
+
+    rule: .n=name @":" .":". t=or         -> { type: "rule", name: n, term: t }
+  parser: n=name ."="."parser"."{"
+          rs=rule*
+          @"a closing '}'" ."}"           -> { n: n, rs: rs }
+   start: b=(!(name ."="."parser"."{") _)*
+          p=parser
+          a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+}
+
+subs = Array.new
+
+to_arg = t, name ->
+    { t.type == "sub" }: to_sub(t.term, name)
+    { t.type == "and" }: to_sub(t, name)
+    { t.type == "or"  }: to_sub(t, name)
+    { t.type == "ws"      }: to_sub({ type: "and", terms: [t] }, name)
+    { t.type == "wsnl"    }: to_sub({ type: "and", terms: [t] }, name)
+    { t.type == "text"    }: to_sub({ type: "and", terms: [t] }, name)
+    { t.type == "char"    }: to_sub({ type: "and", terms: [t] }, name)
+    { }: throw "ERROR to arg:"+ inspect(t)
+
+to_call = t, name ->
+    { t.type == "and" }:
+        if t.terms.size == 1 and not t.terms[1].type == "name": return to_call(t.terms[1], name)
+        { type: "call", target: to_sub(t, name) }
+    { t.type == "sub"     }:
+        if t.term.terms.size == 1:
+            return to_call(t.term.terms[1], name)
+        { type: "call", target: to_sub(t.term, name) }
+    { t.type == "name"    }: { type: "name", name: t.name, term: to_call(t.term) }
+    { t.type == "call"    }: { type: "call", target: "r_$(t.target)" }
+    { t.type == "starsep" }: { type: "meta", target: "starsep", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "plussep" }: { type: "meta", target: "plussep", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name)] }
+    { t.type == "plus"    }: { type: "meta", target: "plus", args: [to_arg(t.term, name)] }
+    { t.type == "opt"     }: { type: "meta", target: "opt", args: [to_arg(t.term, name)] }
+
+    { t.type == "ws"      }: { type: "call", target: "r_ws" }
+    { t.type == "wsnl"    }: { type: "call", target: "r_wsnl" }
+    { t.type == "text"    }: { type: "prim", target: "text", arg: t.text }
+    { t.type == "char"    }: { type: "prim", target: "char", arg: t.text }
+    { }: throw "ERROR to call:"+ inspect(t)
+
+to_sub = t, name, rule ->
+    { t.type == "and" }:
+        terms = t.terms.map(t -> to_call(t, name))
+        name = rule or "$(name)_$(subs.size)"
+        subs.add { type: "and", { name, terms }}
+        return name
+    { t.type == "or" }:
+        if t.terms.size == 1: return to_sub(t.terms[1], name, rule)
+        terms = t.terms.map(t -> to_call(t, name))
+        name = rule or "$(name)_$(subs.size)"
+        subs.add { type: "or", { name, terms }}
+        return name
+    { }: throw "ERROR to sub:"+ inspect(t)
+
+ast = parserParser(io.File(args[1]).readString)
+ast.rules.each(r -> to_sub(r.term, "r_$(r.name)", "r_$(r.name)"))
+
+emit = term ->
+    { term.type == "call" }: "$(term.target)(p, s);"
+    { term.type == "meta" }: "meta_$(term.target)(p, s$(term.args.map(a -> ", $a").join));"
+    { term.type == "prim" }: "prim_$(term.target)(p, s, \"$(term.arg.escape)\");"
+    { term.type == "name" }: emit(term.term)
+    { }: throw "ERROR emit:"+ inspect(term)
+
+lines = Array.new
+lines.add "#include \"tlmeta.c\""
+emit_declare = rule -> lines.add "static State $(rule.name)(Parser* p, State s);"
+subs.each(r -> emit_declare(r))
+lines.add ""
+
+emit_rule = rule ->
+    lines.add "static State $(rule.name)(Parser* p, State s) { // $(rule.type)"
+    lines.add " print(\">> rule $(rule.name): %d\", s.pos);"
+    { rule.terms.size == 1 and not rule.terms[1].type == "name" }:
+        lines.add " s = "+ emit(rule.terms[1])
+        lines.add " if (s.ok) return pass(\"$(rule.name)\", s);"
+        lines.add " return fail(\"$(rule.name)\", Fail);"
+    { rule.type == "or" }:
+        lines.add " State r;"
+        rule.terms.each: term ->
+            lines.add " r = "+ emit(term)
+            lines.add " if (r.ok) return pass(\"$(rule.name)\", r);"
+        lines.add " return fail(\"$(rule.name)\", Fail);"
+    { rule.type == "and" }:
+        names = Array.new
+        rule.terms.each: term ->
+            lines.add " s = "+ emit(term)
+            lines.add " if (!s.ok) return fail(\"$(rule.name)\", Fail);"
+            if term.type == "name":
+                names.add term.name
+                lines.add " State _$(term.name) = s;"
+        if names.size > 0:
+            inner = names.toList.map(n -> "\"$n\", _$n.value").join(", ")
+            lines.add " tlHandle v = tlObjectFrom($inner, null);"
+        if names.size == 0:
+            lines.add " tlHandle v = s.value;"
+        lines.add " return pass(\"$(rule.name)\", (State){1,s.pos,v});"
+    lines.add "}"
+subs.each(r -> emit_rule(r))
+
+io.File(args[2]).write(lines.join("\n"))
+
