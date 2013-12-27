@@ -62,6 +62,7 @@ slcomment: "//" (!nl _)*
 }
 
 subs = Array.new
+rules = HashMap.new
 
 to_arg = t, name ->
     { t.type == "sub"  }: to_sub(t.term, name)
@@ -104,7 +105,17 @@ to_sub = t, name, rule ->
     { }: throw "ERROR to sub:"+ inspect(t)
 
 ast = parserParser(io.File(args[1]).readString)
-ast.rules.each(r -> to_sub(r.term, "r_$(r.name)", "r_$(r.name)"))
+ast.rules.each: rule ->
+    rules[rule.name] = true
+if not rules["ws"]:
+    rules["ws"] = true
+    to_sub({ type: "and", terms: [{ type: "prim", target: "ws" }] }, "r_ws", "r_ws")
+if not rules["wsnl"]:
+    rules["wsnl"] = true
+    to_sub({ type: "and", terms: [{ type: "prim", target: "wsnl" }] }, "r_wsnl", "r_wsnl")
+ast.rules.each: rule ->
+    name = "r_$(rule.name)"
+    to_sub(rule.term, name, name)
 
 emit = term ->
     { term.type == "call" }: "$(term.target)(p, pos);"

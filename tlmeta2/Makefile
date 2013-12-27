@@ -11,7 +11,7 @@ xrun: main.c
 	tail -n40 main.c
 
 run: main
-	./main 4.1+.9
+	./main "1 + 2"
 
 clean:
 	rm -rf tlmeta.tl main.c main

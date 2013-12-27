@@ -1,14 +1,13 @@
 parser = parser {
- digits: [1234567890]+
-   pass: "X"*
+ digits: ([1234567890]+)+("_"+)
     num: num=digits "." fraction=digits
-       | num=digits "." fraction=pass
-       | num=pass   "." fraction=digits
+       | num=digits "." fraction=""*
+       | num=""* "." fraction=digits
        | num=digits
     var: "a"
     value: num|var
-    op: "+"
-    term: lhs=value op=op rhs=term | value
-    start: term
+    op: "+"|"-"
+    term: lhs=value .op=op. rhs=term | value
+    start: . t=term .
 }
 

@@ -14,6 +14,22 @@ static State pass(const char* name, int pos, tlHandle value) {
     return (State){.ok=1,.pos=pos,.value=value};
 }
 
+static State prim_ws(Parser* p, int pos) {
+    while (1) {
+        int c = p->input[pos];
+        if (c == 0 || c > 32 || c == '\r' || c == '\n') break;
+        pos++;
+    }
+    return (State){.ok=1,.pos=pos,.value=tlNull};
+}
+static State prim_wsnl(Parser* p, int pos) {
+    while (1) {
+        int c = p->input[pos];
+        if (c == 0 || c > 32) break;
+        pos++;
+    }
+    return (State){.ok=1,.pos=pos,.value=tlNull};
+}
 static State prim_char(Parser* p, int pos, const char* chars) {
     int c = p->input[pos];
     if (!c) return Fail;
