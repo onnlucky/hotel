@@ -186,6 +186,7 @@ intptr_t tl_int_or(tlHandle v, int d);
 double tl_double(tlHandle v);
 double tl_double_or(tlHandle v, double d);
 const char* tl_str(tlHandle v);
+char* tl_repr(tlHandle v);
 
 // ** main api for values in runtime **
 
@@ -535,6 +536,7 @@ const uint8_t* tlBinData(tlBin* bin);
 
 tlArray* tlArrayNew();
 tlArray* tlArrayAdd(tlArray* array, tlHandle v);
+tlList* tlArrayToList(tlArray* array);
 
 
 #endif // _tl_h_
