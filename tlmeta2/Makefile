@@ -5,13 +5,13 @@ tlmeta.tl: tlmeta.tlg
 	tlmeta tlmeta.tlg tlmeta.tl
 
 main: main.c tlmeta.c
-	clang -I../vm -I../ -L../ -L/usr/local/lib -Wall main.c -o main -ltl -lm -lpthread -lportaudio -lssl -lcrypto -lgc
+	gcc -std=c99 -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -ljack -lportaudio -lssl -lcrypto
 
 xrun: main.c
 	tail -n40 main.c
 
 run: main
-	./main "1 + 2"
+	./main example.tl
 
 clean:
 	rm -rf tlmeta.tl main.c main
