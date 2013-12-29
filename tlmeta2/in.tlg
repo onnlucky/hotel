@@ -75,23 +75,18 @@ function: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")" -> {{as, b}, type
         | ""
 
      met: "." | "::" | "?" | "!"
-    tail: ."("..                 as=args ..")" t=tail                 -> {{as}, tail:t, type:"call"}
-        | ."("..@"a closing ')'" as=args ..")"                        -> {{as}, type:"call"}
-        | .m=met.. n=name "("..                 as=args ..")" t=tail  -> {{m,n,as}, tail:t, type:"method"}
-        | .m=met.. n=name "("..@"a closing ')'" as=args ..")"         -> {{m,n,as}, type:"method"}
-        | .m=met..                 n=name t=tail                      -> {{m,n}, tail:t, type:"method"}
-        | .m=met..@"a method call" n=name                             -> {{m,n}, type:"method"}
-
-    call: v=value t=tail                                              -> {{v,t}}
-        | v=value
+    tail: ."("..@"a closing ')'" as=args ..")" t=tail                 -> {{as}, tail:t, type:"call"}
+        | .m=met.. n=name "("..@"a closing ')'" as=args ..")" t=tail  -> {{m,n,as}, tail:t, type:"method"}
+        | .m=met..@"a method call" n=name t=tail                      -> {{m,n}, tail:t, type:"method"}
+        | ""                                                          -> {type:"end"}
+    call: v=value t=tail
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: l=call ..op=op.. r=expr -> {{op, l, r}}
-        | call
+    expr: l=call (..op=op.. r=expr)*
 
 // ---- STATEMENTS ----
 
-     stm: n=name .":". e=expr -> { type:"assign", n: n, e: e }
+     stm: n=name .":"!":". @"a value" e=expr -> { type:"assign", n: n, e: e }
         | expr
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)* -> ts.prepend(t)
