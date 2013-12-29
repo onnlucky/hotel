@@ -28,7 +28,7 @@ slcomment: "#" (!nl _)* (nl|end)
         | "\\\\"      -> '\\'
         | !"\"" _
    stext: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
-    text: stext
+   text*: stext
 
 // ---- NUMBERS ----
 
@@ -39,37 +39,43 @@ slcomment: "#" (!nl _)* (nl|end)
     numr: n=numeric "_" b=numr  -> b.prepend(n - 48)
         | n=numeric b=numr      -> b.prepend(n - 48)
         | n=numeric             -> [n - 48]
-     num: s=sign n=numr         -> s * n.reduce(l, r -> l * 10 + r)
+    num*: s=sign n=numr         -> s * n.reduce(l, r -> l * 10 + r)
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{".. is=items @"a closing '}'" .."}"   -> {type:"object",data:is}
+ object*: "{".. is=items @"a closing '}'" .."}"   -> {type:"object",data:is}
         | "{"..@"a closing '}'" "}"
-     map: "[".. is=items @"a closing ']'" .."]"   -> {type:"map",data:is}
+    map*: "[".. is=items @"a closing ']'" .."]"   -> {type:"map",data:is}
         | "["..":" @"a closing ']'" .."]"
    items: i=item is=(eov.. items)*                -> is.prepend(i)
-    item: n=name .@"a ':'" ":"..@"a value" v=expr -> {{n, v}}
+   item*: n=name .@"a ':'" ":"..@"a value" v=expr -> {{n, v}}
 
-    list: "[".. is=litems @"a closing ']'" .."]"  -> {type:"list",data:is}
+   list*: "[".. is=litems @"a closing ']'" .."]"  -> {type:"list",data:is}
         | "[".."]"
   litems: i=expr !":" is=(eov.. litems)*          -> is.prepend(i)
 
 // ---- FUNCTION DEFINITION ----
 
-   class: "{".. as=fargs .."->"..@"a closing '}'" b=body .."}" -> {{as, b}, type:"class"}
-function: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")" -> {{as, b}, type:"function"}
-        | as=fargs .."->".. b=bodynl                           -> {{as, b}, type:"function"}
+   class*: "{".. as=fargs .."->"..@"a closing '}'" b=body .."}" -> {{as, b}, type:"class"}
+function*: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")" -> {{as, b}, type:"function"}
+         | as=fargs .."->".. b=bodynl                           -> {{as, b}, type:"function"}
 
-   fargs: a=name as=(..","..@"a argument name after a ','" name)* -> as.prepend(a)
-        | ""
+    farg*: name
+    fargs: a=farg as=(..","..@"a argument name after a ','" farg)* -> as.prepend(a)
+         | ""
 
 // ---- EXPRESSIONS ----
 
+literal*: "true" | "false" | "null" | "undefined"
+    ref*: name
    value: function
         | class
         | object
-        | "true" | "false" | "null" | "undefined" | num | text | list | map
-        | n=name -> {type:"ref",n:n}
+        | list
+        | map
+        | num | text
+        | literal
+        | ref
 
     args: e=expr es=(..","..@"a value after ','" expr)* -> es.prepend(e)
         | ""

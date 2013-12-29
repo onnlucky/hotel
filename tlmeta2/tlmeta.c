@@ -2,40 +2,70 @@
 
 typedef struct State { int ok; int pos; tlHandle value; } State;
 typedef struct Parser {
+    int len;
     const char* input;
+    int upto;
     const char* anchor;
+
+    uint8_t* out;
+    tlHandle value;
+
     int error_line;
     int error_char;
     const char* error_rule;
     const char* error_msg;
 } Parser;
+
+Parser* parser_new(const char* input, int len) {
+    Parser* parser = calloc(1, sizeof(Parser));
+    if (!len) len = strlen(input);
+    parser->len = len;
+    parser->input = input;
+    parser->out = calloc(1, len + 1);
+    return parser;
+}
+
 typedef State(Rule)(Parser*,int);
 
 static State parser_enter(Parser* p, const char* name, int pos) {
     print(">> enter: %s %d", name, pos);
     return (State){};
 }
-static State parser_error(Parser* p, const char* name, int pos) {
-    print("<< error: %s %d", name, pos);
-    // figure out line and char
-    int l = 1;
-    int c = 0;
+static void parser_line_char(Parser* p, int pos, int* line, int* shar) {
+    int l = 0; int c = 0;
     for (int i = 0; i < pos; i++) {
         if (p->input[i] == '\n') { l++; c = 0; } else { c++; }
     }
-    p->error_line = l;
-    p->error_char = c;
+    if (line) *line = l + 1;
+    if (shar) *shar = c + 1;
+}
+static State parser_error(Parser* p, const char* name, int start, int pos) {
+    print("<< error: %s %d", name, pos);
+    parser_line_char(p, pos, &p->error_line, &p->error_char);
+    int start_line;
+    int start_char;
+    parser_line_char(p, start, &start_line, &start_char);
     p->error_rule = name;
     p->error_msg = p->anchor;
-    print("!! ERROR !! %s line: %d char: %d", p->anchor, l, c);
+    print("!! ERROR !! %s line: %d char: %d", p->anchor, p->error_line, p->error_char);
+    print("!! ERROR !! start line: %d char: %d", start_line, start_char);
     return (State){.pos=pos};
 }
 static State parser_fail(Parser* p, const char* name, int pos) {
     print("<< fail: %s %d", name, pos);
+    if (pos < p->upto) p->upto = pos;
     return (State){.pos=pos};
 }
-static State parser_pass(Parser* p, const char* name, int pos, tlHandle value) {
-    print("<< pass: %s %d -- %s", name, pos, tl_repr(value));
+static State parser_pass(Parser* p, const char* name, uint8_t number, int start, int pos, tlHandle value) {
+    //print("<< pass: %s %d -- %s", name, pos, tl_repr(value));
+    print("<< pass: %s(%d) %d - %d", name, number, start, pos);
+    if (number) {
+        for (int i = p->upto; i < start; i++) p->out[i] = 0;
+        for (int i = start; i < pos; i++) {
+            if (!p->out[i] || i >= p->upto) p->out[i] = number;
+        }
+        p->upto = pos;
+    }
     return (State){.ok=1,.pos=pos,.value=value};
 }
 
@@ -88,6 +118,7 @@ static State prim_text(Parser* p, int pos, const char* chars) {
 }
 
 static State many(const char* name, tlArray* res, Parser* p, int pos, Rule r, Rule sep) {
+    int begin = pos;
     while (1) {
         int start = pos;
         if (sep) {
@@ -104,7 +135,7 @@ static State many(const char* name, tlArray* res, Parser* p, int pos, Rule r, Ru
         tlArrayAdd(res, s.value);
         if (pos == start) break;
     }
-    return parser_pass(p, name, pos, tlArrayToList(res));
+    return parser_pass(p, name, 0, begin, pos, tlArrayToList(res));
 }
 static State meta_plus(Parser* p, int pos, Rule r, Rule sep) {
     parser_enter(p, "plus", pos);
@@ -115,51 +146,56 @@ static State meta_plus(Parser* p, int pos, Rule r, Rule sep) {
     return many("plus", res, p, s.pos, r, sep);
 }
 static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
+    int begin = pos;
     parser_enter(p, "star", pos);
     State s = r(p, pos);
-    if (!s.ok) return parser_pass(p, "star", pos, tlListEmpty());
-    if (!sep && s.pos == pos) return parser_pass(p, "star", pos, tlListFrom1(s.value));
+    if (!s.ok) return parser_pass(p, "star", 0, begin, pos, tlListEmpty());
+    if (!sep && s.pos == pos) return parser_pass(p, "star", 0, begin, pos, tlListFrom1(s.value));
     tlArray* res = tlArrayNew();
     tlArrayAdd(res, s.value);
     return many("star", res, p, s.pos, r, sep);
 }
-static State meta_opt(Parser* p, int pos, Rule r) {
-    parser_enter(p, "opt", pos);
-    State s = r(p, pos);
-    if (s.ok) return parser_pass(p, "opt", s.pos, s.value);
-    return parser_pass(p, "opt", pos, tlNull);
+static State meta_opt(Parser* p, int start, Rule r) {
+    parser_enter(p, "opt", start);
+    State s = r(p, start);
+    if (s.ok) return parser_pass(p, "opt", 0, start, s.pos, s.value);
+    return parser_pass(p, "opt", 0, start, start, tlNull);
 }
-static State meta_not(Parser* p, int pos, Rule r) {
-    parser_enter(p, "not", pos);
-    State s = r(p, pos);
-    if (s.ok) return parser_fail(p, "not", pos);
-    return parser_pass(p, "not", pos, tlNull);
+static State meta_not(Parser* p, int start, Rule r) {
+    parser_enter(p, "not", start);
+    State s = r(p, start);
+    if (s.ok) return parser_fail(p, "not", start);
+    return parser_pass(p, "not", 0, start, start, tlNull);
 }
-static State meta_ahead(Parser* p, int pos, Rule r) {
-    parser_enter(p, "ahead", pos);
-    State s = r(p, pos);
-    if (!s.ok) return parser_fail(p, "ahead", pos);
-    return parser_pass(p, "ahead", pos, tlNull);
+static State meta_ahead(Parser* p, int start, Rule r) {
+    parser_enter(p, "ahead", start);
+    State s = r(p, start);
+    if (!s.ok) return parser_fail(p, "ahead", start);
+    return parser_pass(p, "ahead", 0, start, start, tlNull);
 }
 
 static State r_start(Parser*, int);
+const char* const colors[];
 
 int main(int argv, char** args) {
     tl_init();
 
     tlBuffer* buf = tlBufferFromFile(args[1]);
-    Parser p = (Parser){ tlBufferData(buf) };
+    Parser* p = parser_new(tlBufferData(buf), tlBufferSize(buf));
     print("starting");
-    State s = r_start(&p, 0);
+    State s = r_start(p, 0);
     if (!s.ok) {
         print("error: at: %d", s.pos);
         return 1;
-    } else if (p.input[s.pos] != 0) {
+    } else if (p->input[s.pos] != 0) {
         print("error: incomplete parse at: %d", s.pos);
         return 1;
     }
 
     print("%s", tl_repr(s.value));
+    for (int i = 0; i < p->len; i++) {
+        print("%c %d %s", p->input[i], p->out[i], colors[p->out[i]]);
+    }
     return 0;
 }
 
