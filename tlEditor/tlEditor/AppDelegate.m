@@ -11,19 +11,18 @@
 
     // init colors
     NSDictionary* base = @{
-                                 @"": [NSColor darkGrayColor],
-                                 @"slcomment": [NSColor grayColor],
-                                 @"comment": [NSColor grayColor],
-                                 @"literal": [NSColor brownColor],
-                                 @"text": [NSColor brownColor],
-                                 @"num": [NSColor brownColor],
-                                 @"key": [NSColor blackColor],
-                                 @"farg": [NSColor blackColor],
-                                 @"intro": [NSColor blackColor],
-                                 @"method": [NSColor blueColor],
-                                 @"ref": [NSColor blueColor],
-                                 };
-    
+        @"": [NSColor darkGrayColor],
+        @"slcomment": [NSColor grayColor],
+        @"comment": [NSColor grayColor],
+        @"literal": [NSColor brownColor],
+        @"text": [NSColor brownColor],
+        @"num": [NSColor brownColor],
+        @"key": [NSColor blackColor],
+        @"farg": [NSColor blackColor],
+        @"intro": [NSColor blackColor],
+        @"method": [NSColor blueColor],
+        @"ref": [NSColor blueColor],
+    };
     self.light_error_markup = @{NSBackgroundColorAttributeName: [NSColor colorWithCalibratedRed:1 green:0.9 blue:0.9 alpha:1]};
     self.dark_error_markup = @{NSBackgroundColorAttributeName: [NSColor colorWithCalibratedRed:1 green:0.7 blue:0.7 alpha:1]};
     
@@ -39,6 +38,8 @@
     [self textDidChange:nil];
 }
 
+// TODO do this after small delay and in the background and break up into steps
+// TODO sigh, utf8 ... parsing is byte based, textview ranges are character based ... have to correct for that as we walk the attributes
 - (void)textDidChange:(NSNotification*)notification
 {
     NSTextStorage* text = [self.view textStorage];
