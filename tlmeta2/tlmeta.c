@@ -33,6 +33,7 @@ static State r_start(Parser*, int);
 bool parser_parse(Parser* p) {
     State s = r_start(p, 0);
     if (!s.ok) {
+        if (!p->error_msg) p->error_msg = "unknown";
         return false;
     } else if (p->input[s.pos] != 0) {
         p->error_msg = "incomplete parse";
