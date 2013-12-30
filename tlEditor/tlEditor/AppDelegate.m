@@ -58,12 +58,13 @@
             color = c;
         }
     }
+    [text setAttributes:[self.colors objectAtIndex:color] range:NSMakeRange(begin, at - begin)];
     
     if (!r) {
         NSLog(@"error: %s at: %d:%d", p->error_msg, p->error_line, p->error_char);
         [text addAttributes:self.light_error_markup range:NSMakeRange(p->error_line_begin, p->error_line_end - p->error_line_begin)];
         int begin = p->error_pos_begin;
-        int len = p->error_pos_end - p->error_pos_begin;
+        int len = p->error_pos_end - begin;
         if (len <= 0) {
             len = 1;
             begin -= 1;
@@ -73,7 +74,6 @@
         [text addAttributes:self.dark_error_markup range:NSMakeRange(begin, len)];
     }
     
-    [text setAttributes:[self.colors objectAtIndex:color] range:NSMakeRange(begin, at - begin)];
     [text fixAttributesInRange:NSMakeRange(0, p->len)];
     [text setFont:[NSFont fontWithName:@"Menlo" size:14]];
 }
