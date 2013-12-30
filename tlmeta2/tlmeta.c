@@ -59,6 +59,7 @@ static void parser_line_char(Parser* p, int pos, int* line, int* shar) {
 static State parser_error(Parser* p, const char* name, int begin, int end) {
     const int pos = end;
     if (p->error_msg) return (State){.pos=pos};
+    if (end < begin) end = begin;
 
     p->error_rule = name;
     p->error_msg = p->anchor;
@@ -68,7 +69,7 @@ static State parser_error(Parser* p, const char* name, int begin, int end) {
     p->error_pos_end = end;
     while (begin > 0 && p->input[begin] != '\n') begin--;
     while (end < p->len && p->input[end] != '\n') end++;
-    if (end != p->len) end--;
+    if (begin != 0 && begin < end) begin++;
     p->error_line_begin = begin;
     p->error_line_end = end;
 

@@ -11,8 +11,8 @@ slcomment*: "#" (!nl _)* (nl|end)
 
      eos: . (";" | nl | slcomment)
      eov: . ("," | nl | slcomment)
-   eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
+   eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
 
   letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
    first: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
@@ -92,14 +92,15 @@ literal*: "true" | "false" | "null" | "undefined"
     call: v=value t=tail
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: l=call (..op=op.. r=expr)*
+    expr: l=call (..op=op.. r=expr)* &eoexpr
 
 // ---- STATEMENTS ----
 
   intro*: name
-   mexpr: mfunction | expr
-     stm: n=intro .":"!":".. @"a value" e=mexpr -> { type:"assign", n: n, e: e }
-        | mexpr
+   mexpr: mfunction &eoexpr
+        | expr
+     stm: n=intro .":"!":".. @"a value" e=mexpr @"end of expression" &eostm -> { type:"assign", n: n, e: e }
+        | mexpr @"end of expression" &eostm
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)* -> ts.prepend(t)
     // stms: stm+(.";".@"statement after ';'")
@@ -109,7 +110,7 @@ literal*: "true" | "false" | "null" | "undefined"
     body: ts=stms tss=(eos.. stms)* -> tss.prepend(ts).flatten
         | ""
 
-  bodynl: ts=stm
+  bodynl: ts=stms
 
 hashbang: "#!" (!nl _)*
    start: .. hashbang? .. b=body .. end -> b
