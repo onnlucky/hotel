@@ -92,12 +92,12 @@ literal*: "true" | "false" | "null" | "undefined"
     call: v=value t=tail
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: l=call (..op=op.. r=expr)* &eoexpr
+    expr: l=call (..op=op.. r=expr)* @"end of expression" &eoexpr
 
 // ---- STATEMENTS ----
 
   intro*: name
-   mexpr: mfunction &eoexpr
+   mexpr: mfunction @"end of expression" &eoexpr
         | expr
      stm: n=intro .":"!":".. @"a value" e=mexpr @"end of expression" &eostm -> { type:"assign", n: n, e: e }
         | mexpr @"end of expression" &eostm
