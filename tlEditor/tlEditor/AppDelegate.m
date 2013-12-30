@@ -72,6 +72,9 @@
             while (begin + len > p->len) len--;
         }
         [text addAttributes:self.dark_error_markup range:NSMakeRange(begin, len)];
+        [self.status setStringValue: [NSString stringWithUTF8String:p->error_msg]];
+    } else {
+        [self.status setStringValue: @"ok"];
     }
     
     [text fixAttributesInRange:NSMakeRange(0, p->len)];
