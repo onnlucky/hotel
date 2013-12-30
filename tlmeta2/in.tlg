@@ -3,12 +3,11 @@ parser = parser {
       sp: " " | "\t"
       nl: "\r\n" | "\n\r" | "\n" | "\r"
 
-slcomment: "#" (!nl _)* (nl|end)
- icomment: "(#" (!"#)" (icomment|_))* ("#)"|end)
-  comment: (slcomment | icomment)
+slcomment*: "#" (!nl _)* (nl|end)
+  comment*: "(#" (!"#)" (comment|_))* ("#)"|end)
 
-      ws: (sp | icomment)*
-    wsnl: (sp | nl | comment)*
+      ws: (sp | comment)*
+    wsnl: (sp | nl | comment | slcomment)*
 
      eos: . (";" | nl | slcomment)
      eov: . ("," | nl | slcomment)
@@ -43,25 +42,29 @@ slcomment: "#" (!nl _)* (nl|end)
 
 // ---- OBJECT, MAP AND LIST ----
 
- object*: "{".. is=items @"a closing '}'" .."}"   -> {type:"object",data:is}
+  object: "{".. is=items @"a closing '}'" .."}"   -> {type:"object",data:is}
         | "{"..@"a closing '}'" "}"
-    map*: "[".. is=items @"a closing ']'" .."]"   -> {type:"map",data:is}
+     map: "[".. is=items @"a closing ']'" .."]"   -> {type:"map",data:is}
         | "["..":" @"a closing ']'" .."]"
    items: i=item is=(eov.. items)*                -> is.prepend(i)
-   item*: n=name .@"a ':'" ":"..@"a value" v=expr -> {{n, v}}
+    key*: name
+    item: n=key .@"a ':'" ":"..@"a value" v=mexpr -> {{n, v}}
 
-   list*: "[".. is=litems @"a closing ']'" .."]"  -> {type:"list",data:is}
+    list: "[".. is=litems @"a closing ']'" .."]"  -> {type:"list",data:is}
         | "[".."]"
-  litems: i=expr !":" is=(eov.. litems)*          -> is.prepend(i)
+  litems: i=mexpr !":" is=(eov.. litems)*         -> is.prepend(i)
 
 // ---- FUNCTION DEFINITION ----
 
-   class*: "{".. as=fargs .."->"..@"a closing '}'" b=body .."}" -> {{as, b}, type:"class"}
-function*: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")" -> {{as, b}, type:"function"}
-         | as=fargs .."->".. b=bodynl                           -> {{as, b}, type:"function"}
+    class: "{".. as=fargs .."->"..@"a closing '}'" b=body .."}" -> {{as, b}, type:"class"}
+ function: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")" -> {{as, b}, type:"function"}
+         | a=farg .."->".. b=bodynl                             -> {{b}, as:[a], type:"function"}
+         | "->".. b=bodynl                                      -> {{b}, as:[], type:"function"}
+mfunction: as=fargs .."->".. b=bodynl                           -> {{as, b}, type:"function"}
+         | function
 
     farg*: name
-    fargs: a=farg as=(..","..@"a argument name after a ','" farg)* -> as.prepend(a)
+    fargs: a=farg as=(..",".. farg)* -> as.prepend(a)
          | ""
 
 // ---- EXPRESSIONS ----
@@ -81,10 +84,11 @@ literal*: "true" | "false" | "null" | "undefined"
         | ""
 
      met: "." | "::" | "?" | "!"
-    tail: ."("..@"a closing ')'" as=args ..")" t=tail                 -> {{as}, tail:t, type:"call"}
-        | .m=met.. n=name "("..@"a closing ')'" as=args ..")" t=tail  -> {{m,n,as}, tail:t, type:"method"}
-        | .m=met..@"a method call" n=name t=tail                      -> {{m,n}, tail:t, type:"method"}
-        | ""                                                          -> {type:"end"}
+ method*: name
+    tail: ."("..@"a closing ')'" as=args ..")" t=tail                  -> {{as}, tail:t, type:"call"}
+        | .m=met.. n=method "("..@"a closing ')'" as=args ..")" t=tail -> {{m,n,as}, tail:t, type:"method"}
+        | .m=met..@"a method call" n=method t=tail                     -> {{m,n}, tail:t, type:"method"}
+        | ""                                                           -> {type:"end"}
     call: v=value t=tail
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
@@ -92,8 +96,10 @@ literal*: "true" | "false" | "null" | "undefined"
 
 // ---- STATEMENTS ----
 
-     stm: n=name .":"!":". @"a value" e=expr -> { type:"assign", n: n, e: e }
-        | expr
+  intro*: name
+   mexpr: mfunction | expr
+     stm: n=intro .":"!":".. @"a value" e=mexpr -> { type:"assign", n: n, e: e }
+        | mexpr
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)* -> ts.prepend(t)
     // stms: stm+(.";".@"statement after ';'")

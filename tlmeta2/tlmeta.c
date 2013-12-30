@@ -12,6 +12,10 @@ typedef struct Parser {
 
     int error_line;
     int error_char;
+    int error_pos_begin;
+    int error_pos_end;
+    int error_line_begin;
+    int error_line_end;
     const char* error_rule;
     const char* error_msg;
 } Parser;
@@ -41,7 +45,7 @@ bool parser_parse(Parser* p) {
 typedef State(Rule)(Parser*,int);
 
 static State parser_enter(Parser* p, const char* name, int pos) {
-    print(">> enter: %s %d", name, pos);
+    //print(">> enter: %s %d", name, pos);
     return (State){};
 }
 static void parser_line_char(Parser* p, int pos, int* line, int* shar) {
@@ -52,26 +56,32 @@ static void parser_line_char(Parser* p, int pos, int* line, int* shar) {
     if (line) *line = l + 1;
     if (shar) *shar = c + 1;
 }
-static State parser_error(Parser* p, const char* name, int start, int pos) {
-    print("<< error: %s %d", name, pos);
-    parser_line_char(p, pos, &p->error_line, &p->error_char);
-    int start_line;
-    int start_char;
-    parser_line_char(p, start, &start_line, &start_char);
+static State parser_error(Parser* p, const char* name, int begin, int end) {
+    const int pos = end;
+    if (p->error_msg) return (State){.pos=pos};
+
     p->error_rule = name;
     p->error_msg = p->anchor;
-    print("!! ERROR !! %s line: %d char: %d", p->anchor, p->error_line, p->error_char);
-    print("!! ERROR !! start line: %d char: %d", start_line, start_char);
+    parser_line_char(p, end, &p->error_line, &p->error_char);
+
+    p->error_pos_begin = begin;
+    p->error_pos_end = end;
+    while (begin > 0 && p->input[begin] != '\n') begin--;
+    while (end < p->len && p->input[end] != '\n') end++;
+    if (end != p->len) end--;
+    p->error_line_begin = begin;
+    p->error_line_end = end;
+
     return (State){.pos=pos};
 }
 static State parser_fail(Parser* p, const char* name, int pos) {
-    print("<< fail: %s %d", name, pos);
+    //print("<< fail: %s %d", name, pos);
     if (pos < p->upto) p->upto = pos;
     return (State){.pos=pos};
 }
 static State parser_pass(Parser* p, const char* name, uint8_t number, int start, int pos, tlHandle value) {
     //print("<< pass: %s %d -- %s", name, pos, tl_repr(value));
-    print("<< pass: %s(%d) %d - %d", name, number, start, pos);
+    //print("<< pass: %s(%d) %d - %d", name, number, start, pos);
     if (number) {
         for (int i = p->upto; i < start; i++) p->out[i] = 0;
         for (int i = start; i < pos; i++) {
