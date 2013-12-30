@@ -12,7 +12,7 @@
 
 @property (assign) IBOutlet NSWindow* window;
 @property (assign) IBOutlet NSTextView* view;
-@property (retain) NSArray* colors;
+@property (retain) NSMutableArray* colors;
 
 @end
 

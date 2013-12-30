@@ -6,33 +6,30 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
     self.view.delegate = self;
-    self.colors = @[
-                        @{NSForegroundColorAttributeName: [NSColor blueColor]},
-                        @{NSForegroundColorAttributeName: [NSColor brownColor]},
-                        @{NSForegroundColorAttributeName: [NSColor cyanColor]},
-                        @{NSForegroundColorAttributeName: [NSColor darkGrayColor]},
-                        @{NSForegroundColorAttributeName: [NSColor grayColor]},
-                        @{NSForegroundColorAttributeName: [NSColor greenColor]},
-                        @{NSForegroundColorAttributeName: [NSColor lightGrayColor]},
-                        @{NSForegroundColorAttributeName: [NSColor magentaColor]},
-                        @{NSForegroundColorAttributeName: [NSColor orangeColor]},
-                        @{NSForegroundColorAttributeName: [NSColor purpleColor]},
-                        @{NSForegroundColorAttributeName: [NSColor redColor]},
-                        @{NSForegroundColorAttributeName: [NSColor yellowColor]},
-                        
-                        @{NSForegroundColorAttributeName: [NSColor blueColor]},
-                        @{NSForegroundColorAttributeName: [NSColor brownColor]},
-                        @{NSForegroundColorAttributeName: [NSColor cyanColor]},
-                        @{NSForegroundColorAttributeName: [NSColor darkGrayColor]},
-                        @{NSForegroundColorAttributeName: [NSColor grayColor]},
-                        @{NSForegroundColorAttributeName: [NSColor greenColor]},
-                        @{NSForegroundColorAttributeName: [NSColor lightGrayColor]},
-                        @{NSForegroundColorAttributeName: [NSColor magentaColor]},
-                        @{NSForegroundColorAttributeName: [NSColor orangeColor]},
-                        @{NSForegroundColorAttributeName: [NSColor purpleColor]},
-                        @{NSForegroundColorAttributeName: [NSColor redColor]},
-                        @{NSForegroundColorAttributeName: [NSColor yellowColor]},
-    ];
+    
+    // init colors
+    NSDictionary* base = @{
+                                 @"": [NSColor blackColor],
+                                 @"text": [NSColor brownColor],
+                                 @"num": [NSColor brownColor],
+                                 @"object": [NSColor brownColor],
+                                 @"map": [NSColor brownColor],
+                                 @"item": [NSColor brownColor],
+                                 @"list": [NSColor brownColor],
+                                 @"class": [NSColor brownColor],
+                                 @"function": [NSColor brownColor],
+                                 @"farg": [NSColor blueColor],
+                                 @"literal": [NSColor redColor],
+                                 @"ref": [NSColor blueColor],
+                                 };
+    
+    self.colors = [[NSMutableArray alloc] init];
+    for (int i = 0;; i++) {
+        const char* color = colors[i];
+        if (!color) break;
+        id foo = @{NSForegroundColorAttributeName: [base objectForKey: [NSString stringWithUTF8String: color]]};
+        [self.colors insertObject: foo atIndex:i];
+    }
 }
 
 - (void)textDidChange:(NSNotification*)notification
@@ -51,20 +48,17 @@
     
     int begin = 0;
     int color = 0;
-    for (int i = 0; i < p->len; i++) {
+    for (int i = 0; i < p->len + 1; i++) {
         int c = p->out[i];
         
-        if (color && color != c) {
+        if (color != c) {
+            NSLog(@"color: %d %d %d", begin, i, color);
             [text setAttributes:[self.colors objectAtIndex:color] range:NSMakeRange(begin, i - begin)];
             begin = i;
             color = c;
         }
-        if (!c) {
-            begin = i;
-        } else {
-            color = c;
-        }
     }
+    //[text fixAttributesInRange:NSMakeRange(0, begin - 1)];
 }
 
 @end
