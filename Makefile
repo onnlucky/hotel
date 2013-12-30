@@ -1,5 +1,6 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
 LJACK:=$(shell if ls /usr/lib*/libjack.* /usr/lib/*/libjack.* 2>/dev/null ; then echo "-ljack"; fi)
+#AUDIO:=$(LJACK) -lportaudio
 
 CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
 
@@ -66,7 +67,7 @@ vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBMP)
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
-	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread -lportaudio $(LJACK) -lssl -lcrypto
+	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread $(AUDIO) -lssl -lcrypto
 
 # meta parser and modules depending on it
 tlmeta: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl

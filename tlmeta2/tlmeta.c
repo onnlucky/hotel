@@ -1,4 +1,4 @@
-#include <tl.h>
+#include <vm/tl.h>
 
 typedef struct State { int ok; int pos; tlHandle value; } State;
 typedef struct Parser {
@@ -18,11 +18,24 @@ typedef struct Parser {
 
 Parser* parser_new(const char* input, int len) {
     Parser* parser = calloc(1, sizeof(Parser));
-    if (!len) len = strlen(input);
+    if (!len) len = (int)strlen(input);
     parser->len = len;
     parser->input = input;
     parser->out = calloc(1, len + 1);
     return parser;
+}
+
+static State r_start(Parser*, int);
+bool parser_parse(Parser* p) {
+    State s = r_start(p, 0);
+    if (!s.ok) {
+        return false;
+    } else if (p->input[s.pos] != 0) {
+        p->error_msg = "incomplete parse";
+        return false;
+    }
+    p->value = s.value;
+    return true;
 }
 
 typedef State(Rule)(Parser*,int);
@@ -172,30 +185,5 @@ static State meta_ahead(Parser* p, int start, Rule r) {
     State s = r(p, start);
     if (!s.ok) return parser_fail(p, "ahead", start);
     return parser_pass(p, "ahead", 0, start, start, tlNull);
-}
-
-static State r_start(Parser*, int);
-const char* const colors[];
-
-int main(int argv, char** args) {
-    tl_init();
-
-    tlBuffer* buf = tlBufferFromFile(args[1]);
-    Parser* p = parser_new(tlBufferData(buf), tlBufferSize(buf));
-    print("starting");
-    State s = r_start(p, 0);
-    if (!s.ok) {
-        print("error: at: %d", s.pos);
-        return 1;
-    } else if (p->input[s.pos] != 0) {
-        print("error: incomplete parse at: %d", s.pos);
-        return 1;
-    }
-
-    print("%s", tl_repr(s.value));
-    for (int i = 0; i < p->len; i++) {
-        print("%c %d %s", p->input[i], p->out[i], colors[p->out[i]]);
-    }
-    return 0;
 }
 

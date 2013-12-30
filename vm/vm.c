@@ -44,7 +44,7 @@
 #include "time.c"
 #include "regex.c"
 #include "openssl.c"
-#include "audio.c"
+//#include "audio.c"
 #include "serialize.c"
 //#include "storage.c"
 
@@ -474,7 +474,7 @@ tlVm* tlVmNew() {
     buffer_init_vm(vm);
     regex_init_vm(vm);
     openssl_init_vm(vm);
-    audio_init_vm(vm);
+    //audio_init_vm(vm);
     //storage_init_vm(vm);
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
