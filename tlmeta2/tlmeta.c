@@ -1,5 +1,75 @@
 #include <vm/tl.h>
 
+// ** tools **
+
+tlList* prepend(tlHandle list, tlHandle element) {
+    return tlListPrepend(tlListAs(list), element);
+}
+
+tlList* flatten(tlHandle list) {
+    tlList* l = tlListAs(list);
+    int size = tlListSize(l);
+    if (size == 0) return tlListEmpty();
+    tlList* res = tlListGet(l, 0);
+    for (int i = 1; i < size; i++) {
+        res = tlListCat(res, tlListGet(l, i));
+    }
+    return res;
+}
+
+/// make a string from a list of characters (tlList of tlNumber's)
+tlString* String(tlHandle list) {
+    tlList* l = tlListAs(list);
+    int n = tlListSize(l);
+    char buf[n + 1];
+    for (int i = 0; i < n; i++) {
+        buf[i] = tl_int(tlListGet(l, i));
+    }
+    buf[n] = 0;
+    return tlStringFromCopy(buf, n);
+}
+
+int digitFromChar(int c, int radix) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'A' && c <= 'Z') return c - 'A';
+    if (c >= 'a' && c <= 'z') return c - 'a';
+    return 0;
+}
+
+/// make a float from: a tlINT(1/-1), tlList(tlINT('0'-'9')), tlList(tlINT('0'-'9')), radix
+tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
+    double res = 0;
+    if (whole) {
+        tlList* l = tlListAs(whole);
+        for (int i = 0; i < tlListSize(l); i++) {
+            res = res * radix + (tl_int(tlListGet(l, i)) - '0');
+        }
+    }
+    if (frac) {
+        tlList* l = tlListAs(frac);
+        for (int i = 0; i < tlListSize(l); i++) {
+            // TODO hu? how do you do this again?
+            //res = res * radix + (tl_int(tlListGet(l, i)) - '0');
+        }
+    }
+    res *= tl_int(s);
+    return tlFLOAT(res);
+}
+
+/// make a number from: a tlINT(1/-1), tlList(tlINT('0'-'9')), radix
+tlHandle Number(tlHandle s, tlHandle whole, int radix) {
+    print("number: %s %s", tl_str(s), tl_str(whole));
+    tlList* l = tlListAs(whole);
+    int n = tlListSize(l);
+    char buf[n + 1];
+    for (int i = 0; i < n; i++) {
+        print(" number: %s", tl_str(tlListGet(l, i)));
+        buf[i] = tl_int(tlListGet(l, i));
+    }
+    buf[n] = 0;
+    return tlPARSENUM(buf, radix);
+}
+
 typedef struct State { int ok; int pos; tlHandle value; } State;
 typedef struct Parser {
     int len;

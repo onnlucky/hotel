@@ -16,55 +16,54 @@ slcomment*: "#" (!nl _)* (nl|end)
 
   letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
    first: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
-    name: f=first fs=letter* -> String(f,fs)
+    name: f=first fs=letter* -> String(prepend(fs,f))
 
 // ---- TEXT ----
 
-  escape: "\\\""      -> '"'
-        | "\\n"       -> '\n'
-        | "\\r"       -> '\r'
-        | "\\t"       -> '\t'
-        | "\\\\"      -> '\\'
+  escape: "\\\""      -> tlINT('"')
+        | "\\n"       -> tlINT('\n')
+        | "\\r"       -> tlINT('\r')
+        | "\\t"       -> tlINT('\t')
+        | "\\\\"      -> tlINT('\\')
         | !"\"" _
-   stext: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
+   stext: "\"" ts=escape* @"a closing '\"'" "\"" -> String(ts)
    text*: stext
 
 // ---- NUMBERS ----
 
- numeric: [0123456789]
-    sign: "-"  -> -1
-        | "+"  -> 1
-        | ""   -> 1
-    numr: n=numeric "_" b=numr  -> b.prepend(n - 48)
-        | n=numeric b=numr      -> b.prepend(n - 48)
-        | n=numeric             -> [n - 48]
-    num*: s=sign n=numr         -> s * n.reduce(l, r -> l * 10 + r)
+    sign: "-"                      -> tlINT(-1)
+        | "+"                      -> tlINT(1)
+        | ""                       -> tlINT(1)
+    comp: n=([0123456789]+)+("_"+) !"_" -> flatten(n)
+    num*: s=sign w=comp "." f=comp -> Float(s, w, f, 10)
+        | s=sign        "." f=comp -> Float(s, null, f, 10)
+        | s=sign w=comp            -> Number(s, w, 10)
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{".. is=items @"a closing '}'" .."}"   -> {type:"object",data:is}
+  object: "{".. is=items @"a closing '}'" .."}"
         | "{"..@"a closing '}'" "}"
-     map: "[".. is=items @"a closing ']'" .."]"   -> {type:"map",data:is}
+     map: "[".. is=items @"a closing ']'" .."]"
         | "["..":" @"a closing ']'" .."]"
-   items: i=item is=(eov.. items)*                -> is.prepend(i)
+   items: i=item is=(eov.. items)*                -> prepend(is, i)
     key*: name
-    item: n=key .@"a ':'" ":"..@"a value" v=mexpr -> {{n, v}}
+    item: n=key .@"a ':'" ":"..@"a value" v=mexpr
 
-    list: "[".. is=litems @"a closing ']'" .."]"  -> {type:"list",data:is}
+    list: "[".. is=litems @"a closing ']'" .."]"
         | "[".."]"
-  litems: i=mexpr !":" is=(eov.. litems)*         -> is.prepend(i)
+  litems: i=mexpr !":" is=(eov.. litems)*         -> prepend(is, i)
 
 // ---- FUNCTION DEFINITION ----
 
-    class: "{".. as=fargs .."->"..@"a closing '}'" b=body .."}" -> {{as, b}, type:"class"}
- function: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")" -> {{as, b}, type:"function"}
-         | a=farg .."->".. b=bodynl                             -> {{b}, as:[a], type:"function"}
-         | "->".. b=bodynl                                      -> {{b}, as:[], type:"function"}
-mfunction: as=fargs .."->".. b=bodynl                           -> {{as, b}, type:"function"}
+    class: "{".. as=fargs .."->"..@"a closing '}'" b=body .."}"
+ function: "(".. as=fargs .."->"..@"a closing ')'" b=body ..")"
+         | a=farg .."->".. b=bodynl
+         | "->".. b=bodynl
+mfunction: as=fargs .."->".. b=bodynl
          | function
 
     farg*: name
-    fargs: a=farg as=(..",".. farg)* -> as.prepend(a)
+    fargs: a=farg as=(..",".. farg)* -> prepend(as, a)
          | ""
 
 // ---- EXPRESSIONS ----
@@ -80,15 +79,15 @@ literal*: "true" | "false" | "null" | "undefined"
         | literal
         | ref
 
-    args: e=expr es=(..","..@"a value after ','" expr)* -> es.prepend(e)
+    args: e=expr es=(..","..@"a value after ','" expr)* -> prepend(es, e)
         | ""
 
      met: "." | "::" | "?" | "!"
  method*: name
-    tail: ."("..@"a closing ')'" as=args ..")" t=tail                  -> {{as}, tail:t, type:"call"}
-        | .m=met.. n=method "("..@"a closing ')'" as=args ..")" t=tail -> {{m,n,as}, tail:t, type:"method"}
-        | .m=met..@"a method call" n=method t=tail                     -> {{m,n}, tail:t, type:"method"}
-        | ""                                                           -> {type:"end"}
+    tail: ."("..@"a closing ')'" as=args ..")" t=tail
+        | .m=met.. n=method "("..@"a closing ')'" as=args ..")" t=tail
+        | .m=met..@"a method call" n=method t=tail
+        | ""
     call: v=value t=tail
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
@@ -99,15 +98,15 @@ literal*: "true" | "false" | "null" | "undefined"
   intro*: name
    mexpr: mfunction @"end of expression" &eoexpr
         | expr
-     stm: n=intro .":"!":".. @"a value" e=mexpr @"end of expression" &eostm -> { type:"assign", n: n, e: e }
-        | mexpr @"end of expression" &eostm
+     stm: n=intro .":"!":".. @"a value" e=mexpr @"end of expression" &eostm
+        | e=mexpr @"end of expression" &eostm                                -> e
 
-    stms: t=stm ts=(.";".@"statement after ';'" stm)* -> ts.prepend(t)
+    stms: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
     // stms: stm+(.";".@"statement after ';'")
 
 // ---- BLOCKS ----
 
-    body: ts=stms tss=(eos.. stms)* -> tss.prepend(ts).flatten
+    body: ts=stms tss=(eos.. stms)* -> flatten(prepend(tss, ts))
         | ""
 
   bodynl: ts=stms

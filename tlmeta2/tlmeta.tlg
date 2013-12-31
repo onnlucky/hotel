@@ -50,7 +50,7 @@ slcomment: "//" (!nl _)*
         | "@" t=text                      -> { type: "anchor", msg: t }
         | post
 
-     and: h=named rs=(.named)* .a=act?    -> { type: "and", terms: [h].cat(rs) }
+     and: h=named rs=(.named)* .a=act?    -> { type: "and", terms: [h].cat(rs), act: a }
       or: @"some terms"
           h=and rs=(."|". and)*           -> { type: "or", terms: [h].cat(rs) }
 
@@ -79,10 +79,16 @@ to_arg = t, name ->
     { t.type == "call" }: to_sub({ type: "and", terms: [t] }, name)
     { }: throw "ERROR to arg:"+ inspect(t)
 
+can_optimize_and = t ->
+    if t.act: return false
+    if t.terms.size != 1: return false
+    if t.terms[1].type == "name": return false
+    true
+
 to_call = t, name ->
     assert name
     { t.type == "and" }:
-        if t.terms.size == 1 and not t.terms[1].type == "name": return to_call(t.terms[1], name)
+        if can_optimize_and(t): return to_call(t.terms[1], name)
         { type: "call", target: to_sub(t, name) }
     { t.type == "sub"     }:
         if t.term.terms.size == 1:
@@ -110,7 +116,7 @@ to_sub = t, name, rule, number ->
            {      }: "$(name)_$(subs.size)"
     { t.type == "and" }:
         terms = t.terms.map(t -> to_call(t, name))
-        subs.add { type: "and", { name, number, terms }}
+        subs.add { type: "and", act: t.act, { name, number, terms }}
         return name
     { t.type == "or" }:
         if t.terms.size == 1: return to_sub(t.terms[1], name, rule, number)
@@ -138,10 +144,10 @@ if not rules["start"] and ast.rules.size > 0:
     to_sub({ type: "and", terms: [{ type: "call", target: ast.rules.last.name }] }, null, "r_start")
 
 emit = term ->
-    { term.type == "call" }: "$(term.target)(p, pos);"
-    { term.type == "meta" }: "meta_$(term.target)(p, pos$(term.args.map(a -> ", $a").join));"
-    { term.type == "prim" and term.text }: "prim_$(term.target)(p, pos, \"$(term.text.escape)\");"
-    { term.type == "prim" }: "prim_$(term.target)(p, pos);"
+    { term.type == "call" }: "$(term.target)(_p, _pos);"
+    { term.type == "meta" }: "meta_$(term.target)(_p, _pos$(term.args.map(a -> ", $a").join));"
+    { term.type == "prim" and term.text }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape)\");"
+    { term.type == "prim" }: "prim_$(term.target)(_p, _pos);"
     { term.type == "name" }: emit(term.term)
     { }: throw "ERROR emit:"+ inspect(term)
 
@@ -154,49 +160,50 @@ subs.each(r -> emit_declare(r))
 lines.add ""
 
 emit_rule = rule ->
-    lines.add "static State $(rule.name)(Parser* p, int start) { // $(rule.type)"
-    lines.add " parser_enter(p, \"$(rule.name)\", start);"
-    lines.add " int pos = start;"
-    { rule.terms.size == 1 and not rule.terms[1].type == "name" }:
-        print "HU:", rule.name, rule.number
+    lines.add "static State $(rule.name)(Parser* _p, int _start) { // $(rule.type)"
+    lines.add " parser_enter(_p, \"$(rule.name)\", _start);"
+    lines.add " int _pos = _start;"
+    { can_optimize_and(rule) }:
         assert rule.number
-        lines.add " State r = "+ emit(rule.terms[1])
-        lines.add " if (r.ok) return parser_pass(p, \"$(rule.name)\", $(rule.number), start, r.pos, r.value);"
-        lines.add " if (p->error_line) { print(\"expect: $(rule.name)\"); return r; }"
-        lines.add " return parser_fail(p, \"$(rule.name)\", start);"
+        lines.add " State _r = "+ emit(rule.terms[1])
+        lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r.pos, _r.value);"
+        lines.add " if (_p->error_line) { print(\"expect: $(rule.name)\"); return _r; }"
+        lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "or" }:
-        lines.add " State r;"
+        lines.add " State _r;"
         rule.terms.each: term ->
-            lines.add " r = "+ emit(term)
-            lines.add " if (r.ok) return parser_pass(p, \"$(rule.name)\", $(rule.number), start, r.pos, r.value);"
-            lines.add " if (p->error_line) { print(\"expect: $(rule.name)\"); return r; }"
-        lines.add " return parser_fail(p, \"$(rule.name)\", start);"
+            lines.add " _r = "+ emit(term)
+            lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r.pos, _r.value);"
+            lines.add " if (_p->error_line) { print(\"expect: $(rule.name)\"); return _r; }"
+        lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "and" }:
         anchor = Var.new
         names = Array.new
-        lines.add " State r;"
+        lines.add " State _r;"
         rule.terms.each: term ->
             if term.type == "anchor":
-                if not $anchor: lines.add " const char* anchor = p->anchor;"
-                lines.add " p->anchor = \"$(term.msg.escape)\";"
+                if not $anchor: lines.add " const char* anchor = _p->anchor;"
+                lines.add " _p->anchor = \"$(term.msg.escape)\";"
                 $anchor = true
                 return
-            lines.add " r = "+ emit(term)
+            lines.add " _r = "+ emit(term)
             if not $anchor:
-                lines.add " if (!r.ok) return parser_fail(p, \"$(rule.name)\", pos);"
+                lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _pos);"
             if $anchor:
-                lines.add " if (!r.ok) return parser_error(p, \"$(rule.name)\", start, pos);"
-            lines.add " pos = r.pos;"
+                lines.add " if (!_r.ok) return parser_error(_p, \"$(rule.name)\", _start, _pos);"
+            lines.add " _pos = _r.pos;"
             if term.type == "name":
                 names.add term.name
-                lines.add " tlHandle _$(term.name) = r.value;"
-        if names.size > 0:
-            inner = names.toList.map(n -> "\"$n\", _$n").join(", ")
-            lines.add " tlHandle v = tlObjectFrom($inner, null);"
-        if names.size == 0:
-            lines.add " tlHandle v = r.value;"
-        if $anchor: lines.add " p->anchor = anchor;"
-        lines.add " return parser_pass(p, \"$(rule.name)\", $(rule.number), start, pos, v);"
+                lines.add " tlHandle $(term.name) = _r.value;"
+        { rule.act       }:
+            lines.add " tlHandle _v = $(rule.act);"
+        { names.size > 0 }:
+            inner = names.toList.map(n -> "\"$n\", $n").join(", ")
+            lines.add " tlHandle _v = tlObjectFrom($inner, null);"
+        {                }:
+            lines.add " tlHandle _v = _r.value;"
+        if $anchor: lines.add " _p->anchor = anchor;"
+        lines.add " return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _pos, _v);"
     lines.add "}"
 subs.each(r -> emit_rule(r))
 
