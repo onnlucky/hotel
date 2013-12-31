@@ -84,19 +84,19 @@ literal*: "true" | "false" | "null" | "undefined"
 
      met: "." | "::" | "?" | "!"
  method*: name
-    tail: ."("..@"a closing ')'" as=args ..")" t=tail
-        | .m=met.. n=method "("..@"a closing ')'" as=args ..")" t=tail
-        | .m=met..@"a method call" n=method t=tail
-        | ""
-    call: v=value t=tail
+    tail: ."("..@"a closing ')'" args=args ..")" tail=tail type=<call>
+        | .m=met.. n=method "("..@"a closing ')'" args=args ..")" tail=tail type=<mcall>
+        | .m=met..@"a method call" n=method tail=tail type=<mcall>
+        | "" -> tlNull
+    call: value=value tail=tail
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: l=call (..op=op.. r=expr)* @"end of expression" &eoexpr
+    expr: l=call rs=(..o=op.. e=expr)* @"end of expression" &eoexpr
 
 // ---- STATEMENTS ----
 
   intro*: name
-   mexpr: mfunction @"end of expression" &eoexpr
+   mexpr: e=mfunction @"end of expression" &eoexpr                           -> e
         | expr
      stm: n=intro .":"!":".. @"a value" e=mexpr @"end of expression" &eostm
         | e=mexpr @"end of expression" &eostm                                -> e
