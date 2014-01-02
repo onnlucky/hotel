@@ -28,8 +28,11 @@ slcomment*: "#" (!nl _)* (nl|end)
         | "\\t"       -> tlINT('\t')
         | "\\\\"      -> tlINT('\\')
         | !"\"" _
-   stext: "\"" ts=escape* @"a closing '\"'" "\"" -> String(ts)
-   text*: stext
+   stext: ts=(!"%" escape)+                      -> String(ts)
+  embed*: "%%"
+        | "%(".. e=mexpr ..")"                   -> e
+        | "%" e=ref                              -> e
+   text*: "\"" @"a closing '\"'" ts=(embed|stext)* "\"" type=<text>
 
 // ---- NUMBERS ----
 

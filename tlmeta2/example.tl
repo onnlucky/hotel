@@ -5,7 +5,7 @@
 Shape: { x, y ->
   methods: {
     move: dx, dy -> this::copy({ x: x + dx, y: y + dy })
-    string: -> "$x,$y"
+    string: -> "%x,%y"
   }
 }
 
@@ -13,7 +13,7 @@ Rectangle: { x, y, width, height ->
   inherit: Shape(x, y)
   methods: {
     area: -> width * height
-    string: -> "R[$x,$y $width, $height]"
+    string: -> "R[%x,%y %width, %height]"
     outline: -> this
   }
 }
@@ -22,7 +22,7 @@ Circle: { x, y, radius ->
   inherit: Shape(x, y)
   methods: {
     area: -> radius ^ 2 * PI
-    string: -> "C[$x,$y, $radius]"
+    string: -> "C[%x,%y, %radius]"
     outline: -> Rectangle(x - radius, y - radius, radius * 2, radius * 2)
   }
 }
