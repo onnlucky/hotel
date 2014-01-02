@@ -63,7 +63,10 @@ slcomment*: "#" (!nl _)* (nl|end)
          | "->".. b=bodynl
 mfunction: as=fargs .."->".. b=bodynl
 
-    farg*: name
+    farg*: "&&" n=intro type=<lazycollect>
+         | "&" n=intro d=(."=". expr)? type=<lazy>
+         | "*" n=intro type=<collect>
+         |  n=intro d=(."=". expr)? type=<eager>
     fargs: a=farg as=(..",".. farg)* -> prepend(as, a)
          | ""
 
@@ -82,7 +85,7 @@ literal*: "true" | "false" | "null" | "undefined"
 
    margs: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
     args: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
-        | ""
+        | ""                                                                 -> tlListEmpty()
 
      met: "." | "::"
         | "?" &(.. first)
@@ -107,7 +110,8 @@ literal*: "true" | "false" | "null" | "undefined"
      add: l=mul rs=(..op=("+"|"-").. r=add)?                                 -> process_expr(l, rs)
      mul: l=pow rs=(..op=("*"|"/"|"//"|"%").. r=mul)?                        -> process_expr(l, rs)
      pow: l=paren rs=(..op=("^").. r=pow)?                                   -> process_expr(l, rs)
-   paren: "("..@"a closing ')'" e=stms ..")"                                 -> e
+   paren: &"(" function
+        | "("..@"a closing ')'" b=body ..")"                                 -> b
         | call
 
 // ---- STATEMENTS ----
