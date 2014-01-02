@@ -107,7 +107,7 @@ literal*: "true" | "false" | "null" | "undefined"
      add: l=mul rs=(..op=("+"|"-").. r=add)?                                 -> process_expr(l, rs)
      mul: l=pow rs=(..op=("*"|"/"|"//"|"%").. r=mul)?                        -> process_expr(l, rs)
      pow: l=paren rs=(..op=("^").. r=pow)?                                   -> process_expr(l, rs)
-   paren: "("..@"a closing ')'" e=expr ..")"                                 -> e
+   paren: "("..@"a closing ')'" e=stms ..")"                                 -> e
         | call
 
 // ---- STATEMENTS ----
