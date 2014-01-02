@@ -117,6 +117,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | e=mcall &eostm                                                     -> e
         | expr
      stm: n=intro .":"!":".. @"a value" e=mexpr &endstm
+        | ns=intro+(.","..) ..":"!":".. @"a value" b=stms
         | e=mexpr &endstm                                                    -> e
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
