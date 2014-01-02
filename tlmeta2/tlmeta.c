@@ -58,12 +58,10 @@ tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
 
 /// make a number from: a tlINT(1/-1), tlList(tlINT('0'-'9')), radix
 tlHandle Number(tlHandle s, tlHandle whole, int radix) {
-    print("number: %s %s", tl_str(s), tl_str(whole));
     tlList* l = tlListAs(whole);
     int n = tlListSize(l);
     char buf[n + 1];
     for (int i = 0; i < n; i++) {
-        print(" number: %s", tl_str(tlListGet(l, i)));
         buf[i] = tl_int(tlListGet(l, i));
     }
     buf[n] = 0;
@@ -267,5 +265,26 @@ static State meta_ahead(Parser* p, int start, Rule r) {
     State s = r(p, start);
     if (!s.ok) return parser_fail(p, "ahead", start);
     return parser_pass(p, "ahead", 0, start, start, tlNull);
+}
+
+tlHandle process_tail(tlHandle value, tlHandle tail) {
+    if (tail == tlNull) return value;
+    tlHandle target = tlMapGet(tail, tlSYM("target"));
+    return tlMapSet(tail, tlSYM("target"), process_tail(value, target));
+}
+
+tlHandle process_call(tlHandle args, tlHandle tail) {
+    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "type", tlSYM("call"), null);
+    return process_tail(value, tail);
+}
+
+tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail) {
+    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "type", tlSYM("method"), "op", type, "method", method, null);
+    return process_tail(value, tail);
+}
+
+tlHandle process_expr(tlHandle call, tlHandle expr) {
+    if (expr == tlNull) return call;
+    return tlObjectFrom("op", tlMapGet(expr, tlSYM("op")), "expr", tlMapGet(expr, tlSYM("expr")), null);
 }
 

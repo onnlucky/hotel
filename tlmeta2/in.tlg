@@ -84,14 +84,14 @@ literal*: "true" | "false" | "null" | "undefined"
 
      met: "." | "::" | "?" | "!"
  method*: name
-    tail: ."("..@"a closing ')'" args=args ..")" tail=tail type=<call>
-        | .m=met.. n=method "("..@"a closing ')'" args=args ..")" tail=tail type=<mcall>
-        | .m=met..@"a method call" n=method tail=tail type=<mcall>
-        | "" -> tlNull
-    call: value=value tail=tail
+    tail: ."("..@"a closing ')'" args=args ..")" t=tail                      -> process_call(args, t)
+        | .o=met.. m=method "("..@"a closing ')'" args=args ..")" t=tail     -> process_method(o, m, args, t)
+        | .o=met..@"a method call" m=method t=tail                           -> process_method(o, m, tlListEmpty(), t)
+        | ""                                                                 -> tlNull
+    call: value=value t=tail                                                 -> process_tail(value, t)
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: l=call rs=(..o=op.. e=expr)* @"end of expression" &eoexpr
+    expr: l=call rs=(..op=op.. expr=expr)? @"end of expression" &eoexpr      -> process_expr(l, rs)
 
 // ---- STATEMENTS ----
 
