@@ -283,8 +283,8 @@ tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle 
     return process_tail(value, tail);
 }
 
-tlHandle process_expr(tlHandle call, tlHandle expr) {
-    if (expr == tlNull) return call;
-    return tlObjectFrom("op", tlMapGet(expr, tlSYM("op")), "expr", tlMapGet(expr, tlSYM("expr")), null);
+tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
+    if (rhs == tlNull) return lhs;
+    return tlObjectFrom("op", tlMapGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlMapGet(rhs, tlSYM("r")), null);
 }
 
