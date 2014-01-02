@@ -13,8 +13,8 @@ slcomment*: "#" (!nl _)* (nl|end)
      eov: . ("," | nl | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
- endexpr: @"end of expression" &eoexpr
-  endstm: @"end of expression" &eostm
+ endexpr: @"end of expression" eoexpr
+  endstm: @"end of expression" eostm
 
   letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
    first: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
@@ -70,7 +70,7 @@ mfunction: as=fargs .."->".. b=bodynl
 // ---- EXPRESSIONS ----
 
 literal*: "true" | "false" | "null" | "undefined"
-    ref*: name
+    ref*: name=name type=<ref>
    value: function
         | class
         | object
@@ -80,7 +80,8 @@ literal*: "true" | "false" | "null" | "undefined"
         | literal
         | ref
 
-    args: e=expr es=(..","..@"a value after ','" expr)* -> prepend(es, e)
+   margs: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
+    args: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
         | ""
 
      met: "." | "::"
@@ -92,9 +93,11 @@ literal*: "true" | "false" | "null" | "undefined"
         | .o=met..@"a method call" m=method t=tail                           -> process_method(o, m, tlListEmpty(), t)
         | ""                                                                 -> tlNull
     call: value=value t=tail                                                 -> process_tail(value, t)
+   mcall: target=ref " ". arg=mcall                                          -> process_mcall(target, arg)
+        | target=ref " ". args=margs type=<call>
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: e=logical endexpr                                                  -> e
+    expr: e=logical &endexpr                                                 -> e
 
  logical: l=not rs=(..op=("or"|"and"|"xor").. r=logical)?                    -> process_expr(l, rs)
      not: type="not".. r=not | compare
@@ -110,10 +113,11 @@ literal*: "true" | "false" | "null" | "undefined"
 // ---- STATEMENTS ----
 
   intro*: name
-   mexpr: e=mfunction endexpr                                                -> e
+   mexpr: e=mfunction &endexpr                                               -> e
+        | e=mcall &eostm                                                     -> e
         | expr
-     stm: n=intro .":"!":".. @"a value" e=mexpr endstm
-        | e=mexpr @"end of expression" endstm                                -> e
+     stm: n=intro .":"!":".. @"a value" e=mexpr &endstm
+        | e=mexpr &endstm                                                    -> e
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
     // stms: stm+(.";".@"statement after ';'")

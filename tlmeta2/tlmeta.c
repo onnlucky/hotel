@@ -288,3 +288,7 @@ tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
     return tlObjectFrom("op", tlMapGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlMapGet(rhs, tlSYM("r")), null);
 }
 
+tlHandle process_mcall(tlHandle ref, tlHandle arg) {
+    return tlObjectFrom("target", ref, "args", tlListFrom1(arg), "type", tlSYM("call"), null);
+}
+
