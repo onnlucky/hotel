@@ -37,7 +37,9 @@ slcomment: "//" (!nl _)*
         | "_"                             -> { type: "prim", target: "any" }
         | t=text                          -> { type: "prim", target: "text", text: t }
         | t=char                          -> { type: "prim", target: "char", text: t }
-        | p="pos" !alpha !"_" !":" !"*:"  -> { type: "prim", target: "pos" }
+        | "pos" !alpha !"_" !":" !"*:"    -> { type: "prim", target: "pos" }
+        | "setindent" !alpha !"_" !":" !"*:" -> { type: "setindent" }
+        | "indent" !alpha !"_" !":" !"*:" -> { type: "indent" }
         | n=name !"_" !":" !"*:"          -> { type: "call", target: n }
     post: "!" @"a term" t=term            -> { type: "not", term: t }
         | "&" @"a term" t=term            -> { type: "ahead", term: t }
@@ -68,6 +70,7 @@ slcomment: "//" (!nl _)*
           a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
 }
 
+forbidden = [pos:true,setindent:true,indent:true]
 rules = HashMap.new
 subs = Array.new
 colors = Array.new
@@ -109,6 +112,8 @@ to_call = t, name ->
     { t.type == "token"   }: t
     { t.type == "prim"    }: t
     { t.type == "anchor"  }: t
+    { t.type == "indent"  }: t
+    { t.type == "setindent" }: t
     { }: throw "ERROR to call:"+ inspect(t)
 
 to_sub = t, name, rule, number ->
@@ -128,6 +133,7 @@ to_sub = t, name, rule, number ->
 
 ast = parserParser(io.File(args[1]).readString)
 ast.rules.each: rule ->
+    if forbidden[rule.name]: throw "rule cannot be named '$(rule.name)'"
     if rules[rule.name]: throw "rule already defined '$(rule.name)'"
     rules[rule.name] = true
 if not rules["ws"]:
@@ -180,11 +186,21 @@ emit_rule = rule ->
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "and" }:
         anchor = Var.new
+        indent = Var.new // TODO while we can stack indent, we cannot deal with parser_fail
         names = Array.new
         lines.add " State _r;"
         rule.terms.each: term ->
+            if term.type == "setindent":
+                lines.add " const int __indent = parser_indent(_p, _pos);"
+                lines.add " if (_p->indent == __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                lines.add " const int _indent = _p->indent; _p->indent = __indent;"
+                $indent = true
+                return
+            if term.type == "indent":
+                lines.add " if (_p->indent != parser_indent(_p, _pos)) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                return
             if term.type == "anchor":
-                if not $anchor: lines.add " const char* anchor = _p->anchor;"
+                if not $anchor: lines.add " const char* _anchor = _p->anchor;"
                 lines.add " _p->anchor = \"$(term.msg.escape)\";"
                 $anchor = true
                 return
@@ -204,7 +220,8 @@ emit_rule = rule ->
             lines.add " tlHandle _v = tlObjectFrom($inner, null);"
         {                }:
             lines.add " tlHandle _v = _r.value;"
-        if $anchor: lines.add " _p->anchor = anchor;"
+        if $anchor: lines.add " _p->anchor = _anchor;"
+        if $indent: lines.add " _p->indent = _indent;"
         lines.add " return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _pos, _v);"
     lines.add "}"
 subs.each(r -> emit_rule(r))

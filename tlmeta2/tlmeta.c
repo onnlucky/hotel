@@ -74,6 +74,7 @@ typedef struct Parser {
     const char* input;
     int upto;
     const char* anchor;
+    int indent;
 
     uint8_t* out;
     tlHandle value;
@@ -94,6 +95,7 @@ Parser* parser_new(const char* input, int len) {
     parser->len = len;
     parser->input = input;
     parser->out = calloc(1, len + 1);
+    parser->indent = -1;
     return parser;
 }
 
@@ -109,6 +111,23 @@ bool parser_parse(Parser* p) {
     }
     p->value = s.value;
     return true;
+}
+
+int parser_indent(Parser* p, int pos) {
+    int indent = 0;
+    int begin = pos;
+    while (begin > 0 && p->input[begin] != '\n') begin--;
+    if (begin != 0 && begin < pos) begin++;
+    for (; begin < pos; begin++) {
+        char c = p->input[begin];
+        if (c == '\t') {
+            indent += 1 << 16;
+        } else {
+            indent += 1;
+        }
+    }
+    //print("indent: %d", indent);
+    return indent;
 }
 
 typedef State(Rule)(Parser*,int);
