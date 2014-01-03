@@ -37,6 +37,7 @@ slcomment: "//" (!nl _)*
         | "_"                             -> { type: "prim", target: "any" }
         | t=text                          -> { type: "prim", target: "text", text: t }
         | t=char                          -> { type: "prim", target: "char", text: t }
+        | p="pos" !alpha !"_" !":" !"*:"  -> { type: "prim", target: "pos" }
         | n=name !"_" !":" !"*:"          -> { type: "call", target: n }
     post: "!" @"a term" t=term            -> { type: "not", term: t }
         | "&" @"a term" t=term            -> { type: "ahead", term: t }

@@ -76,7 +76,7 @@ mfunction: as=fargs .."->".. b=bodynl
 // ---- EXPRESSIONS ----
 
 literal*: "true" | "false" | "null" | "undefined"
-    ref*: name=name type=<ref>
+    ref*: pos=pos name=name type=<ref>
    value: function
         | class
         | object
@@ -94,32 +94,32 @@ literal*: "true" | "false" | "null" | "undefined"
         | "?" &(.. first)
         | "!" &(.. first)
  method*: name
-    tail: ."("..@"a closing ')'" args=args ..")" t=tail                      -> process_call(args, t)
-        | .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail    -> process_method(o, m, args, t)
-        | .o=met..@"a method call" m=method t=tail                           -> process_method(o, m, tlListEmpty(), t)
-        | ""                                                                 -> tlNull
-    call: value=value t=tail                                                 -> process_tail(value, t)
-   mcall: target=ref " ". arg=mcall                                          -> process_mcall(target, arg)
-        | target=ref " ". args=margs type=<call>
+    tail: pos=pos ."("..@"a closing ')'" args=args ..")" t=tail                   -> process_call(args, t, pos)
+        | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail -> process_method(o, m, args, t, pos)
+        | pos=pos .o=met..@"a method call" m=method t=tail                        -> process_method(o, m, tlListEmpty(), t, pos)
+        | ""                                                                      -> tlNull
+    call: value=value t=tail                                                      -> process_tail(value, t)
+   mcall: pos=pos target=ref " ". arg=mcall                                       -> process_mcall(target, arg, pos)
+        | pos=pos target=ref " ". args=margs type=<call>
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
     expr: e=logical &endexpr                                                 -> e
 
- logical: l=not rs=(..op=("or"|"and"|"xor").. r=logical)?                    -> process_expr(l, rs)
-     not: type="not".. r=not | compare
- compare: l=bitwise rs=(..op=("<="|"<"|">"|">="|"=="|"!=").. r=compare)?     -> process_expr(l, rs)
- bitwise: l=shift rs=(..op=("&"|"|").. r=bitwise)?                           -> process_expr(l, rs)
-   shift: l=add rs=(..op=("<<"|">>").. r=shift)?                             -> process_expr(l, rs)
-     add: l=mul rs=(..op=("+"|"-").. r=add)?                                 -> process_expr(l, rs)
-     mul: l=pow rs=(..op=("*"|"/"|"//"|"%").. r=mul)?                        -> process_expr(l, rs)
-     pow: l=paren rs=(..op=("^").. r=pow)?                                   -> process_expr(l, rs)
+ logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
+     not: pos=pos type="not".. r=not | compare
+ compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">"|">="|"=="|"!=").. r=compare)? -> process_expr(l, rs)
+ bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=bitwise)?                       -> process_expr(l, rs)
+   shift: l=add rs=(..pos=pos op=("<<"|">>").. r=shift)?                         -> process_expr(l, rs)
+     add: l=mul rs=(..pos=pos op=("+"|"-").. r=add)?                             -> process_expr(l, rs)
+     mul: l=pow rs=(..pos=pos op=("*"|"/"|"//"|"%").. r=mul)?                    -> process_expr(l, rs)
+     pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
-        | "("..@"a closing ')'" b=body ..")"                                 -> b
+        | "("..@"a closing ')'" b=body ..")"                                     -> b
         | call
 
 // ---- STATEMENTS ----
 
-  intro*: name
+  intro*: pos=pos name=name type=<intro>
    mexpr: e=mfunction &endexpr                                               -> e
         | e=mcall &eostm                                                     -> e
         | expr

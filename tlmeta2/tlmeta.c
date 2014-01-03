@@ -117,13 +117,13 @@ static State parser_enter(Parser* p, const char* name, int pos) {
     //print(">> enter: %s %d", name, pos);
     return (State){};
 }
-static void parser_line_char(Parser* p, int pos, int* line, int* shar) {
+static void parser_line_char(Parser* p, int pos, int* pline, int* pchar) {
     int l = 0; int c = 0;
     for (int i = 0; i < pos; i++) {
         if (p->input[i] == '\n') { l++; c = 0; } else { c++; }
     }
-    if (line) *line = l + 1;
-    if (shar) *shar = c + 1;
+    if (pline) *pline = l + 1;
+    if (pchar) *pchar = c + 1;
 }
 static State parser_error(Parser* p, const char* name, int begin, int end) {
     const int pos = end;
@@ -162,6 +162,9 @@ static State parser_pass(Parser* p, const char* name, uint8_t number, int start,
     return (State){.ok=1,.pos=pos,.value=value};
 }
 
+static State prim_pos(Parser* p, int pos) {
+    return (State){.ok=1,.pos=pos,.value=tlINT(pos)};
+}
 static State prim_any(Parser* p, int pos) {
     int c = p->input[pos];
     if (!c) return (State){.pos=pos};
@@ -273,22 +276,26 @@ tlHandle process_tail(tlHandle value, tlHandle tail) {
     return tlMapSet(tail, tlSYM("target"), process_tail(value, target));
 }
 
-tlHandle process_call(tlHandle args, tlHandle tail) {
-    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "type", tlSYM("call"), null);
+tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
+    tlHandle value = tlObjectFrom("target", tlNull, "args", args,
+            "type", tlSYM("call"), "pos", pos, null);
     return process_tail(value, tail);
 }
 
-tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail) {
-    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "type", tlSYM("method"), "op", type, "method", method, null);
+tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail, tlHandle pos) {
+    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "method", method, "invoke", type,
+            "type", tlSYM("method"), "pos", pos, null);
     return process_tail(value, tail);
 }
 
 tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
     if (rhs == tlNull) return lhs;
-    return tlObjectFrom("op", tlMapGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlMapGet(rhs, tlSYM("r")), null);
+    return tlObjectFrom("op", tlMapGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlMapGet(rhs, tlSYM("r")),
+            "type", tlSYM("op"), "pos", tlMapGet(rhs, tlSYM("pos")), null);
 }
 
-tlHandle process_mcall(tlHandle ref, tlHandle arg) {
-    return tlObjectFrom("target", ref, "args", tlListFrom1(arg), "type", tlSYM("call"), null);
+tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
+    return tlObjectFrom("target", ref, "args", tlListFrom1(arg),
+            "type", tlSYM("call"), "pos", pos, null);
 }
 
