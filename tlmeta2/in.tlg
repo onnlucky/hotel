@@ -10,9 +10,9 @@ slcomment*: "#" (!nl _)* (nl|end)
     wsnl: (sp | nl | comment | slcomment)*
 
      eov: . ("," | nl | slcomment)
-  eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
+  eoexpr: . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment)
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
- endexpr: @"end of expression" . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
+ endexpr: @"end of expression" . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment)
   endstm: @"end of expression" . (";" | nl | end | ")" | "}" | "]" | slcomment)
 
   letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
@@ -48,22 +48,25 @@ slcomment*: "#" (!nl _)* (nl|end)
   object: "{".. is=items @"a closing '}'" .."}"
         | "{"..@"a closing '}'" "}"
      map: "[".. is=items @"a closing ']'" .."]"
-        | "["..":" @"a closing ']'" .."]"
+        | "[".."=" @"a closing ']'" .."]"
    items: i=item is=(eov.. items)*                -> prepend(is, i)
     key*: name
-    item: n=key .@"a ':'" ":"..@"a value" v=mexpr
+    item: n=key .@"a '='" "="..@"a value" v=mexpr
 
     list: "[".. is=litems @"a closing ']'" .."]"
         | "[".."]"
-  litems: i=mexpr !":" is=(eov.. litems)*         -> prepend(is, i)
+  litems: i=mexpr !"=" is=(eov.. litems)*         -> prepend(is, i)
 
 // ---- FUNCTION DEFINITION ----
 
     class: pos=pos "{".. as=fargs .."->"..@"a closing '}'" body=body .."}" type=<function>
  function: pos=pos "(".. as=fargs .."->"..@"a closing ')'" body=body ..")" type=<function>
-         | pos=pos arg=farg ."->". body=bodynl                             type=<function>
-         | pos=pos "->". body=bodynl                                       type=<function>
-mfunction: pos=pos args=fargs ."->". body=bodynl                           type=<function>
+         | pos=pos arg=farg ."->".. body=bodynl                            type=<function>
+         | pos=pos "->".. body=bodynl                                      type=<function>
+mfunction: pos=pos args=fargs ."->".. body=bodynl                          type=<function>
+    block: pos=pos ":".. args=fargs .."->".. body=bodynl                       type=<block>
+         | pos=pos ":".."("..as=fargs .."->"..@"a closing ')'" body=body ..")" type=<block>
+         | pos=pos ":".. body=bodynl type=<block>
 
     farg*: "&&" pos=pos name=intro type=<lazycollect>
          | "&" pos=pos name=intro d=(."=". expr)? type=<lazy>
@@ -99,15 +102,17 @@ literal*: "true" | "false" | "null" | "undefined"
         | pos=pos .o=met..@"a method call" m=method t=tail                        -> process_method(o, m, tlListEmpty(), t, pos)
         | ""                                                                      -> tlNull
     call: value=value t=tail                                                      -> process_tail(value, t)
-   mcall: pos=pos target=ref " ". arg=mcall                                       -> process_mcall(target, arg, pos)
+  mmcall: pos=pos target=ref " ". arg=mmcall                                      -> process_mcall(target, arg, pos)
         | pos=pos target=ref " ". args=margs type=<call>
+   mcall: call=mmcall block=block?                                                -> process_add_block(call, block)
+        | call=call block=block?                                                  -> process_add_block(call, block)
 
       op: "+" | "-" | "*" | "/" | "%" | "^"
     expr: e=logical &endexpr                                                 -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
      not: pos=pos type="not".. r=not | compare
- compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">"|">="|"=="|"!=").. r=compare)? -> process_expr(l, rs)
+ compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=compare)? -> process_expr(l, rs)
  bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=bitwise)?                       -> process_expr(l, rs)
    shift: l=add rs=(..pos=pos op=("<<"|">>").. r=shift)?                         -> process_expr(l, rs)
      add: l=mul rs=(..pos=pos op=("+"|"-").. r=add)?                             -> process_expr(l, rs)
@@ -123,8 +128,8 @@ literal*: "true" | "false" | "null" | "undefined"
    mexpr: e=mfunction &endexpr                                               -> e
         | e=mcall &eostm                                                     -> e
         | expr
-     stm: pos=pos name=intro .":"!":".. @"a value" value=mexpr &endstm type=<assign>
-        | names=(pos=pos name=intro)+(.","..) ..":"!":".. @"a value" stms=stms type=<multiassign>
+     stm: pos=pos name=intro ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
+        | names=(pos=pos name=intro)+(.","..) .."="!"=".. @"a value" stms=stms type=<multiassign>
         | e=mexpr &endstm                                                    -> e
 
     stms: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
@@ -134,8 +139,8 @@ literal*: "true" | "false" | "null" | "undefined"
     body: ts=stms tss=(.. stms)*                  -> flatten(prepend(tss, ts))
         | ""                                      -> tlListEmpty()
 
-  bodynl: .. setindent ts=stms tss=(.. indent stms)* -> flatten(prepend(tss, ts))
-        | ""                                         -> tlListEmpty()
+  bodynl: setindent ts=stms tss=(.. indent stms)* -> flatten(prepend(tss, ts))
+        | ""                                      -> tlListEmpty()
 
 hashbang: "#!" (!nl _)*
  mustend: @"indent error" .. end
