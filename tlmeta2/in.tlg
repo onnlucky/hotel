@@ -12,8 +12,8 @@ slcomment*: "#" (!nl _)* (nl|end)
      eov: . ("," | nl | slcomment)
   eoexpr: . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
- endexpr: @"end of expression" eoexpr
-  endstm: @"end of expression" eostm
+ endexpr: @"end of expression" . ("," | ";" | nl | end | ")" | "}" | "]" | slcomment)
+  endstm: @"end of expression" . (";" | nl | end | ")" | "}" | "]" | slcomment)
 
   letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
    first: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
@@ -75,7 +75,8 @@ mfunction: pos=pos args=fargs ."->". body=bodynl                           type=
 // ---- EXPRESSIONS ----
 
 literal*: "true" | "false" | "null" | "undefined"
-    ref*: pos=pos name=name type=<ref>
+  opname: ("not"|"and"|"or"|"xor") !letter
+    ref*: pos=pos !opname name=name type=<ref>
    value: function
         | class
         | object
@@ -137,6 +138,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | ""                                         -> tlListEmpty()
 
 hashbang: "#!" (!nl _)*
-   start: .. hashbang? .. pos=pos body=bodynl .. end type=<function>
+ mustend: @"indent error" .. end
+   start: .. hashbang? .. pos=pos body=bodynl mustend type=<function>
 }
 
