@@ -103,9 +103,9 @@ literal*: "true" | "false" | "null" | "undefined"
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail -> process_method(o, m, args, t, pos)
         | pos=pos ".".. m=method ."="!"=".. @"a value" value=mexpr                -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                        -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos "[".. key=mexpr .."]" ."="!"=".. @"a value" value=mexpr         -> process_set(key, value, pos)
-        | pos=pos "[".. key=mexpr .."]" t=tail                                    -> process_get(key, t, pos)
-        | pos=pos "["..@"a closing ']'" from=mexpr?..":"..to=mexpr?.."]" t=tail   -> process_slice(from, to, t, pos)
+        | pos=pos "[".. key=expr .."]" ."="!"=".. @"a value" value=mexpr          -> process_set(key, value, pos)
+        | pos=pos "[".. key=expr .."]" t=tail                                     -> process_get(key, t, pos)
+        | pos=pos "["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=tail     -> process_slice(from, to, t, pos)
         | ""                                                                      -> tlNull
     call: value=value t=tail                                                      -> process_tail(value, t)
   mmcall: pos=pos target=ref " ". arg=mmcall                                      -> process_mcall(target, arg, pos)
