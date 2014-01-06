@@ -63,6 +63,7 @@ slcomment*: "#" (!nl _)* (nl|end)
  function: pos=pos "(".. as=fargs .."->"..@"a closing ')'" body=body ..")" type=<function>
          | pos=pos arg=farg ."->".. body=bodynl                            type=<function>
          | pos=pos "->".. body=bodynl                                      type=<function>
+         | block
 mfunction: pos=pos args=fargs ."->".. body=bodynl                          type=<function>
     block: pos=pos ":".. args=fargs .."->".. body=bodynl                       type=<block>
          | pos=pos ":".."("..as=fargs .."->"..@"a closing ')'" body=body ..")" type=<block>
@@ -110,8 +111,8 @@ literal*: "true" | "false" | "null" | "undefined"
     call: value=value t=tail                                                      -> process_tail(value, t)
   mmcall: pos=pos target=ref " ". arg=mmcall                                      -> process_mcall(target, arg, pos)
         | pos=pos target=ref " ". args=margs type=<call>
-   mcall: call=mmcall block=block?                                                -> process_add_block(call, block)
-        | call=call block=block?                                                  -> process_add_block(call, block)
+   mcall: pos=pos call=mmcall block=block?                                        -> process_add_block(call, block, pos)
+        | pos=pos call=call block=block?                                          -> process_add_block(call, block, pos)
 
       op: "+" | "-" | "*" | "/" | "//" | "%" | "^"
     expr: e=logical &endexpr                                                     -> e

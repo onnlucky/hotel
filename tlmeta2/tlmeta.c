@@ -345,11 +345,11 @@ tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
     return tlObjectFrom("target", ref, "args", tlListFrom1(arg),
             "type", tlSYM("call"), "pos", pos, null);
 }
-tlHandle process_add_block(tlHandle call, tlHandle block) {
+tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     if (block == tlNull) return call;
     if (!tlMapOrObjectIs(call) || !tlMapGet(call, tlSYM("target"))) {
-        warning("ignoring add block for: %s", tl_repr(call));
-        return call;
+        call = tlObjectFrom("target", call, "args", tlListEmpty(),
+                "type", tlSYM("call"), "pos", pos, null);
     }
     return tlMapSet(call, tlSYM("block"), block);
 }
