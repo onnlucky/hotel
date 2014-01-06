@@ -29,7 +29,7 @@ slcomment*: "#" (!nl _)* (nl|end)
         | !"\"" _
    stext: ts=(!"%" escape)+                      -> String(ts)
    embed: "%%"
-        | "%(".. b=body ..")"                    -> b
+        | "%(".. body=body ..")" type=<scope>
         | "%" e=ref                              -> e
    text*: "\"" @"a closing '\"'" ts=(embed|stext)* "\"" type=<text>
 
@@ -87,6 +87,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | object
         | list
         | map
+        | "("..@"a closing ')'" body=body ..")" type=<scope>
         | num | text
         | literal
         | varref
@@ -102,11 +103,11 @@ literal*: "true" | "false" | "null" | "undefined"
  method*: name
     tail: pos=pos ."("..@"a closing ')'" args=args ..")" t=tail                   -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail -> process_method(o, m, args, t, pos)
-        | pos=pos ".".. m=method ."="!"=".. @"a value" value=mexpr                -> process_set_field(m, value, pos)
+        | pos=pos .".".. m=method ."="!"=".. @"a value" value=mexpr               -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                        -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos "[".. key=expr .."]" ."="!"=".. @"a value" value=mexpr          -> process_set(key, value, pos)
-        | pos=pos "[".. key=expr .."]" t=tail                                     -> process_get(key, t, pos)
-        | pos=pos "["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=tail     -> process_slice(from, to, t, pos)
+        | pos=pos ."[".. key=expr .."]" ."="!"=".. @"a value" value=mexpr         -> process_set(key, value, pos)
+        | pos=pos ."[".. key=expr .."]" t=tail                                    -> process_get(key, t, pos)
+        | pos=pos ."["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=tail    -> process_slice(from, to, t, pos)
         | ""                                                                      -> tlNull
     call: value=value t=tail                                                      -> process_tail(value, t)
   mmcall: pos=pos target=ref " ". arg=mmcall                                      -> process_mcall(target, arg, pos)
@@ -126,7 +127,7 @@ literal*: "true" | "false" | "null" | "undefined"
      mul: l=pow rs=(..pos=pos op=("*"|"/"|"//"|"%").. r=mul)?                    -> process_expr(l, rs)
      pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
-        | "("..@"a closing ')'" b=body ..")"                                     -> b
+        | "("..@"a closing ')'" body=body ..")" type=<scope>
         | call
 
 // ---- STATEMENTS ----
