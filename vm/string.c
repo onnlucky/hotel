@@ -405,7 +405,7 @@ INTERNAL tlHandle _string_slice(tlArgs* args) {
     return tlStringSub(str, offset, len);
 }
 
-static inline char escape(char c) {
+static inline char escape(char c, bool cstr) {
     switch (c) {
         case '\0': return '0';
         case '\t': return 't';
@@ -413,25 +413,25 @@ static inline char escape(char c) {
         case '\r': return 'r';
         case '"': return '"';
         case '\\': return '\\';
-        case '$': return '$';
+        case '$': if (cstr) return 0; else return '$';
         default:
             //assert(c >= 32);
             return 0;
     }
 }
 
-tlString* tlStringEscape(tlString* str) {
+tlString* tlStringEscape(tlString* str, bool cstr) {
     const char* data = tlStringData(str);
     int size = tlStringSize(str);
     int slashes = 0;
-    for (int i = 0; i < size; i++) if (escape(data[i])) slashes++;
+    for (int i = 0; i < size; i++) if (escape(data[i], cstr)) slashes++;
     if (slashes == 0) return str;
 
     char* ndata = malloc(size + slashes + 1);
     int j = 0;
     for (int i = 0; i < size; i++, j++) {
         char c;
-        if ((c = escape(data[i]))) {
+        if ((c = escape(data[i], cstr))) {
             ndata[j++] = '\\';
             ndata[j] = c;
         } else {
@@ -447,7 +447,7 @@ INTERNAL tlHandle _string_escape(tlArgs* args) {
     trace("");
     tlString* str = tlStringCast(tlArgsTarget(args));
     if (!str) TL_THROW("this must be a String");
-    return tlStringEscape(str);
+    return tlStringEscape(str, tl_bool(tlArgsGet(args, 0)));
 }
 
 /// strip: return a #String that has all leading and trailing whitespace removed (c <= 32)

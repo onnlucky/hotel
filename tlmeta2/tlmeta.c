@@ -302,7 +302,35 @@ tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
 }
 
 tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail, tlHandle pos) {
-    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "method", method, "invoke", type,
+    tlHandle ttype = tlNull;
+    if (strcmp("::", tlStringData(type)) == 0) ttype = tlSYM("classmethod");
+    else if (strcmp("?", tlStringData(type)) == 0) ttype = tlSYM("savemethod");
+    else if (strcmp("!", tlStringData(type)) == 0) ttype = tlSYM("asyncmethod");
+    else ttype = tlSYM("method");
+
+    tlHandle value = tlObjectFrom("target", tlNull, "args", args, "method", method,
+            "type", ttype, "pos", pos, null);
+    return process_tail(value, tail);
+}
+
+tlHandle process_set_field(tlHandle field, tlHandle value, tlHandle pos) {
+    return tlObjectFrom("target", tlNull, "args", tlListFrom2(field, value), "method", tlSYM("set"),
+            "type", tlSYM("method"), "pos", pos, null);
+}
+
+tlHandle process_get(tlHandle key, tlHandle tail, tlHandle pos) {
+    tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom1(key), "method", tlSYM("get"),
+            "type", tlSYM("method"), "pos", pos, null);
+    return process_tail(value, tail);
+}
+
+tlHandle process_set(tlHandle key, tlHandle value, tlHandle pos) {
+    return tlObjectFrom("target", tlNull, "args", tlListFrom2(key, value), "method", tlSYM("set"),
+            "type", tlSYM("method"), "pos", pos, null);
+}
+
+tlHandle process_slice(tlHandle from, tlHandle to, tlHandle tail, tlHandle pos) {
+    tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom2(from, to), "method", tlSYM("slice"),
             "type", tlSYM("method"), "pos", pos, null);
     return process_tail(value, tail);
 }

@@ -165,7 +165,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
         return true;
     }
     if (kind == tlStringKind || kind == tlSymKind) {
-        tlString* str = tlStringEscape(tlStringAs(h));
+        tlString* str = tlStringEscape(tlStringAs(h), true);
         tlBufferWrite(buf, "\"", 1);
         tlBufferWrite(buf, tlStringData(str), tlStringSize(str));
         tlBufferWrite(buf, "\"", 1);

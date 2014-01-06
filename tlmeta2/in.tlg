@@ -28,8 +28,8 @@ slcomment*: "#" (!nl _)* (nl|end)
         | "\\\\"      -> tlINT('\\')
         | !"\"" _
    stext: ts=(!"%" escape)+                      -> String(ts)
-  embed*: "%%"
-        | "%(".. e=mexpr ..")"                   -> e
+   embed: "%%"
+        | "%(".. b=body ..")"                    -> b
         | "%" e=ref                              -> e
    text*: "\"" @"a closing '\"'" ts=(embed|stext)* "\"" type=<text>
 
@@ -80,6 +80,7 @@ mfunction: pos=pos args=fargs ."->".. body=bodynl                          type=
 literal*: "true" | "false" | "null" | "undefined"
   opname: ("not"|"and"|"or"|"xor") !letter
     ref*: pos=pos !opname name=name type=<ref>
+ varref*: pos=pos "$" name=name type=<varref>
    value: function
         | class
         | object
@@ -87,6 +88,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | map
         | num | text
         | literal
+        | varref
         | ref
 
    margs: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
@@ -99,7 +101,11 @@ literal*: "true" | "false" | "null" | "undefined"
  method*: name
     tail: pos=pos ."("..@"a closing ')'" args=args ..")" t=tail                   -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail -> process_method(o, m, args, t, pos)
+        | pos=pos ".".. m=method ."="!"=".. @"a value" value=mexpr                -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                        -> process_method(o, m, tlListEmpty(), t, pos)
+        | pos=pos "[".. key=mexpr .."]" ."="!"=".. @"a value" value=mexpr         -> process_set(key, value, pos)
+        | pos=pos "[".. key=mexpr .."]" t=tail                                    -> process_get(key, t, pos)
+        | pos=pos "["..@"a closing ']'" from=mexpr?..":"..to=mexpr?.."]" t=tail   -> process_slice(from, to, t, pos)
         | ""                                                                      -> tlNull
     call: value=value t=tail                                                      -> process_tail(value, t)
   mmcall: pos=pos target=ref " ". arg=mmcall                                      -> process_mcall(target, arg, pos)
@@ -107,8 +113,8 @@ literal*: "true" | "false" | "null" | "undefined"
    mcall: call=mmcall block=block?                                                -> process_add_block(call, block)
         | call=call block=block?                                                  -> process_add_block(call, block)
 
-      op: "+" | "-" | "*" | "/" | "%" | "^"
-    expr: e=logical &endexpr                                                 -> e
+      op: "+" | "-" | "*" | "/" | "//" | "%" | "^"
+    expr: e=logical &endexpr                                                     -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
      not: pos=pos type="not".. r=not | compare
@@ -125,21 +131,25 @@ literal*: "true" | "false" | "null" | "undefined"
 // ---- STATEMENTS ----
 
   intro*: name
+  tovar*: "$" name
+  assign: tovar
+        | intro
    mexpr: e=mfunction &endexpr                                               -> e
         | e=mcall &eostm                                                     -> e
         | expr
-     stm: pos=pos name=intro ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
-        | names=(pos=pos name=intro)+(.","..) .."="!"=".. @"a value" stms=stms type=<multiassign>
+     stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
+        | pos=pos to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
+        | multi=(pos=pos to=assign)+(.","..) .."="!"=".. @"a value" stms=stms type=<multiassign>
         | e=mexpr &endstm                                                    -> e
 
-    stms: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
+   stms*: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
 
 // ---- BLOCKS ----
 
-    body: ts=stms tss=(.. stms)*                  -> flatten(prepend(tss, ts))
+   body*: ts=stms tss=(.. stms)*                  -> flatten(prepend(tss, ts))
         | ""                                      -> tlListEmpty()
 
-  bodynl: setindent ts=stms tss=(.. indent stms)* -> flatten(prepend(tss, ts))
+ bodynl*: setindent ts=stms tss=(.. indent stms)* -> flatten(prepend(tss, ts))
         | ""                                      -> tlListEmpty()
 
 hashbang: "#!" (!nl _)*
