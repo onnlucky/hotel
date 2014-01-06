@@ -281,6 +281,7 @@ tlMap* tlMapFromMany(tlHandle vs[], int len /*multiple of 2*/);
 tlMap* tlMapFromList(tlList* ls);
 tlMap* tlMapFromPairs(tlList* ls);
 
+bool tlMapOrObjectIs(tlHandle);
 tlMap* tlObjectFrom(const char* n1, tlHandle v1, ...);
 
 tlHandle tlMapGet(tlMap* map, tlHandle key);
