@@ -330,14 +330,14 @@ tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
     if (whole) {
         tlList* l = tlListAs(whole);
         for (int i = 0; i < tlListSize(l); i++) {
-            res = res * radix + digitFromChar(tl_int(tlListGet(l, i)), radix);
+            res = res * radix + digitFromChar((int)tl_int(tlListGet(l, i)), radix);
         }
     }
     if (frac) {
         tlList* l = tlListAs(frac);
         for (int i = 0; i < tlListSize(l); i++) {
             // TODO hu? how do you do this again?
-            //res = res * radix + digitFromChar(tl_int(tlListGet(l, i)), radix);
+            //res = res * radix + digitFromChar((int)tl_int(tlListGet(l, i)), radix);
         }
     }
     res *= tl_int(s);
