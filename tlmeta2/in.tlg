@@ -94,7 +94,8 @@ literal*: "true" | "false" | "null" | "undefined"
         | ref
 
    margs: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
-    args: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
+    args: f=mfunction                                                        -> tlListFrom1(f)
+        | e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
 
      met: "."
