@@ -97,9 +97,10 @@ literal*: "true" | "false" | "null" | "undefined"
     args: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
 
-     met: "." | "::"
-        | "?" &(.. first)
-        | "!" &(.. first)
+     met: "."
+        | "::"
+        | m="?" &(.. first) -> m
+        | m="!" &(.. first) -> m
  method*: name
     tail: pos=pos ."("..@"a closing ')'" args=args ..")" t=tail                   -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail -> process_method(o, m, args, t, pos)
@@ -116,7 +117,8 @@ literal*: "true" | "false" | "null" | "undefined"
         | pos=pos call=call block=block?                                          -> process_add_block(call, block, pos)
 
       op: "+" | "-" | "*" | "/" | "//" | "%" | "^"
-    expr: e=logical &endexpr                                                     -> e
+    expr: "!". body=logical &endexpr type=<async>
+        | e=logical &endexpr                                                     -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
      not: pos=pos type="not".. r=not | compare
@@ -137,6 +139,7 @@ literal*: "true" | "false" | "null" | "undefined"
   assign: tovar
         | intro
    mexpr: e=mfunction &endexpr                                               -> e
+        | "!". body=stms type=<async>
         | e=mcall &eostm                                                     -> e
         | expr
      stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
