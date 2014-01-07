@@ -11,7 +11,9 @@ int main(int argv, char** args) {
         return 1;
     }
 
+#ifndef NO_VALUE
     print("%s", tl_repr(p->value));
+#endif
     return 0;
 }
 
