@@ -102,7 +102,7 @@ literal*: "true" | "false" | "null" | "undefined"
     args: f=mfunction                                                        -> tlListFrom1(f)
         | e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
-     arg: n=name ."=".@"a value" v=expr
+     arg: n=name ."="!"=".@"a value" v=expr
         | v=expr
 
      met: "."
@@ -124,7 +124,7 @@ literal*: "true" | "false" | "null" | "undefined"
    mcall: pos=pos call=mmcall block=block?                                        -> process_add_block(call, block, pos)
         | pos=pos call=call block=block?                                          -> process_add_block(call, block, pos)
 
-      op: "+" | "-" | "*" | "/" | "//" | "%" | "^"
+      op: "+" | "-" | "*" | "//" | "/" | "%" | "^"
     expr: "!". body=logical &endexpr type=<async>
         | e=logical &endexpr                                                     -> e
 
@@ -134,7 +134,7 @@ literal*: "true" | "false" | "null" | "undefined"
  bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=bitwise)?                       -> process_expr(l, rs)
    shift: l=add rs=(..pos=pos op=("<<"|">>").. r=shift)?                         -> process_expr(l, rs)
      add: l=mul rs=(..pos=pos op=("+"|"-").. r=add)?                             -> process_expr(l, rs)
-     mul: l=pow rs=(..pos=pos op=("*"|"/"|"//"|"%").. r=mul)?                    -> process_expr(l, rs)
+     mul: l=pow rs=(..pos=pos op=("*"|"//"|"/"|"%").. r=mul)?                    -> process_expr(l, rs)
      pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
         | "("..@"a closing ')'" body=body ..")" type=<scope>
@@ -155,15 +155,16 @@ literal*: "true" | "false" | "null" | "undefined"
         | multi=(pos=pos to=assign)+(.","..) .."="!"=".. @"a value" stms=stms type=<multiassign>
         | e=mexpr &endstm                                                    -> e
 
-   stms*: t=stm ts=(.";".@"statement after ';'" stm)* -> prepend(ts, t)
+   stms*: t=stm ts=(.";".@"a statement after ';'" stm)* -> prepend(ts, t)
+   mstms: @"a statement" stms
 
 // ---- BLOCKS ----
 
-   body*: ts=stms tss=(.. stms)*                  -> flatten(prepend(tss, ts))
-        | ""                                      -> tlListEmpty()
+   body*: ts=stms tss=(.. stms)*                        -> flatten(prepend(tss, ts))
+        | ""                                            -> tlListEmpty()
 
- bodynl*: setindent ts=stms tss=(.. indent stms)* -> flatten(prepend(tss, ts))
-        | ""                                      -> tlListEmpty()
+ bodynl*: setindent ts=stms tss=(.. indent !end mstms)* -> flatten(prepend(tss, ts))
+        | ""                                            -> tlListEmpty()
 
 hashbang: "#!" (!nl _)*
  mustend: @"indent error" .. end
