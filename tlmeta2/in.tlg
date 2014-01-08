@@ -31,7 +31,9 @@ slcomment*: "#" (!nl _)* (nl|end)
    embed: "%%"
         | "%(".. body=body ..")" type=<scope>
         | "%" e=ref                              -> e
-   text*: "\"" @"a closing '\"'" ts=(embed|stext)* "\"" type=<text>
+   text*: "\"\""                                 -> tlStringEmpty()
+        | "\"" t=stext "\""                      -> t
+        | "\"" @"a closing '\"'" data=(embed|stext)* "\"" type=<string>
 
 // ---- NUMBERS ----
 
@@ -45,17 +47,18 @@ slcomment*: "#" (!nl _)* (nl|end)
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{".. is=items @"a closing '}'" .."}"
-        | "{"..@"a closing '}'" "}"
-     map: "[".. is=items @"a closing ']'" .."]"
-        | "[".."=" @"a closing ']'" .."]"
-   items: i=item is=(eov.. items)*                -> prepend(is, i)
+  object: "{".. data=items @"a closing '}'" .."}" type=<object>
+        | "{"..@"a closing '}'" "}"               type=<object>
+     map: "[".. data=mapitems @"a closing ']'" .."]" type=<map>
+        | "[".."=" @"a closing ']'" .."]"         type=<map>
+   items: i=item is=(eov.. item)*                             -> prepend(is, i)
+mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     key*: name
     item: n=key .@"a '='" "="..@"a value" v=mexpr
 
-    list: "[".. is=litems @"a closing ']'" .."]"
-        | "[".."]"
-  litems: i=mexpr !"=" is=(eov.. litems)*         -> prepend(is, i)
+    list: "[".. data=litems @"a closing ']'" .."]" type=<list>
+        | "["..@"a closing ']'" "]"                type=<list>
+  litems: i=mexpr !"=" is=(eov.. mexpr)*          -> prepend(is, i)
 
 // ---- FUNCTION DEFINITION ----
 
@@ -69,10 +72,12 @@ mfunction: pos=pos args=fargs ."->".. body=bodynl                          type=
          | pos=pos ":".."("..as=fargs .."->"..@"a closing ')'" body=body ..")" type=<block>
          | pos=pos ":".. body=bodynl type=<block>
 
+     type: "("."@". n=name ")" -> n
+    deflt: "("."=". v=mexpr ")" -> v
     farg*: "&&" pos=pos name=intro type=<lazycollect>
-         | "&" pos=pos name=intro d=(."=". expr)? type=<lazy>
+         | "&" pos=pos name=intro t=type? d=deflt? type=<lazy>
          | "*" pos=pos name=intro type=<collect>
-         |  pos=pos name=intro d=(."=". expr)? type=<eager>
+         |  pos=pos name=intro t=type? d=deflt? type=<eager>
     fargs: a=farg as=(..",".. farg)* -> prepend(as, a)
          | "" -> tlListEmpty()
 
@@ -85,18 +90,20 @@ literal*: "true" | "false" | "null" | "undefined"
    value: function
         | class
         | object
-        | list
         | map
+        | list
         | "("..@"a closing ')'" body=body ..")" type=<scope>
         | num | text
         | literal
         | varref
         | ref
 
-   margs: e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
+   margs: e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
     args: f=mfunction                                                        -> tlListFrom1(f)
-        | e=expr es=(..","..@"a value after ','" expr)*                      -> prepend(es, e)
+        | e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
+     arg: n=name ."=".@"a value" v=expr
+        | v=expr
 
      met: "."
         | "::"
