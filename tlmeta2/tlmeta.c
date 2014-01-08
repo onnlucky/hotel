@@ -425,4 +425,19 @@ tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     return tlMapSet(call, tlSYM("block"), block);
 }
 
+static tlHandle _parser_parse(tlArgs* args) {
+    tlString* code = tlStringCast(tlArgsGet(args, 0));
+    if (!code) TL_THROW("expected a String");
+    Parser* p = parser_new(tlStringData(code), tlStringSize(code));
+    bool r = parser_parse(p);
+    if (!r) {
+        TL_THROW("parse error: %s at: %d:%d", p->error_msg, p->error_line, p->error_char);
+    }
+    return p->value;
+}
+
+void parser_init() {
+    tl_register_global("parse", tlNATIVE(_parser_parse, "parse"));
+}
+
 #endif

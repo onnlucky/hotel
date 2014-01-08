@@ -40,6 +40,7 @@
 #include "queue.c"
 
 // extras
+#include "../tlmeta2/parser.c"
 #include "evio.c"
 #include "time.c"
 #include "regex.c"
@@ -454,6 +455,7 @@ void tl_init() {
     openssl_init();
     //storage_init();
     serialize_init();
+    parser_init();
 
     tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
 }
