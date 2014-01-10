@@ -367,7 +367,7 @@ tlHandle process_tail(tlHandle value, tlHandle tail) {
 
 tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", args,
-            "type", tlSYM("call"), "pos", pos, null);
+            "type", tlSTR("call"), "pos", pos, null);
     return process_tail(value, tail);
 }
 
@@ -413,14 +413,14 @@ tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
 
 tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
     return tlObjectFrom("target", ref, "args", tlListFrom1(arg),
-            "type", tlSYM("call"), "pos", pos, null);
+            "type", tlSTR("call"), "pos", pos, null);
 }
 
 tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     if (block == tlNull) return call;
     if (!tlMapOrObjectIs(call) || !tlMapGet(call, tlSYM("target"))) {
         call = tlObjectFrom("target", call, "args", tlListEmpty(),
-                "type", tlSYM("call"), "pos", pos, null);
+                "type", tlSTR("call"), "pos", pos, null);
     }
     return tlMapSet(call, tlSYM("block"), block);
 }
