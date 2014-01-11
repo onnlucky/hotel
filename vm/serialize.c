@@ -237,6 +237,15 @@ tlHandle _to_repr(tlArgs* args) {
     return buf;
 }
 
+tlHandle _repr(tlArgs* args) {
+    tlHandle h = tlArgsGet(args, 0);
+    if (!h) h = tlNull;
+    tlBuffer* buf = tlBufferNew();
+    pprint(buf, h, false);
+    tlBufferWrite(buf, "\0", 1);
+    return tlStringFromTake(tlBufferTakeData(buf), tlBufferSize(buf));
+}
+
 char* tl_repr(tlHandle h) {
     tlBuffer* buf = tlBufferNew();
     pprint(buf, h, false);
@@ -247,6 +256,7 @@ char* tl_repr(tlHandle h) {
 static const tlNativeCbs __serialize_natives[] = {
     { "_to_repr", _to_repr },
     { "_from_repr", _from_repr },
+    { "repr", _repr },
     { 0, 0 }
 };
 
