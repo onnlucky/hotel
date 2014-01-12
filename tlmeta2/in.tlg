@@ -125,8 +125,8 @@ literal*: "true" | "false" | "null" | "undefined"
         | pos=pos call=call block=block?                                          -> process_add_block(call, block, pos)
 
       op: "+" | "-" | "*" | "//" | "/" | "%" | "^"
-    expr: "!". body=logical &endexpr type=<async>
-        | e=logical &endexpr                                                     -> e
+    expr: "!". body=logical &eoexpr type=<async>
+        | e=logical &eoexpr                                                      -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
      not: pos=pos type="not".. r=not | compare
@@ -142,11 +142,14 @@ literal*: "true" | "false" | "null" | "undefined"
 
 // ---- STATEMENTS ----
 
+  guards: "{".. expr .."}:".. bodynl TODO
+
   intro*: name
   tovar*: "$" name
   assign: tovar
         | intro
-   mexpr: e=mfunction &endexpr                                               -> e
+   mexpr: guards
+        | e=mfunction &eoexpr                                                -> e
         | "!". body=stms type=<async>
         | e=mcall &eostm                                                     -> e
         | expr
