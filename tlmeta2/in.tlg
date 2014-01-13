@@ -55,6 +55,7 @@ slcomment*: "#" (!nl _)* (nl|end)
 mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     key*: name
     item: n=key .@"a '='" "="..@"a value" v=mexpr
+        | "{".. names=key+(eov ..) .."}"
 
     list: "[".. data=litems @"a closing ']'" .."]" type=<list>
         | "["..@"a closing ']'" "]"                type=<list>
@@ -142,7 +143,10 @@ literal*: "true" | "false" | "null" | "undefined"
 
 // ---- STATEMENTS ----
 
-  guards: "{".. expr .."}:".. bodynl TODO
+   guard: "{".. cond=expr .."}".":".. body=bodynl
+        | "{"..             "}".":".. body=bodynl
+   glist: g=guard gs=(.. indent guard)*           -> prepend(gs, g)
+  guards: guards=glist type=<guards>
 
   intro*: name
   tovar*: "$" name

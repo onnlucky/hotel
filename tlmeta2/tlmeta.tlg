@@ -1,5 +1,14 @@
 #!/usr/bin/env tl
 
+/*
+  TODO
+remove the weird rule indend thing which leads to body_222_222_222
+add parser known "braces" open/close to expect the matching brace
+process rules for shared prefix, and rewrite rules to branch from there
+process rules until cycle without progress is found, cut and grow recursion from there
+allow backtracking and process alternatives, until no parse is found, then report all disallowed backtracks
+*/
+
 no_value = false
 
 parserParser = parser {
@@ -190,13 +199,13 @@ emit_rule = rule ->
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "and" }:
         anchor = Var.new
-        indent = Var.new // TODO while we can stack indent, we cannot deal with parser_fail
+        indent = Var.new // TODO while we can stack indent, we cannot deal with parser_fail, so it shouldn't, also, setindent must be deeper
         names = Array.new
         lines.add " State _r;"
         rule.terms.each: term ->
             if term.type == "setindent":
                 lines.add " const int __indent = parser_indent(_p, _pos);"
-                lines.add " if (_p->indent == __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                lines.add " if (_p->indent >= __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
                 lines.add " const int _indent = _p->indent; _p->indent = __indent;"
                 $indent = true
                 return
