@@ -6,10 +6,10 @@ Scope = { parent ->
     names = HashMap.new
 
     addOpen = name, function ->
-        all.add({{name}, open=function, scope=this})
+        all.add {{name}, open=function, scope=this}
         this.names[name] = all.size
     add = name ->
-        all.add({{name}})
+        all.add {{name}}
         this.names[name] = all.size
     ref = name ->
         ref = this.names[name]
