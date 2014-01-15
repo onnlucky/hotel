@@ -41,6 +41,7 @@ Parser* parser_new(const char* input, int len) {
     parser->input = input;
     parser->out = calloc(1, len + 1);
     parser->indent = -1;
+    parser->in_peek = true;
     return parser;
 }
 
@@ -113,7 +114,7 @@ static void parser_line_char(Parser* p, int pos, int* pline, int* pchar) {
 static const char* parser_set_anchor(Parser* p, const char* anchor) {
     const char* prev = p->anchor;
     p->anchor = anchor;
-    print("SET ANCHOR %s", anchor);
+    //print("SET ANCHOR %s", anchor);
     return prev;
 }
 
@@ -263,7 +264,7 @@ static State meta_plus(Parser* p, int pos, Rule r, Rule sep) {
 #endif
     p->in_peek = true;
     State ret = many("plus", res, p, s.pos, r, sep);
-    p->in_peek = false;
+    //p->in_peek = false;
     return ret;
 }
 static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
@@ -271,7 +272,7 @@ static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
     parser_enter(p, "star", pos);
     p->in_peek = true;
     State s = r(p, pos);
-    p->in_peek = false;
+    //p->in_peek = false;
 #ifndef NO_VALUE
     if (!s.ok) return parser_pass(p, "star", 0, begin, state_ok(pos, tlListEmpty()));
 #else
@@ -292,7 +293,7 @@ static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
 #endif
     p->in_peek = true;
     State ret = many("star", res, p, s.pos, r, sep);
-    p->in_peek = false;
+    //p->in_peek = false;
     return ret;
 }
 static State meta_opt(Parser* p, int start, Rule r) {
@@ -305,7 +306,7 @@ static State meta_not(Parser* p, int start, Rule r) {
     p->in_peek = true;
     parser_enter(p, "not", start);
     State s = r(p, start);
-    p->in_peek = false;
+    //p->in_peek = false;
     if (s.ok) {
         return parser_fail(p, "not", start);
     }

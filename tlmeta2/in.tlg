@@ -99,7 +99,8 @@ literal*: "true" | "false" | "null" | "undefined"
         | varref
         | ref
 
-   margs: e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
+   margs: mcall &eostm
+        | e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
     args: f=mfunction                                                        -> tlListFrom1(f)
         | e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
@@ -115,20 +116,21 @@ literal*: "true" | "false" | "null" | "undefined"
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail  -> process_method(o, m, args, t, pos)
         | pos=pos .".".. m=method ."="!"=".. @"a value" value=mexpr                -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                         -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos ."[".. key=expr .."]" ."="!"=".. @"a value" value=mexpr          -> process_set(key, value, pos)
-        | pos=pos ."[".. key=expr .."]" t=tail                                     -> process_get(key, t, pos)
-        | pos=pos ."["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=tail     -> process_slice(from, to, t, pos)
+        | pos=pos "[".. key=expr .."]" ."="!"=".. @"a value" value=mexpr           -> process_set(key, value, pos)
+        | pos=pos "[".. key=expr .."]" t=tail                                      -> process_get(key, t, pos)
+        | pos=pos "["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=tail      -> process_slice(from, to, t, pos)
         | ""                                                                       -> tlNull
    mtail: pos=pos ."("..@"a closing ')'" args=args ..")" t=mtail                   -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=mtail -> process_method(o, m, args, t, pos)
         | pos=pos .o=met.. m=method " ". !met !"[" !"(" !":" args=margs            -> process_method(o, m, args, tlNull, pos)
         | pos=pos .o=met.. m=method t=mtail                                        -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos ."[".. key=expr .."]" t=mtail                                    -> process_get(key, t, pos)
-        | pos=pos ."["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=mtail    -> process_slice(from, to, t, pos)
-        | pos=pos " ". !met !"[" !"(" !":" args=margs                              -> process_call(args, tlNull, pos)
+        | pos=pos "[".. key=expr .."]" t=mtail                                     -> process_get(key, t, pos)
+        | pos=pos "["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=mtail     -> process_slice(from, to, t, pos)
+        | pos=pos " ". !met !"(" !":" args=margs                                   -> process_call(args, tlNull, pos)
         | tail
     call: value=value t=tail                                                       -> process_tail(value, t)
-   mcall: pos=pos value=value t=mtail block=block?                                 -> process_add_block(process_tail(value, t), block, pos)
+   mcall: pos=pos value=value t=mtail                                              -> process_add_block(process_tail(value, t), tlNull, pos)
+  mbcall: pos=pos value=value t=mtail block=block?                                 -> process_add_block(process_tail(value, t), block, pos)
 
       op: "+" | "-" | "*" | "//" | "/" | "%" | "^"
     expr: "!". body=logical &eoexpr type=<async>
@@ -160,7 +162,7 @@ literal*: "true" | "false" | "null" | "undefined"
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
         | "!". body=stms type=<async>
-        | e=mcall &eostm                                                     -> e
+        | e=mbcall &eostm                                                    -> e
         | expr
      stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
         | pos=pos to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>

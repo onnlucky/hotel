@@ -190,14 +190,14 @@ emit_rule = rule ->
         assert rule.number
         lines.add " State _r = "+ emit(rule.terms[1])
         lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
-        lines.add " if (_p->error_line) { print(\"expect: $(rule.name)\"); return _r; }"
+        lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "or" }:
         lines.add " State _r;"
         rule.terms.each: term ->
             lines.add " _r = "+ emit(term)
             lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
-            lines.add " if (_p->error_line) { print(\"expect: $(rule.name)\"); return _r; }"
+            lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "and" }:
         anchor = Var.new
