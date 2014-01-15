@@ -20,7 +20,7 @@ slcomment: "//" (!nl _)*
   comment: (slcomment (nl|end) | icomment)
        ws: (sp | nl | comment)*
 
-    name: ls=alpha+   -> ls.toChar
+    name: ls=(alpha|numeric|[_])+   -> ls.toChar
 
   escape: "\\\""      -> "\""
         | "\\n"       -> "\n"
@@ -63,6 +63,7 @@ slcomment: "//" (!nl _)*
    named: n=name "=<" t=name ">"          -> { type: "name", name: n, term: { type: "token", token: t }}
         | n=name "=" @"a term"  t=post    -> { type: "name", name: n, term: t }
         | "@" t=text                      -> { type: "anchor", msg: t }
+        | "@"                             -> { type: "anchor", msg: "" }
         | post
 
      and: h=named rs=(.named)* .a=act?    -> { type: "and", terms: [h].cat(rs), act: a }
@@ -175,6 +176,7 @@ lines = Array.new
 if no_value: lines.add "#define NO_VALUE 1"
 lines.add "#include \"tlmeta.c\""
 lines.add ""
+if colors.size == 0: colors.add "pad"
 lines.add "const char* const colors[] = {\"\","+ colors.toList.map(c->"\"$(c.escape(true))\"").join(",") +",null};"
 emit_declare = rule -> lines.add "static State $(rule.name)(Parser*, int);"
 subs.each(r -> emit_declare(r))
@@ -213,8 +215,8 @@ emit_rule = rule ->
                 lines.add " if (_p->indent != parser_indent(_p, _pos)) return parser_fail(_p, \"$(rule.name)\", _pos);"
                 return
             if term.type == "anchor":
-                if not $anchor: lines.add " const char* _anchor = _p->anchor;"
-                lines.add " _p->anchor = \"$(term.msg.escape(true))\";"
+                { not $anchor }: lines.add " const char* _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
+                {             }: lines.add " _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
                 $anchor = true
                 return
             lines.add " _r = "+ emit(term)

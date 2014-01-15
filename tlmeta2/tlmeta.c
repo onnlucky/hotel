@@ -15,6 +15,10 @@ typedef struct Parser {
     const char* anchor;
     int indent;
 
+    bool in_peek;
+    const char* last_rule;
+    const char* last_consume;
+
     uint8_t* out;
 #ifndef NO_VALUE
     tlHandle value;
@@ -93,6 +97,7 @@ static State state_ok(int pos, tlHandle value) {
 typedef State(Rule)(Parser*,int);
 
 static State parser_enter(Parser* p, const char* name, int pos) {
+    if (!p->in_peek) p->last_rule = name;
     //print(">> enter: %s %d", name, pos);
     return (State){};
 }
@@ -104,6 +109,14 @@ static void parser_line_char(Parser* p, int pos, int* pline, int* pchar) {
     if (pline) *pline = l + 1;
     if (pchar) *pchar = c + 1;
 }
+
+static const char* parser_set_anchor(Parser* p, const char* anchor) {
+    const char* prev = p->anchor;
+    p->anchor = anchor;
+    print("SET ANCHOR %s", anchor);
+    return prev;
+}
+
 static State parser_error(Parser* p, const char* name, int begin, int end) {
     const int pos = end;
     if (p->error_msg) return state_fail(pos);
@@ -125,7 +138,13 @@ static State parser_error(Parser* p, const char* name, int begin, int end) {
 }
 
 static State parser_fail(Parser* p, const char* name, int pos) {
-    //print("<< fail: %s %d", name, pos);
+    if (!p->in_peek) {
+        const char* t = p->last_consume;
+        if (!t) t = p->last_rule;
+        if (t) print("<< fail: %s %d -- expected: %s", name, pos, t);
+        p->last_consume = null;
+        p->last_rule = null;
+    }
     if (pos < p->upto) p->upto = pos;
     return state_fail(pos);
 }
@@ -184,6 +203,7 @@ static State prim_char(Parser* p, int pos, const char* chars) {
 }
 
 static State prim_text(Parser* p, int pos, const char* chars) {
+    if (!p->in_peek) p->last_consume = chars;
     int start = pos;
     while (*chars) {
         int c = p->input[pos];
@@ -195,6 +215,8 @@ static State prim_text(Parser* p, int pos, const char* chars) {
     char* buf = malloc(len + 1);
     memcpy(buf, p->input + start, len);
     buf[len] = 0;
+
+    p->last_consume = null;
 
 #ifndef NO_VALUE
     return state_ok(pos, tlStringFromTake(buf, len));
@@ -239,12 +261,17 @@ static State meta_plus(Parser* p, int pos, Rule r, Rule sep) {
 #else
     tlArray* res = null;
 #endif
-    return many("plus", res, p, s.pos, r, sep);
+    p->in_peek = true;
+    State ret = many("plus", res, p, s.pos, r, sep);
+    p->in_peek = false;
+    return ret;
 }
 static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
     int begin = pos;
     parser_enter(p, "star", pos);
+    p->in_peek = true;
     State s = r(p, pos);
+    p->in_peek = false;
 #ifndef NO_VALUE
     if (!s.ok) return parser_pass(p, "star", 0, begin, state_ok(pos, tlListEmpty()));
 #else
@@ -263,7 +290,10 @@ static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
 #else
     tlArray* res = null;
 #endif
-    return many("star", res, p, s.pos, r, sep);
+    p->in_peek = true;
+    State ret = many("star", res, p, s.pos, r, sep);
+    p->in_peek = false;
+    return ret;
 }
 static State meta_opt(Parser* p, int start, Rule r) {
     parser_enter(p, "opt", start);
@@ -272,9 +302,13 @@ static State meta_opt(Parser* p, int start, Rule r) {
     return parser_pass(p, "opt", 0, start, state_ok(start, tlNull));
 }
 static State meta_not(Parser* p, int start, Rule r) {
+    p->in_peek = true;
     parser_enter(p, "not", start);
     State s = r(p, start);
-    if (s.ok) return parser_fail(p, "not", start);
+    p->in_peek = false;
+    if (s.ok) {
+        return parser_fail(p, "not", start);
+    }
     return parser_pass(p, "not", 0, start, state_ok(start, tlNull));
 }
 static State meta_ahead(Parser* p, int start, Rule r) {

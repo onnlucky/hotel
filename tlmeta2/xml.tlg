@@ -1,0 +1,10 @@
+parser = parser {
+      name*: n=(![<>\n\r\t /'"=] _)+  -> String(n)
+       prop: p=name."=".v=name
+           | p=name
+      props: (.prop)*
+    element: "<".!"/"name=name.ps=props."/".">"
+           | "<".!"/"name=name.ps=props.">"..@es=element*.."<"."/".@name.">"
+      start: ..e=element.. -> e
+}
+
