@@ -147,20 +147,21 @@ ast = parserParser(io.File(args[1]).readString)
 ast.rules.each: rule ->
     if forbidden[rule.name]: throw "rule cannot be named '$(rule.name)'"
     if rules[rule.name]: throw "rule already defined '$(rule.name)'"
-    rules[rule.name] = true
+    rules[rule.name] = rule
+
+// add some default rules if they don't exist
 if not rules["ws"]:
-    rules["ws"] = true
-    to_sub({ type: "and", terms: [{ type: "prim", target: "ws" }] }, null, "ws")
+    rules["ws"] = { name: "ws", term: { type: "and", terms: [{ type: "prim", target: "ws" }]}, spec: null}
 if not rules["wsnl"]:
-    rules["wsnl"] = true
-    to_sub({ type: "and", terms: [{ type: "prim", target: "wsnl" }] }, null, "wsnl")
-ast.rules.each: rule ->
-    number = { rule.spec == "color" }: colors.add rule.name; colors.size
+    rules["wsnl"] = { name: "wsnl", term: { type: "and", terms: [{ type: "prim", target: "wsnl" }]}, spec: null}
+if not rules["start"] and ast.rules.size > 0:
+    rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
+
+rules.each: name, rule ->
+    number = { rule.spec == "color" }: colors.add name; colors.size
              {                      }: 0
     assert number
-    to_sub(rule.term, null, rule.name, number)
-if not rules["start"] and ast.rules.size > 0:
-    to_sub({ type: "and", terms: [{ type: "call", target: ast.rules.last.name }] }, null, "r_start")
+    to_sub(rule.term, null, name, number)
 
 emit = term ->
     { term.type == "call" }: "$(term.target)(_p, _pos);"
