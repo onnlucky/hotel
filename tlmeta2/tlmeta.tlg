@@ -143,6 +143,57 @@ to_sub = t, name, rule, number ->
         return name
     { }: throw "ERROR to sub:"+ inspect(t)
 
+Step = term -> {
+    term: term
+    branches: Array.new
+    follow: term ->
+        this.branches.each: step, n =>
+            if step.term == term: return step
+        step = Step(term)
+        this.branches.add step
+        return step
+    print: indent ->
+        print "$(indent)$(repr this.term)"
+        this.branches.each: step -> step.print "    " + indent
+}
+
+seen = HashMap.new
+flow = step, t ->
+    { t.type == "and" }:
+        step = Var.new step
+        t.terms.each: t -> $step = flow $step, t
+        return $step
+    { t.type == "or" }:
+        t.terms.each(t -> flow step, t)
+        return step
+    { t.type == "sub" }:
+        flow step, t.term
+    { t.type == "star" }:
+        step = step.follow {type:"star"}
+        flow step, t.term
+    { t.type == "plus" }:
+        step = step.follow {type:"plus"}
+        flow step, t.term
+    { t.type == "starsep" }:
+        step = step.follow {type:"starsep"}
+        flow step, t.term
+    { t.type == "call" }:
+        name = t.target
+        if seen[name]: return step.follow({type:"call",name:name})
+        seen[name] = true
+        rule = rules[name]
+        if not rule: throw "rule without definition: '$(name)'"
+        step = flow step, rule.term
+        seen[name] = false
+        return step
+    { t.type == "prim" }:
+        { t.target == "text" }:
+            return step.follow t.text.escape(true)
+        { t.target == "char" }:
+            return step.follow t.text.escape(true)
+        { }: print "ignored", repr(t)
+    { }: print "ignored", repr(t)
+
 ast = parserParser(io.File(args[1]).readString)
 ast.rules.each: rule ->
     if forbidden[rule.name]: throw "rule cannot be named '$(rule.name)'"
@@ -156,6 +207,11 @@ if not rules["wsnl"]:
     rules["wsnl"] = { name: "wsnl", term: { type: "and", terms: [{ type: "prim", target: "wsnl" }]}, spec: null}
 if not rules["start"] and ast.rules.size > 0:
     rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
+
+print "HERE"
+start = Step("^")
+flow start, rules["start"].term
+start.print ""
 
 rules.each: name, rule ->
     number = { rule.spec == "color" }: colors.add name; colors.size
@@ -245,4 +301,3 @@ emit_rule = rule ->
 subs.each(r -> emit_rule(r))
 
 io.File(args[2]).write(lines.join("\n"))
-
