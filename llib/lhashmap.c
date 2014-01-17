@@ -106,6 +106,7 @@ struct LHashMap {
 struct LHashMapIter {
     unsigned long at;
     header* kvs;
+    LHashMap* map;
 };
 
 #define INITIAL_SIZE 4
@@ -567,6 +568,7 @@ LHashMapIter* lhashmapiter_new(LHashMap* map) {
     LHashMapIter* iter = malloc(sizeof(LHashMapIter));
     iter->at = 0;
     iter->kvs = (header*)map->_kvs;
+    iter->map = map;
     return iter;
 }
 
@@ -580,8 +582,11 @@ void lhashmapiter_get(LHashMapIter* iter, void** key, void** value) {
         void* k = (void*)iter->kvs->kvs[iter->at]._key;
         if (v && v != DELETED && k) {
             // oeps, this we cannot handle that is a BIG oeps ...
-            assert(k != SIZED);
-            assert(v != SIZED);
+            if (v == SIZED) {
+                assert(k != SIZED);
+                if (key) *key = k;
+                if (value) *value = lhashmap_get(iter->map, k);
+            }
             if (key) *key = k;
             if (value) *value = v;
             return;
