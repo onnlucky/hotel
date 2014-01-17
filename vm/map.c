@@ -7,6 +7,7 @@ static tlKind _tlHandleObjectKind;
 tlKind* tlMapKind = &_tlMapKind;
 tlKind* tlHandleObjectKind = &_tlHandleObjectKind;
 
+tlMap* tlMapOrObjectAs(tlHandle v) { assert(tlMapIs(v) || tlHandleObjectIs(v)); return (tlMap*)v; }
 tlMap* tlMapFromObjectAs(tlHandle v) { assert(tlHandleObjectIs(v)); return (tlMap*)v; }
 tlMap* tlMapFromObjectCast(tlHandle v) { return tlHandleObjectIs(v)?(tlMap*)v:null; }
 bool tlMapOrObjectIs(tlHandle v) { return tlMapIs(v) || tlHandleObjectIs(v); }
@@ -414,9 +415,54 @@ static tlHandle valueObjectRun(tlHandle fn, tlArgs* args) {
     }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
+
+static unsigned int mapHash(tlHandle v) {
+    tlMap* map = tlMapOrObjectAs(v);
+    // if (map->hash) return map->hash;
+    unsigned int hash = 0x1;
+    for (int i = 0; i < map->keys->size; i++) {
+        hash ^= tlHandleHash(tlSetGet(map->keys, i));
+        hash ^= tlHandleHash(map->data[i]);
+    }
+    if (!hash) hash = 1;
+    return hash;
+}
+static bool mapEquals(tlHandle _left, tlHandle _right) {
+    if (_left == _right) return true;
+
+    tlMap* left = tlMapOrObjectAs(_left);
+    tlMap* right = tlMapOrObjectAs(_right);
+    if (left->keys->size != right->keys->size) return false;
+
+    for (int i = 0; i < left->keys->size; i++) {
+        if (!tlHandleEquals(tlSetGet(left->keys, i), tlSetGet(right->keys, i))) return false;
+        if (!tlHandleEquals(left->data[i], right->data[i])) return false;
+    }
+    return true;
+}
+static tlHandle mapCmp(tlHandle _left, tlHandle _right) {
+    if (_left == _right) return 0;
+
+    tlMap* left = tlMapOrObjectAs(_left);
+    tlMap* right = tlMapOrObjectAs(_right);
+    int size = MIN(left->keys->size, right->keys->size);
+    for (int i = 0; i < size; i++) {
+        tlHandle cmp = tlHandleCompare(tlSetGet(left->keys, i), tlSetGet(right->keys, i));
+        if (cmp != tlEqual) return cmp;
+        cmp = tlHandleCompare(left->data[i], right->data[i]);
+        if (cmp != tlEqual) return cmp;
+    }
+    return tlCOMPARE(left->keys->size - right->keys->size);
+}
+
+
+
 static tlKind _tlHandleObjectKind = {
     .name = "ValueObject",
     .size = valueObjectSize,
+    .hash = mapHash,
+    .equals = mapEquals,
+    .cmp = mapCmp,
     .toString = valueObjecttoString,
     .send = valueObjectSend,
     .run = valueObjectRun,

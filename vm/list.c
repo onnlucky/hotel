@@ -371,7 +371,7 @@ static bool listEquals(tlHandle _left, tlHandle _right) {
 
     tlList* left = tlListAs(_left);
     tlList* right = tlListAs(_right);
-    if (left->size != right->size) return true;
+    if (left->size != right->size) return false;
 
     for (int i = 0; i < left->size; i++) {
         if (!tlHandleEquals(tlListGet(left, i), tlListGet(right, i))) return false;
@@ -383,7 +383,8 @@ static tlHandle listCmp(tlHandle _left, tlHandle _right) {
 
     tlList* left = tlListAs(_left);
     tlList* right = tlListAs(_right);
-    for (int i = 0; i < left->size; i++) {
+    int size = MIN(left->size, right->size);
+    for (int i = 0; i < size; i++) {
         tlHandle cmp = tlHandleCompare(tlListGet(left, i), tlListGet(right, i));
         if (cmp != tlEqual) return cmp;
     }
