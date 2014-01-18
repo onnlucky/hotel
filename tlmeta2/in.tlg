@@ -11,6 +11,6 @@ value: name
      | list
   stm: guard
      | value
-start: stm*("\n") ..
+start: ("yyy"|"xxx") "\n"
 }
 
