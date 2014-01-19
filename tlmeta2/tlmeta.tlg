@@ -4,9 +4,6 @@
   TODO
 remove the weird rule indend thing which leads to body_222_222_222
 add parser known "braces" open/close to expect the matching brace
-process rules for shared prefix, and rewrite rules to branch from there
-process rules until cycle without progress is found, cut and grow recursion from there
-allow backtracking and process alternatives, until no parse is found, then report all disallowed backtracks
 */
 
 no_value = false
@@ -240,9 +237,8 @@ flow = step, t, top, ignore, laststep ->
         step = Var.new step
         size = t.terms.size
         t.terms.each: t, n ->
-            laststep = n == size
-            { n == 1 }: $step = flow $step, t, top, ignore, laststep
-            {        }: $step = flow $step, t, null, null, laststep
+            { n == 1 }: $step = flow $step, t, top, ignore, n == size
+            {        }: $step = flow $step, t, null, null, n == size
         return $step
     { t.type == "or" }:
         t.terms.each(t -> flow step, t, top, ignore)
@@ -272,9 +268,11 @@ flow = step, t, top, ignore, laststep ->
             left.print "LEFT: "
             return step.follow({type:"left",name:name})
         if recursive[name]: return step.follow({type:"call",name:name})
-        if laststep: return flow step, rules[name].term
+        if laststep: return flow step, rules[name].term, top, ignore
         start = Step("CALL")
         flow start, rules[name].term
+        //print "HERE", start.branches.size
+        //if start.zeroBranches: return step.graft(start)
         return step.follow(start)
     { t.type == "prim" }:
         step.follow(t)

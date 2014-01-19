@@ -1,18 +1,22 @@
 parser = parser {
   name: [abcdefghijklmnopqrstuvwxyz]+
 number: [0123456789]+
-object: "{" name "=" value "}"
- class: "{" name*(",") "->" value "}"
- guard: "{" value "}:" value
-  list: "[" value*(",") "]"
-value: value "+" value
-     | value "*" value
+object: "{". name ."=". value ."}"
+ class: "{". name*(.",".) ."->". value ."}"
+  list: "[". value*(.",".) ."]"
+value2: value ."+". value
+     | value ."*". value
+value: value2
      | name
      | object
      | class
      | list
+guard: "{". value ."}:". value
   stm: guard
      | value
-start: stm "\n"
+start2: stm ."\n"
+
+    b: "b"
+start: "a" b "\n"
 }
 
