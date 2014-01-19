@@ -5,12 +5,14 @@ object: "{" name "=" value "}"
  class: "{" name*(",") "->" value "}"
  guard: "{" value "}:" value
   list: "[" value*(",") "]"
-value: name
+value: value "+" value
+     | value "*" value
+     | name
      | object
      | class
      | list
   stm: guard
      | value
-start: ("yyy"|"xxx") "\n"
+start: stm "\n"
 }
 

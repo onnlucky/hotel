@@ -143,21 +143,8 @@ to_sub = t, name, rule, number ->
         return name
     { }: throw "ERROR to sub:"+ inspect(t)
 
-OrStep = step -> {
-    step: step
-    after: Var.new
-    follow: term ->
-        this.after = Step(term)
-    print: indent ->
-        indent = indent or ""
-        print "$(indent)or"
-        step.print indent +"  "
-        if this.after.get:
-            print "$(indent)after"
-            this.after.get.print indent +" "
-}
-
 Step = term -> {
+    type: "step"
     term: term
     branches: Array.new
     follow: term ->
@@ -179,6 +166,12 @@ Step = term -> {
         return this
     print: indent ->
         indent = indent or ""
+        if isObject(this.term) and this.term.type == "step":
+            print "$(indent)before"
+            this.term.print indent
+            print "$(indent)after"
+            this.branches.each: step -> step.print indent + "    "
+            return
         print "$(indent)$(repr this.term)"
         this.branches.each: step -> step.print indent + "    "
 }
@@ -233,23 +226,24 @@ findcalls = t ->
         seen[name] = false
     { }: null
 
-flow = step, t, top, ignore ->
-    print "STEP", step
+flow = step, t, top, ignore, laststep ->
     if not step: return null
     { t.type == "and" }:
-        if t.terms.size == 0: return step
-        step = flow step, t.terms[1], top, ignore
         step = Var.new step
-        t.terms[2:].each: t -> $step = flow $step, t
+        size = t.terms.size
+        t.terms.each: t, n ->
+            laststep = n == size
+            { n == 1 }: $step = flow $step, t, top, ignore, laststep
+            {        }: $step = flow $step, t, null, null, laststep
         return $step
     { t.type == "or" }:
         t.terms.each(t -> flow step, t, top, ignore)
         if top: step.compactLeft(top)
         return step
-        return OrStep(step)
     { t.type == "sub" }:
-        res = flow Step("SUB"), t.term, top, ignore
-        return step.follow(OrStep(step))
+        start = Step("SUB")
+        flow start, t.term, top, ignore
+        return step.follow(start)
     { t.type == "star" }:
         step = step.follow {type:"star"}
         flow step, t.term, top, ignore
@@ -264,13 +258,16 @@ flow = step, t, top, ignore ->
         if name == ignore:
             return null
         if name == top:
-            if lefts[name]: return
+            if lefts[name]: return step.follow({type:"left",name:name})
             left = flow Step({type:"start",name:name}), rules[name].term, null, name
             lefts[name] = true
             left.print "LEFT: "
             return step.follow({type:"left",name:name})
         if calling[name]: return step.follow({type:"call",name:name})
-        flow step, rules[name].term
+        if laststep: return flow step, rules[name].term
+        start = Step("CALL")
+        flow start, rules[name].term
+        return step.follow(start)
     { t.type == "prim" }:
         step.follow(t)
     {                  }:
