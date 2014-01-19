@@ -178,15 +178,13 @@ Step = term -> {
 
 seen = HashMap.new
 terminals = HashMap.new
-calling = HashMap.new
+recursive = HashMap.new
 lefts = HashMap.new
 
-is_terminal = name ->
+is_terminal = name, rule ->
     if isDefined(terminals[name]): return terminals[name]
     seen[name] = true
-    if not rules[name]: throw "rule without definition: '$(name)'"
-    print "checking for terminal:", name
-    isterm = findterm rules[name].term
+    isterm = findterm rule.term
     seen[name] = false
     terminals[name] = isterm
 
@@ -203,9 +201,8 @@ findterm = t ->
     { t.type == "starsep" }: findterm(t.term) and findterm(t.sep)
     { t.type == "plussep" }: findterm(t.term) and findterm(t.sep)
     { t.type == "call" }:
-        name = t.target
-        if seen[name]: return false
-        is_terminal name
+        analyze_rule(t.target)
+        return terminals[t.target]
     { t.type == "prim" }: true
     {                  }: false
 
@@ -217,14 +214,25 @@ findcalls = t ->
     { t.type == "plus" }: findcalls t.term
     { t.type == "starsep" }: findcalls(t.term); findcalls(t.sep)
     { t.type == "plussep" }: findcalls(t.term); findcalls(t.sep)
-    { t.type == "call" }:
-        name = t.target
-        if calling[name] or seen[name] or is_terminal(name): return calling[name] = true
-        print "analyzing:", name
+    { t.type == "call" }: analyze_rule(t.target)
+    { }: null
+
+analyze_rule = name ->
+    if seen[name]: recursive[name] = true; return
+    if terminals[name]: return
+    if recursive[name]: return
+
+    rule = rules[name]
+    if not rule: throw "rule without definition: '$(name)'"
+
+    if not is_terminal(name, rule):
         seen[name] = true
         findcalls rules[name].term
         seen[name] = false
-    { }: null
+    what = { terminals[name] }: "terminal"
+           { recursive[name] }: "recursive"
+           {                 }: "inline"
+    print "rule:", name, "is:", what
 
 flow = step, t, top, ignore, laststep ->
     if not step: return null
@@ -263,7 +271,7 @@ flow = step, t, top, ignore, laststep ->
             lefts[name] = true
             left.print "LEFT: "
             return step.follow({type:"left",name:name})
-        if calling[name]: return step.follow({type:"call",name:name})
+        if recursive[name]: return step.follow({type:"call",name:name})
         if laststep: return flow step, rules[name].term
         start = Step("CALL")
         flow start, rules[name].term
@@ -295,10 +303,9 @@ if not rules["wsnl"]:
 if not rules["start"] and ast.rules.size > 0:
     rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
 
-print "analyzing", "start"
-calling["start"] = true
-findcalls(rules["start"].term)
-calling.each: k -> runflow(k)
+analyze_rule("start")
+recursive["start"] = true
+recursive.each: k -> runflow(k)
 
 rules.each: name, rule ->
     number = { rule.spec == "color" }: colors.add name; colors.size
