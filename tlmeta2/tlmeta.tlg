@@ -150,12 +150,23 @@ Step = term -> {
         step = Step(term)
         this.branches.add step
         return step
-    compactLeft: name ->
+    graft: onto ->
+        step = onto.follow(term)
+        if this.branches.size == 1: return this.branches[1].graft(step)
+        assert this.branches.size == 0
+    noBranches: ->
+        if this.branches.size == 0: return true
+        if this.branches.size > 1: return false
+        this.branches[1].noBranches
+    last: ->
+        if this.branches.size == 0: return this
+        if this.branches.size > 1: return null
+        this.branches[1].last
+    compactLeft: ->
         n = Var.new this.branches.size
         while $n > 0:
             step = this.branches[$n]
             if isObject(step.term) and step.term.type == "left":
-                assert step.term.name == name
                 step.follow({type:"ok"})
                 while this.branches.size > $n: this.branches.remove($n + 1)
                 return
@@ -176,6 +187,7 @@ Step = term -> {
 seen = HashMap.new
 terminals = HashMap.new
 recursive = HashMap.new
+leftrecursive = HashMap.new
 lefts = HashMap.new
 
 is_terminal = name, rule ->
@@ -203,19 +215,22 @@ findterm = t ->
     { t.type == "prim" }: true
     {                  }: false
 
-findcalls = t ->
-    { t.type == "and" }: t.terms.each(t -> findcalls t)
-    { t.type == "or" }: t.terms.each(t -> findcalls t)
-    { t.type == "sub"  }: findcalls t.term
-    { t.type == "star" }: findcalls t.term
-    { t.type == "plus" }: findcalls t.term
-    { t.type == "starsep" }: findcalls(t.term); findcalls(t.sep)
-    { t.type == "plussep" }: findcalls(t.term); findcalls(t.sep)
-    { t.type == "call" }: analyze_rule(t.target)
+findcalls = t, first ->
+    { t.type == "and" }: t.terms.each(t, n -> findcalls t, n == 1)
+    { t.type == "or" }: t.terms.each(t -> findcalls t, true)
+    { t.type == "sub"  }: findcalls t.term, first
+    { t.type == "star" }: findcalls t.term, first
+    { t.type == "plus" }: findcalls t.term, first
+    { t.type == "starsep" }: findcalls(t.term, first); findcalls(t.sep)
+    { t.type == "plussep" }: findcalls(t.term, first); findcalls(t.sep)
+    { t.type == "call" }: analyze_rule(t.target, first)
     { }: null
 
-analyze_rule = name ->
-    if seen[name]: recursive[name] = true; return
+analyze_rule = name, first ->
+    if seen[name]:
+        if first: leftrecursive[name] = true
+        recursive[name] = true
+        return
     if terminals[name]: return
     if recursive[name]: return
 
@@ -226,66 +241,87 @@ analyze_rule = name ->
         seen[name] = true
         findcalls rules[name].term
         seen[name] = false
-    what = { terminals[name] }: "terminal"
-           { recursive[name] }: "recursive"
-           {                 }: "inline"
+    what = { terminals[name]     }: "terminal"
+           { leftrecursive[name] }: "left-recursive"
+           { recursive[name]     }: "recursive"
+           {                     }: "inline"
     print "rule:", name, "is:", what
 
-flow = step, t, top, ignore, laststep ->
-    if not step: return null
+isLeft = step -> isObject(step.term) and step.term.type == "left"
+
+flow = step, t, self, first ->
+    if step == null: return
     { t.type == "and" }:
         step = Var.new step
-        size = t.terms.size
-        t.terms.each: t, n ->
-            { n == 1 }: $step = flow $step, t, top, ignore, n == size
-            {        }: $step = flow $step, t, null, null, n == size
-        return $step
+        t.terms.each: t, n -> $step = flow $step, t, self, n == 1
     { t.type == "or" }:
-        t.terms.each(t -> flow step, t, top, ignore)
-        if top: step.compactLeft(top)
-        return step
+        t.terms.each(t -> flow step, t, self, first)
     { t.type == "sub" }:
         start = Step("SUB")
-        flow start, t.term, top, ignore
-        return step.follow(start)
+        flow start, t.term, self, first
+        step.follow(start)
     { t.type == "star" }:
         step = step.follow {type:"star"}
-        flow step, t.term, top, ignore
+        flow step, t.term, self, first
     { t.type == "plus" }:
         step = step.follow {type:"plus"}
-        flow step, t.term, top, ignore
+        flow step, t.term, self, first
     { t.type == "starsep" }:
         step = step.follow {type:"starsep"}
-        flow step, t.term, top, ignore
+        flow step, t.term, self, first
     { t.type == "call" }:
         name = t.target
-        if name == ignore:
-            return null
-        if name == top:
-            if lefts[name]: return step.follow({type:"left",name:name})
-            left = flow Step({type:"start",name:name}), rules[name].term, null, name
-            lefts[name] = true
-            left.print "LEFT: "
-            return step.follow({type:"left",name:name})
-        if recursive[name]: return step.follow({type:"call",name:name})
-        if laststep: return flow step, rules[name].term, top, ignore
+        if first and self == name:
+            size = step.branches.size
+            left = { size == 0                          }: "$(name)1"
+                   { isLeft(step.branches[size])        }: "$(name)$(size)"
+                   {                                    }: "$(name)$(size + 1)"
+            return step.follow({type:"left",name:left})
+        if recursive[name] or terminals[name]:
+            return step.follow({type:"call",name:name})
         start = Step("CALL")
-        flow start, rules[name].term
-        //print "HERE", start.branches.size
-        //if start.zeroBranches: return step.graft(start)
-        return step.follow(start)
+        flow start, rules[name].term, self, first
+        if start.noBranches and start.branches[1]:
+            return start.branches[1].graft(step)
+        step.follow(start)
     { t.type == "prim" }:
         step.follow(t)
     {                  }:
         print "unknown", repr(t)
         step.follow("ERROR")
 
+create_left_right = start ->
+    start.compactLeft
+
 runflow = name ->
-    seen[name] = true
     start = Step({type:"start",name:name})
-    seen[name] = false
-    flow start, rules[name].term, name
-    start.print
+    flow start, rules[name].term, name, true
+    if not leftrecursive[name]: return start.print
+    // now we have flow that includes one or more left recursions, split up in left and right part
+
+    lefts = Step({type:"start-left",name:name})
+    rights = Step({type:"start-right",name:name})
+    start.branches.each: step ->
+        { not isLeft(step) }:
+            // TODO same as below ... but better for both
+            step.last.follow({type:"right",name:name})
+            lefts.branches.add step
+        {                  }:
+            step.branches.each: step ->
+                { step.noBranches }:
+                    last = step.last
+                    last.follow({type:"right",name:name})
+                    rights.branches.add step
+                {                 }:
+                    start = Step("SUB")
+                    last = start.follow(step)
+                    last.follow({type:"right",name:name})
+                    rights.branches.add start
+
+    rights.follow({type:"nothing"})
+    lefts.print
+    rights.print
+
 
 ast = parserParser(io.File(args[1]).readString)
 ast.rules.each: rule ->
@@ -302,8 +338,10 @@ if not rules["start"] and ast.rules.size > 0:
     rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
 
 analyze_rule("start")
+terminals["start"] = false
 recursive["start"] = true
 recursive.each: k -> runflow(k)
+terminals.each: k, isterm -> if isterm: runflow(k)
 
 rules.each: name, rule ->
     number = { rule.spec == "color" }: colors.add name; colors.size
