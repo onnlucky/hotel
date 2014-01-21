@@ -154,9 +154,10 @@ Step = term -> {
         if this.branches.size == 0: this.follow(term); return
         this.branches.each: step -> step.followLasts(term)
     graft: onto ->
-        step = onto.follow(term)
-        if this.branches.size == 1: return this.branches[1].graft(step)
+        next = onto.follow(term)
+        if this.branches.size == 1: return this.branches[1].graft(next)
         assert this.branches.size == 0
+        return next
     noBranches: ->
         if this.branches.size == 0: return true
         if this.branches.size > 1: return false
@@ -221,11 +222,14 @@ findcalls = t, first ->
 
 analyze_rule = name, first ->
     if seen[name]:
-        if first: leftrecursive[name] = true
+        if first:
+            leftrecursive[name] = true
+            return
         recursive[name] = true
         return
     if terminals[name]: return
     if recursive[name]: return
+    if leftrecursive[name]: return
 
     rule = rules[name]
     if not rule: throw "rule without definition: '$(name)'"
@@ -242,41 +246,46 @@ analyze_rule = name, first ->
 
 isLeft = step -> isObject(step.term) and step.term.type == "left"
 
-flow = step, t, self, first ->
+flow = step, t, name, base, first ->
     if step == null: return
     { t.type == "and" }:
         step = Var.new step
-        t.terms.each: t, n -> $step = flow $step, t, self, n == 1
+        t.terms.each: t, n -> $step = flow $step, t, name, base, n == 1 and first
+        if $step: $step.follow({type:"accept",rule:name})
     { t.type == "or" }:
-        t.terms.each(t -> flow step, t, self, first)
+        t.terms.each(t -> flow step, t, name, base, first)
     { t.type == "sub" }:
         start = Step("SUB")
-        flow start, t.term, self, first
-        if start.noBranches and start.branches[1]:
+        flow start, t.term, name, base, first
+        if start.noBranches:
             return start.branches[1].graft(step)
         step.follow(start)
     { t.type == "star" }:
         step = step.follow {type:"star"}
-        flow step, t.term, self, first
+        flow step, t.term, name, base, first
     { t.type == "plus" }:
         step = step.follow {type:"plus"}
-        flow step, t.term, self, first
+        flow step, t.term, name, base, first
     { t.type == "starsep" }:
         step = step.follow {type:"starsep"}
-        flow step, t.term, self, first
+        flow step, t.term, name, base, first
     { t.type == "call" }:
-        name = t.target
-        if first and self == name:
+        target = t.target
+        if first and base == target:
             size = step.branches.size
-            left = { size == 0                          }: "$(name)1"
-                   { isLeft(step.branches[size])        }: "$(name)$(size)"
-                   {                                    }: "$(name)$(size + 1)"
+            left = { size == 0                          }: "$(target)1"
+                   { isLeft(step.branches[size])        }: "$(target)$(size)"
+                   {                                    }: "$(target)$(size + 1)"
             return step.follow({type:"left",name:left})
-        if recursive[name] or terminals[name]:
-            return step.follow({type:"call",name:name})
+
+        if seen[target]: return step.follow({type:"call",name:target})
+        //if terminals[target] or recursive[target] or leftrecursive[target]: // a terminal, or a call already
+        //    return step.follow({type:"call",name:target})
         start = Step("CALL")
-        flow start, rules[name].term, self, first
-        if start.noBranches and start.branches[1]:
+        seen[target] = true
+        flow start, rules[target].term, target, base, first
+        seen[target] = false
+        if start.noBranches:
             return start.branches[1].graft(step)
         step.follow(start)
     { t.type == "prim" }:
@@ -287,7 +296,9 @@ flow = step, t, self, first ->
 
 runflow = name ->
     start = Step({type:"start",name:name})
-    flow start, rules[name].term, name, true
+    seen[name] = true
+    flow start, rules[name].term, name, name, true
+    seen[name] = false
     if not leftrecursive[name]: return start.print
 
     // now we have flow that includes one or more left recursions, split up in left and right part
@@ -326,10 +337,10 @@ if not rules["start"] and ast.rules.size > 0:
     rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
 
 analyze_rule("start")
-terminals["start"] = false
-recursive["start"] = true
-recursive.each: k -> runflow(k)
-terminals.each: k, isterm -> if isterm: runflow(k)
+//leftrecursive.each: k -> runflow(k)
+//terminals.each: k, isterm -> if isterm: runflow(k)
+//recursive.each: k -> runflow(k)
+runflow("start")
 
 rules.each: name, rule ->
     number = { rule.spec == "color" }: colors.add name; colors.size

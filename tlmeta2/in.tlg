@@ -1,27 +1,23 @@
 parser = parser {
-  name: [abcdefghijklmnopqrstuvwxyz]+
+  name2: [abcdefghijklmnopqrstuvwxyz]+
 number: [0123456789]+
-object: "{". name ."=". value ."}"
- class: "{". name*(.",".) ."->". value ."}"
-  list: "[". value*(.",".) ."]"
-value2: value ."+". value
-     | value ."*". value
-value: value2
-     | name
+ class: "{" name*(",") "->" value "}"
+  list: "[" value*(",") "]"
+value2: value "+" value
+     | value "*" value
+     | call
+ call: call "." name "()"
+     | call "()"
      | object
      | class
      | list
-guard: "{". value ."}:". value
-  stm: guard
-     | value
-start2: stm ."\n"
-
- args: (. call)*(.",".)
- call: call .".". name ."(". args .")"
-     | call ."(". args .")"
      | name
-     //| number "." number
-     | number
-start: ..call..
+
+ name: "a"
+object: "{" name "=" value "}"
+value: object | name
+guard: "{" name "}:" value
+  stm: guard | value
+start: stm "\n"
 }
 
