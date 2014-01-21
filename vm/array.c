@@ -20,6 +20,10 @@ tlArray* tlArrayNew() {
 int tlArraySize(tlArray* array) {
     return array->size;
 }
+tlArray* tlArrayClear(tlArray* array) {
+    array->size = 0;
+    return array;
+}
 tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     trace("add: %s.add %s -- %zd -- %zd", tl_str(array), tl_str(v), array->size, array->alloc);
     if (array->size == array->alloc) {
@@ -111,6 +115,11 @@ INTERNAL tlHandle _array_size(tlArgs* args) {
     if (!array) TL_THROW("expected an Array");
     return tlINT(tlArraySize(array));
 }
+INTERNAL tlHandle _array_clear(tlArgs* args) {
+    tlArray* array = tlArrayCast(tlArgsTarget(args));
+    if (!array) TL_THROW("expected an Array");
+    return tlArrayClear(array);
+}
 INTERNAL tlHandle _array_toList(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
@@ -162,6 +171,7 @@ static void array_init() {
     _tlArrayKind.klass = tlClassMapFrom(
         "toList", _array_toList,
         "size", _array_size,
+        "clear", _array_clear,
         "get", _array_get,
         "set", _array_set,
         "add", _array_add,
