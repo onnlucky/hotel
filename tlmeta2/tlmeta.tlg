@@ -150,6 +150,9 @@ Step = term -> {
         step = Step(term)
         this.branches.add step
         return step
+    followLasts: term ->
+        if this.branches.size == 0: this.follow(term); return
+        this.branches.each: step -> step.followLasts(term)
     graft: onto ->
         step = onto.follow(term)
         if this.branches.size == 1: return this.branches[1].graft(step)
@@ -162,16 +165,6 @@ Step = term -> {
         if this.branches.size == 0: return this
         if this.branches.size > 1: return null
         this.branches[1].last
-    compactLeft: ->
-        n = Var.new this.branches.size
-        while $n > 0:
-            step = this.branches[$n]
-            if isObject(step.term) and step.term.type == "left":
-                step.follow({type:"ok"})
-                while this.branches.size > $n: this.branches.remove($n + 1)
-                return
-            $n -= 1
-        return this
     print: indent ->
         indent = indent or ""
         if isObject(this.term) and this.term.type == "step":
@@ -259,6 +252,8 @@ flow = step, t, self, first ->
     { t.type == "sub" }:
         start = Step("SUB")
         flow start, t.term, self, first
+        if start.noBranches and start.branches[1]:
+            return start.branches[1].graft(step)
         step.follow(start)
     { t.type == "star" }:
         step = step.follow {type:"star"}
@@ -290,38 +285,31 @@ flow = step, t, self, first ->
         print "unknown", repr(t)
         step.follow("ERROR")
 
-create_left_right = start ->
-    start.compactLeft
-
 runflow = name ->
     start = Step({type:"start",name:name})
     flow start, rules[name].term, name, true
     if not leftrecursive[name]: return start.print
+
     // now we have flow that includes one or more left recursions, split up in left and right part
+    // TODO actually split up into muliple left/right conversions
 
     lefts = Step({type:"start-left",name:name})
     rights = Step({type:"start-right",name:name})
     start.branches.each: step ->
         { not isLeft(step) }:
-            // TODO same as below ... but better for both
-            step.last.follow({type:"right",name:name})
             lefts.branches.add step
+            step.followLasts({type:"right",name:name})
         {                  }:
             step.branches.each: step ->
-                { step.noBranches }:
-                    last = step.last
-                    last.follow({type:"right",name:name})
-                    rights.branches.add step
-                {                 }:
-                    start = Step("SUB")
-                    last = start.follow(step)
-                    last.follow({type:"right",name:name})
-                    rights.branches.add start
+                step.branches.each: step -> rights.branches.add step
+                step.followLasts({type:"right",name:name})
 
     rights.follow({type:"nothing"})
     lefts.print
     rights.print
-
+    start.branches.clear
+    start.follow({type:"left",name:name})
+    start.print
 
 ast = parserParser(io.File(args[1]).readString)
 ast.rules.each: rule ->

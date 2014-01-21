@@ -16,11 +16,12 @@ guard: "{". value ."}:". value
      | value
 start2: stm ."\n"
 
- call: call "." name "()"
-     //| number
-     | call "()"
+ args: (. call)*(.",".)
+ call: call .".". name ."(". args .")"
+     | call ."(". args .")"
      | name
+     //| number "." number
      | number
-start: call
+start: ..call..
 }
 
