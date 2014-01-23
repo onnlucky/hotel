@@ -40,13 +40,13 @@
 #include "queue.c"
 
 // extras
-#include "../tlmeta2/parser.c"
 #include "evio.c"
 #include "time.c"
 #include "regex.c"
+#include "serialize.c"
+
 #include "openssl.c"
 //#include "audio.c"
-#include "serialize.c"
 //#include "storage.c"
 
 // super extra
@@ -452,10 +452,10 @@ void tl_init() {
     buffer_init();
     evio_init();
     time_init();
+    serialize_init();
+
     openssl_init();
     //storage_init();
-    serialize_init();
-    parser_init();
 
     tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
 }
@@ -475,6 +475,7 @@ tlVm* tlVmNew() {
     evio_vm_default(vm);
     buffer_init_vm(vm);
     regex_init_vm(vm);
+
     openssl_init_vm(vm);
     //audio_init_vm(vm);
     //storage_init_vm(vm);

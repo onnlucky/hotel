@@ -51,10 +51,6 @@ parser.c: vm/parser.g greg/greg
 parser.o: parser.c vm/tl.h config.h $(LIBGC)
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c parser.c -o parser.o
 
-# TODO this is now very circular and boot depending ... need install of hotel to produce parser ... oeps
-tlmeta2/parser.c: tlmeta2/in.tlg tlmeta2/tlmeta.tlg
-	cd tlmeta2 && make
-
 ev.o: ev/*.c ev/*.h config.h $(LIBGC)
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
@@ -67,7 +63,7 @@ ifneq ($(BOEHM),)
 endif
 	ar -s libtl.a
 
-vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBMP) tlmeta2/parser.c
+vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBMP)
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c

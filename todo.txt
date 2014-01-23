@@ -35,12 +35,9 @@ rename tlMap as tlValue and remove tlValueObject ...
 for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
 add kind->resume for tlFrame and throw using frame.kind.name
 add kind->finalize for finalizers
-add tlNumber as unlimited precision decimal, and have a numeric tower from small int to decimal and floats
 
 do class._name for error.toString: this.class._name ": " this.msg ...
 on error, if object, call toString on it ...
-
-rename List -> Array, Map -> Table why? because that gives users those very useful names back
 
 add objects using:
   Square = Object { width, height ->
