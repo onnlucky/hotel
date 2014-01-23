@@ -140,11 +140,12 @@ INTERNAL tlHandle _array_set(tlArgs* args) {
 }
 INTERNAL tlHandle _array_add(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
+    tlHandle v;
     for (int i = 0; i < tlArgsSize(args); i++) {
-        tlHandle v = tlArgsGet(args, i);
+        v = tlArgsGet(args, i);
         tlArrayAdd(array, v);
     }
-    return tlINT(array->size);
+    return tlResultFrom(v, tlINT(array->size), null);
 }
 INTERNAL tlHandle _array_pop(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
@@ -176,12 +177,11 @@ static void array_init() {
         "set", _array_set,
         "add", _array_add,
         "pop", _array_pop,
-        //"addFront", _array_addFront,
-        //"popFront", _array_popFront,
         "remove", _array_remove,
         "insert", _array_insert,
         "random", null,
         "each", null,
+        "map", null,
         "find", null,
         "join", null,
         null

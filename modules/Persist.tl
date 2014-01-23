@@ -12,7 +12,7 @@ new = name ->
     }
     PersistListClass = {
         _name: #PersistListClass
-        add: v -> i = this._back.add(v); record {set:true,id:this._id,k:i,v:v}; return i
+        add: v -> _, i = this._back.add(v); record {set:true,id:this._id,k:i,v:v}; return i
         set: i, v -> this._back.set(i, v); record {set:true,id:this._id,k:i,v:v}; return v
         remove: at -> r = this._back.remove(at); record {del:true,id:this._id,k:at}; return r
         get: i -> this._back.get(i)

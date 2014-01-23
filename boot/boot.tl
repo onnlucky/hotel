@@ -45,6 +45,19 @@ _each = fn ->
         goto(loop(at + 1))
     loop(1)
 
+_map = fn ->
+    block = args.block or fn
+    if not block: throw "map expects a block or fn"
+    size = this.size
+    if size == 0: return []
+
+    res = _List_unsafe(size)
+    loop = at =>
+        if at > size: return res
+        _list_set_(res, at, block(this[at]))
+        goto(loop(at + 1))
+    loop(1)
+
 _find = fn ->
     block = args.block or fn
     if not block: throw "find expects a block or fn"
@@ -112,12 +125,8 @@ _install(Int.class, #to, _to)
 // TODO should have special boot places for string, list and such
 /// String.each: for ever character run block or function given
 _install(String.class, #each, _each)
-_install(String.class, #map, (map = (fn ->
-    if this.size == 0: return this
-    cs = Array.new
-    this.each: c -> cs.add(fn(c).toChar)
-    return cs.join("")
-)))
+_install(String.class, #map, _map)
+
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
 _install(String.class, #split, (split = (on ->
     if this.size == 0: return []
@@ -161,19 +170,7 @@ _install(List.class, #reduce, (reduce = (fn ->
         $i += 1
     return $res
 )))
-_install(List.class, #map, (map = (fn ->
-    block = args.block or fn
-    if not block: throw "map expects a block or fn"
-    if this.size == 0: return this
-
-    res = _List_unsafe(this.size)
-
-    var $i = 1
-    while $i <= this.size:
-        _list_set_(res, $i, block(this.get($i)))
-        $i += 1
-    return res
-)))
+_install(List.class, #map, _map)
 _flatten2 = ls, arr ->
     ls.each: e ->
         if isList(e): _flatten2(e, arr); return
@@ -221,6 +218,7 @@ _install(Object, #each, _map_each)
 
 _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
+_install(Array.class, #map, _map)
 _install(Array.class, #find, _find)
 _install(Array.class, #join, _join)
 
