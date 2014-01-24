@@ -108,7 +108,13 @@ tlList* tlArrayToList(tlArray* array) {
 }
 
 INTERNAL tlHandle _Array_new(tlArgs* args) {
-    return tlArrayNew();
+    tlArray* array = tlArrayNew();
+    for (int i = 0; i < 1000; i++) {
+        tlHandle h = tlArgsGet(args, i);
+        if (!h) return array;
+        tlArrayAdd(array, h);
+    }
+    return array;
 }
 INTERNAL tlHandle _array_size(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
@@ -183,6 +189,12 @@ static void array_init() {
         "each", null,
         "map", null,
         "find", null,
+        "filter", null,
+        "reduce", null,
+        "min", null,
+        "max", null,
+        "sum", null,
+        "flatten", null,
         "join", null,
         null
     );

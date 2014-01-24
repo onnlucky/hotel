@@ -81,6 +81,48 @@ _filter = fn ->
         goto(loop(at + 1))
     loop(1)
 
+_reduce = fn ->
+    block = args.block or fn
+    if not block: throw "reduce expects a block or fn"
+    if this.size == 0: return null
+    if this.size == 1: return this[1]
+
+    var $i = 2
+    var $res = this[1]
+    while $i <= this.size:
+        $res = block($res, this.get($i))
+        $i += 1
+    return $res
+
+_sum = ->
+    var $sum = 0
+    this.each: e -> $sum += e
+    return $sum
+
+_min = ->
+    if this.size == 0: return undefined
+    if this.size == 1: return this[1]
+    var $min = this[1]
+    this.each: e -> if e < $min: $min = e
+    return $min
+
+_max = ->
+    if this.size == 0: return undefined
+    if this.size == 1: return this[1]
+    var $max = this[1]
+    this.each: e -> if e > $max: $max = e
+    return $max
+
+// TODO only flatten one level, unless asked?
+_flatten2 = ls, arr ->
+    ls.each: e ->
+        if isList(e): _flatten2(e, arr); return
+        arr.add(e)
+_flatten = ->
+    arr = Array.new
+    _flatten2(this, arr)
+    return arr.toList
+
 _join = sep ->
     if this.size == 0: return ""
     sep = sep or ""
@@ -154,52 +196,15 @@ _install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)
 _install(List.class, #random, _get_random)
 _install(List.class, #each, _each)
+_install(List.class, #map, _map)
 _install(List.class, #find, _find)
 _install(List.class, #filter, _filter)
+_install(List.class, #reduce, _reduce)
+_install(List.class, #min, _min)
+_install(List.class, #max, _max)
+_install(List.class, #sum, _sum)
+_install(List.class, #flatten, _flatten)
 _install(List.class, #join, _join)
-_install(List.class, #reduce, (reduce = (fn ->
-    block = args.block or fn
-    if not block: throw "reduce expects a block or fn"
-    if this.size == 0: return null
-    if this.size == 1: return this[1]
-
-    var $i = 2
-    var $res = this[1]
-    while $i <= this.size:
-        $res = block($res, this.get($i))
-        $i += 1
-    return $res
-)))
-_install(List.class, #map, _map)
-_flatten2 = ls, arr ->
-    ls.each: e ->
-        if isList(e): _flatten2(e, arr); return
-        arr.add(e)
-
-_install(List.class, #flatten, (flatten = (->
-    arr = Array.new
-    _flatten2(this, arr)
-    return arr.toList
-)))
-_install(List.class, #min, (min = (->
-    if this.size == 0: return undefined
-    if this.size == 1: return this[1]
-    var $min = this[1]
-    this.each: e -> if e < $min: $min = e
-    return $min
-)))
-_install(List.class, #max, (max = (->
-    if this.size == 0: return undefined
-    if this.size == 1: return this[1]
-    var $max = this[1]
-    this.each: e -> if e > $max: $max = e
-    return $max
-)))
-_install(List.class, #sum, (sum = (->
-    var $sum = 0
-    this.each: e -> $sum += e
-    return $sum
-)))
 
 _map_each = (m, fn ->
     block = args.block or fn
@@ -220,8 +225,13 @@ _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)
 _install(Array.class, #map, _map)
 _install(Array.class, #find, _find)
+_install(Array.class, #filter, _filter)
+_install(Array.class, #reduce, _reduce)
+_install(Array.class, #min, _min)
+_install(Array.class, #max, _max)
+_install(Array.class, #sum, _sum)
+_install(Array.class, #flatten, _flatten)
 _install(Array.class, #join, _join)
-
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
