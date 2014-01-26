@@ -30,11 +30,20 @@ tlHashMap* tlHashMapNew() {
     map->map = lhashmap_new(map_equals, map_hash, map_free);
     return map;
 }
+int tlHashMapSize(tlHashMap* map) {
+    return lhashmap_size(map->map);
+}
+tlHashMap* tlHashMapClear(tlHashMap* map) {
+    map->map = lhashmap_new(map_equals, map_hash, map_free);
+    return map;
+}
 tlHandle tlHashMapGet(tlHashMap* map, tlHandle k) {
     return lhashmap_get(map->map, k);
 }
-void tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v) {
-    lhashmap_putif(map->map, k, v, LHASHMAP_IGNORE);
+tlHandle tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v) {
+    tlHandle h = lhashmap_putif(map->map, k, v, LHASHMAP_IGNORE);
+    if (!h) h = tlNull;
+    return h;
 }
 tlMap* tlHashMapToMap(tlHashMap* map) {
     int size = lhashmap_size(map->map);
@@ -64,13 +73,30 @@ tlMap* tlHashMapToObject(tlHashMap* map) {
 INTERNAL tlHandle _HashMap_new(tlArgs* args) {
     tlHashMap* hash = tlHashMapNew();
     for (int i = 0; i < 1000; i++) {
-        tlMap* map = tlMapFromObjectCast(tlArgsGet(args, i));
-        if (!map) break;
-        for (int i = 0; i < tlMapSize(map); i++) {
-            tlHashMapSet(hash, map->keys->data[i], map->data[i]);
+        tlHandle h = tlArgsGet(args, 0);
+        if (!h) break;
+        if (tlMapOrObjectIs(h)) {
+            tlMap* map = tlMapOrObjectCast(tlArgsGet(args, 0));
+            for (int i = 0; i < tlMapSize(map); i++) {
+                tlHashMapSet(hash, map->keys->data[i], map->data[i]);
+            }
+            continue;
         }
+        if (tlHashMapIs(h)) {
+            //tlHashMap* map = tlHashMapAs(h);
+            // TODO
+        }
+        TL_THROW("expect object or map");
     }
     return hash;
+}
+INTERNAL tlHandle _hashmap_size(tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    return tlINT(tlHashMapSize(map));
+}
+INTERNAL tlHandle _hashmap_clear(tlArgs* args) {
+    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
+    return tlHashMapClear(map);
 }
 INTERNAL tlHandle _hashmap_get(tlArgs* args) {
     tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
@@ -117,13 +143,6 @@ INTERNAL tlHandle _hashmap_del(tlArgs* args) {
     tlHandle val = lhashmap_putif(map->map, key, null, LHASHMAP_IGNORE);
     trace("%s == %s", tl_str(key), tl_str(val));
     return tlMAYBE(val);
-}
-INTERNAL tlHandle _hashmap_size(tlArgs* args) {
-    tlHashMap* map = tlHashMapCast(tlArgsTarget(args));
-    if (!map) TL_THROW("expected a Map");
-
-    int size = lhashmap_size(map->map);
-    return tlINT(size);
 }
 // TODO should implement each instead, this is costly
 INTERNAL tlHandle _hashmap_keys(tlArgs* args) {
@@ -188,11 +207,12 @@ INTERNAL tlHandle _hashmap_toMap(tlArgs* args) {
 static tlMap* hashmapClass;
 void hashmap_init() {
     _tlHashMapKind.klass = tlClassMapFrom(
+        "size", _hashmap_size,
+        "clear", _hashmap_clear,
         "get", _hashmap_get,
         "set", _hashmap_set,
         "has", _hashmap_has,
         "del", _hashmap_del,
-        "size", _hashmap_size,
         "keys", _hashmap_keys,
         "each", _hashmap_each,
         "toMap", _hashmap_toMap,

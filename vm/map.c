@@ -8,6 +8,7 @@ tlKind* tlMapKind = &_tlMapKind;
 tlKind* tlHandleObjectKind = &_tlHandleObjectKind;
 
 tlMap* tlMapOrObjectAs(tlHandle v) { assert(tlMapIs(v) || tlHandleObjectIs(v)); return (tlMap*)v; }
+tlMap* tlMapOrObjectCast(tlHandle v) { if (tlMapIs(v) || tlHandleObjectIs(v)) return (tlMap*)v; return null; }
 tlMap* tlMapFromObjectAs(tlHandle v) { assert(tlHandleObjectIs(v)); return (tlMap*)v; }
 tlMap* tlMapFromObjectCast(tlHandle v) { return tlHandleObjectIs(v)?(tlMap*)v:null; }
 bool tlMapOrObjectIs(tlHandle v) { return tlMapIs(v) || tlHandleObjectIs(v); }
