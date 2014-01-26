@@ -146,7 +146,7 @@ INTERNAL tlHandle _array_set(tlArgs* args) {
 }
 INTERNAL tlHandle _array_add(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
-    tlHandle v;
+    tlHandle v = tlNull;
     for (int i = 0; i < tlArgsSize(args); i++) {
         v = tlArgsGet(args, i);
         tlArrayAdd(array, v);
