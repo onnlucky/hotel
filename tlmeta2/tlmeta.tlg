@@ -105,7 +105,7 @@ Branches = char, call -> {
     print: indent ->
         indent = indent or ""
         if this.jump.get:
-            print "$(indent)$(this.char.toChar) -> $(this.jump.get)"
+            print "$(indent)$(this.char.toChar) -> $(this.jump.get)$(this.call or "")"
             return
         print "$(indent)$(this.char.toChar)$(this.call or "")"
         this.table.each(branch -> branch.print "$indent  ")
@@ -113,45 +113,60 @@ Branches = char, call -> {
 
 seen = HashMap.new
 
-strace = term, branch, lefts ->
+strace = term, branch, lefts, left_mode ->
     { term.type == "and" }:
         branch = Var.new branch
         term.terms.each: t, n =>
-            $branch = strace t, $branch, bool(n == 1, lefts, [:])
+            $branch = strace t, $branch, bool(n == 1, lefts, [:]), bool(n == 1, left_mode, null)
             if not $branch: return null
         return $branch.follow('.')
     { term.type == "or" }:
-        term.terms.map(t -> strace t, branch, lefts)
-    { term.type == "sub"  }:
-        lasts = strace term.term, branch, lefts
-        if lasts.size == 1: return lasts[1]
-        jump, j = jumps.add Branches('*')
-        lasts.each: l -> if l: l.setjump(j)
-        return jump
+        term.terms.map(t -> strace t, branch, lefts, left_mode)
     { term.type == "call" }:
+        if left_mode == term.target: return branch
+        if left_mode: return null
         if lefts[term.target]: return null
         lasts = strace_rule(term.target, branch, lefts)
-        if lasts.size == 1: return lasts[1]
-        _, at = lasts.find(l -> l == null)
+        _, at = lasts.find(l -> l == null) // look for nulls, left recursion leaves them, create right version and call it
         if at:
-            // left recursion leaves nulls ... call the right recursion version
+            // TODO pospone create right version, so seen is correct
+            right_version, j = jumps.add Branches('*')
+            print "create jump right version: $j $(term.target)"
+            right_lasts = strace_rule(term.target, right_version, [:], term.target)
+            right_lasts.each: l -> if l: l.followCall("right-$(term.target)")
+            right_version.follow('.')
+            // TODO if only one, don't create a jump
+            lasts = lasts.filter(l -> l)
+            if lasts.size == 1:
+                return lasts[1].followCall("right-$(term.target)")
             jump, j = jumps.add Branches('*')
+            print "create jump for left version: $j $(term.target)"
             lasts.each: l -> if l: l.setjump(j)
             return jump.followCall("right-$(term.target)")
+        if lasts.size == 1: return lasts[1]
+        jump, j = jumps.add Branches('*')
+        print "create jump for: $j $(term.target)"
+        lasts.each: l -> if l: l.setjump(j)
+        return jump
+    { term.type == "sub"  }:
+        lasts = strace term.term, branch, lefts, left_mode
+        if lasts.size == 1: return lasts[1]
         jump, j = jumps.add Branches('*')
         lasts.each: l -> if l: l.setjump(j)
         return jump
+    { left_mode }: null
     { term.type == "prim" and term.target == "text" }: branch.followString(term.text)
     { }: print repr term
 
-strace_rule = name, branch, lefts ->
+strace_rule = name, branch, lefts, left_mode ->
     rule = rules[name]
     if not rule: throw "rule undefined '$(name)'"
     if seen[name]:
+        print "$name is recursive"
         return [branch.followCall(name)]
     print "tracing", name
     seen[name] = true
-    lasts = strace rule.term, branch, lefts.set(name, true)
+    lasts = strace rule.term, branch, lefts.set(name, true), left_mode
     seen[name] = false
     return lasts
 
@@ -170,7 +185,5 @@ if not rules["start"] and ast.rules.size > 0:
 
 start = jumps.add(Branches('*'))
 branch = strace_rule("start", start, [:])
-start = jumps.add(Branches('*'))
-branch = strace_rule("call", start, [:])
 jumps.each: jump, n -> print "JUMP: $n"; jump.print
 

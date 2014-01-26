@@ -1,8 +1,8 @@
 parser = parser {
-  call: call ".m"
-      | "1"
+ value: "1" | "a"
+  call: call "-m()"
       | call "()"
-      | "v"
+      | value
     start: call "N"
 }
 
