@@ -7,7 +7,7 @@ tlmeta.tl: tlmeta.tlg
 main: tlmeta.c parser.c main.c
 	cc -std=c99 -g -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -lssl -lcrypto
 
-run: main
+run: parser.c
 	#./main example.tl
 
 clean:

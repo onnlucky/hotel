@@ -79,252 +79,84 @@ slcomment: "//" (!nl _)*
           a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
 }
 
-forbidden = [pos:true,setindent:true,indent:true]
 rules = HashMap.new
-subs = Array.new
-colors = Array.new
+jumps = Array.new
 
-to_arg = t, name ->
-    { t.type == "sub"  }: to_sub(t.term, name)
-    { t.type == "and"  }: to_sub(t, name)
-    { t.type == "or"   }: to_sub(t, name)
-    { t.type == "prim" }: to_sub({ type: "and", terms: [t] }, name)
-    { t.type == "call" }: to_sub({ type: "and", terms: [t] }, name)
-    { }: throw "ERROR to arg:"+ inspect(t)
-
-can_optimize_and = t ->
-    if not no_value and t.act: return false
-    if t.terms.size != 1: return false
-    if t.terms[1].type == "name": return false
-    true
-
-to_call = t, name ->
-    { t.type == "and" }:
-        if can_optimize_and(t): return to_call(t.terms[1], name)
-        { type: "call", target: to_sub(t, name) }
-    { t.type == "sub"     }:
-        if t.term.terms.size == 1:
-            return to_call(t.term.terms[1], name)
-        { type: "call", target: to_sub(t.term, name) }
-    { t.type == "name"    }: { type: "name", name: t.name, term: to_call(t.term, name) }
-    { t.type == "call"    }:
-        if not rules[t.target]: throw "rule without a definition: '$(t.target)'"
-        { type: "call", target: "r_$(t.target)" }
-    { t.type == "starsep" }: { type: "meta", target: "star", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
-    { t.type == "plussep" }: { type: "meta", target: "plus", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
-    { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name),"null"] }
-    { t.type == "plus"    }: { type: "meta", target: "plus", args: [to_arg(t.term, name),"null"] }
-    { t.type == "opt"     }: { type: "meta", target: "opt", args: [to_arg(t.term, name)] }
-    { t.type == "not"     }: { type: "meta", target: "not", args: [to_arg(t.term, name)] }
-    { t.type == "ahead"   }: { type: "meta", target: "ahead", args: [to_arg(t.term, name)] }
-
-    { t.type == "token"   }: t
-    { t.type == "prim"    }: t
-    { t.type == "anchor"  }: t
-    { t.type == "indent"  }: t
-    { t.type == "setindent" }: t
-    { }: throw "ERROR to call:"+ inspect(t)
-
-to_sub = t, name, rule, number ->
-    number = number or 0
-    name = { rule }: "r_$(rule)"
-           {      }: "$(name)_$(subs.size)"
-    { t.type == "and" }:
-        terms = t.terms.map(t -> to_call(t, name))
-        subs.add { type: "and", act: t.act, { name, number, terms }}
-        return name
-    { t.type == "or" }:
-        if t.terms.size == 1: return to_sub(t.terms[1], name, rule, number)
-        terms = t.terms.map(t -> to_call(t, name))
-        subs.add { type: "or", { name, number, terms }}
-        return name
-    { }: throw "ERROR to sub:"+ inspect(t)
-
-Step = term -> {
-    type: "step"
-    term: term
-    branches: Array.new
-    follow: term ->
-        this.branches.each: step, n =>
-            if step.term == term: return step
-        step = Step(term)
-        this.branches.add step
-        return step
-    followLasts: term ->
-        if this.branches.size == 0: this.follow(term); return
-        this.branches.each: step -> step.followLasts(term)
-    graft: onto ->
-        next = onto.follow(term)
-        if this.branches.size == 1: return this.branches[1].graft(next)
-        assert this.branches.size == 0
-        return next
-    noBranches: ->
-        if this.branches.size == 0: return true
-        if this.branches.size > 1: return false
-        this.branches[1].noBranches
-    last: ->
-        if this.branches.size == 0: return this
-        if this.branches.size > 1: return null
-        this.branches[1].last
+Branches = char, call -> {
+    char: char
+    call: call
+    table: Array.new
+    jump: Var.new
+    follow: char ->
+        this.table.each: branch =>
+            if branch.char == char: return branch
+        this.table.add Branches(char)
+    followString: string ->
+        branch = Var.new this
+        string.each: char -> $branch = $branch.follow(char)
+        return $branch
+    followCall: name ->
+        this.table.add Branches('*', name)
+    setjump: to ->
+        this.jump.set to
+    factor: ->
+        if this.table.size == 0: return 1
+        this.table.map(branch -> branch.factor).sum
     print: indent ->
         indent = indent or ""
-        if isObject(this.term) and this.term.type == "step":
-            print "$(indent)before"
-            this.term.print indent
-            print "$(indent)after"
-            this.branches.each: step -> step.print indent + "    "
+        if this.jump.get:
+            print "$(indent)$(this.char.toChar) -> $(this.jump.get)"
             return
-        print "$(indent)$(repr this.term)"
-        this.branches.each: step -> step.print indent + "    "
+        print "$(indent)$(this.char.toChar)$(this.call or "")"
+        this.table.each(branch -> branch.print "$indent  ")
 }
 
 seen = HashMap.new
-terminals = HashMap.new
-recursive = HashMap.new
-leftrecursive = HashMap.new
-lefts = HashMap.new
 
-is_terminal = name, rule ->
-    if isDefined(terminals[name]): return terminals[name]
-    seen[name] = true
-    isterm = findterm rule.term
-    seen[name] = false
-    terminals[name] = isterm
+strace = term, branch, lefts ->
+    { term.type == "and" }:
+        branch = Var.new branch
+        term.terms.each: t, n =>
+            $branch = strace t, $branch, bool(n == 1, lefts, [:])
+            if not $branch: return null
+        return $branch.follow('.')
+    { term.type == "or" }:
+        term.terms.map(t -> strace t, branch, lefts)
+    { term.type == "sub"  }:
+        lasts = strace term.term, branch, lefts
+        if lasts.size == 1: return lasts[1]
+        jump, j = jumps.add Branches('*')
+        lasts.each: l -> if l: l.setjump(j)
+        return jump
+    { term.type == "call" }:
+        if lefts[term.target]: return null
+        lasts = strace_rule(term.target, branch, lefts)
+        if lasts.size == 1: return lasts[1]
+        _, at = lasts.find(l -> l == null)
+        if at:
+            // left recursion leaves nulls ... call the right recursion version
+            jump, j = jumps.add Branches('*')
+            lasts.each: l -> if l: l.setjump(j)
+            return jump.followCall("right-$(term.target)")
+        jump, j = jumps.add Branches('*')
+        lasts.each: l -> if l: l.setjump(j)
+        return jump
+    { term.type == "prim" and term.target == "text" }: branch.followString(term.text)
+    { }: print repr term
 
-findterm = t ->
-    { t.type == "and" }:
-        t.terms.map(t -> findterm t).each: t => if not t: return false
-        return true
-    { t.type == "or" }:
-        t.terms.map(t -> findterm t).each: t => if not t: return false
-        return true
-    { t.type == "sub"  }: findterm t.term
-    { t.type == "star" }: findterm t.term
-    { t.type == "plus" }: findterm t.term
-    { t.type == "starsep" }: findterm(t.term) and findterm(t.sep)
-    { t.type == "plussep" }: findterm(t.term) and findterm(t.sep)
-    { t.type == "call" }:
-        analyze_rule(t.target)
-        return terminals[t.target]
-    { t.type == "prim" }: true
-    {                  }: false
-
-findcalls = t, first ->
-    { t.type == "and" }: t.terms.each(t, n -> findcalls t, n == 1)
-    { t.type == "or" }: t.terms.each(t -> findcalls t, true)
-    { t.type == "sub"  }: findcalls t.term, first
-    { t.type == "star" }: findcalls t.term, first
-    { t.type == "plus" }: findcalls t.term, first
-    { t.type == "starsep" }: findcalls(t.term, first); findcalls(t.sep)
-    { t.type == "plussep" }: findcalls(t.term, first); findcalls(t.sep)
-    { t.type == "call" }: analyze_rule(t.target, first)
-    { }: null
-
-analyze_rule = name, first ->
-    if seen[name]:
-        if first:
-            leftrecursive[name] = true
-            return
-        recursive[name] = true
-        return
-    if terminals[name]: return
-    if recursive[name]: return
-    if leftrecursive[name]: return
-
+strace_rule = name, branch, lefts ->
     rule = rules[name]
-    if not rule: throw "rule without definition: '$(name)'"
-
-    if not is_terminal(name, rule):
-        seen[name] = true
-        findcalls rules[name].term
-        seen[name] = false
-    what = { terminals[name]     }: "terminal"
-           { leftrecursive[name] }: "left-recursive"
-           { recursive[name]     }: "recursive"
-           {                     }: "inline"
-    print "rule:", name, "is:", what
-
-isLeft = step -> isObject(step.term) and step.term.type == "left"
-
-flow = step, t, name, base, first ->
-    if step == null: return
-    { t.type == "and" }:
-        step = Var.new step
-        t.terms.each: t, n -> $step = flow $step, t, name, base, n == 1 and first
-        if $step: $step.follow({type:"accept",rule:name})
-    { t.type == "or" }:
-        t.terms.each(t -> flow step, t, name, base, first)
-    { t.type == "sub" }:
-        start = Step("SUB")
-        flow start, t.term, name, base, first
-        if start.noBranches:
-            return start.branches[1].graft(step)
-        step.follow(start)
-    { t.type == "star" }:
-        step = step.follow {type:"star"}
-        flow step, t.term, name, base, first
-    { t.type == "plus" }:
-        step = step.follow {type:"plus"}
-        flow step, t.term, name, base, first
-    { t.type == "starsep" }:
-        step = step.follow {type:"starsep"}
-        flow step, t.term, name, base, first
-    { t.type == "call" }:
-        target = t.target
-        if first and base == target:
-            size = step.branches.size
-            left = { size == 0                          }: "$(target)1"
-                   { isLeft(step.branches[size])        }: "$(target)$(size)"
-                   {                                    }: "$(target)$(size + 1)"
-            return step.follow({type:"left",name:left})
-
-        if seen[target]: return step.follow({type:"call",name:target})
-        //if terminals[target] or recursive[target] or leftrecursive[target]: // a terminal, or a call already
-        //    return step.follow({type:"call",name:target})
-        start = Step("CALL")
-        seen[target] = true
-        flow start, rules[target].term, target, base, first
-        seen[target] = false
-        if start.noBranches:
-            return start.branches[1].graft(step)
-        step.follow(start)
-    { t.type == "prim" }:
-        step.follow(t)
-    {                  }:
-        print "unknown", repr(t)
-        step.follow("ERROR")
-
-runflow = name ->
-    start = Step({type:"start",name:name})
+    if not rule: throw "rule undefined '$(name)'"
+    if seen[name]:
+        return [branch.followCall(name)]
+    print "tracing", name
     seen[name] = true
-    flow start, rules[name].term, name, name, true
+    lasts = strace rule.term, branch, lefts.set(name, true)
     seen[name] = false
-    if not leftrecursive[name]: return start.print
-
-    // now we have flow that includes one or more left recursions, split up in left and right part
-    // TODO actually split up into muliple left/right conversions
-
-    lefts = Step({type:"start-left",name:name})
-    rights = Step({type:"start-right",name:name})
-    start.branches.each: step ->
-        { not isLeft(step) }:
-            lefts.branches.add step
-            step.followLasts({type:"right",name:name})
-        {                  }:
-            step.branches.each: step ->
-                step.branches.each: step -> rights.branches.add step
-                step.followLasts({type:"right",name:name})
-
-    rights.follow({type:"nothing"})
-    lefts.print
-    rights.print
-    start.branches.clear
-    start.follow({type:"left",name:name})
-    start.print
+    return lasts
 
 ast = parserParser(io.File(args[1]).readString)
 ast.rules.each: rule ->
-    if forbidden[rule.name]: throw "rule cannot be named '$(rule.name)'"
     if rules[rule.name]: throw "rule already defined '$(rule.name)'"
     rules[rule.name] = rule
 
@@ -336,97 +168,9 @@ if not rules["wsnl"]:
 if not rules["start"] and ast.rules.size > 0:
     rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
 
-analyze_rule("start")
-//leftrecursive.each: k -> runflow(k)
-//terminals.each: k, isterm -> if isterm: runflow(k)
-//recursive.each: k -> runflow(k)
-runflow("start")
+start = jumps.add(Branches('*'))
+branch = strace_rule("start", start, [:])
+start = jumps.add(Branches('*'))
+branch = strace_rule("call", start, [:])
+jumps.each: jump, n -> print "JUMP: $n"; jump.print
 
-rules.each: name, rule ->
-    number = { rule.spec == "color" }: colors.add name; colors.size
-             {                      }: 0
-    assert number
-    to_sub(rule.term, null, name, number)
-
-emit = term ->
-    { term.type == "call" }: "$(term.target)(_p, _pos);"
-    { term.type == "meta" }: "meta_$(term.target)(_p, _pos$(term.args.map(a -> ", $a").join));"
-    { term.type == "prim" and term.text }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\");"
-    { term.type == "prim" }: "prim_$(term.target)(_p, _pos);"
-    { term.type == "name" }: emit(term.term)
-    { no_value            }: "state_ok(_pos, tlNull);"
-    { term.type == "token"}: "state_ok(_pos, tlSTR(\"$(term.token.escape(true))\"));"
-    { }: throw "ERROR emit:"+ inspect(term)
-
-lines = Array.new
-if no_value: lines.add "#define NO_VALUE 1"
-lines.add "#include \"tlmeta.c\""
-lines.add ""
-if colors.size == 0: colors.add "pad"
-lines.add "const char* const colors[] = {\"\","+ colors.toList.map(c->"\"$(c.escape(true))\"").join(",") +",null};"
-emit_declare = rule -> lines.add "static State $(rule.name)(Parser*, int);"
-subs.each(r -> emit_declare(r))
-lines.add ""
-
-emit_rule = rule ->
-    lines.add "static State $(rule.name)(Parser* _p, int _start) { // $(rule.type)"
-    lines.add " parser_enter(_p, \"$(rule.name)\", _start);"
-    lines.add " int _pos = _start;"
-    { can_optimize_and(rule) }:
-        assert rule.number
-        lines.add " State _r = "+ emit(rule.terms[1])
-        lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
-        lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
-        lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
-    { rule.type == "or" }:
-        lines.add " State _r;"
-        rule.terms.each: term ->
-            lines.add " _r = "+ emit(term)
-            lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
-            lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
-        lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
-    { rule.type == "and" }:
-        anchor = Var.new
-        indent = Var.new // TODO while we can stack indent, we cannot deal with parser_fail, so it shouldn't, also, setindent must be deeper
-        names = Array.new
-        lines.add " State _r;"
-        rule.terms.each: term ->
-            if term.type == "setindent":
-                lines.add " const int __indent = parser_indent(_p, _pos);"
-                lines.add " if (_p->indent >= __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
-                lines.add " const int _indent = _p->indent; _p->indent = __indent;"
-                $indent = true
-                return
-            if term.type == "indent":
-                lines.add " if (_p->indent != parser_indent(_p, _pos)) return parser_fail(_p, \"$(rule.name)\", _pos);"
-                return
-            if term.type == "anchor":
-                { not $anchor }: lines.add " const char* _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
-                {             }: lines.add " _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
-                $anchor = true
-                return
-            lines.add " _r = "+ emit(term)
-            if not $anchor:
-                lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _pos);"
-            if $anchor:
-                lines.add " if (!_r.ok) return parser_error(_p, \"$(rule.name)\", _start, _pos);"
-            lines.add " _pos = _r.pos;"
-            if not no_value and term.type == "name":
-                names.add term.name
-                lines.add " tlHandle $(term.name) = _r.value;"
-        { no_value }:
-            lines.add " tlHandle _v = null;"
-        { rule.act }:
-            lines.add " tlHandle _v = $(rule.act);"
-        { names.size > 0 }:
-            inner = names.toList.map(n -> "\"$n\", $n").join(", ")
-            lines.add " tlHandle _v = tlObjectFrom($inner, null);"
-        {                }:
-            lines.add " tlHandle _v = _r.value;"
-        if $anchor: lines.add " _p->anchor = _anchor;"
-        if $indent: lines.add " _p->indent = _indent;"
-        lines.add " return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, state_ok(_pos, _v));"
-    lines.add "}"
-subs.each(r -> emit_rule(r))
-
-io.File(args[2]).write(lines.join("\n"))
