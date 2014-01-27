@@ -83,8 +83,16 @@ INTERNAL tlHandle _HashMap_new(tlArgs* args) {
             continue;
         }
         if (tlHashMapIs(h)) {
-            //tlHashMap* map = tlHashMapAs(h);
-            // TODO
+            LHashMapIter* iter = lhashmapiter_new(tlHashMapAs(h)->map);
+            while (true) {
+                tlHandle key;
+                tlHandle value;
+                lhashmapiter_get(iter, &key, &value);
+                if (!key) break;
+                tlHashMapSet(hash, key, value);
+                lhashmapiter_next(iter);
+            }
+            continue;
         }
         TL_THROW("expect object or map");
     }
