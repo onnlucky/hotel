@@ -1,7 +1,12 @@
 parser = parser {
- value: "1" | "a"
-  call: call "-m()"
-      | call "()"
+  name: "a"
+number: "1"
+string: "\"\""
+ value: name | number | string
+  args: call "," call
+      | call
+  call: call ":" name "(" args ")"
+      | call "(" args ")"
       | value
     start: call "N"
 }
