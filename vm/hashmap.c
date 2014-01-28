@@ -73,10 +73,10 @@ tlMap* tlHashMapToObject(tlHashMap* map) {
 INTERNAL tlHandle _HashMap_new(tlArgs* args) {
     tlHashMap* hash = tlHashMapNew();
     for (int i = 0; i < 1000; i++) {
-        tlHandle h = tlArgsGet(args, 0);
+        tlHandle h = tlArgsGet(args, i);
         if (!h) break;
         if (tlMapOrObjectIs(h)) {
-            tlMap* map = tlMapOrObjectCast(tlArgsGet(args, 0));
+            tlMap* map = tlMapOrObjectCast(h);
             for (int i = 0; i < tlMapSize(map); i++) {
                 tlHashMapSet(hash, map->keys->data[i], map->data[i]);
             }

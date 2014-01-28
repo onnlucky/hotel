@@ -112,7 +112,22 @@ INTERNAL tlHandle _Array_new(tlArgs* args) {
     for (int i = 0; i < 1000; i++) {
         tlHandle h = tlArgsGet(args, i);
         if (!h) return array;
-        tlArrayAdd(array, h);
+
+        if (tlListIs(h)) {
+            tlList* list = tlListAs(h);
+            for (int i = 0; i < tlListSize(list); i++) {
+                tlArrayAdd(array, tlListGet(list, i));
+            }
+            continue;
+        }
+        if (tlArrayIs(h)) {
+            tlArray* from = tlArrayAs(h);
+            for (int i = 0; i < tlArraySize(from); i++) {
+                tlArrayAdd(array, tlArrayGet(from, i));
+            }
+            continue;
+        }
+        TL_THROW("expect list or array");
     }
     return array;
 }
