@@ -3,11 +3,11 @@ parser = parser {
 number: "1"
 string: "\"\""
  value: name | number | string
-  args: call "," call
-      | call
+  args: value "," args
+      | value
   call: call ":" name "(" args ")"
       | call "(" args ")"
       | value
-    start: call "N"
+    start: args "N"
 }
 

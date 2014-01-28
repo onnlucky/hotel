@@ -82,47 +82,50 @@ slcomment: "//" (!nl _)*
 rules = HashMap.new
 jumps = Array.new
 
-Branches = char, call -> {
+Branches = char, call, done -> {
     char: char
     call: call
+    done: done
     table: Array.new
     jump: Var.new
-    follow: char ->
+    follow: rule, char, call, done ->
         this.table.each: branch =>
-            if branch.char == char: return branch
-        this.table.add Branches(char)
-    followString: string ->
+            if branch.jump.get: print "warning: a jump found while following '$(rule)'"
+            if branch.done: print "warning: '$(branch.done)' shadows '$(rule)'"
+            if char and branch.char == char: return branch
+        this.table.add Branches(char, call, done)
+    followString: rule, string ->
         branch = Var.new this
-        string.each: char -> $branch = $branch.follow(char)
+        string.each: char -> $branch = $branch.follow(rule, char)
         return $branch
-    followCall: name ->
-        this.table.add Branches('*', name)
-    setjump: to ->
+    followCall: rule, name ->
+        this.follow(rule, null, name)
+    followDone: rule ->
+        this.follow(rule, null, null, rule)
+    setjump: rule, to ->
+        if this.jump.get: print "warning: a jump overrides previous jump while following '$(rule)'"
         this.jump.set to
-    factor: ->
-        if this.table.size == 0: return 1
-        this.table.map(branch -> branch.factor).sum
     print: indent ->
         indent = indent or ""
-        if this.jump.get:
-            print "$(indent)$(this.char.toChar) -> $(this.jump.get)$(this.call or "")"
-            return
-        print "$(indent)$(this.char.toChar)$(this.call or "")"
+        jump = bool(this.jump.get, " -> $(this.jump.get)", "")
+        if this.call: print "$(indent)call:$(this.call)$jump"
+        if this.done: print "$(indent)done:$(this.done)$jump"
+        if this.char: print "$(indent)$(this.char.toChar)$jump"
         this.table.each(branch -> branch.print "$indent  ")
 }
 
 seen = HashMap.new
 rights = HashMap.new
 
-strace = term, branch, lefts, left_mode ->
+strace = rule, term, branch, lefts, left_mode ->
     { term.type == "and" }:
         branch = Var.new branch
         term.terms.each: t, n =>
-            $branch = strace t, $branch, bool(n == 1, lefts, [:]), bool(n == 1, left_mode, null)
+            $branch = strace rule, t, $branch, bool(n == 1, lefts, [:]), bool(n == 1, left_mode, null)
             if not $branch: return null
-        return $branch.follow('.')
+        return $branch.followDone(rule)
     { term.type == "or" }:
-        term.terms.map(t -> strace t, branch, lefts, left_mode)
+        term.terms.map(t -> strace rule, t, branch, lefts, left_mode)
     { term.type == "call" }:
         name = term.target
         if left_mode == name: return branch
@@ -134,43 +137,43 @@ strace = term, branch, lefts, left_mode ->
             rights[name] = true
             lasts = lasts.filter(l -> l)
             if lasts.size == 1:
-                return lasts[1].followCall("right-$(name)")
+                return lasts[1].followCall(rule, "right-$(name)")
             jump, j = jumps.add Branches('*')
             print "create jump for left version: $j $(name)"
-            lasts.each: l -> l.setjump(j)
-            return jump.followCall("right-$(name)")
+            lasts.each: l -> l.setjump(rule, j)
+            return jump.followCall(rule, "right-$(name)")
         if lasts.size == 1: return lasts[1]
         jump, j = jumps.add Branches('*')
         print "create jump for: $j $(name)"
-        lasts.each: l -> if l: l.setjump(j)
+        lasts.each: l -> if l: l.setjump(rule, j)
         return jump
     { term.type == "sub"  }:
-        lasts = strace term.term, branch, lefts, left_mode
+        lasts = strace rule, term.term, branch, lefts, left_mode
         if lasts.size == 1: return lasts[1]
         jump, j = jumps.add Branches('*')
-        lasts.each: l -> if l: l.setjump(j)
+        lasts.each: l -> if l: l.setjump(rule, j)
         return jump
     { left_mode }: null
-    { term.type == "prim" and term.target == "text" }: branch.followString(term.text)
+    { term.type == "prim" and term.target == "text" }: branch.followString(rule, term.text)
     { }: print repr term
 
 strace_right = name ->
     rule = rules[name]
     branch, j = jumps.add Branches('*')
     print "create jump right version: $j $(name)"
-    right_lasts = strace rule.term, branch, [:], name
-    right_lasts.each: l -> if l: l.followCall("right-$(name)")
-    branch.follow('.')
+    right_lasts = strace name, rule.term, branch, [:], name
+    right_lasts.each: l -> if l: l.followCall(name, "right-$(name)")
+    branch.followDone(name)
 
 strace_rule = name, branch, lefts, left_mode ->
     rule = rules[name]
     if not rule: throw "rule undefined '$(name)'"
     if seen[name]:
         print "$name is recursive"
-        return [branch.followCall(name)]
+        return [branch.followCall(name, name)]
     print "tracing", name
     seen[name] = true
-    lasts = strace rule.term, branch, lefts.set(name, true), left_mode
+    lasts = strace name, rule.term, branch, lefts.set(name, true), left_mode
     seen[name] = false
     return lasts
 
