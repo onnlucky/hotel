@@ -186,19 +186,6 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
         return false;
     }
 
-    if (tlArrayIs(h)) {
-        tlArray* array = (tlArray*)h;
-        tlBufferWrite(buf, "[", 1);
-        for (int i = 0;; i++) {
-            tlHandle v = tlArrayGet(array, i);
-            if (!v) break;
-            if (i != 0) tlBufferWrite(buf, ",", 1);
-            pprint(buf, v, false);
-        }
-        tlBufferWrite(buf, "]", 1);
-        return false;
-    }
-
     if (tlMapOrObjectIs(h)) {
         tlMap* map = (tlMap*)h;
         tlBufferWrite(buf, "{", 1);
