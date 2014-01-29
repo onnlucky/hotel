@@ -1,5 +1,4 @@
 #include "tl.h"
-#include "bcode.c"
 #include "debug.h"
 
 int main(int argc, char** argv) {

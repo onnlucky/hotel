@@ -547,7 +547,7 @@ exit:;
     print("</code>");
 }
 
-void pprint(tlHandle v) {
+void bpprint(tlHandle v) {
     if (tlBCodeIs(v)) {
         tlBCode* code = tlBCodeAs(v);
         disasm(code);
@@ -561,7 +561,7 @@ void pprint(tlHandle v) {
             if (!v) break;
             tlHandle k = tlMapKeyIter(map, i);
             print("%s:", tl_str(k));
-            pprint(v);
+            bpprint(v);
         }
         print("}");
         return;
@@ -572,7 +572,7 @@ void pprint(tlHandle v) {
         for (int i = 0;; i++) {
             tlHandle v = tlListGet(list, i);
             if (!v) break;
-            pprint(v);
+            bpprint(v);
         }
         print("]");
         return;
@@ -961,5 +961,19 @@ tlHandle beval_module(tlTask* task, tlBModule* mod) {
     tlBCall* call = tlBCallNew(0);
     call->fn = fn;
     return beval(task, null, call, 0, null);
+}
+
+INTERNAL tlHandle _Module_new(tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    tlString* name = tlStringCast(tlArgsGet(args, 1));
+    tlBModule* mod = tlBModuleNew(name);
+    deserialize(buf, mod);
+    tlBModuleLink(mod, tlVmGlobalEnv(tlVmCurrent()));
+    return mod;
+}
+
+INTERNAL tlHandle _module_run(tlArgs* args) {
+    tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    return beval_module(tlTaskCurrent(), mod);
 }
 

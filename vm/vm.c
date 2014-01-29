@@ -32,6 +32,7 @@
 #include "code.c"
 #include "env.c"
 #include "eval.c"
+#include "bcode.c"
 
 #include "var.c"
 #include "array.c"
@@ -580,6 +581,9 @@ static const tlNativeCbs __vm_natives[] = {
     { "isBin", _isBin },
 
     { "_set_exitcode", _set_exitcode },
+
+    { "_Module_new", _Module_new },
+    { "_module_run", _module_run },
 
     { 0, 0 },
 };
