@@ -27,10 +27,10 @@ max = l, r ->
     if l >= r: return l
     return r
 
-try = ->
-    if not args.block: throw "try expects a block"
+try = &test ->
     catch: return null
-    args.block.call
+    if args.block: return args.block.call
+    test()
 
 _get_random = ->
     this.get(random(this.size))

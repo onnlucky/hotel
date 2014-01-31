@@ -440,7 +440,7 @@ static tlHandle valueObjectSend(tlArgs* args) {
 
 send:;
     trace("VALUE SEND %p: %s -> %s", map, tl_str(msg), tl_str(field));
-    if (!field) TL_UNDEF("%s.%s is undefined", tl_str(map), tl_str(msg));
+    if (!field) TL_THROW("%s.%s is undefined", tl_str(map), tl_str(msg));
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
 }

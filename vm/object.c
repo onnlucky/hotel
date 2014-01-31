@@ -68,7 +68,7 @@ send:;
             obj->map = tlMapSet(obj->map, key, val);
             return val;
         }
-        TL_UNDEF("%s.%s is undefined", tl_str(map), tl_str(msg));
+        TL_THROW("%s.%s is undefined", tl_str(map), tl_str(msg));
     }
     if (!tlCallableIs(field)) return field;
     return tlEvalArgsFn(args, field);
