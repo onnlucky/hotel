@@ -63,6 +63,10 @@ int tlBufferSize(tlBuffer* buf) {
 const char* tlBufferData(tlBuffer* buf) {
     return readbuf(buf);
 }
+int tlBufferGet(tlBuffer* buf, int at) {
+    if (at < 0 || at >= canread(buf)) return -1;
+    return 0xFF & buf->data[buf->readpos + at];
+}
 
 // on every write, we compact the buffer and ensure there is enough space to write, growing if needed
 INTERNAL void tlBufferCompact(tlBuffer* buf) {
@@ -356,6 +360,32 @@ INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
     return tlBOOL(r == 0);
 }
 
+INTERNAL tlHandle _buffer_dump(tlArgs* args) {
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
+    for (int i = 0; i < tlBufferSize(buf); i++) {
+        if (i > 0 && i % 64 == 0) fprintf(stdout, "\n");
+        int c = tlBufferGet(buf, i);
+        if (c < 32 || c >= 127) {
+            fprintf(stdout, ".");
+        } else {
+            fprintf(stdout, "%c", c);
+        }
+    }
+    printf("\n");
+    return tlNull;
+}
+INTERNAL tlHandle _buffer_hexdump(tlArgs* args) {
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
+    for (int i = 0; i < tlBufferSize(buf); i++) {
+        if (i > 0 && i % 16 == 0) fprintf(stdout, "\n");
+        else if (i > 0 && i % 2 == 0) fprintf(stdout, " ");
+        int c = tlBufferGet(buf, i);
+        fprintf(stdout, "%02x", c);
+    }
+    fprintf(stdout, "\n");
+    return tlNull;
+}
+
 INTERNAL tlHandle _Buffer_new(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
@@ -384,6 +414,8 @@ static void buffer_init() {
             "findByte", _buffer_findByte, // TODO remove
             "write", _buffer_write,
             "startsWith", _buffer_startsWith,
+            "dump", _buffer_dump,
+            "hexdump", _buffer_hexdump,
             null
     );
 }
