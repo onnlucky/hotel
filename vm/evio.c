@@ -1007,7 +1007,7 @@ static tlHandle _io_launch(tlArgs* args) {
     if (env) for (int i = 0;; i++) {
         tlString* str = tlStringCast(tlMapValueIter(env, i));
         if (!str) break;
-        tlSym key = tlSetGet(tlMapKeySet(env), i);
+        tlSym key = tlSetGet(tlMapKeys(env), i);
         setenv(tlSymData(key), tlStringData(str), 1);
     }
 

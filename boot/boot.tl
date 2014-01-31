@@ -191,6 +191,12 @@ _install(String.class, #replace, (replace = (from, to ->
 )))
 
 _install(Args.class, #each, _each)
+_install(Args.class, #map, _map)
+_install(Args.class, #find, _find)
+_install(Args.class, #reduce, _reduce)
+_install(Args.class, #filter, _filter)
+_install(Args.class, #flatten, _flatten)
+_install(Args.class, #join, _join)
 
 _install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)

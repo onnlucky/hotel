@@ -90,9 +90,16 @@ void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v) {
 }
 
 static tlHandle _args_size(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    if (!as) TL_THROW("Expected a args object");
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
     return tlINT(tlArgsSize(as));
+}
+static tlHandle _args_first(tlArgs* args) {
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
+    return tlMAYBE(tlArgsGet(as, 0));
+}
+static tlHandle _args_last(tlArgs* args) {
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
+    return tlMAYBE(tlArgsGet(as, tlArgsSize(args) - 1));
 }
 static tlHandle _args_get(tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
@@ -158,17 +165,24 @@ static tlKind _tlArgsKind = {
 static void args_init() {
     v_args_empty = tlArgsNew(null, null);
     _tlArgsKind.klass = tlClassMapFrom(
-            "size", _args_size,
-            "get", _args_get,
-            "slice", _args_slice,
-
             "this", _args_this,
             "msg", _args_msg,
             "block", _args_block,
-
-            "map", _args_map,
             "names", _args_names,
+
+            //"hash", _args_hash,
+            "size", _args_size,
+            "get", _args_get,
+            "first", _args_first,
+            "last", _args_last,
+            "slice", _args_slice,
             "each", null,
+            "map", null,
+            "find", null,
+            "reduce", null,
+            "filter", null,
+            "flatten", null,
+            "join", null,
             null
     );
     tlMap* constructor = tlClassMapFrom(

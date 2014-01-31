@@ -195,6 +195,13 @@ static tlHandle _add(tlArgs* args) {
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumAdd(tlNumTo(l), tlNumTo(r));
     // TODO when adding string and something else, convert else to string ...
     if (tlStringIs(l) && tlStringIs(r)) return tlStringCat(tlStringAs(l), tlStringAs(r));
+    {
+        tlList* ll = tlListCast(l);
+        if (!ll && tlArgsIs(l)) ll = tlArgsList(tlArgsAs(l));
+        tlList* rl = tlListCast(r);
+        if (!rl && tlArgsIs(r)) rl = tlArgsList(tlArgsAs(r));
+        if (ll && rl) return tlListCat(ll, rl);
+    }
     TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
 }
 static tlHandle _sub(tlArgs* args) {

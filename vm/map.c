@@ -34,11 +34,29 @@ tlMap* tlMapToObject_(tlMap* map) {
     assert((map->head.kind & 0x7) == 0);
     map->head.kind = (intptr_t)tlHandleObjectKind; return map;
 }
+int tlMapHash(tlMap* map) {
+    // if (map->hash) return map->hash;
+    unsigned int hash = 0x1;
+    for (int i = 0; i < map->keys->size; i++) {
+        hash ^= tlHandleHash(tlSetGet(map->keys, i));
+        hash ^= tlHandleHash(map->data[i]);
+    }
+    if (!hash) hash = 1;
+    return hash;
+}
 int tlMapSize(const tlMap* map) {
     return map->keys->size;
 }
-tlSet* tlMapKeySet(const tlMap* map) {
+tlSet* tlMapKeys(const tlMap* map) {
     return map->keys;
+}
+tlList* tlMapValues(const tlMap* map) {
+    tlList* list = tlListNew(tlMapSize(map));
+    for (int i = 0; i < map->keys->size; i++) {
+        assert(map->data[i]);
+        tlListSet_(list, i, map->data[i]);
+    }
+    return list;
 }
 void tlMapDump(tlMap* map) {
     print("---- MAP DUMP @ %p ----", map);
@@ -289,11 +307,25 @@ static tlHandle _Map_inherit(tlArgs* args) {
     map->head.kind = kind;
     return map;
 }
+static tlHandle _Map_hash(tlArgs* args) {
+    tlMap* map = tlMapOrObjectCast(tlArgsGet(args, 0));
+    if (!map) TL_THROW("Expected a Map");
+    return tlINT(tlMapHash(map));
+}
+static tlHandle _Map_size(tlArgs* args) {
+    tlMap* map = tlMapOrObjectCast(tlArgsGet(args, 0));
+    if (!map) TL_THROW("Expected a Map");
+    return tlINT(tlMapSize(map));
+}
 static tlHandle _Map_keys(tlArgs* args) {
-    trace("");
-    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
-    tlMap* map = tlArgsGet(args, 0);
-    return map->keys;
+    tlMap* map = tlMapOrObjectCast(tlArgsGet(args, 0));
+    if (!map) TL_THROW("Expected a Map");
+    return tlMapKeys(map);
+}
+static tlHandle _Map_values(tlArgs* args) {
+    tlMap* map = tlMapOrObjectCast(tlArgsGet(args, 0));
+    if (!map) TL_THROW("Expected a Map");
+    return tlMapValues(map);
 }
 static tlHandle _Map_get(tlArgs* args) {
     trace("");
@@ -324,15 +356,22 @@ static tlHandle _Map_set(tlArgs* args) {
     if (!val) TL_THROW("Expected a value");
     return tlMapSet(map, tlSymFromString(key), val);
 }
+static tlHandle _map_hash(tlArgs* args) {
+    tlMap* map = tlMapAs(tlArgsTarget(args));
+    return tlINT(tlMapHash(map));
+}
 static tlHandle _map_size(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
     if (!map) TL_THROW("Expected a map");
     return tlINT(tlMapSize(map));
 }
 static tlHandle _map_keys(tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsTarget(args));
-    if (!map) TL_THROW("Expected a map");
-    return tlMapKeySet(map);
+    tlMap* map = tlMapAs(tlArgsTarget(args));
+    return tlMapKeys(map);
+}
+static tlHandle _map_values(tlArgs* args) {
+    tlMap* map = tlMapAs(tlArgsTarget(args));
+    return tlMapValues(map);
 }
 static tlHandle _map_get(tlArgs* args) {
     tlMap* map = tlMapCast(tlArgsTarget(args));
@@ -419,14 +458,7 @@ static tlHandle valueObjectRun(tlHandle fn, tlArgs* args) {
 
 static unsigned int mapHash(tlHandle v) {
     tlMap* map = tlMapOrObjectAs(v);
-    // if (map->hash) return map->hash;
-    unsigned int hash = 0x1;
-    for (int i = 0; i < map->keys->size; i++) {
-        hash ^= tlHandleHash(tlSetGet(map->keys, i));
-        hash ^= tlHandleHash(map->data[i]);
-    }
-    if (!hash) hash = 1;
-    return hash;
+    return tlMapHash(map);
 }
 static bool mapEquals(tlHandle _left, tlHandle _right) {
     if (_left == _right) return true;
@@ -472,28 +504,35 @@ static tlKind _tlHandleObjectKind = {
 static void map_init() {
     _tl_emptyMap = tlMapNew(null);
     _tlMapKind.klass = tlClassMapFrom(
+        "hash", _map_hash,
         "size", _map_size,
         "get", _map_get,
         "set", _map_set,
         "keys", _map_keys,
+        "vales", _map_values,
         "toObject", _map_toObject,
         "each", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(
         "call", _Map_from,
+        "hash", _Map_hash,
+        "size", _Map_size,
+        "get", _Map_get,
         "set", _Map_set,
         "keys", _Map_keys,
-        "get", _Map_get,
+        "values", _Map_values,
         "class", null,
         "each", null,
         null
     );
     tlMap* oconstructor = tlClassMapFrom(
         "call", _Object_from,
+        "hash", _Map_hash,
+        "get", _Map_get,
         "set", _Object_set,
         "keys", _Map_keys,
-        "get", _Map_get,
+        "values", _Map_values,
         "each", null,
         null
     );

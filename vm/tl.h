@@ -256,7 +256,7 @@ void tlListSet_(tlList* list, int at, tlHandle v);
 // ** map **
 int tlMapSize(const tlMap* map);
 int tlMapIsEmpty(const tlMap* map);
-tlSet* tlMapKeySet(const tlMap* map);
+tlSet* tlMapKeys(const tlMap* map);
 tlHandle tlMapGetInt(const tlMap* map, int key);
 tlHandle tlMapGetSym(const tlMap* map, tlSym key);
 tlHandle tlMapValueIter(const tlMap* map, int i);

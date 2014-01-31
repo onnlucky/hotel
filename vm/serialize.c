@@ -193,7 +193,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
         for (int i = 0;; i++) {
             tlHandle v = tlMapValueIter(map, i);
             if (!v) break;
-            tlHandle k = tlSetGet(tlMapKeySet(map), i);
+            tlHandle k = tlSetGet(tlMapKeys(map), i);
             if (pprint(buf, k, true)) {
                 tlBufferWrite(buf, ":", 1);
                 pprint(buf, v, false);

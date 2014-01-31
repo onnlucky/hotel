@@ -403,8 +403,8 @@ static tlKind _tlListKind = {
 static void list_init() {
     _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
     _tlListKind.klass = tlClassMapFrom(
-        "size", _list_size,
         "hash", _list_hash,
+        "size", _list_size,
         "get", _list_get,
         "first", _list_first,
         "last", _list_last,
