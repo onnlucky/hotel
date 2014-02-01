@@ -39,6 +39,10 @@ int tlBinSize(tlBin* bin) {
     assert(tlBinIs(bin));
     return bin->len;
 }
+int tlBinGet(tlBin* bin, int at) {
+     if (at < 0 || at >= tlBinSize(bin)) return -1;
+     return bin->data[at] & 0xFF;
+}
 
 INTERNAL tlHandle _Bin_new(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
@@ -60,7 +64,7 @@ INTERNAL tlHandle _bin_get(tlArgs* args) {
     tlBin* bin = tlBinAs(tlArgsTarget(args));
     int at = tl_int_or(tlArgsGet(args, 0), -1);
     if (at < 1 || at > bin->len) TL_THROW("out of bounds");
-    return tlINT(bin->data[at - 1]);
+    return tlINT(tlBinGet(bin, at - 1));
 }
 INTERNAL tlHandle _bin_toString(tlArgs* args) {
     static const char hexchars[] =
@@ -79,6 +83,15 @@ INTERNAL tlHandle _bin_toString(tlArgs* args) {
 INTERNAL tlHandle _isBin(tlArgs* args) {
     return tlBOOL(tlBinIs(tlArgsGet(args, 0)));
 }
+INTERNAL const char* bintoString(tlHandle v, char* buf, int size) {
+    tlBin* bin = tlBinAs(v);
+    size -= snprintf(buf, size, "bin(");
+    for (int i = 0; i < tlBinSize(bin) && size > 4; i++) {
+        size -= snprintf(buf + 4 + 5 * i, 6, "0x%02X,", tlBinGet(bin, i));
+    }
+    if (size > 2) snprintf(buf + 4 + 5 * tlBinSize(bin) - 1, 2, ")");
+    return buf;
+}
 INTERNAL unsigned int binHash(tlHandle v) {
     return tlStringHash((tlString*)v);
 }
@@ -90,6 +103,7 @@ INTERNAL tlHandle binCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlBinKind = {
     .name = "bin",
+    .toString = bintoString,
     .hash = binHash,
     .equals = binEquals,
     .cmp = binCmp,
