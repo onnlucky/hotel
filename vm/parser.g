@@ -491,29 +491,29 @@ op_log = l:op_not _ ("or"  __ r:op_not { l = tlCallFrom(tl_active(s_or), l, r, n
                     )*                 { $$ = l }
 op_not = "not" __ r:op_cmp             { $$ = tlCallFrom(tl_active(s_not), r, null); }
        | op_cmp
-op_cmp = l:op_bit _ ("<=" __ r:op_bit { l = tlCallFrom(tl_active(s_lte), l, r, null); }
-                    |"<"  __ r:op_bit { l = tlCallFrom(tl_active(s_lt), l, r, null); }
-                    |">"  __ r:op_bit { l = tlCallFrom(tl_active(s_gt), l, r, null); }
-                    |">=" __ r:op_bit { l = tlCallFrom(tl_active(s_gte), l, r, null); }
-                    |"==" __ r:op_bit { l = tlCallFrom(tl_active(s_eq), l, r, null); }
-                    |"!=" __ r:op_bit { l = tlCallFrom(tl_active(s_neq), l, r, null); }
+op_cmp = l:op_add _ ("<=" __ r:op_add { l = tlCallFrom(tl_active(s_lte), l, r, null); }
+                    |"<"  __ r:op_add { l = tlCallFrom(tl_active(s_lt), l, r, null); }
+                    |">"  __ r:op_add { l = tlCallFrom(tl_active(s_gt), l, r, null); }
+                    |">=" __ r:op_add { l = tlCallFrom(tl_active(s_gte), l, r, null); }
+                    |"==" __ r:op_add { l = tlCallFrom(tl_active(s_eq), l, r, null); }
+                    |"!=" __ r:op_add { l = tlCallFrom(tl_active(s_neq), l, r, null); }
+                    )*                { $$ = l; }
+op_add = l:op_mul _ ("+"  __ r:op_mul { l = tlCallFrom(tl_active(s_add), l, r, null); }
+                    |"-"  __ r:op_mul { l = tlCallFrom(tl_active(s_sub), l, r, null); }
+                    )*                { $$ = l; }
+op_mul = l:op_bit _ ("*"  __ r:op_bit { l = tlCallFrom(tl_active(s_mul), l, r, null); }
+                    |"/"  __ r:op_bit { l = tlCallFrom(tl_active(s_div), l, r, null); }
+                    |"/|" __ r:op_bit { l = tlCallFrom(tl_active(s_idiv), l, r, null); }
+                    |"%"  __ r:op_bit { l = tlCallFrom(tl_active(s_mod), l, r, null); }
                     )*                { $$ = l; }
 op_bit = l:op_sht _ ("&"  __ r:op_sht { l = tlCallFrom(tl_active(s_band), l, r, null); }
                     |"|"  __ r:op_sht { l = tlCallFrom(tl_active(s_bor), l, r, null); }
                     )*                { $$ = l; }
-op_sht = l:op_add _ ("<<" __ r:op_add { l = tlCallFrom(tl_active(s_lshift), l, r, null); }
-                    |">>" __ r:op_add { l = tlCallFrom(tl_active(s_rshift), l, r, null); }
+op_sht = l:op_pow _ ("<<" __ r:op_pow { l = tlCallFrom(tl_active(s_lshift), l, r, null); }
+                    |">>" __ r:op_pow { l = tlCallFrom(tl_active(s_rshift), l, r, null); }
                     )*                { $$ = l; }
-op_add = l:op_mul _ ("+" __ r:op_mul { l = tlCallFrom(tl_active(s_add), l, r, null); }
-                    |"-" __ r:op_mul { l = tlCallFrom(tl_active(s_sub), l, r, null); }
-                    )*               { $$ = l; }
-op_mul = l:op_pow _ ("*" __ r:op_pow { l = tlCallFrom(tl_active(s_mul), l, r, null); }
-                    |"/" __ r:op_pow { l = tlCallFrom(tl_active(s_div), l, r, null); }
-                    |"/|" __ r:op_pow { l = tlCallFrom(tl_active(s_idiv), l, r, null); }
-                    |"%" __ r:op_pow { l = tlCallFrom(tl_active(s_mod), l, r, null); }
-                    )*               { $$ = l; }
-op_pow = l:paren  _ ("^" __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, null); }
-                    )*               { $$ = l; }
+op_pow = l:paren  _ ("^"  __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, null); }
+                    )*                { $$ = l; }
 
  paren = "assert"_"("__ < as:cargs > __")" t:tail {
             as = tlListPrepend2(L(as), s_string, tlStringFromCopy(yytext, 0));
