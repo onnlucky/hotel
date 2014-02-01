@@ -64,6 +64,9 @@ DomEntry = {
 DomText = {
     class: DomEntry
     toString: -> return @text or ""
+    firstChild: null
+    lastChild: null
+    attrs: null
 }
 
 Text = {

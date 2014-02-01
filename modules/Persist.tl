@@ -36,14 +36,14 @@ new = name ->
         ids.set(id, res)
     revive = v ->
         if isObject(v):
-            if v?class?_name == #PersistObjectClass: return ids[v._id]
-            if v?class?_name == #PersistListClass: return ids[v._id]
+            if try(v.class._name) == #PersistObjectClass: return ids[v._id]
+            if try(v.class._name) == #PersistListClass: return ids[v._id]
         return v
     replay = cmd ->
-        if cmd?new == #Object: return object_new(cmd.id, true)
-        if cmd?new == #List: return list_new(cmd.id, true)
-        if cmd?set: return ids[cmd.id]._back.set(cmd.k, revive(cmd.v))
-        if cmd?del: return ids[cmd.id]._back.remove(cmd.k)
+        if try(cmd.new) == #Object: return object_new(cmd.id, true)
+        if try(cmd.new) == #List: return list_new(cmd.id, true)
+        if try(cmd.set): return ids[cmd.id]._back.set(cmd.k, revive(cmd.v))
+        if try(cmd.del): return ids[cmd.id]._back.remove(cmd.k)
         assert(false, "unknown command: $cmd")
 
     while fd.find("\n"):

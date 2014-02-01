@@ -263,7 +263,7 @@ _run = arglist, env, check ->
 /// will return output of stdin and stderr combined
 run = cmd ->
     arglist = cmd.toString.split.cat(args[2:].map(a -> a.toString))
-    _run(arglist, args.names.env, not args.names.allowerror)
+    _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
 
 /// shell(cmd, args...) env=null, allowerror=false
 /// execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
@@ -271,7 +271,7 @@ run = cmd ->
 /// will return output of stdin and stderr combined
 shell = cmd ->
     arglist = ["sh", "-c", cmd.toString].cat(args[2:].map(a -> a.toString))
-    _run(arglist, args.names.env, not args.names.allowerror)
+    _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
 
 wait = s -> _io.wait s
 

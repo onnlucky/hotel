@@ -50,8 +50,8 @@ pNot = in, nr, parser ->
     trace2(in, "pNot")
     in = (
         catch: e =>
-            if e?t != #p: throw e
-            if e?noreturn: throw e
+            if try(e.t) != #p: throw e
+            if try(e.noreturn): throw e
             return in, null
         parser(in)
     )
@@ -65,16 +65,16 @@ pAhead = in, nr, parser ->
 pOpt = in, nr, parser ->
     trace2(in, "pOpt")
     catch: e =>
-        if e?t != #p: throw e
-        if e?noreturn: throw e
+        if try(e.t) != #p: throw e
+        if try(e.noreturn): throw e
         return in, null
     parser(in)
 
 _pmany = in, parser, res ->
     trace2(in, "_pmany: $(res.size)")
     catch: e =>
-        if e?t != #p: throw e
-        if e?noreturn: throw e
+        if try(e.t) != #p: throw e
+        if try(e.noreturn): throw e
         trace2(in, " << pStar|pPlus");
         return in, res
     in, v = parser(in)
@@ -98,8 +98,8 @@ pOr = in, nr, name ->
         trace2(in, "pOr: $name: $($i)")
         $i += 1
         catch: e =>
-            if e?t != #p: throw e
-            if e?noreturn: throw e
+            if try(e.t) != #p: throw e
+            if try(e.noreturn): throw e
         in, v = parser(in)
         trace2(in, "pOr: $name <<")
         return in, v
@@ -107,9 +107,9 @@ pOr = in, nr, name ->
     error(in, nr, "a $name")
 
 pHandle = e, nr, name ->
-    if e?t != #p: throw e
+    if try(e.t) != #p: throw e
     trace(e.in, " << FAIL $name")
-    if e?noreturn: throw e
+    if try(e.noreturn): throw e
     error(e.in, nr, e.msg)
 
 pAct = in, v -> return in, v
@@ -149,9 +149,9 @@ pStart = rule, text ->
     _with_lock(oop):
         in, v = (
             catch: e ->
-                if e?t != #p: throw e
+                if try(e.t) != #p: throw e
                 line, char = lineFromPos(e.in.text, e.in.pos)
-                if e?msg: throw "SyntaxError: expected $(e.msg) on line $line col $char"
+                if try(e.msg): throw "SyntaxError: expected $(e.msg) on line $line col $char"
                 throw "SyntaxError: on line $line col $char"
             rule({text: text, pos: 1, oop: oop })
         )

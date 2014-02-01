@@ -156,7 +156,7 @@ get = url ->
            {                       }: print length, encoding; assert false
 
     // TODO read text encoding and not assume utf8
-    if args.names.stream: return body, res
+    if args.namesmap["stream"]: return body, res
     if type and type.startsWith("text"): return body.readString, res
     return body.read, res
 
