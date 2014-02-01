@@ -130,7 +130,7 @@ static tlHandle _args_block(tlArgs* args) {
     tlHandle res = tlArgsBlock(as);
     return tlMAYBE(res);
 }
-static tlHandle _args_map(tlArgs* args) {
+static tlHandle _args_namesmap(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlArgsMap(as);
     return tlMAYBE(res);
@@ -169,6 +169,8 @@ static void args_init() {
             "msg", _args_msg,
             "block", _args_block,
             "names", _args_names,
+            "namesmap", _args_namesmap,
+            //"raw", _args_raw,
 
             //"hash", _args_hash,
             "size", _args_size,

@@ -241,7 +241,7 @@ _install(Array.class, #join, _join)
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
-    args.map.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
+    args.namesmap.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
 
 _install(Error, #call, _errorConstructor);
 _install(ArgumentError, #call, _errorConstructor);
