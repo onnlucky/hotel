@@ -321,10 +321,18 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     int start = tlBufferSize(buf);
 
     tlBCode* bcode = tlBCodeNew(mod);
-    bcode->args = tlListAs(readref(buf, data, null));
-    bcode->argnames = tlMapAs(readref(buf, data, null));
-    bcode->localnames = tlListAs(readref(buf, data, null));
-    bcode->name = tlStringAs(readref(buf, data, null));
+    tlHandle args = readref(buf, data, null);
+    if (!tlListIs(args)) fatal("first code ref must be a list, not %s", tl_str(args));
+    bcode->args = tlListAs(args);
+    tlHandle argnames = readref(buf, data, null);
+    if (!tlMapIs(argnames)) fatal("second code ref must be a map, not %s", tl_str(argnames));
+    bcode->argnames = tlMapAs(argnames);
+    tlHandle localnames = readref(buf, data, null);
+    if (!tlListIs(localnames)) fatal("third code ref must be a list, not %s", tl_str(localnames));
+    bcode->localnames = tlListAs(localnames);
+    tlHandle name = readref(buf, data, null);
+    if (!tlStringIs(name)) fatal("fourth code ref must be a string, not %s", tl_str(name));
+    bcode->name = tlStringAs(name);
     trace(" %s -- %s %s %s", tl_str(bcode->name), tl_str(bcode->args), tl_str(bcode->argnames), tl_str(bcode->localnames));
 
     // we don't want above data in the bcode ... so skip it
@@ -459,8 +467,12 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     }
     if (mod) {
         mod->data = data;
-        mod->links = tlListAs(tlMapGet(v, tlSYM("link")));
-        mod->body = tlBCodeAs(tlMapGet(v, tlSYM("body")));
+        tlHandle links = tlListGet(data, size - 2);
+        tlHandle body = tlListGet(data, size - 1);
+        if (!tlListIs(links)) fatal("modules end with linker list as second last value");
+        if (!tlBCodeIs(body)) fatal("modules end with code as last value");
+        mod->links = tlListAs(links);
+        mod->body = tlBCodeAs(body);
     }
     return v;
 }
