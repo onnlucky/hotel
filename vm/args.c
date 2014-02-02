@@ -31,7 +31,7 @@ tlArgs* tlArgsNewNames(int size, tlSet* names) {
 
 tlArgs* tlArgsNew(tlList* list, tlMap* map) {
     if (!list) list = _tl_emptyList;
-    if (!map) map = _tl_emptyMap;
+    if (!map) map = tlMapEmpty();
     tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs));
     args->list = list;
     args->map = map;

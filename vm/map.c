@@ -13,15 +13,15 @@ tlMap* tlMapFromObjectAs(tlHandle v) { assert(tlHandleObjectIs(v)); return (tlMa
 tlMap* tlMapFromObjectCast(tlHandle v) { return tlHandleObjectIs(v)?(tlMap*)v:null; }
 bool tlMapOrObjectIs(tlHandle v) { return tlMapIs(v) || tlHandleObjectIs(v); }
 
-static tlMap* _tl_emptyMap;
-
 struct tlMap {
     tlHead head;
     tlSet* keys;
     tlHandle data[];
 };
 
-tlMap* tlMapEmpty() { return _tl_emptyMap; }
+static tlMap* _tl_emptyMap;
+
+tlMap* tlMapEmpty() { return tlMapNew(null); }
 
 tlMap* tlMapNew(tlSet* keys) {
     if (!keys) keys = _tl_set_empty;
