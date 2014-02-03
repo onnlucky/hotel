@@ -15,12 +15,12 @@ HttpConnection = conn ->
             // read and parse until headers are complete
             if @_req: return @_req
             loop:
-                if @_in.size > 2048: print @_in.read; conn.close; throw "REQUEST TOO LONG"
+                if @_in.size > 2048: print @_in.readString; conn.close; throw "REQUEST TOO LONG"
                 if @_in.find("\r\n\r\n"): break
                 if @_in.find("\n\n"): break
-                _, len = conn.read @_in
+                len = conn.readInto @_in
                 if len == 0: throw "IO ERROR"
-            @_req = httpparser.request(@_in.read)
+            @_req = httpparser.request(@_in.readString)
         )
         end: -> @_didend = true; @flush(true); conn.close
         error: (->

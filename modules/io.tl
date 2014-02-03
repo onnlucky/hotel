@@ -86,6 +86,7 @@ Stream = {
             return this.rbuf.readString
         read: len ->
             if len:
+                assert len >= 0 and len <= 1000_000_000
                 while this.rbuf.size < len: this._readSome
                 return this.rbuf.read len
             this._readFull
