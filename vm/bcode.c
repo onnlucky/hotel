@@ -32,12 +32,15 @@ const char* op_name(uint8_t op) {
 
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBCode);
-TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
+//TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
-TL_REF_TYPE(tlBFrame);
+//TL_REF_TYPE(tlBFrame);
 TL_REF_TYPE(tlBLazy);
 TL_REF_TYPE(tlBLazyData);
+
+tlDebugger* tlDebuggerFor(tlTask* task);
+void tlDebuggerStep(tlDebugger* debugger, tlBFrame* frame);
 
 // against better judgement, modules are linked by mutating, or copying if already linked
 struct tlBModule {
@@ -820,7 +823,15 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
     }
 
+    // if there is a debugger, always create a frame
+    tlDebugger* debugger = tlDebuggerFor(task);
+    if (debugger) ensure_frame(&calls, &locals, &frame, &lazylocals, args);
+
 again:;
+    if (debugger) {
+        frame->pc = pc;
+        tlDebuggerStep(debugger, frame);
+    }
     op = ops[pc++];
     if (!op) return v; // OP_END
     assert(op & 0xC0);
@@ -883,7 +894,7 @@ again:;
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
                 frame->pc = pc;
                 fatal("almost :)");
-                return v;
+                return null;
             }
             break;
         }
@@ -968,6 +979,18 @@ resume:;
     goto again;
 }
 
+void tlBCallRun(tlTask* task) {
+    tlBCall* call = tlBCallAs(task->stack);
+    tlHandle v = beval(task, null, call, 0, null);
+    if (v) tlTaskDone(task, v);
+}
+
+void tlBFrameRun(tlTask* task) {
+    tlBFrame* frame = tlBFrameAs(task->stack);
+    tlHandle v = beval(task, frame, null, 0, null);
+    if (v) tlTaskDone(task, v);
+}
+
 tlHandle beval_module(tlTask* task, tlBModule* mod) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     tlBCall* call = tlBCallNew(0);
@@ -986,6 +1009,16 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
 
 INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
-    return beval_module(tlTaskCurrent(), mod);
+    tlTask* task = tlTaskCast(tlArgsGet(args, 1));
+    if (!task) return beval_module(tlTaskCurrent(), mod);
+
+    tlBClosure* fn = tlBClosureNew(mod->body, null);
+    tlBCall* call = tlBCallNew(0);
+    call->fn = fn;
+    task->stack = (tlFrame*)call;
+    assert(tlTaskIsDone(task));
+    task->state = TL_STATE_INIT;
+    tlTaskStart(task);
+    return tlNull;
 }
 

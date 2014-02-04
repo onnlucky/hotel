@@ -165,5 +165,14 @@ buf = Module.create
 buf.hexdump
 print "LOADING MODULE"
 m = _Module_new(buf, "test")
-_module_run(m)
+debugger = Debugger.new
+task = Task.new
+debugger.attach(task)
+_module_run(m, task)
+print "DONE?"
+
+debugger.step
+Task.yield
+Task.yield
+Task.yield
 

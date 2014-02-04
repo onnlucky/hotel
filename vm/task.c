@@ -22,6 +22,9 @@ void tlresult_set_(tlResult* res, int at, tlHandle v);
 bool tlLockIs(tlHandle v);
 tlLock* tlLockAs(tlHandle v);
 
+void tlBCallRun(tlTask* task);
+void tlBFrameRun(tlTask* task);
+
 typedef enum {
     TL_STATE_INIT = 0,  // only first time
     TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
@@ -45,6 +48,7 @@ struct tlTask {
     tlHandle value;     // current value
     tlHandle throw;     // current throw (throwing or done)
     tlFrame* stack;     // current frame (== top of stack or current continuation)
+    tlDebugger* debugger; // current debugger
 
     tlMap* locals;     // task local storage, for cwd, stdout etc ...
     // TODO remove these in favor a some flags
@@ -189,6 +193,9 @@ INTERNAL void tlTaskRun(tlTask* task) {
     assert(tlTaskCurrent() == task);
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
+
+    if (tlBCallIs(task->stack)) return tlBCallRun(task);
+    if (tlBFrameIs(task->stack)) return tlBFrameRun(task);
 
     while (task->state == TL_STATE_RUN) {
         tlHandle res = task->value;
@@ -531,6 +538,12 @@ INTERNAL tlHandle tlTaskDone(tlTask* task, tlHandle res) {
     return tlTaskNotRunning;
 }
 
+INTERNAL tlHandle _Task_new_none(tlArgs* args) {
+    tlTask* current = tlTaskCurrent();
+    tlTask* task = tlTaskNew(tlTaskGetVm(current), current->locals);
+    task->state = TL_STATE_DONE;
+    return task;
+}
 INTERNAL tlHandle _Task_new(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     assert(task->worker && task->worker->vm);
@@ -716,6 +729,7 @@ static void task_init() {
         null
     );
     taskClass = tlClassMapFrom(
+        "new", _Task_new_none,
         "current", _Task_current,
         "locals", _Task_locals,
         "stacktrace", _Task_stacktrace,

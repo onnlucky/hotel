@@ -32,7 +32,9 @@
 #include "code.c"
 #include "env.c"
 #include "eval.c"
+
 #include "bcode.c"
+#include "debugger.c"
 
 #include "var.c"
 #include "array.c"
@@ -456,6 +458,7 @@ void tl_init() {
     controlflow_init();
     object_init();
     vm_init();
+    debugger_init();
 
     buffer_init();
     evio_init();

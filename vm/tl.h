@@ -145,6 +145,9 @@ TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlNative);
 TL_REF_TYPE(tlCode);
 
+TL_REF_TYPE(tlBCall);
+TL_REF_TYPE(tlBFrame);
+
 TL_REF_TYPE(tlHashMap);
 TL_REF_TYPE(tlArray);
 
@@ -160,7 +163,7 @@ TL_REF_TYPE(tlCollect);
 TL_REF_TYPE(tlVm);
 TL_REF_TYPE(tlWorker);
 TL_REF_TYPE(tlTask);
-
+TL_REF_TYPE(tlDebugger);
 
 bool tlCallableIs(tlHandle v);
 
