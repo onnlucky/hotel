@@ -24,6 +24,7 @@ tlLock* tlLockAs(tlHandle v);
 
 void tlBCallRun(tlTask* task);
 void tlBFrameRun(tlTask* task);
+void tlDebuggerTaskDone(tlDebugger* debugger, tlTask* task);
 
 typedef enum {
     TL_STATE_INIT = 0,  // only first time
@@ -535,6 +536,7 @@ INTERNAL tlHandle tlTaskDone(tlTask* task, tlHandle res) {
     signalWaiters(task);
     signalVm(task);
     if (tlBlockingTaskIs(task)) tlBlockingTaskDone(task);
+    if (task->debugger) tlDebuggerTaskDone(task->debugger, task);
     return tlTaskNotRunning;
 }
 

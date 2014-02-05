@@ -1,6 +1,6 @@
 #include "bcode.h"
 #define HAVE_DEBUG 1
-#include "trace-on.h"
+#include "trace-off.h"
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -481,7 +481,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     return v;
 }
 
-#include "trace-on.h"
+#include "trace-off.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;
@@ -841,6 +841,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 again:;
     if (debugger && frame->pc != pc) {
         frame->pc = pc;
+        if (calltop >= 0) (*calls)[calltop].at = arg;
         if (!tlDebuggerStep(debugger, task, frame)) {
             task->stack = (tlFrame*)frame;
             trace("pausing for debugger");
@@ -995,14 +996,14 @@ resume:;
 }
 
 void tlBCallRun(tlTask* task) {
-    print("HERE BCALL");
+    trace("running starting from a bcall");
     tlBCall* call = tlBCallAs(task->stack);
     tlHandle v = beval(task, null, call, 0, null);
     if (v) tlTaskDone(task, v);
 }
 
 void tlBFrameRun(tlTask* task) {
-    print("HERE BFRAME");
+    trace("running starting from a bframe");
     tlBFrame* frame = tlBFrameAs(task->stack);
     assert(frame);
     tlHandle v = beval(task, frame, null, 0, null);

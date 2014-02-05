@@ -26,10 +26,16 @@ tlDebugger* tlDebuggerFor(tlTask* task) {
     return task->debugger;
 }
 
+void tlDebuggerTaskDone(tlDebugger* debugger, tlTask* task) {
+    assert(debugger->subject == null);
+    if (debugger->waiter) tlTaskReadyExternal(debugger->waiter);
+}
+
 bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame) {
     tlBClosure* closure = tlBClosureAs(frame->args->fn);
     const uint8_t* ops = closure->code->code;
-    print("step: %d %s", frame->pc, op_name(ops[frame->pc]));
+    ops = ops + 0;
+    trace("step: %d %s", frame->pc, op_name(ops[frame->pc]));
 
     assert(debugger->subject == null);
     debugger->subject = task;
@@ -52,9 +58,21 @@ INTERNAL tlHandle _debugger_attach(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle returnStep(tlFrame* frame, tlHandle res, tlHandle throw) {
+    tlDebugger* debugger = tlDebuggerCast(res);
+    if (debugger && debugger->subject) {
+        tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+        if (frame) {
+            tlBClosure* closure = tlBClosureAs(frame->args->fn);
+            const uint8_t* ops = closure->code->code;
+            return tlResultFrom(tlSTR(op_name(ops[frame->pc])), tlINT(frame->pc));
+        }
+    }
+    return tlNull;
+}
 INTERNAL tlHandle resumeStep(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlTaskWaitExternal();
-    frame->resumecb = null;
+    frame->resumecb = returnStep;
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle _debugger_step(tlArgs* args) {
@@ -65,12 +83,11 @@ INTERNAL tlHandle _debugger_step(tlArgs* args) {
     }
 
     debugger->waiter = tlTaskCurrent();
-    return tlTaskPauseResuming(resumeStep, tlNull);
+    return tlTaskPauseResuming(resumeStep, debugger);
 }
 
 INTERNAL tlHandle _debugger_continue(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
-    print("%p", debugger);
+    //tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     return tlNull;
 }
 

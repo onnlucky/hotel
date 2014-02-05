@@ -169,10 +169,12 @@ debugger = Debugger.new
 task = Task.new
 debugger.attach(task)
 _module_run(m, task)
-print "DONE?"
-debugger.step
-debugger.step
-debugger.step
-debugger.step
-debugger.step
-debugger.step
+print "DEBUGGING"
+print debugger.step
+print debugger.step
+print debugger.step
+print debugger.step
+print debugger.step
+print "DONE!"
+print debugger.step
+print "DONE DONE DONE"
