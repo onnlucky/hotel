@@ -170,9 +170,9 @@ task = Task.new
 debugger.attach(task)
 _module_run(m, task)
 print "DONE?"
-
 debugger.step
-Task.yield
-Task.yield
-Task.yield
-
+debugger.step
+debugger.step
+debugger.step
+debugger.step
+debugger.step

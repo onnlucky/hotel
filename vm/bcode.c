@@ -1,6 +1,6 @@
 #include "bcode.h"
 #define HAVE_DEBUG 1
-#include "trace-off.h"
+#include "trace-on.h"
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -40,7 +40,7 @@ TL_REF_TYPE(tlBLazy);
 TL_REF_TYPE(tlBLazyData);
 
 tlDebugger* tlDebuggerFor(tlTask* task);
-void tlDebuggerStep(tlDebugger* debugger, tlBFrame* frame);
+bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame);
 
 // against better judgement, modules are linked by mutating, or copying if already linked
 struct tlBModule {
@@ -166,6 +166,7 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
 tlBFrame* tlBFrameNew(tlBCall* args) {
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
     tlBFrame* frame = tlAlloc(tlBFrameKind, sizeof(tlBFrame) + sizeof(tlHandle) * calldepth);
+    frame->pc = -1;
     frame->args = args;
     return frame;
 }
@@ -480,7 +481,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     return v;
 }
 
-#include "trace-off.h"
+#include "trace-on.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;
@@ -760,8 +761,13 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
 }
 
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
+    trace("here");
     assert(task);
-    assert(frame || args);
+    if (!args) {
+        assert(frame);
+        args = frame->args;
+        assert(args);
+    }
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* bcode = closure->code;
     tlBModule* mod = bcode->mod;
@@ -785,19 +791,23 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     uint8_t op = 0; // current opcode
     tlHandle v = null; // tmp result register
 
+    // get current attached debugger, if any
+    tlDebugger* debugger = tlDebuggerFor(task);
+
     // when we get here, it is because of the following reasons:
     // 1. we start a closure
     // 2. we start a lazy call
     // 3. we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
     // 4. we set a method name to a call, and resolving it paused the task; see end of this function
     if (frame) { // 3 or 4
-        assert(!args);
-        args = frame->args;
+        assert(args == frame->args);
         pc = frame->pc;
         calls = &frame->calls;
         lazylocals = frame->locals;
         locals = &lazylocals->data;
         v = tlNull; // TODO tlTaskValue(task);
+
+        if (debugger && (bcode->calldepth == 0 || !(*calls)[0].call)) goto again;
 
         // find current call, we mark non current call by setting sign bit
         assert(bcode->calldepth > 0); // cannot be zero, or we would never suspend
@@ -809,6 +819,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 
         trace("resume eval; %s %s; %s locals: %d call: %d/%d", tl_str(frame), tl_str(v),
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
+        if (debugger) goto again;
         goto resume; // for speed and code density
     } else if (lazypc) { // 2
         pc = lazypc;
@@ -821,16 +832,20 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
         locals = &_locals;
         trace("new eval; %s locals: %d call: %d/%d",
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
+        (*calls)[0].call = null;
     }
 
     // if there is a debugger, always create a frame
-    tlDebugger* debugger = tlDebuggerFor(task);
     if (debugger) ensure_frame(&calls, &locals, &frame, &lazylocals, args);
 
 again:;
-    if (debugger) {
+    if (debugger && frame->pc != pc) {
         frame->pc = pc;
-        tlDebuggerStep(debugger, frame);
+        if (!tlDebuggerStep(debugger, task, frame)) {
+            task->stack = (tlFrame*)frame;
+            trace("pausing for debugger");
+            return null;
+        }
     }
     op = ops[pc++];
     if (!op) return v; // OP_END
@@ -980,13 +995,16 @@ resume:;
 }
 
 void tlBCallRun(tlTask* task) {
+    print("HERE BCALL");
     tlBCall* call = tlBCallAs(task->stack);
     tlHandle v = beval(task, null, call, 0, null);
     if (v) tlTaskDone(task, v);
 }
 
 void tlBFrameRun(tlTask* task) {
+    print("HERE BFRAME");
     tlBFrame* frame = tlBFrameAs(task->stack);
+    assert(frame);
     tlHandle v = beval(task, frame, null, 0, null);
     if (v) tlTaskDone(task, v);
 }

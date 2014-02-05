@@ -8,6 +8,8 @@ tlKind* tlDebuggerKind = &_tlDebuggerKind;
 
 struct tlDebugger {
     tlHead head;
+    tlTask* subject;
+    tlTask* waiter;
 };
 
 tlDebugger* tlDebuggerNew() {
@@ -24,10 +26,17 @@ tlDebugger* tlDebuggerFor(tlTask* task) {
     return task->debugger;
 }
 
-void tlDebuggerStep(tlDebugger* debugger, tlBFrame* frame) {
+bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame) {
     tlBClosure* closure = tlBClosureAs(frame->args->fn);
     const uint8_t* ops = closure->code->code;
     print("step: %d %s", frame->pc, op_name(ops[frame->pc]));
+
+    assert(debugger->subject == null);
+    debugger->subject = task;
+    tlTaskWaitExternal();
+
+    if (debugger->waiter) tlTaskReadyExternal(debugger->waiter);
+    return false;
 }
 
 INTERNAL tlHandle _Debugger_new(tlArgs* args) {
@@ -40,13 +49,23 @@ INTERNAL tlHandle _debugger_attach(tlArgs* args) {
     if (!task) TL_THROW("require a task");
     if (task->debugger) TL_THROW("task already has a debugger set");
     tlDebuggerAttach(debugger, task);
-    return debugger;
+    return tlNull;
 }
 
+INTERNAL tlHandle resumeStep(tlFrame* frame, tlHandle res, tlHandle throw) {
+    tlTaskWaitExternal();
+    frame->resumecb = null;
+    return tlTaskNotRunning;
+}
 INTERNAL tlHandle _debugger_step(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
-    print("%p", debugger);
-    return tlNull;
+    if (debugger->subject) {
+        tlTaskReadyExternal(debugger->subject);
+        debugger->subject = null;
+    }
+
+    debugger->waiter = tlTaskCurrent();
+    return tlTaskPauseResuming(resumeStep, tlNull);
 }
 
 INTERNAL tlHandle _debugger_continue(tlArgs* args) {
