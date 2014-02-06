@@ -157,31 +157,34 @@ fcall = fn ->
     {bcode:["fcall", args.size - 1] + args.map(v -> value v).flatten + ["invoke"]}
 
 
+
 // print 42 -> fcall 1, global print, int 42, invoke
 code = fcall("print", 42)
+code = {bcode:["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke", "end"]}
 Module.function("main", code, [], {}, [])
 
 buf = Module.create
 buf.hexdump
+
 print "LOADING MODULE"
 m = _Module_new(buf, "test")
 debugger = Debugger.new
 task = Task.new
 debugger.attach(task)
 _module_run(m, task)
+
 print "DEBUGGING"
-debugger.step
-print repr debugger.op
-debugger.step
-print repr debugger.op
-debugger.step
-print repr debugger.op
-debugger.step
-print repr debugger.op
-debugger.step
-print repr debugger.op
-"DONE!"
-debugger.step
-print repr debugger.op
-"DONE DONE DONE"
+loop:
+    catch: e -> print "oeps", e.toString
+    at = io.stdin.find("\n")
+    cmd = io.stdin.readString(at).strip
+    { cmd == "call" }:
+        print repr debugger.call
+    { cmd == "locals" }:
+        print repr debugger.locals
+    { cmd == "list" }:
+        print repr debugger.list
+    { cmd == "step" or cmd == "" }:
+        debugger.step
+        print repr debugger.op
 

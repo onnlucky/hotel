@@ -832,7 +832,10 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
         locals = &_locals;
         trace("new eval; %s locals: %d call: %d/%d",
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
-        (*calls)[0].call = null;
+        for (int i = 0; i < bcode->calldepth; i++) {
+            (*calls)[i].at = 0;
+            (*calls)[i].call = null;
+        }
     }
 
     // if there is a debugger, always create a frame
@@ -896,6 +899,8 @@ again:;
             assert(!lazy);
             assert(arg - 2 == call->size); // must be done with args here
             tlBCall* invoke = call;
+            (*calls)[calltop].at = 0;
+            (*calls)[calltop].call = null;
             calltop--;
             if (calltop >= 0) {
                 call = (*calls)[calltop].call;

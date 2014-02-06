@@ -122,6 +122,35 @@ INTERNAL tlHandle _debugger_op(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle _debugger_call(tlArgs* args) {
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    if (!debugger->subject) return tlNull;
+
+    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    if (!frame) return tlNull;
+    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBCode* code = closure->code;
+
+    tlBCall* call = null;
+    for (int i = 0; i < code->calldepth; i++) {
+        if (!frame->calls[i].call) break;
+        call = frame->calls[i].call;
+    }
+
+    if (!call) return tlNull;
+
+    int size = call->size;
+    tlList* list = tlListNew(size + 2);
+    tlListSet_(list, 0, call->target);
+    tlListSet_(list, 1, call->fn);
+    for (int i = 0; i < size; i++) {
+        tlHandle v = tlBCallGet(call, i);
+        if (!v) v = tlNull;
+        tlListSet_(list, i + 2, v);
+    }
+    return list;
+}
+
 static tlKind _tlDebuggerKind = {
     .name = "Debugger",
 };
@@ -132,6 +161,7 @@ static void debugger_init() {
         "step", _debugger_step,
         "continue", _debugger_continue,
         "op", _debugger_op,
+        "call", _debugger_call,
         null
     );
     tlMap* constructor = tlClassMapFrom(
