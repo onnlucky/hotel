@@ -70,11 +70,13 @@ INTERNAL tlHandle returnStep(tlFrame* frame, tlHandle res, tlHandle throw) {
     }
     return tlNull;
 }
+
 INTERNAL tlHandle resumeStep(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlTaskWaitExternal();
     frame->resumecb = returnStep;
     return tlTaskNotRunning;
 }
+
 INTERNAL tlHandle _debugger_step(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (debugger->subject) {
@@ -91,6 +93,35 @@ INTERNAL tlHandle _debugger_continue(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle _debugger_op(tlArgs* args) {
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    if (!debugger->subject) return tlNull;
+
+    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    if (!frame) return tlNull;
+
+    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    const uint8_t* ops = closure->code->code;
+    int pc = frame->pc;
+    int op = ops[pc++];
+    tlHandle name = tlSTR(op_name(op));
+    switch (op) {
+        case OP_END:
+        case OP_TRUE: case OP_FALSE: case OP_NULL: case OP_UNDEF:
+        case OP_INVOKE:
+            return tlListFrom1(name);
+        case OP_INT:
+        case OP_GLOBAL: case OP_SYSTEM: case OP_MODULE: case OP_LOCAL: case OP_ARG:
+        case OP_BIND:
+        case OP_FCALL: case OP_MCALL: case OP_BCALL:
+            return tlListFrom2(name, tlINT(pcreadsize(ops, &pc)));
+        case OP_ENV:
+        case OP_FCALLN: case OP_MCALLN: case OP_BCALLN:
+            return tlListFrom3(name, tlINT(pcreadsize(ops, &pc)), tlINT(pcreadsize(ops, &pc)));
+    }
+    return tlNull;
+}
+
 static tlKind _tlDebuggerKind = {
     .name = "Debugger",
 };
@@ -100,6 +131,7 @@ static void debugger_init() {
         "attach", _debugger_attach,
         "step", _debugger_step,
         "continue", _debugger_continue,
+        "op", _debugger_op,
         null
     );
     tlMap* constructor = tlClassMapFrom(

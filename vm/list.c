@@ -40,6 +40,15 @@ tlList* tlListFrom2(tlHandle v1, tlHandle v2) {
     return list;
 }
 
+tlList* tlListFrom3(tlHandle v1, tlHandle v2, tlHandle v3) {
+    tlList* list = tlListNew(3);
+    assert(tlListSize(list) == 3);
+    tlListSet_(list, 0, v1);
+    tlListSet_(list, 1, v2);
+    tlListSet_(list, 3, v3);
+    return list;
+}
+
 tlList* tlListFrom(tlHandle v1, ...) {
     va_list ap;
     int size = 0;
