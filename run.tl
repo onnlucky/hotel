@@ -117,16 +117,17 @@ writeCode = mod, c ->
         { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
         { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
         {                }: throw "unknown op: $op"
-    return buf
+
+    assert buf.size < 32
+    return bin(0b1010_0000 | buf.size, buf.read)
 
 Module = {
     datas: Array.new
     dataIndex: HashMap.new
     globals: Array.new
     globalsIndex: HashMap.new
-    functions: Array.new
+    functions: HashMap.new
     data: v ->
-        print "data(v):", repr(v)
         ref = encodeLiteral v
         if ref: return ref
         ref = this.dataIndex[v]
@@ -135,6 +136,7 @@ Module = {
               { isObject(v) }: encodeMap Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten
               { isString(v) }: encodeString v
         _, at = this.datas.add bin
+        print "data", at, repr(v)
         this.dataIndex[v] = encodeInt(at - 1)
     global: v ->
         assert isString(v)
@@ -144,21 +146,20 @@ Module = {
         _, at = this.globals.add ref
         this.globalsIndex[v] = encodeInt(at - 1)
     function: name, code, localnames, argnames, defaults ->
-        _, at = this.functions.add { name: name, args: defaults, argnames: argnames, localnames: localnames, code: code.add("end")}
-        return at
+        code = code.add("end")
+        bin = writeCode this, {{name, localnames, argnames, code}, args: defaults}
+        _, at = this.datas.add bin
+        print "function", at, name
+        this.functions[name] = encodeInt(at - 1)
     code: v ->
         assert isList(v)
     create: ->
-        buffers = this.functions.map(v -> writeCode this, v)
         buf = Buffer.new
         buf.write "tl01"
-        buf.write encodeInt this.datas.size + 1 + buffers.size
-        this.datas.each: v -> buf.write v
+        buf.write encodeInt this.datas.size + 1
+        this.datas[:-2].each: v -> buf.write v
         buf.write encodeList this.globals
-        buffers.each: b ->
-            assert b.size < 32
-            buf.write 0b1010_0000 | b.size
-            buf.write b
+        buf.write this.datas[-1]
         return buf
 }
 
@@ -175,7 +176,7 @@ code = [
     "local", 0
     "invoke"
 ]
-Module.function("main", code, ["x"], {z:null}, [])
+Module.function("main", code, ["x"], {z:null}, ["z"])
 
 buf = Module.create
 buf.hexdump
