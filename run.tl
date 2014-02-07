@@ -59,8 +59,8 @@ encodeInt = i ->
 
 encodeString = s ->
     assert isString s
-    assert s.size < 32
-    bin(0b0000_0000 | s.size, s)
+    if s.size < 32: return bin(0b0000_0000 | s.size, s)
+    return bin(0b1110_0000, encodeInt(s.size), s)
 
 encodeList = l ->
     assert l.size < 32
@@ -118,8 +118,8 @@ writeCode = mod, c ->
         { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
         {                }: throw "unknown op: $op"
 
-    assert buf.size < 32
-    return bin(0b1010_0000 | buf.size, buf.read)
+    if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
+    return bin(0b11100101, encodeInt(buf.size), buf)
 
 Module = {
     datas: Array.new

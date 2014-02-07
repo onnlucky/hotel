@@ -328,6 +328,15 @@ static int readsize(tlBuffer* buf) {
     return decoderef2(buf, tlBufferReadByte(buf));
 }
 
+tlString* readString(tlBuffer* buf, int size) {
+    trace("string: %d", size);
+    if (tlBufferSize(buf) < size) fatal("buffer too small");
+    char *data = malloc_atomic(size + 1);
+    tlBufferRead(buf, data, size);
+    data[size] = 0;
+    return tlStringFromTake(data, size);
+}
+
 tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     if (tlBufferSize(buf) < size) fatal("buffer too small");
     int start = tlBufferSize(buf);
@@ -364,9 +373,7 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1)
     int size = readsize(buf);
     assert(size > 0 && size < 1000);
     switch (b1) {
-        case 0xE0: // string
-            fatal("string %d", size);
-            break;
+        case 0xE0: return readString(buf, size);
         case 0xE1: // list
             fatal("list %d", size);
             break;
@@ -400,14 +407,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
     uint8_t size = b1 & 0x1F;
 
     switch (type) {
-        case 0x00: { // short string
-            trace("short string: %d", size);
-            if (tlBufferSize(buf) < size) fatal("buffer too small");
-            char *data = malloc_atomic(size + 1);
-            tlBufferRead(buf, data, size);
-            data[size] = 0;
-            return tlStringFromTake(data, size);
-        }
+        case 0x00: return readString(buf, size);
         case 0x20: { // short list
             trace("short list: %d", size);
             tlList* list = tlListNew(size);
@@ -1012,6 +1012,7 @@ resume:;
 
 INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resume a call");
+    if (throw) return null;
     tlBCall* call = tlBCallAs(res);
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
@@ -1019,6 +1020,10 @@ INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
 INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resuming from a frame");
     tlBFrame* frame = (tlBFrame*)_frame;
+    if (throw) {
+        // TODO check if a handler was installed ...
+        return null;
+    }
     return beval(tlTaskCurrent(), frame, null, 0, null);
 }
 
