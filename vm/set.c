@@ -110,12 +110,20 @@ int tlSetAdd_(tlSet* set, tlHandle key) {
     return at;
 }
 
+static tlHandle _set_has(tlArgs* args) {
+    tlSet* set = tlSetAs(tlArgsTarget(args));
+    int at = tlSetIndexof(set, tlArgsGet(args, 0));
+    if (at < 0) return tlFalse;
+    return tlTrue;
+}
+
 static tlHandle _set_get(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlSetSize(set));
     if (at < 0) return tlNull;
     return tlMAYBE(tlSetGet(set, at));
 }
+
 static tlHandle _set_size(tlArgs* args) {
     tlSet* set = tlSetCast(tlArgsTarget(args));
     if (!set) TL_THROW("expected a Set");
@@ -131,10 +139,11 @@ static void set_init() {
     _tl_set_empty = tlSetNew(0);
     _tlSetKind.klass = tlClassMapFrom(
         "size", _set_size,
-        //"has", _set_has,
+        "has", _set_has,
         "get", _set_get,
         "random", null,
         "each", null,
+        "map", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(

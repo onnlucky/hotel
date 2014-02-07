@@ -200,6 +200,7 @@ _install(Args.class, #join, _join)
 
 _install(Set.class, #random, _get_random)
 _install(Set.class, #each, _each)
+_install(Set.class, #map, _map)
 _install(List.class, #random, _get_random)
 _install(List.class, #each, _each)
 _install(List.class, #map, _map)
@@ -218,14 +219,28 @@ _map_each = (m, fn ->
     keys = Map.keys(m)
     keys.each: k -> block(k, m[k])
 )
-_install(Map.class, #each, (each = ( fn ->
+_map_map = (m, fn ->
+    block = args.block or fn
+    if not block: throw "map expects a block or fn"
+    keys = Map.keys(m)
+    keys.map: k -> block(k, Map.get(m, k))
+)
+_install(Map.class, #each, (each = (fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
     keys = Map.keys(this)
     keys.each: k -> block(k, this[k])
 )))
+_install(Map.class, #map, (map = (fn ->
+    block = args.block or fn
+    if not block: throw "map expects a block or fn"
+    keys = Map.keys(this)
+    keys.map: k -> block(k, this[k])
+)))
 _install(Map, #each, _map_each)
+_install(Map, #map, _map_map)
 _install(Object, #each, _map_each)
+_install(Object, #map, _map_map)
 
 _install(Array.class, #random, _get_random)
 _install(Array.class, #each, _each)

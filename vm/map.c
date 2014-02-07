@@ -512,6 +512,7 @@ static void map_init() {
         "vales", _map_values,
         "toObject", _map_toObject,
         "each", null,
+        "map", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(
@@ -524,6 +525,7 @@ static void map_init() {
         "values", _Map_values,
         "class", null,
         "each", null,
+        "map", null,
         null
     );
     tlMap* oconstructor = tlClassMapFrom(
@@ -534,6 +536,7 @@ static void map_init() {
         "keys", _Map_keys,
         "values", _Map_values,
         "each", null,
+        "map", null,
         null
     );
     tlMapSetSym_(constructor, s_class, _tlMapKind.klass);
