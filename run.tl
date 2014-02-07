@@ -127,15 +127,14 @@ Module = {
     functions: Array.new
     data: v ->
         print "data(v):", repr(v)
-        assert isNumber(v) or isString(v) or isList(v) or isObject(v)
         ref = encodeLiteral v
         if ref: return ref
         ref = this.dataIndex[v]
         if ref: return ref
-        processed = { isList(v)   }: encodeList v.map(v -> this.data v)
-                    { isObject(v) }: encodeMap Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten
-                    {             }: encodeString v
-        _, at = this.datas.add processed
+        bin = { isList(v)   }: encodeList v.map(v -> this.data v)
+              { isObject(v) }: encodeMap Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten
+              { isString(v) }: encodeString v
+        _, at = this.datas.add bin
         this.dataIndex[v] = encodeInt(at - 1)
     global: v ->
         assert isString(v)
@@ -176,7 +175,7 @@ code = [
     "local", 0
     "invoke"
 ]
-Module.function("main", code, ["x"], {z:42}, [])
+Module.function("main", code, ["x"], {z:null}, [])
 
 buf = Module.create
 buf.hexdump
