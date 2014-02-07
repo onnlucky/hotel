@@ -112,7 +112,7 @@ INTERNAL tlHandle _debugger_op(tlArgs* args) {
             return tlListFrom1(name);
         case OP_INT:
         case OP_GLOBAL: case OP_SYSTEM: case OP_MODULE: case OP_LOCAL: case OP_ARG:
-        case OP_BIND:
+        case OP_BIND: case OP_STORE:
         case OP_FCALL: case OP_MCALL: case OP_BCALL:
             return tlListFrom2(name, tlINT(pcreadsize(ops, &pc)));
         case OP_ENV:
@@ -151,6 +151,25 @@ INTERNAL tlHandle _debugger_call(tlArgs* args) {
     return list;
 }
 
+INTERNAL tlHandle _debugger_locals(tlArgs* args) {
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    if (!debugger->subject) return tlNull;
+
+    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    if (!frame) return tlNull;
+    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBCode* code = closure->code;
+
+    int size = code->locals;
+    tlList* list = tlListNew(size);
+    for (int i = 0; i < size; i++) {
+        tlHandle v = frame->locals->data[i];
+        if (!v) v = tlNull;
+        tlListSet_(list, i, tlListFrom2(tlListGet(code->localnames, i), v));
+    }
+    return list;
+}
+
 static tlKind _tlDebuggerKind = {
     .name = "Debugger",
 };
@@ -162,6 +181,7 @@ static void debugger_init() {
         "continue", _debugger_continue,
         "op", _debugger_op,
         "call", _debugger_call,
+        "locals", _debugger_locals,
         null
     );
     tlMap* constructor = tlClassMapFrom(

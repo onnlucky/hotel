@@ -814,7 +814,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
         calls = &frame->calls;
         lazylocals = frame->locals;
         locals = &lazylocals->data;
-        v = tlNull; // TODO tlTaskValue(task);
+        v = task->value;
 
         if (debugger && (bcode->calldepth == 0 || !(*calls)[0].call)) goto again;
 
@@ -852,6 +852,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 
 again:;
     if (debugger && frame->pc != pc) {
+        task->value = v;
         frame->pc = pc;
         if (calltop >= 0) (*calls)[calltop].at = arg;
         if (!tlDebuggerStep(debugger, task, frame)) {

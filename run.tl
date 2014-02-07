@@ -62,10 +62,18 @@ encodeString = s ->
     assert s.size < 32
     bin(0b0000_0000 | s.size, s)
 
-encodeList = s ->
-    assert s.size < 32
-    buf = Buffer.new 0b0010_0000 | s.size
-    s.each: e -> buf.write e
+encodeList = l ->
+    assert l.size < 32
+    buf = Buffer.new 0b0010_0000 | l.size
+    l.each: e -> buf.write e
+    return buf.read
+
+encodeMap = m ->
+    size = m.size >> 1
+    assert size * 2 == m.size
+    assert size < 32
+    buf = Buffer.new 0b0110_0000 | size
+    m.each: e -> buf.write e
     return buf.read
 
 writeCode = mod, c ->
@@ -118,29 +126,35 @@ Module = {
     globalsIndex: HashMap.new
     functions: Array.new
     data: v ->
+        print "data(v):", repr(v)
+        assert isNumber(v) or isString(v) or isList(v) or isObject(v)
         ref = encodeLiteral v
         if ref: return ref
         ref = this.dataIndex[v]
         if ref: return ref
-        _, at = this.datas.add v
+        processed = { isList(v)   }: encodeList v.map(v -> this.data v)
+                    { isObject(v) }: encodeMap Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten
+                    {             }: encodeString v
+        _, at = this.datas.add processed
         this.dataIndex[v] = encodeInt(at - 1)
     global: v ->
+        assert isString(v)
         ref = this.globalsIndex[v]
         if ref: return ref
         ref = this.data v
         _, at = this.globals.add ref
         this.globalsIndex[v] = encodeInt(at - 1)
     function: name, code, localnames, argnames, defaults ->
-        _, at = this.functions.add { name: name, args: defaults, argnames: argnames, localnames: localnames, code: code.bcode.add("end")}
+        _, at = this.functions.add { name: name, args: defaults, argnames: argnames, localnames: localnames, code: code.add("end")}
         return at
+    code: v ->
+        assert isList(v)
     create: ->
         buffers = this.functions.map(v -> writeCode this, v)
         buf = Buffer.new
         buf.write "tl01"
         buf.write encodeInt this.datas.size + 1 + buffers.size
-        this.datas.each: v, n ->
-            print "global", n, v
-            buf.write encodeString v
+        this.datas.each: v -> buf.write v
         buf.write encodeList this.globals
         buffers.each: b ->
             assert b.size < 32
@@ -149,20 +163,20 @@ Module = {
         return buf
 }
 
-value = v ->
-    { isString(v) }: ["global", v]
-    { isNumber(v) }: { v < 128 }: ["int", v]
-                     {         }: ["data", v]
-fcall = fn ->
-    {bcode:["fcall", args.size - 1] + args.map(v -> value v).flatten + ["invoke"]}
-
-
-
 // print 42 -> fcall 1, global print, int 42, invoke
-code = fcall("print", 42)
-code = {bcode:["fcall", 1, "global", "throw", "int", 40, "invoke", "end"]}
-code = {bcode:["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke", "end"]}
-Module.function("main", code, [], {}, [])
+code = ["fcall", 1, "global", "print", "int", 42, "invoke"]
+code = ["fcall", 1, "global", "throw", "int", 40, "invoke"]
+code = ["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke"]
+code = ["fcall", 1, "global", "print", "data", "hello world!", "invoke"]
+code = [
+    "data", "hello world!"
+    "store", 0
+    "fcall", 1
+    "global", "print"
+    "local", 0
+    "invoke"
+]
+Module.function("main", code, ["x"], {z:42}, [])
 
 buf = Module.create
 buf.hexdump
@@ -171,7 +185,7 @@ print "LOADING MODULE"
 m = _Module_new(buf, "test")
 debugger = Debugger.new
 task = Task.new
-debugger.attach(task)
+//debugger.attach(task)
 _module_run(m, task)
 
 print "DEBUGGING"
