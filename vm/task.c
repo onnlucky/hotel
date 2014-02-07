@@ -22,8 +22,6 @@ void tlresult_set_(tlResult* res, int at, tlHandle v);
 bool tlLockIs(tlHandle v);
 tlLock* tlLockAs(tlHandle v);
 
-void tlBCallRun(tlTask* task);
-void tlBFrameRun(tlTask* task);
 void tlDebuggerTaskDone(tlDebugger* debugger, tlTask* task);
 
 typedef enum {
@@ -194,9 +192,6 @@ INTERNAL void tlTaskRun(tlTask* task) {
     assert(tlTaskCurrent() == task);
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
-
-    if (tlBCallIs(task->stack)) return tlBCallRun(task);
-    if (tlBFrameIs(task->stack)) return tlBFrameRun(task);
 
     while (task->state == TL_STATE_RUN) {
         tlHandle res = task->value;

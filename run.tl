@@ -160,6 +160,7 @@ fcall = fn ->
 
 // print 42 -> fcall 1, global print, int 42, invoke
 code = fcall("print", 42)
+code = {bcode:["fcall", 1, "global", "throw", "int", 40, "invoke", "end"]}
 code = {bcode:["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke", "end"]}
 Module.function("main", code, [], {}, [])
 

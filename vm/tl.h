@@ -145,9 +145,6 @@ TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlNative);
 TL_REF_TYPE(tlCode);
 
-TL_REF_TYPE(tlBCall);
-TL_REF_TYPE(tlBFrame);
-
 TL_REF_TYPE(tlHashMap);
 TL_REF_TYPE(tlArray);
 

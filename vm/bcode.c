@@ -32,13 +32,15 @@ const char* op_name(uint8_t op) {
 
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBCode);
-//TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
+TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
-//TL_REF_TYPE(tlBFrame);
 TL_REF_TYPE(tlBLazy);
 TL_REF_TYPE(tlBLazyData);
 
+typedef struct tlBFrame tlBFrame;
+
+INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw);
 tlDebugger* tlDebuggerFor(tlTask* task);
 bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame);
 
@@ -90,7 +92,7 @@ struct tlBClosure {
 
 typedef struct CallEntry { int at; tlBCall* call; } CallEntry;
 struct tlBFrame {
-    tlHead head;
+    tlFrame frame;
     tlBCall* args;
 
     // mutable! but only by addition ...
@@ -127,9 +129,6 @@ tlKind* tlBEnvKind = &_tlBEnvKind;
 static tlKind _tlBClosureKind = { .name = "BClosure" };
 tlKind* tlBClosureKind = &_tlBClosureKind;
 
-static tlKind _tlBFrameKind = { .name = "BFrame" };
-tlKind* tlBFrameKind = &_tlBFrameKind;
-
 static tlKind _tlBLazyKind = { .name = "BLazy" };
 tlKind* tlBLazyKind = &_tlBLazyKind;
 
@@ -163,9 +162,18 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     fn->env = env;
     return fn;
 }
+
+bool tlBFrameIs(tlHandle* v) {
+    return tlFrameIs(v) && tlFrameAs(v)->resumecb == resumeBFrame;
+}
+tlBFrame* tlBFrameCast(void* v) {
+    if (!tlBFrameIs(v)) return null;
+    return (tlBFrame*)v;
+}
+
 tlBFrame* tlBFrameNew(tlBCall* args) {
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
-    tlBFrame* frame = tlAlloc(tlBFrameKind, sizeof(tlBFrame) + sizeof(tlHandle) * calldepth);
+    tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(tlHandle) * calldepth);
     frame->pc = -1;
     frame->args = args;
     return frame;
@@ -685,7 +693,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
-    trace(" %s invoke %s", tl_str(call), tl_str(fn));
+    print(" %s invoke %s", tl_str(call), tl_str(fn));
     if (tlNativeIs(fn)) {
         tlArgs* args = tlArgsNew(tlListNew(call->size), null);
         tlArgsSetTarget_(args, call->target);
@@ -760,6 +768,7 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
     *calls = &(*frame)->calls; // switch backing store
 }
 
+#include "trace-on.h"
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
     trace("here");
     assert(task);
@@ -846,9 +855,9 @@ again:;
         frame->pc = pc;
         if (calltop >= 0) (*calls)[calltop].at = arg;
         if (!tlDebuggerStep(debugger, task, frame)) {
-            task->stack = (tlFrame*)frame;
+            //task->stack = (tlFrame*)frame;
             trace("pausing for debugger");
-            return null;
+            return tlTaskPause((tlFrame*)frame);
         }
     }
     op = ops[pc++];
@@ -914,8 +923,8 @@ again:;
             if (!v) { // task paused instead of actually doing work, suspend and return
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
                 frame->pc = pc;
-                fatal("almost :)");
-                return null;
+                if (calltop >= 0) (*calls)[calltop].at = arg;
+                return tlTaskPauseAttach(frame);
             }
             break;
         }
@@ -1000,19 +1009,16 @@ resume:;
     goto again;
 }
 
-void tlBCallRun(tlTask* task) {
-    trace("running starting from a bcall");
-    tlBCall* call = tlBCallAs(task->stack);
-    tlHandle v = beval(task, null, call, 0, null);
-    if (v) tlTaskDone(task, v);
+INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
+    trace("running resume a call");
+    tlBCall* call = tlBCallAs(res);
+    return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
-void tlBFrameRun(tlTask* task) {
-    trace("running starting from a bframe");
-    tlBFrame* frame = tlBFrameAs(task->stack);
-    assert(frame);
-    tlHandle v = beval(task, frame, null, 0, null);
-    if (v) tlTaskDone(task, v);
+INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
+    trace("running resuming from a frame");
+    tlBFrame* frame = (tlBFrame*)_frame;
+    return beval(tlTaskCurrent(), frame, null, 0, null);
 }
 
 tlHandle beval_module(tlTask* task, tlBModule* mod) {
@@ -1039,7 +1045,8 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     tlBCall* call = tlBCallNew(0);
     call->fn = fn;
-    task->stack = (tlFrame*)call;
+    task->value = call;
+    task->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
     assert(tlTaskIsDone(task));
     task->state = TL_STATE_INIT;
     tlTaskStart(task);
