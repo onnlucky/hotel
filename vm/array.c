@@ -17,13 +17,28 @@ tlArray* tlArrayNew() {
     tlArray* array = tlAlloc(tlArrayKind, sizeof(tlArray));
     return array;
 }
+
 int tlArraySize(tlArray* array) {
     return array->size;
 }
+
+tlArray* tlArraySub(tlArray* array, int offset, int len) {
+    if (len == 0) return tlArrayNew();
+
+    assert(len > 0);
+    assert(offset < tlArraySize(array));
+    assert(offset + len <= tlArraySize(array));
+
+    tlArray* narray = tlArrayNew();
+    for (int i = 0; i < len; i++) tlArrayAdd(narray, array->data[offset + i]);
+    return narray;
+}
+
 tlArray* tlArrayClear(tlArray* array) {
     array->size = 0;
     return array;
 }
+
 tlArray* tlArrayAdd(tlArray* array, tlHandle v) {
     trace("add: %s.add %s -- %zd -- %zd", tl_str(array), tl_str(v), array->size, array->alloc);
     if (array->size == array->alloc) {
@@ -187,6 +202,17 @@ INTERNAL tlHandle _array_remove(tlArgs* args) {
     if (at < 0) TL_THROW("index must be >= 1");
     return tlMAYBE(tlArrayRemove(array, at));
 }
+/// slice(left, right): return a new list, from the range between left and right
+INTERNAL tlHandle _array_slice(tlArgs* args) {
+    tlArray* array = tlArrayAs(tlArgsTarget(args));
+
+    int first = tl_int_or(tlArgsGet(args, 0), 0);
+    int last = tl_int_or(tlArgsGet(args, 1), -1);
+
+    int offset;
+    int len = sub_offset(first, last, tlArraySize(array), &offset);
+    return tlArraySub(array, offset, len);
+}
 
 static tlMap* arrayClass;
 static void array_init() {
@@ -200,6 +226,7 @@ static void array_init() {
         "pop", _array_pop,
         "remove", _array_remove,
         "insert", _array_insert,
+        "slice", _array_slice,
         "random", null,
         "each", null,
         "map", null,
