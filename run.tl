@@ -169,25 +169,26 @@ code = ["fcall", 1, "global", "throw", "int", 40, "invoke"]
 code = ["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke"]
 code = ["fcall", 1, "global", "print", "data", "hello world!", "invoke"]
 code = [
-    "data", "hello world!"
-    "store", 0
-    "fcall", 1
+    "fcall", 2
     "global", "print"
-    "local", 0
+    "arg", 0
+    "arg", 1
     "invoke"
 ]
-Module.function("main", code, ["x"], {z:null}, ["z"])
+Module.function("main", code, [], {a:0, b:1}, [["hello",false], ["world",false]])
 
 buf = Module.create
 buf.hexdump
 
 print "LOADING MODULE"
 m = _Module_new(buf, "test")
-debugger = Debugger.new
-task = Task.new
+//debugger = Debugger.new
+//task = Task.new
 //debugger.attach(task)
-_module_run(m, task)
+catch: e -> print "Exception:", e
+_module_run(m, ["foo", "bar"]) // task
 
+/*
 print "DEBUGGING"
 loop:
     catch: e -> print "oeps", e.toString

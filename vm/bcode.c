@@ -1,6 +1,6 @@
 #include "bcode.h"
 #define HAVE_DEBUG 1
-#include "trace-off.h"
+#include "trace-on.h"
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -222,7 +222,7 @@ void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
 void tlBCallSetNames_(tlBCall* call, tlList* names) {
 }
 tlHandle tlBCallGet(tlBCall* call, int at) {
-    assert(at >= 0 && at <= call->size);
+    if (at < 0 || at >= call->size) return null;
     return call->args[at];
 }
 tlHandle tlBCallGetTarget(tlBCall* call) {
@@ -230,6 +230,16 @@ tlHandle tlBCallGetTarget(tlBCall* call) {
 }
 tlHandle tlBCallGetFn(tlBCall* call) {
     return call->fn;
+}
+
+tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
+    tlHandle v = tlBCallGet(call, at);
+    if (v) return v;
+    tlHandle entry = tlListGet(code->args, at);
+    if (!entry) return tlNull;
+    v = tlListGet(entry, 0);
+    if (!v) return tlNull;
+    return v;
 }
 
 tlHandle tlBEnvGet(tlBEnv* env, int at) {
@@ -489,7 +499,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
     return v;
 }
 
-#include "trace-off.h"
+#include "trace-on.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;
@@ -954,7 +964,7 @@ again:;
             break;
         case OP_ARG:
             at = pcreadsize(ops, &pc);
-            v = tlBCallGet(args, at);
+            v = tlBCallGetExtra(args, at, bcode);
             trace("args[%d] %s", at, tl_str(v));
             break;
         case OP_LOCAL:
@@ -1045,12 +1055,21 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
 
 INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
-    tlTask* task = tlTaskCast(tlArgsGet(args, 1));
-    if (!task) return beval_module(tlTaskCurrent(), mod);
+    tlList* as = tlListCast(tlArgsGet(args, 1));
+    if (!as) as = tlListEmpty();
+    tlTask* task = tlTaskCast(tlArgsGet(args, 2));
 
     tlBClosure* fn = tlBClosureNew(mod->body, null);
-    tlBCall* call = tlBCallNew(0);
+    tlBCall* call = tlBCallNew(tlListSize(as));
     call->fn = fn;
+    for (int i = 0; i < tlListSize(as); i++) {
+        call->args[i] = tlListGet(as, i);
+    }
+
+    if (!task) {
+        return beval(tlTaskCurrent(), null, call, 0, null);
+    }
+
     task->value = call;
     task->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
     assert(tlTaskIsDone(task));
