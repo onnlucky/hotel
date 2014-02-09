@@ -74,6 +74,7 @@ struct tlBCall {
     int size;
     tlHandle target;
     tlHandle fn;
+    tlList* names;
     tlHandle args[];
 };
 
@@ -232,12 +233,44 @@ tlHandle tlBCallGetFn(tlBCall* call) {
     return call->fn;
 }
 
+int tlBCallNameIndex(tlBCall* call, tlString* name) {
+    for (int i = 0; i < call->size; i++) {
+        tlHandle v = tlListGet(call->names, i);
+        if (tlStringIs(v) && tlStringEquals(tlStringAs(v), name)) return i;
+    }
+    return -1;
+}
+
+tlHandle tlBCallGetUnnamed(tlBCall* call, int skipped) {
+    trace("get unnamed: %d", skipped);
+    for (int i = 0; i < call->size; i++) {
+        if (tlStringIs(tlListGet(call->names, i))) continue;
+        if (!skipped) return call->args[i];
+        skipped--;
+    }
+    return tlNull;
+}
+
 tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
+    tlList* argspec = tlListAs(tlListGet(code->args, at));
+    tlString* name = tlStringCast(tlListGet(argspec, 0));
+    trace("ARG(%d)=%s", at, tl_str(name));
+    if (call->names) {
+        int index = tlBCallNameIndex(call, name);
+        if (index >= 0) return call->args[index];
+
+        int skipped = 0;
+        for (int i = 0; i < at; i++) {
+            tlString* name = tlStringCast(tlListGet(tlListGet(code->args, i), 0));
+            if (tlBCallNameIndex(call, name) < 0) skipped++;
+        }
+
+        return tlBCallGetUnnamed(call, skipped);
+    }
+
     tlHandle v = tlBCallGet(call, at);
     if (v) return v;
-    tlHandle entry = tlListGet(code->args, at);
-    if (!entry) return tlNull;
-    v = tlListGet(entry, 0);
+    v = tlListGet(argspec, 1);
     if (!v) return tlNull;
     return v;
 }
@@ -1059,11 +1092,22 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
     if (!as) as = tlListEmpty();
     tlTask* task = tlTaskCast(tlArgsGet(args, 2));
 
+    int kw = 0;
+    for (int i = 0; i < tlListSize(as); i++) {
+        assert(tlListIs(tlListGet(as, i)));
+        if (tlListSize(tlListGet(as, i)) == 2) {
+            assert(tlStringIs(tlListGet(tlListGet(as, i), 1)));
+            kw++;
+        }
+    }
+
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     tlBCall* call = tlBCallNew(tlListSize(as));
+    call->names = kw? tlListNew(tlListSize(as)) : null;
     call->fn = fn;
     for (int i = 0; i < tlListSize(as); i++) {
-        call->args[i] = tlListGet(as, i);
+        call->args[i] = tlListGet(tlListGet(as, i), 0);
+        if (kw) tlListSet_(call->names, i, tlListGet(tlListGet(as, i), 1));
     }
 
     if (!task) {

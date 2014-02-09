@@ -175,7 +175,7 @@ code = [
     "arg", 1
     "invoke"
 ]
-Module.function("main", code, [], {a:0, b:1}, [["hello",false], ["world",false]])
+Module.function("main", code, [], {}, [["a","hello",false], ["b","world",false]])
 
 buf = Module.create
 buf.hexdump
@@ -186,7 +186,7 @@ m = _Module_new(buf, "test")
 //task = Task.new
 //debugger.attach(task)
 catch: e -> print "Exception:", e
-_module_run(m, ["foo", "bar"]) // task
+_module_run(m, [["foo"],["bar","b"]]) // task
 
 /*
 print "DEBUGGING"
