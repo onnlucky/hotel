@@ -79,10 +79,9 @@ encodeMap = m ->
 writeCode = mod, c ->
     buf = Buffer.new
 
-    buf.write mod.data(c.args)
-    buf.write mod.data(c.argnames)
-    buf.write mod.data(c.localnames)
     buf.write mod.data(c.name)
+    buf.write mod.data(c.argspecs)
+    buf.write mod.data(c.locals)
 
     var $pc = 0
     loop:
@@ -145,9 +144,9 @@ Module = {
         ref = this.data v
         _, at = this.globals.add ref
         this.globalsIndex[v] = encodeInt(at - 1)
-    function: name, code, localnames, argnames, defaults ->
+    function: name, code, locals, argspecs ->
         code = code.add("end")
-        bin = writeCode this, {{name, localnames, argnames, code}, args: defaults}
+        bin = writeCode this, {{name, locals, argspecs, code}}
         _, at = this.datas.add bin
         print "function", at, name
         this.functions[name] = encodeInt(at - 1)
@@ -169,13 +168,14 @@ code = ["fcall", 1, "global", "throw", "int", 40, "invoke"]
 code = ["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke"]
 code = ["fcall", 1, "global", "print", "data", "hello world!", "invoke"]
 code = [
-    "fcall", 2
+    "fcall", 3
     "global", "print"
     "arg", 0
     "arg", 1
+    "arg", 2
     "invoke"
 ]
-Module.function("main", code, [], {}, [["a","hello",false], ["b","world",false]])
+Module.function("main", code, [], [["a","hello",false], ["b","world",false], ["c","lol"]])
 
 buf = Module.create
 buf.hexdump
@@ -186,7 +186,7 @@ m = _Module_new(buf, "test")
 //task = Task.new
 //debugger.attach(task)
 catch: e -> print "Exception:", e
-_module_run(m, [["foo"],["bar","b"]]) // task
+_module_run(m, [["3"],["2","b"],["4"],["1","a"]]) // task
 
 /*
 print "DEBUGGING"

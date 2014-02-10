@@ -59,8 +59,7 @@ struct tlBCode {
     tlBModule* mod; // back reference to module it belongs
 
     tlString* name;
-    tlList* args;
-    tlMap* argnames;
+    tlList* argspec;
     tlList* localnames;
 
     int locals;
@@ -197,9 +196,11 @@ tlBLazyData* tlBLazyDataNew(tlHandle data) {
 bool tlBCallIsLazy(const tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size || !tlBClosureIs(call->fn)) return false;
-    tlHandle entry = tlListGet(tlBClosureAs(call->fn)->code->args, arg);
-    return tlTrue == tlListGet(tlListAs(entry), 1);
+    tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
+    if (spec == tlNull) return false;
+    return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
 }
+
 void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
     assert(arg >= 0);
     if (arg == 0) {
@@ -252,7 +253,7 @@ tlHandle tlBCallGetUnnamed(tlBCall* call, int skipped) {
 }
 
 tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
-    tlList* argspec = tlListAs(tlListGet(code->args, at));
+    tlList* argspec = tlListAs(tlListGet(code->argspec, at));
     tlString* name = tlStringCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
     if (call->names) {
@@ -261,7 +262,7 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
 
         int skipped = 0;
         for (int i = 0; i < at; i++) {
-            tlString* name = tlStringCast(tlListGet(tlListGet(code->args, i), 0));
+            tlString* name = tlStringCast(tlListGet(tlListGet(code->argspec, i), 0));
             if (tlBCallNameIndex(call, name) < 0) skipped++;
         }
 
@@ -385,19 +386,18 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     int start = tlBufferSize(buf);
 
     tlBCode* bcode = tlBCodeNew(mod);
-    tlHandle args = readref(buf, data, null);
-    if (!tlListIs(args)) fatal("first code ref must be a list, not %s", tl_str(args));
-    bcode->args = tlListAs(args);
-    tlHandle argnames = readref(buf, data, null);
-    if (!tlMapIs(argnames)) fatal("second code ref must be a map, not %s", tl_str(argnames));
-    bcode->argnames = tlMapAs(argnames);
-    tlHandle localnames = readref(buf, data, null);
-    if (!tlListIs(localnames)) fatal("third code ref must be a list, not %s", tl_str(localnames));
-    bcode->localnames = tlListAs(localnames);
     tlHandle name = readref(buf, data, null);
-    if (!tlStringIs(name)) fatal("fourth code ref must be a string, not %s", tl_str(name));
+    if (!tlStringIs(name) || name == tlNull) fatal("code[1] must be the name (string), not %s", tl_str(name));
     bcode->name = tlStringAs(name);
-    trace(" %s -- %s %s %s", tl_str(bcode->name), tl_str(bcode->args), tl_str(bcode->argnames), tl_str(bcode->localnames));
+
+    tlHandle argspec = readref(buf, data, null);
+    if (!tlListIs(argspec)) fatal("code[2] must be the argspec (list), not %s", tl_str(argspec));
+    bcode->argspec = tlListAs(argspec);
+
+    tlHandle localnames = readref(buf, data, null);
+    if (!tlListIs(localnames)) fatal("code[3] must be the localnames (list), not %s", tl_str(localnames));
+    bcode->localnames = tlListAs(localnames);
+    trace(" %s -- %s %s", tl_str(bcode->name), tl_str(bcode->argspec), tl_str(bcode->localnames));
 
     // we don't want above data in the bcode ... so skip it
     size -= start - tlBufferSize(buf);
@@ -544,19 +544,11 @@ static void disasm(tlBCode* bcode) {
     print(" name: %s::%s", tl_str(bcode->mod->name), tl_str(bcode->name));
     print(" <args>");
     for (int i = 0;; i++) {
-        tlHandle arg = tlListGet(bcode->args, i);
-        if (!arg) break;
-        print("   %s, %s, %s", tl_str(tlListGet(arg, 0)), tl_str(tlListGet(arg, 1)), tl_str(tlListGet(arg, 2)));
+        tlHandle spec = tlListGet(bcode->argspec, i);
+        if (!spec) break;
+        print("   name=%s, default=%s, lazy=%s", tl_str(tlListGet(spec, 0)), tl_str(tlListGet(spec, 1)), tl_str(tlListGet(spec, 2)));
     }
     print(" </args>");
-    print(" <argnames>");
-    for (int i = 0;; i++) {
-        tlHandle key = tlMapKeyIter(bcode->argnames, i);
-        if (!key) break;
-        tlHandle value = tlMapValueIter(bcode->argnames, i);
-        print("  %s -> %s", tl_str(key), tl_str(value));
-    }
-    print(" </argnames>");
     print(" <locals>");
     for (int i = 0;; i++) {
         tlHandle name = tlListGet(bcode->localnames, i);
