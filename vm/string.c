@@ -317,6 +317,7 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
 // TODO find bytes, find from, find upto, like buffer ...
 INTERNAL tlHandle _string_find(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsTarget(args));
+    bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
     if (tlNumberIs(tlArgsGet(args, 0))) {
         uint8_t b = (int)tl_double(tlArgsGet(args, 0));
 
@@ -324,8 +325,14 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
         if (from < 0) return tlUndef();
 
         const char* data = tlStringData(str);
-        for (int at = from; at < tlStringSize(str); at++) {
-            if (data[at] == b) return tlINT(at + 1);
+        if (backward) {
+            for (int at = from; at >= 0; at--) {
+                if (data[at] == b) return tlINT(at + 1);
+            }
+        } else {
+            for (int at = from; at < tlStringSize(str); at++) {
+                if (data[at] == b) return tlINT(at + 1);
+            }
         }
         return tlUndef();
     }
@@ -550,6 +557,7 @@ static void string_init() {
         "cat", _string_cat,
         "escape", _string_escape,
         "strip", _string_strip,
+        "times", null,
         "each", null,
         "map", null,
         "split", null,

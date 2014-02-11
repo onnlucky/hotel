@@ -68,6 +68,7 @@ static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|2);
 static inline bool tlRefIs(tlHandle v) { return v && ((intptr_t)v & 7) == 0; }
 static inline bool tlTagIs(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
 
+static inline bool tlNullIs(tlHandle v) { return v == tlNull; }
 static inline bool tlBoolIs(tlHandle v) { return v == tlTrue || v == tlFalse; }
 static inline tlHandle tlBoolAs(tlHandle v) { assert(tlBoolIs(v)); return v; }
 static inline tlHandle tlBoolCast(tlHandle v) { return tlBoolIs(v)?tlBoolAs(v):0; }

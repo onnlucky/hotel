@@ -166,6 +166,11 @@ _install(Int.class, #to, _to)
 
 // TODO should have special boot places for string, list and such
 /// String.each: for ever character run block or function given
+_install(String.class, #times, (times = (n ->
+    arr = Array.new
+    n.times: arr.add(this)
+    arr.join("")
+)))
 _install(String.class, #each, _each)
 _install(String.class, #map, _map)
 
