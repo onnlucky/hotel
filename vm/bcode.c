@@ -31,6 +31,7 @@ const char* op_name(uint8_t op) {
 }
 
 TL_REF_TYPE(tlBModule);
+TL_REF_TYPE(tlBDebugInfo);
 TL_REF_TYPE(tlBCode);
 TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlBEnv);
@@ -54,11 +55,19 @@ struct tlBModule {
     tlBCode* body;  // starting point; will reference linked and data
 };
 
+struct tlBDebugInfo {
+    tlHead head;
+    tlString* name;
+    tlInt offset;
+    tlString* text;
+    tlList* pos;
+};
+
 struct tlBCode {
     tlHead head;
     tlBModule* mod; // back reference to module it belongs
 
-    tlString* name;
+    tlBDebugInfo* debuginfo;
     tlList* argspec;
     tlList* localnames;
 
@@ -117,6 +126,9 @@ struct tlBLazyData {
 static tlKind _tlBModuleKind = { .name = "BModule" };
 tlKind* tlBModuleKind = &_tlBModuleKind;
 
+static tlKind _tlBDebugInfoKind = { .name = "BDebugInfo" };
+tlKind* tlBDebugInfoKind = &_tlBDebugInfoKind;
+
 static tlKind _tlBCodeKind = { .name = "BCode" };
 tlKind* tlBCodeKind = &_tlBCodeKind;
 
@@ -140,6 +152,10 @@ tlBModule* tlBModuleNew(tlString* name) {
     mod->name = name;
     return mod;
 }
+tlBDebugInfo* tlBDebugInfoNew() {
+    tlBDebugInfo* info = tlAlloc(tlBDebugInfoKind, sizeof(tlBDebugInfo));
+    return info;
+}
 tlBCode* tlBCodeNew(tlBModule* mod) {
     tlBCode* code = tlAlloc(tlBCodeKind, sizeof(tlBCode));
     code->mod = mod;
@@ -155,6 +171,10 @@ tlBEnv* tlBEnvNew(tlList* names, tlBEnv* parent) {
     env->names = names;
     env->parent = parent;
     return env;
+}
+tlString* tlBCodeName(tlBCode* code) {
+    if (code->debuginfo) return code->debuginfo->name;
+    return null;
 }
 tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     tlBClosure* fn = tlAlloc(tlBClosureKind, sizeof(tlBClosure));
@@ -387,8 +407,7 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
 
     tlBCode* bcode = tlBCodeNew(mod);
     tlHandle name = readref(buf, data, null);
-    if (!tlStringIs(name) || name == tlNull) fatal("code[1] must be the name (string), not %s", tl_str(name));
-    bcode->name = tlStringAs(name);
+    if (!tlStringIs(name) || tlNullIs(name)) fatal("code[1] must be the name (string), not %s", tl_str(name));
 
     tlHandle argspec = readref(buf, data, null);
     if (!tlListIs(argspec)) fatal("code[2] must be the argspec (list), not %s", tl_str(argspec));
@@ -397,7 +416,23 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     tlHandle localnames = readref(buf, data, null);
     if (!tlListIs(localnames)) fatal("code[3] must be the localnames (list), not %s", tl_str(localnames));
     bcode->localnames = tlListAs(localnames);
-    trace(" %s -- %s %s", tl_str(bcode->name), tl_str(bcode->argspec), tl_str(bcode->localnames));
+    trace(" %s -- %s %s", tl_str(tlBCodeName(bcode)), tl_str(bcode->argspec), tl_str(bcode->localnames));
+
+    tlHandle debuginfo = readref(buf, data, null);
+    if (!tlMapIs(debuginfo) || tlNullIs(debuginfo)) fatal("code[4] must be debuginfo (object), not %s", tl_str(debuginfo));
+
+    tlBDebugInfo* info = tlBDebugInfoNew();
+    info->name = tlStringAs(name);
+    if (tlMapIs(debuginfo)) {
+        info->offset = tlIntAs(tlMapGet(debuginfo, tlSYM("offset")));
+        info->text = tlStringAs(tlMapGet(debuginfo, tlSYM("text")));
+        info->pos = tlListAs(tlMapGet(debuginfo, tlSYM("pos")));
+    } else {
+        info->offset = tlINT(0);
+        info->text = tlStringEmpty();
+        info->pos = tlListEmpty();
+    }
+    bcode->debuginfo = info;
 
     // we don't want above data in the bcode ... so skip it
     size -= start - tlBufferSize(buf);
@@ -541,7 +576,7 @@ static void disasm(tlBCode* bcode) {
     tlList* linked = bcode->mod->linked;
 
     print("<code>");
-    print(" name: %s::%s", tl_str(bcode->mod->name), tl_str(bcode->name));
+    print(" name: %s::%s", tl_str(bcode->mod->name), tl_str(tlBCodeName(bcode)));
     print(" <args>");
     for (int i = 0;; i++) {
         tlHandle spec = tlListGet(bcode->argspec, i);

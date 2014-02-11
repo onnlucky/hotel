@@ -82,6 +82,7 @@ writeCode = mod, c ->
     buf.write mod.data(c.name)
     buf.write mod.data(c.argspecs)
     buf.write mod.data(c.locals)
+    buf.write mod.data(c.debuginfo)
 
     var $pc = 0
     loop:
@@ -144,9 +145,9 @@ Module = {
         ref = this.data v
         _, at = this.globals.add ref
         this.globalsIndex[v] = encodeInt(at - 1)
-    function: name, code, locals, argspecs ->
+    function: name, code, locals, argspecs, debuginfo ->
         code = code.add("end")
-        bin = writeCode this, {{name, locals, argspecs, code}}
+        bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
         _, at = this.datas.add bin
         print "function", at, name
         this.functions[name] = encodeInt(at - 1)
@@ -175,20 +176,21 @@ code = [
     "arg", 2
     "invoke"
 ]
-Module.function("main", code, [], [["a","hello",false], ["b","world",false], ["c","lol"]])
+Module.function("main", code, [], [["a","hello",false], ["b","world",false], ["c","lol"]],
+    {text: "a, b, c -> print(a, b, c)", offset: 0, pos:[12,12,12,12,18,18,21,21,24,24,12]}
+)
 
 buf = Module.create
 buf.hexdump
 
 print "LOADING MODULE"
 m = _Module_new(buf, "test")
-//debugger = Debugger.new
-//task = Task.new
-//debugger.attach(task)
+debugger = Debugger.new
+task = Task.new
+debugger.attach(task)
 catch: e -> print "Exception:", e
-_module_run(m, [["3"],["2","b"],["4"],["1","a"]]) // task
+_module_run(m, [["3"],["2","b"],["4"],["1","a"]], task) // task
 
-/*
 print "DEBUGGING"
 loop:
     catch: e -> print "oeps", e.toString
@@ -198,8 +200,13 @@ loop:
         print repr debugger.call
     { cmd == "locals" }:
         print repr debugger.locals
-    { cmd == "list" }:
-        print repr debugger.list
+    { cmd == "list" or cmd == "pos" }:
+        pos, text = debugger.pos
+        if pos:
+            begin = (text.find('\n', pos, backward=true) or -1) + 1
+            end = (text.find('\n', pos) or text.size + 1) - 1
+            print text, begin, end
+            print " ".times(pos - 1) + "^"
     { cmd == "step" or cmd == "" }:
         debugger.step
         print repr debugger.op

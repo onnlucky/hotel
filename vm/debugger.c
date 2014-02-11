@@ -93,6 +93,23 @@ INTERNAL tlHandle _debugger_continue(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle _debugger_pos(tlArgs* args) {
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    if (!debugger->subject) return tlNull;
+
+    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    if (!frame) return tlNull;
+
+    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+
+    tlBDebugInfo* info = closure->code->debuginfo;
+    if (!info) return tlNull;
+
+    tlHandle v = tlListGet(info->pos, frame->pc);
+    if (!v) v = tlNull;
+    return tlResultFrom(v, info->text, null);
+}
+
 INTERNAL tlHandle _debugger_op(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (!debugger->subject) return tlNull;
@@ -179,6 +196,7 @@ static void debugger_init() {
         "attach", _debugger_attach,
         "step", _debugger_step,
         "continue", _debugger_continue,
+        "pos", _debugger_pos,
         "op", _debugger_op,
         "call", _debugger_call,
         "locals", _debugger_locals,
