@@ -191,6 +191,15 @@ debugger.attach(task)
 catch: e -> print "Exception:", e
 _module_run(m, [["3"],["2","b"],["4"],["1","a"]], task) // task
 
+
+print_pos = ->
+    pos, text = debugger.pos
+    if not pos: return
+    begin = (text.find('\n', pos, backward=true) or -1) + 1
+    end = (text.find('\n', pos) or text.size + 1) - 1
+    print text
+    print " ".times(pos - 1) + "^"
+
 print "DEBUGGING"
 loop:
     catch: e -> print "oeps", e.toString
@@ -201,13 +210,8 @@ loop:
     { cmd == "locals" }:
         print repr debugger.locals
     { cmd == "list" or cmd == "pos" }:
-        pos, text = debugger.pos
-        if pos:
-            begin = (text.find('\n', pos, backward=true) or -1) + 1
-            end = (text.find('\n', pos) or text.size + 1) - 1
-            print text, begin, end
-            print " ".times(pos - 1) + "^"
+        print_pos()
     { cmd == "step" or cmd == "" }:
         debugger.step
-        print repr debugger.op
+        print_pos()
 
