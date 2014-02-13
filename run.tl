@@ -121,7 +121,7 @@ writeCode = mod, c ->
     if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
     return bin(0b11100101, encodeInt(buf.size), buf)
 
-Module = {
+builder_new = -> {
     datas: Array.new
     dataIndex: HashMap.new
     globals: Array.new
@@ -163,25 +163,56 @@ Module = {
         return buf
 }
 
-// print 42 -> fcall 1, global print, int 42, invoke
-code = ["fcall", 1, "global", "print", "int", 42, "invoke"]
-code = ["fcall", 1, "global", "throw", "int", 40, "invoke"]
-code = ["fcall", 1, "global", "print", "fcall", 2, "global", "add", "int", 40, "int", 2, "invoke", "invoke"]
-code = ["fcall", 1, "global", "print", "data", "hello world!", "invoke"]
-code = [
-    "fcall", 3
-    "global", "print"
-    "arg", 0
-    "arg", 1
-    "arg", 2
-    "invoke"
-]
-Module.function("main", code, [], [["a","hello",false], ["b","world",false], ["c","lol"]],
-    {text: "a, b, c -> print(a, b, c)", offset: 0, pos:[12,12,12,12,18,18,21,21,24,24,12]}
-)
+Module = {
+    new: (main ->
+        name = try(main.name) or ""
+        locals = try(main.locals) or []
+        argspec = try(main.args) or []
+        text = try(main.text) or ""
+        pos = try(main.pos) or []
 
-buf = Module.create
-buf.hexdump
+        builder = builder_new()
+        builder.function(name, main.code, locals, argspec, {text: text, offset: 0, pos: pos})
+        buf = builder.create
+        m = _Module_new(buf, "")
+        {
+            run: args -> _module_run(m, args or [])
+        }
+    )
+}
+
+Module.new({
+    code: [
+        "fcall", 1
+        "global", "print"
+        "data", "hello world"
+        "invoke"
+    ]
+}).run
+
+/*
+Module.new({
+    name: "main"
+    text: "a, b, c -> print(a, b, c)"
+    code: [
+        "fcall", 3
+        "global", "print"
+        "arg", 0
+        "arg", 1
+        "arg", 2
+        "invoke"
+    ]
+    pos: [
+        12, 12
+        12, 12
+        18, 18
+        21, 21
+        24, 24
+        12
+    ]
+}).run
+
+/*
 
 print "LOADING MODULE"
 m = _Module_new(buf, "test")
