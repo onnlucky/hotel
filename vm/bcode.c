@@ -878,7 +878,8 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     // 2. we start a lazy call
     // 3. we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
     // 4. we set a method name to a call, and resolving it paused the task; see end of this function
-    if (frame) { // 3 or 4
+    // 5. we resumed from a debugger
+    if (frame) { // 3 or 4 or 5
         assert(args == frame->args);
         pc = frame->pc;
         calls = &frame->calls;
@@ -886,7 +887,9 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
         locals = &lazylocals->data;
         v = task->value;
 
-        if (debugger && (bcode->calldepth == 0 || !(*calls)[0].call)) goto again;
+        // TODO we really need to know if we came from debugger or not ... just having a debugger is not good enough
+        // plus, debuggers attach/deattach any time
+        if (bcode->calldepth == 0 || !(*calls)[0].call) goto again;
 
         // find current call, we mark non current call by setting sign bit
         assert(bcode->calldepth > 0); // cannot be zero, or we would never suspend
@@ -896,8 +899,8 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
         assert(calltop >= 0 && calltop < bcode->calldepth);
         assert(call || calltop == 0);
 
-        trace("resume eval; %s %s; %s locals: %d call: %d/%d", tl_str(frame), tl_str(v),
-                tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
+        trace("resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
+                tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
         if (debugger) goto again;
         goto resume; // for speed and code density
     } else if (lazypc) { // 2

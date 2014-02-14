@@ -163,6 +163,34 @@ builder_new = -> {
         return buf
 }
 
+print_pos = debugger ->
+    pos, text = debugger.pos
+    if not pos: return
+    begin = (text.find('\n', pos, backward=true) or -1) + 1
+    end = (text.find('\n', pos) or text.size + 1) - 1
+    print text
+    print " ".times(pos - 1) + "^"
+
+SimpleDebugger = debugger ->
+    loop:
+        //catch: e -> print "oeps", e.toString
+        print "INPUT>"
+        at = io.stdin.find("\n")
+        cmd = io.stdin.readString(at).strip
+        { cmd == "call" }:
+            print repr debugger.call
+        { cmd == "locals" }:
+            print repr debugger.locals
+        { cmd == "list" or cmd == "pos" }:
+            print_pos(debugger)
+        { cmd == "step" or cmd == "" }:
+            debugger.step
+            print_pos(debugger)
+        { cmd == "stop" }:
+            debugger.detach debugger.current
+            debugger.continue
+            break
+
 Module = {
     new: (main ->
         name = try(main.name) or ""
@@ -176,7 +204,13 @@ Module = {
         buf = builder.create
         m = _Module_new(buf, "")
         {
-            run: args -> _module_run(m, args or [])
+            run: as -> _module_run(m, as)
+            debug: as ->
+                debugger = Debugger.new
+                task = Task.new
+                debugger.attach(task)
+                _module_run(m, as, task)
+                return SimpleDebugger(debugger)
         }
     )
 }
@@ -190,10 +224,10 @@ Module.new({
     ]
 }).run
 
-/*
 Module.new({
     name: "main"
     text: "a, b, c -> print(a, b, c)"
+    args: [["a","hello"],["b","world"],["c",":)"]]
     code: [
         "fcall", 3
         "global", "print"
@@ -210,39 +244,5 @@ Module.new({
         24, 24
         12
     ]
-}).run
-
-/*
-
-print "LOADING MODULE"
-m = _Module_new(buf, "test")
-debugger = Debugger.new
-task = Task.new
-debugger.attach(task)
-catch: e -> print "Exception:", e
-_module_run(m, [["3"],["2","b"],["4"],["1","a"]], task) // task
-
-
-print_pos = ->
-    pos, text = debugger.pos
-    if not pos: return
-    begin = (text.find('\n', pos, backward=true) or -1) + 1
-    end = (text.find('\n', pos) or text.size + 1) - 1
-    print text
-    print " ".times(pos - 1) + "^"
-
-print "DEBUGGING"
-loop:
-    catch: e -> print "oeps", e.toString
-    at = io.stdin.find("\n")
-    cmd = io.stdin.readString(at).strip
-    { cmd == "call" }:
-        print repr debugger.call
-    { cmd == "locals" }:
-        print repr debugger.locals
-    { cmd == "list" or cmd == "pos" }:
-        print_pos()
-    { cmd == "step" or cmd == "" }:
-        debugger.step
-        print_pos()
+}).debug([["foo"],["bar"]])
 

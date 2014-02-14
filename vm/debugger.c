@@ -8,6 +8,7 @@ tlKind* tlDebuggerKind = &_tlDebuggerKind;
 
 struct tlDebugger {
     tlHead head;
+    bool running;
     tlTask* subject;
     tlTask* waiter;
 };
@@ -22,6 +23,11 @@ void tlDebuggerAttach(tlDebugger* debugger, tlTask* task) {
     task->debugger = debugger;
 }
 
+void tlDebuggerDetach(tlDebugger* debugger, tlTask* task) {
+    assert(task->debugger);
+    task->debugger = null;
+}
+
 tlDebugger* tlDebuggerFor(tlTask* task) {
     return task->debugger;
 }
@@ -32,6 +38,8 @@ void tlDebuggerTaskDone(tlDebugger* debugger, tlTask* task) {
 }
 
 bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame) {
+    if (debugger->running) return true;
+
     tlBClosure* closure = tlBClosureAs(frame->args->fn);
     const uint8_t* ops = closure->code->code;
     ops = ops + 0;
@@ -57,6 +65,16 @@ INTERNAL tlHandle _debugger_attach(tlArgs* args) {
     tlDebuggerAttach(debugger, task);
     return tlNull;
 }
+
+INTERNAL tlHandle _debugger_detach(tlArgs* args) {
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    tlTask* task = tlTaskCast(tlArgsGet(args, 0));
+    if (!task) TL_THROW("require a task");
+    if (!task->debugger) TL_THROW("task has no debugger set");
+    tlDebuggerDetach(debugger, task);
+    return tlNull;
+}
+
 
 INTERNAL tlHandle returnStep(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlDebugger* debugger = tlDebuggerCast(res);
@@ -89,8 +107,20 @@ INTERNAL tlHandle _debugger_step(tlArgs* args) {
 }
 
 INTERNAL tlHandle _debugger_continue(tlArgs* args) {
-    //tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    debugger->running = true;
+    if (debugger->subject) {
+        if (!debugger->subject->value) debugger->subject->value = tlNull;
+        tlTaskReadyExternal(debugger->subject);
+        debugger->subject = null;
+    }
     return tlNull;
+}
+
+INTERNAL tlHandle _debugger_current(tlArgs* args) {
+    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+    if (!debugger->subject) return tlNull;
+    return debugger->subject;
 }
 
 INTERNAL tlHandle _debugger_pos(tlArgs* args) {
@@ -194,8 +224,10 @@ static tlKind _tlDebuggerKind = {
 static void debugger_init() {
     _tlDebuggerKind.klass = tlClassMapFrom(
         "attach", _debugger_attach,
+        "detach", _debugger_detach,
         "step", _debugger_step,
         "continue", _debugger_continue,
+        "current", _debugger_current,
         "pos", _debugger_pos,
         "op", _debugger_op,
         "call", _debugger_call,
