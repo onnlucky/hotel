@@ -110,7 +110,7 @@ writeCode = mod, c ->
         { op == "env"    }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
         { op == "local"  }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]
         { op == "arg"    }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
-        { op == "result" }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]
+        { op == "resstore" }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
         { op == "store"  }: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
         { op == "invoke" }: buf.write 0b1100_0000 + 14
         { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
@@ -216,14 +216,29 @@ Module = {
 }
 
 Module.new({
+    locals: ["arr", "v", "at"]
     code: [
-        "fcall", 1
+        "mcall", 0
+        "global", "Array"
+        "data", "new"
+        "invoke"
+        "store", 0
+        "mcall", 1
+        "local", 0
+        "data", "add"
+        "int", 42
+        "invoke"
+        "resstore", 0, 1
+        "resstore", 1, 2
+        "fcall", 2
         "global", "print"
-        "data", "hello world"
+        "local", 1
+        "local", 2
         "invoke"
     ]
 }).run
 
+/*
 Module.new({
     name: "main"
     text: "a, b, c -> print(a, b, c)"

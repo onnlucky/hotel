@@ -711,10 +711,15 @@ void tlBCodeVerify(tlBCode* bcode) {
                 assert(at <= locals);
                 break;
             case OP_ARG: dreadsize(&code); break;
-            case OP_RESULT: dreadsize(&code); dreadsize(&code); break;
             case OP_BIND:
                 v = dreadref(&code, data);
                 tlBCodeVerify(tlBCodeAs(v)); // TODO pass in our locals somehow for ENV
+                break;
+            case OP_RESULT:
+                dreadsize(&code);
+                at = dreadsize(&code);
+                assert(locals == at);
+                locals++;
                 break;
             case OP_STORE:
                 at = dreadsize(&code);
@@ -836,6 +841,15 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
         (*frame)->calls[i] = (**calls)[i];
     }
     *calls = &(*frame)->calls; // switch backing store
+}
+
+static tlHandle bmethodResolve(tlHandle target, tlSym method) {
+    if (tlMapOrObjectIs(target)) return mapResolve(target, method);
+    tlKind* kind = tl_kind(target);
+    if (kind->send) fatal("not implemented"); //return kind->send(args);
+    if (kind->klass) return mapResolve(kind->klass, method);
+    fatal("not implemented");
+    return null;
 }
 
 #include "trace-on.h"
@@ -1043,12 +1057,14 @@ again:;
             v = tlBClosureNew(tlBCodeAs(v), lazylocals);
             trace("%d bind %s", pc, tl_str(v));
             break;
-        case OP_RESULT:
+        case OP_RESULT: {
+            int rat = pcreadsize(ops, &pc);
+            tlHandle res = tlResultGet(v, rat);
             at = pcreadsize(ops, &pc);
-            v = tlResultGet(v, at);
-            at = pcreadsize(ops, &pc);
-            trace("result %d <- %s", at, tl_str(v));
+            (*locals)[at] = res;
+            trace("result %d <- %s (%d %s)", at, tl_str(res), rat, tl_str(v));
             break;
+        }
         case OP_STORE:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
@@ -1078,7 +1094,9 @@ resume:;
 
     // TODO resolve method at object ...
     if (arg == 2 && call->target && tlStringIs(call->fn)) {
-        fatal("oeps ... hehe methods");
+        tlHandle method = bmethodResolve(call->target, tlSymFromString(call->fn));
+        if (!method) TL_THROW("undefined");
+        call->fn = method;
     }
     goto again;
 }

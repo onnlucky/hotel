@@ -414,6 +414,34 @@ static size_t valueObjectSize(tlHandle v) {
 const char* valueObjecttoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<ValueObject@%p %d>", v, tlMapSize(tlMapFromObjectAs(v))); return buf;
 }
+
+INTERNAL tlHandle mapResolve(tlMap* map, tlSym msg) {
+    tlHandle field = null;
+    tlMap* cls;
+
+    // search for field
+    cls = map;
+    while (cls) {
+        trace("CLASS: %s %s", tl_str(cls), tl_str(msg));
+        field = tlMapGet(cls, msg);
+        if (field) goto send;
+        cls = tlMapGet(cls, s_class);
+    }
+
+    // search for getter
+    cls = map;
+    while (cls) {
+        trace("CLASS: %s %s", tl_str(cls), tl_str(s__get));
+        field = tlMapGet(cls, s__get);
+        if (field) goto send;
+        cls = tlMapGet(cls, s_class);
+    }
+
+send:;
+    trace("MAP RESOLVE %p: %s -> %s", map, tl_str(msg), tl_str(field));
+    return field;
+}
+
 static tlHandle valueObjectSend(tlArgs* args) {
     tlMap* map = tlMapFromObjectCast(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
