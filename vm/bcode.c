@@ -16,9 +16,9 @@ const char* op_name(uint8_t op) {
         case OP_ENV: return "ENV";
         case OP_LOCAL: return "LOCAL";
         case OP_ARG: return "ARG";
-        case OP_RESULT: return "RESULT";
         case OP_BIND: return "BIND";
         case OP_STORE: return "STORE";
+        case OP_RSTORE: return "RESULT";
         case OP_INVOKE: return "INVOKE";
         case OP_MCALL: return "MCALL";
         case OP_FCALL: return "FCALL";
@@ -620,11 +620,6 @@ static void disasm(tlBCode* bcode) {
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
                 break;
-            case OP_RESULT:
-                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d(%s) <- %d", opc, op, op_name(op),
-                        r2, tl_str(tlListGet(bcode->localnames, r2)), r);
-                break;
             case OP_BIND:
                 o = pcreadref(ops, &pc, data);
                 print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
@@ -633,6 +628,10 @@ static void disasm(tlBCode* bcode) {
             case OP_STORE:
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d(%s) <-", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
+                break;
+            case OP_RSTORE:
+                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d(%s) <- %d", opc, op, op_name(op), r2, tl_str(tlListGet(bcode->localnames, r2)), r);
                 break;
             default: print("OEPS: %d 0x%X %s", opc, op, op_name(op));
         }
@@ -715,13 +714,13 @@ void tlBCodeVerify(tlBCode* bcode) {
                 v = dreadref(&code, data);
                 tlBCodeVerify(tlBCodeAs(v)); // TODO pass in our locals somehow for ENV
                 break;
-            case OP_RESULT:
-                dreadsize(&code);
+            case OP_STORE:
                 at = dreadsize(&code);
                 assert(locals == at);
                 locals++;
                 break;
-            case OP_STORE:
+            case OP_RSTORE:
+                dreadsize(&code);
                 at = dreadsize(&code);
                 assert(locals == at);
                 locals++;
@@ -1057,7 +1056,13 @@ again:;
             v = tlBClosureNew(tlBCodeAs(v), lazylocals);
             trace("%d bind %s", pc, tl_str(v));
             break;
-        case OP_RESULT: {
+        case OP_STORE:
+            at = pcreadsize(ops, &pc);
+            assert(at >= 0 && at < bcode->locals);
+            (*locals)[at] = v;
+            trace("store %d <- %s", at, tl_str(v));
+            break;
+        case OP_RSTORE: {
             int rat = pcreadsize(ops, &pc);
             tlHandle res = tlResultGet(v, rat);
             at = pcreadsize(ops, &pc);
@@ -1065,12 +1070,6 @@ again:;
             trace("result %d <- %s (%d %s)", at, tl_str(res), rat, tl_str(v));
             break;
         }
-        case OP_STORE:
-            at = pcreadsize(ops, &pc);
-            assert(at >= 0 && at < bcode->locals);
-            (*locals)[at] = v;
-            trace("store %d <- %s", at, tl_str(v));
-            break;
         case OP_TRUE: v = tlTrue; break;
         case OP_FALSE: v = tlFalse; break;
         case OP_NULL: v = tlNull; break;

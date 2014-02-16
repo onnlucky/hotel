@@ -100,7 +100,7 @@ writeCode = mod, c ->
             buf.write 0b1100_0000 + 7;
             buf.write mod.global(c.code[($pc += 1)])
         { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
-            buf.write 0b1100_0000 + 12
+            buf.write 0b1100_0000 + 11
             buf.write mod.code(c.code[($pc += 1)])
         { op == "true"   }: buf.write 0b1100_0000 + 0
         { op == "false"  }: buf.write 0b1100_0000 + 1
@@ -110,8 +110,8 @@ writeCode = mod, c ->
         { op == "env"    }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
         { op == "local"  }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]
         { op == "arg"    }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
-        { op == "resstore" }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "store"  }: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
+        { op == "store"  }: buf.write 0b1100_0000 + 12; buf.write encodeInt c.code[($pc += 1)]
+        { op == "rstore" }: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
         { op == "invoke" }: buf.write 0b1100_0000 + 14
         { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
         { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
@@ -228,8 +228,8 @@ Module.new({
         "data", "add"
         "int", 42
         "invoke"
-        "resstore", 0, 1
-        "resstore", 1, 2
+        "rstore", 0, 1
+        "rstore", 1, 2
         "fcall", 2
         "global", "print"
         "local", 1
