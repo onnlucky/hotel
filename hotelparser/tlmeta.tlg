@@ -1,0 +1,248 @@
+#!/usr/bin/env tl
+
+/*
+  TODO
+remove the weird rule indend thing which leads to body_222_222_222
+add parser known "braces" open/close to expect the matching brace
+process rules for shared prefix, and rewrite rules to branch from there
+process rules until cycle without progress is found, cut and grow recursion from there
+allow backtracking and process alternatives, until no parse is found, then report all disallowed backtracks
+*/
+
+no_value = false
+
+parserParser = parser {
+
+       sp: " " | "\t"
+       nl: "\r\n" | "\n\r" | "\n" | "\r"
+slcomment: "//" (!nl _)*
+ icomment: "/*" (!"*/" _)* ("*/"|end)
+  comment: (slcomment (nl|end) | icomment)
+       ws: (sp | nl | comment)*
+
+    name: ls=(alpha|numeric|[_])+   -> ls.toChar
+
+  escape: "\\\""      -> "\""
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\$"       -> "\$"
+        | "\\\\"      -> "\\"
+        | !"\"" l=_   -> l.toChar
+    text: "\"" ts=escape* @"a closing '\"'" "\"" -> ts.join
+
+  cscape: "\\]"       -> "]"
+        | "\\n"       -> "\n"
+        | "\\r"       -> "\r"
+        | "\\t"       -> "\t"
+        | "\\$"       -> "\$"
+        | "\\\\"      -> "\\"
+        | !"]" l=_    -> l.toChar
+    char: "[" ts=cscape* @"closing ']'" "]" -> ts.join
+
+     act: "->". ts=(!"\n" _)*             -> ts.toChar
+
+    term: "(". t=or @"a closing ')'" .")" -> { type: "sub", term: t }
+        | ".."                            -> { type: "call", target: "wsnl" }
+        | "."                             -> { type: "call", target: "ws" }
+        | "_"                             -> { type: "prim", target: "any" }
+        | t=text                          -> { type: "prim", target: "text", text: t }
+        | t=char                          -> { type: "prim", target: "char", text: t }
+        | "pos" !alpha !"_" !":" !"*:"    -> { type: "prim", target: "pos" }
+        | "setindent" !alpha !"_" !":" !"*:" -> { type: "setindent" }
+        | "indent" !alpha !"_" !":" !"*:" -> { type: "indent" }
+        | n=name !"_" !":" !"*:"          -> { type: "call", target: n }
+    post: "!" @"a term" t=term            -> { type: "not", term: t }
+        | "&" @"a term" t=term            -> { type: "ahead", term: t }
+        | t=term "*(". @"a closing ')'" s=or .")" -> { type: "starsep", term: t, sep: s }
+        | t=term "+(". @"a closing ')'" s=or .")" -> { type: "plussep", term: t, sep: s }
+        | t=term "*"                      -> { type: "star", term: t, sep: null }
+        | t=term "+"                      -> { type: "plus", term: t, sep: null }
+        | t=term "?"                      -> { type: "opt", term: t }
+        | term
+   named: n=name "=<" t=name ">"          -> { type: "name", name: n, term: { type: "token", token: t }}
+        | n=name "=" @"a term"  t=post    -> { type: "name", name: n, term: t }
+        | "@" t=text                      -> { type: "anchor", msg: t }
+        | "@"                             -> { type: "anchor", msg: "" }
+        | post
+
+     and: h=named rs=(.named)* .a=act?    -> { type: "and", terms: [h].cat(rs), act: a }
+      or: @"some terms"
+          h=and rs=(."|". and)*           -> { type: "or", terms: [h].cat(rs) }
+
+    spec: "*"                             -> "color"
+        | ""
+
+    rule: .n=name s=spec @":" ":". t=or  -> { type: "rule", name: n, term: t, spec: s }
+  parser: n=name ."="."parser"."{"
+          rs=rule*
+          @"a closing '}'" ."}"           -> { n: n, rs: rs }
+   start: b=(!(name ."="."parser"."{") _)*
+          p=parser
+          a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+}
+
+forbidden = [pos:true,setindent:true,indent:true]
+rules = HashMap.new
+subs = Array.new
+colors = Array.new
+
+to_arg = t, name ->
+    { t.type == "sub"  }: to_sub(t.term, name)
+    { t.type == "and"  }: to_sub(t, name)
+    { t.type == "or"   }: to_sub(t, name)
+    { t.type == "prim" }: to_sub({ type: "and", terms: [t] }, name)
+    { t.type == "call" }: to_sub({ type: "and", terms: [t] }, name)
+    { }: throw "ERROR to arg:"+ inspect(t)
+
+can_optimize_and = t ->
+    if not no_value and t.act: return false
+    if t.terms.size != 1: return false
+    if t.terms[1].type == "name": return false
+    true
+
+to_call = t, name ->
+    { t.type == "and" }:
+        if can_optimize_and(t): return to_call(t.terms[1], name)
+        { type: "call", target: to_sub(t, name) }
+    { t.type == "sub"     }:
+        if t.term.terms.size == 1:
+            return to_call(t.term.terms[1], name)
+        { type: "call", target: to_sub(t.term, name) }
+    { t.type == "name"    }: { type: "name", name: t.name, term: to_call(t.term, name) }
+    { t.type == "call"    }:
+        if not rules[t.target]: throw "rule without a definition: '$(t.target)'"
+        { type: "call", target: "r_$(t.target)" }
+    { t.type == "starsep" }: { type: "meta", target: "star", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "plussep" }: { type: "meta", target: "plus", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name),"null"] }
+    { t.type == "plus"    }: { type: "meta", target: "plus", args: [to_arg(t.term, name),"null"] }
+    { t.type == "opt"     }: { type: "meta", target: "opt", args: [to_arg(t.term, name)] }
+    { t.type == "not"     }: { type: "meta", target: "not", args: [to_arg(t.term, name)] }
+    { t.type == "ahead"   }: { type: "meta", target: "ahead", args: [to_arg(t.term, name)] }
+
+    { t.type == "token"   }: t
+    { t.type == "prim"    }: t
+    { t.type == "anchor"  }: t
+    { t.type == "indent"  }: t
+    { t.type == "setindent" }: t
+    { }: throw "ERROR to call:"+ inspect(t)
+
+to_sub = t, name, rule, number ->
+    number = number or 0
+    name = { rule }: "r_$(rule)"
+           {      }: "$(name)_$(subs.size)"
+    { t.type == "and" }:
+        terms = t.terms.map(t -> to_call(t, name))
+        subs.add { type: "and", act: t.act, { name, number, terms }}
+        return name
+    { t.type == "or" }:
+        if t.terms.size == 1: return to_sub(t.terms[1], name, rule, number)
+        terms = t.terms.map(t -> to_call(t, name))
+        subs.add { type: "or", { name, number, terms }}
+        return name
+    { }: throw "ERROR to sub:"+ inspect(t)
+
+ast = parserParser(io.File(args[1]).readString)
+ast.rules.each: rule ->
+    if forbidden[rule.name]: throw "rule cannot be named '$(rule.name)'"
+    if rules[rule.name]: throw "rule already defined '$(rule.name)'"
+    rules[rule.name] = rule
+
+// add some default rules if they don't exist
+if not rules["ws"]:
+    rules["ws"] = { name: "ws", term: { type: "and", terms: [{ type: "prim", target: "ws" }]}, spec: null}
+if not rules["wsnl"]:
+    rules["wsnl"] = { name: "wsnl", term: { type: "and", terms: [{ type: "prim", target: "wsnl" }]}, spec: null}
+if not rules["start"] and ast.rules.size > 0:
+    rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
+
+rules.each: name, rule ->
+    number = { rule.spec == "color" }: colors.add name; colors.size
+             {                      }: 0
+    assert number
+    to_sub(rule.term, null, name, number)
+
+emit = term ->
+    { term.type == "call" }: "$(term.target)(_p, _pos);"
+    { term.type == "meta" }: "meta_$(term.target)(_p, _pos$(term.args.map(a -> ", $a").join));"
+    { term.type == "prim" and term.text }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\");"
+    { term.type == "prim" }: "prim_$(term.target)(_p, _pos);"
+    { term.type == "name" }: emit(term.term)
+    { no_value            }: "state_ok(_pos, tlNull);"
+    { term.type == "token"}: "state_ok(_pos, tlSTR(\"$(term.token.escape(true))\"));"
+    { }: throw "ERROR emit:"+ inspect(term)
+
+lines = Array.new
+if no_value: lines.add "#define NO_VALUE 1"
+lines.add "#include \"tlmeta.c\""
+lines.add ""
+if colors.size == 0: colors.add "pad"
+lines.add "const char* const colors[] = {\"\","+ colors.toList.map(c->"\"$(c.escape(true))\"").join(",") +",null};"
+emit_declare = rule -> lines.add "static State $(rule.name)(Parser*, int);"
+subs.each(r -> emit_declare(r))
+lines.add ""
+
+emit_rule = rule ->
+    lines.add "static State $(rule.name)(Parser* _p, int _start) { // $(rule.type)"
+    lines.add " parser_enter(_p, \"$(rule.name)\", _start);"
+    lines.add " int _pos = _start;"
+    { can_optimize_and(rule) }:
+        assert rule.number
+        lines.add " State _r = "+ emit(rule.terms[1])
+        lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
+        lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
+        lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
+    { rule.type == "or" }:
+        lines.add " State _r;"
+        rule.terms.each: term ->
+            lines.add " _r = "+ emit(term)
+            lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
+            lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
+        lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
+    { rule.type == "and" }:
+        anchor = Var.new
+        indent = Var.new // TODO while we can stack indent, we cannot deal with parser_fail, so it shouldn't, also, setindent must be deeper
+        names = Array.new
+        lines.add " State _r;"
+        rule.terms.each: term ->
+            if term.type == "setindent":
+                lines.add " const int __indent = parser_indent(_p, _pos);"
+                lines.add " if (_p->indent >= __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                lines.add " const int _indent = _p->indent; _p->indent = __indent;"
+                $indent = true
+                return
+            if term.type == "indent":
+                lines.add " if (_p->indent != parser_indent(_p, _pos)) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                return
+            if term.type == "anchor":
+                { not $anchor }: lines.add " const char* _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
+                {             }: lines.add " _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
+                $anchor = true
+                return
+            lines.add " _r = "+ emit(term)
+            if not $anchor:
+                lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _pos);"
+            if $anchor:
+                lines.add " if (!_r.ok) return parser_error(_p, \"$(rule.name)\", _start, _pos);"
+            lines.add " _pos = _r.pos;"
+            if not no_value and term.type == "name":
+                names.add term.name
+                lines.add " tlHandle $(term.name) = _r.value;"
+        { no_value }:
+            lines.add " tlHandle _v = null;"
+        { rule.act }:
+            lines.add " tlHandle _v = $(rule.act);"
+        { names.size > 0 }:
+            inner = names.toList.map(n -> "\"$n\", $n").join(", ")
+            lines.add " tlHandle _v = tlObjectFrom($inner, null);"
+        {                }:
+            lines.add " tlHandle _v = _r.value;"
+        if $anchor: lines.add " _p->anchor = _anchor;"
+        if $indent: lines.add " _p->indent = _indent;"
+        lines.add " return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, state_ok(_pos, _v));"
+    lines.add "}"
+subs.each(r -> emit_rule(r))
+
+io.File(args[2]).write(lines.join("\n"))
+

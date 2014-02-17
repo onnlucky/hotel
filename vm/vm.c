@@ -51,6 +51,7 @@
 #include "openssl.c"
 //#include "audio.c"
 //#include "storage.c"
+#include "hotelparser.c"
 
 // super extra
 //#include "http.c"
@@ -490,6 +491,7 @@ tlVm* tlVmNew() {
     openssl_init_vm(vm);
     //audio_init_vm(vm);
     //storage_init_vm(vm);
+    parser_init();
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;
