@@ -1,23 +1,31 @@
-p = parse("{->methods={test=->42}\nprint test}")
 
 globals = HashMap.new
 all = Array.new
 Scope = parent -> {{parent},
     names: HashMap.new
+    locals: Array.new
     addOpen: name, function, inMethods ->
-        all.add {{name, inMethods}, open: function, scope: this}
-        this.names[name] = all.size
+        _, all = all.add {{name, inMethods}, open: function, scope: this}
+        _, local = this.locals.add(name)
+        local = local - 1
+        this.names[name] = {{all, local}}
+        return local
     add: name ->
-        all.add {{name}}
-        this.names[name] = all.size
-    ref: name ->
+        _, all = all.add {{name}}
+        _, local = this.locals.add(name)
+        local = local - 1
+        this.names[name] = {{all, local}}
+        return local
+    ref: name, level ->
         ref = this.names[name]
         if ref:
-            if all[ref].open: close(ref)
-            return
+            if try(all[ref.all].open): close(ref.all)
+            if not level: return ["local", ref.local]
+            return ["env", level, ref.local]
         if parent:
-            return parent.ref name
+            return parent.ref name, 0
         globals[name] = true
+        return ["global", name]
 }
 
 close = n ->
@@ -26,30 +34,37 @@ close = n ->
     emit ref.scope, ref.open, ref.inMethods
 
 emit = scope, term, inMethods ->
-    { isNumber(term) }: true //print "number", term
-    { isString(term) }: true //print "string", term
+    { isNumber(term) }: ["int", term]
+    { isString(term) }: ["data", term]
     { term.type == "assign" }:
-        if term.value.type == "function" or term.value.type == "class" or term.value.type == "block":
-            scope.addOpen(term.to, term.value)
-            return
-        scope.add(term.to)
-        if term.to == "methods" and term.value.type == "object":
-            return emit scope, term.value, true
-        emit scope, term.value
+        type = try(term.type)
+        if type == "function" or type == "class" or type == "block":
+            local = scope.addOpen(term.to, term.value)
+            return ["store", local] // TODO bind bind bind!!!
+        local = scope.add(term.to)
+        if term.to == "methods" and type == "object":
+            emit scope, term.value, true
+            return ["store", local]
+        v = emit scope, term.value
+        return v + ["store", local]
     { term.type == "function" }:
         scope = Scope(scope)
-        if term.as: term.as.each: arg -> scope.add(arg.name)
-        term.body.each: stm -> emit scope, stm
+        as = try(term.as) or []
+        args = as.map(arg -> scope.add(arg.name);[arg.name])
+        code = term.body.map(stm -> emit scope, stm).flatten
+        return {{code, args}, locals: scope.locals.toList}
     { term.type == "class" }:
         scope = Scope(scope)
-        if term.as: term.as.each: arg -> scope.add(arg.name)
+        if try(term.as): term.as.each: arg -> scope.add(arg.name)
         scope.add("this")
-        term.body.each: stm -> emit scope, stm
+        term.body.map: stm -> emit scope, stm
     { term.type == "call" }:
-        emit scope, term.target
-        term.args.each: stm -> emit scope, stm.v
+        args = try(term.args) or []
+        fn = emit scope, term.target
+        args = args.map: stm -> emit scope, stm.v
+        ["fcall", args.size] + fn + args + ["invoke"]
     { term.type == "ref" }:
-        item = scope.ref(term.name)
+        scope.ref(term.name)
     { term.type == "method" }:
         emit scope, term.target
         term.args.each: stm -> emit scope, stm.v
@@ -65,14 +80,10 @@ emit = scope, term, inMethods ->
         print repr(term)
         throw "unknown term $(term.type)"
 
-emit Scope(null), p
-all.each: ref, n -> if ref.open: close(n, ref)
+{
+    emit: text ->
+        res = emit Scope(null), parse(text)
+        all.each: ref, n -> if try(ref.open): close(n, ref)
+        return res
+}
 
-print "---- locals:"
-all.each: ref, n ->
-    assert not ref.open
-    print n, ref.name
-
-print "---- globals:"
-globals.each: k, v -> print k
-print "----"

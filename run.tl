@@ -215,49 +215,7 @@ Module = {
     )
 }
 
-Module.new({
-    locals: ["arr", "v", "at"]
-    code: [
-        "mcall", 0
-        "global", "Array"
-        "data", "new"
-        "invoke"
-        "store", 0
-        "mcall", 1
-        "local", 0
-        "data", "add"
-        "int", 42
-        "invoke"
-        "rstore", 0, 1
-        "rstore", 1, 2
-        "fcall", 2
-        "global", "print"
-        "local", 1
-        "local", 2
-        "invoke"
-    ]
-}).run
-
-/*
-Module.new({
-    name: "main"
-    text: "a, b, c -> print(a, b, c)"
-    args: [["a","hello"],["b","world"],["c",":)"]]
-    code: [
-        "fcall", 3
-        "global", "print"
-        "arg", 0
-        "arg", 1
-        "arg", 2
-        "invoke"
-    ]
-    pos: [
-        12, 12
-        12, 12
-        18, 18
-        21, 21
-        24, 24
-        12
-    ]
-}).debug([["foo"],["bar"]])
+fn = scope.emit("x = 42; print(x)")
+print repr fn
+Module.new(fn).run
 
