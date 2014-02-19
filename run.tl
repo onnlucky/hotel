@@ -121,7 +121,8 @@ writeCode = mod, c ->
     if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
     return bin(0b11100101, encodeInt(buf.size), buf)
 
-builder_new = -> {
+builder_new = functions -> {
+    functions: functions
     datas: Array.new
     dataIndex: HashMap.new
     globals: Array.new
@@ -152,7 +153,9 @@ builder_new = -> {
         print "function", at, name
         this.functions[name] = encodeInt(at - 1)
     code: v ->
-        assert isList(v)
+        fn = functions[v]
+        print "code:", repr(fn)
+        return this.function(fn.name, fn.function.code, fn.function.locals, fn.function.args,{text:"",offset:0,pos:[]})
     create: ->
         buf = Buffer.new
         buf.write "tl01"
@@ -192,14 +195,14 @@ SimpleDebugger = debugger ->
             break
 
 Module = {
-    new: (main ->
+    new: (main, functions ->
         name = try(main.name) or ""
         locals = try(main.locals) or []
         argspec = try(main.args) or []
         text = try(main.text) or ""
         pos = try(main.pos) or []
 
-        builder = builder_new()
+        builder = builder_new(functions)
         builder.function(name, main.code, locals, argspec, {text: text, offset: 0, pos: pos})
         buf = builder.create
         m = _Module_new(buf, "")
@@ -215,7 +218,7 @@ Module = {
     )
 }
 
-fn = scope.emit("x = 42; print(x)")
-print repr fn
-Module.new(fn).run
+main, functions = scope.emit("x = -> 42\nprint(x())")
+print "code:", repr(main)
+Module.new(main, functions).run
 

@@ -1,25 +1,24 @@
 
 globals = HashMap.new
-all = Array.new
+functions = Array.new
 Scope = parent -> {{parent},
     names: HashMap.new
     locals: Array.new
     addOpen: name, function, inMethods ->
-        _, all = all.add {{name, inMethods}, open: function, scope: this}
+        _, fn = functions.add {{name, inMethods}, open: function, scope: this}
         _, local = this.locals.add(name)
         local = local - 1
-        this.names[name] = {{all, local}}
-        return local
+        this.names[name] = {{fn, local}}
+        return local, fn
     add: name ->
-        _, all = all.add {{name}}
         _, local = this.locals.add(name)
         local = local - 1
-        this.names[name] = {{all, local}}
+        this.names[name] = {{local}}
         return local
     ref: name, level ->
         ref = this.names[name]
-        if ref:
-            if try(all[ref.all].open): close(ref.all)
+        if try(ref.fn):
+            if functions[ref.fn].open: close(ref.fn)
             if not level: return ["local", ref.local]
             return ["env", level, ref.local]
         if parent:
@@ -29,28 +28,30 @@ Scope = parent -> {{parent},
 }
 
 close = n ->
-    ref = all[n]
-    all[n] = {name:ref.name}
-    emit ref.scope, ref.open, ref.inMethods
+    ref = functions[n]
+    functions[n] = {name:ref.name,open:false}
+    fn = emit ref.scope, ref.open, ref.inMethods
+    functions[n] = {name:ref.name,open:false,function:fn}
 
 emit = scope, term, inMethods ->
+    print "TERM", repr(term)
     { isNumber(term) }: ["int", term]
     { isString(term) }: ["data", term]
     { term.type == "assign" }:
-        type = try(term.type)
+        type = try(term.value.type)
         if type == "function" or type == "class" or type == "block":
-            local = scope.addOpen(term.to, term.value)
-            return ["store", local] // TODO bind bind bind!!!
+            local, fn = scope.addOpen(term.to, term.value)
+            return ["bind", fn, "store", local]
         local = scope.add(term.to)
         if term.to == "methods" and type == "object":
-            emit scope, term.value, true
-            return ["store", local]
+            v = emit scope, term.value, true
+            return v + ["store", local]
         v = emit scope, term.value
         return v + ["store", local]
     { term.type == "function" }:
         scope = Scope(scope)
         as = try(term.as) or []
-        args = as.map(arg -> scope.add(arg.name);[arg.name])
+        args = as.map(arg -> scope.add(arg.name); [arg.name])
         code = term.body.map(stm -> emit scope, stm).flatten
         return {{code, args}, locals: scope.locals.toList}
     { term.type == "class" }:
@@ -82,8 +83,9 @@ emit = scope, term, inMethods ->
 
 {
     emit: text ->
+        functions.clear // TODO come on, make this a real module/object thing
         res = emit Scope(null), parse(text)
-        all.each: ref, n -> if try(ref.open): close(n, ref)
-        return res
+        functions.each: fn, n -> if fn.open: close(n)
+        return res, functions
 }
 
