@@ -178,7 +178,7 @@ if no_value: lines.add "#define NO_VALUE 1"
 lines.add "#include \"tlmeta.c\""
 lines.add ""
 if colors.size == 0: colors.add "pad"
-lines.add "const char* const colors[] = {\"\","+ colors.toList.map(c->"\"$(c.escape(true))\"").join(",") +",null};"
+lines.add "static const char* const colors[] = {\"\","+ colors.toList.map(c->"\"$(c.escape(true))\"").join(",") +",null};"
 emit_declare = rule -> lines.add "static State $(rule.name)(Parser*, int);"
 subs.each(r -> emit_declare(r))
 lines.add ""

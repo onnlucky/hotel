@@ -218,7 +218,7 @@ Module = {
     )
 }
 
-main, functions = scope.emit("x = -> 42\nprint(x())")
+main, functions = scope.emit("x = -> 42\nprint repr x()")
 print "code:", repr(main)
 Module.new(main, functions).run
 

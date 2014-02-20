@@ -34,7 +34,7 @@ typedef struct Parser {
     const char* error_msg;
 } Parser;
 
-Parser* parser_new(const char* input, int len) {
+static Parser* parser_new(const char* input, int len) {
     Parser* parser = calloc(1, sizeof(Parser));
     if (!len) len = (int)strlen(input);
     parser->len = len;
@@ -45,13 +45,13 @@ Parser* parser_new(const char* input, int len) {
     return parser;
 }
 
-void parser_free(Parser* parser) {
+static void parser_free(Parser* parser) {
     free(parser->out);
     free(parser);
 }
 
 static State r_start(Parser*, int);
-bool parser_parse(Parser* p) {
+static bool parser_parse(Parser* p) {
     State s = r_start(p, 0);
     if (!s.ok) {
         if (!p->error_msg) p->error_msg = "unknown";
@@ -66,7 +66,7 @@ bool parser_parse(Parser* p) {
     return true;
 }
 
-int parser_indent(Parser* p, int pos) {
+static int parser_indent(Parser* p, int pos) {
     int indent = 0;
     int begin = pos;
     while (begin > 0 && p->input[begin] != '\n') begin--;
@@ -324,12 +324,12 @@ static State meta_ahead(Parser* p, int start, Rule r) {
 // ** tools **
 
 /// add an element to the front of a tlList
-tlList* prepend(tlHandle list, tlHandle element) {
+static tlList* prepend(tlHandle list, tlHandle element) {
     return tlListPrepend(tlListAs(list), element);
 }
 
 /// take a list of lists and return a list with all sublist concatenated
-tlList* flatten(tlHandle list) {
+static tlList* flatten(tlHandle list) {
     tlList* l = tlListAs(list);
     int size = tlListSize(l);
     if (size == 0) return tlListEmpty();
@@ -341,7 +341,7 @@ tlList* flatten(tlHandle list) {
 }
 
 /// make a string from a list of characters (tlList of tlNumber's)
-tlString* String(tlHandle list) {
+static tlString* String(tlHandle list) {
     tlList* l = tlListAs(list);
     int n = tlListSize(l);
     char buf[n + 1];
@@ -360,7 +360,7 @@ static int digitFromChar(int c, int radix) {
 }
 
 /// make a float from: a tlINT(1/-1), tlList(tlINT('0'-'9')), tlList(tlINT('0'-'9')), radix
-tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
+static tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
     double res = 0;
     if (whole) {
         tlList* l = tlListAs(whole);
@@ -380,7 +380,7 @@ tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
 }
 
 /// make a number from: a tlINT(1/-1), tlList(tlINT('0'-'9')), radix
-tlHandle Number(tlHandle s, tlHandle whole, int radix) {
+static tlHandle Number(tlHandle s, tlHandle whole, int radix) {
     tlList* l = tlListAs(whole);
     int n = tlListSize(l);
     char buf[n + 1];
@@ -394,19 +394,19 @@ tlHandle Number(tlHandle s, tlHandle whole, int radix) {
 
 // ** transforms **
 
-tlHandle process_tail(tlHandle value, tlHandle tail) {
+static tlHandle process_tail(tlHandle value, tlHandle tail) {
     if (tail == tlNull) return value;
     tlHandle target = tlMapGet(tail, tlSYM("target"));
     return tlMapSet(tail, tlSYM("target"), process_tail(value, target));
 }
 
-tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
+static tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", args,
             "type", tlSTR("call"), "pos", pos, null);
     return process_tail(value, tail);
 }
 
-tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail, tlHandle pos) {
+static tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle ttype = tlNull;
     if (strcmp("::", tlStringData(type)) == 0) ttype = tlSYM("classmethod");
     else if (strcmp("?", tlStringData(type)) == 0) ttype = tlSYM("savemethod");
@@ -418,40 +418,40 @@ tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle 
     return process_tail(value, tail);
 }
 
-tlHandle process_set_field(tlHandle field, tlHandle value, tlHandle pos) {
+static tlHandle process_set_field(tlHandle field, tlHandle value, tlHandle pos) {
     return tlObjectFrom("target", tlNull, "args", tlListFrom2(field, value), "method", tlSYM("set"),
             "type", tlSYM("method"), "pos", pos, null);
 }
 
-tlHandle process_get(tlHandle key, tlHandle tail, tlHandle pos) {
+static tlHandle process_get(tlHandle key, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom1(key), "method", tlSYM("get"),
             "type", tlSYM("method"), "pos", pos, null);
     return process_tail(value, tail);
 }
 
-tlHandle process_set(tlHandle key, tlHandle value, tlHandle pos) {
+static tlHandle process_set(tlHandle key, tlHandle value, tlHandle pos) {
     return tlObjectFrom("target", tlNull, "args", tlListFrom2(key, value), "method", tlSYM("set"),
             "type", tlSYM("method"), "pos", pos, null);
 }
 
-tlHandle process_slice(tlHandle from, tlHandle to, tlHandle tail, tlHandle pos) {
+static tlHandle process_slice(tlHandle from, tlHandle to, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom2(from, to), "method", tlSYM("slice"),
             "type", tlSYM("method"), "pos", pos, null);
     return process_tail(value, tail);
 }
 
-tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
+static tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
     if (rhs == tlNull) return lhs;
     return tlObjectFrom("op", tlMapGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlMapGet(rhs, tlSYM("r")),
             "type", tlSYM("op"), "pos", tlMapGet(rhs, tlSYM("pos")), null);
 }
 
-tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
+static tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
     return tlObjectFrom("target", ref, "args", tlListFrom1(arg),
             "type", tlSTR("call"), "pos", pos, null);
 }
 
-tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
+static tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     if (block == tlNull) return call;
     if (!tlMapOrObjectIs(call) || !tlMapGet(call, tlSYM("target"))) {
         call = tlObjectFrom("target", call, "args", tlListEmpty(),
@@ -471,7 +471,7 @@ static tlHandle _parser_parse(tlArgs* args) {
     return p->value;
 }
 
-void parser_init() {
+static void parser_init() {
     tl_register_global("parse", tlNATIVE(_parser_parse, "parse"));
 }
 
