@@ -155,7 +155,7 @@ builder_new = functions -> {
     code: v ->
         fn = functions[v]
         print "code:", repr(fn)
-        return this.function(fn.name, fn.function.code, fn.function.locals, fn.function.args,{text:"",offset:0,pos:[]})
+        return this.function(fn.name, fn.function.code, fn.function.locals, fn.function.args, {text:"",offset:0,pos:[]})
     create: ->
         buf = Buffer.new
         buf.write "tl01"
@@ -218,7 +218,6 @@ Module = {
     )
 }
 
-main, functions = scope.emit("x = -> 42\nprint repr x()")
-print "code:", repr(main)
+main, functions = scope.emit("test = { -> print 42 }\ntest()")
 Module.new(main, functions).run
 

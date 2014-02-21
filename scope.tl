@@ -19,6 +19,7 @@ Scope = parent -> {{parent},
         ref = this.names[name]
         if try(ref.fn):
             if functions[ref.fn].open: close(ref.fn)
+        if ref:
             if not level: return ["local", ref.local]
             return ["env", level, ref.local]
         if parent:
@@ -56,9 +57,11 @@ emit = scope, term, inMethods ->
         return {{code, args}, locals: scope.locals.toList}
     { term.type == "class" }:
         scope = Scope(scope)
-        if try(term.as): term.as.each: arg -> scope.add(arg.name)
-        scope.add("this")
-        term.body.map: stm -> emit scope, stm
+        as = try(term.as) or []
+        args = as.map(arg -> scope.add(arg.name); [arg.name])
+        local = scope.add("this")
+        code = term.body.map(stm -> emit scope, stm).flatten
+        return {{code, args}, locals: scope.locals.toList}
     { term.type == "call" }:
         args = try(term.args) or []
         fn = emit scope, term.target
@@ -86,6 +89,8 @@ emit = scope, term, inMethods ->
         functions.clear // TODO come on, make this a real module/object thing
         res = emit Scope(null), parse(text)
         functions.each: fn, n -> if fn.open: close(n)
+        functions.each: fn, n -> print "fn $n:", repr(fn)
+        print "main:", repr(res)
         return res, functions
 }
 
