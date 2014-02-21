@@ -218,6 +218,6 @@ Module = {
     )
 }
 
-main, functions = scope.emit("test = { -> print 42 }\ntest()")
+main, functions = scope.emit("print repr {x=42,x=43,y=14};print repr [42,43,44]")
 Module.new(main, functions).run
 

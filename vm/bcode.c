@@ -1169,3 +1169,20 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle __list(tlArgs* args) {
+    tlList* list = tlListEmpty();
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        list = tlListAppend(list, tlArgsGet(args, i));
+    }
+    return list;
+}
+
+INTERNAL tlHandle __map(tlArgs* args) {
+    // TODO make faster ;)
+    tlMap* map = tlMapEmpty();
+    for (int i = 0; i < tlArgsSize(args); i += 2) {
+        map = tlMapSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+    }
+    return map;
+}
+

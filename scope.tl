@@ -73,12 +73,16 @@ emit = scope, term, inMethods ->
         emit scope, term.target
         term.args.each: stm -> emit scope, stm.v
     { term.type == "object" }:
-        term.data.each: entry ->
-            if entry.v.type == "function":
-                scope.addOpen(entry.n, entry.v, inMethods)
-                return
+        elements = term.data.map(entry ->
+            if try(entry.v.type) == "function":
+                return ["data", entry.n, scope.addOpen(entry.n, entry.v, inMethods)]
             scope.add(entry.n)
-            emit scope, entry.v, inMethods
+            ["data", entry.n, emit(scope, entry.v, inMethods)]
+        )
+        ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
+    { term.type == "list" }:
+        elements = term.data.map(entry -> [emit(scope, entry)])
+        ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
     { }:
         print "ERROR"
         print repr(term)
