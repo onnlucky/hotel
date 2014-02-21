@@ -208,7 +208,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
 
 
     if (h == tlNull) { tlBufferWrite(buf, "null", 4); return false; }
-    if (h == tlFalse) { tlBufferWrite(buf, "false", 4); return false; }
+    if (h == tlFalse) { tlBufferWrite(buf, "false", 5); return false; }
     if (h == tlTrue) { tlBufferWrite(buf, "true", 4); return false; }
     if (tlUndefinedIs(h)) { tlBufferWrite(buf, "null", 4); return false; }
 
