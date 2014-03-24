@@ -31,24 +31,12 @@ Scope = parent -> {{parent},
 close = n ->
     ref = functions[n]
     functions[n] = {name:ref.name,open:false}
-    fn = emit ref.scope, ref.open, ref.inMethods
+    fn = emittop ref.scope, ref.open, ref.inMethods
     functions[n] = {name:ref.name,open:false,function:fn}
 
-emit = scope, term, inMethods ->
-    print "TERM", repr(term)
-    { isNumber(term) }: ["int", term]
-    { isString(term) }: ["data", term]
-    { term.type == "assign" }:
-        type = try(term.value.type)
-        if type == "function" or type == "class" or type == "block":
-            local, fn = scope.addOpen(term.to, term.value)
-            return ["bind", fn, "store", local]
-        local = scope.add(term.to)
-        if term.to == "methods" and type == "object":
-            v = emit scope, term.value, true
-            return v + ["store", local]
-        v = emit scope, term.value
-        return v + ["store", local]
+
+emittop = scope, term, inMethods ->
+    print "TOP TERM", repr(term)
     { term.type == "function" }:
         scope = Scope(scope)
         as = try(term.as) or []
@@ -62,6 +50,25 @@ emit = scope, term, inMethods ->
         local = scope.add("this")
         code = term.body.map(stm -> emit scope, stm).flatten
         return {{code, args}, locals: scope.locals.toList}
+
+emit = scope, term, inMethods ->
+    print "SUB TERM", repr(term)
+    { isNumber(term) }: ["int", term]
+    { isString(term) }: ["data", term]
+    { term.type == "function" or term.type == "class" or term.type == "block" }:
+        local, fn = scope.addOpen("-", term) // TODO alternative that doesn't use up a local name and assignes useful anonymous name
+        return ["bind", fn]
+    { term.type == "assign" }:
+        type = try(term.value.type)
+        if type == "function" or type == "class" or type == "block":
+            local, fn = scope.addOpen(term.to, term.value)
+            return ["bind", fn, "store", local]
+        local = scope.add(term.to)
+        if term.to == "methods" and type == "object":
+            v = emit scope, term.value, true
+            return v + ["store", local]
+        v = emit scope, term.value
+        return v + ["store", local]
     { term.type == "call" }:
         args = try(term.args) or []
         fn = emit scope, term.target
@@ -90,8 +97,8 @@ emit = scope, term, inMethods ->
 
 {
     emit: text ->
-        functions.clear // TODO come on, make this a real module/object thing
-        res = emit Scope(null), parse(text)
+        globals.clear; functions.clear // TODO come on, make this a real module/object thing
+        res = emittop Scope(null), parse(text)
         functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> print "fn $n:", repr(fn)
         print "main:", repr(res)

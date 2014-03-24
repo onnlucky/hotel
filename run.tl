@@ -116,7 +116,7 @@ writeCode = mod, c ->
         { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
         { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
         { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
-        {                }: throw "unknown op: $op"
+        {                }: throw "unknown op: $op $(repr(op))"
 
     if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
     return bin(0b11100101, encodeInt(buf.size), buf)
@@ -218,6 +218,6 @@ Module = {
     )
 }
 
-main, functions = scope.emit("print repr {x=42,x=43,y=14};print repr [42,43,44]")
+main, functions = scope.emit("{-> print 42}()")
 Module.new(main, functions).run
 
