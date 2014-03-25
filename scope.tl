@@ -56,7 +56,8 @@ emit = scope, term, inMethods ->
     { isNumber(term) }: ["int", term]
     { isString(term) }: ["data", term]
     { term.type == "function" or term.type == "class" or term.type == "block" }:
-        local, fn = scope.addOpen("-", term) // TODO alternative that doesn't use up a local name and assignes useful anonymous name
+        function = emittop scope, term, inMethods
+        _, fn = functions.add {name:"-", open:false, function:function}
         return ["bind", fn]
     { term.type == "assign" }:
         type = try(term.value.type)

@@ -218,6 +218,6 @@ Module = {
     )
 }
 
-main, functions = scope.emit("{-> print 42}()")
+main, functions = scope.emit("{-> print this}()")
 Module.new(main, functions).run
 

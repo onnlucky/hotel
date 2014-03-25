@@ -675,7 +675,7 @@ void bpprint(tlHandle v) {
 
 // verify and fill in call depth and balancing, and use of locals
 void tlBCodeVerify(tlBCode* bcode) {
-    int locals = 0;
+    int locals = tlListSize(bcode->localnames);
     int maxdepth = 0;
     int depth = 0;
 
@@ -707,7 +707,7 @@ void tlBCodeVerify(tlBCode* bcode) {
                 break;
             case OP_LOCAL:
                 at = dreadsize(&code);
-                assert(at <= locals);
+                assert(at < locals);
                 break;
             case OP_ARG: dreadsize(&code); break;
             case OP_BIND:
@@ -716,14 +716,12 @@ void tlBCodeVerify(tlBCode* bcode) {
                 break;
             case OP_STORE:
                 at = dreadsize(&code);
-                assert(locals == at);
-                locals++;
+                assert(at < locals);
                 break;
             case OP_RSTORE:
                 dreadsize(&code);
                 at = dreadsize(&code);
-                assert(locals == at);
-                locals++;
+                assert(at < locals);
                 break;
 
             case OP_INVOKE:
@@ -756,6 +754,7 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
     for (int i = 0; i < tlListSize(mod->links); i++) {
         tlHandle name = tlListGet(mod->links, i);
         tlHandle v = tlEnvGet(env, tlSymFromString(name));
+        if (!v) v = tlNull; // TODO tlUndef
         print("linking: %s as %s", tl_str(name), tl_str(v));
         tlListSet_(mod->linked, i, v);
     }
@@ -874,6 +873,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     // on stack storage if there is no frame yet
     CallEntry _calls[frame? 0 : bcode->calldepth];
     tlHandle _locals[(frame || lazylocals)? 0 : bcode->locals];
+    if (!(frame || lazylocals)) for (int i = 0; i < bcode->locals; i++) _locals[i] = 0;
 
     int calltop = -1; // current call index in the call stack
     tlBCall* call = null; // current call, if any
@@ -1047,6 +1047,7 @@ again:;
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
             v = (*locals)[at];
+            if (!v) v = tlNull; // TODO tlUndefined
             trace("local %d -> %s", at, tl_str(v));
             break;
         case OP_BIND:
