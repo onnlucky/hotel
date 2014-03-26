@@ -1187,3 +1187,13 @@ INTERNAL tlHandle __map(tlArgs* args) {
     return map;
 }
 
+INTERNAL tlHandle __return(tlArgs* args) {
+    // TODO we should return our scoped function, not the first frame ...
+    tlHandle res = tlNull;
+    if (tlArgsSize(args) == 1) res = tlArgsGet(args, 0);
+    if (tlArgsSize(args) > 1) res = tlResultFromArgs(args);
+
+    assert(false);
+    return res;
+}
+

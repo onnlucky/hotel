@@ -219,5 +219,11 @@ Module = {
 }
 
 main, functions = scope.emit("{-> print this}()")
+
+// TODO simplify bcode.c, always have a frame, not worth the trouble this way
+// TODO implement a return, but returns from detached scopes need a more special version
+// TODO impelment a catch handler
+
+main, functions = scope.emit("(-> return 42; print false)()")
 Module.new(main, functions).run
 
