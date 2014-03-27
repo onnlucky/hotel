@@ -56,6 +56,13 @@ struct tlTask {
     void* data;
 };
 
+void tlTaskSetCurrentFrame(tlTask* task, tlFrame* frame) {
+    task->stack = frame;
+}
+tlFrame* tlTaskCurrentFrame(tlTask* task) {
+    return task->stack;
+}
+
 tlWorker* tlWorkerCurrent() {
     return tlTaskCurrent()->worker;
 }

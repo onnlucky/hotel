@@ -183,10 +183,10 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     return fn;
 }
 
-bool tlBFrameIs(tlHandle* v) {
+bool tlBFrameIs(tlHandle v) {
     return tlFrameIs(v) && tlFrameAs(v)->resumecb == resumeBFrame;
 }
-tlBFrame* tlBFrameCast(void* v) {
+tlBFrame* tlBFrameCast(tlHandle v) {
     if (!tlBFrameIs(v)) return null;
     return (tlBFrame*)v;
 }
@@ -935,6 +935,9 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 
     // if there is a debugger, always create a frame
     if (debugger) ensure_frame(&calls, &locals, &frame, &lazylocals, args);
+    ensure_frame(&calls, &locals, &frame, &lazylocals, args);
+    frame->frame.caller = tlTaskCurrentFrame(task); // not entirely correct ...
+    tlTaskSetCurrentFrame(task, (tlFrame*)frame);
 
 again:;
     if (debugger && frame->pc != pc) {
@@ -1006,13 +1009,14 @@ again:;
                 arg = 0;
             }
             trace("invoke: %s", tl_str(invoke));
+            frame->pc = pc;
             v = tlInvoke(task, invoke);
             if (!v) { // task paused instead of actually doing work, suspend and return
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
-                frame->pc = pc;
                 if (calltop >= 0) (*calls)[calltop].at = arg;
                 return tlTaskPauseAttach(frame);
             }
+            pc = frame->pc;
             break;
         }
         case OP_SYSTEM:
@@ -1192,6 +1196,20 @@ INTERNAL tlHandle __return(tlArgs* args) {
     tlHandle res = tlNull;
     if (tlArgsSize(args) == 1) res = tlArgsGet(args, 0);
     if (tlArgsSize(args) > 1) res = tlResultFromArgs(args);
+
+    tlFrame* returnframe = tlTaskCurrentFrame(tlTaskCurrent());
+    tlFrame* frame = returnframe;
+    while (frame) {
+        if (tlBFrameIs(frame)) {
+            ((tlBFrame*)frame)->pc = 999999;
+            return res;
+            print("%s - bframe", tl_str(frame));
+            print("  %s", tl_str(((tlBFrame*)frame)->args->fn));
+        } else {
+            print("%s", tl_str(frame));
+        }
+        frame = frame->caller;
+    }
 
     assert(false);
     return res;

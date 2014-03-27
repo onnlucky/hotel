@@ -224,6 +224,6 @@ main, functions = scope.emit("{-> print this}()")
 // TODO implement a return, but returns from detached scopes need a more special version
 // TODO impelment a catch handler
 
-main, functions = scope.emit("(-> return 42; print false)()")
+main, functions = scope.emit("x=42;(-> return x; print x)()")
 Module.new(main, functions).run
 
