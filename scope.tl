@@ -8,18 +8,23 @@ Scope = parent -> {{parent},
         _, fn = functions.add {{name, inMethods}, open: function, scope: this}
         _, local = this.locals.add(name)
         local = local - 1
-        this.names[name] = {{fn, local}}
+        this.names[name] = {{fn, local}, arg:false}
         return local, fn
     add: name ->
         _, local = this.locals.add(name)
         local = local - 1
-        this.names[name] = {{local}}
+        this.names[name] = {{local}, arg:false}
         return local
+    addarg: name ->
+        this.names[name] = {arg:true, local:this.names.size}
     ref: name, level ->
         ref = this.names[name]
         if try(ref.fn):
             if functions[ref.fn].open: close(ref.fn)
         if ref:
+            if ref.arg:
+                if not level: return ["arg", ref.local]
+                assert false
             if not level: return ["local", ref.local]
             return ["env", level, ref.local]
         if parent:
@@ -44,14 +49,14 @@ emittop = scope, term, inMethods ->
     { term.type == "function" }:
         scope = Scope(scope)
         as = try(term.as) or []
-        args = as.map(arg -> scope.add(arg.name); argspec(arg))
+        args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
         code = term.body.map(stm -> emit scope, stm).flatten
         return {{code, args}, locals: scope.locals.toList}
     { term.type == "class" }:
         scope = Scope(scope)
         as = try(term.as) or []
-        args = as.map(arg -> scope.add(arg.name); argspec(arg))
-        local = scope.add("this")
+        scope.addarg("this")
+        args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
         code = term.body.map(stm -> emit scope, stm).flatten
         return {{code, args}, locals: scope.locals.toList}
 

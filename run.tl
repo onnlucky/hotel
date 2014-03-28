@@ -218,12 +218,13 @@ Module = {
     )
 }
 
-main, functions = scope.emit("{-> print this}()")
+//main, functions = scope.emit("{-> print this}()")
 
 // TODO simplify bcode.c, always have a frame, not worth the trouble this way
 // TODO implement a return, but returns from detached scopes need a more special version
 // TODO impelment a catch handler
 
-main, functions = scope.emit("x=42;(-> return x; print x)()")
+code = "if = cond, &t, &f -> bool(cond, t, f)()\nif(null,print(\"yes\"),print(\"no\"))"
+main, functions = scope.emit(code)
 Module.new(main, functions).run
 
