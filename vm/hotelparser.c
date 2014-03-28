@@ -1381,7 +1381,7 @@ static State r_block_64(Parser* _p, int _start) { // and
  _r = r_fargs(_p, _pos);
  if (!_r.ok) return parser_fail(_p, "r_block_64", _pos);
  _pos = _r.pos;
- tlHandle args = _r.value;
+ tlHandle as = _r.value;
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) return parser_fail(_p, "r_block_64", _pos);
  _pos = _r.pos;
@@ -1399,7 +1399,7 @@ static State r_block_64(Parser* _p, int _start) { // and
  if (!_r.ok) return parser_fail(_p, "r_block_64", _pos);
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("pos", pos, "args", args, "body", body, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "as", as, "body", body, "type", type, null);
  return parser_pass(_p, "r_block_64", 0, _start, state_ok(_pos, _v));
 }
 static State r_block_65(Parser* _p, int _start) { // and
@@ -1928,7 +1928,7 @@ static State r_function_88(Parser* _p, int _start) { // and
  _r = r_farg(_p, _pos);
  if (!_r.ok) return parser_fail(_p, "r_function_88", _pos);
  _pos = _r.pos;
- tlHandle arg = _r.value;
+ tlHandle as = _r.value;
  _r = r_ws(_p, _pos);
  if (!_r.ok) return parser_fail(_p, "r_function_88", _pos);
  _pos = _r.pos;
@@ -1946,7 +1946,7 @@ static State r_function_88(Parser* _p, int _start) { // and
  if (!_r.ok) return parser_fail(_p, "r_function_88", _pos);
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("pos", pos, "arg", arg, "body", body, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "as", as, "body", body, "type", type, null);
  return parser_pass(_p, "r_function_88", 0, _start, state_ok(_pos, _v));
 }
 static State r_function_89(Parser* _p, int _start) { // and
@@ -2057,7 +2057,7 @@ static State r_mfunction(Parser* _p, int _start) { // and
  _r = r_fargs(_p, _pos);
  if (!_r.ok) return parser_fail(_p, "r_mfunction", _pos);
  _pos = _r.pos;
- tlHandle args = _r.value;
+ tlHandle as = _r.value;
  _r = r_ws(_p, _pos);
  if (!_r.ok) return parser_fail(_p, "r_mfunction", _pos);
  _pos = _r.pos;
@@ -2075,7 +2075,7 @@ static State r_mfunction(Parser* _p, int _start) { // and
  if (!_r.ok) return parser_fail(_p, "r_mfunction", _pos);
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("pos", pos, "args", args, "body", body, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "as", as, "body", body, "type", type, null);
  return parser_pass(_p, "r_mfunction", 0, _start, state_ok(_pos, _v));
 }
 static State r_mcall(Parser* _p, int _start) { // and
