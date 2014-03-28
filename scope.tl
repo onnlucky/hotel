@@ -34,19 +34,23 @@ close = n ->
     fn = emittop ref.scope, ref.open, ref.inMethods
     functions[n] = {name:ref.name,open:false,function:fn}
 
+argspec = arg ->
+    if arg.type == "lazy": return [arg.name, arg.d, true]
+    if arg.d: return [arg.name, arg.d]
+    [arg.name]
 
 emittop = scope, term, inMethods ->
     print "TOP TERM", repr(term)
     { term.type == "function" }:
         scope = Scope(scope)
         as = try(term.as) or []
-        args = as.map(arg -> scope.add(arg.name); [arg.name])
+        args = as.map(arg -> scope.add(arg.name); argspec(arg))
         code = term.body.map(stm -> emit scope, stm).flatten
         return {{code, args}, locals: scope.locals.toList}
     { term.type == "class" }:
         scope = Scope(scope)
         as = try(term.as) or []
-        args = as.map(arg -> scope.add(arg.name); [arg.name])
+        args = as.map(arg -> scope.add(arg.name); argspec(arg))
         local = scope.add("this")
         code = term.body.map(stm -> emit scope, stm).flatten
         return {{code, args}, locals: scope.locals.toList}
