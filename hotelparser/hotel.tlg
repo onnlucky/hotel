@@ -32,8 +32,9 @@ slcomment*: "#" (!nl _)* (nl|end)
    embed: "%%"
         | "%(".. body=body ..")" type=<scope>
         | "%" e=ref                              -> e
-   text*: "\"\""                                 -> tlStringEmpty()
+   text2: "\"\""                                 -> tlStringEmpty()
         | "\"" t=stext "\""                      -> t
+   text*: data=text2 type=<string>
         | "\"" @"a closing '\"'" data=(embed|stext)* "\"" type=<string>
 
 // ---- NUMBERS ----

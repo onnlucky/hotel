@@ -62,8 +62,12 @@ emittop = scope, term, inMethods ->
 
 emit = scope, term, inMethods ->
     print "SUB TERM", repr(term)
-    { isNumber(term) }: ["int", term]
-    { isString(term) }: ["data", term]
+    { term == "undefined"  }: ["undef"]
+    { term == "null"  }: ["null"]
+    { term == "false" }: ["false"]
+    { term == "true"  }: ["true"]
+    { isNumber(term)  }: ["int", term]
+    { term.type == "string" }: ["data", term.data]
     { term.type == "function" or term.type == "class" or term.type == "block" }:
         function = emittop scope, term, inMethods
         _, fn = functions.add {name:"-", open:false, function:function}

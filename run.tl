@@ -224,7 +224,7 @@ Module = {
 // TODO implement a return, but returns from detached scopes need a more special version
 // TODO impelment a catch handler
 
-code = "if = cond, &t, &f -> bool(cond, t, f)()\nif(null,print(\"yes\"),print(\"no\"))"
+code = "if = cond, &t, &f -> bool(cond, t, f)()\nif(true,print(\"yes\"),print(\"no\"))"
 main, functions = scope.emit(code)
 Module.new(main, functions).run
 
