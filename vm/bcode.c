@@ -89,6 +89,7 @@ struct tlBCall {
 struct tlBEnv {
     tlHead head;
     tlBEnv* parent;
+    tlBCall* args;
     tlList* names;
     tlHandle data[];
 };
@@ -305,6 +306,12 @@ tlBEnv* tlBEnvGetParentAt(tlBEnv* env, int depth) {
     if (depth == 0) return env;
     if (env == null) return null;
     return tlBEnvGetParentAt(env->parent, depth - 1);
+}
+tlHandle tlBEnvArgGet(tlBEnv* env, int at) {
+    assert(env);
+    assert(env->args);
+    assert(at >= 0);
+    return tlBCallGetExtra(env->args, at, tlBClosureAs(env->args->fn)->code);
 }
 
 static tlHandle decodelit(uint8_t b);
