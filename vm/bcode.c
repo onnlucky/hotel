@@ -14,6 +14,7 @@ const char* op_name(uint8_t op) {
         case OP_MODULE: return "MODULE";
         case OP_GLOBAL: return "GLOBAL";
         case OP_ENV: return "ENV";
+        case OP_ENVARG: return "ENVARG";
         case OP_LOCAL: return "LOCAL";
         case OP_ARG: return "ARG";
         case OP_BIND: return "BIND";
@@ -623,7 +624,7 @@ static void disasm(tlBCode* bcode) {
                 print(" % 3d 0x%X %s: %s(%s)", opc, op, op_name(op),
                         tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r)));
                 break;
-            case OP_ENV:
+            case OP_ENV: case OP_ENVARG:
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
                 break;
@@ -711,6 +712,12 @@ void tlBCodeVerify(tlBCode* bcode) {
                 at = dreadsize(&code);
                 assert(parent >= 0 && parent <= 200);
                 assert(at >= 0); // todo and check parent locals
+                break;
+            case OP_ENVARG:
+                parent = dreadsize(&code);
+                at = dreadsize(&code);
+                assert(parent >= 0 && parent <= 200);
+                assert(at >= 0); // todo check parent
                 break;
             case OP_LOCAL:
                 at = dreadsize(&code);
@@ -817,12 +824,13 @@ static tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv*
 }
 
 // TODO this is not really needed, compiler or verifier can tell if a real locals needs to be realized
-static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlBClosure* fn) {
+static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlBCall* args, tlBClosure* fn) {
     if (*locals) {
         assert(&(*locals)->data == *data);
         return;
     }
     *locals = tlBEnvNew(fn->code->localnames, fn->env);
+    (*locals)->args = args;
     int size = tlListSize(fn->code->localnames);
     for (int i = 0; i < size; i++) {
         (*locals)->data[i] = (**data)[i];
@@ -838,7 +846,7 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
         assert(&(*frame)->calls == *calls);
         return;
     }
-    ensure_locals(data, locals, tlBClosureAs(args->fn));
+    ensure_locals(data, locals, args, tlBClosureAs(args->fn));
     *frame = tlBFrameNew(args);
     (*frame)->locals = *locals;
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
@@ -971,7 +979,7 @@ again:;
 
         if (lazy) {
             trace("lazy call");
-            ensure_locals(&locals, &lazylocals, closure);
+            ensure_locals(&locals, &lazylocals, args, closure);
             v = create_lazy(ops, &pc, args, lazylocals);
             tlBCallAdd_(call, v, arg++);
             goto again;
@@ -1041,7 +1049,7 @@ again:;
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
             break;
-        case OP_ENV:
+        case OP_ENV: {
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
@@ -1049,10 +1057,20 @@ again:;
             v = tlBEnvGet(parent, at);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
+        }
+        case OP_ENVARG: {
+            depth = pcreadsize(ops, &pc);
+            at = pcreadsize(ops, &pc);
+            assert(depth >= 0 && at >= 0);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            v = tlBEnvArgGet(parent, at);
+            trace("envarg[%d][%d] -> %s", depth, at, tl_str(v));
+            break;
+        }
         case OP_ARG:
             at = pcreadsize(ops, &pc);
             v = tlBCallGetExtra(args, at, bcode);
-            trace("args[%d] %s", at, tl_str(v));
+            trace("arg[%d] %s", at, tl_str(v));
             break;
         case OP_LOCAL:
             at = pcreadsize(ops, &pc);
@@ -1064,7 +1082,7 @@ again:;
         case OP_BIND:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
-            ensure_locals(&locals, &lazylocals, closure);
+            ensure_locals(&locals, &lazylocals, args, closure);
             v = tlBClosureNew(tlBCodeAs(v), lazylocals);
             trace("%d bind %s", pc, tl_str(v));
             break;

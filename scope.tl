@@ -24,7 +24,7 @@ Scope = parent -> {{parent},
         if ref:
             if ref.arg:
                 if not level: return ["arg", ref.local]
-                assert false
+                return ["envarg", level, ref.local]
             if not level: return ["local", ref.local]
             return ["env", level, ref.local]
         if parent:
