@@ -226,7 +226,7 @@ Module = {
 // TODO impelment a catch handler
 
 code = "if = cond, &t, &f -> bool(cond, t, f)()\nif(true,print(\"yes\"),print(\"no\"))"
-code = "(x->(y->print x, y)(43))(42)"
+code = "(x,y->print x, y)(1,2,y=41,x=42)"
 main, functions = scope.emit(code)
 Module.new(main, functions).run
 

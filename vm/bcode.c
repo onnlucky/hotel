@@ -219,7 +219,7 @@ bool tlBCallIsLazy(const tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size || !tlBClosureIs(call->fn)) return false;
     tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
-    if (spec == tlNull) return false;
+    if (!spec || spec == tlNull) return false;
     return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
 }
 
