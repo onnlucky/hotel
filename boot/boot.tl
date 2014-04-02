@@ -13,6 +13,8 @@ and = left, &right ->
     if left: return right()
     return left
 
+asBool = v -> bool(v, true, false)
+
 while = &cond ->
     block = args.block; if not block: throw "while expects a block"
     loop:
@@ -70,8 +72,7 @@ _find = fn ->
     loop(1)
 
 _filter = fn ->
-    block = args.block or fn
-    if not block: throw "filter expects a block or fn"
+    block = args.block or fn or asBool
     arr = Array.new
     len = this.size
     loop = at =>
