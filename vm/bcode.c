@@ -244,6 +244,7 @@ void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
     call->args[arg] = o;
 }
 void tlBCallSetNames_(tlBCall* call, tlList* names) {
+    call->names = names;
 }
 tlHandle tlBCallGet(tlBCall* call, int at) {
     if (at < 0 || at >= call->size) return null;
@@ -993,13 +994,13 @@ again:;
         assert(calltop >= 0 && calltop < bcode->calldepth);
         (*calls)[calltop] = (CallEntry){ .at = 0, .call = call };
 
-        // for non methods, skip target
-        if (op & 0x0F) tlBCallAdd_(call, tlNull, arg++);
         // load names if it is a named call
         if (op & 0x10) {
             int at = pcreadsize(ops, &pc);
             tlBCallSetNames_(call, tlListAs(tlListGet(data, at)));
         }
+        // for non methods, skip target
+        if (op & 0x0F) tlBCallAdd_(call, tlNull, arg++);
         goto again;
     }
 

@@ -86,7 +86,9 @@ emit = scope, term, inMethods ->
     { term.type == "call" }:
         args = try(term.args) or []
         fn = emit scope, term.target
+        names = args.map: stm -> try(stm.n)
         args = args.map: stm -> emit scope, stm.v
+        if names.filter.size > 0: return ["fcalln", args.size, {ns:names}] + fn + args + ["invoke"]
         ["fcall", args.size] + fn + args + ["invoke"]
     { term.type == "ref" }:
         scope.ref(term.name)
