@@ -108,6 +108,7 @@ struct tlBFrame {
 
     // mutable! but only by addition ...
     tlBEnv* locals;
+    tlHandle handler; // stack unwind handler
 
     // save/restore
     int pc;
@@ -187,6 +188,10 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
 
 bool tlBFrameIs(tlHandle v) {
     return tlFrameIs(v) && tlFrameAs(v)->resumecb == resumeBFrame;
+}
+tlBFrame* tlBFrameAs(tlHandle v) {
+    assert(tlBFrameIs(v));
+    return (tlBFrame*)v;
 }
 tlBFrame* tlBFrameCast(tlHandle v) {
     if (!tlBFrameIs(v)) return null;
@@ -1138,11 +1143,32 @@ INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
+INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
+    tlHandle handler = frame->handler;
+    if (tlBClosureIs(handler)) {
+        trace("invoke closure as exception handler: %s(%s)", tl_str(handler), tl_str(throw));
+        tlBCall* call = tlBCallNew(1);
+        call->fn = tlBClosureAs(handler);
+        tlBCallAdd_(call, throw, 2);
+        return beval(tlTaskCurrent(), null, call, 0, null);
+    }
+    if (tlCallableIs(handler)) {
+        // operate with old style hotel
+        trace("invoke callable as exception handler: %s(%s)", tl_str(handler), tl_str(throw));
+        tlCall* call = tlCallNew(1, null);
+        tlCallSetFn_(call, handler);
+        tlCallSet_(call, 0, throw);
+        return tlEval(call);
+    }
+    trace("returing handler value as handled: %s", tl_str(handler));
+    return handler;
+}
+
 INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resuming from a frame");
-    tlBFrame* frame = (tlBFrame*)_frame;
+    tlBFrame* frame = tlBFrameAs(_frame);
     if (throw) {
-        // TODO check if a handler was installed ...
+        if (frame->handler) return handleBFrameThrow(frame, throw);
         return null;
     }
     return beval(tlTaskCurrent(), frame, null, 0, null);
@@ -1239,5 +1265,14 @@ INTERNAL tlHandle __return(tlArgs* args) {
 
     assert(false);
     return res;
+}
+
+INTERNAL tlHandle __bcatch(tlArgs* args) {
+    tlBFrame* frame = tlBFrameAs(tlTaskCurrentFrame(tlTaskCurrent()));
+    tlHandle handler = tlArgsBlock(args);
+    if (!handler) handler = tlArgsGet(args, 0);
+    if (!handler) handler = tlNull;
+    frame->handler = handler;
+    return tlNull;
 }
 
