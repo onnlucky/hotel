@@ -599,7 +599,6 @@ static const tlNativeCbs __vm_natives[] = {
     { "__list", __list },
     { "__map", __map },
     { "return", __return },
-    { "bcatch", __bcatch },
 
     { 0, 0 },
 };

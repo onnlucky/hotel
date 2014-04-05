@@ -1267,7 +1267,7 @@ INTERNAL tlHandle __return(tlArgs* args) {
     return res;
 }
 
-INTERNAL tlHandle __bcatch(tlArgs* args) {
+INTERNAL tlHandle _bcatch(tlArgs* args) {
     tlBFrame* frame = tlBFrameAs(tlTaskCurrentFrame(tlTaskCurrent()));
     tlHandle handler = tlArgsBlock(args);
     if (!handler) handler = tlArgsGet(args, 0);
