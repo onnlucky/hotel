@@ -33,6 +33,28 @@ Scope = parent -> {{parent},
         return ["global", name]
 }
 
+opname = op ->
+    { op == "==" }: return "eq"
+    { op == "!=" }: return "neq"
+
+    { op == ">" }: return "qt"
+    { op == ">=" }: return "qte"
+    { op == "<" }: return "lt"
+    { op == "<=" }: return "lte"
+
+    { op == "|" }: return "band"
+    { op == "&" }: return "bor"
+    { op == "<<" }: return "lshift"
+    { op == ">>" }: return "rshift"
+
+    { op == "+" }: return "add"
+    { op == "-" }: return "sub"
+    { op == "*" }: return "mul"
+    { op == "/" }: return "div"
+    { op == "/."}: return "idiv"
+    { op == "%" }: return "mod"
+    { op == "^" }: return "pow"
+
 close = n ->
     ref = functions[n]
     functions[n] = {name:ref.name,open:false}
@@ -90,6 +112,10 @@ emit = scope, term, inMethods ->
         args = args.map: stm -> emit scope, stm.v
         if names.filter.size > 0: return ["fcalln", args.size, {ns:names}] + fn + args + ["invoke"]
         ["fcall", args.size] + fn + args + ["invoke"]
+    { term.type == "op" }:
+        rhs = emit scope, term.rhs
+        lhs = emit scope, term.lhs
+        ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
     { term.type == "ref" }:
         scope.ref(term.name)
     { term.type == "method" }:

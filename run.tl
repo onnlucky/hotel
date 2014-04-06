@@ -232,6 +232,7 @@ code = "if = cond, &t, &f -> bool(cond, t, f)()\nif(true,print(\"yes\"),print(\"
 code = "(x,y->print x, y)(1,2,y=41,x=42)"
 code = "catch(e -> print 42)\nthrow 41"
 code = "catch(42)\nthrow 41"
+code = "40 + 2"
 main, functions = scope.emit(code)
 Module.new(main, functions).run
 
