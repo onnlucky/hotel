@@ -473,6 +473,7 @@ void tl_init() {
 }
 
 tlVm* tlVmNew() {
+    srandom(time(NULL));
     tlVm* vm = tlAlloc(tlVmKind, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlEnvNew(null);

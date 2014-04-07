@@ -560,6 +560,7 @@ static void string_init() {
         "times", null,
         "each", null,
         "map", null,
+        "random", null,
         "split", null,
         "replace", null,
         "eval", null,

@@ -214,6 +214,31 @@ INTERNAL tlHandle _array_slice(tlArgs* args) {
     return tlArraySub(array, offset, len);
 }
 
+// TODO by lack of better name; akin to int.toChar ...
+// TODO taken from list.c ... duplicate code ... oeps
+/// toChar: return a string, formed from a array of numbers
+/// if the array contains numbers that are not valid characters, it throws an exception
+INTERNAL tlHandle _array_toChar(tlArgs* args) {
+    tlArray* array = tlArrayCast(tlArgsTarget(args));
+    if (!array) TL_THROW("Expected a array");
+
+    int size = tlArraySize(array);
+    char* buf = malloc_atomic(size + 1);
+    assert(buf);
+    for (int i = 0; i < size; i++) {
+        int ch = tl_int_or(tlArrayGet(array, i), -1);
+        if (ch < 0) ch = 32;
+        if (ch > 255) ch = 32;
+        if (ch < 0) { free(buf); TL_THROW("not a array of characters"); }
+        if (ch > 255) { free(buf); TL_THROW("utf8 not yet supported"); }
+        buf[i] = ch;
+    }
+    buf[size] = 0;
+    return tlStringFromTake(buf, size);
+}
+
+
+
 static tlMap* arrayClass;
 static void array_init() {
     _tlArrayKind.klass = tlClassMapFrom(
@@ -227,6 +252,7 @@ static void array_init() {
         "remove", _array_remove,
         "insert", _array_insert,
         "slice", _array_slice,
+        "toChar", _array_toChar,
         "random", null,
         "each", null,
         "map", null,

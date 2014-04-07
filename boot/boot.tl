@@ -35,7 +35,7 @@ try = &test ->
     test()
 
 _get_random = ->
-    this.get(random(this.size))
+    this.get(1 + random(this.size))
 
 _each = fn ->
     block = args.block or fn
@@ -174,6 +174,7 @@ _install(String.class, #times, (times = (n ->
 )))
 _install(String.class, #each, _each)
 _install(String.class, #map, _map)
+_install(String.class, #random, _get_random)
 
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
 _install(String.class, #split, (split = (on ->
