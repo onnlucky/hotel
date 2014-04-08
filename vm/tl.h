@@ -62,7 +62,6 @@ static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|2);
 
 // TODO remove ... a few defines
 #define TL_MAX_PRIV_SIZE 7
-#define TL_MAX_DATA_SIZE (65535 - TL_MAX_PRIV_SIZE)
 #define TL_MAX_ARGS_SIZE 2000
 
 static inline bool tlRefIs(tlHandle v) { return v && ((intptr_t)v & 7) == 0; }

@@ -86,10 +86,12 @@ INTERNAL tlHandle _isBin(tlArgs* args) {
 INTERNAL const char* bintoString(tlHandle v, char* buf, int size) {
     tlBin* bin = tlBinAs(v);
     size -= snprintf(buf, size, "bin(");
-    for (int i = 0; i < tlBinSize(bin) && size > 4; i++) {
-        size -= snprintf(buf + 4 + 5 * i, 6, "0x%02X,", tlBinGet(bin, i));
+    int i = 0;
+    for (; i < tlBinSize(bin) && size > 6; i++) {
+        size -= snprintf(buf + 4 + 5 * i, size, "0x%02X,", tlBinGet(bin, i));
     }
-    if (size > 2) snprintf(buf + 4 + 5 * tlBinSize(bin) - 1, 2, ")");
+    if (size > 6) snprintf(buf + 4 + 5 * i - 1, 2, ")");
+    else snprintf(buf + 4 + 5 * i - 5, 5, "...)");
     return buf;
 }
 INTERNAL unsigned int binHash(tlHandle v) {

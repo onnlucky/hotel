@@ -15,10 +15,11 @@ static tlList* _tl_emptyList;
 
 tlList* tlListEmpty() { return _tl_emptyList; }
 
+#define TL_MAX_LIST_SIZE 1024 * 1024
 tlList* tlListNew(int size) {
     trace("%d", size);
     if (size == 0) return _tl_emptyList;
-    assert(size >= 0 && size < TL_MAX_DATA_SIZE);
+    assert(size >= 0 && size < TL_MAX_LIST_SIZE);
     tlList* list = tlAlloc(tlListKind, sizeof(tlList) + sizeof(tlHandle) * size);
     list->size = size;
     assert(list->size == size);
