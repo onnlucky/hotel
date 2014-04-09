@@ -181,6 +181,19 @@ _to = to, fn ->
 _install(Int.class, #times, _times)
 _install(Int.class, #to, _to)
 
+_str = o ->
+    if isString(o): return o
+    if isNumber(o) or isList(o) or isArray(o): return o.toChar
+    return "$o"
+
+_install(String, #call, (new = (->
+    if args.size == 0: return ""
+    if args.size == 1: return _str(args[1])
+    arr = Array.new
+    args.each: a -> arr.add(_str(a))
+    arr.join
+)))
+
 // TODO should have special boot places for string, list and such
 /// String.each: for ever character run block or function given
 _install(String.class, #times, (times = (n ->

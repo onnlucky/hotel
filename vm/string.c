@@ -567,7 +567,8 @@ static void string_init() {
         null
     );
     tlMap* constructor = tlClassMapFrom(
-        "call", _String_cat,
+        "call", null,
+        "cat", _String_cat,
         "class", null,
         null
     );

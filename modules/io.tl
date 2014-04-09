@@ -86,6 +86,7 @@ Stream = {
             return this.rbuf.readString
         readLine: ->
             len = this.find("\n")
+            if not len: return null
             return this.readString(len)
         read: len ->
             if len:

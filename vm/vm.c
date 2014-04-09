@@ -589,6 +589,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "_int_parse", _int_parse },
     { "_urldecode", _urldecode },
 
+    { "isArray", _isArray },
     { "_Buffer_new", _Buffer_new },
     { "isBuffer", _isBuffer },
     { "isBin", _isBin },

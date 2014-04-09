@@ -237,7 +237,9 @@ INTERNAL tlHandle _array_toChar(tlArgs* args) {
     return tlStringFromTake(buf, size);
 }
 
-
+INTERNAL tlHandle _isArray(tlArgs* args) {
+    return tlBOOL(tlArrayIs(tlArgsGet(args, 0)));
+}
 
 static tlMap* arrayClass;
 static void array_init() {
