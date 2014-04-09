@@ -67,7 +67,8 @@ _find = fn ->
     loop = at =>
         if at > len: return null
         e = this.get(at)
-        if block(e, at): return e, at
+        if e == block: return e, at
+        if try(block(e, at)): return e, at
         goto(loop(at + 1))
     loop(1)
 

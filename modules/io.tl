@@ -84,6 +84,9 @@ Stream = {
                 return this.rbuf.readString len
             this._readFull
             return this.rbuf.readString
+        readLine: ->
+            len = this.find("\n")
+            return this.readString(len)
         read: len ->
             if len:
                 assert len >= 0 and len <= 1000_000_000
