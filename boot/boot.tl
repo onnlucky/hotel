@@ -135,6 +135,21 @@ _join = sep ->
         $i += 1
     return $res
 
+_split = on ->
+    on = on or " "
+    res = Array.new
+    loop = start ->
+        end = this.find(on, start)
+        if not end:
+            if start <= this.size: res.add(this[start:])
+        if end == start:
+            goto loop(end + on.size)
+        if end > start:
+            res.add(this[start:end - 1])
+            goto loop(end + on.size)
+    loop(1)
+    return res.toList
+
 _times = fn ->
     if this <= 0: return
     block = args.block or fn
@@ -177,19 +192,7 @@ _install(String.class, #map, _map)
 _install(String.class, #random, _get_random)
 
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
-_install(String.class, #split, (split = (on ->
-    if this.size == 0: return []
-    on = on or " "
-    if on.size == 0: return this
-    onlen = on.size
-    loop = start, at, list ->
-        if this.startsWith(on, at):
-            goto(loop(at + onlen, at + onlen, list.add(this[start:at - 1])))
-        if at > this.size:
-            return list.add(this[start:])
-        goto(loop(start, at + 1, list))
-    return loop(1, 1, [])
-)))
+_install(String.class, #split, _split)
 /// String.replace: replace all occurances of args[1] with args[2], returns a new #String
 _install(String.class, #replace, (replace = (from, to ->
     if from.size == 0: return this
