@@ -415,6 +415,18 @@ tlString* readString(tlBuffer* buf, int size) {
     return tlStringFromTake(data, size);
 }
 
+tlList* readList(tlBuffer* buf, int size, tlList* data) {
+    trace("list: %d", size);
+    tlList* list = tlListNew(size);
+    for (int i = 0; i < size; i++) {
+        tlHandle v = readref(buf, data, null);
+        assert(v);
+        trace("LIST: %d: %s", i, tl_str(v));
+        tlListSet_(list, i, v);
+    }
+    return list;
+}
+
 tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     if (tlBufferSize(buf) < size) fatal("buffer too small");
     int start = tlBufferSize(buf);
@@ -463,12 +475,10 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
 
 tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1) {
     int size = readsize(buf);
-    assert(size > 0 && size < 1000);
+    assert(size > 0 && size < 100000);
     switch (b1) {
         case 0xE0: return readString(buf, size);
-        case 0xE1: // list
-            fatal("list %d", size);
-            break;
+        case 0xE1: return readList(buf, size, data);
         case 0xE2: // set
             fatal("set %d", size);
             break;
@@ -500,17 +510,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
 
     switch (type) {
         case 0x00: return readString(buf, size);
-        case 0x20: { // short list
-            trace("short list: %d", size);
-            tlList* list = tlListNew(size);
-            for (int i = 0; i < size; i++) {
-                tlHandle v = readref(buf, data, null);
-                assert(v);
-                trace("LIST: %d: %s", i, tl_str(v));
-                tlListSet_(list, i, v);
-            }
-            return list;
-        }
+        case 0x20: return readList(buf, size, data);
         case 0x40: // short set
             fatal("set %d", size);
         case 0x60: { // short map

@@ -51,10 +51,10 @@ encodeLiteral = v ->
 encodeInt = i ->
     assert i >= 0
     if i < 1 << 7: return i
-    i = i - 1 << 7
-    if i < 1 << 13: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
-    i = i - 1 << 13
-    if i < 1 << 19: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7) & 0b0111_1111, i & 0b0111_1111)
+    i2 = i - 1 << 7
+    if i2 < 1 << 13: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
+    i3 = i - 1 << 13
+    if i3 < 1 << 19: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7) & 0b0111_1111, i & 0b0111_1111)
     assert false
 
 encodeString = s ->
@@ -63,8 +63,11 @@ encodeString = s ->
     return bin(0b1110_0000, encodeInt(s.size), s)
 
 encodeList = l ->
-    assert l.size < 32
-    buf = Buffer.new 0b0010_0000 | l.size
+    if l.size < 32:
+        buf = Buffer.new 0b0010_0000 | l.size
+        l.each: e -> buf.write e
+        return buf.read
+    buf = Buffer.new 0b1110_0001, encodeInt(l.size)
     l.each: e -> buf.write e
     return buf.read
 
@@ -123,7 +126,7 @@ writeCode = mod, c ->
         {                }: throw "unknown op: $op $(repr(op))"
 
     if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
-    return bin(0b11100101, encodeInt(buf.size), buf)
+    return bin(0b1110_0101, encodeInt(buf.size), buf)
 
 builder_new = functions -> {
     functions: functions
@@ -233,6 +236,17 @@ code = "(x,y->print x, y)(1,2,y=41,x=42)"
 code = "catch(e -> print 42)\nthrow 41"
 code = "catch(42)\nthrow 41"
 code = "40 + 2"
+
+X=44
+X=43
+arr = Array.new
+X.times: e -> arr.add "v$e = $e"
+code = arr.join("\n")
+arr.clear
+arr.add "\nprint 0"
+X.times: e -> arr.add "+ v$e"
+code = code + arr.join
+
 main, functions = scope.emit(code)
 Module.new(main, functions).run
 
