@@ -200,7 +200,7 @@ tlBFrame* tlBFrameCast(tlHandle v) {
 
 tlBFrame* tlBFrameNew(tlBCall* args) {
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
-    tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(tlHandle) * calldepth);
+    tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(CallEntry) * calldepth);
     frame->pc = -1;
     frame->args = args;
     return frame;
