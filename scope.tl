@@ -112,15 +112,19 @@ emit = scope, term, inMethods ->
         args = args.map: stm -> emit scope, stm.v
         if names.filter.size > 0: return ["fcalln", args.size, {ns:names}] + fn + args + ["invoke"]
         ["fcall", args.size] + fn + args + ["invoke"]
+    { term.type == "method" }:
+        args = try(term.args) or []
+        target = emit scope, term.target
+        names = args.map: stm -> try(stm.n)
+        args = args.map: stm -> emit scope, stm.v
+        if names.filter.size > 0: return ["mcalln", args.size, {ns:names}] + target + ["data", term.method] + args + ["invoke"]
+        ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
     { term.type == "op" }:
         rhs = emit scope, term.rhs
         lhs = emit scope, term.lhs
         ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
     { term.type == "ref" }:
         scope.ref(term.name)
-    { term.type == "method" }:
-        emit scope, term.target
-        term.args.each: stm -> emit scope, stm.v
     { term.type == "object" }:
         elements = term.data.map(entry ->
             if try(entry.v.type) == "function":

@@ -237,16 +237,19 @@ code = "catch(e -> print 42)\nthrow 41"
 code = "catch(42)\nthrow 41"
 code = "40 + 2"
 
-X=44
-X=43
+X=440
+res = Var.new 0
 arr = Array.new
-X.times: e -> arr.add "v$e = $e"
+X.times: e -> arr.add "v$e = $e"; $res += e
 code = arr.join("\n")
 arr.clear
 arr.add "\nprint 0"
 X.times: e -> arr.add "+ v$e"
 code = code + arr.join
 
+code = "repr system.version"
+
 main, functions = scope.emit(code)
 Module.new(main, functions).run
+//print "should be", $res
 

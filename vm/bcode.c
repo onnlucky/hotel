@@ -804,6 +804,10 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     if (tlBLazyDataIs(fn)) {
         return tlBLazyDataAs(fn)->data;
     }
+    if (call->target) {
+        assert(fn);
+        return call->fn;
+    }
     fatal("don't know how to invoke: %s", tl_str(fn));
     return null;
 }
