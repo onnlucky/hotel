@@ -39,6 +39,7 @@ TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
 TL_REF_TYPE(tlBLazy);
 TL_REF_TYPE(tlBLazyData);
+TL_REF_TYPE(tlBSendToken);
 
 typedef struct tlBFrame tlBFrame;
 
@@ -122,8 +123,12 @@ struct tlBLazy {
     int pc; // where the actuall call is located in the code
 };
 struct tlBLazyData {
-    tlHead ehad;
+    tlHead head;
     tlHandle data;
+};
+struct tlBSendToken {
+    tlHead head;
+    tlSym method;
 };
 
 static tlKind _tlBModuleKind = { .name = "BModule" };
@@ -149,6 +154,9 @@ tlKind* tlBLazyKind = &_tlBLazyKind;
 
 static tlKind _tlBLazyDataKind = { .name = "BLazyData" };
 tlKind* tlBLazyDataKind = &_tlBLazyDataKind;
+
+static tlKind _tlBSendTokenKind = { .name = "BSendToken" };
+tlKind* tlBSendTokenKind = &_tlBSendTokenKind;
 
 tlBModule* tlBModuleNew(tlString* name) {
     tlBModule* mod = tlAlloc(tlBModuleKind, sizeof(tlBModule));
@@ -218,6 +226,12 @@ tlBLazyData* tlBLazyDataNew(tlHandle data) {
     tlBLazyData* lazy = tlAlloc(tlBLazyDataKind, sizeof(tlBLazyData));
     lazy->data = data;
     return lazy;
+}
+
+tlBSendToken* tlBSendTokenNew(tlSym method) {
+    tlBSendToken* token = tlAlloc(tlBSendTokenKind, sizeof(tlBSendToken));
+    token->method = method;
+    return token;
 }
 
 bool tlBCallIsLazy(const tlBCall* call, int arg) {
@@ -787,6 +801,13 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
     print(" %s invoke %s", tl_str(call), tl_str(fn));
+    if (tlBSendTokenIs(fn)) {
+        tlArgs* args = tlArgsNew(tlListNew(call->size), null);
+        tlArgsSetTarget_(args, call->target);
+        tlArgsSetMsg_(args, tlBSendTokenAs(fn)->method);
+        for (int i = 0; i < call->size; i++) tlArgsSet_(args, i, call->args[i]);
+        return tl_kind(call->target)->send(args);
+    }
     if (tlNativeIs(fn)) {
         tlArgs* args = tlArgsNew(tlListNew(call->size), null);
         tlArgsSetTarget_(args, call->target);
@@ -867,11 +888,12 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
 }
 
 static tlHandle bmethodResolve(tlHandle target, tlSym method) {
+    print("resolve method: %s.%s", tl_str(target), tl_str(method));
     if (tlMapOrObjectIs(target)) return mapResolve(target, method);
     tlKind* kind = tl_kind(target);
-    if (kind->send) fatal("not implemented"); //return kind->send(args);
+    if (kind->send) return tlBSendTokenNew(method);
     if (kind->klass) return mapResolve(kind->klass, method);
-    fatal("not implemented");
+    fatal("not implemented %s.%s", tl_str(target), tl_str(method));
     return null;
 }
 

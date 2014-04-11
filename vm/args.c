@@ -80,6 +80,11 @@ void tlArgsSetFn_(tlArgs* args, tlHandle fn) {
     assert(!args->fn);
     args->fn = fn;
 }
+void tlArgsSetMsg_(tlArgs* args, tlSym msg) {
+    assert(tlArgsIs(args));
+    assert(!args->msg);
+    args->msg = msg;
+}
 void tlArgsSet_(tlArgs* args, int at, tlHandle v) {
     assert(tlArgsIs(args));
     tlListSet_(args->list, at, v);

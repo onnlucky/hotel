@@ -247,7 +247,9 @@ arr.add "\nprint 0"
 X.times: e -> arr.add "+ v$e"
 code = code + arr.join
 
-code = "repr system.version"
+code = "1000.round"
+code = "system.version"
+code = "in = MsgQueue.new.input\nin.foobar 1, 2, 3, 4\n"
 
 main, functions = scope.emit(code)
 Module.new(main, functions).run
