@@ -128,7 +128,9 @@ emit = scope, term, inMethods ->
     { term.type == "object" }:
         elements = term.data.map(entry ->
             if try(entry.v.type) == "function":
-                return ["data", entry.n, scope.addOpen(entry.n, entry.v, inMethods)]
+                function = emittop scope, entry.v, inMethods
+                _, fn = functions.add {name:entry.n, open:false, function:function}
+                return ["data", entry.n, "bind", fn]
             scope.add(entry.n)
             ["data", entry.n, emit(scope, entry.v, inMethods)]
         )

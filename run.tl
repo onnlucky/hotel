@@ -250,6 +250,8 @@ code = code + arr.join
 code = "1000.round"
 code = "system.version"
 code = "in = MsgQueue.new.input\nin.foobar 1, 2, 3, 4\n"
+code = "{x=(->42)}.x"
+code = "x=(->42);x.call"
 
 main, functions = scope.emit(code)
 Module.new(main, functions).run
