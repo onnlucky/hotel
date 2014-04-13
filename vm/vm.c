@@ -449,6 +449,7 @@ void tl_init() {
 
     env_init();
     eval_init();
+    bcode_init();
     task_init();
     error_init();
     queue_init();

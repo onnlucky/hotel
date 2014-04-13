@@ -1302,3 +1302,22 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     return tlNull;
 }
 
+// TODO really, tlArgs == tlBCall if we rework both a bit
+INTERNAL tlHandle _closure_call(tlArgs* args) {
+    print("closure.call");
+    tlBCall* call = tlBCallNew(tlArgsSize(args));
+    call->target = call->fn = tlArgsTarget(args);
+    // TODO names
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        call->args[i] = tlArgsGet(args, 0);
+    }
+    return beval(tlTaskCurrent(), null, call, 0, null);
+}
+
+void bcode_init() {
+    _tlBClosureKind.klass = tlClassMapFrom(
+        "call", _closure_call,
+        null
+    );
+}
+
