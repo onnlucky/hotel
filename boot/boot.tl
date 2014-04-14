@@ -115,6 +115,15 @@ _max = ->
     this.each: e -> if e > $max: $max = e
     return $max
 
+/// given a string, it parses it to a number or returns null
+/// given a number it returns the number
+/// returns null otherwise
+Number = s ->
+    if isNumber(s): return s
+    v = try(s.eval)
+    if isNumber(v): return v
+    return null
+
 // TODO only flatten one level, unless asked?
 _flatten2 = ls, arr ->
     ls.each: e ->
