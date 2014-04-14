@@ -195,6 +195,10 @@ _str = o ->
     if isNumber(o) or isList(o) or isArray(o): return o.toChar
     return "$o"
 
+/// String()
+/// call with numbers, interprets them as letters (unicode points)
+/// call with binaries or buffers, interprets them as utf8 letters
+/// TODO allow configuration on what to do for invalid utf8 and/or invalid unicode points
 _install(String, #call, (new = (->
     if args.size == 0: return ""
     if args.size == 1: return _str(args[1])

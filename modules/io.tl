@@ -84,10 +84,17 @@ Stream = {
                 return this.rbuf.readString len
             this._readFull
             return this.rbuf.readString
+        /// blocks and reads until a newline character '\n' is seen, returns a String including the newline
+        /// also returns a string at end of stream
+        /// returns null if stream cannot be read
         readLine: ->
             len = this.find("\n")
-            if not len: return null
-            return this.readString(len)
+            if not len:
+                if this.rbuf.size == 0: return null
+                return this.rbuf.readString
+            res = this.rbuf.readString(len - 1)
+            this.readByte
+            return res
         read: len ->
             if len:
                 assert len >= 0 and len <= 1000_000_000
@@ -286,6 +293,7 @@ Terminal = {
         class: Stream.class
 
         isTTY: -> _tty_is(this.file)
+        // TODO does not work, size conflicts with stream.size
         setRaw: -> _tty_setRaw(this.file)
         restore: -> _tty_restore(this.file)
         size: -> _tty_size(this.file)

@@ -336,8 +336,8 @@ static tlHandle _reader_read(tlArgs* args) {
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
 
-    if (file->ev.fd < 0) TL_THROW("read: already closed");
-    if (reader->closed) TL_THROW("reader: already closed");
+    if (file->ev.fd < 0) return tlINT(0);
+    if (reader->closed) return tlINT(0);
 
     // TODO figure out how much data there is to read ...
     // TODO do this in a while loop until all data from kernel is read?
@@ -347,6 +347,7 @@ static tlHandle _reader_read(tlArgs* args) {
     int len = read(file->ev.fd, writebuf(buf), canwrite(buf));
     if (len < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) { trace("EGAIN"); return tlNull; }
+        // TODO can it be some already closed error?
         TL_THROW("%d: read: failed: %s", file->ev.fd, strerror(errno));
     }
     if (len == 0) reader->closed = true;

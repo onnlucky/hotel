@@ -294,6 +294,9 @@ static tlHandle _sqrt(tlArgs* args) {
     trace("SQRT: %d", res);
     return tlFLOAT(res);
 }
+
+/// random(n)
+/// return number between 0 upto n (including 0, but not including n)
 static tlHandle _random(tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);
