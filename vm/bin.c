@@ -85,6 +85,10 @@ INTERNAL tlHandle _isBin(tlArgs* args) {
 }
 INTERNAL const char* bintoString(tlHandle v, char* buf, int size) {
     tlBin* bin = tlBinAs(v);
+    if (tlBinSize(bin) == 0) {
+        snprintf(buf, size, "bin()");
+        return buf;
+    }
     size -= snprintf(buf, size, "bin(");
     int i = 0;
     for (; i < tlBinSize(bin) && size > 6; i++) {
