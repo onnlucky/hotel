@@ -58,7 +58,7 @@ opname = op ->
     { op == "%" }: return "mod"
     { op == "^" }: return "pow"
 
-(code ->
+compile = (code ->
     globals = HashMap.new
     functions = Array.new
 
@@ -327,35 +327,7 @@ opname = op ->
             return buf
     }
 
-    print_pos = debugger ->
-        pos, text = debugger.pos
-        if not pos: return
-        begin = (text.find('\n', pos, backward=true) or -1) + 1
-        end = (text.find('\n', pos) or text.size + 1) - 1
-        print text
-        print " ".times(pos - 1) + "^"
-
-    SimpleDebugger = debugger ->
-        loop:
-            //catch: e -> print "oeps", e.toString
-            print "INPUT>"
-            at = io.stdin.find("\n")
-            cmd = io.stdin.readString(at).strip
-            { cmd == "call" }:
-                print repr debugger.call
-            { cmd == "locals" }:
-                print repr debugger.locals
-            { cmd == "list" or cmd == "pos" }:
-                print_pos(debugger)
-            { cmd == "step" or cmd == "" }:
-                debugger.step
-                print_pos(debugger)
-            { cmd == "stop" }:
-                debugger.detach debugger.current
-                debugger.continue
-                break
-
-    compile = main, function ->
+    compilemain = main, function ->
         name = try(main.name) or ""
         locals = try(main.locals) or []
         argspec = try(main.args) or []
@@ -366,22 +338,50 @@ opname = op ->
         builder.function(name, main.code, locals, argspec, {text: text, offset: 0, pos: pos})
         builder.create
 
-    Module = buf ->
-        m = _Module_new(buf, "")
-        b = buf.rewind.read
-        {
-            bytes: b
-            run: as -> _module_run(m, as)
-            debug: as ->
-                debugger = Debugger.new
-                task = Task.new
-                debugger.attach(task)
-                _module_run(m, as, task)
-                return SimpleDebugger(debugger)
-        }
-
     main, functions = parseemit(code)
-    buf = compile(main, functions)
-    return Module(buf)
+    buf = compilemain(main, functions)
+    return buf.read
 )
 
+print_pos = debugger ->
+    pos, text = debugger.pos
+    if not pos: return
+    begin = (text.find('\n', pos, backward=true) or -1) + 1
+    end = (text.find('\n', pos) or text.size + 1) - 1
+    print text
+    print " ".times(pos - 1) + "^"
+
+SimpleDebugger = debugger ->
+    loop:
+        //catch: e -> print "oeps", e.toString
+        print "INPUT>"
+        at = io.stdin.find("\n")
+        cmd = io.stdin.readString(at).strip
+        { cmd == "call" }:
+            print repr debugger.call
+        { cmd == "locals" }:
+            print repr debugger.locals
+        { cmd == "list" or cmd == "pos" }:
+            print_pos(debugger)
+        { cmd == "step" or cmd == "" }:
+            debugger.step
+            print_pos(debugger)
+        { cmd == "stop" }:
+            debugger.detach debugger.current
+            debugger.continue
+            break
+
+load = bytes ->
+    m = _Module_new(Buffer.new(bytes), "")
+    {
+        bytes: bytes
+        run: as -> _module_run(m, as)
+        debug: as ->
+            debugger = Debugger.new
+            task = Task.new
+            debugger.attach(task)
+            _module_run(m, as, task)
+            return SimpleDebugger(debugger)
+    }
+
+{{ compile, load }}

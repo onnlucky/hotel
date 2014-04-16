@@ -1,6 +1,6 @@
-test = compile("print 42")
-test.run
-test.run
-test.run
-print test.bytes
+bytes = code.compile("print 42")
+mod = code.load(bytes)
+mod.run
+mod.run
+print bytes.size, bytes
 
