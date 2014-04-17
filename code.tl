@@ -36,6 +36,98 @@
 // INVOKE, when opcode reference module data, they can still reference the empty list using
 // 1100 0100 oeps ;) it will work, but maybe better have instructions to load those?
 
+encodeLiteral = v ->
+    { v == null  }: return 0b1100_0000 | 0
+    { v == false }: return 0b1100_0000 | 1
+    { v == true  }: return 0b1100_0000 | 2
+    { v == ""    }: return 0b1100_0000 | 3
+    { v == []    }: return 0b1100_0000 | 4
+    { v == {}    }: return 0b1100_0000 | 5
+    { v == -2    }: return 0b1100_0000 | 6
+    { v == -1    }: return 0b1100_0000 | 7
+    { v >= 0 and v <= 0b0011_1111 - 8 }: return 0b1100_0000 | (8 + v)
+    {            }: return null
+
+encodeInt = i ->
+    assert i >= 0
+    if i < 1 << 7: return i
+    i2 = i - 1 << 7
+    if i2 < 1 << 13: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
+    i3 = i - 1 << 13
+    if i3 < 1 << 19: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7) & 0b0111_1111, i & 0b0111_1111)
+    assert false
+
+encodeString = s ->
+    assert isString s
+    if s.size < 32: return bin(0b0000_0000 | s.size, s)
+    return bin(0b1110_0000, encodeInt(s.size), s)
+
+encodeList = l ->
+    if l.size < 32:
+        buf = Buffer.new 0b0010_0000 | l.size
+        l.each: e -> buf.write e
+        return buf.read
+    buf = Buffer.new 0b1110_0001, encodeInt(l.size)
+    l.each: e -> buf.write e
+    return buf.read
+
+encodeMap = m ->
+    size = m.size >> 1
+    assert size * 2 == m.size
+    assert size < 32
+    buf = Buffer.new 0b0110_0000 | size
+    m.each: e -> buf.write e
+    return buf.read
+
+writeCode = mod, c ->
+    buf = Buffer.new
+
+    buf.write mod.data(c.name)
+    buf.write mod.data(c.argspecs)
+    buf.write mod.data(c.locals)
+    buf.write mod.data(c.debuginfo)
+
+    var $pc = 0
+    loop:
+        op = c.code[($pc += 1)]
+        { op == "end"    }: // end
+            buf.write 0
+            break
+        { op == "system" }: // system call, references a string
+            buf.write 0b1100_0000 + 5
+            buf.write mod.data(c.code[($pc += 1)])
+        { op == "data"   }: // a reference module data
+            buf.write 0b1100_0000 + 6
+            buf.write mod.data(c.code[($pc += 1)])
+        { op == "global" }: // a reference to the linked list (a string)
+            buf.write 0b1100_0000 + 7;
+            buf.write mod.global(c.code[($pc += 1)])
+        { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
+            buf.write 0b1100_0000 + 12
+            buf.write mod.code(c.code[($pc += 1)])
+        { op == "true"   }: buf.write 0b1100_0000 + 0
+        { op == "false"  }: buf.write 0b1100_0000 + 1
+        { op == "null"   }: buf.write 0b1100_0000 + 2
+        { op == "undef"  }: buf.write 0b1100_0000 + 3
+        { op == "int"    }: buf.write 0b1100_0000 + 4; buf.write encodeInt c.code[($pc += 1)]
+        { op == "env"    }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
+        { op == "envarg" }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
+        { op == "local"  }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
+        { op == "arg"    }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]
+        { op == "store"  }: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
+        { op == "rstore" }: buf.write 0b1100_0000 + 14; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
+        { op == "invoke" }: buf.write 0b1100_0000 + 15
+        { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
+        { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
+        { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
+        { op == "mcalln" }: buf.write 0b1111_0000 + 0; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
+        { op == "fcalln" }: buf.write 0b1111_0000 + 1; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
+        { op == "bcalln" }: buf.write 0b1111_0000 + 2; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
+        {                }: throw "unknown op: $op $(repr(op))"
+
+    if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
+    return bin(0b1110_0101, encodeInt(buf.size), buf)
+
 opname = op ->
     { op == "==" }: return "eq"
     { op == "!=" }: return "neq"
@@ -183,104 +275,11 @@ compile = (code ->
             throw "unknown term $(term.type)"
 
     parseemit = text ->
-        globals.clear; functions.clear // TODO come on, make this a real module/object thing
         res = emittop Scope(null), parse(text)
         functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> print "fn $n:", repr(fn)
         print "main:", repr(res)
         return res, functions
-
-    encodeLiteral = v ->
-        { v == null  }: return 0b1100_0000 | 0
-        { v == false }: return 0b1100_0000 | 1
-        { v == true  }: return 0b1100_0000 | 2
-        { v == ""    }: return 0b1100_0000 | 3
-        { v == []    }: return 0b1100_0000 | 4
-        { v == {}    }: return 0b1100_0000 | 5
-        { v == -2    }: return 0b1100_0000 | 6
-        { v == -1    }: return 0b1100_0000 | 7
-        { v >= 0 and v <= 0b0011_1111 - 8 }: return 0b1100_0000 | (8 + v)
-        {            }: return null
-
-    encodeInt = i ->
-        assert i >= 0
-        if i < 1 << 7: return i
-        i2 = i - 1 << 7
-        if i2 < 1 << 13: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
-        i3 = i - 1 << 13
-        if i3 < 1 << 19: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7) & 0b0111_1111, i & 0b0111_1111)
-        assert false
-
-    encodeString = s ->
-        assert isString s
-        if s.size < 32: return bin(0b0000_0000 | s.size, s)
-        return bin(0b1110_0000, encodeInt(s.size), s)
-
-    encodeList = l ->
-        if l.size < 32:
-            buf = Buffer.new 0b0010_0000 | l.size
-            l.each: e -> buf.write e
-            return buf.read
-        buf = Buffer.new 0b1110_0001, encodeInt(l.size)
-        l.each: e -> buf.write e
-        return buf.read
-
-    encodeMap = m ->
-        size = m.size >> 1
-        assert size * 2 == m.size
-        assert size < 32
-        buf = Buffer.new 0b0110_0000 | size
-        m.each: e -> buf.write e
-        return buf.read
-
-    writeCode = mod, c ->
-        buf = Buffer.new
-
-        buf.write mod.data(c.name)
-        buf.write mod.data(c.argspecs)
-        buf.write mod.data(c.locals)
-        buf.write mod.data(c.debuginfo)
-
-        var $pc = 0
-        loop:
-            op = c.code[($pc += 1)]
-            { op == "end"    }: // end
-                buf.write 0
-                break
-            { op == "system" }: // system call, references a string
-                buf.write 0b1100_0000 + 5
-                buf.write mod.data(c.code[($pc += 1)])
-            { op == "data"   }: // a reference module data
-                buf.write 0b1100_0000 + 6
-                buf.write mod.data(c.code[($pc += 1)])
-            { op == "global" }: // a reference to the linked list (a string)
-                buf.write 0b1100_0000 + 7;
-                buf.write mod.global(c.code[($pc += 1)])
-            { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
-                buf.write 0b1100_0000 + 12
-                buf.write mod.code(c.code[($pc += 1)])
-            { op == "true"   }: buf.write 0b1100_0000 + 0
-            { op == "false"  }: buf.write 0b1100_0000 + 1
-            { op == "null"   }: buf.write 0b1100_0000 + 2
-            { op == "undef"  }: buf.write 0b1100_0000 + 3
-            { op == "int"    }: buf.write 0b1100_0000 + 4; buf.write encodeInt c.code[($pc += 1)]
-            { op == "env"    }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-            { op == "envarg" }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-            { op == "local"  }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
-            { op == "arg"    }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]
-            { op == "store"  }: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
-            { op == "rstore" }: buf.write 0b1100_0000 + 14; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-            { op == "invoke" }: buf.write 0b1100_0000 + 15
-            { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
-            { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
-            { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
-            { op == "mcalln" }: buf.write 0b1111_0000 + 0; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
-            { op == "fcalln" }: buf.write 0b1111_0000 + 1; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
-            { op == "bcalln" }: buf.write 0b1111_0000 + 2; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
-            {                }: throw "unknown op: $op $(repr(op))"
-
-        if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
-        return bin(0b1110_0101, encodeInt(buf.size), buf)
 
     builder_new = functions -> {
         functions: functions
