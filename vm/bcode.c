@@ -441,6 +441,20 @@ tlList* readList(tlBuffer* buf, int size, tlList* data) {
     return list;
 }
 
+tlMap* readMap(tlBuffer* buf, int size, tlList* data) {
+    trace("map: %d (%d)", size, tlBufferSize(buf));
+    tlList* pairs = tlListNew(size);
+    for (int i = 0; i < size; i++) {
+        tlHandle key = readref(buf, data, null);
+        assert(key);
+        tlHandle v = readref(buf, data, null);
+        assert(v);
+        trace("MAP: %s: %s", tl_str(key), tl_str(v));
+        tlListSet_(pairs, i, tlListFrom2(tlSymFromString(key), v));
+    }
+    return tlMapFromPairs(pairs);
+}
+
 tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     if (tlBufferSize(buf) < size) fatal("buffer too small");
     int start = tlBufferSize(buf);
@@ -496,9 +510,7 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1)
         case 0xE2: // set
             fatal("set %d", size);
             break;
-        case 0xE3: // map
-            fatal("map %d", size);
-            break;
+        case 0xE3: return readMap(buf, size, data);
         case 0xE4: // raw
             fatal("raw %d", size);
             break;
@@ -527,19 +539,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
         case 0x20: return readList(buf, size, data);
         case 0x40: // short set
             fatal("set %d", size);
-        case 0x60: { // short map
-            trace("short map: %d (%d)", size, tlBufferSize(buf));
-            tlList* pairs = tlListNew(size);
-            for (int i = 0; i < size; i++) {
-                tlHandle key = readref(buf, data, null);
-                assert(key);
-                tlHandle v = readref(buf, data, null);
-                assert(v);
-                trace("MAP: %s: %s", tl_str(key), tl_str(v));
-                tlListSet_(pairs, i, tlListFrom2(tlSymFromString(key), v));
-            }
-            return tlMapFromPairs(pairs);
-        }
+        case 0x60: return readMap(buf, size, data);
         case 0x80: // short raw
             fatal("raw %d", size);
         case 0xA0: // short bytecode

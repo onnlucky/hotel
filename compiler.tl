@@ -74,8 +74,11 @@ encodeList = l ->
 encodeMap = m ->
     size = m.size >> 1
     assert size * 2 == m.size
-    assert size < 32
-    buf = Buffer.new 0b0110_0000 | size
+    if size < 32:
+        buf = Buffer.new 0b0110_0000 | size
+        m.each: e -> buf.write e
+        return buf.read
+    buf = Buffer.new 0b1110_0011, encodeInt(size)
     m.each: e -> buf.write e
     return buf.read
 
@@ -213,6 +216,13 @@ compile = (code ->
             code = term.body.map(stm -> emit scope, stm).flatten
             return {{code, args}, locals: scope.locals.toList}
 
+    whenPrimitive = v ->
+        { isNumber(v) }: v
+        { isString(v) }: v
+        { isBool(v)   }: v
+        {             }: null
+
+
     emit = scope, term, inMethods ->
         print "SUB TERM", repr(term)
         { term == "undefined"  }: ["undef"]
@@ -257,14 +267,17 @@ compile = (code ->
         { term.type == "ref" }:
             scope.ref(term.name)
         { term.type == "object" }:
+            m = HashMap.new
             elements = term.data.map(entry ->
                 if try(entry.v.type) == "function":
                     function = emittop scope, entry.v, inMethods
                     _, fn = functions.add {name:entry.n, open:false, function:function}
                     return ["data", entry.n, "bind", fn]
                 scope.add(entry.n)
+                m[entry.n] = whenPrimitive(entry.v)
                 ["data", entry.n, emit(scope, entry.v, inMethods)]
             )
+            //return ["data", m.toMap]
             ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
         { term.type == "list" }:
             elements = term.data.map(entry -> [emit(scope, entry)])
