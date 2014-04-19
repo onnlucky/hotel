@@ -273,7 +273,7 @@ compile = (code ->
                     function = emittop scope, entry.v, inMethods
                     _, fn = functions.add {name:entry.n, open:false, function:function}
                     return ["data", entry.n, "bind", fn]
-                scope.add(entry.n)
+                //scope.add(entry.n)
                 m[entry.n] = whenPrimitive(entry.v)
                 ["data", entry.n, emit(scope, entry.v, inMethods)]
             )

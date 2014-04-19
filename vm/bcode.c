@@ -706,6 +706,7 @@ void tlBCodeVerify(tlBCode* bcode) {
     int locals = tlListSize(bcode->localnames);
     int maxdepth = 0;
     int depth = 0;
+    bool realize_locals = false;
 
     assert(bcode->mod);
     const uint8_t* code = bcode->code;
@@ -745,6 +746,7 @@ void tlBCodeVerify(tlBCode* bcode) {
                 break;
             case OP_ARG: dreadsize(&code); break;
             case OP_BIND:
+                realize_locals = true;
                 v = dreadref(&code, data);
                 tlBCodeVerify(tlBCodeAs(v)); // TODO pass in our locals somehow for ENV
                 break;
@@ -777,7 +779,7 @@ void tlBCodeVerify(tlBCode* bcode) {
     }
 exit:;
      assert(depth == 0);
-     print("verified; locals: %d, calldepth: %d, %s", locals, maxdepth, tl_str(bcode));
+     print("verified; locals: %d%s, calldepth: %d, %s", locals, realize_locals?" (captured)":"", maxdepth, tl_str(bcode));
      bcode->locals = locals;
      bcode->calldepth = maxdepth;
 }
