@@ -10,19 +10,19 @@ upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 letters = lower.cat(upper)
 numbers = "0123456789"
 
-Input = { foo: true }
+Input = { foo = true }
 // TODO should be a class/object but class needs constructor and constructor needs class ...
 input = text, pos, value -> {
-        text: text
-        pos: pos
-        value: value
-        item: text[pos]
-        end: -> this.pos > this.text.size
-        set: val -> input(this.text, this.pos, val)
-        do: block -> this.set(block(this.value))
-        next: val -> input(this.text, this.pos + 1, val)
-        error: val -> throw this.set(val)
-        class: Input
+        text = text
+        pos = pos
+        value = value
+        item = text[pos]
+        end = -> this.pos > this.text.size
+        set = val -> input(this.text, this.pos, val)
+        do = block -> this.set(block(this.value))
+        next = val -> input(this.text, this.pos + 1, val)
+        error = val -> throw this.set(val)
+        class = Input
     }
 
 // TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
@@ -161,10 +161,10 @@ parseStart = in ->
     parser = parseParser(before)
     after = pMany(parseAny)(parser).do: v -> v.toChar
     after.set({
-        name: parser.value.n
-        rules: parser.value.rs
-        before: before.value
-        after: after.value
+        name = parser.value.n
+        rules = parser.value.rs
+        before = before.value
+        after = after.value
     })
 
 //parser: n=name ."="."parser"."{"
@@ -182,7 +182,7 @@ parseParser = in ->
     in = parseWs(in)
     rules = pMany(parseRule)(in)
     in = parseWs(rules)
-    in = pText("}")(in).set({ n: name.value, rs: rules.value })
+    in = pText("}")(in).set({ n = name.value, rs = rules.value })
     trace2(in, "<< parser: $(rules.value.size)")
 
 //rule: n=name .":". t=or               -> { type: #Rule, name: n, term: t }
@@ -193,7 +193,7 @@ parseRule = in ->
     in = pText(":")(in)
     in = parseWs(in)
     term = parseOr(in)
-    in = parseWs(term).set({ type: #Rule, name: name.value, term: term.value })
+    in = parseWs(term).set({ type = #Rule, name = name.value, term = term.value })
     trace2(in, "<< rule: $(name.value)")
 
 //act: "->". (!"\n" _)*
@@ -210,7 +210,7 @@ parseOr = in ->
     trace2(in, ">> or")
     h = parseAnd(in)
     rs = pMany(pAnd(parseWs, pText("|"), parseWs, parseAnd))(h)
-    in = rs.set({ type: #Or, terms: [h.value].cat(rs.value) })
+    in = rs.set({ type = #Or, terms = [h.value].cat(rs.value) })
     trace2(in, "<< or")
 
 //and: h=named rs=(" ". named)* .a=act -> { type: #And, terms: [h].cat(rs), act: a }
@@ -219,7 +219,7 @@ parseAnd = in ->
     h = parseNamed(in)
     rs = pMany(pAnd(parseWs, parseNamed))(h)
     a = pOptional(parseAct)(rs)
-    in = a.set({ type: #And, terms: [h.value].cat(rs.value), act: a.value })
+    in = a.set({ type = #And, terms = [h.value].cat(rs.value), act = a.value })
     trace2(in, "<< AND << AND << AND <<")
 
 //named: n=name "=" t=post             -> { type: #Bind, name: n, term: t }
@@ -230,10 +230,10 @@ parseNamed = in ->
     a1 = in ->
         n = parseName(in)
         in = pText("=")(n)
-        parsePost(in).do: v -> { type: #Bind, name: n.value, term: v }
+        parsePost(in).do: v -> { type = #Bind, name = n.value, term = v }
     a2 = in ->
         in = pText("@")(in)
-        parseText(in).do: v -> { type: #NoReturn, msg: v }
+        parseText(in).do: v -> { type = #NoReturn, msg = v }
     in = pOr(a1, a2, parsePost)(in)
     trace2(in, "<< named")
 
@@ -244,10 +244,10 @@ parseNamed = in ->
 //    | term
 parsePost = in ->
     trace2(in, ">> post")
-    a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type: #Not, term: v }
-    a2 = in -> term = parseTerm(in); pText("*")(term).set({ type: #Star, term: term.value })
-    a3 = in -> term = parseTerm(in); pText("+")(term).set({ type: #Plus, term: term.value })
-    a4 = in -> term = parseTerm(in); pText("?")(term).set({ type: #Opt, term: term.value })
+    a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type = #Not, term = v }
+    a2 = in -> term = parseTerm(in); pText("*")(term).set({ type = #Star, term = term.value })
+    a3 = in -> term = parseTerm(in); pText("+")(term).set({ type = #Plus, term = term.value })
+    a4 = in -> term = parseTerm(in); pText("?")(term).set({ type = #Opt, term = term.value })
     in = pOr(a1, a2, a3, a4, parseTerm)(in)
     trace2(in, "<< post: $(in.value)")
 
@@ -265,13 +265,13 @@ parseTerm = in ->
         in = parseWs(in)
         t=parseOr(in)
         in = parseWs(t)
-        in = pText(")")(in).set({ type: #Sub, term: t.value })
+        in = pText(")")(in).set({ type = #Sub, term = t.value })
         trace2(in, "3 << paren << PAREN << PAREN <<")
 
-    a2 = in -> pText(".")(in).set({ type: #Ws })
-    a3 = in -> pText("_")(in).set({ type: #Any })
-    a4 = in -> n = parseName(in); pNot(pChar(":".get))(n).set({ type: #Call, rule: n.value })
-    a5 = in -> parseText(in).do: v -> { type: #Text, text: v }
+    a2 = in -> pText(".")(in).set({ type = #Ws })
+    a3 = in -> pText("_")(in).set({ type = #Any })
+    a4 = in -> n = parseName(in); pNot(pChar(":".get))(n).set({ type = #Call, rule = n.value })
+    a5 = in -> parseText(in).do: v -> { type = #Text, text = v }
     in = pOr(a1, a2, a3, a4, a5)(in)
     trace2(in, "<< term: $(in.value)")
 

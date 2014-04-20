@@ -19,8 +19,8 @@ Latch = max ->
         loop(0, [])
     )
     {
-        enter: -> queue.input.enter
-        exit: -> queue.input.exit
+        enter = -> queue.input.enter
+        exit = -> queue.input.exit
     }
 
 latch = Latch(2)

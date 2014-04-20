@@ -1,7 +1,7 @@
 x = [1, 2, 3]
 out(x[3], " == 3\n")
 
-y = [foo: 1, bar: 2, baz: 3]
+y = [foo = 1, bar = 2, baz = 3]
 out(y[#baz], " == 3\n")
 out(y[#bar], " == 2\n")
 out(y[#foo], " == 1\n")

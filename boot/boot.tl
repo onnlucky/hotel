@@ -299,8 +299,8 @@ _install(Error, #call, _errorConstructor);
 _install(ArgumentError, #call, _errorConstructor);
 _install(UndefinedError, #call, _errorConstructor);
 _install(Error, #class, {
-    throw: -> throw this
-    toString: ->
+    throw = -> throw this
+    toString = ->
         ls = Array.new
         ls.add "Error: ", this.msg, "\n"
         x = Var.new 1

@@ -538,7 +538,7 @@ object = "{"__ is:items __"}"!":"  { $$ = map_activate(tlMapToObject_(tlMapFromP
        | "{"__ ts:tms __"}"!":"    { $$ = L(ts); }
        | i:item eom is:items   { $$ = tlListPrepend(L(is), i); }
        | i:item                { $$ = tlListFrom1(i) }
-  item = n:name _":"__ v:expr  { $$ = tlListFrom2(n, v); try_name(n, v, yyxvar); }
+  item = n:name _"="__ v:expr  { $$ = tlListFrom2(n, v); try_name(n, v, yyxvar); }
    tms = i:tm eom is:tms       { $$ = tlListPrepend(L(is), i); }
        | i:tm                  { $$ = tlListFrom1(i) }
     tm = n:name                { $$ = tlListFrom2(n, tl_active(n)); }

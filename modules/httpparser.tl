@@ -8,15 +8,15 @@ numbers = "0123456789"
 
 // TODO should be a class/object but class needs constructor and constructor needs class ...
 input = text, pos, value -> {
-        text: text
-        pos: pos
-        value: value
-        item: text[pos]
-        end: -> this.pos > this.text.size
-        set: val -> input(this.text, this.pos, val)
-        do: block -> this.set(block(this.value))
-        next: val -> input(this.text, this.pos + 1, val)
-        error: val -> throw this.set(val)
+        text= text
+        pos= pos
+        value= value
+        item= text[pos]
+        end= -> this.pos > this.text.size
+        set= val -> input(this.text, this.pos, val)
+        do= block -> this.set(block(this.value))
+        next= val -> input(this.text, this.pos + 1, val)
+        error= val -> throw this.set(val)
     }
 rule = fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4)))
 
@@ -107,7 +107,7 @@ parseQueryKeyVal = in ->
     eq = pOptional(pChar("=".get))(key)
     val = pMany(pNotChars("&# \t\n\r"))(eq).do: v -> _urldecode(v.toChar)
     am = pOptional(pChar("&".get))(val)
-    am.set({k:key.value,v:val.value})
+    am.set({k=key.value,v=val.value})
 
 parseQuery = in ->
     in = pChar("?".get)(in)
@@ -131,13 +131,13 @@ parseUrl = in ->
     query = pOptional(parseQuery)(path)
     fragment = pOptional(parseFragment)(query)
     fragment.set({
-        type: type.value
-        host: host.value
-        port: port.value
-        request: reqpath.value
-        fragment: fragment.value
-        path: path.value
-        query: query.value
+        type= type.value
+        host= host.value
+        port= port.value
+        request= reqpath.value
+        fragment= fragment.value
+        path= path.value
+        query= query.value
     })
 
 parseSpaces = in ->
@@ -159,8 +159,8 @@ parseHeader = in ->
     nl = parseNewline(value)
     trace(nl, "KEY: $(key.value) VALUE: $(value.value)")
     nl.set({
-        key: key.value
-        value: value.value
+        key= key.value
+        value= value.value
     })
 
 createmap = ls ->
@@ -181,10 +181,10 @@ parseHttpRequest = in ->
     headers = pMany(parseHeader)(nl)
     nl = parseNewline(headers)
     nl.set({
-        method: method.value
-        url: url.value
-        version: version.value
-        headers: createmap(headers.value)
+        method= method.value
+        url= url.value
+        version= version.value
+        headers= createmap(headers.value)
     })
 
 parseHttpResponse = in ->
@@ -196,8 +196,8 @@ parseHttpResponse = in ->
     headers = pMany(parseHeader)(nl)
     nl = parseNewline(headers)
     nl.set({
-        status: status.value
-        headers: createmap(headers.value)
+        status= status.value
+        headers= createmap(headers.value)
     })
 
 test "should parse urls":
@@ -205,8 +205,8 @@ test "should parse urls":
 
 
 {
-    request: text -> parse(parseHttpRequest, text)
-    response: text -> parse(parseHttpResponse, text)
-    url: text -> parse(parseUrl, text)
+    request= text -> parse(parseHttpRequest, text)
+    response= text -> parse(parseHttpResponse, text)
+    url= text -> parse(parseUrl, text)
 }
 

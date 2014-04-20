@@ -35,10 +35,10 @@ toplevel: node
      sub: ns=(.node|text)*       -> ns
         | . -> []
 
-    attr: k=name ."="."\"" v=(!["] _)* "\"" -> { k: k, v: v.toChar }
-        | k=name ."="."'"  v=(!["] _)* "'"  -> { k: k, v: v.toChar }
-        | k=name ."=".     v=name           -> { k: k, v: v }
-        | k=name . !"\"" !"'"               -> { k: k, v: true }
+    attr: k=name ."="."\"" v=(!["] _)* "\"" -> { k = k, v = v.toChar }
+        | k=name ."="."'"  v=(!["] _)* "'"  -> { k = k, v = v.toChar }
+        | k=name ."=".     v=name           -> { k = k, v = v }
+        | k=name . !"\"" !"'"               -> { k = k, v = true }
         | (!"/" !">" !name _)+              -> null
    attrs: as=(.attr)* -> tomap(as)
 
@@ -56,5 +56,5 @@ toplevel: node
 
 }
 
-{ parse: parseHtml }
+{ parse = parseHtml }
 

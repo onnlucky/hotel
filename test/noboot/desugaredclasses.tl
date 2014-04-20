@@ -1,29 +1,29 @@
 /* PROPOSAL:
-Point = class {@x, @y ->
-    move: dx, dy -> @.{ x: @x + dx, y: @y: dy }
+Point = class {x, y ->
+    move = dx, dy -> this.{ x = x + dx, y = y + dy }
 }
-Square = class {x, y, @width, @height ->
+Square = class {x, y, width, height ->
     inherit Point(x, y)
-    area: -> @width * @height
-    static Null: Square(0, 0, 0, 0)
+    area = -> width * height
+    static Null = Square(0, 0, 0, 0)
 }
 */
 // DESUGARS TO:
 Point = {
-    call: x, y -> { x: x, y: y, class: this.class }
-    class: {
-        move: dx, dy -> _Map_update(this, { x: this.x + dx, y: this.y + dy })
+    call = x, y -> { x = x, y = y, class = this.class }
+    class = {
+        move = dx, dy -> _Map_update(this, { x = this.x + dx, y = this.y + dy })
     }
 }
 Square = {
-    call: x, y, width, height ->
+    call = x, y, width, height ->
         _1 = Point(x, y)
-        _Map_inherit({width: width, height: height, class: this.class}, (_1))
-    class: {
-        area: -> this.width * this.height
-        class: Point.class
+        _Map_inherit({width = width, height = height, class = this.class}, (_1))
+    class = {
+        area = -> this.width * this.height
+        class = Point.class
     }
-    //Null: (->Square(0, 0, 0, 0)).lazy
+    //Null = (->Square(0, 0, 0, 0)).lazy
 }
 
 s1 = Square(10, 20, 42, 10)

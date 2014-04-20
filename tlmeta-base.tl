@@ -10,10 +10,10 @@ ALPHA = LOWER.cat(UPPER)
 NUMERIC = "0123456789"
 ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
-advance = in, adv -> { text: in.text, pos: in.pos + adv, oop: in.oop }
+advance = in, adv -> { text = in.text, pos = in.pos + adv, oop = in.oop }
 error = in, nr, msg ->
-    if nr: throw { t: #p, in: in, msg: nr, noreturn: true }
-    throw { t: #p, in: in, msg: msg }
+    if nr: throw { t = #p, in = in, msg = nr, noreturn = true }
+    throw { t = #p, in = in, msg = msg }
 
 rule_pass = in, nr ->
     trace2(in, "pass")
@@ -141,11 +141,11 @@ _tllookup = oop, name, pos ->
 
 _tlcache = oop, name, pos, in, v ->
     //print "CACHE: $name $pos -> $(in.pos) '$v'";
-    oop._cache.set("$name-$pos", {in: in, v: v})
+    oop._cache.set("$name-$pos", {in = in, v = v})
     return in, v
 
 pStart = rule, text ->
-    oop = _Object_new({ _cache: HashMap.new })
+    oop = _Object_new({ _cache = HashMap.new })
     _with_lock(oop):
         in, v = (
             catch: e ->
@@ -153,7 +153,7 @@ pStart = rule, text ->
                 line, char = lineFromPos(e.in.text, e.in.pos)
                 if try(e.msg): throw "SyntaxError: expected $(e.msg) on line $line col $char"
                 throw "SyntaxError: on line $line col $char"
-            rule({text: text, pos: 1, oop: oop })
+            rule({text = text, pos = 1, oop = oop })
         )
         if in.pos < in.text.size:
             line, char = lineFromPos(in.text, in.pos)

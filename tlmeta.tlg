@@ -31,56 +31,56 @@ slcomment: "//" (!nl _)*
      act: "->". ts=(!"\n" _)*             -> ts.toChar
     cond: "?"."(". ts=(!")" _)* ")"       -> ts.toChar
 
-    term: "(". t=or @"a closing ')'" .")" -> { type: #Sub, term: t }
-        | ".."                            -> { type: #Wsnl }
-        | "."                             -> { type: #Ws }
-        | "_"                             -> { type: #Any }
-        | c=cond                          -> { type: #Cond, act: c }
-        | n=name !":"                     -> { type: #Call, rule: n }
-        | t=text                          -> { type: #Text, text: t }
-        | t=char                          -> { type: #Char, text: t }
-    post: "!" @"a term" t=term            -> { type: #Not, term: t }
-        | "&" @"a term" t=term            -> { type: #Ahead, term: t }
-        | t=term "*"                      -> { type: #Star, term: t }
-        | t=term "+"                      -> { type: #Plus, term: t }
-        | t=term "?"                      -> { type: #Opt, term: t }
+    term: "(". t=or @"a closing ')'" .")" -> { type = "Sub", term = t }
+        | ".."                            -> { type = "Wsnl" }
+        | "."                             -> { type = "Ws" }
+        | "_"                             -> { type = "Any" }
+        | c=cond                          -> { type = "Cond", act = c }
+        | n=name !":"                     -> { type = "Call", rule = n }
+        | t=text                          -> { type = "Text", text = t }
+        | t=char                          -> { type = "Char", text = t }
+    post: "!" @"a term" t=term            -> { type = "Not", term = t }
+        | "&" @"a term" t=term            -> { type = "Ahead", term = t }
+        | t=term "*"                      -> { type = "Star", term = t }
+        | t=term "+"                      -> { type = "Plus", term = t }
+        | t=term "?"                      -> { type = "Opt", term = t }
         | term
-   named: n=name "=" @"a term"  t=post    -> { type: #Bind, name: n, term: t }
-        | "@" t=text                      -> { type: #NoReturn, msg: t }
+   named: n=name "=" @"a term"  t=post    -> { type = "Bind", name = n, term = t }
+        | "@" t=text                      -> { type = "NoReturn", msg = t }
         | post
-     and: h=named rs=(.named)* .a=act?    -> { type: #And, terms: [h].cat(rs), act: a }
+     and: h=named rs=(.named)* .a=act?    -> { type = "And", terms = [h].cat(rs), act = a }
       or: @"some terms"
-          h=and rs=(."|". and)*           -> { type: #Or, terms: [h].cat(rs) }
-    rule: .n=name @":" .":". t=or         -> { type: #Rule, name: n, term: t }
+          h=and rs=(."|". and)*           -> { type = "Or", terms = [h].cat(rs) }
+    rule: .n=name @":" .":". t=or         -> { type = "Rule", name = n, term = t }
   parser: n=name ."="."parser"."{"
           rs=rule*
-          @"a closing '}'" ."}"           -> { n: n, rs: rs }
+          @"a closing '}'" ."}"           -> { n = n, rs = rs }
    start: b=(!(name ."="."parser"."{") _)*
           p=parser
-          a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+          a=_*                            -> { before = b.toChar, after = a.toChar, rules = p.rs, name = p.n }
 }
 
 // emitting
 emit = r, buf, ind, name ->
-    _match(r.type == #Or): goto emitOr r, buf, ind
-    _match(r.type == #And): goto emitAnd r, buf, ind
-    _match(r.type == #Sub): goto emitSub r, buf, ind
-    _match(r.type == #Not): goto emitNot r, buf, ind
-    _match(r.type == #Opt): goto emitOpt r, buf, ind
-    _match(r.type == #Star): goto emitStar r, buf, ind
-    _match(r.type == #Plus): goto emitPlus r, buf, ind
+    _match(r.type == "Or"): goto emitOr r, buf, ind
+    _match(r.type == "And"): goto emitAnd r, buf, ind
+    _match(r.type == "Sub"): goto emitSub r, buf, ind
+    _match(r.type == "Not"): goto emitNot r, buf, ind
+    _match(r.type == "Opt"): goto emitOpt r, buf, ind
+    _match(r.type == "Star"): goto emitStar r, buf, ind
+    _match(r.type == "Plus"): goto emitPlus r, buf, ind
 
-    _match(r.type == #Ahead): goto emitAhead r, buf, ind
-    _match(r.type == #Cond): buf.write("$ind  if not ($(r.act)): error(_in, _nr, \"if not ($(r.act.escape))\")\n")
-    _match(r.type == #Char): buf.write("$ind  _in, _v = pChar(_in, _nr, \"$(r.text.escape)\")\n")
+    _match(r.type == "Ahead"): goto emitAhead r, buf, ind
+    _match(r.type == "Cond"): buf.write("$ind  if not ($(r.act)): error(_in, _nr, \"if not ($(r.act.escape))\")\n")
+    _match(r.type == "Char"): buf.write("$ind  _in, _v = pChar(_in, _nr, \"$(r.text.escape)\")\n")
 
-    _match(r.type == #NoReturn): buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
-    _match(r.type == #Call): buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
-    _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
-    _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
-    _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
-    _match(r.type == #Wsnl): buf.write("$ind  _in, _v = rule_wsnl(_in, _nr)\n")
-    _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
+    _match(r.type == "NoReturn"): buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
+    _match(r.type == "Call"): buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
+    _match(r.type == "Bind"): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
+    _match(r.type == "Text"): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
+    _match(r.type == "Ws"): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
+    _match(r.type == "Wsnl"): buf.write("$ind  _in, _v = rule_wsnl(_in, _nr)\n")
+    _match(r.type == "Any"): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
     _match(true): throw "InternalError emit unknown: $(r.type)"
     _nomatch
 

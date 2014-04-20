@@ -1,12 +1,12 @@
 parseSel = parser {
     name: ts=(!" " !"#" !"." !"[" !"]" !"=" _)+ -> ts.toChar
 
-     any: "*"                       -> { match: #any }
-    attr: "[".n=name."]"            -> { match: #hasattr, name: n }
-        | "[".n=name."=".v=name."]" -> { match: #attr, name: n, val: v }
-      id: "#" n=name                -> { match: #id, name: n }
-   class: "." n=name                -> { match: #class, name: n }
-    node: n=name                    -> { match: #node, name: n }
+     any: "*"                       -> { match= "any" }
+    attr: "[".n=name."]"            -> { match= "hasattr", name= n }
+        | "[".n=name."=".v=name."]" -> { match= "attr", name= n, val= v }
+      id: "#" n=name                -> { match= "id", name= n }
+   class: "." n=name                -> { match= "class", name= n }
+    node: n=name                    -> { match= "node", name= n }
 
     match: any | attr | id | class | node
     start: rs=(. match+)* . !_      -> rs
@@ -18,11 +18,11 @@ walk = node, match, result ->
 
     m = Var.new true
     match[1].each: s ->
-        _match(s.match == #node and s.name == node.name): 1
-        _match(s.match == #class and s.name == node.attrs["class"]): 1
-        _match(s.match == #id and s.name == node.attrs["id"]): 1
-        _match(s.match == #hasattr and node.attrs.has(s.name)): 1
-        _match(s.match == #attr and node.attrs[s.name] == s.val): 1
+        _match(s.match == "node" and s.name == node.name): 1
+        _match(s.match == "class" and s.name == node.attrs["class"]): 1
+        _match(s.match == "id" and s.name == node.attrs["id"]): 1
+        _match(s.match == "hasattr" and node.attrs.has(s.name)): 1
+        _match(s.match == "attr" and node.attrs[s.name] == s.val): 1
         _match(true): m.set false
     if m.get:
         if match.size == 1:
@@ -50,5 +50,5 @@ findAll = sel, node ->
     match = parseSel(sel)
     query(node, match)
 
-{ find: find, findAll: findAll }
+{{ find, findAll }}
 

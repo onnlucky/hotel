@@ -50,17 +50,17 @@ writeFull = writer, buf ->
 /// A Stream is a lot like a buffer, but we read and write from some source
 Stream = {
     // TODO optimize the read/write buffer usage
-    new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
-    class: {
-        _readSome: buf ->
+    new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new }
+    class = {
+        _readSome = buf ->
             buf = buf or this.rbuf
             reader = this.file.reader
             _with_lock(reader, buf):
                 len = readSome(reader, buf)
-        _readFull: ->
+        _readFull = ->
             reader = this.file.reader
             _with_lock(reader, this.rbuf): readFull(reader, this.rbuf)
-        _writeOne: val ->
+        _writeOne = val ->
             if not val: return
             writer = this.file.writer
             // TODO throw exception if not all could be written
@@ -71,14 +71,14 @@ Stream = {
                 this.wbuf.write val
                 return writeFull(writer, this.wbuf)
 
-        readClosed: ->
+        readClosed = ->
             return this.rbuf.size == 0 and this.file.reader.isClosed
-        size: ->
+        size = ->
             return this.rbuf.size
-        readByte: ->
+        readByte = ->
             if this.rbuf.size == 0: this._readSome
             return this.rbuf.readByte
-        readString: len ->
+        readString = len ->
             if len:
                 while this.rbuf.size < len: this._readSome
                 return this.rbuf.readString len
@@ -87,7 +87,7 @@ Stream = {
         /// blocks and reads until a newline character '\n' is seen, returns a String including the newline
         /// also returns a string at end of stream
         /// returns null if stream cannot be read
-        readLine: ->
+        readLine = ->
             len = this.find("\n")
             if not len:
                 if this.rbuf.size == 0: return null
@@ -95,19 +95,19 @@ Stream = {
             res = this.rbuf.readString(len - 1)
             this.readByte
             return res
-        read: len ->
+        read = len ->
             if len:
                 assert len >= 0 and len <= 1000_000_000
                 while this.rbuf.size < len: this._readSome
                 return this.rbuf.read len
             this._readFull
             return this.rbuf.read
-        readInto: buf ->
+        readInto = buf ->
             assert isBuffer buf
             if this.rbuf.size > 0:
                 return buf.write this.rbuf
             this._readSome buf
-        find: what, from, upto ->
+        find = what, from, upto ->
             loop:
                 r = this.rbuf.find what, from, upto
                 if r: return r
@@ -116,23 +116,23 @@ Stream = {
                 this._readSome
 
         /// write many of Buffer, String, Binary, or byte (any number); skipping nulls
-        write: ->
+        write = ->
             args.each: v -> this._writeOne v
-        writeclose: ->
+        writeclose = ->
             if this.file.isClosed: return
             writer = this.file.writer
             _with_lock(writer): writer.close
-        close: ->
+        close = ->
             if this.file.isClosed: return
             _io.close this.file
     }
 }
 
 Server = {
-    new: file -> { file: file, class: this.class }
-    class: {
-        port: -> this.file.port
-        accept: (->
+    new = file -> { file = file, class = this.class }
+    class = {
+        port = -> this.file.port
+        accept = (->
             reader = this.file.reader
             _with_lock(reader):
                 loop:
@@ -141,11 +141,11 @@ Server = {
                     if reader.isClosed: return
                     _io.waitread reader
         )
-        close: (->
+        close = (->
             if this.file.isClosed: return
             _io.close this.file
         )
-        serve: (->
+        serve = (->
             block = args.block; if not block: throw "serve expects a block"
             loop:
                 client = this.accept
@@ -155,9 +155,9 @@ Server = {
 }
 
 File = {
-    call: name -> { name: name, class: this.class }
-    class: {
-        read: (buf ->
+    call = name -> { name = name, class = this.class }
+    class = {
+        read = (buf ->
             reader = _File_open(this.name, _File_RDONLY).reader
             if buf:
                 _with_lock(reader, buf):
@@ -171,12 +171,12 @@ File = {
                 return buf.read
         )
 
-        readString: ->
+        readString = ->
             buf = Buffer.new
             this.read buf
             return buf.readString
 
-        write: (val ->
+        write = (val ->
             writer = _File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT).writer
             if isBuffer(val):
                 _with_lock(writer, val):
@@ -188,7 +188,7 @@ File = {
                 return writeFull(writer, buf)
         )
 
-        open: (->
+        open = (->
             mode = Var.new 0
             if args.namesmap[#truncate]: $mode += _File_TRUNC
             if args.namesmap[#create]: $mode += _File_CREAT
@@ -200,9 +200,9 @@ File = {
 }
 
 Dir = {
-    call: name -> { name: name, class: this.class }
-    class: {
-        each: (fn ->
+    call = name -> { name = name, class = this.class }
+    class = {
+        each = (fn ->
             block = (args.block) or fn
             if not block: throw "each expects a block or fn"
             _Dir_open(this.name).each(block=block)
@@ -211,32 +211,32 @@ Dir = {
 }
 
 Path = {
-    call: name -> { name: name, class: this.class, _stat: _Var_new() }
-    class: {
-        stat: (->
+    call = name -> { name = name, class = this.class, _stat = _Var_new() }
+    class = {
+        stat = (->
             if not _var_get(this._stat): _var_set(this._stat, _Path_stat(this.name))
             _var_get(this._stat)
         )
-        exists: -> this.stat.ino != 0
-        mtime: -> this.stat.mtime
-        atime: -> this.stat.atime
-        size: -> this.stat.size
-        isFile: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFREG
-        isDir:  -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFDIR
-        isLink: -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFLNK
-        asFile: -> File(this.name)
-        asDir:  -> Dir(this.name)
-        create: -> _io_mkdir(this.name)
-        delete: -> _io_rmdir(this.name)
-        unlink: -> _io_unlink(this.name)
+        exists = -> this.stat.ino != 0
+        mtime = -> this.stat.mtime
+        atime = -> this.stat.atime
+        size = -> this.stat.size
+        isFile = -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFREG
+        isDir =  -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFDIR
+        isLink = -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFLNK
+        asFile = -> File(this.name)
+        asDir =  -> Dir(this.name)
+        create = -> _io_mkdir(this.name)
+        delete = -> _io_rmdir(this.name)
+        unlink = -> _io_unlink(this.name)
     }
 }
 
 UdpSocket = {
-    new: file -> { file: file, class: this.class }
-    class: {
-        send: ip, port, buf -> _Socket_sendto(this.file, ip, port, buf)
-        receive: (buf ->
+    new = file -> { file = file, class = this.class }
+    class = {
+        send = ip, port, buf -> _Socket_sendto(this.file, ip, port, buf)
+        receive = (buf ->
             buf = buf or Buffer.new
             reader = this.file.reader
             loop:
@@ -249,14 +249,14 @@ UdpSocket = {
 }
 
 Socket = {
-    open: (address, port ->
+    open = (address, port ->
         ip = _Socket_resolve(address)
         Stream.new(_Socket_connect(ip, port))
     )
-    listen: (port ->
+    listen = (port ->
         Server.new(_ServerSocket_listen(port))
     )
-    udp: (port, broadcast ->
+    udp = (port, broadcast ->
         UdpSocket.new(_Socket_udp(port, broadcast))
     )
 }
@@ -288,15 +288,15 @@ shell = cmd ->
 wait = s -> _io.wait s
 
 Terminal = {
-    new: file -> { file: file, class: this.class, rbuf: Buffer.new, wbuf: Buffer.new }
-    class: {
-        class: Stream.class
+    new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new }
+    class = {
+        class = Stream.class
 
-        isTTY: -> _tty_is(this.file)
+        isTTY = -> _tty_is(this.file)
         // TODO does not work, size conflicts with stream.size
-        setRaw: -> _tty_setRaw(this.file)
-        restore: -> _tty_restore(this.file)
-        size: -> _tty_size(this.file)
+        setRaw = -> _tty_setRaw(this.file)
+        restore = -> _tty_restore(this.file)
+        size = -> _tty_size(this.file)
     }
 }
 
@@ -305,9 +305,9 @@ stdout = Stream.new(_File_from(1))
 stderr = Stream.new(_File_from(2))
 
 return {
-    chdir: _io_chdir
-    mkdir: _io_mkdir
-    getenv: _io_getenv
+    chdir = _io_chdir
+    mkdir = _io_mkdir
+    getenv = _io_getenv
     {
         Buffer
         Stream

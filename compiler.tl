@@ -158,22 +158,22 @@ compile = (code ->
     functions = Array.new
 
     Scope = parent -> {{parent},
-        names: HashMap.new
-        locals: Array.new
-        addOpen: name, function, inMethods ->
-            _, fn = functions.add {{name, inMethods}, open: function, scope: this}
+        names = HashMap.new
+        locals = Array.new
+        addOpen = name, function, inMethods ->
+            _, fn = functions.add {{name, inMethods}, open = function, scope = this}
             _, local = this.locals.add(name)
             local = local - 1
-            this.names[name] = {{fn, local}, arg:false}
+            this.names[name] = {{fn, local}, arg =false}
             return local, fn
-        add: name ->
+        add = name ->
             _, local = this.locals.add(name)
             local = local - 1
-            this.names[name] = {{local}, arg:false}
+            this.names[name] = {{local}, arg = false}
             return local
-        addarg: name ->
-            this.names[name] = {arg:true, local:this.names.size}
-        ref: name, level ->
+        addarg = name ->
+            this.names[name] = {arg = true, local = this.names.size}
+        ref = name, level ->
             ref = this.names[name]
             if try(ref.fn):
                 if functions[ref.fn].open: close(ref.fn)
@@ -191,9 +191,9 @@ compile = (code ->
 
     close = n ->
         ref = functions[n]
-        functions[n] = {name:ref.name,open:false}
+        functions[n] = {name=ref.name,open=false}
         fn = emittop ref.scope, ref.open, ref.inMethods
-        functions[n] = {name:ref.name,open:false,function:fn}
+        functions[n] = {name=ref.name,open=false,function=fn}
 
     argspec = arg ->
         if arg.type == "lazy": return [arg.name, arg.d, true]
@@ -207,14 +207,14 @@ compile = (code ->
             as = try(term.as) or []
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
-            return {{code, args}, locals: scope.locals.toList}
+            return {{code, args}, locals = scope.locals.toList}
         { term.type == "class" }:
             scope = Scope(scope)
             as = try(term.as) or []
             scope.addarg("this")
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
-            return {{code, args}, locals: scope.locals.toList}
+            return {{code, args}, locals = scope.locals.toList}
 
     whenPrimitive = v ->
         { isNumber(v) }: v
@@ -233,7 +233,7 @@ compile = (code ->
         { term.type == "string" }: ["data", term.data]
         { term.type == "function" or term.type == "class" or term.type == "block" }:
             function = emittop scope, term, inMethods
-            _, fn = functions.add {name:"-", open:false, function:function}
+            _, fn = functions.add {name = "-", open = false, function = function}
             return ["bind", fn]
         { term.type == "assign" }:
             type = try(term.value.type)
@@ -251,14 +251,14 @@ compile = (code ->
             fn = emit scope, term.target
             names = args.map: stm -> try(stm.n)
             args = args.map: stm -> emit scope, stm.v
-            if names.filter.size > 0: return ["fcalln", args.size, {ns:names}] + fn + args + ["invoke"]
+            if names.filter.size > 0: return ["fcalln", args.size, {ns = names}] + fn + args + ["invoke"]
             ["fcall", args.size] + fn + args + ["invoke"]
         { term.type == "method" }:
             args = try(term.args) or []
             target = emit scope, term.target
             names = args.map: stm -> try(stm.n)
             args = args.map: stm -> emit scope, stm.v
-            if names.filter.size > 0: return ["mcalln", args.size, {ns:names}] + target + ["data", term.method] + args + ["invoke"]
+            if names.filter.size > 0: return ["mcalln", args.size, {ns = names}] + target + ["data", term.method] + args + ["invoke"]
             ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "op" }:
             rhs = emit scope, term.rhs
@@ -271,7 +271,7 @@ compile = (code ->
             elements = term.data.map(entry ->
                 if try(entry.v.type) == "function":
                     function = emittop scope, entry.v, inMethods
-                    _, fn = functions.add {name:entry.n, open:false, function:function}
+                    _, fn = functions.add {name = entry.n, open = false, function = function}
                     return ["data", entry.n, "bind", fn]
                 //scope.add(entry.n)
                 m[entry.n] = whenPrimitive(entry.v)
@@ -295,13 +295,13 @@ compile = (code ->
         return res, functions
 
     builder_new = functions -> {
-        functions: functions
-        datas: Array.new
-        dataIndex: HashMap.new
-        globals: Array.new
-        globalsIndex: HashMap.new
-        functions: HashMap.new
-        data: v ->
+        functions = functions
+        datas = Array.new
+        dataIndex = HashMap.new
+        globals = Array.new
+        globalsIndex = HashMap.new
+        functions = HashMap.new
+        data = v ->
             ref = encodeLiteral v
             if ref: return ref
             ref = this.dataIndex[v]
@@ -312,24 +312,24 @@ compile = (code ->
             _, at = this.datas.add bin
             print "data", at, repr(v)
             this.dataIndex[v] = encodeInt(at - 1)
-        global: v ->
+        global = v ->
             assert isString(v)
             ref = this.globalsIndex[v]
             if ref: return ref
             ref = this.data v
             _, at = this.globals.add ref
             this.globalsIndex[v] = encodeInt(at - 1)
-        function: name, code, locals, argspecs, debuginfo ->
+        function = name, code, locals, argspecs, debuginfo ->
             code = code.add("end")
             bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
             _, at = this.datas.add bin
             print "function", at, name
             this.functions[name] = encodeInt(at - 1)
-        code: v ->
+        code = v ->
             fn = functions[v]
             print "code:", repr(fn)
-            return this.function(fn.name, fn.function.code, fn.function.locals, fn.function.args, {text:"",offset:0,pos:[]})
-        create: ->
+            return this.function(fn.name, fn.function.code, fn.function.locals, fn.function.args, {text="",offset=0,pos=[]})
+        create = ->
             buf = Buffer.new
             buf.write "tl01"
             buf.write encodeInt this.datas.size + 1
@@ -347,7 +347,7 @@ compile = (code ->
         pos = try(main.pos) or []
 
         builder = builder_new(functions)
-        builder.function(name, main.code, locals, argspec, {text: text, offset: 0, pos: pos})
+        builder.function(name, main.code, locals, argspec, {text=text,offset=0,pos=pos})
         builder.create
 
     main, functions = parseemit(code)
@@ -386,9 +386,9 @@ SimpleDebugger = debugger ->
 load = bytes ->
     m = _Module_new(Buffer.new(bytes), "")
     {
-        bytes: bytes
-        run: as -> _module_run(m, as)
-        debug: as ->
+        bytes = bytes
+        run = as -> _module_run(m, as)
+        debug = as ->
             debugger = Debugger.new
             task = Task.new
             debugger.attach(task)

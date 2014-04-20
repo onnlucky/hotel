@@ -2,15 +2,15 @@
 // TODO add a Document too, for some meta stuff like doctype and such
 
 // TODO use a set instead ...
-selfclosing = [img:1,meta:1,link:1]
+selfclosing = [img=1,meta=1,link=1]
 isSelfClosing = name -> return selfclosing[name] or false
 
-blocks = [h1:1,h2:1,h3:1,p:1,div:1,ul:1,ol:1,article:1,section:1,header:1,footer:1,nav:1
-          figure:1,table:1,thead:1,tr:1,td:1,
-          error:1,script:1,style:1,doc:1,title:1,meta:1,link:1]
+blocks = [h1=1,h2=1,h3=1,p=1,div=1,ul=1,ol=1,article=1,section=1,header=1,footer=1,nav=1
+          figure=1,table=1,thead=1,tr=1,td=1,
+          error=1,script=1,style=1,doc=1,title=1,meta=1,link=1]
 isBlock = name -> return blocks[name] or false
 
-containers = [html:1,body:1,div:1,article:1,section:1,header:1,footer:1,nav:1,table:1]
+containers = [html=1,body=1,div=1,article=1,section=1,header=1,footer=1,nav=1,table=1]
 isContainer = name -> return containers[name] or false
 
 iter2 = node, fn ->
@@ -27,7 +27,7 @@ iter = node, fn ->
     iter2(node, fn)
 
 DomEntry = {
-    remove: ->
+    remove= ->
         assert @parent
         if @parent.firstChild == this: @parent.firstChild = @next
         if @parent.lastChild == this: @parent.lastChild = @prev
@@ -38,7 +38,7 @@ DomEntry = {
         @next = null
         return this
 
-    addBefore: node ->
+    addBefore= node ->
         assert not node.parent
         assert @parent
         node.parent = @parent
@@ -49,7 +49,7 @@ DomEntry = {
         @parent.firstChild = node
         return this
 
-    addAfter: node ->
+    addAfter= node ->
         assert not node.parent
         assert @parent
         node.parent = @parent
@@ -62,30 +62,30 @@ DomEntry = {
 }
 
 DomText = {
-    class: DomEntry
-    toString: -> return @text or ""
-    firstChild: null
-    lastChild: null
-    attrs: null
+    class= DomEntry
+    toString= -> return @text or ""
+    firstChild= null
+    lastChild= null
+    attrs= null
 }
 
 Text = {
-    new: (text ->
+    new= (text ->
         _Object_new {
-            parent: null
-            prev: null
-            next: null
+            parent= null
+            prev= null
+            next= null
 
-            text: text or ""
-            class: DomText
+            text= text or ""
+            class= DomText
         }
     )
 }
 
 DomNode = {
-    class: DomEntry
+    class= DomEntry
 
-    _add: node ->
+    _add= node ->
         if not @lastChild:
             node.parent = this
             @firstChild = node
@@ -93,7 +93,7 @@ DomNode = {
             return
         @lastChild.addAfter(node)
 
-    add: node ->
+    add= node ->
         if not node: return this
         if isString(node): this._add(Text.new(node)); return this
         // TODO if node#has("each"): ...
@@ -101,17 +101,17 @@ DomNode = {
         this._add(node)
         return this
 
-    clear: ->
+    clear= ->
         @firstChild = null
         @lastChild = null
         return this
 
-    attr: key, value ->
+    attr= key, value ->
         if args.size == 1: return @attrs[key]
         @attrs[key] = value
         return this
 
-    toString: mode ->
+    toString= mode ->
         // TODO hotel should provide a StringBuilder or such ... but this works
         sb = Array.new
         if mode != #children:
@@ -136,12 +136,12 @@ DomNode = {
         sb.join
 
     // think Element.textContent
-    text: ->
+    text= ->
         sb = Array.new
         iter(this): n -> if n.class == DomText: sb.add(n.text)
         sb.join
 
-    each: fn ->
+    each= fn ->
         fn = args.block or fn
         if not fn: throw "expect a block or function"
         var $n = @firstChild
@@ -149,23 +149,23 @@ DomNode = {
         while $n: fn($n); $n = $m; $m = $n?next
         return this
 
-    find: sel -> sizzle.find(sel, this)
-    findAll: sel -> sizzle.findAll(sel, this)
+    find= sel -> sizzle.find(sel, this)
+    findAll= sel -> sizzle.findAll(sel, this)
 }
 
 Node = {
-    new: (name, children, attrs ->
+    new= (name, children, attrs ->
         //assert (not attrs) or HashMap.is(attrs)
         n = _Object_new {
-            parent: null
-            prev: null
-            next: null
-            firstChild: null
-            lastChild: null
+            parent= null
+            prev= null
+            next= null
+            firstChild= null
+            lastChild= null
 
-            name: (name or "").lower
-            attrs: attrs or HashMap.new
-            class: DomNode
+            name= (name or "").lower
+            attrs= attrs or HashMap.new
+            class= DomNode
         }
         if children: n.add(children)
         return n

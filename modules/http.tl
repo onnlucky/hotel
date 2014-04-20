@@ -2,16 +2,16 @@
 
 HttpConnection = conn ->
     _Object_new {
-        _req: null, _didhead: false, _didend: false
-        _in: io.Buffer.new
-        _body: io.Buffer.new
-        status: 200
-        contentType: "text/plain"
-        setContentType: (type ->
+        _req = null, _didhead = false, _didend = false
+        _in = io.Buffer.new
+        _body = io.Buffer.new
+        status = 200
+        contentType = "text/plain"
+        setContentType = (type ->
             if @_didhead: throw "Already send headers"
             @contentType = type
         )
-        req: (->
+        req = (->
             // read and parse until headers are complete
             if @_req: return @_req
             loop:
@@ -22,24 +22,24 @@ HttpConnection = conn ->
                 if len == 0: throw "IO ERROR"
             @_req = httpparser.request(@_in.readString)
         )
-        end: -> @_didend = true; @flush(true); conn.close
-        error: (->
+        end = -> @_didend = true; @flush(true); conn.close
+        error = (->
             @status = 500
             @_didend = true
             @_body.clear; @_body.write("500 internal error")
             @flush(true); conn.close
         )
-        write: (text ->
+        write = (text ->
             if @_didend: throw "Already Ended Response"
             @_body.write text
         )
-        flush: (ending ->
+        flush = (ending ->
             if not @_didhead: @_sendheaders(ending)
             while @_body.size > 0:
                 len = conn.write @_body
                 //if len == 0: throw "IO ERROR"
         )
-        _sendheaders: (ending ->
+        _sendheaders = (ending ->
             @_didhead = true
             headers = io.Buffer.new()
             headers.write "HTTP/1.0 $(@status) Ok\r\n"
@@ -53,11 +53,11 @@ HttpConnection = conn ->
     }
 
 Server = {
-    new: port -> { sock: io.Socket.listen(port), class: this.class }
-    class: {
-        port: -> this.sock.port
-        close: -> this.sock.close
-        serve: ( ->
+    new = port -> { sock = io.Socket.listen(port), class = this.class }
+    class = {
+        port = -> this.sock.port
+        close = -> this.sock.close
+        serve = ( ->
             block = args.block; if not block: throw "expect a block"
             loop:
                 client = this.sock.accept
@@ -75,20 +75,20 @@ Server = {
 SizedStream = stream, size ->
     var $toread = size
     {
-        read: len ->
+        read = len ->
             if $toread == 0: return null
             if not len: return stream.read $toread
             len = min($toread, len)
             $toread -= len
             return stream.read len
-        readString: len ->
+        readString = len ->
             if $toread == 0: return null
             if not len: return stream.readString $toread
             len = min($toread, len)
             $toread -= len
             return stream.readString len
-        readByte: -> this.read(1)[1]
-        close: ->
+        readByte = -> this.read(1)[1]
+        close = ->
             this.read
             return null
     }
@@ -115,14 +115,14 @@ readsomechunks = stream, into, min ->
 ChuckedStream = stream ->
     buf = Buffer.new
     {
-        read: len ->
+        read = len ->
             readsomechunks(stream, buf, len)
             buf.read len
-        readString: len ->
+        readString = len ->
             readsomechunks(stream, buf, len)
             buf.readString len
-        readByte: -> this.read(1)[1]
-        close: -> stream.close
+        readByte = -> this.read(1)[1]
+        close = -> stream.close
     }
 
 openstream = url ->
