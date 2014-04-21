@@ -335,6 +335,8 @@ tlHandle tlBEnvArgGet(tlBEnv* env, int at) {
     return tlBCallGetExtra(env->args, at, tlBClosureAs(env->args->fn)->code);
 }
 
+#define FAIL(r) do{ *error = r; return null; }while(0)
+
 static tlHandle decodelit(uint8_t b);
 static int dreadsize(const uint8_t** code2) {
     const uint8_t* code = *code2;
@@ -420,60 +422,60 @@ static int readsize(tlBuffer* buf) {
     return decoderef2(buf, tlBufferReadByte(buf));
 }
 
-tlString* readString(tlBuffer* buf, int size) {
+tlString* readString(tlBuffer* buf, int size, const char** error) {
     trace("string: %d", size);
-    if (tlBufferSize(buf) < size) fatal("buffer too small");
+    if (tlBufferSize(buf) < size) FAIL("not enough data");
     char *data = malloc_atomic(size + 1);
     tlBufferRead(buf, data, size);
     data[size] = 0;
     return tlStringFromTake(data, size);
 }
 
-tlList* readList(tlBuffer* buf, int size, tlList* data) {
+tlList* readList(tlBuffer* buf, int size, tlList* data, const char** error) {
     trace("list: %d", size);
     tlList* list = tlListNew(size);
     for (int i = 0; i < size; i++) {
         tlHandle v = readref(buf, data, null);
-        assert(v);
+        if (!v) FAIL("unable to read value for list");
         trace("LIST: %d: %s", i, tl_str(v));
         tlListSet_(list, i, v);
     }
     return list;
 }
 
-tlMap* readMap(tlBuffer* buf, int size, tlList* data) {
+tlMap* readMap(tlBuffer* buf, int size, tlList* data, const char** error) {
     trace("map: %d (%d)", size, tlBufferSize(buf));
     tlList* pairs = tlListNew(size);
     for (int i = 0; i < size; i++) {
         tlHandle key = readref(buf, data, null);
-        assert(key);
+        if (!key) FAIL("unable to read key for map");
         tlHandle v = readref(buf, data, null);
-        assert(v);
+        if (!v) FAIL("unable to read value for map");
         trace("MAP: %s: %s", tl_str(key), tl_str(v));
         tlListSet_(pairs, i, tlListFrom2(tlSymFromString(key), v));
     }
     return tlMapFromPairs(pairs);
 }
 
-tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
-    if (tlBufferSize(buf) < size) fatal("buffer too small");
+tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, const char** error) {
+    if (tlBufferSize(buf) < size) FAIL("not enough data");
     int start = tlBufferSize(buf);
 
     tlBCode* bcode = tlBCodeNew(mod);
     tlHandle name = readref(buf, data, null);
-    if (!tlStringIs(name) || tlNullIs(name)) fatal("code[1] must be the name (string), not %s", tl_str(name));
+    if (!tlStringIs(name) || tlNullIs(name)) FAIL("code[1] must be the name (string|null)");
 
     tlHandle argspec = readref(buf, data, null);
-    if (!tlListIs(argspec)) fatal("code[2] must be the argspec (list), not %s", tl_str(argspec));
+    if (!tlListIs(argspec)) FAIL("code[2] must be the argspec (list)");
     bcode->argspec = tlListAs(argspec);
 
     tlHandle localnames = readref(buf, data, null);
-    if (!tlListIs(localnames)) fatal("code[3] must be the localnames (list), not %s", tl_str(localnames));
+    if (!tlListIs(localnames)) FAIL("code[3] must be the localnames (list)");
     bcode->localnames = tlListAs(localnames);
     trace(" %s -- %s %s", tl_str(tlBCodeName(bcode)), tl_str(bcode->argspec), tl_str(bcode->localnames));
 
     tlHandle debuginfo = readref(buf, data, null);
-    if (!tlMapIs(debuginfo) || tlNullIs(debuginfo)) fatal("code[4] must be debuginfo (object), not %s", tl_str(debuginfo));
+    if (!tlMapIs(debuginfo) || tlNullIs(debuginfo)) FAIL("code[4] must be debuginfo (object|null)");
 
     tlBDebugInfo* info = tlBDebugInfoNew();
     info->name = tlStringAs(name);
@@ -490,10 +492,10 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
 
     // we don't want above data in the bcode ... so skip it
     size -= start - tlBufferSize(buf);
-    assert(size > 0);
+    if (size < 0) FAIL("not enough data");
     uint8_t *code = malloc_atomic(size);
     tlBufferRead(buf, (char*)code, size);
-    assert(code[size - 1] == 0);
+    if (code[size - 1] != 0) FAIL("missing END opcode");
     bcode->size = size;
     bcode->code = code;
 
@@ -501,52 +503,54 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size) {
     return bcode;
 }
 
-tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1) {
+tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1, const char** error) {
     int size = readsize(buf);
-    assert(size > 0 && size < 100000);
+    assert(size > 0);
+    if (size > 100000) FAIL("value too large");
     switch (b1) {
-        case 0xE0: return readString(buf, size);
-        case 0xE1: return readList(buf, size, data);
+        case 0xE0: return readString(buf, size, error);
+        case 0xE1: return readList(buf, size, data, error);
         case 0xE2: // set
-            fatal("set %d", size);
-            break;
-        case 0xE3: return readMap(buf, size, data);
+            trace("set %d", size);
+            FAIL("unimplemented: set");
+        case 0xE3: return readMap(buf, size, data, error);
         case 0xE4: // raw
-            fatal("raw %d", size);
-            break;
+            trace("raw %d", size);
+            FAIL("unimplemented: raw");
         case 0xE5: // bytecode
             trace("bytecode %d", size);
-            return readbytecode(buf, data, mod, size);
+            return readbytecode(buf, data, mod, size, error);
         case 0xE6: // bignum
-            fatal("bignum %d", size);
-            break;
+            trace("bignum %d", size);
+            FAIL("unimplemented: bignum");
         default:
-            fatal("unknown value type: %d", b1);
-            break;
+            FAIL("not a sized value");
     }
     fatal("not reached");
     return null;
 }
 
-tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
-    if (tlBufferSize(buf) < 1) fatal("buffer too small");
+tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** error) {
+    if (tlBufferSize(buf) < 1) FAIL("not enough data");
     uint8_t b1 = tlBufferReadByte(buf);
     uint8_t type = b1 & 0xE0;
     uint8_t size = b1 & 0x1F;
 
     switch (type) {
-        case 0x00: return readString(buf, size);
-        case 0x20: return readList(buf, size, data);
+        case 0x00: return readString(buf, size, error);
+        case 0x20: return readList(buf, size, data, error);
         case 0x40: // short set
-            fatal("set %d", size);
-        case 0x60: return readMap(buf, size, data);
+            trace("set %d", size);
+            FAIL("not implemented: set");
+        case 0x60: return readMap(buf, size, data, error);
         case 0x80: // short raw
-            fatal("raw %d", size);
+            trace("raw %d", size);
+            FAIL("not implemented: raw");
         case 0xA0: // short bytecode
             trace("short bytecode: %d", size);
-            return readbytecode(buf, data, mod, size);
+            return readbytecode(buf, data, mod, size, error);
         case 0xC0: { // short size number
-            assert(size <= 8); // otherwise it is a float ... not implemented yet
+            if (size > 8) FAIL("not implemented: floats");
             trace("int %d", size);
             int val = 0;
             for (int i = 0; i < size; i++) {
@@ -555,13 +559,16 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod) {
             return tlINT(val);
         }
         case 0xE0: // sized types
-            return readsizedvalue(buf, data, mod, b1);
+            return readsizedvalue(buf, data, mod, b1, error);
+        default:
+            FAIL("unable to read value");
     }
     fatal("not reached");
     return null;
 }
 
-tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
+
+tlHandle deserialize(tlBuffer* buf, tlBModule* mod, const char** error) {
     trace("parsing: %d", tlBufferSize(buf));
 
     if (tlBufferReadByte(buf) != 't') return null;
@@ -571,24 +578,28 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod) {
 
     int size = 0;
     tlHandle direct = readref(buf, null, &size);
-    trace("tl01 %d (%s)", size, tl_str(direct));
-    if (direct) { assert(size == 0); return direct; }
-    assert(size < 1000); // sanity check
+    if (direct) {
+        assert(size == 0);
+        trace("tl01 - %s", tl_str(direct));
+        return direct;
+    }
+    trace("tl01 - %d", size);
+    if (size > 1000) FAIL("too many values");
 
     tlHandle v = null;
     tlList* data = tlListNew(size);
     for (int i = 0; i < size; i++) {
-        v = readvalue(buf, data, mod);
+        v = readvalue(buf, data, mod, error);
+        if (!v) FAIL("unable to read value");
         trace("%d: %s", i, tl_str(v));
-        assert(v);
         tlListSet_(data, i, v);
     }
     if (mod) {
         mod->data = data;
         tlHandle links = tlListGet(data, size - 2);
         tlHandle body = tlListGet(data, size - 1);
-        if (!tlListIs(links)) fatal("modules end with linker list as second last value");
-        if (!tlBCodeIs(body)) fatal("modules end with code as last value");
+        if (!tlListIs(links)) FAIL("modules end with linker list as second last value");
+        if (!tlBCodeIs(body)) FAIL("modules end with code as last value");
         mod->links = tlListAs(links);
         mod->body = tlBCodeAs(body);
     }
@@ -702,7 +713,7 @@ void bpprint(tlHandle v) {
 }
 
 // verify and fill in call depth and balancing, and use of locals
-void tlBCodeVerify(tlBCode* bcode) {
+tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
     int locals = tlListSize(bcode->localnames);
     int maxdepth = 0;
     int depth = 0;
@@ -731,37 +742,45 @@ void tlBCodeVerify(tlBCode* bcode) {
             case OP_ENV:
                 parent = dreadsize(&code);
                 at = dreadsize(&code);
-                assert(parent >= 0 && parent <= 200);
-                assert(at >= 0); // todo and check parent locals
+                // TODO check if parent locals actually support these
+                assert(parent >= 0);
+                assert(at >= 0);
+                if (parent > 200) FAIL("parent out of range");
                 break;
             case OP_ENVARG:
                 parent = dreadsize(&code);
                 at = dreadsize(&code);
-                assert(parent >= 0 && parent <= 200);
-                assert(at >= 0); // todo check parent
+                // TODO check if parent locals actually support these
+                assert(parent >= 0);
+                assert(at >= 0);
+                if (parent > 200) FAIL("parent out of range");
                 break;
             case OP_LOCAL:
                 at = dreadsize(&code);
-                assert(at < locals);
+                assert(at >= 0);
+                if (at >= locals) FAIL("local out of range");
                 break;
             case OP_ARG: dreadsize(&code); break;
             case OP_BIND:
                 realize_locals = true;
                 v = dreadref(&code, data);
-                tlBCodeVerify(tlBCodeAs(v)); // TODO pass in our locals somehow for ENV
+                tlBCodeVerify(tlBCodeAs(v), error); // TODO pass in our locals somehow for ENV
+                if (*error) return null;
                 break;
             case OP_STORE:
                 at = dreadsize(&code);
-                assert(at < locals);
+                assert(at >= 0);
+                if (at >= locals) FAIL("local store out of range");
                 break;
             case OP_RSTORE:
                 dreadsize(&code);
                 at = dreadsize(&code);
-                assert(at < locals);
+                assert(at >= 0);
+                if (at >= locals) FAIL("local store out of range");
                 break;
 
             case OP_INVOKE:
-                assert(depth > 0);
+                if (depth <= 0) FAIL("invoke without call");
                 if (depth > maxdepth) maxdepth = depth;
                 depth--;
                 break;
@@ -774,17 +793,20 @@ void tlBCodeVerify(tlBCode* bcode) {
                 dreadsize(&code);
                 depth++;
                 break;
-            default: print("OEPS: %x", op);
+            default:
+                FAIL("not an opcode");
         }
     }
 exit:;
-     assert(depth == 0);
+     if (depth != 0) FAIL("call without invoke");
      print("verified; locals: %d%s, calldepth: %d, %s", locals, realize_locals?" (captured)":"", maxdepth, tl_str(bcode));
      bcode->locals = locals;
      bcode->calldepth = maxdepth;
+     return tlNull;
 }
 
-tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
+tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
+    trace("linking: %p", mod);
     assert(!mod->linked);
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->links); i++) {
@@ -794,7 +816,8 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env) {
         print("linking: %s as %s", tl_str(name), tl_str(v));
         tlListSet_(mod->linked, i, v);
     }
-    tlBCodeVerify(mod->body);
+    tlBCodeVerify(mod->body, error);
+    if (*error) return null;
     return mod;
 }
 
@@ -1213,8 +1236,11 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     tlString* name = tlStringCast(tlArgsGet(args, 1));
     tlBModule* mod = tlBModuleNew(name);
-    deserialize(buf, mod);
-    tlBModuleLink(mod, tlVmGlobalEnv(tlVmCurrent()));
+    const char* error = null;
+    deserialize(buf, mod, &error);
+    if (error) TL_THROW("invalid bytecode: %s", error);
+    tlBModuleLink(mod, tlVmGlobalEnv(tlVmCurrent()), &error);
+    if (error) TL_THROW("invalid bytecode: %s", error);
     return mod;
 }
 

@@ -1,8 +1,5 @@
-list = Array.new
-26.times: i -> list.add "$(String('a' - 1 + i))=$i"
-26.times: i -> list.add "$(String('A' - 1 + i))=$i"
-code = "print repr {"+ list.join(",") +"}"
-
+code = "{->\nx=42\nf=->print(x)}().f"
+code = "print 42; print \"hello world!\""
 bytes = compiler.compile(code)
 mod = compiler.load(bytes)
 mod.run
