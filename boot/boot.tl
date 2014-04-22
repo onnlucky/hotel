@@ -417,6 +417,7 @@ runmain = as ->
     catch: e -> print e.toString; _set_exitcode(1)
 
     if as.size == 0: return repl.run io.stdin
+    if as[1] == "snippets": return snippets.run
 
     file = as[1]
     return _parse(_stringFromFile(file), file)(_env, as[2:])
