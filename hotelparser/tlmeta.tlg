@@ -42,47 +42,47 @@ slcomment: "//" (!nl _)*
 
      act: "->". ts=(!"\n" _)*             -> ts.toChar
 
-    term: "(". t=or @"a closing ')'" .")" -> { type: "sub", term: t }
-        | ".."                            -> { type: "call", target: "wsnl" }
-        | "."                             -> { type: "call", target: "ws" }
-        | "_"                             -> { type: "prim", target: "any" }
-        | t=text                          -> { type: "prim", target: "text", text: t }
-        | t=char                          -> { type: "prim", target: "char", text: t }
-        | "pos" !alpha !"_" !":" !"*:"    -> { type: "prim", target: "pos" }
-        | "setindent" !alpha !"_" !":" !"*:" -> { type: "setindent" }
-        | "indent" !alpha !"_" !":" !"*:" -> { type: "indent" }
-        | n=name !"_" !":" !"*:"          -> { type: "call", target: n }
-    post: "!" @"a term" t=term            -> { type: "not", term: t }
-        | "&" @"a term" t=term            -> { type: "ahead", term: t }
-        | t=term "*(". @"a closing ')'" s=or .")" -> { type: "starsep", term: t, sep: s }
-        | t=term "+(". @"a closing ')'" s=or .")" -> { type: "plussep", term: t, sep: s }
-        | t=term "*"                      -> { type: "star", term: t, sep: null }
-        | t=term "+"                      -> { type: "plus", term: t, sep: null }
-        | t=term "?"                      -> { type: "opt", term: t }
+    term: "(". t=or @"a closing ')'" .")" -> { type= "sub", term= t }
+        | ".."                            -> { type= "call", target= "wsnl" }
+        | "."                             -> { type= "call", target= "ws" }
+        | "_"                             -> { type= "prim", target= "any" }
+        | t=text                          -> { type= "prim", target= "text", text= t }
+        | t=char                          -> { type= "prim", target= "char", text= t }
+        | "pos" !alpha !"_" !":" !"*:"    -> { type= "prim", target= "pos" }
+        | "setindent" !alpha !"_" !":" !"*:" -> { type= "setindent" }
+        | "indent" !alpha !"_" !":" !"*:" -> { type= "indent" }
+        | n=name !"_" !":" !"*:"          -> { type= "call", target= n }
+    post: "!" @"a term" t=term            -> { type= "not", term= t }
+        | "&" @"a term" t=term            -> { type= "ahead", term= t }
+        | t=term "*(". @"a closing ')'" s=or .")" -> { type= "starsep", term= t, sep= s }
+        | t=term "+(". @"a closing ')'" s=or .")" -> { type= "plussep", term= t, sep= s }
+        | t=term "*"                      -> { type= "star", term= t, sep= null }
+        | t=term "+"                      -> { type= "plus", term= t, sep= null }
+        | t=term "?"                      -> { type= "opt", term= t }
         | term
-   named: n=name "=<" t=name ">"          -> { type: "name", name: n, term: { type: "token", token: t }}
-        | n=name "=" @"a term"  t=post    -> { type: "name", name: n, term: t }
-        | "@" t=text                      -> { type: "anchor", msg: t }
-        | "@"                             -> { type: "anchor", msg: "" }
+   named: n=name "=<" t=name ">"          -> { type= "name", name= n, term= { type= "token", token= t }}
+        | n=name "=" @"a term"  t=post    -> { type= "name", name= n, term= t }
+        | "@" t=text                      -> { type= "anchor", msg= t }
+        | "@"                             -> { type= "anchor", msg= "" }
         | post
 
-     and: h=named rs=(.named)* .a=act?    -> { type: "and", terms: [h].cat(rs), act: a }
+     and: h=named rs=(.named)* .a=act?    -> { type= "and", terms= [h].cat(rs), act= a }
       or: @"some terms"
-          h=and rs=(."|". and)*           -> { type: "or", terms: [h].cat(rs) }
+          h=and rs=(."|". and)*           -> { type= "or", terms= [h].cat(rs) }
 
     spec: "*"                             -> "color"
         | ""
 
-    rule: .n=name s=spec @":" ":". t=or  -> { type: "rule", name: n, term: t, spec: s }
+    rule: .n=name s=spec @":" ":". t=or  -> { type= "rule", name= n, term= t, spec= s }
   parser: n=name ."="."parser"."{"
           rs=rule*
-          @"a closing '}'" ."}"           -> { n: n, rs: rs }
+          @"a closing '}'" ."}"           -> { n= n, rs= rs }
    start: b=(!(name ."="."parser"."{") _)*
           p=parser
-          a=_*                            -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+          a=_*                            -> { before= b.toChar, after= a.toChar, rules= p.rs, name= p.n }
 }
 
-forbidden = [pos:true,setindent:true,indent:true]
+forbidden = [pos=true,setindent=true,indent=true]
 rules = HashMap.new
 subs = Array.new
 colors = Array.new
@@ -91,12 +91,12 @@ to_arg = t, name ->
     { t.type == "sub"  }: to_sub(t.term, name)
     { t.type == "and"  }: to_sub(t, name)
     { t.type == "or"   }: to_sub(t, name)
-    { t.type == "prim" }: to_sub({ type: "and", terms: [t] }, name)
-    { t.type == "call" }: to_sub({ type: "and", terms: [t] }, name)
+    { t.type == "prim" }: to_sub({ type= "and", terms= [t] }, name)
+    { t.type == "call" }: to_sub({ type= "and", terms= [t] }, name)
     { }: throw "ERROR to arg:"+ inspect(t)
 
 can_optimize_and = t ->
-    if not no_value and t.act: return false
+    if not no_value and try(t.act): return false
     if t.terms.size != 1: return false
     if t.terms[1].type == "name": return false
     true
@@ -104,22 +104,22 @@ can_optimize_and = t ->
 to_call = t, name ->
     { t.type == "and" }:
         if can_optimize_and(t): return to_call(t.terms[1], name)
-        { type: "call", target: to_sub(t, name) }
+        { type= "call", target= to_sub(t, name) }
     { t.type == "sub"     }:
         if t.term.terms.size == 1:
             return to_call(t.term.terms[1], name)
-        { type: "call", target: to_sub(t.term, name) }
-    { t.type == "name"    }: { type: "name", name: t.name, term: to_call(t.term, name) }
+        { type= "call", target= to_sub(t.term, name) }
+    { t.type == "name"    }: { type= "name", name= t.name, term= to_call(t.term, name) }
     { t.type == "call"    }:
         if not rules[t.target]: throw "rule without a definition: '$(t.target)'"
-        { type: "call", target: "r_$(t.target)" }
-    { t.type == "starsep" }: { type: "meta", target: "star", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
-    { t.type == "plussep" }: { type: "meta", target: "plus", args: [to_arg(t.term, name), to_arg(t.sep, name)] }
-    { t.type == "star"    }: { type: "meta", target: "star", args: [to_arg(t.term, name),"null"] }
-    { t.type == "plus"    }: { type: "meta", target: "plus", args: [to_arg(t.term, name),"null"] }
-    { t.type == "opt"     }: { type: "meta", target: "opt", args: [to_arg(t.term, name)] }
-    { t.type == "not"     }: { type: "meta", target: "not", args: [to_arg(t.term, name)] }
-    { t.type == "ahead"   }: { type: "meta", target: "ahead", args: [to_arg(t.term, name)] }
+        { type= "call", target= "r_$(t.target)" }
+    { t.type == "starsep" }: { type= "meta", target= "star", args= [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "plussep" }: { type= "meta", target= "plus", args= [to_arg(t.term, name), to_arg(t.sep, name)] }
+    { t.type == "star"    }: { type= "meta", target= "star", args= [to_arg(t.term, name),"null"] }
+    { t.type == "plus"    }: { type= "meta", target= "plus", args= [to_arg(t.term, name),"null"] }
+    { t.type == "opt"     }: { type= "meta", target= "opt", args= [to_arg(t.term, name)] }
+    { t.type == "not"     }: { type= "meta", target= "not", args= [to_arg(t.term, name)] }
+    { t.type == "ahead"   }: { type= "meta", target= "ahead", args= [to_arg(t.term, name)] }
 
     { t.type == "token"   }: t
     { t.type == "prim"    }: t
@@ -134,12 +134,12 @@ to_sub = t, name, rule, number ->
            {      }: "$(name)_$(subs.size)"
     { t.type == "and" }:
         terms = t.terms.map(t -> to_call(t, name))
-        subs.add { type: "and", act: t.act, { name, number, terms }}
+        subs.add { type= "and", act= try(t.act), { name, number, terms }}
         return name
     { t.type == "or" }:
         if t.terms.size == 1: return to_sub(t.terms[1], name, rule, number)
         terms = t.terms.map(t -> to_call(t, name))
-        subs.add { type: "or", { name, number, terms }}
+        subs.add { type= "or", { name, number, terms }}
         return name
     { }: throw "ERROR to sub:"+ inspect(t)
 
@@ -151,11 +151,11 @@ ast.rules.each: rule ->
 
 // add some default rules if they don't exist
 if not rules["ws"]:
-    rules["ws"] = { name: "ws", term: { type: "and", terms: [{ type: "prim", target: "ws" }]}, spec: null}
+    rules["ws"] = { name= "ws", term= { type= "and", terms= [{ type= "prim", target= "ws" }]}, spec= null}
 if not rules["wsnl"]:
-    rules["wsnl"] = { name: "wsnl", term: { type: "and", terms: [{ type: "prim", target: "wsnl" }]}, spec: null}
+    rules["wsnl"] = { name= "wsnl", term= { type= "and", terms= [{ type= "prim", target= "wsnl" }]}, spec= null}
 if not rules["start"] and ast.rules.size > 0:
-    rules["start"] = { name: "start", term: { type: "and", terms: [{ type: "call", target: ast.rules.last.name }]}, spec: null}
+    rules["start"] = { name= "start", term= { type= "and", terms= [{ type= "call", target= ast.rules.last.name }]}, spec= null}
 
 rules.each: name, rule ->
     number = { rule.spec == "color" }: colors.add name; colors.size
@@ -166,7 +166,7 @@ rules.each: name, rule ->
 emit = term ->
     { term.type == "call" }: "$(term.target)(_p, _pos);"
     { term.type == "meta" }: "meta_$(term.target)(_p, _pos$(term.args.map(a -> ", $a").join));"
-    { term.type == "prim" and term.text }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\");"
+    { term.type == "prim" and try(term.text) }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\");"
     { term.type == "prim" }: "prim_$(term.target)(_p, _pos);"
     { term.type == "name" }: emit(term.term)
     { no_value            }: "state_ok(_pos, tlNull);"
@@ -231,7 +231,7 @@ emit_rule = rule ->
                 lines.add " tlHandle $(term.name) = _r.value;"
         { no_value }:
             lines.add " tlHandle _v = null;"
-        { rule.act }:
+        { try(rule.act) }:
             lines.add " tlHandle _v = $(rule.act);"
         { names.size > 0 }:
             inner = names.toList.map(n -> "\"$n\", $n").join(", ")
