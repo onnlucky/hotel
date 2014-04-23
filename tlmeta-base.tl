@@ -12,8 +12,8 @@ ALPHANUMERIC = ALPHA.cat(NUMERIC)
 
 advance = in, adv -> { text = in.text, pos = in.pos + adv, oop = in.oop }
 error = in, nr, msg ->
-    if nr: throw { t = #p, in = in, msg = nr, noreturn = true }
-    throw { t = #p, in = in, msg = msg }
+    if nr: throw { t = "p", in = in, msg = nr, noreturn = true }
+    throw { t = "p", in = in, msg = msg }
 
 rule_pass = in, nr ->
     trace2(in, "pass")
@@ -50,7 +50,7 @@ pNot = in, nr, parser ->
     trace2(in, "pNot")
     in = (
         catch: e =>
-            if try(e.t) != #p: throw e
+            if try(e.t) != "p": throw e
             if try(e.noreturn): throw e
             return in, null
         parser(in)
@@ -65,7 +65,7 @@ pAhead = in, nr, parser ->
 pOpt = in, nr, parser ->
     trace2(in, "pOpt")
     catch: e =>
-        if try(e.t) != #p: throw e
+        if try(e.t) != "p": throw e
         if try(e.noreturn): throw e
         return in, null
     parser(in)
@@ -73,7 +73,7 @@ pOpt = in, nr, parser ->
 _pmany = in, parser, res ->
     trace2(in, "_pmany: $(res.size)")
     catch: e =>
-        if try(e.t) != #p: throw e
+        if try(e.t) != "p": throw e
         if try(e.noreturn): throw e
         trace2(in, " << pStar|pPlus");
         return in, res
@@ -98,7 +98,7 @@ pOr = in, nr, name ->
         trace2(in, "pOr: $name: $($i)")
         $i += 1
         catch: e =>
-            if try(e.t) != #p: throw e
+            if try(e.t) != "p": throw e
             if try(e.noreturn): throw e
         in, v = parser(in)
         trace2(in, "pOr: $name <<")
@@ -107,7 +107,7 @@ pOr = in, nr, name ->
     error(in, nr, "a $name")
 
 pHandle = e, nr, name ->
-    if try(e.t) != #p: throw e
+    if try(e.t) != "p": throw e
     trace(e.in, " << FAIL $name")
     if try(e.noreturn): throw e
     error(e.in, nr, e.msg)
@@ -149,7 +149,7 @@ pStart = rule, text ->
     _with_lock(oop):
         in, v = (
             catch: e ->
-                if try(e.t) != #p: throw e
+                if try(e.t) != "p": throw e
                 line, char = lineFromPos(e.in.text, e.in.pos)
                 if try(e.msg): throw "SyntaxError: expected $(e.msg) on line $line col $char"
                 throw "SyntaxError: on line $line col $char"

@@ -1,7 +1,7 @@
-// boot.tl
-// 1. initialize into full std lib (some of it is in controlflow.c)
-// 2. run the requests file(s) or start a repl
-// 3. drop into the io runloop, exiting when no tasks are left
+# boot.tl
+# 1. initialize into full std lib (some of it is in controlflow.c)
+# 2. run the requests file(s) or start a repl
+# 3. drop into the io runloop, exiting when no tasks are left
 
 catch: e -> print "boot exception: $(e.toString)"
 
@@ -187,8 +187,8 @@ _to = to, fn ->
         goto again(at - 1)
     goto again(this)
 
-_install(Int.class, #times, _times)
-_install(Int.class, #to, _to)
+_install(Int.class, "times", _times)
+_install(Int.class, "to", _to)
 
 _str = o ->
     if isString(o): return o
@@ -199,7 +199,7 @@ _str = o ->
 /// call with numbers, interprets them as letters (unicode points)
 /// call with binaries or buffers, interprets them as utf8 letters
 /// TODO allow configuration on what to do for invalid utf8 and/or invalid unicode points
-_install(String, #call, (new = (->
+_install(String, "call", (new = (->
     if args.size == 0: return ""
     if args.size == 1: return _str(args[1])
     arr = Array.new
@@ -209,46 +209,46 @@ _install(String, #call, (new = (->
 
 // TODO should have special boot places for string, list and such
 /// String.each: for ever character run block or function given
-_install(String.class, #times, (times = (n ->
+_install(String.class, "times", (times = (n ->
     arr = Array.new
     n.times: arr.add(this)
     arr.join("")
 )))
-_install(String.class, #each, _each)
-_install(String.class, #map, _map)
-_install(String.class, #random, _get_random)
+_install(String.class, "each", _each)
+_install(String.class, "map", _map)
+_install(String.class, "random", _get_random)
 
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
-_install(String.class, #split, _split)
-/// String.replace: replace all occurances of args[1] with args[2], returns a new #String
-_install(String.class, #replace, (replace = (from, to ->
+_install(String.class, "split", _split)
+/// String.replace: replace all occurances of args[1] with args[2], returns a new "String"
+_install(String.class, "replace", (replace = (from, to ->
     if from.size == 0: return this
     if not this.find(from): return this
     return this.split(from).join(to)
 )))
 
-_install(Args.class, #each, _each)
-_install(Args.class, #map, _map)
-_install(Args.class, #find, _find)
-_install(Args.class, #reduce, _reduce)
-_install(Args.class, #filter, _filter)
-_install(Args.class, #flatten, _flatten)
-_install(Args.class, #join, _join)
+_install(Args.class, "each", _each)
+_install(Args.class, "map", _map)
+_install(Args.class, "find", _find)
+_install(Args.class, "reduce", _reduce)
+_install(Args.class, "filter", _filter)
+_install(Args.class, "flatten", _flatten)
+_install(Args.class, "join", _join)
 
-_install(Set.class, #random, _get_random)
-_install(Set.class, #each, _each)
-_install(Set.class, #map, _map)
-_install(List.class, #random, _get_random)
-_install(List.class, #each, _each)
-_install(List.class, #map, _map)
-_install(List.class, #find, _find)
-_install(List.class, #filter, _filter)
-_install(List.class, #reduce, _reduce)
-_install(List.class, #min, _min)
-_install(List.class, #max, _max)
-_install(List.class, #sum, _sum)
-_install(List.class, #flatten, _flatten)
-_install(List.class, #join, _join)
+_install(Set.class, "random", _get_random)
+_install(Set.class, "each", _each)
+_install(Set.class, "map", _map)
+_install(List.class, "random", _get_random)
+_install(List.class, "each", _each)
+_install(List.class, "map", _map)
+_install(List.class, "find", _find)
+_install(List.class, "filter", _filter)
+_install(List.class, "reduce", _reduce)
+_install(List.class, "min", _min)
+_install(List.class, "max", _max)
+_install(List.class, "sum", _sum)
+_install(List.class, "flatten", _flatten)
+_install(List.class, "join", _join)
 
 _map_each = (m, fn ->
     block = args.block or fn
@@ -262,43 +262,43 @@ _map_map = (m, fn ->
     keys = Map.keys(m)
     keys.map: k -> block(k, Map.get(m, k))
 )
-_install(Map.class, #each, (each = (fn ->
+_install(Map.class, "each", (each = (fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
     keys = Map.keys(this)
     keys.each: k -> block(k, this[k])
 )))
-_install(Map.class, #map, (map = (fn ->
+_install(Map.class, "map", (map = (fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
     keys = Map.keys(this)
     keys.map: k -> block(k, this[k])
 )))
-_install(Map, #each, _map_each)
-_install(Map, #map, _map_map)
-_install(Object, #each, _map_each)
-_install(Object, #map, _map_map)
+_install(Map, "each", _map_each)
+_install(Map, "map", _map_map)
+_install(Object, "each", _map_each)
+_install(Object, "map", _map_map)
 
-_install(Array.class, #random, _get_random)
-_install(Array.class, #each, _each)
-_install(Array.class, #map, _map)
-_install(Array.class, #find, _find)
-_install(Array.class, #filter, _filter)
-_install(Array.class, #reduce, _reduce)
-_install(Array.class, #min, _min)
-_install(Array.class, #max, _max)
-_install(Array.class, #sum, _sum)
-_install(Array.class, #flatten, _flatten)
-_install(Array.class, #join, _join)
+_install(Array.class, "random", _get_random)
+_install(Array.class, "each", _each)
+_install(Array.class, "map", _map)
+_install(Array.class, "find", _find)
+_install(Array.class, "filter", _filter)
+_install(Array.class, "reduce", _reduce)
+_install(Array.class, "min", _min)
+_install(Array.class, "max", _max)
+_install(Array.class, "sum", _sum)
+_install(Array.class, "flatten", _flatten)
+_install(Array.class, "join", _join)
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
-    args.namesmap.set(#stack, stack).set(#msg, msg).set(#class, this.class).toObject
+    args.namesmap.set("stack", stack).set("msg", msg).set("class", this.class).toObject
 
-_install(Error, #call, _errorConstructor);
-_install(ArgumentError, #call, _errorConstructor);
-_install(UndefinedError, #call, _errorConstructor);
-_install(Error, #class, {
+_install(Error, "call", _errorConstructor);
+_install(ArgumentError, "call", _errorConstructor);
+_install(UndefinedError, "call", _errorConstructor);
+_install(Error, "class", {
     throw = -> throw this
     toString = ->
         ls = Array.new
@@ -372,7 +372,7 @@ days    = d -> d * 60 * 60 * 24
 
 eval2 = string -> _parse(string)(Env.current)
 /// String.eval: evalute the string as a script to run in the current environment
-_install(String.class, #eval, (_eval_ = (->
+_install(String.class, "eval", (_eval_ = (->
     eval2(this)
 )))
 

@@ -115,8 +115,7 @@ static tlHandle _args_get(tlArgs* args) {
         return tlMAYBE(tlArgsGet(as, at));
     }
     if (tlSymIs(v)) {
-        tlSym key = tlSymAs(tlArgsGet(args, 0));
-        return tlMAYBE(tlArgsMapGet(as, key));
+        return tlMAYBE(tlArgsMapGet(as, tlSymAs(v)));
     }
     TL_THROW("Expected an index or name");
 }

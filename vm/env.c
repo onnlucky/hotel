@@ -73,6 +73,7 @@ tlEnv* tlEnvCapture(tlEnv* env) {
     return env;
 }
 tlHandle tlEnvGet(tlEnv* env, tlSym key) {
+    assert(tlSymIs_(key));
     if (!env) {
         return tl_global(key);
         return null;

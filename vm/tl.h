@@ -76,9 +76,10 @@ static inline bool tlIntIs(tlHandle v) { return ((intptr_t)v & 1) == 1; }
 static inline tlInt tlIntAs(tlHandle v) { assert(tlIntIs(v)); return v; }
 static inline tlInt tlIntCast(tlHandle v) { return tlIntIs(v)?tlIntAs(v):0; }
 
-static inline bool tlSymIs(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
-static inline tlSym tlSymAs(tlHandle v) { assert(tlSymIs(v)); return (tlSym)v; }
-static inline tlSym tlSymCast(tlHandle v) { return tlSymIs(v)?tlSymAs(v):0; }
+static inline bool tlSymIs_(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
+static inline tlSym tlSymAs_(tlHandle v) { assert(tlSymIs_(v)); return (tlSym)v; }
+static inline tlSym tlSymCast_(tlHandle v) { return tlSymIs_(v)?tlSymAs_(v):0; }
+
 
 static inline tlHead* tl_head(tlHandle v) { assert(tlRefIs(v)); return (tlHead*)v; }
 
@@ -92,7 +93,7 @@ static inline intptr_t get_kptr(tlHandle v) { return ((tlHead*)v)->kind; }
 static inline tlKind* tl_kind(tlHandle v) {
     if (tlRefIs(v)) return (tlKind*)(get_kptr(v) & ~0x7);
     if (tlIntIs(v)) return tlIntKind;
-    if (tlSymIs(v)) return tlSymKind;
+    if (tlSymIs_(v)) return tlSymKind;
     // assert(tlTagIs(v));
     switch ((intptr_t)v) {
         case TL_NULL: return tlNullKind;
@@ -125,6 +126,12 @@ static inline tlString* tlStringCast(tlHandle v) {
     if (!tlStringIs(v)) return null;
     return (tlString*)((intptr_t)v & ~7);
 }
+
+tlSym tlSymFromString(tlString* str);
+
+static inline bool tlSymIs(tlHandle v) { return tlSymIs_(v) || tlStringIs(v); }
+static inline tlSym tlSymAs(tlHandle v) { if (tlStringIs(v)) return tlSymFromString(v); return tlSymAs_(v); }
+static inline tlSym tlSymCast(tlHandle v) { if (tlStringIs(v)) return tlSymFromString(v); return tlSymCast_(v); }
 
 TL_REF_TYPE(tlBin);
 TL_REF_TYPE(tlUndefined);
@@ -224,7 +231,6 @@ tlSym tlSymFromStatic(const char* s, int len);
 tlSym tlSymFromCopy(const char* s, int len);
 tlSym tlSymFromTake(char* s, int len);
 
-tlSym tlSymFromString(tlString* str);
 tlString* tlStringFromSym(tlSym s);
 const char* tlSymData(tlSym sym);
 

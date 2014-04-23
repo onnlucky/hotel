@@ -185,7 +185,7 @@ parseParser = in ->
     in = pText("}")(in).set({ n = name.value, rs = rules.value })
     trace2(in, "<< parser: $(rules.value.size)")
 
-//rule: n=name .":". t=or               -> { type: #Rule, name: n, term: t }
+//rule: n=name .":". t=or               -> { type: "Rule", name: n, term: t }
 parseRule = in ->
     trace2(in, ">> rule")
     name = parseName(in)
@@ -193,7 +193,7 @@ parseRule = in ->
     in = pText(":")(in)
     in = parseWs(in)
     term = parseOr(in)
-    in = parseWs(term).set({ type = #Rule, name = name.value, term = term.value })
+    in = parseWs(term).set({ type = "Rule", name = name.value, term = term.value })
     trace2(in, "<< rule: $(name.value)")
 
 //act: "->". (!"\n" _)*
@@ -205,57 +205,57 @@ parseAct = in ->
     cs = pMany(pNotChars("\n\r"))(in).do: v -> v.toChar
     trace2(cs, "<< action")
 
-//or: h=and rs=(."|". and)*           -> { type: #Or, terms: [h].cat(rs) }
+//or: h=and rs=(."|". and)*           -> { type: "Or", terms: [h].cat(rs) }
 parseOr = in ->
     trace2(in, ">> or")
     h = parseAnd(in)
     rs = pMany(pAnd(parseWs, pText("|"), parseWs, parseAnd))(h)
-    in = rs.set({ type = #Or, terms = [h.value].cat(rs.value) })
+    in = rs.set({ type = "Or", terms = [h.value].cat(rs.value) })
     trace2(in, "<< or")
 
-//and: h=named rs=(" ". named)* .a=act -> { type: #And, terms: [h].cat(rs), act: a }
+//and: h=named rs=(" ". named)* .a=act -> { type: "And", terms: [h].cat(rs), act: a }
 parseAnd = in ->
     trace2(in, ">> AND >> AND >> AND >>")
     h = parseNamed(in)
     rs = pMany(pAnd(parseWs, parseNamed))(h)
     a = pOptional(parseAct)(rs)
-    in = a.set({ type = #And, terms = [h.value].cat(rs.value), act = a.value })
+    in = a.set({ type = "And", terms = [h.value].cat(rs.value), act = a.value })
     trace2(in, "<< AND << AND << AND <<")
 
-//named: n=name "=" t=post             -> { type: #Bind, name: n, term: t }
-//     | "@" t=text                    -> { type: #NoReturn, msg: t }
+//named: n=name "=" t=post             -> { type: "Bind", name: n, term: t }
+//     | "@" t=text                    -> { type: "NoReturn", msg: t }
 //     | post
 parseNamed = in ->
     trace2(in, ">> named")
     a1 = in ->
         n = parseName(in)
         in = pText("=")(n)
-        parsePost(in).do: v -> { type = #Bind, name = n.value, term = v }
+        parsePost(in).do: v -> { type = "Bind", name = n.value, term = v }
     a2 = in ->
         in = pText("@")(in)
-        parseText(in).do: v -> { type = #NoReturn, msg = v }
+        parseText(in).do: v -> { type = "NoReturn", msg = v }
     in = pOr(a1, a2, parsePost)(in)
     trace2(in, "<< named")
 
-//post: "!" t=term                      -> { type: #Not, term: t }
-//    | t=term "*"                      -> { type: #Star, term: t }
-//    | t=term "+"                      -> { type: #Plus, term: t }
-//    | t=term "?"                      -> { type: #Opt, term: t }
+//post: "!" t=term                      -> { type: "Not", term: t }
+//    | t=term "*"                      -> { type: "Star", term: t }
+//    | t=term "+"                      -> { type: "Plus", term: t }
+//    | t=term "?"                      -> { type: "Opt", term: t }
 //    | term
 parsePost = in ->
     trace2(in, ">> post")
-    a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type = #Not, term = v }
-    a2 = in -> term = parseTerm(in); pText("*")(term).set({ type = #Star, term = term.value })
-    a3 = in -> term = parseTerm(in); pText("+")(term).set({ type = #Plus, term = term.value })
-    a4 = in -> term = parseTerm(in); pText("?")(term).set({ type = #Opt, term = term.value })
+    a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type = "Not", term = v }
+    a2 = in -> term = parseTerm(in); pText("*")(term).set({ type = "Star", term = term.value })
+    a3 = in -> term = parseTerm(in); pText("+")(term).set({ type = "Plus", term = term.value })
+    a4 = in -> term = parseTerm(in); pText("?")(term).set({ type = "Opt", term = term.value })
     in = pOr(a1, a2, a3, a4, parseTerm)(in)
     trace2(in, "<< post: $(in.value)")
 
-//term: "(". t=or .")"                  -> { type: #Sub, term: t }
-//    | "."                             -> { type: #Ws }
-//    | "_"                             -> { type: #Any }
-//    | n=name !":"                     -> { type: #Call, rule: n }
-//    | t=text                          -> { type: #Text, text: t }
+//term: "(". t=or .")"                  -> { type: "Sub", term: t }
+//    | "."                             -> { type: "Ws" }
+//    | "_"                             -> { type: "Any" }
+//    | n=name !":"                     -> { type: "Call", rule: n }
+//    | t=text                          -> { type: "Text", text: t }
 parseTerm = in ->
     trace2(in, ">> term")
     a1 = in ->
@@ -265,13 +265,13 @@ parseTerm = in ->
         in = parseWs(in)
         t=parseOr(in)
         in = parseWs(t)
-        in = pText(")")(in).set({ type = #Sub, term = t.value })
+        in = pText(")")(in).set({ type = "Sub", term = t.value })
         trace2(in, "3 << paren << PAREN << PAREN <<")
 
-    a2 = in -> pText(".")(in).set({ type = #Ws })
-    a3 = in -> pText("_")(in).set({ type = #Any })
-    a4 = in -> n = parseName(in); pNot(pChar(":".get))(n).set({ type = #Call, rule = n.value })
-    a5 = in -> parseText(in).do: v -> { type = #Text, text = v }
+    a2 = in -> pText(".")(in).set({ type = "Ws" })
+    a3 = in -> pText("_")(in).set({ type = "Any" })
+    a4 = in -> n = parseName(in); pNot(pChar(":".get))(n).set({ type = "Call", rule = n.value })
+    a5 = in -> parseText(in).do: v -> { type = "Text", text = v }
     in = pOr(a1, a2, a3, a4, a5)(in)
     trace2(in, "<< term: $(in.value)")
 
@@ -306,20 +306,20 @@ ast = parse(parseStart, text)
 
 // ** emitting a new parser **
 emit = r, buf, ind ->
-    _match(r.type == #Or): goto emitOr r, buf, ind
-    _match(r.type == #And): goto emitAnd r, buf, ind
-    _match(r.type == #Sub): goto emitSub r, buf, ind
-    _match(r.type == #Not): goto emitNot r, buf, ind
-    _match(r.type == #Opt): goto emitOpt r, buf, ind
-    _match(r.type == #Star): goto emitStar r, buf, ind
-    _match(r.type == #Plus): goto emitPlus r, buf, ind
+    _match(r.type == "Or"): goto emitOr r, buf, ind
+    _match(r.type == "And"): goto emitAnd r, buf, ind
+    _match(r.type == "Sub"): goto emitSub r, buf, ind
+    _match(r.type == "Not"): goto emitNot r, buf, ind
+    _match(r.type == "Opt"): goto emitOpt r, buf, ind
+    _match(r.type == "Star"): goto emitStar r, buf, ind
+    _match(r.type == "Plus"): goto emitPlus r, buf, ind
 
-    _match(r.type == #NoReturn): buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
-    _match(r.type == #Call): buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
-    _match(r.type == #Bind): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
-    _match(r.type == #Text): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
-    _match(r.type == #Ws): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
-    _match(r.type == #Any): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
+    _match(r.type == "NoReturn"): buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
+    _match(r.type == "Call"): buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
+    _match(r.type == "Bind"): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
+    _match(r.type == "Text"): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
+    _match(r.type == "Ws"): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
+    _match(r.type == "Any"): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
     _match(true): throw "InternalError emit unknown: $(r.type)"
     _nomatch
 

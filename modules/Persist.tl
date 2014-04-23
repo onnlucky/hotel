@@ -6,12 +6,12 @@ new = name ->
         buf = _to_repr(cmd); buf.write("\n"); fd.write(buf)
 
     PersistObjectClass = {
-        _name = #PersistObjectClass
+        _name = "PersistObjectClass"
         _get = -> this._back.get(args.msg)
         _set = k, v -> this._back.set(k, v); record {set=true,id=this._id,k=k,v=v}; return v
     }
     PersistListClass = {
-        _name= #PersistListClass
+        _name= "PersistListClass"
         add= v -> _, i = this._back.add(v); record {set=true,id=this._id,k=i,v=v}; return i
         set= i, v -> this._back.set(i, v); record {set=true,id=this._id,k=i,v=v}; return v
         remove= at -> r = this._back.remove(at); record {del=true,id=this._id,k=at}; return r
@@ -26,22 +26,22 @@ new = name ->
     genid = -> loop: id = random(); if not ids.has(id): return id
     object_new = id, silent ->
         id = id or genid()
-        if not silent: record {new=#Object,id=id}
+        if not silent: record {new="Object",id=id}
         res = {_id= id, _back= HashMap.new, class= PersistObjectClass}
         ids.set(id, res)
     list_new = id, silent ->
         id = id or genid()
-        if not silent: record {new=#List,id=id}
+        if not silent: record {new="List",id=id}
         res = {_id= id, _back= Array.new, class= PersistListClass}
         ids.set(id, res)
     revive = v ->
         if isObject(v):
-            if try(v.class._name) == #PersistObjectClass: return ids[v._id]
-            if try(v.class._name) == #PersistListClass: return ids[v._id]
+            if try(v.class._name) == "PersistObjectClass": return ids[v._id]
+            if try(v.class._name) == "PersistListClass": return ids[v._id]
         return v
     replay = cmd ->
-        if try(cmd.new) == #Object: return object_new(cmd.id, true)
-        if try(cmd.new) == #List: return list_new(cmd.id, true)
+        if try(cmd.new) == "Object": return object_new(cmd.id, true)
+        if try(cmd.new) == "List": return list_new(cmd.id, true)
         if try(cmd.set): return ids[cmd.id]._back.set(cmd.k, revive(cmd.v))
         if try(cmd.del): return ids[cmd.id]._back.remove(cmd.k)
         assert(false, "unknown command: $cmd")

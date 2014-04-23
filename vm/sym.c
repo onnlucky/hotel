@@ -48,11 +48,11 @@ tlHandle tl_value(tlHandle a) {
     assert(tlActiveIs(a));
     tlHandle v = (tlHandle)((intptr_t)a & ~4);
     assert(!tlActiveIs(v));
-    assert(tlRefIs(v) || tlSymIs(v));
+    assert(tlRefIs(v) || tlSymIs_(v));
     return v;
 }
 tlHandle tl_active(tlHandle v) {
-    assert(tlRefIs(v) || tlSymIs(v));
+    assert(tlRefIs(v) || tlSymIs_(v));
     assert(!tlActiveIs(v));
     tlHandle a = (tlHandle)((intptr_t)v | 4);
     assert(tlActiveIs(a));
@@ -63,7 +63,7 @@ tlHandle tlACTIVE(tlHandle v) {
 }
 
 tlString* tlStringFromSym(tlSym sym) {
-    assert(tlSymIs(sym));
+    assert(tlSymIs_(sym));
     return _TEXT_FROM_SYM(sym);
 }
 const char* tlSymData(tlSym sym) {
@@ -104,7 +104,7 @@ tlSym tlSymFromCopy(const char* s, int len) {
 }
 
 tlSym tlSymFromString(tlString* str) {
-    if (tlSymIs(str)) return str;
+    if (tlSymIs_(str)) return str;
 
     assert(tlStringIs(str));
     assert(symbols);
@@ -139,7 +139,7 @@ void tl_register_natives(const tlNativeCbs* cbs) {
 }
 
 static tlHandle tl_global(tlSym sym) {
-    assert(tlSymIs(sym));
+    assert(tlSymIs_(sym));
     assert(globals);
     return lhashmap_get(globals, tlStringData(_TEXT_FROM_SYM(sym)));
 }
@@ -155,7 +155,7 @@ static void strfree(void *str) { }
 static bool symEquals(tlHandle left, tlHandle right) {
     trace("SYMBOL EQUALS? %s == %s", tl_str(left), tl_str(right));
     if (left == right) return true;
-    if (tlSymIs(left) && tlSymIs(right)) return false;
+    if (tlSymIs_(left) && tlSymIs_(right)) return false;
     return tlStringEquals(_TEXT_FROM_SYM(left), _TEXT_FROM_SYM(right));
 }
 static tlHandle symCmp(tlHandle left, tlHandle right) {

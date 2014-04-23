@@ -5,10 +5,10 @@ Latch = max ->
     !(
         loop = count, hold ->
             msg = queue.get
-            if msg.name == #enter:
+            if msg.name == "enter":
                 if count < max: msg.reply; goto loop(count + 1, hold)
                 goto loop(count + 1, hold.add(msg))
-            if msg.name == #exit:
+            if msg.name == "exit":
                 print "EXITING:", hold.size
                 msg.reply
                 if hold.size == 0: goto loop(count - 1, hold)

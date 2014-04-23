@@ -548,7 +548,7 @@ object = "{"__ is:items __"}"!":"  { $$ = map_activate(tlMapToObject_(tlMapFromP
 litems = v:expr eom is:litems  { $$ = tlListPrepend(L(is), v); }
        | v:expr                { $$ = tlListFrom1(v); }
 
- value = lit | number | chr | text | object | map | list | sym | varref | thisref | lookup
+ value = lit | number | chr | text | object | map | list | varref | thisref | lookup
 
    lit = "true" !namechar      { $$ = tlTrue; }
        | "false" !namechar     { $$ = tlFalse; }
@@ -559,7 +559,6 @@ litems = v:expr eom is:litems  { $$ = tlListPrepend(L(is), v); }
 thisref = "@" n:name  { $$ = tlCallFrom(tl_active(s_this_get), tl_active(s_this), n, null); }
  lookup = n:name      { $$ = tl_active(n); }
 
-   sym = "#" n:name                 { $$ = n }
 number = "0x" < [_0-9A-F]+ >        { $$ = tlPARSENUM(rmu(yytext), 16); }
        | "0b" < [_0-1]+ >           { $$ = tlPARSENUM(rmu(yytext), 2); }
        | < "-"? [0-9] [_0-9]* "." [0-9] [_0-9]* > { $$ = tlFLOAT(atof(rmu(yytext))); }
@@ -588,7 +587,7 @@ number = "0x" < [_0-9A-F]+ >        { $$ = tlPARSENUM(rmu(yytext), 16); }
   name = < [a-zA-Z_][a-zA-Z0-9_]* > { $$ = tlSymFromCopy(yytext, 0); }
 namechar = [a-zA-Z_][a-zA-Z0-9_]
 
-slcomment = "//" (!nl .)*
+slcomment = ("//"|"#") (!nl .)*
  icomment = "/*" (!"*/" (nl|.))* ("*/"|!.)
   comment = (slcomment nle | icomment)
 

@@ -3,7 +3,7 @@ parser = parser {
       sp: " " | "\t"
       nl: "\r\n" | "\n\r" | "\n" | "\r"
 
-slcomment*: "#" (!nl _)* (nl|end)
+slcomment*: ("#"|"//") (!nl _)* (nl|end)
   comment*: "(#" (!"#)" (comment|_))* ("#)"|end)
 
       ws: (sp | comment)*

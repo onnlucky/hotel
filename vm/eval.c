@@ -274,6 +274,7 @@ INTERNAL tlHandle run_activate_call(ActivateCallFrame* frame, tlCall* call, tlEn
 
 // lookups potentially need to run hotel code, so we can pause from here
 INTERNAL tlHandle lookup(tlEnv* env, tlSym name) {
+    assert(tlSymIs_(name));
     if (name == s_return) {
         tlHandle fn = tlReturnNew(tlEnvGetArgs(env));
         trace("%s -> %s", tl_str(name), tl_str(fn));
@@ -305,7 +306,7 @@ INTERNAL tlHandle lookup(tlEnv* env, tlSym name) {
 
 INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env) {
     trace("%s", tl_str(v));
-    if (tlSymIs(v)) {
+    if (tlSymIs_(v)) {
         tlEnvCloseCaptures(env);
         return lookup(env, v);
     }
@@ -574,7 +575,7 @@ INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle _res) {
         }
 
         // just a symbol means setting the current value under this name in env
-        if (tlSymIs(op)) {
+        if (tlSymIs_(op)) {
             tlHandle v = tlFirst(task->value);
             trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
             if (!tlClosureIs(v)) tlEnvCloseCaptures(env);

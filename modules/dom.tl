@@ -96,7 +96,7 @@ DomNode = {
     add= node ->
         if not node: return this
         if isString(node): this._add(Text.new(node)); return this
-        // TODO if node#has("each"): ...
+        // TODO if node"has"("each"): ...
         if isList(node): node.each(n -> this.add(n)); return this
         this._add(node)
         return this
@@ -114,7 +114,7 @@ DomNode = {
     toString= mode ->
         // TODO hotel should provide a StringBuilder or such ... but this works
         sb = Array.new
-        if mode != #children:
+        if mode != "children":
             sb.add("<$(@name)")
             @attrs.each: k, v -> sb.add(" $k=\"$v\"")
             if ((not @firstChild) and isSelfClosing(@name)):
@@ -185,7 +185,7 @@ test "dom nodes":
     assert n.lastChild.prev.firstChild.text == "2"
     assert n.lastChild.prev.prev.firstChild.text == "1"
 
-    p4 = Node.new("crap").attr(#foo, 42)
+    p4 = Node.new("crap").attr("foo", 42)
     assert p4.attr("foo") == 42
     assert p4.attrs["foo"] == 42
     p1.addAfter(p4)
@@ -198,7 +198,7 @@ test "dom nodes":
     assert n.firstChild.firstChild.text == "1"
     assert n.firstChild.next.next.firstChild.text == "3"
     assert n.lastChild.prev.prev.firstChild.text == "1"
-    assert p4.attr(#foo) == 42
+    assert p4.attr("foo") == 42
 
 {{ Text, Node }}
 

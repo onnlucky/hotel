@@ -1,3 +1,3 @@
-test = (-> return 42, #notseen)
+test = (-> return 42, "notseen")
 print test()
 

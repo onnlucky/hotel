@@ -11,11 +11,11 @@ ioloop = ->
             msg = _io_queue.poll
             if msg == null: break
             catch: e -> msg.throw(e)
-            { msg.name == #waitread  }: _io_waitread msg[1], msg
-            { msg.name == #waitwrite }: _io_waitwrite msg[1], msg
-            { msg.name == #wait      }: _io_wait msg[1], msg
-            { msg.name == #close     }: _io_close msg[1]; msg.reply
-            { msg.name == #launch    }:
+            { msg.name == "waitread"  }: _io_waitread msg[1], msg
+            { msg.name == "waitwrite" }: _io_waitwrite msg[1], msg
+            { msg.name == "wait"      }: _io_wait msg[1], msg
+            { msg.name == "close"     }: _io_close msg[1]; msg.reply
+            { msg.name == "launch"    }:
                 msg.reply(_io_launch(
                     msg[1], msg[2],
                     msg[3], msg[4], msg[5], msg[6],
@@ -190,10 +190,10 @@ File = {
 
         open = (->
             mode = Var.new 0
-            if args.namesmap[#truncate]: $mode += _File_TRUNC
-            if args.namesmap[#create]: $mode += _File_CREAT
-            if not args.namesmap[#readonly]: $mode += _File_RDWR
-            if args.namesmap[#readonly]: $mode += _File_RONLY
+            if args.namesmap["truncate"]: $mode += _File_TRUNC
+            if args.namesmap["create"]: $mode += _File_CREAT
+            if not args.namesmap["readonly"]: $mode += _File_RDWR
+            if args.namesmap["readonly"]: $mode += _File_RONLY
             Stream.new(_File_open(this.name, $mode))
         )
     }
