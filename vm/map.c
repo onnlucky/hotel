@@ -327,6 +327,15 @@ static tlHandle _Map_values(tlArgs* args) {
     if (!map) TL_THROW("Expected a Map");
     return tlMapValues(map);
 }
+static tlHandle _Map_has(tlArgs* args) {
+    trace("");
+    if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    tlMap* map = tlArgsGet(args, 0);
+    tlString* key = tlStringCast(tlArgsGet(args, 1));
+    if (!key) TL_THROW("Expected a symbol");
+    tlHandle res = tlMapGetSym(map, tlSymFromString(key));
+    return tlBOOL(res != null);
+}
 static tlHandle _Map_get(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
@@ -547,6 +556,7 @@ static void map_init() {
         "call", _Map_from,
         "hash", _Map_hash,
         "size", _Map_size,
+        "has", _Map_has,
         "get", _Map_get,
         "set", _Map_set,
         "keys", _Map_keys,
@@ -559,6 +569,8 @@ static void map_init() {
     tlMap* oconstructor = tlClassMapFrom(
         "call", _Object_from,
         "hash", _Map_hash,
+        "size", _Map_size,
+        "has", _Map_has,
         "get", _Map_get,
         "set", _Object_set,
         "keys", _Map_keys,
