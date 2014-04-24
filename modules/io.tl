@@ -296,7 +296,9 @@ Terminal = {
         // TODO does not work, size conflicts with stream.size
         setRaw = -> _tty_setRaw(this.file)
         restore = -> _tty_restore(this.file)
-        size = -> _tty_size(this.file)
+        measure = -> _tty_size(this.file)
+        width = -> _tty_size(this.file)
+        height = -> _, h = _tty_size(this.file); return h
     }
 }
 
