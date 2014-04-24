@@ -183,6 +183,22 @@ INTERNAL tlHandle _array_add(tlArgs* args) {
     }
     return tlResultFrom(v, tlINT(array->size), null);
 }
+INTERNAL tlHandle _array_cat(tlArgs* args) {
+    tlArray* array = tlArrayCast(tlArgsTarget(args));
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (tlListIs(v)) {
+            tlList* other = tlListAs(v);
+            for (int j = 0; j < tlListSize(other); j++) tlArrayAdd(array, tlListGet(other, j));
+        } else if (tlArrayIs(v)) {
+            tlArray* other = tlArrayAs(v);
+            for (int j = 0; j < tlArraySize(other); j++) tlArrayAdd(array, tlArrayGet(other, j));
+        } else {
+            TL_THROW("expected an Array or List");
+        }
+    }
+    return array;
+}
 INTERNAL tlHandle _array_pop(tlArgs* args) {
     tlArray* array = tlArrayCast(tlArgsTarget(args));
     if (!array) TL_THROW("expected an Array");
@@ -250,6 +266,7 @@ static void array_init() {
         "get", _array_get,
         "set", _array_set,
         "add", _array_add,
+        "cat", _array_cat,
         "pop", _array_pop,
         "remove", _array_remove,
         "insert", _array_insert,

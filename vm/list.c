@@ -246,6 +246,10 @@ static tlHandle _List_clone(tlArgs* args) {
 }
 /// object List: a list containing elements, immutable
 
+INTERNAL tlHandle _list_toList(tlArgs* args) {
+    return tlListAs(tlArgsTarget(args));
+}
+
 /// size: returns amount of elements in the list
 INTERNAL tlHandle _list_size(tlArgs* args) {
     tlList* list = tlListCast(tlArgsTarget(args));
@@ -414,6 +418,7 @@ static void list_init() {
     _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
     _tlListKind.klass = tlClassMapFrom(
         "hash", _list_hash,
+        "toList", _list_toList,
         "size", _list_size,
         "get", _list_get,
         "first", _list_first,
