@@ -318,7 +318,7 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
 INTERNAL tlHandle _string_find(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsTarget(args));
     bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
-    if (tlNumberIs(tlArgsGet(args, 0))) {
+    if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
         uint8_t b = (int)tl_double(tlArgsGet(args, 0));
 
         int from = at_offset(tlArgsGet(args, 1), tlStringSize(str));
@@ -337,7 +337,7 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
         return tlUndef();
     }
     tlString* find = tlStringCast(tlArgsGet(args, 0));
-    if (!find) TL_THROW("expected a String");
+    if (!find) TL_THROW("expected a String, Char or Number");
 
     int from = at_offset(tlArgsGet(args, 1), tlStringSize(str));
     if (from < 0) return tlUndef();
@@ -366,7 +366,7 @@ INTERNAL tlHandle _string_get(tlArgs* args) {
 
     int at = at_offset(tlArgsGet(args, 0), tlStringSize(str));
     if (at < 0) return tlUndef();
-    return tlINT(str->data[at]);
+    return tlCHAR(str->data[at]);
 }
 
 /// lower: return a new #String with only lower case characters, only works properly for ascii str

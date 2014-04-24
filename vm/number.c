@@ -1,5 +1,60 @@
 #include <tommath.h>
 
+// ** char **
+
+struct tlChar {
+    tlHead* head;
+    int value;
+};
+
+tlHandle tlCHAR(int value) {
+    tlChar* c = tlAlloc(tlCharKind, sizeof(tlChar));
+    c->value = value;
+    return c;
+}
+
+static const char* chartoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "%c", (int)tl_int(v)); return buf;
+}
+static unsigned int charHash(tlHandle h) {
+    return murmurhash2a((uint8_t*)&tlCharAs(h)->value, sizeof(int));
+}
+static bool charEquals(tlHandle left, tlHandle right) {
+    return tl_double(left) == tl_double(right);
+}
+static tlHandle charCmp(tlHandle left, tlHandle right) {
+    double l = tl_double(left);
+    double r = tl_double(right);
+    if (l > r) return tlLarger;
+    if (l < r) return tlSmaller;
+    if (l == r) return tlEqual;
+    return tlUndef();
+}
+
+static tlKind _tlCharKind = {
+    .name = "Char",
+    .toString = chartoString,
+    .hash = charHash,
+    .equals = charEquals,
+    .cmp = charCmp,
+};
+tlKind* tlCharKind = &_tlCharKind;
+
+static tlHandle _char_hash(tlArgs* args) {
+    return tlINT(charHash(tlArgsTarget(args)));
+}
+static tlHandle _char_toString(tlArgs* args) {
+    int c = tl_int(tlArgsTarget(args));
+    char buf[16];
+    int len = snprintf(buf, sizeof(buf), "%c", c);
+    return tlStringFromCopy(buf, len);
+}
+static tlHandle _char_toNumber(tlArgs* args) {
+    return tlINT(tl_int(tlArgsTarget(args)));
+}
+
+// ** float **
+
 struct tlFloat {
     tlHead* head;
     double value;
@@ -84,7 +139,7 @@ tlNum* tlNumTo(tlHandle h) {
 intptr_t tlNumToInt(tlNum* num) {
     return mp_get_int(&num->value);
 }
-intptr_t tlNumToDouble(tlNum* num) {
+double tlNumToDouble(tlNum* num) {
     return (double)mp_get_int(&num->value);
 }
 static tlNum* tlNumAdd(tlNum* l, tlNum* r) {
@@ -168,6 +223,7 @@ intptr_t tl_int(tlHandle h) {
     if (tlIntIs(h)) return tlIntToInt(h);
     if (tlFloatIs(h)) return (intptr_t)tlFloatAs(h)->value;
     if (tlNumIs(h)) return tlNumToInt(tlNumAs(h));
+    if (tlCharIs(h)) return tlCharAs(h)->value;
     assert(false);
     return 0;
 }
@@ -175,12 +231,14 @@ intptr_t tl_int_or(tlHandle h, int d) {
     if (tlIntIs(h)) return tlIntToInt(h);
     if (tlFloatIs(h)) return (intptr_t)tlFloatAs(h)->value;
     if (tlNumIs(h)) return tlNumToInt(tlNumAs(h));
+    if (tlCharIs(h)) return tlCharAs(h)->value;
     return d;
 }
 double tl_double(tlHandle h) {
     if (tlFloatIs(h)) return tlFloatAs(h)->value;
     if (tlIntIs(h)) return tlIntToDouble(h);
     if (tlNumIs(h)) return tlNumToDouble(tlNumAs(h));
+    if (tlCharIs(h)) return tlCharAs(h)->value;
     assert(false);
     return NAN;
 }
@@ -188,6 +246,7 @@ double tl_double_or(tlHandle h, double d) {
     if (tlFloatIs(h)) return tlFloatAs(h)->value;
     if (tlIntIs(h)) return tlIntToDouble(h);
     if (tlNumIs(h)) return tlNumToDouble(tlNumAs(h));
+    if (tlCharIs(h)) return tlCharAs(h)->value;
     return d;
 }
 
@@ -253,5 +312,13 @@ static void number_init() {
     //    "toString", _num_toString,
     //    null
     //);
+
+    _tlCharKind.klass = tlClassMapFrom(
+        "hash", _char_hash,
+        "toString", _char_toString,
+        "toNumber", _char_toNumber,
+        "toChar", _char_toString,
+        null
+    );
 }
 

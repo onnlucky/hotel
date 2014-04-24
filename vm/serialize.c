@@ -214,6 +214,21 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
 
     int n;
     char b[128];
+    if (kind == tlCharKind) {
+        int c = tl_int(h);
+        if (c < 32) {
+            if (c == '\n') n = snprintf(b, sizeof(b) - 1, "'\\n'");
+            else if (c == '\r') n = snprintf(b, sizeof(b) - 1, "'\\r'");
+            else if (c == '\t') n = snprintf(b, sizeof(b) - 1, "'\\t'");
+            else n = snprintf(b, sizeof(b) - 1, "' '");
+        } else if (c == '\\') {
+            n = snprintf(b, sizeof(b) - 1, "'\\\\'");
+        } else {
+            n = snprintf(b, sizeof(b) - 1, "'%c'", (int)tl_int(h));
+        }
+        tlBufferWrite(buf, b, n);
+        return false;
+    }
     if (kind == tlIntKind) {
         n = snprintf(b, sizeof(b) - 1, "%zd", tl_int(h));
         tlBufferWrite(buf, b, n);
