@@ -401,7 +401,7 @@ static tlHandle Number(tlHandle s, tlHandle whole, int radix) {
 static tlHandle process_tail(tlHandle value, tlHandle tail) {
     if (tail == tlNull) return value;
     tlHandle target = tlMapGet(tail, tlSYM("target"));
-    return tlMapSet(tail, tlSYM("target"), process_tail(value, target));
+    return tlObjectSet(tail, tlSYM("target"), process_tail(value, target));
 }
 
 static tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
@@ -461,7 +461,7 @@ static tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
         call = tlObjectFrom("target", call, "args", tlListEmpty(),
                 "type", tlSTR("call"), "pos", pos, null);
     }
-    return tlMapSet(call, tlSYM("block"), block);
+    return tlObjectSet(call, tlSYM("block"), block);
 }
 
 static tlHandle _parser_parse(tlArgs* args) {

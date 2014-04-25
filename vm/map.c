@@ -112,6 +112,9 @@ tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v) {
     }
     return nmap;
 }
+tlMap* tlObjectSet(tlMap* map, tlHandle key, tlHandle v) {
+    return tlMapToObject_(tlMapSet(map, key, v));
+}
 
 tlHandle tlMapGetSym(const tlMap* map, tlHandle key) {
     if (tlStringIs(key)) key = tlSymFromString(key);
@@ -546,7 +549,7 @@ static void map_init() {
         "get", _map_get,
         "set", _map_set,
         "keys", _map_keys,
-        "vales", _map_values,
+        "values", _map_values,
         "toObject", _map_toObject,
         "each", null,
         "map", null,

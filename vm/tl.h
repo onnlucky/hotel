@@ -291,6 +291,7 @@ tlMap* tlMapFromPairs(tlList* ls);
 
 bool tlMapOrObjectIs(tlHandle);
 tlMap* tlObjectFrom(const char* n1, tlHandle v1, ...);
+tlMap* tlObjectSet(tlMap* map, tlHandle key, tlHandle v);
 
 tlHandle tlMapGet(tlMap* map, tlHandle key);
 tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v);
