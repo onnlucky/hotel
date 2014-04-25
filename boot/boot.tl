@@ -14,6 +14,8 @@ and = left, &right ->
     return left
 
 asBool = v -> bool(v, true, false)
+isSmaller = l, r -> return l < r
+
 
 while = &cond ->
     block = args.block; if not block: throw "while expects a block"
@@ -102,18 +104,49 @@ _sum = ->
     return $sum
 
 _min = ->
-    if this.size == 0: return undefined
-    if this.size == 1: return this[1]
+    if this.size <= 1: return this[1]
     var $min = this[1]
     this.each: e -> if e < $min: $min = e
     return $min
 
 _max = ->
-    if this.size == 0: return undefined
-    if this.size == 1: return this[1]
+    if this.size <= 1: return this[1]
     var $max = this[1]
     this.each: e -> if e > $max: $max = e
     return $max
+
+_mean = ->
+    if this.size == 0: return undefined
+    this.sum / this.size
+
+_median = ->
+    if this.size <= 1: return this[1]
+    sorted = this.sort
+    half = this.size / 2
+    if half.floor == half: return sorted[half]
+    (sorted[half.floor] + sorted[half.ceil]) / 2
+
+innerqsort = list, smallerfn, b, e ->
+    if e - b < 1: return
+    pivot = list[b]
+    at = Var.new b + 1
+    end = Var.new e
+    while $at <= $end:
+        check = list[$at]
+        { smallerfn(check, pivot) }: list[$at - 1] = check; $at += 1
+        {                         }: list[$at] = list[$end]; list[$end] = check; $end -= 1
+    list[$end] = pivot
+    innerqsort(list, smallerfn, b, $end - 1)
+    innerqsort(list, smallerfn, $end + 1, e)
+
+
+qsort = list, smallerfn ->
+    if isArray(list): inqsort(1, list.size); return list;
+    list = Array.new(list)
+    innerqsort(list, smallerfn, 1, list.size)
+    return list.toList
+
+_sort = fn -> qsort(this, fn or args.block or isSmaller)
 
 /// given a string, it parses it to a number or returns null
 /// given a number it returns the number
@@ -247,6 +280,9 @@ _install(List.class, "reduce", _reduce)
 _install(List.class, "min", _min)
 _install(List.class, "max", _max)
 _install(List.class, "sum", _sum)
+_install(List.class, "mean", _mean)
+_install(List.class, "median", _median)
+_install(List.class, "sort", _sort)
 _install(List.class, "flatten", _flatten)
 _install(List.class, "join", _join)
 
@@ -288,6 +324,9 @@ _install(Array.class, "reduce", _reduce)
 _install(Array.class, "min", _min)
 _install(Array.class, "max", _max)
 _install(Array.class, "sum", _sum)
+_install(Array.class, "mean", _mean)
+_install(Array.class, "median", _median)
+_install(Array.class, "sort", _sort)
 _install(Array.class, "flatten", _flatten)
 _install(Array.class, "join", _join)
 

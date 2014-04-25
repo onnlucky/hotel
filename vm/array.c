@@ -281,6 +281,9 @@ static void array_init() {
         "min", null,
         "max", null,
         "sum", null,
+        "mean", null,
+        "median", null,
+        "sort", null,
         "flatten", null,
         "join", null,
         null

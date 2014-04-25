@@ -440,6 +440,9 @@ static void list_init() {
         "min", null,
         "max", null,
         "sum", null,
+        "mean", null,
+        "median", null,
+        "sort", null,
         null
     );
     tlMap* constructor = tlClassMapFrom(
