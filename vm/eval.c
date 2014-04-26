@@ -134,7 +134,6 @@ tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     }
     return res;
 }
-// TODO probably a bug, off by one ...
 tlResult* tlResultFrom(tlHandle v1, ...) {
     va_list ap;
     int size = 0;
@@ -144,8 +143,8 @@ tlResult* tlResultFrom(tlHandle v1, ...) {
     for (tlHandle v = v1; v; v = va_arg(ap, tlHandle)) size++;
     va_end(ap);
 
-    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size + 1));
-    res->size = size + 1;
+    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size));
+    res->size = size;
 
     va_start(ap, v1);
     int i = 0;
