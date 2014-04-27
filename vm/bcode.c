@@ -642,9 +642,13 @@ static void disasm(tlBCode* bcode) {
                 break;
             case OP_INT: case OP_LOCAL: case OP_ARG:
             case OP_MCALL: case OP_FCALL: case OP_BCALL:
-            case OP_MCALLN: case OP_FCALLN: case OP_BCALLN:
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
+                break;
+            case OP_MCALLN: case OP_FCALLN: case OP_BCALLN:
+                r = pcreadsize(ops, &pc);
+                o = pcreadref(ops, &pc, data);
+                print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_repr(o));
                 break;
             case OP_SYSTEM: case OP_MODULE:
                 o = pcreadref(ops, &pc, data);
@@ -727,6 +731,8 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
     int parent;
     int at;
 
+    disasm(bcode);
+
     while (true) {
         uint8_t op = *code; code++;
         switch (op) {
@@ -787,13 +793,18 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_MCALL:
             case OP_FCALL:
             case OP_BCALL:
+                dreadsize(&code);
+                depth++;
+                break;
             case OP_MCALLN:
             case OP_FCALLN:
             case OP_BCALLN:
                 dreadsize(&code);
+                v = dreadref(&code, data);
                 depth++;
                 break;
             default:
+                print("%d - %s", op, op_name(op));
                 FAIL("not an opcode");
         }
     }
@@ -838,6 +849,16 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         tlArgsSetTarget_(args, call->target);
         tlArgsSetFn_(args, call->fn);
         for (int i = 0; i < call->size; i++) tlArgsSet_(args, i, call->args[i]);
+        if (call->names) {
+            tlMap* map = tlMapEmpty();
+            for (int i = 0; i < call->size; i++) {
+                tlHandle name = tlListGet(call->names, i);
+                if (name && name != tlNull) {
+                    map = tlMapSet(map, tlSymAs(name), call->args[i]);
+                }
+            }
+            if (tlMapSize(map) > 0) args->map = map; //tlArgsSetMap_(args, map);
+        }
         return tlNativeKind->run(tlNativeAs(fn), args);
     }
     if (tlBClosureIs(fn)) {
@@ -1342,10 +1363,22 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
+INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
+    print("closure.run");
+    tlBCall* call = tlBCallNew(tlArgsSize(args));
+    call->fn = _fn;
+    // TODO names
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        call->args[i] = tlArgsGet(args, 0);
+    }
+    return beval(tlTaskCurrent(), null, call, 0, null);
+}
+
 void bcode_init() {
     _tlBClosureKind.klass = tlClassMapFrom(
         "call", _closure_call,
         null
     );
+    _tlBClosureKind.run = runBClosure;
 }
 

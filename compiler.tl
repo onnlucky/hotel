@@ -215,6 +215,12 @@ compile = (code ->
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
             return {{code, args}, locals = scope.locals.toList}
+        { term.type == "block" }:
+            scope = Scope(scope)
+            as = try(term.as) or []
+            args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            code = term.body.map(stm -> emit scope, stm).flatten
+            return {{code, args}, locals = scope.locals.toList}
 
     whenPrimitive = v ->
         { isNumber(v) }: v
@@ -251,6 +257,14 @@ compile = (code ->
             fn = emit scope, term.target
             names = args.map: stm -> try(stm.n)
             args = args.map: stm -> emit scope, stm.v
+            if try(term.block):
+                function = emittop scope, term.block
+                _, blk = functions.add {name="block",open=false,function=function}
+                names = names.add "block"
+                args = args.add ["bind", blk]
+                print repr names
+                print repr args
+                return ["fcalln", args.size, {ns = names}] + fn + args + ["invoke"]
             if names.filter.size > 0: return ["fcalln", args.size, {ns = names}] + fn + args + ["invoke"]
             ["fcall", args.size] + fn + args + ["invoke"]
         { term.type == "method" }:
