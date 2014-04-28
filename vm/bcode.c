@@ -1301,6 +1301,11 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle _module_links(tlArgs* args) {
+    tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    return mod->links;
+}
+
 INTERNAL tlHandle __list(tlArgs* args) {
     tlList* list = tlListEmpty();
     for (int i = 0; i < tlArgsSize(args); i++) {

@@ -201,7 +201,6 @@ compile = (code ->
         [arg.name]
 
     emittop = scope, term, inMethods ->
-        print "TOP TERM", repr(term)
         { term.type == "function" }:
             scope = Scope(scope)
             as = try(term.as) or []
@@ -230,7 +229,6 @@ compile = (code ->
 
 
     emit = scope, term, inMethods ->
-        print "SUB TERM", repr(term)
         { term == "undefined"  }: ["undef"]
         { term == "null"  }: ["null"]
         { term == "false" }: ["false"]
@@ -401,6 +399,7 @@ load = bytes ->
     m = _Module_new(Buffer.new(bytes), "")
     {
         bytes = bytes
+        links = -> _module_links(m)
         run = as -> _module_run(m, as)
         debug = as ->
             debugger = Debugger.new
