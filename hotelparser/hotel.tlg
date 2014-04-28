@@ -5,6 +5,7 @@ parser = parser {
 
 slcomment*: ("#"|"//") (!nl _)* (nl|end)
   comment*: "(#" (!"#)" (comment|_))* ("#)"|end)
+          | "/*" (!"*/" (comment|_))* ("*/"|end)
 
       ws: (sp | comment)*
     wsnl: (sp | nl | comment | slcomment)*

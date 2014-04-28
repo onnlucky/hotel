@@ -590,6 +590,7 @@ namechar = [a-zA-Z_][a-zA-Z0-9_]
 
 slcomment = ("//"|"#") (!nl .)*
  icomment = "/*" (!"*/" (nl|.))* ("*/"|!.)
+          | "(#" (!"#)" (nl|.))* ("#)"|!.)
   comment = (slcomment nle | icomment)
 
      ssep = _ ";" _
