@@ -1,7 +1,15 @@
-code = "{->\nx=42\nf=->print(x)}().f"
-code = "print 42; print \"hello world!\""
+code = io.File("run.tl").readString
 bytes = compiler.compile(code)
 mod = compiler.load(bytes)
-mod.run
-print bytes.size, bytes
+print "loaded ...", bytes.size, bytes
+env = Env.current
+
+mod.links.each: g ->
+    x = env.get(g)
+    if x:
+        print g, "->", x
+        return
+    x = resolve(g)
+    print g, "->", x
+//mod.run
 
