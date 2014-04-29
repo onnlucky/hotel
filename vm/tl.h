@@ -400,17 +400,17 @@ tlHandle tlArgumentErrorThrow(tlHandle msg);
 tlHandle tlUndefMsg(tlString* msg);
 
 #define TL_THROW(f, x...) do {\
-    char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
-    return tlErrorThrow(tlStringFromCopy(_s, _k)); } while (0)
+    char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
+    return tlErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
 #define TL_ILLARG(f, x...) do {\
-    char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
-    return tlArgumentErrorThrow(tlStringFromCopy(_s, _k)); } while (0)
+    char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
+    return tlArgumentErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
 #define TL_THROW_SET(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     tlTaskThrowTake(strdup(_s)); } while (0)
 #define TL_UNDEF(f, x...) do {\
-    char _s[2048]; int _k = snprintf(_s, sizeof(_s), f, ##x);\
-    return tlUndefMsg(tlStringFromCopy(_s, _k)); } while (0)
+    char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
+    return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)
 
 // args
 tlArgs* tlArgsNew(tlList* list, tlMap* map);
