@@ -52,7 +52,7 @@ static tlHandle parsesym(tlBuffer* buf) {
     int i;
     for (i = 0;; i++) {
         c = tlBufferReadByte(buf);
-        if (c <= 32 || c == ':' || c == ',' || c == ']' || c == '}') break;
+        if (c <= 32 || c == '=' || c == ',' || c == ']' || c == '}') break;
     }
     tlBufferRewind(buf, i + 1); // we read beyond
     char* s = malloc(i + 1);
@@ -104,7 +104,7 @@ static tlHandle parse(tlBuffer* buf) {
                 tlHandle k = parsekey(buf);
                 if (!k) break;
                 do { c = tlBufferReadByte(buf); } while (c && c <= 32);
-                if (c != ':') { warning("no ':' %c", c); return null; }
+                if (c != '=') { warning("no '=' %c", c); return null; }
                 tlHandle v = parse(buf);
                 if (!v) { warning("no value"); return null; }
                 tlHashMapSet(map, k, v);
@@ -195,7 +195,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey) {
             if (!v) break;
             tlHandle k = tlSetGet(tlMapKeys(map), i);
             if (pprint(buf, k, true)) {
-                tlBufferWrite(buf, ":", 1);
+                tlBufferWrite(buf, "=", 1);
                 pprint(buf, v, false);
                 tlBufferWrite(buf, ",", 1);
                 written = true;

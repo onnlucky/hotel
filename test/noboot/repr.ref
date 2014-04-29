@@ -1,2 +1,2 @@
-{hello:42,foo:[123,456,7.89,"hello world !! \n\n","world"]}
-{hello:42,foo:[123,456,7.89,"hello world !! \n\n","world"]}
+{hello=42,foo=[123,456,7.89,"hello world !! \n\n","world"]}
+{hello=42,foo=[123,456,7.89,"hello world !! \n\n","world"]}
