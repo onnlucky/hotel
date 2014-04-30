@@ -205,7 +205,7 @@ static void* tl_main(void* data) {
     graphics_init(vm);
     image_init(vm);
     window_init(vm);
-    tlArgs* args = tlArgsNew(tlListFrom(tlString("run.tl"), null), null);
+    tlArgs* args = tlArgsNew(tlListFrom(tlSTR("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
     vm_exit_code = tlVmExitCode(vm);
     ns_stop();

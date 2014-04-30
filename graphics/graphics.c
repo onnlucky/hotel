@@ -313,7 +313,7 @@ static tlHandle _rectangle(tlArgs* args) {
 
 static tlHandle _textPath(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
-    const char* utf8 = (text)?tlStringData(text):"";
+    const char* utf8 = (str)?tlStringData(str):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_path(g->cairo, utf8);
     return g;
@@ -357,7 +357,7 @@ static tlHandle _setFont(tlArgs* args) {
 }
 static tlHandle _fillText(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
-    const char* utf8 = (text)?tlStringData(text):"";
+    const char* utf8 = (str)?tlStringData(str):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_show_text(g->cairo, utf8);
     return g;
@@ -365,7 +365,7 @@ static tlHandle _fillText(tlArgs* args) {
 static tlHandle _measureText(tlArgs* args) {
     cairo_text_extents_t extents;
     tlString* str = tlStringCast(tlArgsGet(args, 0));
-    const char* utf8 = (text)?tlStringData(text):"";
+    const char* utf8 = (str)?tlStringData(str):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_extents(g->cairo, utf8,  &extents);
     return tlResultFrom(tlINT(extents.width), tlINT(extents.height), null);

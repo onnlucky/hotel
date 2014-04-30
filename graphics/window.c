@@ -176,9 +176,9 @@ static tlHandle _window_title(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         tlString* str = tlStringCast(tlArgsGet(args, 0));
-        if (!text) text = tlStringEmpty();
-        nativeWindowSetTitle(window->native, text);
-        return text;
+        if (!str) str = tlStringEmpty();
+        nativeWindowSetTitle(window->native, str);
+        return str;
     }
     return nativeWindowTitle(window->native);
 }
