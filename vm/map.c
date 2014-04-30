@@ -514,7 +514,7 @@ static bool mapEquals(tlHandle _left, tlHandle _right) {
     return true;
 }
 static tlHandle mapCmp(tlHandle _left, tlHandle _right) {
-    if (_left == _right) return 0;
+    if (_left == _right) return tlEqual;
 
     tlMap* left = tlMapOrObjectAs(_left);
     tlMap* right = tlMapOrObjectAs(_right);

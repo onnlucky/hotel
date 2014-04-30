@@ -100,7 +100,7 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
     if (tlUndefinedIs(left)) return left;
     if (tlUndefinedIs(right)) return right;
 
-    if (left == right) return 0;
+    if (left == right) return tlEqual;
     tlKind* kleft = tl_kind(left);
     tlKind* kright = tl_kind(right);
     if (kleft != kright) {
