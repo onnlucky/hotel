@@ -1,58 +1,99 @@
-#include <math.h>
-#include <gtk/gtk.h>
+#include <pthread.h>
 #include <cairo.h>
-//#include <tl.h>
+#include <gtk/gtk.h>
 
-#if 0
-static tlValue _circle(tlFun* fn, tlMap* args) {
-    cairo_t *cr = tl_data(tlvm_global_get(tlvm_from_task(task), tlSYM("graphics")));
-    int x = tl_int(tlmaps_get_int(args, 0));
-    int y = tl_int(tlmaps_get_int(args, 1));
-    int r = tl_int(tlmaps_get_int(args, 2));
-    if (r <= 0) return;
-    cairo_arc(cr, x, y, r, 0, 2*M_PI);
-    cairo_fill_preserve(cr);
-    cairo_stroke(cr);
-    return tlNull;
-}
-#endif
+#include "vm/tl.h"
+#include "graphics.h"
+#include "image.h"
+#include "window.h"
 
 static void draw(cairo_t *cr) {
-    cairo_arc(cr, 100, 100, 50, 0, 2*M_PI);
-    cairo_set_source_rgb(cr, 1, 0, 0);
-    cairo_fill_preserve(cr);
-    cairo_set_source_rgb(cr, 0, 0, 0);
-    cairo_stroke(cr);
-
-    /*
-    tlVm* vm = tlvm_new();
-    tlvm_global_set(vm, tlSYM("graphics"), tlDATA(cr));
-    tlvm_global_set(vm, tlSYM("circle"), tlFUN(_circle));
-    tlvm_run(vm, tlString("circle(100, 100, 50)"));
-    //tlvm_run(vm, tlString_from_file("run.tl"));
-    tlvm_delete(vm);
-    */
+    tl_init();
+    tlVm* vm = tlVmNew();
+    graphics_init(vm);
+    image_init(vm);
+    tlVmInitDefaultEnv(vm);
+    tlVmGlobalSet(vm, tlSYM("g"), GraphicsNew(cr));
+    tlArgs* args = tlArgsNew(tlListEmpty(), null);
+    tlVmEvalCode(vm, tlSTR("g.color(255,0,0);g.arc(50,50,50);g.fill(true);g.color(0,0,0);g.stroke"), tlSTR("hello"), args);
+    tlVmDelete(vm);
 }
 
-static gboolean expose_event(GtkWidget* w, GdkEventExpose* e, void* data) {
-    cairo_t *cr = gdk_cairo_create(w->window);
+static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
+    cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(w));
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_paint(cr);
 
-    draw(cr);
+    renderWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")), cr);
 
     cairo_destroy(cr);
     return TRUE;
 }
 
+NativeWindow* nativeWindowNew(Window* window) {
+    GtkWindow* w = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
+
+    g_signal_connect(w, "draw", G_CALLBACK(draw_window), NULL);
+    g_signal_connect(w, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_object_set_data(G_OBJECT(w), "tl", window);
+
+    return w;
+}
+
+void nativeWindowClose(NativeWindow* w) {
+    gtk_window_close(GTK_WINDOW(w));
+}
+
+void nativeWindowFocus(NativeWindow* w) {
+    //gtk_window_focus(GTK_WINDOW(w));
+}
+
+void nativeWindowSetVisible(NativeWindow* w, bool visible) {
+    if (visible) {
+        gtk_window_present(GTK_WINDOW(w));
+    } else {
+        //gtk_window_set_visible(GTK_WINDOW(w), visible);
+    }
+}
+
+int nativeWindowVisible(NativeWindow* w) {
+    //return gtk_window_visible(GTK_WINDOW(w));
+    return true;
+}
+
+void nativeWindowRedraw(NativeWindow* w) {
+    //gtk_window_invalidate(GTK_WINDOW(w));
+}
+
+void nativeWindowFrame(NativeWindow* w, int* x, int* y, int* width, int* height) {
+    gtk_window_get_size(GTK_WINDOW(w), x, y);
+    //gtk_window_get_frame(GTK_WINDOW(w), x, y, width, height)
+}
+
+void nativeWindowSetPos(NativeWindow* w, int x, int y) {
+    //gtk_window_set_pos(GTK_WINDOW(w), x, y);
+}
+
+void nativeWindowSetSize(NativeWindow* w, int width, int height) {
+    //gtk_window_set_size(GTK_WINDOW(w), width, height);
+}
+
+tlString* nativeWindowTitle(NativeWindow* w) {
+    return tlStringFromCopy(gtk_window_get_title(GTK_WINDOW(w)), 0);
+}
+
+void nativeWindowSetTitle(NativeWindow* w, tlString* title) {
+    gtk_window_set_title(GTK_WINDOW(w), tlStringData(title));
+}
+
+// platform can call the following for callbacks
+void windowPointerEvent(Window* w);
+void windowKeyEvent(Window* w, int code, tlString* input);
+
 int main(int argc, char** argv) {
     gtk_init(&argc, &argv);
 
-    GtkWindow* window = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
-    gtk_window_set_default_size(window, 200, 200);
-    g_signal_connect(window, "expose-event", G_CALLBACK(expose_event), NULL);
-    g_signal_connect(window, "delete-event", G_CALLBACK(gtk_main_quit), NULL);
-    gtk_window_present(window);
+
     gtk_main();
     return 0;
 }
