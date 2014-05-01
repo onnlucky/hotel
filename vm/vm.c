@@ -204,6 +204,10 @@ static tlHandle _add(tlArgs* args) {
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) + tl_int(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) + tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumAdd(tlNumTo(l), tlNumTo(r));
+    if (tlBinIs(l) && tlBinIs(r)) return tlBinCat(tlBinAs(l), tlBinAs(r));
+    if (tlNumberIs(l) && tlBinIs(r)) return tlBinFrom2(l, r);
+    if (tlBinIs(l) && tlNumberIs(r)) return tlBinFrom2(l, r);
+
     // TODO when adding string and something else, convert else to string ...
     if (tlStringIs(l) && tlStringIs(r)) return tlStringCat(tlStringAs(l), tlStringAs(r));
     {

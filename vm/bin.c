@@ -44,6 +44,31 @@ int tlBinGet(tlBin* bin, int at) {
      return bin->data[at] & 0xFF;
 }
 
+tlBin* tlBinFrom2(tlHandle b1, tlHandle b2) {
+    tlBuffer* buf = tlBufferNew();
+    const char* error = null;
+    buffer_write_object(buf, b1, &error);
+    assert(!error);
+    buffer_write_object(buf, b2, &error);
+    assert(!error);
+    return tlBinFromCopy(tlBufferData(buf), tlBufferSize(buf));
+}
+
+tlBin* tlBinCat(tlBin* b1, tlBin* b2) {
+    int b1s = tlBinSize(b1);
+    if (b1s == 0) return b2;
+    int b2s = tlBinSize(b2);
+    if (b2s == 0) return b1;
+
+    char* data = malloc_atomic(b1s + b2s);
+    memcpy(data, tlBinData(b1), b1s);
+    memcpy(data + b1s, tlBinData(b2), b2s);
+    tlBin* bin = tlAlloc(tlBinKind, sizeof(tlBin));
+    bin->len = b1s + b2s;
+    bin->data = data;
+    return bin;
+}
+
 INTERNAL tlHandle _Bin_new(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
@@ -63,7 +88,7 @@ INTERNAL tlHandle _bin_size(tlArgs* args) {
 INTERNAL tlHandle _bin_get(tlArgs* args) {
     tlBin* bin = tlBinAs(tlArgsTarget(args));
     int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at < 1 || at > bin->len) TL_THROW("out of bounds");
+    if (at < 1 || at > bin->len) return tlUndef();
     return tlINT(tlBinGet(bin, at - 1));
 }
 INTERNAL tlHandle _bin_toString(tlArgs* args) {
