@@ -1,3 +1,4 @@
+#include "app.h"
 #include "window.h"
 #include "graphics.h"
 
@@ -86,6 +87,7 @@ void box_dirty(Box* box) {
         b->window = w;
 
 Window* WindowNew(int width, int height) {
+    toolkit_launch();
     Window* window = tlAlloc(WindowKind, sizeof(Window));
     window->rendertask = tlBlockingTaskNew(tlVmCurrent());
     window->width = width;

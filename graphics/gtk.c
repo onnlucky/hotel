@@ -6,6 +6,7 @@
 #include "graphics.h"
 #include "image.h"
 #include "window.h"
+#include "app.h"
 
 static void draw(cairo_t *cr) {
     tl_init();
@@ -90,11 +91,19 @@ void nativeWindowSetTitle(NativeWindow* w, tlString* title) {
 void windowPointerEvent(Window* w);
 void windowKeyEvent(Window* w, int code, tlString* input);
 
-int main(int argc, char** argv) {
+void toolkit_init(int argc, char** argv) {
     gtk_init(&argc, &argv);
+}
 
+void toolkit_stop() {
+    gtk_main_quit();
+}
 
+void toolkit_start() {
+    print("starting gtk");
+    // TODO setup in a defer, this is a race
+    toolkit_started();
     gtk_main();
-    return 0;
+    print("stopping gtk");
 }
 
