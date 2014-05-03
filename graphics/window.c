@@ -87,7 +87,6 @@ void box_dirty(Box* box) {
         b->window = w;
 
 Window* WindowNew(int width, int height) {
-    toolkit_launch();
     Window* window = tlAlloc(WindowKind, sizeof(Window));
     window->rendertask = tlBlockingTaskNew(tlVmCurrent());
     window->width = width;
@@ -100,10 +99,20 @@ Window* WindowNew(int width, int height) {
 
     return window;
 }
-static tlHandle _Window_new(tlArgs* args) {
+static tlHandle __Window_new(tlArgs* args) {
+    print("new window");
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
-    return WindowNew(width, height);
+    Window* window = WindowNew(width, height);
+    print("done");
+    return window;
+}
+static tlHandle _Window_new(tlArgs* args) {
+    toolkit_launch();
+    print("tl: new window");
+    tlHandle res = tl_on_toolkit(__Window_new, args);
+    print("tl: done");
+    return res;
 }
 static tlHandle _window_close(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
@@ -174,7 +183,7 @@ static tlHandle _window_height(tlArgs* args) {
     }
     return tlINT(window->height);
 }
-static tlHandle _window_title(tlArgs* args) {
+static tlHandle __window_title(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         tlString* str = tlStringCast(tlArgsGet(args, 0));
@@ -184,6 +193,7 @@ static tlHandle _window_title(tlArgs* args) {
     }
     return nativeWindowTitle(window->native);
 }
+static tlHandle _window_title(tlArgs* args) { return tl_on_toolkit(__window_title, args); }
 static tlHandle _window_visible(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
@@ -195,13 +205,14 @@ static tlHandle _window_visible(tlArgs* args) {
     }
     return tlBOOL(nativeWindowVisible(window->native));
 }
-static tlHandle _window_focus(tlArgs* args) {
+static tlHandle __window_focus(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     window->dirty = false;
     window_dirty(window);
     nativeWindowFocus(window->native);
     return tlNull;
 }
+static tlHandle _window_focus(tlArgs* args) { return tl_on_toolkit(__window_focus, args); }
 
 void windowKeyEvent(Window* window, int code, tlString* input) {
     if (!window->onkey) return;

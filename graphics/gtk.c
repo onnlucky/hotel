@@ -47,6 +47,7 @@ void nativeWindowClose(NativeWindow* w) {
 
 void nativeWindowFocus(NativeWindow* w) {
     //gtk_window_focus(GTK_WINDOW(w));
+    gtk_window_present(GTK_WINDOW(w));
 }
 
 void nativeWindowSetVisible(NativeWindow* w, bool visible) {
@@ -91,6 +92,17 @@ void nativeWindowSetTitle(NativeWindow* w, tlString* title) {
 void windowPointerEvent(Window* w);
 void windowKeyEvent(Window* w, int code, tlString* input);
 
+gboolean run_on_main(gpointer _onmain) {
+    tlRunOnMain* onmain = (tlRunOnMain*)_onmain;
+    onmain->result = onmain->cb(onmain->args);
+    toolkit_schedule_done(onmain);
+    return false;
+}
+
+void toolkit_schedule(tlRunOnMain* onmain) {
+    gdk_threads_add_idle(run_on_main, onmain);
+}
+
 void toolkit_init(int argc, char** argv) {
     gtk_init(&argc, &argv);
 }
@@ -99,10 +111,14 @@ void toolkit_stop() {
     gtk_main_quit();
 }
 
+gboolean run_started(gpointer _data) {
+    toolkit_started();
+    return false;
+}
+
 void toolkit_start() {
     print("starting gtk");
-    // TODO setup in a defer, this is a race
-    toolkit_started();
+    gdk_threads_add_idle(run_started, null);
     gtk_main();
     print("stopping gtk");
 }

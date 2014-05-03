@@ -19,6 +19,20 @@ static pthread_cond_t toolkit_signal;
 static bool should_start_toolkit;
 static int tl_exit_code;
 
+void toolkit_schedule_done(tlRunOnMain* onmain) {
+    assert(onmain->result);
+    pthread_cond_signal(&toolkit_signal);
+}
+
+tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args) {
+    pthread_mutex_lock(&toolkit_lock);
+    tlRunOnMain onmain = {.cb=cb,.args=args};
+    toolkit_schedule(&onmain);
+    while (!onmain.result) pthread_cond_wait(&toolkit_signal, &toolkit_lock);
+    pthread_mutex_unlock(&toolkit_lock);
+    return onmain.result;
+}
+
 // can be called many times, will once init the native toolkit
 void toolkit_launch() {
     static bool inited;
@@ -34,11 +48,12 @@ void toolkit_launch() {
     shared = tlAlloc(AppKind, sizeof(App));
 }
 
-static tlHandle App_shared(tlArgs* args) {
+static tlHandle _App_shared(tlArgs* args) {
     toolkit_launch();
     assert(shared);
     return shared;
 }
+static tlHandle App_shared(tlArgs* args) { return tl_on_toolkit(_App_shared, args); }
 
 void toolkit_started() {
     assert(should_start_toolkit);
@@ -58,11 +73,14 @@ static void* tl_main(void* data) {
     tlArgs* args = tlArgsNew(tlListFrom(tlSTR("run.tl"), null), null);
     tlVmEvalBoot(vm, args);
     tl_exit_code = tlVmExitCode(vm);
+
+    print("1 end of tl_main");
     if (should_start_toolkit) {
         toolkit_stop();
     } else {
         pthread_cond_signal(&toolkit_signal);
     }
+    print("2 end of tl_main");
     return null;
 }
 
