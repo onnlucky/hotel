@@ -31,11 +31,16 @@ static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
     return TRUE;
 }
 
+static gboolean destroy_window(GtkWindow* w) {
+    closeWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")));
+    return FALSE;
+}
+
 NativeWindow* nativeWindowNew(Window* window) {
     GtkWindow* w = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
 
     g_signal_connect(w, "draw", G_CALLBACK(draw_window), NULL);
-    g_signal_connect(w, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(w, "destroy", G_CALLBACK(destroy_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
     return w;
@@ -64,7 +69,7 @@ int nativeWindowVisible(NativeWindow* w) {
 }
 
 void nativeWindowRedraw(NativeWindow* w) {
-    //gtk_window_invalidate(GTK_WINDOW(w));
+    gdk_window_invalidate_rect(gtk_widget_get_window(GTK_WIDGET(w)), NULL, true);
 }
 
 void nativeWindowFrame(NativeWindow* w, int* x, int* y, int* width, int* height) {

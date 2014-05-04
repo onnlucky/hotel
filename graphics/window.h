@@ -27,6 +27,7 @@ struct Window {
 };
 
 void renderWindow(Window* window, cairo_t* cairo);
+void closeWindow(Window* window);
 
 // platform needs to implement this
 NativeWindow* nativeWindowNew(Window* w);

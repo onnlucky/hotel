@@ -114,14 +114,15 @@ static tlHandle _Window_new(tlArgs* args) {
     print("tl: done");
     return res;
 }
+void closeWindow(Window* window) {
+    // closed windows should not keep runtime waiting
+    tlVmDecExternal(tlVmCurrent());
+    window->native = null;
+}
 static tlHandle _window_close(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     nativeWindowClose(window->native);
-
-    // closed windows should not keep runtime waiting
-    tlVmDecExternal(tlVmCurrent());
-
-    window->native = null;
+    closeWindow(window);
     return tlNull;
 }
 
