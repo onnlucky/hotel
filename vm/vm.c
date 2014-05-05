@@ -426,6 +426,11 @@ void tl_init() {
     if (tl_inited) return;
     tl_inited = true;
 
+#ifdef HAVE_LOCALE
+    setlocale(LC_NUMERIC, "C");
+#endif
+
+
 #ifdef HAVE_BOEHMGC
     GC_set_handle_fork(0);
     GC_set_dont_expand(0);

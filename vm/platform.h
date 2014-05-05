@@ -54,6 +54,9 @@
 #include <pthread.h>
 #endif
 
+#define HAVE_LOCALE
+#include <locale.h>
+
 #include "../llib/lhashmap.h"
 #include "../llib/lqueue.h"
 
