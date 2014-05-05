@@ -35,12 +35,37 @@ static gboolean destroy_window(GtkWindow* w) {
     closeWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")));
     return FALSE;
 }
+static gboolean key_release_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {
+    int key = event->keyval;
+    const char* input = event->string;
+    print("HAVE A KEY RELEASE: %d %s", key, input);
+    return FALSE;
+}
+static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {
+    int key = event->keyval;
+    const char* input = event->string;
+    print("HAVE A KEY PRESS: %d %s", key, input);
+    switch (key) {
+        case GDK_KEY_Escape: key = 27; break;
+        case GDK_KEY_BackSpace: key = 8; break;
+        case GDK_KEY_Return: key = 13; break;
+        case GDK_KEY_Left: key = 37; break;
+        case GDK_KEY_Up: key = 38; break;
+        case GDK_KEY_Right: key = 39; break;
+        case GDK_KEY_Down: key = 40; break;
+    }
+    if (key < 0 || key > 4000) return FALSE;
+    windowKeyEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), key, tlStringFromCopy(input, 0));
+    return FALSE;
+}
 
 NativeWindow* nativeWindowNew(Window* window) {
     GtkWindow* w = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
 
     g_signal_connect(w, "draw", G_CALLBACK(draw_window), NULL);
     g_signal_connect(w, "destroy", G_CALLBACK(destroy_window), NULL);
+    g_signal_connect(w, "key_press_event", G_CALLBACK(key_press_window), NULL);
+    g_signal_connect(w, "key_release_event", G_CALLBACK(key_release_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
     return w;
