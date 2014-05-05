@@ -8,18 +8,6 @@
 #include "window.h"
 #include "app.h"
 
-static void draw(cairo_t *cr) {
-    tl_init();
-    tlVm* vm = tlVmNew();
-    graphics_init(vm);
-    image_init(vm);
-    tlVmInitDefaultEnv(vm);
-    tlVmGlobalSet(vm, tlSYM("g"), GraphicsNew(cr));
-    tlArgs* args = tlArgsNew(tlListEmpty(), null);
-    tlVmEvalCode(vm, tlSTR("g.color(255,0,0);g.arc(50,50,50);g.fill(true);g.color(0,0,0);g.stroke"), tlSTR("hello"), args);
-    tlVmDelete(vm);
-}
-
 static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
     cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(w));
     cairo_set_source_rgb(cr, 1, 1, 1);
@@ -36,9 +24,6 @@ static gboolean destroy_window(GtkWindow* w) {
     return FALSE;
 }
 static gboolean key_release_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {
-    int key = event->keyval;
-    const char* input = event->string;
-    print("HAVE A KEY RELEASE: %d %s", key, input);
     return FALSE;
 }
 static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {

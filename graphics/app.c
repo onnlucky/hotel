@@ -85,7 +85,7 @@ static void* tl_main(void* data) {
 }
 
 // we launch the hotel interpreter thread, and then wait
-// if the interpreter wishes to start the Cocoa environment, we let it
+// if the interpreter wishes to start the toolkit environment, we let it
 int main(int argc, char** argv) {
     print(">>> starting <<<");
     toolkit_init(argc, argv);
