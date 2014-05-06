@@ -73,7 +73,7 @@ void renderWindow(Window* window, cairo_t* cairo) {
 void window_dirty(Window* window) {
     if (!window || window->dirty) return;
     window->dirty = true;
-    nativeWindowRedraw(window->native);
+    if (window->native) nativeWindowRedraw(window->native);
 }
 void box_dirty(Box* box) {
     if (!box || box->dirty) return;
@@ -115,13 +115,14 @@ static tlHandle _Window_new(tlArgs* args) {
     return res;
 }
 void closeWindow(Window* window) {
+    if (!window->native) return;
     // closed windows should not keep runtime waiting
     tlVmDecExternal(tlVmCurrent());
     window->native = null;
 }
 static tlHandle _window_close(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    nativeWindowClose(window->native);
+    if (window->native) nativeWindowClose(window->native);
     closeWindow(window);
     return tlNull;
 }

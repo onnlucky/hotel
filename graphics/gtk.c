@@ -67,9 +67,9 @@ void nativeWindowFocus(NativeWindow* w) {
 
 void nativeWindowSetVisible(NativeWindow* w, bool visible) {
     if (visible) {
-        gtk_window_present(GTK_WINDOW(w));
+        gtk_widget_show(GTK_WIDGET(w));
     } else {
-        //gtk_window_set_visible(GTK_WINDOW(w), visible);
+        gtk_widget_hide(GTK_WIDGET(w));
     }
 }
 
