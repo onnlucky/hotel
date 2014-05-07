@@ -19,7 +19,7 @@ static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
     return TRUE;
 }
 static gboolean destroy_window(GtkWindow* w) {
-    print("destroy window: %p", w);
+    trace("destroy window: %p", w);
     closeWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")));
     return FALSE;
 }
@@ -27,10 +27,10 @@ static gboolean key_release_window(GtkWidget* widget, GdkEventKey* event, gpoint
     return FALSE;
 }
 static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {
-    print("key_press window: %p", widget);
+    trace("key_press window: %p", widget);
     int key = event->keyval;
     const char* input = event->string;
-    print("HAVE A KEY PRESS: %d %s", key, input);
+    trace("HAVE A KEY PRESS: %d %s", key, input);
     switch (key) {
         case GDK_KEY_Escape: key = 27; break;
         case GDK_KEY_BackSpace: key = 8; break;
@@ -54,6 +54,8 @@ NativeWindow* nativeWindowNew(Window* window) {
     g_signal_connect(w, "key_release_event", G_CALLBACK(key_release_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
+    gtk_window_resize(GTK_WINDOW(w), window->width, window->height);
+    gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_CENTER);
     gtk_window_present(GTK_WINDOW(w));
     gtk_widget_hide(GTK_WIDGET(w));
 
@@ -76,7 +78,6 @@ void nativeWindowSetVisible(NativeWindow* w, bool visible) {
         gtk_widget_hide(GTK_WIDGET(w));
     }
 }
-
 int nativeWindowVisible(NativeWindow* w) {
     return gtk_widget_is_visible(GTK_WIDGET(w));
 }
@@ -85,7 +86,9 @@ static gboolean redraw(gpointer w) {
     gdk_window_invalidate_rect(gtk_widget_get_window(GTK_WIDGET(w)), NULL, true);
     return FALSE;
 }
-void nativeWindowRedraw(NativeWindow* w) { gdk_threads_add_idle(redraw, w); }
+void nativeWindowRedraw(NativeWindow* w) {
+    gdk_threads_add_idle(redraw, w);
+}
 
 void nativeWindowFrame(NativeWindow* w, int* x, int* y, int* width, int* height) {
     gtk_window_get_size(GTK_WINDOW(w), width, height);
@@ -137,9 +140,7 @@ gboolean run_started(gpointer _data) {
 }
 
 void toolkit_start() {
-    print("starting gtk");
     gdk_threads_add_idle(run_started, null);
     gtk_main();
-    print("stopping gtk");
 }
 

@@ -77,6 +77,7 @@ void window_dirty(Window* window) {
     window->dirty = true;
     if (window->native) nativeWindowRedraw(window->native);
 }
+
 void box_dirty(Box* box) {
     if (!box || box->dirty) return;
     box->dirty = true;
@@ -102,18 +103,14 @@ Window* WindowNew(int width, int height) {
     return window;
 }
 static tlHandle __Window_new(tlArgs* args) {
-    print("new window");
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
     Window* window = WindowNew(width, height);
-    print("done");
     return window;
 }
 static tlHandle _Window_new(tlArgs* args) {
     toolkit_launch();
-    print("tl: new window");
     tlHandle res = tl_on_toolkit(__Window_new, args);
-    print("tl: done");
     return res;
 }
 void closeWindow(Window* window) {
@@ -122,14 +119,12 @@ void closeWindow(Window* window) {
     window->native = null;
 }
 static tlHandle __window_close(tlArgs* args) {
-    print("2 window close!");
     Window* window = WindowAs(tlArgsTarget(args));
     nativeWindowClose(window->native);
     closeWindow(window);
     return tlNull;
 }
 static tlHandle _window_close(tlArgs* args) {
-    print("1 window close!");
     return tl_on_toolkit(__window_close, args);
 }
 
@@ -207,7 +202,8 @@ static tlHandle __window_title(tlArgs* args) {
     return nativeWindowTitle(window->native);
 }
 static tlHandle _window_title(tlArgs* args) { return tl_on_toolkit(__window_title, args); }
-static tlHandle _window_visible(tlArgs* args) {
+
+static tlHandle __window_visible(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         bool visible = tl_bool(tlArgsGet(args, 0));
@@ -218,6 +214,8 @@ static tlHandle _window_visible(tlArgs* args) {
     }
     return tlBOOL(nativeWindowVisible(window->native));
 }
+static tlHandle _window_visible(tlArgs* args) { return tl_on_toolkit(__window_visible, args); }
+
 static tlHandle __window_focus(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     window->dirty = false;

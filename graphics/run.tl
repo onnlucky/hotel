@@ -46,7 +46,6 @@ TextField = ->
     box.rotate(0.2)
     box.alpha(0.5)
     onkey = (e ->
-        print "onkey:", e.key, e.input
         catch: x -> print x.toString
         if e.key == 37 and left.get.size > 0:
             right.set left.get.slice(-1).cat(right.get)
@@ -67,7 +66,6 @@ TextField = ->
             return
         if e.input:
             left.set left.get.cat(e.input)
-            print "onkey:", left.get, right.get
             box.redraw
     )
     box.ondraw(g ->
@@ -92,5 +90,6 @@ wait 1
 
 text = TextField()
 w.add text.box
-w.onkey(e -> print("KEY", e); text.onkey(e))
+w.onkey(e -> text.onkey(e))
+null
 

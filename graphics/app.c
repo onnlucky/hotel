@@ -25,7 +25,6 @@ void block_toolkit() { toolkit_blocked = true; }
 void unblock_toolkit() { toolkit_blocked = false; }
 
 void toolkit_schedule_done(tlRunOnMain* onmain) {
-    print("<< done running on main");
     assert(onmain->result);
     pthread_mutex_lock(&toolkit_lock);
     pthread_cond_signal(&toolkit_signal);
@@ -38,7 +37,6 @@ tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args) {
     // if on the toolkit thread, run immediately
     if (toolkit_thread == pthread_self()) return cb(args);
 
-    print(">> run no main");
     // otherwise schedule to run
     pthread_mutex_lock(&toolkit_lock);
     tlRunOnMain onmain = {.cb=cb,.args=args};
@@ -75,13 +73,13 @@ static tlHandle App_shared(tlArgs* args) { return tl_on_toolkit(_App_shared, arg
 void toolkit_started() {
     assert(should_start_toolkit);
     pthread_cond_signal(&toolkit_signal); // signal toolkit has started
-    print(">> toolkit started <<");
+    trace(">> toolkit started <<");
 }
 
 // most toolkits really prefer to "live" on the main thread
 // so create a new thread for hotel to live in
 static void* tl_main(void* data) {
-    print(">>> tl starting <<<");
+    trace(">>> tl starting <<<");
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
@@ -91,20 +89,18 @@ static void* tl_main(void* data) {
     tlVmEvalBoot(vm, args);
     tl_exit_code = tlVmExitCode(vm);
 
-    print("1 end of tl_main");
     if (should_start_toolkit) {
         toolkit_stop();
     } else {
         pthread_cond_signal(&toolkit_signal);
     }
-    print("2 end of tl_main");
     return null;
 }
 
 // we launch the hotel interpreter thread, and then wait
 // if the interpreter wishes to start the toolkit environment, we let it
 int main(int argc, char** argv) {
-    print(">>> starting <<<");
+    trace(">>> starting <<<");
     toolkit_init(argc, argv);
     tl_init();
 
@@ -118,7 +114,7 @@ int main(int argc, char** argv) {
     pthread_mutex_unlock(&toolkit_lock);
 
     if (should_start_toolkit) {
-        print(">>> starting native toolkit <<<");
+        trace(">>> starting native toolkit <<<");
         toolkit_thread = pthread_self();
         toolkit_start(); // blocks until exit
     }
