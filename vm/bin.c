@@ -91,7 +91,7 @@ INTERNAL tlHandle _bin_get(tlArgs* args) {
     if (at < 1 || at > bin->len) return tlUndef();
     return tlINT(tlBinGet(bin, at - 1));
 }
-INTERNAL tlHandle _bin_toString(tlArgs* args) {
+INTERNAL tlHandle _bin_toHex(tlArgs* args) {
     static const char hexchars[] =
         {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
     tlBin* bin = tlBinAs(tlArgsTarget(args));
@@ -104,6 +104,13 @@ INTERNAL tlHandle _bin_toString(tlArgs* args) {
     }
     buf[len] = 0;
     return tlStringFromTake(buf, len);
+}
+INTERNAL tlHandle _bin_toString(tlArgs* args) {
+    tlBin* bin = tlBinAs(tlArgsTarget(args));
+    char* buf = malloc_atomic(bin->len + 1);
+    memcpy(buf, bin->data, bin->len);
+    buf[bin->len] = 0;
+    return tlStringFromTake(buf, bin->len);
 }
 INTERNAL tlHandle _isBin(tlArgs* args) {
     return tlBOOL(tlBinIs(tlArgsGet(args, 0)));
@@ -146,6 +153,7 @@ static void bin_init() {
 
     _tlBinKind.klass = tlClassMapFrom(
         "toString", _bin_toString,
+        "toHex", _bin_toHex,
         //"toBuffer", _bin_toBuffer,
         "size", _bin_size,
         //"hash", _bin_hash,

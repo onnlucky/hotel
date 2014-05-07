@@ -264,7 +264,7 @@ Socket = {
 _run = arglist, env, check ->
     // no stdin, no stdin, no stderr, joined stdin/stderr
     child = _io.launch(Task.locals.cwd, arglist, false, true, false, true, env, false)
-    output = Stream.new(child.out).read
+    output = Stream.new(child.out).readString
     r = child.wait
     if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=output).throw
     return output, r

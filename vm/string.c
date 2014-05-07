@@ -457,20 +457,31 @@ INTERNAL tlHandle _string_escape(tlArgs* args) {
     return tlStringEscape(str, tl_bool(tlArgsGet(args, 0)));
 }
 
-/// strip: return a #String that has all leading and trailing whitespace removed (c <= 32)
+static bool containsChar(tlString* chars, int c) {
+    for (int i = 0; i < chars->len; i++) {
+        if (chars->data[i] == c) return true;
+    }
+    return false;
+}
+/// strip([chars]): return a #String that has all leading and trailing whitespace removed
+/// when given optional #chars remove those characters instead
 INTERNAL tlHandle _string_strip(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
+    tlString* chars = tlStringCast(tlArgsGet(args, 0));
 
     if (tlStringSize(str) == 0) return str;
     const char* data = tlStringData(str);
     int len = tlStringSize(str);
     int left = 0;
-    int right = len; // assuming zero byte at end
+    int right = len - 1;
 
-    while (left < right && data[left] <= 32) left++;
-    while (right > left && data[right] <= 32) right--;
+    if (chars) {
+        while (left <= right && containsChar(chars, data[left])) left++;
+        while (right > left && containsChar(chars, data[right])) right--;
+    } else {
+        while (left <= right && data[left] <= 32) left++;
+        while (right > left && data[right] <= 32) right--;
+    }
     right++; // always a zero byte
 
     trace("%d %d", left, right);
