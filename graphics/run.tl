@@ -1,6 +1,5 @@
 w = Window.new 400, 400
 w.title "Hello World!"
-running = Var.new true
 
 lenna = Image.new "lenna.png"
 b3 = Box.new(100, 100, 200, 200)
@@ -10,7 +9,7 @@ b3.scale(0.1, 0.1)
 b3.ondraw(g -> g.image lenna, 0, 0, 200, 200)
 !(
     last = Var.new now()
-    while $running:
+    while not w.isClosed:
         wait 0.030
         n = now()
         dt = n - last.get
@@ -19,6 +18,7 @@ b3.ondraw(g -> g.image lenna, 0, 0, 200, 200)
         b3.scale(1+sin(n), 1+sin(n))
 )
 w.add b3
+
 
 b1 = Box.new(100, 100)
 b1.ondraw(g ->
@@ -63,7 +63,6 @@ TextField = ->
             box.redraw
             return
         if e.key == 27:
-            $running = false
             w.close
             return
         if e.input:

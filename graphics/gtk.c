@@ -18,8 +18,8 @@ static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
     cairo_destroy(cr);
     return TRUE;
 }
-
 static gboolean destroy_window(GtkWindow* w) {
+    print("destroy window: %p", w);
     closeWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")));
     return FALSE;
 }
@@ -27,6 +27,7 @@ static gboolean key_release_window(GtkWidget* widget, GdkEventKey* event, gpoint
     return FALSE;
 }
 static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {
+    print("key_press window: %p", widget);
     int key = event->keyval;
     const char* input = event->string;
     print("HAVE A KEY PRESS: %d %s", key, input);
@@ -53,6 +54,9 @@ NativeWindow* nativeWindowNew(Window* window) {
     g_signal_connect(w, "key_release_event", G_CALLBACK(key_release_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
+    gtk_window_present(GTK_WINDOW(w));
+    gtk_widget_hide(GTK_WIDGET(w));
+
     return w;
 }
 
@@ -61,8 +65,8 @@ void nativeWindowClose(NativeWindow* w) {
 }
 
 void nativeWindowFocus(NativeWindow* w) {
-    //gtk_window_focus(GTK_WINDOW(w));
-    gtk_window_present(GTK_WINDOW(w));
+    gtk_widget_show(GTK_WIDGET(w));
+    gtk_window_activate_focus(GTK_WINDOW(w));
 }
 
 void nativeWindowSetVisible(NativeWindow* w, bool visible) {
@@ -74,25 +78,26 @@ void nativeWindowSetVisible(NativeWindow* w, bool visible) {
 }
 
 int nativeWindowVisible(NativeWindow* w) {
-    //return gtk_window_visible(GTK_WINDOW(w));
-    return true;
+    return gtk_widget_is_visible(GTK_WIDGET(w));
 }
 
-void nativeWindowRedraw(NativeWindow* w) {
+static gboolean redraw(gpointer w) {
     gdk_window_invalidate_rect(gtk_widget_get_window(GTK_WIDGET(w)), NULL, true);
+    return FALSE;
 }
+void nativeWindowRedraw(NativeWindow* w) { gdk_threads_add_idle(redraw, w); }
 
 void nativeWindowFrame(NativeWindow* w, int* x, int* y, int* width, int* height) {
-    gtk_window_get_size(GTK_WINDOW(w), x, y);
-    //gtk_window_get_frame(GTK_WINDOW(w), x, y, width, height)
+    gtk_window_get_size(GTK_WINDOW(w), width, height);
+    gtk_window_get_position(GTK_WINDOW(w), x, y);
 }
 
 void nativeWindowSetPos(NativeWindow* w, int x, int y) {
-    //gtk_window_set_pos(GTK_WINDOW(w), x, y);
+    gtk_window_move(GTK_WINDOW(w), x, y);
 }
 
 void nativeWindowSetSize(NativeWindow* w, int width, int height) {
-    //gtk_window_set_size(GTK_WINDOW(w), width, height);
+    gtk_window_resize(GTK_WINDOW(w), width, height);
 }
 
 tlString* nativeWindowTitle(NativeWindow* w) {

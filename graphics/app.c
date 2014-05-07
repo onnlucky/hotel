@@ -14,21 +14,38 @@ tlKind* AppKind = &_AppKind;
 
 static App* shared;
 
+static pthread_t toolkit_thread;
 static pthread_mutex_t toolkit_lock;
 static pthread_cond_t toolkit_signal;
 static bool should_start_toolkit;
 static int tl_exit_code;
 
+static bool toolkit_blocked;
+void block_toolkit() { toolkit_blocked = true; }
+void unblock_toolkit() { toolkit_blocked = false; }
+
 void toolkit_schedule_done(tlRunOnMain* onmain) {
+    print("<< done running on main");
     assert(onmain->result);
+    pthread_mutex_lock(&toolkit_lock);
     pthread_cond_signal(&toolkit_signal);
+    pthread_mutex_unlock(&toolkit_lock);
 }
 
 tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args) {
+    // if blocking the toolkit thread, run immediately
+    if (toolkit_blocked) return cb(args);
+    // if on the toolkit thread, run immediately
+    if (toolkit_thread == pthread_self()) return cb(args);
+
+    print(">> run no main");
+    // otherwise schedule to run
     pthread_mutex_lock(&toolkit_lock);
     tlRunOnMain onmain = {.cb=cb,.args=args};
     toolkit_schedule(&onmain);
-    while (!onmain.result) pthread_cond_wait(&toolkit_signal, &toolkit_lock);
+    while (!onmain.result) {
+        pthread_cond_wait(&toolkit_signal, &toolkit_lock);
+    }
     pthread_mutex_unlock(&toolkit_lock);
     return onmain.result;
 }
@@ -102,6 +119,7 @@ int main(int argc, char** argv) {
 
     if (should_start_toolkit) {
         print(">>> starting native toolkit <<<");
+        toolkit_thread = pthread_self();
         toolkit_start(); // blocks until exit
     }
 

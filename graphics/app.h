@@ -23,4 +23,8 @@ void toolkit_schedule_done(tlRunOnMain* onmain);
 void toolkit_launch();
 tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args);
 
+// indicate toolkit thread is blocked on hotel
+void block_toolkit();
+void unblock_toolkit();
+
 #endif // _app_h_

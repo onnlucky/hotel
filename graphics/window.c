@@ -64,10 +64,12 @@ void renderWindow(Window* window, cairo_t* cairo) {
     assert(window);
     assert(window->rendertask);
     assert(cairo);
-    Graphics* g = GraphicsNew(cairo);
 
+    block_toolkit();
     window->dirty = false;
+    Graphics* g = GraphicsNew(cairo);
     for (Box* sb = window->root; sb; sb = sb->next) renderBox(cairo, sb, g);
+    unblock_toolkit();
 }
 
 void window_dirty(Window* window) {
@@ -116,15 +118,24 @@ static tlHandle _Window_new(tlArgs* args) {
 }
 void closeWindow(Window* window) {
     if (!window->native) return;
-    // closed windows should not keep runtime waiting
     tlVmDecExternal(tlVmCurrent());
     window->native = null;
 }
-static tlHandle _window_close(tlArgs* args) {
+static tlHandle __window_close(tlArgs* args) {
+    print("2 window close!");
     Window* window = WindowAs(tlArgsTarget(args));
-    if (window->native) nativeWindowClose(window->native);
+    nativeWindowClose(window->native);
     closeWindow(window);
     return tlNull;
+}
+static tlHandle _window_close(tlArgs* args) {
+    print("1 window close!");
+    return tl_on_toolkit(__window_close, args);
+}
+
+static tlHandle _window_isClosed(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    return tlBOOL(window->native == null);
 }
 
 static tlHandle _window_add(tlArgs* args) {
@@ -219,10 +230,12 @@ static tlHandle _window_focus(tlArgs* args) { return tl_on_toolkit(__window_focu
 void windowKeyEvent(Window* window, int code, tlString* input) {
     if (!window->onkey) return;
 
+    block_toolkit();
     tlMap *res = tlClone(_keyEventMap);
     tlMapSetSym_(res, _s_key, tlINT(code));
     tlMapSetSym_(res, _s_input, input);
     tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onkey, res, null));
+    unblock_toolkit();
 }
 
 // ** boxes **
@@ -405,6 +418,8 @@ void window_init(tlVm* vm) {
         "focus", _window_focus,
         "visible", _window_visible,
         "close", _window_close,
+
+        "isClosed", _window_isClosed,
         null
     );
 
