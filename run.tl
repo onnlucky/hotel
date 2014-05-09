@@ -4,12 +4,13 @@ mod = compiler.load(bytes)
 print "loaded ...", bytes.size, bytes
 env = Env.current
 
-mod.links.each: g ->
+ls = mod.links.map: g ->
     x = env.get(g)
-    if x:
-        print g, "->", x
-        return
+    if x: return x
     x = resolve(g)
-    print g, "->", x
-//mod.run
+    if x: return x
+    null
+
+mod.link(ls)
+mod.run
 

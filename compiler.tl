@@ -400,6 +400,7 @@ load = bytes ->
     {
         bytes = bytes
         links = -> _module_links(m)
+        link = ls -> _module_link(m, ls)
         run = as -> _module_run(m, as)
         debug = as ->
             debugger = Debugger.new

@@ -1306,6 +1306,24 @@ INTERNAL tlHandle _module_links(tlArgs* args) {
     return mod->links;
 }
 
+INTERNAL tlHandle _module_link(tlArgs* args) {
+    tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    tlList* links = tlListCast(tlArgsGet(args, 1));
+    if (!mod) TL_THROW("expect a module as arg[1]");
+    if (!links) TL_THROW("expect a list as arg[2]");
+    if (tlListSize(links) != tlListSize(mod->links)) TL_THROW("arg[2].size != module.links.size");
+
+    mod->linked = tlListNew(tlListSize(mod->links));
+    for (int i = 0; i < tlListSize(mod->links); i++) {
+        tlHandle name = tlListGet(mod->links, i);
+        tlHandle v = tlListGet(links, i);
+        print("linking: %s as %s", tl_str(name), tl_str(v));
+        tlListSet_(mod->linked, i, v);
+    }
+
+    return mod;
+}
+
 INTERNAL tlHandle __list(tlArgs* args) {
     tlList* list = tlListEmpty();
     for (int i = 0; i < tlArgsSize(args); i++) {
