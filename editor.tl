@@ -12,23 +12,50 @@ term.setRaw
 width, height = term.measure
 x, y = cursorPosition(term)
 
+left = Var.new ""
+right = Var.new ""
 editor = {
-    moveleft = -> null
-    moveright = -> null
+    moveleft = ->
+        if $left.size == 0: return
+        $right = $left[-1:] + $right
+        $left = $left[:-2]
+        term.write 27, "[", 68
+    moveright = ->
+        if $right.size == 0: return
+        $left = $left + $right[:1]
+        $right = $right[2:]
+        term.write 27, "[", 67
     moveup = -> null
     movedown = -> null
-    movelineend = -> null
-    movelinestart = -> null
+    movelineend = ->
+        $left = $left + $right
+        $right = ""
+        term.write 27, "[$(2 + $left.size + 1)G"
+    movelinestart = ->
+        $right = $left + $right
+        $left = ""
+        term.write 27, "[2G"
     movepageup = -> null
     movepagedown = -> null
 
-    deleteleft = -> null
-    deleteright = -> null
+    deleteleft = ->
+        if $left.size == 0: return
+        $left = $left[:-2]
+        term.write 27, "[", 68, 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
+    deleteright = ->
+        if $right.size == 0: return
+        $right = $right[2:]
+        term.write 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
 
-    newline = -> term.write "\n", 27, "[2K", 27, "[1G", "> "
-    input = byte -> term.write byte
+    newline = -> null// term.write "\n", 27, "[2K", 27, "[1G", "> "
+    input = str ->
+        $left += str
+        { $right.size == 0 }: term.write str
+        {                  }: term.write str, 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
+    special = byte ->
+        { byte == 18 }: this.debug("RUN RUN RUN forest!")
 
-    debug = str -> null //term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
+    debug = str -> term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
     render = -> null
 }
 
@@ -41,14 +68,15 @@ while $running:
     while inbuf.size > 0:
         c = inbuf.readByte
         editor.debug "in: $(c)"
-        if c == 4: $running = false
-        if c == 3: $running = false
-        if c == 13: editor.newline
-        if c == 127: editor.deleteleft
-        if c == 27: // esc
+        { c == 4   }: $running = false
+        { c == 3   }: $running = false
+        { c == 13  }: editor.newline
+        { c == 127 }: editor.deleteleft
+        { c == 27  }: // esc
             c2 = inbuf.readByte // [
             c3 = inbuf.readByte // A for up, etc
-            editor.debug "esc: $(c2) $(c3)"
+            editor.debug "esc: $(c) $(c2) $(c3)"
+            if not c2: editor.special c
             if c2 == 91:
                 if c3 == 68: editor.moveleft
                 if c3 == 67: editor.moveright
@@ -60,7 +88,10 @@ while $running:
                 if c3 == 51: inbuf.readByte; editor.deleteright
                 if c3 == 53: inbuf.readByte; editor.movepageup
                 if c3 == 54: inbuf.readByte; editor.movepagedown
-        if c > 31 and c < 127: editor.input(c.toChar)
-        // todo more escape sequences and utf8 (when hotel supports that)
+        { c > 31 and c < 127 }: editor.input(c.toChar)
+        {                    }: editor.special(c)
     editor.render
+
+term.restore
+term.write "\n"
 
