@@ -12,8 +12,6 @@ term.setRaw
 width, height = term.measure
 x, y = cursorPosition(term)
 
-print "cursor:", x, y, "width,height:", width, height
-
 editor = {
     moveleft = -> null
     moveright = -> null
@@ -27,12 +25,14 @@ editor = {
     deleteleft = -> null
     deleteright = -> null
 
-    newline = -> term.write '\n', 27, "[$height;1H"
+    newline = -> term.write "\n", 27, "[2K", 27, "[1G", "> "
     input = byte -> term.write byte
 
     debug = str -> null //term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
     render = -> null
 }
+
+term.write 27, "[2K", "> "
 
 inbuf = Buffer.new
 var $running = true
