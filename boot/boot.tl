@@ -465,7 +465,7 @@ _resolve: name, path ->
 runmain = as ->
     catch: e -> print e.toString; _set_exitcode(1)
 
-    if as.size == 0: return repl.run io.stdin
+    if as.size == 0: return commandline
     if as[1] == "snippets": return snippets.run
 
     file = as[1]

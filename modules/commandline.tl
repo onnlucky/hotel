@@ -1,3 +1,6 @@
+_env = Env.current
+var $env = Env.new(_env)
+
 // get current cursor position
 cursorPosition = term ->
     term.write 27, "[6n"
@@ -9,12 +12,55 @@ term = io.stdin
 if not term.isTTY: return
 term.setRaw
 
-width, height = term.measure
-x, y = cursorPosition(term)
+runcode = code ->
+    term.restore
+    print ""
+    (
+        catch: e -> print "error: $(e.toString)"
+        res = eval(env, code)
+        if res: print repr(res)
+    )
+    term.write " " // seems needed to flush print's and such
+    term.setRaw
+
+//width, height = term.measure
+//x, y = cursorPosition(term)
+
+older = Array.new
+newer = Array.new
+HIST = _io_getenv("HOME") + "/.tlhistory"
+readSharedHistory = ->
+    history = try(io.File(HIST).readString.split("\n"))
+    if not history: return
+    older.clear
+    older.cat(history)
+addHistory = line ->
+    readSharedHistory()
+    newer.clear
+    older.add line
+    history = older.toList[-100:]
+    content = history.join("\n") + "\n"
+    io.File(HIST).write(content)
 
 left = Var.new ""
 right = Var.new ""
 editor = {
+    setLine = line ->
+        $left = line
+        $right = ""
+        term.write 27, "[1G> ", 27, "[K", line
+    moveup = ->
+        if newer.size == 0: readSharedHistory()
+        if older.size == 0: return
+        newer.add $left + $right
+        this.setLine(older.remove(-1), $left.size)
+    movedown = ->
+        if newer.size == 0: return
+        older.add $left + $right
+        this.setLine(newer.remove(-1), $left.size)
+    movepageup = -> null
+    movepagedown = -> null
+
     moveleft = ->
         if $left.size == 0: return
         $right = $left[-1:] + $right
@@ -25,8 +71,6 @@ editor = {
         $left = $left + $right[:1]
         $right = $right[2:]
         term.write 27, "[", 67
-    moveup = -> null
-    movedown = -> null
     movelineend = ->
         $left = $left + $right
         $right = ""
@@ -35,9 +79,6 @@ editor = {
         $right = $left + $right
         $left = ""
         term.write 27, "[2G"
-    movepageup = -> null
-    movepagedown = -> null
-
     deleteleft = ->
         if $left.size == 0: return
         $left = $left[:-2]
@@ -46,8 +87,6 @@ editor = {
         if $right.size == 0: return
         $right = $right[2:]
         term.write 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
-
-    newline = -> null// term.write "\n", 27, "[2K", 27, "[1G", "> "
     input = str ->
         $left += str
         { $right.size == 0 }: term.write str
@@ -55,8 +94,12 @@ editor = {
     special = byte ->
         { byte == 18 }: this.debug("RUN RUN RUN forest!")
 
-    debug = str -> term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
-    render = -> null
+    debug = str -> null //term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
+    newline = ->
+        line = $left + $right
+        addHistory(line)
+        runcode(line)
+        this.setLine("")
 }
 
 term.write 27, "[2K", "> "
@@ -90,7 +133,6 @@ while $running:
                 if c3 == 54: inbuf.readByte; editor.movepagedown
         { c > 31 and c < 127 }: editor.input(c.toChar)
         {                    }: editor.special(c)
-    editor.render
 
 term.restore
 term.write "\n"
