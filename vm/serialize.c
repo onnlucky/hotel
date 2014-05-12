@@ -259,7 +259,7 @@ tlHandle _repr(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
     pprint(buf, h, false);
     tlBufferWrite(buf, "\0", 1);
-    return tlStringFromTake(tlBufferTakeData(buf), tlBufferSize(buf));
+    return tlStringFromTake(tlBufferTakeData(buf), tlBufferSize(buf) - 1);
 }
 
 char* tl_repr(tlHandle h) {
