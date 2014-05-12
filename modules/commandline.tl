@@ -18,7 +18,7 @@ runcode = code ->
     (
         catch: e -> print "error: $(e.toString)"
         res = eval(env, code)
-        if res: print repr(res)
+        if res: print (repr(res) or r)
     )
     term.write " " // seems needed to flush print's and such
     term.setRaw
