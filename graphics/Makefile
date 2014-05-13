@@ -5,7 +5,7 @@ gtk: gtk.c graphics.o window.o app.o image.o ../libtl.a
 	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -o gtk
 
 run: gtk
-	TL_MODULE_PATH=../modules ./gtk
+	TL_MODULE_PATH=../modules ./gtk run.tl
 
 runm: mac
 	TL_MODULE_PATH=../modules ./mac
@@ -27,6 +27,11 @@ app.o: app.h app.c
 
 ../libtl.a: ../*.c ../*.h ../vm/*.c ../vm/*.h
 	cd ..; $(MAKE) libtl.a
+
+PREFIX?=/usr/local
+BINDIR:=$(DESTDIR)$(PREFIX)/bin
+install: gtk
+	cp gtk $(BINDIR)/tl-gtk
 
 clean:
 	rm -rf mac

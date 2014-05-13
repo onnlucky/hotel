@@ -105,6 +105,8 @@ Window* WindowNew(int width, int height) {
 static tlHandle __Window_new(tlArgs* args) {
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
+    if (width <= 0) width = 100;
+    if (height <= 0) height = 100;
     Window* window = WindowNew(width, height);
     return window;
 }

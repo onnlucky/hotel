@@ -78,15 +78,14 @@ void toolkit_started() {
 
 // most toolkits really prefer to "live" on the main thread
 // so create a new thread for hotel to live in
-static void* tl_main(void* data) {
+static void* tl_main(void* _args) {
     trace(">>> tl starting <<<");
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
     image_init(vm);
     window_init(vm);
-    tlArgs* args = tlArgsNew(tlListFrom(tlSTR("run.tl"), null), null);
-    tlVmEvalBoot(vm, args);
+    tlVmEvalBoot(vm, tlArgsAs(_args));
     tl_exit_code = tlVmExitCode(vm);
 
     if (should_start_toolkit) {
@@ -104,12 +103,17 @@ int main(int argc, char** argv) {
     toolkit_init(argc, argv);
     tl_init();
 
+    tlArgs* args = tlArgsNew(tlListNew(argc - 1), null);
+    for (int i = 1; i < argc; i++) {
+        tlArgsSet_(args, i - 1, tlSTR(argv[i]));
+    }
+
     pthread_t tl_thread;
     pthread_mutex_init(&toolkit_lock, null);
     pthread_cond_init(&toolkit_signal, null);
 
     pthread_mutex_lock(&toolkit_lock);
-    pthread_create(&tl_thread, null, &tl_main, null); // create thread
+    pthread_create(&tl_thread, null, &tl_main, args); // create thread
     pthread_cond_wait(&toolkit_signal, &toolkit_lock); // wait until signalled
     pthread_mutex_unlock(&toolkit_lock);
 
