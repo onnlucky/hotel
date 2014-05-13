@@ -118,16 +118,26 @@ struct tlNum {
     tlHead* head;
     mp_int value;
 };
+void clear_num(void* _num, void* data) {
+    tlNum* num = tlNumAs(_num);
+    mp_clear(&num->value);
+}
 // TODO implement from double ...
 tlNum* tlNumNew(intptr_t l) {
     tlNum* num = tlAlloc(tlNumKind, sizeof(tlNum));
     mp_init(&num->value);
     mp_set_signed(&num->value, l);
+#ifdef HAVE_BOEHMGC
+    GC_REGISTER_FINALIZER_NO_ORDER(num, clear_num, null, null, null);
+#endif
     return num;
 }
 tlNum* tlNumFrom(mp_int n) {
     tlNum* num = tlAlloc(tlNumKind, sizeof(tlNum));
     num->value = n;
+#ifdef HAVE_BOEHMGC
+    GC_REGISTER_FINALIZER_NO_ORDER(num, clear_num, null, null, null);
+#endif
     return num;
 }
 tlNum* tlNumTo(tlHandle h) {
@@ -209,7 +219,9 @@ tlHandle tlPARSENUM(const char* s, int radix) {
     mp_init(&n);
     mp_read_radix(&n, s, radix);
     if (mp_cmp(&n, &MIN_INT_BIGNUM) >= 0 && mp_cmp(&n, &MAX_INT_BIGNUM) <= 0) {
-        return tlINT(mp_get_signed(&n));
+        tlHandle res = tlINT(mp_get_signed(&n));
+        mp_clear(&n);
+        return res;
     }
     return tlNumFrom(n);
 }
@@ -260,6 +272,7 @@ static void number_init() {
 
     mp_int ZERO; mp_init(&ZERO); mp_set(&ZERO, 0);
     assert(mp_cmp(&MIN_INT_BIGNUM, &ZERO) == -1);
+    mp_clear(&ZERO);
 
     mp_int test; mp_init(&test);
     mp_set_signed(&test, 1);
@@ -298,6 +311,8 @@ static void number_init() {
     mp_set_double(&test, 1e100);
     assert(mp_cmp(&MAX_INT_BIGNUM, &test) == -1);
     // TODO assert ("%.0f", 1e100) == mp_to_char(test);
+
+    mp_clear(&test);
 
     _tlFloatKind.klass = tlClassMapFrom(
         "hash", _float_hash,
