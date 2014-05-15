@@ -119,7 +119,8 @@ editor = {
         $left += str
         writeLine prompt, $left, $right
     special = byte ->
-        { byte == 18 }: this.debug("RUN RUN RUN forest!")
+        { byte == 18 }: this.debug("RUN!")
+        {            }: this.debug("$byte")
 
     debug = str -> null //term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
     newline = ->

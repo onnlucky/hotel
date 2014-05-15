@@ -147,9 +147,9 @@ get = url ->
     // TODO take back the stream after body is done ...
     header = conn.readString(at - 1 + 4)
     res = httpparser.response(header)
-    length = res.headers.get("Content-Length")
-    encoding = res.headers.get("Transfer-Encoding")
-    type = res.headers.get("Content-Type")
+    length = res.headers["Content-Length"]
+    encoding = res.headers["Transfer-Encoding"]
+    type = res.headers["Content-Type"]
     body = { length                }: SizedStream(conn, length.eval)
            { encoding == "chunked" }: ChuckedStream(conn)
            { not encoding          }: conn
