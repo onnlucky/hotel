@@ -35,7 +35,5 @@ int main(int argc, char** argv) {
     int exitcode = tlVmExitCode(vm);
     tlVmDelete(vm);
     return exitcode;
-
-#endif
 }
 

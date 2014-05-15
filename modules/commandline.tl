@@ -12,6 +12,30 @@ term = io.stdin
 if not term.isTTY: return
 term.setRaw
 
+last = Var.new {cursor=0,lines=0}
+writeLine = prompt, left, right ->
+    width, height = term.measure
+    len = prompt.size + left.size + right.size
+    lines = (len / width).floor
+    cursor = ((prompt.size + left.size) / width).floor
+    curcol = prompt.size + left.size + 1 - width * cursor
+
+    // ensure we are at first line
+    trail = $last.lines - lines
+    up = $last.cursor
+    if up > 0: term.write 27, "[$(up)A"
+    // output line
+    term.write 27, "[0G", prompt, left, right, 27, "[0K"
+    // clear trailing lines from previous long entry
+    if trail > 0:
+        term.write 27, "[0G"
+        trail.times: term.write 27, "[1B", 27, "[0K"
+        trail.times: term.write 27, "[1A"
+    // move cursor back up to cursor position line and col
+    if lines - cursor > 0: term.write 27, "[$(lines - cursor)A"
+    term.write 27, "[$(curcol)G"
+    $last = {{cursor,lines}}
+
 runcode = code ->
     term.restore
     print ""
@@ -45,13 +69,14 @@ addHistory = line ->
     content = history.join("\n") + "\n"
     io.File(HIST).write(content)
 
+prompt = "> "
 left = Var.new ""
 right = Var.new ""
 editor = {
     setLine = line ->
         $left = line
         $right = ""
-        term.write 27, "[1G> ", 27, "[K", line
+        writeLine prompt, $left, $right
     moveup = ->
         if newer.size == 0: readSharedHistory()
         if older.size == 0: return
@@ -68,32 +93,31 @@ editor = {
         if $left.size == 0: return
         $right = $left[-1:] + $right
         $left = $left[:-2]
-        term.write 27, "[", 68
+        writeLine prompt, $left, $right
     moveright = ->
         if $right.size == 0: return
         $left = $left + $right[:1]
         $right = $right[2:]
-        term.write 27, "[", 67
+        writeLine prompt, $left, $right
     movelineend = ->
         $left = $left + $right
         $right = ""
-        term.write 27, "[$(2 + $left.size + 1)G"
+        writeLine prompt, $left, $right
     movelinestart = ->
         $right = $left + $right
         $left = ""
-        term.write 27, "[2G"
+        writeLine prompt, $left, $right
     deleteleft = ->
         if $left.size == 0: return
         $left = $left[:-2]
-        term.write 27, "[", 68, 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
+        writeLine prompt, $left, $right
     deleteright = ->
         if $right.size == 0: return
         $right = $right[2:]
-        term.write 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
+        writeLine prompt, $left, $right
     input = str ->
         $left += str
-        { $right.size == 0 }: term.write str
-        {                  }: term.write str, 27, "[K", $right, 27, "[$(2 + $left.size + 1)G"
+        writeLine prompt, $left, $right
     special = byte ->
         { byte == 18 }: this.debug("RUN RUN RUN forest!")
 
@@ -105,7 +129,7 @@ editor = {
         this.setLine("")
 }
 
-term.write 27, "[2K", "> "
+writeLine prompt, $left, $right
 
 inbuf = Buffer.new
 var $running = true
