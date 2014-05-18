@@ -1,7 +1,7 @@
 // hotel http library
 
 HttpConnection = conn ->
-    _Object_new {
+    _Mutable_new {
         _req = null, _didhead = false, _didend = false
         _in = io.Buffer.new
         _body = io.Buffer.new

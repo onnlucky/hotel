@@ -71,7 +71,7 @@ DomText = {
 
 Text = {
     new= (text ->
-        _Object_new {
+        _Mutable_new {
             parent= null
             prev= null
             next= null
@@ -156,7 +156,7 @@ DomNode = {
 Node = {
     new= (name, children, attrs ->
         //assert (not attrs) or HashMap.is(attrs)
-        n = _Object_new {
+        n = _Mutable_new {
             parent= null
             prev= null
             next= null

@@ -28,7 +28,7 @@
 #include "worker.c"
 #include "task.c"
 #include "lock.c"
-#include "object.c"
+#include "mutable.c"
 #include "code.c"
 #include "env.c"
 #include "eval.c"
@@ -478,7 +478,7 @@ void tl_init() {
     array_init();
     hashmap_init();
     controlflow_init();
-    object_init();
+    mutable_init();
     vm_init();
     debugger_init();
 

@@ -1,32 +1,32 @@
-// object type, a fully mutable map accessed like an object
+// mutable type, a fully mutable map accessed like an mutable
 
 #include "trace-off.h"
 
-static tlKind _tlObjectKind = { .name = "Object", .locked = true };
-tlKind* tlObjectKind = &_tlObjectKind;
+static tlKind _tlMutableKind = { .name = "Mutable", .locked = true };
+tlKind* tlMutableKind = &_tlMutableKind;
 
-struct tlObject {
+struct tlMutable {
     tlLock lock;
     // TODO upgrade to something ... ahem ... more appropriate
     tlMap* map;
 };
 
-tlObject* tlObjectNew() {
-    tlObject* obj = tlAlloc(tlObjectKind, sizeof(tlObject));
+tlMutable* tlMutableNew() {
+    tlMutable* obj = tlAlloc(tlMutableKind, sizeof(tlMutable));
     obj->map = tlMapEmpty();
     return obj;
 }
-INTERNAL tlHandle _Object_new(tlArgs* args) {
+INTERNAL tlHandle _Mutable_new(tlArgs* args) {
     tlMap* map = (tlMap*)tlHandleObjectCast(tlArgsGet(args, 0));
     if (!map) map = tlMapEmpty();
-    tlObject* obj = tlObjectNew();
+    tlMutable* obj = tlMutableNew();
     obj->map = map;
     return obj;
 }
-INTERNAL tlHandle objectSend(tlArgs* args) {
+INTERNAL tlHandle mutableSend(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
-    tlObject* obj = tlObjectCast(tlArgsTarget(args));
-    if (!obj) TL_THROW("expected an Object");
+    tlMutable* obj = tlMutableCast(tlArgsTarget(args));
+    if (!obj) TL_THROW("expected an Mutable");
     assert(tlLockOwner(tlLockAs(obj)) == task);
 
     assert(tlArgsMsg(args));
@@ -76,8 +76,8 @@ send:;
 
 INTERNAL tlHandle _this_get(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
-    tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
-    if (!obj) TL_THROW("expected an Object");
+    tlMutable* obj = tlMutableCast(tlArgsGet(args, 0));
+    if (!obj) TL_THROW("expected an Mutable");
     if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
     tlSym msg = tlSymCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expected a field");
@@ -88,8 +88,8 @@ INTERNAL tlHandle _this_get(tlArgs* args) {
 }
 INTERNAL tlHandle _this_set(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
-    tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
-    if (!obj) TL_THROW("expected an Object");
+    tlMutable* obj = tlMutableCast(tlArgsGet(args, 0));
+    if (!obj) TL_THROW("expected an Mutable");
     if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
     tlSym msg = tlSymCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expected a field");
@@ -103,8 +103,8 @@ INTERNAL tlHandle _this_set(tlArgs* args) {
 }
 INTERNAL tlHandle _this_send(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
-    tlObject* obj = tlObjectCast(tlArgsGet(args, 0));
-    if (!obj) TL_THROW("expected an Object");
+    tlMutable* obj = tlMutableCast(tlArgsGet(args, 0));
+    if (!obj) TL_THROW("expected an Mutable");
     if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
     tlSym msg = tlSymCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expected a field");
@@ -124,16 +124,16 @@ INTERNAL tlHandle _this_send(tlArgs* args) {
     return tlEvalArgsFn(nargs, field);
 }
 
-static const tlNativeCbs __object_nativecbs[] = {
-    { "_Object_new", _Object_new },
+static const tlNativeCbs __mutable_nativecbs[] = {
+    { "_Mutable_new", _Mutable_new },
     { "_this_send", _this_send },
     { "_this_get", _this_get },
     { "_this_set", _this_set },
     { 0, 0 }
 };
 
-static void object_init() {
-    _tlObjectKind.send = objectSend;
-    tl_register_natives(__object_nativecbs);
+static void mutable_init() {
+    _tlMutableKind.send = mutableSend;
+    tl_register_natives(__mutable_nativecbs);
 }
 

@@ -158,7 +158,7 @@ TL_REF_TYPE(tlArray);
 
 // TODO these 6 don't need to be exposed
 TL_REF_TYPE(tlVar);
-TL_REF_TYPE(tlObject);
+TL_REF_TYPE(tlMutable);
 
 TL_REF_TYPE(tlClosure);
 TL_REF_TYPE(tlThunk);

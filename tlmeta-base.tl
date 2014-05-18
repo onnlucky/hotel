@@ -145,7 +145,7 @@ _tlcache = oop, name, pos, in, v ->
     return in, v
 
 pStart = rule, text ->
-    oop = _Object_new({ _cache = HashMap.new })
+    oop = _Mutable_new({ _cache = HashMap.new })
     _with_lock(oop):
         in, v = (
             catch: e ->
