@@ -7,6 +7,7 @@
 #include "graphics.h"
 #include "image.h"
 #include "window.h"
+#include "app.h"
 
 // an implementation of how to integrate the cocoa framework with the hotelvm
 // There is a slight gotcha:
@@ -18,23 +19,6 @@
 // 1. never block hotel threads by doing all cocoa work on the cocoa main thread (attempted now)
 // 2. take a hotel level lock on the window object, blocking until we have it, then do our work
 
-static void ns_init();
-
-TL_REF_TYPE(App);
-struct App {
-    tlHead head;
-    NSApplication* app;
-};
-static tlKind _AppKind = { .name = "App", };
-tlKind* AppKind = &_AppKind;
-static App* shared;
-
-static tlHandle App_shared(tlArgs* args) {
-    ns_init();
-    assert(shared);
-    return shared;
-}
-
 @interface NWindow: NSWindow {
 @public
     Window* window;
@@ -45,7 +29,6 @@ static tlHandle App_shared(tlArgs* args) {
 } @end
 
 NativeWindow* nativeWindowNew(Window* window) {
-    ns_init();
     // TODO use or update x and y
     NWindow* w = [[NWindow alloc]
             initWithContentRect: NSMakeRect(0, 0, window->width, window->height)
@@ -62,20 +45,20 @@ NativeWindow* nativeWindowNew(Window* window) {
 }
 void nativeWindowClose(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
-    [w performSelectorOnMainThread: @selector(close) withObject:nil waitUntilDone:NO];
+    [w close];
 }
 void nativeWindowFocus(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
     [NSApp activateIgnoringOtherApps: YES];
-    [w performSelectorOnMainThread: @selector(makeKeyAndOrderFront:) withObject:w waitUntilDone:NO];
+    [w makeKeyAndOrderFront:nil];
 }
 void nativeWindowSetVisible(NativeWindow* _w, bool visible) {
     NWindow* w = (NWindow*)_w;
     // cocoa is always weird about show/hide of windows and such ...
     if (visible) {
-        [w performSelectorOnMainThread: @selector(orderFront:) withObject:w waitUntilDone:NO];
+        [w orderFront:nil];
     } else {
-        [w performSelectorOnMainThread: @selector(orderOut:) withObject:w waitUntilDone:NO];
+        [w orderOut:nil];
     }
 }
 int nativeWindowVisible(NativeWindow* _w) {
@@ -84,12 +67,12 @@ int nativeWindowVisible(NativeWindow* _w) {
 }
 void nativeWindowRedraw(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
-    [[w contentView] performSelectorOnMainThread: @selector(setNeedsDisplay:) withObject:w waitUntilDone:NO];
+    [[w contentView] performSelectorOnMainThread:@selector(setNeedsDisplay:) withObject:w waitUntilDone:NO];
 }
 
 void nativeWindowSetTitle(NativeWindow* _w, tlString* title) {
     NWindow* w = (NWindow*)_w;
-    if (title) [w performSelectorOnMainThread:@selector(setTitle:) withObject:[NSString stringWithUTF8String: tlStringData(title)] waitUntilDone:NO];
+    if (title) [w setTitle:[NSString stringWithUTF8String: tlStringData(title)]];
 }
 tlString* nativeWindowTitle(NativeWindow* _w) {
     NWindow* w = (NWindow*)_w;
@@ -158,93 +141,52 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
 }
 @end
 
+// **** connect to app.h ****
 
-// this code launches a second thread to run hotel in, maybe starting the Cocoa framework in the first
+@interface Signal : NSObject
+@end
+@implementation Signal
+- (void)run { toolkit_started(); }
+@end
 
-static bool should_start_cocoa;
-static pthread_mutex_t cocoa;
-static pthread_cond_t cocoa_start;
-
-// can be called many times, will once init the Cocoa framework
-static void ns_init() {
-    static bool inited;
-    if (inited) return; inited = true;
-
-    pthread_mutex_lock(&cocoa);
-    should_start_cocoa = true;
-    pthread_cond_signal(&cocoa_start);
-    pthread_cond_wait(&cocoa_start, &cocoa);
-    pthread_mutex_unlock(&cocoa);
-
-    shared = tlAlloc(AppKind, sizeof(App));
-    shared->app = NSApp;
+void toolkit_init(int argc, char** argv) {
+    // no init needed
 }
 
-// will stop the Cocoa framework if started, otherwise will just exit the cocoa thread
-static void ns_stop() {
-    pthread_mutex_lock(&cocoa);
-    if (should_start_cocoa) {
-        [[NSApplication sharedApplication] performSelectorOnMainThread: @selector(stop:) withObject: nil waitUntilDone: NO];
-        // TODO this fixes the above stop waiting until first event in queue actually stops the loop
-        // we need to post an event in the queue and wake it up
-        [[NSApplication sharedApplication] performSelectorOnMainThread: @selector(terminate:) withObject: nil waitUntilDone: NO];
-    } else {
-        pthread_cond_signal(&cocoa_start);
-    }
-    pthread_mutex_unlock(&cocoa);
+void toolkit_start() {
+    [NSAutoreleasePool new];
+    [NSApplication sharedApplication];
+    [NSApp setActivationPolicy: NSApplicationActivationPolicyRegular];
+    //[NSApp setActivationPolicy: NSApplicationActivationPolicyAccessory];
+    NSThread* dummy = [[[NSThread alloc] init] autorelease]; [dummy start];
+    assert([NSThread isMainThread]);
+    assert([NSThread isMultiThreaded]);
+    Signal* signal = [[Signal alloc] init];
+    [signal performSelectorOnMainThread:@selector(run) withObject:nil waitUntilDone:NO];
+    [NSApp run];
 }
 
-static int vm_exit_code = 0;
-
-// Cocoa cannot be convinced its main thread to be something but the first thread
-// so we immediately launch a second thread for the hotel interpreter
-// TODO we can, theoretically, gift cocoa our thread if we control our worker better ...
-static void* tl_main(void* data) {
-    tlVm* vm = tlVmNew();
-    tlVmInitDefaultEnv(vm);
-    graphics_init(vm);
-    image_init(vm);
-    window_init(vm);
-    tlArgs* args = tlArgsNew(tlListFrom(tlSTR("run.tl"), null), null);
-    tlVmEvalBoot(vm, args);
-    vm_exit_code = tlVmExitCode(vm);
-    ns_stop();
-    return null;
+void toolkit_stop() {
+    // TODO this fixes the above stop waiting until first event in queue actually stops the loop
+    // we need to post an event in the queue and wake it up
+    [[NSApplication sharedApplication] performSelectorOnMainThread: @selector(stop:) withObject: nil waitUntilDone: NO];
+    [[NSApplication sharedApplication] performSelectorOnMainThread: @selector(terminate:) withObject: nil waitUntilDone: NO];
 }
 
-// we launch the hotel interpreter thread, and then wait
-// if the interpreter wishes to start the Cocoa environment, we let it
-int main() {
-    tl_init();
-
-    pthread_t tl_thread;
-    pthread_mutex_init(&cocoa, null);
-    pthread_cond_init(&cocoa_start, null);
-
-    pthread_mutex_lock(&cocoa);
-
-    pthread_create(&tl_thread, null, &tl_main, null);
-    pthread_cond_wait(&cocoa_start, &cocoa);
-    bool should_start = should_start_cocoa;
-
-    pthread_mutex_unlock(&cocoa);
-
-    if (should_start) {
-        print(">>> starting cocoa framework <<<");
-        [NSAutoreleasePool new];
-        [NSApplication sharedApplication];
-        [NSApp setActivationPolicy: NSApplicationActivationPolicyRegular];
-        //[NSApp setActivationPolicy: NSApplicationActivationPolicyAccessory];
-        NSThread* dummy = [[[NSThread alloc] init] autorelease]; [dummy start];
-        assert([NSThread isMainThread]);
-        assert([NSThread isMultiThreaded]);
-        print(">>> signal mainloop about to run <<<");
-        pthread_cond_signal(&cocoa_start);
-        [NSApp run];
-        // if we are here, it means the cocoa runloop has exited
-    }
-
-    pthread_join(tl_thread, null);
-    return vm_exit_code;
+@interface RunOnMain : NSObject {
+    @public
+    tlRunOnMain* onmain;
+}
+@end
+@implementation RunOnMain
+- (void)run {
+    onmain->result = onmain->cb(onmain->args);
+    toolkit_schedule_done(onmain);
+}
+@end
+void toolkit_schedule(tlRunOnMain* onmain) {
+    RunOnMain* run = [[RunOnMain alloc] init];
+    run->onmain = onmain;
+    [run performSelectorOnMainThread:@selector(run) withObject:nil waitUntilDone:NO];
 }
 
