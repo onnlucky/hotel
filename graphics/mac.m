@@ -114,7 +114,7 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
     windowKeyEvent(window, key, tlStringFromCopy(input, 0));
 }
 - (void)windowWillClose:(NSNotification *)notification {
-    //NSLog(@"close %@", notification);
+    closeWindow(window);
 }
 @end
 
