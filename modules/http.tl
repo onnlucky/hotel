@@ -125,6 +125,15 @@ ChuckedStream = stream ->
         close = -> stream.close
     }
 
+InflateStream = stream, gzip ->
+    buf = Buffer.new
+    unzip = Inflate.new(gzip)
+    {
+        readString = ->
+            unzip.some(buf, stream.read)
+            return buf.readString
+    }
+
 openstream = url ->
     if url.type == "https":
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
@@ -148,12 +157,17 @@ get = url ->
     header = conn.readString(at - 1 + 4)
     res = httpparser.response(header)
     length = res.headers["Content-Length"]
-    encoding = res.headers["Transfer-Encoding"]
+    transfer = res.headers["Transfer-Encoding"]
+    encoding = res.headers["Content-Encoding"]
     type = res.headers["Content-Type"]
     body = { length                }: SizedStream(conn, length.eval)
-           { encoding == "chunked" }: ChuckedStream(conn)
-           { not encoding          }: conn
-           {                       }: print length, encoding; assert false
+           { transfer == "chunked" }: ChuckedStream(conn)
+           { transfer              }: assert false, "unknown transfer encoding", transfer
+           {                       }: conn
+    body = { encoding == "gzip"    }: InflateStream(body, true)
+           { encoding == "deflate" }: InflateStream(body)
+           { encoding              }: assert false, "unknown encoding", encoding
+           {                       }: body
 
     // TODO read text encoding and not assume utf8
     if args.namesmap["stream"]: return body, res

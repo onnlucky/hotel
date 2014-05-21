@@ -401,6 +401,63 @@ static tlHandle _isBuffer(tlArgs* args) {
     return tlBOOL(tlBufferIs(tlArgsGet(args, 0)));
 }
 
+#include <zlib.h>
+
+TL_REF_TYPE(tlInflate);
+struct tlInflate {
+    tlLock lock;
+    z_stream strm;
+};
+static tlKind _tlInflateKind = {
+    .name = "Inflate",
+    .locked = true,
+};
+tlKind* tlInflateKind = &_tlInflateKind;
+
+static tlHandle _Inflate_new(tlArgs* args) {
+    tlInflate* inf = tlAlloc(tlInflateKind, sizeof(tlInflate));
+    if (tl_bool(tlArgsGet(args, 0))) {
+        inflateInit2(&inf->strm, 16 + MAX_WBITS);
+    } else {
+        inflateInit(&inf->strm);
+    }
+    return inf;
+}
+
+static tlHandle _some(tlArgs* args) {
+    tlInflate* inf = tlInflateAs(tlArgsTarget(args));
+    tlBuffer* out = tlBufferCast(tlArgsGet(args, 0));
+    tlBin* in = tlBinCast(tlArgsGet(args, 1));
+    if (!out) TL_THROW("require output buffer as arg[1]");
+    if (!in) TL_THROW("require input binary as arg[2]");
+
+    z_stream* strm = &inf->strm;
+    strm->avail_in = tlBinSize(in);
+    strm->next_in = (unsigned char*)tlBinData(in);
+
+    // TODO actually consume all and stream through ...
+    tlBufferBeforeWrite(out, 100 * 1024);
+    int canw = canwrite(out);
+    strm->avail_out = canw;
+    strm->next_out = (unsigned char*)writebuf(out);
+    trace("inflating: from: %d to: %d", strm->avail_in, strm->avail_out);
+    int r = inflate(strm, Z_NO_FLUSH);
+    trace("done: %d (%d)", strm->avail_out, r);
+    didwrite(out, canw - strm->avail_out);
+    switch (r) {
+        case Z_NEED_DICT:
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+            (void)inflateEnd(strm);
+            TL_THROW("unable to deflate: %d", r);
+    }
+    if (r == Z_STREAM_END) {
+        inflateEnd(strm);
+        return tlTrue;
+    }
+    return tlFalse;
+}
+
 static void buffer_init() {
     _tlBufferKind.klass = tlClassMapFrom(
             "size", _buffer_size,
@@ -418,6 +475,10 @@ static void buffer_init() {
             "hexdump", _buffer_hexdump,
             null
     );
+    _tlInflateKind.klass = tlClassMapFrom(
+        "some", _some,
+        null
+    );
 }
 
 static void buffer_init_vm(tlVm* vm) {
@@ -426,5 +487,11 @@ static void buffer_init_vm(tlVm* vm) {
         null
     );
     tlVmGlobalSet(vm, tlSYM("Buffer"), BufferStatic);
+
+    tlMap* InflateStatic = tlClassMapFrom(
+        "new", _Inflate_new,
+        null
+    );
+    tlVmGlobalSet(vm, tlSYM("Inflate"), InflateStatic);
 }
 
