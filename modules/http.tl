@@ -126,12 +126,11 @@ ChuckedStream = stream ->
     }
 
 InflateStream = stream, gzip ->
-    buf = Buffer.new
-    unzip = Inflate.new(gzip)
     {
+        read = ->
+            _inflate(stream.read)
         readString = ->
-            unzip.some(buf, stream.read)
-            return buf.readString
+            this.read.toString
     }
 
 openstream = url ->

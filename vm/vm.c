@@ -616,6 +616,8 @@ static const tlNativeCbs __vm_natives[] = {
     { "isBin", _isBin },
 
     { "_set_exitcode", _set_exitcode },
+    { "_deflate", _deflate },
+    { "_inflate", _inflate },
 
     { "_Module_new", _Module_new },
     { "_module_run", _module_run },

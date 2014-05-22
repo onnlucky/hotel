@@ -47,16 +47,6 @@ INTERNAL void tlBufferFinalizer(tlBuffer* buf) {
     free(buf->data);
 }
 
-char* tlBufferTakeData(tlBuffer* buf) {
-    char* data = buf->data;
-    buf->data = null;
-    buf->size = 0;
-    buf->readpos = buf->writepos = 0;
-
-    trace("size: %d", buf->size);
-    return data;
-}
-
 int tlBufferSize(tlBuffer* buf) {
     return canread(buf);
 }
@@ -87,6 +77,28 @@ INTERNAL void tlBufferBeforeWrite(tlBuffer* buf, int len) {
     trace("new size: %d", buf->size);
     buf->data = realloc(buf->data, buf->size);
     check(buf);
+}
+int tlBufferCanWrite(tlBuffer* buf) {
+    return canwrite(buf);
+}
+/// get a pointer to the direct data underlying this buffer, guaranteed to have at least #len bytes of space
+char* tlBufferWriteData(tlBuffer* buf, int len) {
+    tlBufferBeforeWrite(buf, len);
+    return writebuf(buf);
+}
+void tlBufferDidWrite(tlBuffer* buf, int len) {
+    didwrite(buf, len);
+}
+
+char* tlBufferTakeData(tlBuffer* buf) {
+    tlBufferCompact(buf);
+    char* data = buf->data;
+    buf->data = null;
+    buf->size = 0;
+    buf->readpos = buf->writepos = 0;
+
+    trace("size: %d", buf->size);
+    return data;
 }
 
 // rewind all or part of bytes just read, notice you cannot rewind after doing any kind of write
@@ -401,61 +413,82 @@ static tlHandle _isBuffer(tlArgs* args) {
     return tlBOOL(tlBufferIs(tlArgsGet(args, 0)));
 }
 
+tlBin* tlBinFromBufferTake(tlBuffer* buf);
+
 #include <zlib.h>
+static tlHandle _deflate(tlArgs* args) {
+    tlBin* in = tlBinCast(tlArgsGet(args, 0));
+    if (!in) TL_THROW("require input binary as arg[1]");
+    int level = tl_int_or(tlArgsGet(args, 1), Z_DEFAULT_COMPRESSION);
+    if (level < 0) level = Z_DEFAULT_COMPRESSION;
+    if (level > Z_BEST_COMPRESSION) level = Z_BEST_COMPRESSION;
+    bool gzip = tl_bool(tlArgsGet(args, 2));
 
-TL_REF_TYPE(tlInflate);
-struct tlInflate {
-    tlLock lock;
     z_stream strm;
-};
-static tlKind _tlInflateKind = {
-    .name = "Inflate",
-    .locked = true,
-};
-tlKind* tlInflateKind = &_tlInflateKind;
-
-static tlHandle _Inflate_new(tlArgs* args) {
-    tlInflate* inf = tlAlloc(tlInflateKind, sizeof(tlInflate));
-    if (tl_bool(tlArgsGet(args, 0))) {
-        inflateInit2(&inf->strm, 16 + MAX_WBITS);
+    strm.zalloc = null;
+    strm.zfree = null;
+    strm.avail_in = tlBinSize(in);
+    strm.next_in = (unsigned char*)tlBinData(in);
+    strm.avail_out = 0;
+    strm.next_out = null;
+    if (gzip) {
+        deflateInit2(&strm, level, Z_DEFLATED, 16 + MAX_WBITS, 8, Z_DEFAULT_STRATEGY);
     } else {
-        inflateInit(&inf->strm);
+        deflateInit(&strm, level);
     }
-    return inf;
+
+    tlBuffer* out = tlBufferNew();
+    do {
+        strm.next_out = (unsigned char*)tlBufferWriteData(out, 4 * 1024);
+        int canw = strm.avail_out = tlBufferCanWrite(out);
+        deflate(&strm, Z_FINISH);
+        tlBufferDidWrite(out, canw - strm.avail_out);
+    } while (strm.avail_in > 0);
+    return tlBinFromBufferTake(out);
 }
 
-static tlHandle _some(tlArgs* args) {
-    tlInflate* inf = tlInflateAs(tlArgsTarget(args));
-    tlBuffer* out = tlBufferCast(tlArgsGet(args, 0));
-    tlBin* in = tlBinCast(tlArgsGet(args, 1));
-    if (!out) TL_THROW("require output buffer as arg[1]");
-    if (!in) TL_THROW("require input binary as arg[2]");
+static tlHandle _inflate(tlArgs* args) {
+    tlBin* in = tlBinCast(tlArgsGet(args, 0));
+    if (!in) TL_THROW("require input binary as arg[1]");
+    bool gzip = tl_bool(tlArgsGet(args, 1));
 
-    z_stream* strm = &inf->strm;
-    strm->avail_in = tlBinSize(in);
-    strm->next_in = (unsigned char*)tlBinData(in);
+    z_stream strm;
+    strm.zalloc = null;
+    strm.zfree = null;
+    strm.avail_in = tlBinSize(in);
+    strm.next_in = (unsigned char*)tlBinData(in);
+    strm.avail_out = 0;
+    strm.next_out = null;
 
-    // TODO actually consume all and stream through ...
-    tlBufferBeforeWrite(out, 100 * 1024);
-    int canw = canwrite(out);
-    strm->avail_out = canw;
-    strm->next_out = (unsigned char*)writebuf(out);
-    trace("inflating: from: %d to: %d", strm->avail_in, strm->avail_out);
-    int r = inflate(strm, Z_NO_FLUSH);
-    trace("done: %d (%d)", strm->avail_out, r);
-    didwrite(out, canw - strm->avail_out);
-    switch (r) {
-        case Z_NEED_DICT:
-        case Z_DATA_ERROR:
-        case Z_MEM_ERROR:
-            (void)inflateEnd(strm);
-            TL_THROW("unable to deflate: %d", r);
+    if (gzip) {
+        inflateInit2(&strm, 16 + MAX_WBITS);
+    } else {
+        inflateInit(&strm);
     }
-    if (r == Z_STREAM_END) {
-        inflateEnd(strm);
-        return tlTrue;
-    }
-    return tlFalse;
+
+    tlBuffer* out = tlBufferNew();
+    do {
+        strm.next_out = (unsigned char*)tlBufferWriteData(out, 4 * 1024);
+        int canw = strm.avail_out = tlBufferCanWrite(out);
+        int r = inflate(&strm, Z_NO_FLUSH);
+        tlBufferDidWrite(out, canw - strm.avail_out);
+        switch (r) {
+            case Z_NEED_DICT:
+            case Z_DATA_ERROR:
+                (void)inflateEnd(&strm);
+                TL_THROW("unable to inflate: invalid data (%d)", r);
+            case Z_MEM_ERROR:
+                (void)inflateEnd(&strm);
+                TL_THROW("unable to deflate: not enough memory");
+        }
+        if (r == Z_STREAM_END) {
+            inflateEnd(&strm);
+            return tlBinFromBufferTake(out);
+        }
+    } while (strm.avail_in > 0);
+
+    inflateEnd(&strm);
+    TL_THROW("unable to inflate: premature end of data");
 }
 
 static void buffer_init() {
@@ -475,10 +508,6 @@ static void buffer_init() {
             "hexdump", _buffer_hexdump,
             null
     );
-    _tlInflateKind.klass = tlClassMapFrom(
-        "some", _some,
-        null
-    );
 }
 
 static void buffer_init_vm(tlVm* vm) {
@@ -487,11 +516,5 @@ static void buffer_init_vm(tlVm* vm) {
         null
     );
     tlVmGlobalSet(vm, tlSYM("Buffer"), BufferStatic);
-
-    tlMap* InflateStatic = tlClassMapFrom(
-        "new", _Inflate_new,
-        null
-    );
-    tlVmGlobalSet(vm, tlSYM("Inflate"), InflateStatic);
 }
 

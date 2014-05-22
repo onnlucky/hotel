@@ -30,6 +30,20 @@ tlBin* tlBinFromCopy(const char* s, int len) {
     return bin;
 }
 
+tlBin* tlBinFromTake(const char* s, int len) {
+    assert(len >= 0);
+    tlBin* bin = tlAlloc(tlBinKind, sizeof(tlBin));
+    bin->len = len;
+    bin->data = s;
+    return bin;
+}
+
+tlBin* tlBinFromBufferTake(tlBuffer* buf) {
+    int len = tlBufferSize(buf);
+    const char* s = tlBufferTakeData(buf);
+    return tlBinFromTake(s, len);
+}
+
 const uint8_t* tlBinData(tlBin *bin) {
     assert(tlBinIs(bin));
     return (uint8_t*)bin->data;
