@@ -112,6 +112,7 @@ mcallarg: v=mcall
    fnarg: v=mfunction
      arg: n=name ."="!"=".@"a value" v=expr
         | v=expr
+  setarg: v=mexpr
     garg: v=expr
     sarg: v=expr?
 
@@ -122,9 +123,9 @@ mcallarg: v=mcall
  method*: name
     tail: pos=pos ."("..@"a closing ')'" args=args ..")" t=tail                    -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail  -> process_method(o, m, args, t, pos)
-        | pos=pos .".".. m=method ."="!"=".. @"a value" value=mexpr                -> process_set_field(m, value, pos)
+        | pos=pos .".".. m=method ."="!"=".. @"a value" value=setarg               -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                         -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos "[".. key=garg .."]" ."="!"=".. @"a value" value=mexpr           -> process_set(key, value, pos)
+        | pos=pos "[".. key=garg .."]" ."="!"=".. @"a value" value=setarg          -> process_set(key, value, pos)
         | pos=pos "[".. key=garg .."]" t=tail                                      -> process_get(key, t, pos)
         | pos=pos "["..@"a closing ']'" from=sarg?..":"..to=sarg?.."]" t=tail      -> process_slice(from, to, t, pos)
         | ""                                                                       -> tlNull

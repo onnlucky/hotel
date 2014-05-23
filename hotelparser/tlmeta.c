@@ -423,7 +423,8 @@ static tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tl
 }
 
 static tlHandle process_set_field(tlHandle field, tlHandle value, tlHandle pos) {
-    return tlObjectFrom("target", tlNull, "args", tlListFrom2(field, value), "method", tlSYM("set"),
+    tlHandle f = tlObjectFrom("v", tlObjectFrom("type", tlSTR("string"), "data", field), null);
+    return tlObjectFrom("target", tlNull, "args", tlListFrom2(f, value), "method", tlSYM("set"),
             "type", tlSYM("method"), "pos", pos, null);
 }
 

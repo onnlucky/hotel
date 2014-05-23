@@ -302,7 +302,7 @@ compile = (code ->
             //return ["data", m.toMap]
             ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
         { term.type == "list" }:
-            elements = term.data.map(entry -> [emit(scope, entry)])
+            elements = try(term.data, []).map(entry -> [emit(scope, entry)])
             ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
         { }:
             print "ERROR"
