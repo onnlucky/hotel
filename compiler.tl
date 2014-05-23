@@ -209,20 +209,20 @@ compile = (code ->
     emittop = scope, term, inMethods ->
         { term.type == "function" }:
             scope = Scope(scope)
-            as = try(term.as) or []
+            as = try(term.as, [])
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
             return {{code, args}, locals = scope.locals.toList}
         { term.type == "class" }:
             scope = Scope(scope)
-            as = try(term.as) or []
+            as = try(term.as, [])
             scope.addarg("this")
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
             return {{code, args}, locals = scope.locals.toList}
         { term.type == "block" }:
             scope = Scope(scope)
-            as = try(term.as) or []
+            as = try(term.as, [])
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
             return {{code, args}, locals = scope.locals.toList}
@@ -261,7 +261,7 @@ compile = (code ->
             v = emit scope, term.value
             return v + ["store", local]
         { term.type == "call" }:
-            args = try(term.args) or []
+            args = try(term.args, [])
             fn = emit scope, term.target
             names = args.map: stm -> try(stm.n)
             args = args.map: stm -> emit scope, stm.v
@@ -276,7 +276,7 @@ compile = (code ->
             if names.filter.size > 0: return ["fcalln", args.size, {ns = names}] + fn + args + ["invoke"]
             ["fcall", args.size] + fn + args + ["invoke"]
         { term.type == "method" }:
-            args = try(term.args) or []
+            args = try(term.args, [])
             target = emit scope, term.target
             names = args.map: stm -> try(stm.n)
             args = args.map: stm -> emit scope, (stm.v or "null")
@@ -364,11 +364,11 @@ compile = (code ->
     }
 
     compilemain = main, function ->
-        name = try(main.name) or ""
-        locals = try(main.locals) or []
-        argspec = try(main.args) or []
-        text = try(main.text) or ""
-        pos = try(main.pos) or []
+        name = try(main.name, "")
+        locals = try(main.locals, [])
+        argspec = try(main.args, [])
+        text = try(main.text, "")
+        pos = try(main.pos, [])
 
         builder = builder_new(functions)
         builder.function(name, main.code, locals, argspec, {text=text,offset=0,pos=pos})

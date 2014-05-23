@@ -9,7 +9,7 @@ while ls.size > 0: ls.pop
 x = Var.new 10
 while $x > 0:
     $x -= 1
-    ls.insert(random(1000), "hello oeps");
+    ls.insert(random(1000), "hello oeps")
 
 ls.insert(1000, "auch")
 ls.insert(500, "hello")
@@ -18,7 +18,7 @@ ls.insert(3, "world")
 x = Var.new 10
 while $x > 0:
     $x -= 1
-    ls.remove(10 + $x * 5);
+    ls.remove(10 + $x * 5)
 
 assert ls.get(491) == "hello"
 assert ls.get(3) == "world"
