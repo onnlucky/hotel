@@ -165,9 +165,12 @@ mcallarg: v=mcall
   guards: guards=glist type=<guards>
 
   intro*: name
+ newvar*: "var" sp."$" name
   tovar*: "$" name
-  assign: tovar
-        | intro
+
+  assign: name=newvar type=<newvar>
+        | name=tovar type=<var>
+        | name=intro type=<local>
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
         | "!". body=stms type=<async>

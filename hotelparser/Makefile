@@ -5,7 +5,7 @@ tlmeta.tl: tlmeta.tlg
 	tlmeta tlmeta.tlg tlmeta.tl
 
 main: tlmeta.c hotelparser.c main.c
-	cc -std=c99 -g -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -lssl -lcrypto
+	cc -std=c99 -g -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -lssl -lcrypto -lz
 
 run: main
 	./main example.tl

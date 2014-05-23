@@ -248,18 +248,25 @@ compile = (code ->
         { term.type == "function" or term.type == "class" or term.type == "block" }:
             function = emittop scope, term, inMethods
             _, fn = functions.add {name = "-", open = false, function = function}
-            return ["bind", fn]
+            ["bind", fn]
         { term.type == "assign" }:
-            type = try(term.value.type)
-            if type == "function" or type == "class" or type == "block":
-                local, fn = scope.addOpen(term.to, term.value)
-                return ["bind", fn, "store", local]
-            local = scope.add(term.to)
-            if term.to == "methods" and type == "object":
-                v = emit scope, term.value, true
-                return v + ["store", local]
-            v = emit scope, term.value
-            return v + ["store", local]
+            { term.to.type == "local" }:
+                type = try(term.value.type)
+                if type == "function" or type == "class" or type == "block":
+                    local, fn = scope.addOpen(term.to.name, term.value)
+                    return ["bind", fn, "store", local]
+                local = scope.add(term.to.name)
+                v = emit scope, term.value
+                v + ["store", local]
+            { term.to.type == "newvar" }:
+                _var = scope.ref("Var")
+                local = scope.add(term.to.name)
+                v = emit scope, term.value
+                ["mcall", 1, _var, "data", "new"] + v + ["invoke", "store", local]
+            { term.to.type == "var"    }:
+                _ref = scope.ref(term.to.name)
+                v = emit scope, term.value
+                ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
         { term.type == "call" }:
             args = try(term.args, [])
             fn = emit scope, term.target
@@ -283,11 +290,20 @@ compile = (code ->
             if names.filter.size > 0: return ["mcalln", args.size, {ns = names}] + target + ["data", term.method] + args + ["invoke"]
             ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "op" }:
-            rhs = emit scope, term.rhs
             lhs = emit scope, term.lhs
-            ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
+            rhs = emit scope, term.rhs
+            ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
         { term.type == "ref" }:
             scope.ref(term.name)
+        { term.type == "varref" }:
+            _ref = scope.ref(term.name)
+            ["mcall", 0, _ref, "data", "get", "invoke"]
+        { term.type == "assignop" }:
+            _ref = scope.ref(term.to)
+            lhs = ["mcall", 0, _ref, "data", "get", "invoke"]
+            rhs = emit scope, term.value
+            v = ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
+            ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
         { term.type == "object" }:
             m = HashMap.new
             elements = term.data.map(entry ->
