@@ -141,7 +141,7 @@ innerqsort = list, smallerfn, b, e ->
 
 
 qsort = list, smallerfn ->
-    if isArray(list): inqsort(1, list.size); return list;
+    if isArray(list): inqsort(1, list.size); return list
     list = Array.new(list)
     innerqsort(list, smallerfn, 1, list.size)
     return list.toList
@@ -334,9 +334,9 @@ _errorConstructor = msg ->
     stack = Task.stacktrace(1)
     args.namesmap.set("stack", stack).set("msg", msg).set("class", this.class).toObject
 
-_install(Error, "call", _errorConstructor);
-_install(ArgumentError, "call", _errorConstructor);
-_install(UndefinedError, "call", _errorConstructor);
+_install(Error, "call", _errorConstructor)
+_install(ArgumentError, "call", _errorConstructor)
+_install(UndefinedError, "call", _errorConstructor)
 _install(Error, "class", {
     throw = -> throw this
     toString = ->
@@ -352,13 +352,13 @@ _install(Error, "class", {
 })
 
 inspect = x ->
-    toJSON = x, indent, buf, inlist -> (
+    toJSON = (x, indent, buf, inlist ->
         _match(isBool(x)): buf.write(x.toString); return false
         _match(not x): buf.write("null"); return false
         _match(isNumber(x)): buf.write(x.toString); return false
         _match(isSym(x)): buf.write("#"); buf.write(x.toString.escape); return false
         _match(isString(x)): buf.write("\""); buf.write(x.escape); buf.write("\""); return false
-        _match(isList(x)): (
+        _match(isList(x)):
             if x.size == 0: buf.write("[]"); return false
             if indent.size > 0: buf.write("\n")
             x.each: v ->
@@ -366,8 +366,7 @@ inspect = x ->
                 nl = toJSON(v, indent.cat(" "), buf, true)
                 if not nl: buf.write("\n")
             return true
-        )
-        _match(isObject(x)): (
+        _match(isObject(x)):
             keys = Map.keys(x)
             if keys.size == 0: buf.write("{}"); return false
             if (not inlist and indent.size > 0): buf.write("\n")
@@ -381,10 +380,8 @@ inspect = x ->
                 if not nl: buf.write("\n")
                 $first = false
             return true
-        )
-        _match(true): (
+        _match(true):
             buf.write("$x"); return false
-        )
         _nomatch()
     )
     buf = io.Buffer.new

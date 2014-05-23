@@ -138,6 +138,10 @@ writeCode = mod, c ->
     return bin(0b1110_0101, encodeInt(buf.size), buf)
 
 opname = op ->
+    { op == "or"  }: op
+    { op == "and" }: op
+    { op == "not" }: op
+
     { op == "==" }: return "eq"
     { op == "!=" }: return "neq"
 
