@@ -37,6 +37,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
     neg = MP_NEG;
   } else {
     neg = MP_ZPOS;
+    if (*str == '+') ++str;
   }
 
   /* set the integer to the default of zero */

@@ -66,14 +66,15 @@ mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
 
 // ---- FUNCTION DEFINITION ----
 
+    arrow: "->" | "=>"
     class: pos=pos "{".. as=fargs .."->"..@"a closing '}'" body=body .."}" type=<class>
  function: pos=pos "(".. as=fargs .."->"..@"a closing ')'" body=body ..")" type=<function>
          | pos=pos as=farg ."->".. body=bodynl                             type=<function>
          | pos=pos "->".. body=bodynl                                      type=<function>
          | block
-mfunction: pos=pos as=fargs ."->".. body=bodynl                                type=<function>
-    block: pos=pos ":".. as=fargs .."->".. body=bodynl                         type=<block>
-         | pos=pos ":".."("..as=fargs .."->"..@"a closing ')'" body=body ..")" type=<block>
+mfunction: pos=pos as=fargs .arrow.. body=bodynl                                type=<function>
+    block: pos=pos ":".. as=fargs ..arrow.. body=bodynl                         type=<block>
+         | pos=pos ":".."("..as=fargs ..arrow..@"a closing ')'" body=body ..")" type=<block>
          | pos=pos ":".. body=bodynl type=<block>
 
      type: "("."@". n=name ")" -> n
@@ -111,6 +112,8 @@ mcallarg: v=mcall
    fnarg: v=mfunction
      arg: n=name ."="!"=".@"a value" v=expr
         | v=expr
+    garg: v=expr
+    sarg: v=expr?
 
      met: "."
         | "::"
@@ -121,16 +124,16 @@ mcallarg: v=mcall
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail  -> process_method(o, m, args, t, pos)
         | pos=pos .".".. m=method ."="!"=".. @"a value" value=mexpr                -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                         -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos "[".. key=expr .."]" ."="!"=".. @"a value" value=mexpr           -> process_set(key, value, pos)
-        | pos=pos "[".. key=expr .."]" t=tail                                      -> process_get(key, t, pos)
-        | pos=pos "["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=tail      -> process_slice(from, to, t, pos)
+        | pos=pos "[".. key=garg .."]" ."="!"=".. @"a value" value=mexpr           -> process_set(key, value, pos)
+        | pos=pos "[".. key=garg .."]" t=tail                                      -> process_get(key, t, pos)
+        | pos=pos "["..@"a closing ']'" from=sarg?..":"..to=sarg?.."]" t=tail      -> process_slice(from, to, t, pos)
         | ""                                                                       -> tlNull
    mtail: pos=pos ."("..@"a closing ')'" args=args ..")" t=mtail                   -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=mtail -> process_method(o, m, args, t, pos)
         | pos=pos .o=met.. m=method " ". !met !"[" !"(" !":" args=margs &eostmb    -> process_method(o, m, args, tlNull, pos)
         | pos=pos .o=met.. m=method t=mtail                                        -> process_method(o, m, tlListEmpty(), t, pos)
-        | pos=pos "[".. key=expr .."]" t=mtail                                     -> process_get(key, t, pos)
-        | pos=pos "["..@"a closing ']'" from=expr?..":"..to=expr?.."]" t=mtail     -> process_slice(from, to, t, pos)
+        | pos=pos "[".. key=garg .."]" t=mtail                                     -> process_get(key, t, pos)
+        | pos=pos "["..@"a closing ']'" from=sarg?..":"..to=sarg?.."]" t=mtail     -> process_slice(from, to, t, pos)
         | pos=pos " ". !met !"(" !":" args=margs &eostmb                           -> process_call(args, tlNull, pos)
         | tail
     call: value=value t=tail                                                       -> process_tail(value, t)

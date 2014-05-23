@@ -50,12 +50,18 @@ encodeLiteral = v ->
 
 encodeInt = i ->
     assert i >= 0
-    if i < 1 << 7: return i
-    i2 = i - 1 << 7
-    if i2 < 1 << 13: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
-    i3 = i - 1 << 13
-    if i3 < 1 << 19: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7) & 0b0111_1111, i & 0b0111_1111)
+    if i >>  0 < 1 << 7: return i
+    if i >>  7 < 1 << 6: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
+    if i >> 13 < 1 << 6: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
+    if i >> 19 < 1 << 6: return bin(0b1000_0000 | i >> 19, 0b1000_0000 | (i >> 13 & 0b0011_1111),
+                                    0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
+    if i >> 25 < 1 << 6: return bin(0b1000_0000 | i >> 25, 0b1000_0000 | (i >> 19 & 0b0011_1111),
+                                    0b1000_0000 | (i >> 13 & 0b0011_1111), 0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
     assert false
+
+encodeFloat = f -> bin(0)
+
+encodeNumber = n -> bin(0)
 
 encodeString = s ->
     assert isString s
@@ -233,7 +239,11 @@ compile = (code ->
         { term == "null"  }: ["null"]
         { term == "false" }: ["false"]
         { term == "true"  }: ["true"]
-        { isNumber(term)  }: ["int", term]
+        { isNumber(term)  }:
+            { isFloat(term) }: ["data", term]
+            { term < 0      }: ["data", term]
+            { term > 2^25   }: ["data", term]
+            {               }: ["int", term]
         { term.type == "string" }: ["data", term.data]
         { term.type == "function" or term.type == "class" or term.type == "block" }:
             function = emittop scope, term, inMethods
@@ -269,7 +279,7 @@ compile = (code ->
             args = try(term.args) or []
             target = emit scope, term.target
             names = args.map: stm -> try(stm.n)
-            args = args.map: stm -> emit scope, stm.v
+            args = args.map: stm -> emit scope, (stm.v or "null")
             if names.filter.size > 0: return ["mcalln", args.size, {ns = names}] + target + ["data", term.method] + args + ["invoke"]
             ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "op" }:
@@ -321,6 +331,8 @@ compile = (code ->
             bin = { isList(v)   }: encodeList v.map(v -> this.data v)
                   { isObject(v) }: encodeMap Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten
                   { isString(v) }: encodeString v
+                  { isFloat(v)  }: encodeFloat v
+                  { isNumber(v) }: encodeNumber v
             _, at = this.datas.add bin
             print "data", at, repr(v)
             this.dataIndex[v] = encodeInt(at - 1)

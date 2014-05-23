@@ -179,23 +179,23 @@ static tlHandle _gte(tlArgs* args) {
 // shift operators
 static tlHandle _band(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) & tl_int(r));
-    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) & tl_int(r));
+    TL_THROW("'&' not implemented for: %s & %s", tl_str(l), tl_str(r));
 }
 static tlHandle _bor(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) | tl_int(r));
-    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) | tl_int(r));
+    TL_THROW("'|' not implemented for: %s | %s", tl_str(l), tl_str(r));
 }
 static tlHandle _lshift(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) << tl_int(r));
-    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) << tl_int(r));
+    TL_THROW("'<<' not implemented for: %s << %s", tl_str(l), tl_str(r));
 }
 static tlHandle _rshift(tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlINT(tl_int(l) >> tl_int(r));
-    TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) >> tl_int(r));
+    TL_THROW("'>>' not implemented for: %s >> %s", tl_str(l), tl_str(r));
 }
 
 // int/float

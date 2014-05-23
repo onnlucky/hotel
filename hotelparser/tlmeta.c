@@ -369,11 +369,14 @@ static tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
         }
     }
     if (frac) {
+        double n = 0;
+        double d = 1;
         tlList* l = tlListAs(frac);
         for (int i = 0; i < tlListSize(l); i++) {
-            // TODO hu? how do you do this again?
-            //res = res * radix + digitFromChar((int)tl_int(tlListGet(l, i)), radix);
+            n = n * radix + digitFromChar((int)tl_int(tlListGet(l, i)), radix);
+            d *= radix;
         }
+        res += n / d;
     }
     res *= tl_int(s);
     return tlFLOAT(res);
@@ -383,11 +386,12 @@ static tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
 static tlHandle Number(tlHandle s, tlHandle whole, int radix) {
     tlList* l = tlListAs(whole);
     int n = tlListSize(l);
-    char buf[n + 1];
+    char buf[n + 2];
+    buf[0] = (tl_int(s) < 0)? '-' : '+';
     for (int i = 0; i < n; i++) {
-        buf[i] = tl_int(tlListGet(l, i));
+        buf[i + 1] = tl_int(tlListGet(l, i));
     }
-    buf[n] = 0;
+    buf[n + 1] = 0;
     return tlPARSENUM(buf, radix);
 }
 

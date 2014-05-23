@@ -344,7 +344,7 @@ static int dreadsize(const uint8_t** code2) {
     while (true) {
         uint8_t b = *code; code++;
         if (b < 0x80) { *code2 = code; return (res << 7) | b; }
-        res = res << 6 | (b & 0x3F);
+        res = (res << 6) | (b & 0x3F);
     }
 }
 static inline int pcreadsize(const uint8_t* ops, int* pc) {
@@ -352,7 +352,7 @@ static inline int pcreadsize(const uint8_t* ops, int* pc) {
     while (true) {
         uint8_t b = ops[(*pc)++];
         if (b < 0x80) { return (res << 7) | b; }
-        res = res << 6 | (b & 0x3F);
+        res = (res << 6) | (b & 0x3F);
     }
 }
 static tlHandle dreadref(const uint8_t** code, const tlList* data) {
@@ -743,7 +743,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_UNDEF: break;
             case OP_INT: dreadsize(&code); break;
             case OP_SYSTEM: dreadsize(&code); break;
-            case OP_MODULE: dreadsize(&code); break;
+            case OP_MODULE: dreadref(&code, data); break;
             case OP_GLOBAL: dreadsize(&code); break;
             case OP_ENV:
                 parent = dreadsize(&code);
