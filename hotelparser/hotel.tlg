@@ -154,7 +154,7 @@ mcallarg: v=mcall
      mul: l=pow rs=(..pos=pos op=("*"|"//"|"/"|"%").. r=mul)?                    -> process_expr(l, rs)
      pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
-        | "("..@"a closing ')'" body=body ..")" type=<scope>
+        //| "("..@"a closing ')'" body=body ..")" type=<scope>
         | call
 
 // ---- STATEMENTS ----

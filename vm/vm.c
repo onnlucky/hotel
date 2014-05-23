@@ -625,6 +625,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "_module_link", _module_link },
     { "__list", __list },
     { "__map", __map },
+    { "__object", __object },
     { "return", __return },
 
     { 0, 0 },

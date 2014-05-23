@@ -935,7 +935,7 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
 
 static tlHandle bmethodResolve(tlHandle target, tlSym method) {
     print("resolve method: %s.%s", tl_str(target), tl_str(method));
-    if (tlMapOrObjectIs(target)) return mapResolve(target, method);
+    if (tlHandleObjectIs(target)) return mapResolve(target, method);
     tlKind* kind = tl_kind(target);
     if (kind->send) return tlBSendTokenNew(method);
     if (kind->klass) return mapResolve(kind->klass, method);
@@ -1330,6 +1330,15 @@ INTERNAL tlHandle __list(tlArgs* args) {
         list = tlListAppend(list, tlArgsGet(args, i));
     }
     return list;
+}
+
+INTERNAL tlHandle __object(tlArgs* args) {
+    // TODO make faster ;)
+    tlMap* map = tlMapEmpty();
+    for (int i = 0; i < tlArgsSize(args); i += 2) {
+        map = tlMapSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+    }
+    return tlMapToObject_(map);
 }
 
 INTERNAL tlHandle __map(tlArgs* args) {

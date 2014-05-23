@@ -212,20 +212,26 @@ compile = (code ->
             as = try(term.as, [])
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
-            return {{code, args}, locals = scope.locals.toList}
+            {{code, args}, locals = scope.locals.toList}
         { term.type == "class" }:
             scope = Scope(scope)
             as = try(term.as, [])
             scope.addarg("this")
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
-            return {{code, args}, locals = scope.locals.toList}
+            {{code, args}, locals = scope.locals.toList}
         { term.type == "block" }:
             scope = Scope(scope)
             as = try(term.as, [])
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
             code = term.body.map(stm -> emit scope, stm).flatten
-            return {{code, args}, locals = scope.locals.toList}
+            {{code, args}, locals = scope.locals.toList}
+        { term.type == "scope" }:
+            scope = Scope(scope)
+            as = try(term.as, [])
+            args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            code = term.body.map(stm -> emit scope, stm).flatten
+            {{code, args}, locals = scope.locals.toList}
 
     whenPrimitive = v ->
         { isNumber(v) }: v
@@ -245,6 +251,10 @@ compile = (code ->
             { term > 2^25   }: ["data", term]
             {               }: ["int", term]
         { term.type == "string" }: ["data", term.data]
+        { term.type == "scope" }:
+            function = emittop scope, term, inMethods
+            _, fn = functions.add {name = "-", open = false, function = function}
+            ["fcall", 0, "bind", fn, "invoke"]
         { term.type == "function" or term.type == "class" or term.type == "block" }:
             function = emittop scope, term, inMethods
             _, fn = functions.add {name = "-", open = false, function = function}
@@ -305,21 +315,14 @@ compile = (code ->
             v = ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
             ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
         { term.type == "object" }:
-            m = HashMap.new
-            elements = term.data.map(entry ->
-                if try(entry.v.type) == "function":
-                    function = emittop scope, entry.v, inMethods
-                    _, fn = functions.add {name = entry.n, open = false, function = function}
-                    return ["data", entry.n, "bind", fn]
-                //scope.add(entry.n)
-                m[entry.n] = whenPrimitive(entry.v)
-                ["data", entry.n, emit(scope, entry.v, inMethods)]
-            )
-            //return ["data", m.toMap]
-            ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
+            elements = term.data.map(entry -> ["data", entry.n, emit(scope, entry.v, inMethods)])
+            ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
         { term.type == "list" }:
             elements = try(term.data, []).map(entry -> [emit(scope, entry)])
             ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
+        { term.type == "map" }:
+            elements = try(term.data, []).map(entry -> ["data", entry.n, emit(scope, entry.v, inMethods)])
+            ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
         { }:
             print "ERROR"
             print repr(term)
