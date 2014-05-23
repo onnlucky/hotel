@@ -31,8 +31,8 @@ max = l, r ->
     if l >= r: return l
     return r
 
-try = &test ->
-    catch: return null
+try = &test, &otherwise ->
+    catch: return otherwise()
     if args.block: return args.block.call
     test()
 

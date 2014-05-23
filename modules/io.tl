@@ -217,6 +217,11 @@ Path = {
             if not _var_get(this._stat): _var_set(this._stat, _Path_stat(this.name))
             _var_get(this._stat)
         )
+        each = (fn ->
+            block = (args.block) or fn
+            if not block: throw "each expects a block or fn"
+            _Dir_open(this.name).each(block=block)
+        )
         exists = -> this.stat.ino != 0
         mtime = -> this.stat.mtime
         atime = -> this.stat.atime
