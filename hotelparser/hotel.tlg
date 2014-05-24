@@ -168,17 +168,17 @@ mcallarg: v=mcall
  newvar*: "var" sp."$" name
   tovar*: "$" name
 
-  assign: name=newvar type=<newvar>
-        | name=tovar type=<var>
-        | name=intro type=<local>
+  assign: pos=pos name=newvar type=<newvar>
+        | pos=pos name=tovar type=<var>
+        | pos=pos name=intro type=<local>
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
         | "!". body=stms type=<async>
         | e=mbcall &eostm                                                    -> e
         | expr
      stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
-        | pos=pos to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
-        | multi=(pos=pos to=assign)+(.","..) .."="!"=".. @"a value" stms=stms type=<multiassign>
+        | to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
+        | multi=(assign)+(.","..) .."="!"=".. @"a value" value=mexpr &endstm type=<multiassign>
         | e=mexpr &endstm                                                    -> e
 
    stms*: t=stm ts=(.";".@"a statement after ';'" stm)* -> prepend(ts, t)

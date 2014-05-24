@@ -1167,7 +1167,7 @@ again:;
         case OP_STORE:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            (*locals)[at] = v;
+            (*locals)[at] = tlFirst(v);
             trace("store %d <- %s", at, tl_str(v));
             break;
         case OP_RSTORE: {

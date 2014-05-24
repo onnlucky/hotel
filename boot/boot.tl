@@ -58,7 +58,7 @@ _map = fn ->
     res = _List_unsafe(size)
     loop = at =>
         if at > size: return res
-        _list_set_(res, at, block(this[at]))
+        _list_set_(res, at, block(this[at], at))
         goto(loop(at + 1))
     loop(1)
 

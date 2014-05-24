@@ -281,6 +281,26 @@ compile = (code ->
                 _ref = scope.ref(term.to.name)
                 v = emit scope, term.value
                 ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
+        { term.type == "multiassign" }:
+            v = emit scope, term.value
+            locals = term.multi.map: to ->
+                { to.type == "local" }: scope.add(to.name)
+                {                    }: scope.add("-")
+            stores = locals.map(l, n -> ["rstore", n - 1, l]).flatten
+            posts = locals.map(l, n ->
+                print l, n, term.multi[n]
+                to = term.multi[n]
+                { to.type == "local" }: []
+                { to.type == "newvar" }:
+                    _var = scope.ref("Var")
+                    local = scope.add(to.name)
+                    _var = scope.ref("Var")
+                    ["mcall", 1, _var, "data", "new", "local", l, "invoke", "store", local]
+                { to.type == "var" }:
+                    _ref = scope.ref(to.name)
+                    ["mcall", 1, _ref, "data", "set", "local", l, "invoke"]
+            ).flatten
+            v + stores + posts
         { term.type == "call" }:
             args = try(term.args, [])
             fn = emit scope, term.target
