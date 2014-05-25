@@ -38,6 +38,12 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
    text*: data=text2 type=<string>
         | "\"" @"a closing '\"'" data=(embed|stext)* "\"" type=<string>
 
+    chr*: "'\\r'"       -> tlCHAR('\r')
+        | "'\\n'"       -> tlCHAR('\n')
+        | "'\\t'"       -> tlCHAR('\t')
+        | "'\\\\'"      -> tlCHAR('\\')
+        | "'" l=_ "'"   -> tlCHAR(tl_int(l))
+
 // ---- NUMBERS ----
 
     sign: "-"                      -> tlINT(-1)
@@ -57,8 +63,9 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
    items: i=item is=(eov.. item)*                             -> prepend(is, i)
 mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     key*: name
-    item: n=key .@"a '='" "="..@"a value" v=mexpr
-        | "{".. names=key+(eov ..) .."}"
+    dkey: pos=pos name=name type=<ref>
+    item: "{"..@"a closing '}'" names=dkey+(eov ..) .."}"
+        | n=key .@"a '='" "="..@"a value" v=mexpr
 
     list: "[".. data=litems @"a closing ']'" .."]" type=<list>
         | "["..@"a closing ']'" "]"                type=<list>
@@ -98,7 +105,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | map
         | list
         | "("..@"a closing ')'" body=body ..")" type=<scope>
-        | num | text
+        | num | chr | text
         | literal
         | varref
         | ref
@@ -146,7 +153,7 @@ mcallarg: v=mcall
         | e=logical &eoexpr                                                      -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
-     not: pos=pos type="not".. r=not | compare
+     not: pos=pos type="not".. rhs=not | compare
  compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=compare)? -> process_expr(l, rs)
  bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=bitwise)?                       -> process_expr(l, rs)
    shift: l=add rs=(..pos=pos op=("<<"|">>").. r=shift)?                         -> process_expr(l, rs)
@@ -159,8 +166,9 @@ mcallarg: v=mcall
 
 // ---- STATEMENTS ----
 
-   guard: "{".. cond=expr .."}".":".. body=bodynl
-        | "{"..             "}".":".. body=bodynl
+// we do not allow { object }: because {{ key }} -> { key=key }
+   guard: "{".. !"{" cond=expr .."}".":".. body=bodynl
+        | "{"..                  "}".":".. body=bodynl
    glist: g=guard gs=(.. indent guard)*           -> prepend(gs, g)
   guards: guards=glist type=<guards>
 
@@ -173,7 +181,7 @@ mcallarg: v=mcall
         | pos=pos name=intro type=<local>
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
-        | "!". body=stms type=<async>
+        | "!". rhs=mbcall &eostm type=<async>
         | e=mbcall &eostm                                                    -> e
         | expr
      stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>

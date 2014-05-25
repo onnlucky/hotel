@@ -254,6 +254,7 @@ compile = (code ->
             { term < 0      }: ["data", term]
             { term > 2^25   }: ["data", term]
             {               }: ["int", term]
+        { isChar(term)      }: ["int", term.toNumber] // TODO add "char"
         { term.type == "string" }: ["data", term.data]
         { term.type == "scope" }:
             function = emittop scope, term, inMethods
@@ -323,7 +324,13 @@ compile = (code ->
             args = args.map: stm -> emit scope, (stm.v or "null")
             if names.filter.size > 0: return ["mcalln", args.size, {ns = names}] + target + ["data", term.method] + args + ["invoke"]
             ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
-        { term.type == "op" }:
+        { term.type == "async" }:
+            rhs = emit scope, term.rhs
+            ["fcall", 1, "global", "_Task_new", rhs, "invoke"]
+        { term.type == "not" }:
+            rhs = emit scope, term.rhs
+            ["fcall", 1, "global", "not", rhs, "invoke"]
+        { term.type == "op"  }:
             lhs = emit scope, term.lhs
             rhs = emit scope, term.rhs
             ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
@@ -339,7 +346,10 @@ compile = (code ->
             v = ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
             ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
         { term.type == "object" }:
-            elements = term.data.map(entry -> ["data", entry.n, emit(scope, entry.v, inMethods)])
+            elements = term.data.map(entry ->
+                { try(entry.n) }: ["data", entry.n, emit(scope, entry.v, inMethods)]
+                {              }: entry.names.map(term -> ["data", term.name, emit(scope, term)]).flatten
+            )
             ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
         { term.type == "list" }:
             elements = try(term.data, []).map(entry -> [emit(scope, entry)])

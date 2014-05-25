@@ -34,9 +34,9 @@ rule_end = in, nr ->
 pText = in, nr, text ->
     trace(in, " >>  TRY \"$(text.escape)\"")
     if in.text.startsWith(text, in.pos):
-        trace(in, " << !OK!");
+        trace(in, " << !OK!")
         return advance(in, text.size), text
-    trace(in, " << FAIL");
+    trace(in, " << FAIL")
     error(in, nr, text)
 
 pChar = in, nr, text ->
@@ -75,7 +75,7 @@ _pmany = in, parser, res ->
     catch: e =>
         if try(e.t) != "p": throw e
         if try(e.noreturn): throw e
-        trace2(in, " << pStar|pPlus");
+        trace2(in, " << pStar|pPlus")
         return in, res
     in, v = parser(in)
     goto _pmany(in, parser, res.add(v))
@@ -135,12 +135,12 @@ lineFromPos = text, pos ->
 _tllookup = oop, name, pos ->
     hit = oop._cache["$name-$pos"]
     if hit:
-        //print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'";
+        //print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'"
         return hit
     return
 
 _tlcache = oop, name, pos, in, v ->
-    //print "CACHE: $name $pos -> $(in.pos) '$v'";
+    //print "CACHE: $name $pos -> $(in.pos) '$v'"
     oop._cache.set("$name-$pos", {in = in, v = v})
     return in, v
 
