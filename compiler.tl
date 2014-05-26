@@ -109,7 +109,7 @@ writeCode = mod, c ->
             buf.write 0b1100_0000 + 6
             buf.write mod.data(c.code[($pc += 1)])
         { op == "global" }: // a reference to the linked list (a string)
-            buf.write 0b1100_0000 + 7;
+            buf.write 0b1100_0000 + 7
             buf.write mod.global(c.code[($pc += 1)])
         { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
             buf.write 0b1100_0000 + 12

@@ -49,10 +49,14 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
     sign: "-"                      -> tlINT(-1)
         | "+"                      -> tlINT(1)
         | ""                       -> tlINT(1)
-    comp: n=([0123456789]+)+("_"+) !"_" -> flatten(n)
-    num*: s=sign w=comp "." f=comp -> Float(s, w, f, 10)
-        | s=sign        "." f=comp -> Float(s, null, f, 10)
-        | s=sign w=comp            -> Number(s, w, 10)
+    binn: n=([01]+)+("_"+) !"_" -> flatten(n)
+    hexn: n=([0123456789ABCDEFGabcdefg]+)+("_"+) !"_" -> flatten(n)
+    decn: n=([0123456789]+)+("_"+) !"_" -> flatten(n)
+    num*: "0x" w=hexn              -> Number(null, w, 16)
+        | "0b" w=binn              -> Number(null, w, 2)
+        | s=sign w=decn "." f=decn -> Float(s, w, f, 10)
+        | s=sign        "." f=decn -> Float(s, null, f, 10)
+        | s=sign w=decn            -> Number(s, w, 10)
 
 // ---- OBJECT, MAP AND LIST ----
 

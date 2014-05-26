@@ -391,7 +391,7 @@ static tlHandle Number(tlHandle s, tlHandle whole, int radix) {
     tlList* l = tlListAs(whole);
     int n = tlListSize(l);
     char buf[n + 2];
-    buf[0] = (tl_int(s) < 0)? '-' : '+';
+    buf[0] = (s && tl_int(s) < 0)? '-' : '+';
     for (int i = 0; i < n; i++) {
         buf[i + 1] = tl_int(tlListGet(l, i));
     }
