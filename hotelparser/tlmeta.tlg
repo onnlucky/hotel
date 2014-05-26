@@ -50,7 +50,9 @@ slcomment: "//" (!nl _)*
         | t=char                          -> { type= "prim", target= "char", text= t }
         | "pos" !alpha !"_" !":" !"*:"    -> { type= "prim", target= "pos" }
         | "setindent" !alpha !"_" !":" !"*:" -> { type= "setindent" }
-        | "indent" !alpha !"_" !":" !"*:" -> { type= "indent" }
+        | "addindent" !alpha !"_" !":" !"*:" -> { type= "addindent" }
+        | "CI" !alpha !"_" !":" !"*:"        -> { type= "resetindent" }
+        | "indent" !alpha !"_" !":" !"*:"    -> { type= "indent" }
         | n=name !"_" !":" !"*:"          -> { type= "call", target= n }
     post: "!" @"a term" t=term            -> { type= "not", term= t }
         | "&" @"a term" t=term            -> { type= "ahead", term= t }
@@ -82,7 +84,7 @@ slcomment: "//" (!nl _)*
           a=_*                            -> { before= b.toChar, after= a.toChar, rules= p.rs, name= p.n }
 }
 
-forbidden = [pos=true,setindent=true,indent=true]
+forbidden = [pos=true,setindent=true,addindent=true,CI=true,indent=true]
 rules = HashMap.new
 subs = Array.new
 colors = Array.new
@@ -125,7 +127,9 @@ to_call = t, name ->
     { t.type == "prim"    }: t
     { t.type == "anchor"  }: t
     { t.type == "indent"  }: t
+    { t.type == "addindent" }: t
     { t.type == "setindent" }: t
+    { t.type == "resetindent" }: t
     { }: throw "ERROR to call:"+ inspect(t)
 
 to_sub = t, name, rule, number ->
@@ -202,18 +206,35 @@ emit_rule = rule ->
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "and" }:
         anchor = Var.new
-        indent = Var.new // TODO while we can stack indent, we cannot deal with parser_fail, so it shouldn't, also, setindent must be deeper
+        indent = Var.new
         names = Array.new
         lines.add " State _r;"
         rule.terms.each: term ->
-            if term.type == "setindent":
+            if term.type == "resetindent":
+                lines.add " const int __indent = 0; //parser_indent(_p, _pos);"
+                //lines.add " print(\"resetindent: %d from: %d\", __indent, _p->indent);"
+                lines.add " const int _indent = _p->indent; _p->indent = __indent;"
+                $indent = true
+                return
+            if term.type == "addindent":
                 lines.add " const int __indent = parser_indent(_p, _pos);"
+                //lines.add " print(\"addindent?: %d from: %d\", __indent, _p->indent);"
                 lines.add " if (_p->indent >= __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
                 lines.add " const int _indent = _p->indent; _p->indent = __indent;"
                 $indent = true
                 return
+            if term.type == "setindent":
+                lines.add " const int __indent = parser_indent(_p, _pos);"
+                //lines.add " print(\"setindent?: %d from: %d\", __indent, _p->indent);"
+                lines.add " if (_p->indent > __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                lines.add " const int _indent = _p->indent; _p->indent = __indent;"
+                $indent = true
+                return
             if term.type == "indent":
-                lines.add " if (_p->indent != parser_indent(_p, _pos)) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                restore = { $indent }: "_p->indent = _indent; "
+                          {         }: ""
+                //lines.add " print(\"checking indent: %d (current: %d)\", parser_indent(_p, _pos), _p->indent);"
+                lines.add " if (_p->indent != parser_indent(_p, _pos)) { $(restore)return parser_fail(_p, \"$(rule.name)\", _pos); }"
                 return
             if term.type == "anchor":
                 { not $anchor }: lines.add " const char* _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
@@ -221,10 +242,12 @@ emit_rule = rule ->
                 $anchor = true
                 return
             lines.add " _r = "+ emit(term)
+            restore = { $indent }: "_p->indent = _indent; "
+                      {         }: ""
             if not $anchor:
-                lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _pos);"
+                lines.add " if (!_r.ok) { $(restore)return parser_fail(_p, \"$(rule.name)\", _pos); }"
             if $anchor:
-                lines.add " if (!_r.ok) return parser_error(_p, \"$(rule.name)\", _start, _pos);"
+                lines.add " if (!_r.ok) { $(restore)return parser_error(_p, \"$(rule.name)\", _start, _pos); }"
             lines.add " _pos = _r.pos;"
             if not no_value and term.type == "name":
                 names.add term.name

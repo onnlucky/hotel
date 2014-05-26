@@ -56,10 +56,10 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{".. data=items @"a closing '}'" .."}" type=<object>
-        | "{"..@"a closing '}'" "}"               type=<object>
-     map: "[".. data=mapitems @"a closing ']'" .."]" type=<map>
-        | "[".."=" @"a closing ']'" .."]"         type=<map>
+  object: "{".. CI data=items @"a closing '}'" .."}"    type=<object>
+        | "{"..@"a closing '}'" "}"                     type=<object>
+     map: "[".. CI data=mapitems @"a closing ']'" .."]" type=<map>
+        | "[".."=" @"a closing ']'" .."]"               type=<map>
    items: i=item is=(eov.. item)*                             -> prepend(is, i)
 mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     key*: name
@@ -67,8 +67,8 @@ mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     item: "{"..@"a closing '}'" names=dkey+(eov ..) .."}"
         | n=key .@"a '='" "="..@"a value" v=mexpr
 
-    list: "[".. data=litems @"a closing ']'" .."]" type=<list>
-        | "["..@"a closing ']'" "]"                type=<list>
+    list: "[".. CI data=litems @"a closing ']'" .."]" type=<list>
+        | "["..@"a closing ']'" "]"                   type=<list>
   litems: i=mexpr !"=" is=(eov.. mexpr)*          -> prepend(is, i)
 
 // ---- FUNCTION DEFINITION ----
@@ -128,16 +128,16 @@ mcallarg: v=mcall
         | m="?" &(.. first) -> m
         | m="!" &(.. first) -> m
  method*: name
-    tail: pos=pos ."("..@"a closing ')'" args=args ..")" t=tail                    -> process_call(args, t, pos)
-        | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=tail  -> process_method(o, m, args, t, pos)
+    tail: pos=pos ."(".. @"a closing ')'" CI args=args ..")" t=tail                  -> process_call(args, t, pos)
+        | pos=pos .o=met.. m=method ."("..@"a closing ')'" CI args=args ..")" t=tail -> process_method(o, m, args, t, pos)
         | pos=pos .".".. m=method ."="!"=".. @"a value" value=setarg               -> process_set_field(m, value, pos)
         | pos=pos .o=met..@"a method call" m=method t=tail                         -> process_method(o, m, tlListEmpty(), t, pos)
         | pos=pos "[".. key=garg .."]" ."="!"=".. @"a value" value=setarg          -> process_set(key, value, pos)
         | pos=pos "[".. key=garg .."]" t=tail                                      -> process_get(key, t, pos)
         | pos=pos "["..@"a closing ']'" from=sarg?..":"..to=sarg?.."]" t=tail      -> process_slice(from, to, t, pos)
         | ""                                                                       -> tlNull
-   mtail: pos=pos ."("..@"a closing ')'" args=args ..")" t=mtail                   -> process_call(args, t, pos)
-        | pos=pos .o=met.. m=method ."("..@"a closing ')'" args=args ..")" t=mtail -> process_method(o, m, args, t, pos)
+   mtail: pos=pos ."("..@"a closing ')'" CI args=args ..")" t=mtail                   -> process_call(args, t, pos)
+        | pos=pos .o=met.. m=method ."("..@"a closing ')'" CI args=args ..")" t=mtail -> process_method(o, m, args, t, pos)
         | pos=pos .o=met.. m=method " ". !met !"[" !"(" !":" args=margs &eostmb    -> process_method(o, m, args, tlNull, pos)
         | pos=pos .o=met.. m=method t=mtail                                        -> process_method(o, m, tlListEmpty(), t, pos)
         | pos=pos "[".. key=garg .."]" t=mtail                                     -> process_get(key, t, pos)
@@ -148,7 +148,7 @@ mcallarg: v=mcall
    mcall: pos=pos value=value t=mtail                                              -> process_add_block(process_tail(value, t), tlNull, pos)
   mbcall: pos=pos value=value t=mtail block=block?                                 -> process_add_block(process_tail(value, t), block, pos)
 
-      op: "+" | "-" | "*" | "//" | "/" | "%" | "^"
+      op: "+" | "-" | "*" | "//" | "/" | "%" | "^" | "|" | "&"
     expr: "!". body=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
@@ -169,7 +169,7 @@ mcallarg: v=mcall
 // we do not allow { object }: because {{ key }} -> { key=key }
    guard: "{".. !"{" cond=expr .."}".":".. body=bodynl
         | "{"..                  "}".":".. body=bodynl
-   glist: g=guard gs=(.. indent guard)*           -> prepend(gs, g)
+   glist: setindent g=guard gs=(.. indent guard)*           -> prepend(gs, g)
   guards: guards=glist type=<guards>
 
   intro*: name
@@ -194,10 +194,10 @@ mcallarg: v=mcall
 
 // ---- BLOCKS ----
 
-   body*: ts=stms tss=(.. stms)*                        -> flatten(prepend(tss, ts))
-        | ""                                            -> tlListEmpty()
+   body*: CI ts=stms tss=(.. stms)*            -> flatten(prepend(tss, ts))
+        | ""                                   -> tlListEmpty()
 
- bodynl*: setindent ts=stms tss=(.. indent !end mstms)* -> flatten(prepend(tss, ts))
+ bodynl*: addindent ts=stms tss=(.. indent !end mstms)* -> flatten(prepend(tss, ts))
         | ""                                            -> tlListEmpty()
 
 hashbang: "#!" (!nl _)*

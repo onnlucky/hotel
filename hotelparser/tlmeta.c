@@ -99,7 +99,7 @@ typedef State(Rule)(Parser*,int);
 
 static State parser_enter(Parser* p, const char* name, int pos) {
     if (!p->in_peek) p->last_rule = name;
-    //print(">> enter: %s %d", name, pos);
+    //print(">> enter: %s %d '%c'", name, pos, p->input[pos]);
     return (State){};
 }
 static void parser_line_char(Parser* p, int pos, int* pline, int* pchar) {
