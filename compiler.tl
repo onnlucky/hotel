@@ -314,8 +314,8 @@ compile = (code ->
                 args = args.add ["bind", blk]
                 print repr names
                 print repr args
-                return ["fcalln", args.size, {ns = names}] + fn + args + ["invoke"]
-            if names.filter.size > 0: return ["fcalln", args.size, {ns = names}] + fn + args + ["invoke"]
+                return ["fcalln", args.size, {ns=names}] + fn + args + ["invoke"]
+            if names.filter.size > 0: return ["fcalln", args.size, {ns=names}] + fn + args + ["invoke"]
             ["fcall", args.size] + fn + args + ["invoke"]
         { term.type == "method" }:
             args = try(term.args, [])
@@ -357,6 +357,18 @@ compile = (code ->
         { term.type == "map" }:
             elements = try(term.data, []).map(entry -> ["data", entry.n, emit(scope, entry.v, inMethods)])
             ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
+        { term.type == "guards" }:
+            print repr term
+            gs = term.guards.map(guard ->
+                function = emittop scope, {type="block", body=guard.body}
+                _, fn = functions.add {name="-", open=false, function=function}
+                ns = {ns=[null,"block"]}
+                cond = emit(scope, try(guard.cond, "true"))
+                ["fcalln", 2, ns, "global", "_match", cond, "bind", fn, "invoke"].flatten
+            )
+            function = {code=(gs + ["fcall", 0, "global", "_nomatch", "invoke"]).flatten, args=[], locals=[]}
+            _, fn = functions.add {name="-", open=false, function=function}
+            ["fcall", 0, "bind", fn, "invoke"]
         { }:
             print "ERROR"
             print repr(term)

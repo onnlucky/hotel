@@ -34,7 +34,7 @@ INTERNAL tlHandle _continue(tlArgs* args) {
 INTERNAL tlHandle resumeMatch(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     frame = frame->caller; // our parent codeblock; we wish to unwind that one too ...
-    assert(tlCodeFrameIs(frame));
+    assert(tlCodeFrameIs(frame) || tlBFrameIs(frame));
     // save to use set stack, because no user frames are unwound
     return tlTaskSetStack(frame->caller, res);
 }
