@@ -358,7 +358,7 @@ compile = (code ->
             elements = try(term.data, []).map(entry -> ["data", entry.n, emit(scope, entry.v, inMethods)])
             ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
         { term.type == "guards" }:
-            print repr term
+            scope = Scope(scope)
             gs = term.guards.map(guard ->
                 function = emittop scope, {type="block", body=guard.body}
                 _, fn = functions.add {name="-", open=false, function=function}
