@@ -256,6 +256,12 @@ compile = (code ->
             {               }: ["int", term]
         { isChar(term)      }: ["int", term.toNumber] // TODO add "char"
         { term.type == "string" }: ["data", term.data]
+        { term.type == "stringlist" }:
+            strs = term.data.map(s ->
+                { isString(s) }: ["data", s]
+                {             }: emit(scope, s)
+            )
+            ["fcall", strs.size, "global", "_String_cat", strs, "invoke"].flatten
         { term.type == "scope" }:
             function = emittop scope, term, inMethods
             _, fn = functions.add {name = "-", open = false, function = function}
@@ -346,7 +352,7 @@ compile = (code ->
             v = ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
             ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
         { term.type == "object" }:
-            elements = term.data.map(entry ->
+            elements = try(term.data, []).map(entry ->
                 { try(entry.n) }: ["data", entry.n, emit(scope, entry.v, inMethods)]
                 {              }: entry.names.map(term -> ["data", term.name, emit(scope, term)]).flatten
             )

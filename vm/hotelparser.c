@@ -492,7 +492,7 @@ static State r_shift(Parser* _p, int _start) { // and
 static State r_stext_13_13_13(Parser* _p, int _start) { // and
  parser_enter(_p, "r_stext_13_13_13", _start);
  int _pos = _start;
- State _r = prim_text(_p, _pos, "%");
+ State _r = prim_text(_p, _pos, "$");
  if (_r.ok) return parser_pass(_p, "r_stext_13_13_13", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_stext_13_13_13");*/ return _r; }
  return parser_fail(_p, "r_stext_13_13_13", _start);
@@ -648,7 +648,7 @@ static State r_embed_24(Parser* _p, int _start) { // and
  parser_enter(_p, "r_embed_24", _start);
  int _pos = _start;
  State _r;
- _r = prim_text(_p, _pos, "%(");
+ _r = prim_text(_p, _pos, "$(");
  if (!_r.ok) { return parser_fail(_p, "r_embed_24", _pos); }
  _pos = _r.pos;
  _r = r_wsnl(_p, _pos);
@@ -675,7 +675,7 @@ static State r_embed_25(Parser* _p, int _start) { // and
  parser_enter(_p, "r_embed_25", _start);
  int _pos = _start;
  State _r;
- _r = prim_text(_p, _pos, "%");
+ _r = prim_text(_p, _pos, "$");
  if (!_r.ok) { return parser_fail(_p, "r_embed_25", _pos); }
  _pos = _r.pos;
  _r = r_ref(_p, _pos);
@@ -689,7 +689,7 @@ static State r_embed(Parser* _p, int _start) { // or
  parser_enter(_p, "r_embed", _start);
  int _pos = _start;
  State _r;
- _r = prim_text(_p, _pos, "%%");
+ _r = prim_text(_p, _pos, "$$");
  if (_r.ok) return parser_pass(_p, "r_embed", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_embed");*/ return _r; }
  _r = r_embed_24(_p, _pos);
@@ -5166,7 +5166,7 @@ static State r_text_287(Parser* _p, int _start) { // and
  _r = prim_text(_p, _pos, "\"");
  if (!_r.ok) { return parser_error(_p, "r_text_287", _start, _pos); }
  _pos = _r.pos;
- _r = state_ok(_pos, tlSTR("string"));
+ _r = state_ok(_pos, tlSTR("stringlist"));
  if (!_r.ok) { return parser_error(_p, "r_text_287", _start, _pos); }
  _pos = _r.pos;
  tlHandle type = _r.value;

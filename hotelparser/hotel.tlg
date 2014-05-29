@@ -29,14 +29,14 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
         | "\\t"       -> tlINT('\t')
         | "\\\\"      -> tlINT('\\')
         | !"\"" _
-   stext: ts=(!"%" escape)+                      -> String(ts)
-   embed: "%%"
-        | "%(".. body=body ..")" type=<scope>
-        | "%" e=ref                              -> e
+   stext: ts=(!"$" escape)+                      -> String(ts)
+   embed: "$$"
+        | "$(".. body=body ..")" type=<scope>
+        | "$" e=ref                              -> e
    text2: "\"\""                                 -> tlStringEmpty()
         | "\"" t=stext "\""                      -> t
    text*: data=text2 type=<string>
-        | "\"" @"a closing '\"'" data=(embed|stext)* "\"" type=<string>
+        | "\"" @"a closing '\"'" data=(embed|stext)* "\"" type=<stringlist>
 
     chr*: "'\\r'"       -> tlCHAR('\r')
         | "'\\n'"       -> tlCHAR('\n')
