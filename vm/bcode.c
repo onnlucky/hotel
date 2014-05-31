@@ -1,6 +1,6 @@
 #include "bcode.h"
 #define HAVE_DEBUG 1
-#include "trace-on.h"
+#include "trace-off.h"
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -606,7 +606,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod, const char** error) {
     return v;
 }
 
-#include "trace-on.h"
+#include "trace-off.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;
@@ -804,18 +804,19 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 depth++;
                 break;
             default:
-                print("%d - %s", op, op_name(op));
+                warning("%d - %s", op, op_name(op));
                 FAIL("not an opcode");
         }
     }
 exit:;
      if (depth != 0) FAIL("call without invoke");
-     print("verified; locals: %d%s, calldepth: %d, %s", locals, realize_locals?" (captured)":"", maxdepth, tl_str(bcode));
+     trace("verified; locals: %d%s, calldepth: %d, %s", locals, realize_locals?" (captured)":"", maxdepth, tl_str(bcode));
      bcode->locals = locals;
      bcode->calldepth = maxdepth;
      return tlNull;
 }
 
+#include "trace-on.h"
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     trace("linking: %p", mod);
     assert(!mod->linked);
@@ -824,7 +825,7 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
         tlHandle name = tlListGet(mod->links, i);
         tlHandle v = tlEnvGet(env, tlSymFromString(name));
         if (!v) v = tlNull; // TODO tlUndef
-        print("linking: %s as %s", tl_str(name), tl_str(v));
+        trace("linking: %s as %s", tl_str(name), tl_str(v));
         tlListSet_(mod->linked, i, v);
     }
     tlBCodeVerify(mod->body, error);
@@ -836,7 +837,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
-    print(" %s invoke %s", tl_str(call), tl_str(fn));
+    trace(" %s invoke %s", tl_str(call), tl_str(fn));
     if (tlBSendTokenIs(fn)) {
         tlArgs* args = tlArgsNew(tlListNew(call->size), null);
         tlArgsSetTarget_(args, call->target);
@@ -934,7 +935,7 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
 }
 
 static tlHandle bmethodResolve(tlHandle target, tlSym method) {
-    print("resolve method: %s.%s", tl_str(target), tl_str(method));
+    trace("resolve method: %s.%s", tl_str(target), tl_str(method));
     if (tlHandleObjectIs(target)) return mapResolve(target, method);
     tlKind* kind = tl_kind(target);
     if (kind->send) return tlBSendTokenNew(method);
@@ -943,7 +944,6 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method) {
     return null;
 }
 
-#include "trace-on.h"
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
     trace("here");
     assert(task);
@@ -1315,9 +1315,8 @@ INTERNAL tlHandle _module_link(tlArgs* args) {
 
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->links); i++) {
-        tlHandle name = tlListGet(mod->links, i);
         tlHandle v = tlListGet(links, i);
-        print("linking: %s as %s", tl_str(name), tl_str(v));
+        trace("linking: %s as %s", tl_str(tlListGet(mod->links, i)), tl_str(v));
         tlListSet_(mod->linked, i, v);
     }
 
@@ -1362,10 +1361,10 @@ INTERNAL tlHandle __return(tlArgs* args) {
         if (tlBFrameIs(frame)) {
             ((tlBFrame*)frame)->pc = 999999;
             return res;
-            print("%s - bframe", tl_str(frame));
-            print("  %s", tl_str(((tlBFrame*)frame)->args->fn));
+            trace("%s - bframe", tl_str(frame));
+            trace("  %s", tl_str(((tlBFrame*)frame)->args->fn));
         } else {
-            print("%s", tl_str(frame));
+            trace("%s", tl_str(frame));
         }
         frame = frame->caller;
     }
@@ -1385,7 +1384,7 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
 
 // TODO really, tlArgs == tlBCall if we rework both a bit
 INTERNAL tlHandle _closure_call(tlArgs* args) {
-    print("closure.call");
+    trace("closure.call");
     tlBCall* call = tlBCallNew(tlArgsSize(args));
     call->target = call->fn = tlArgsTarget(args);
     // TODO names
@@ -1396,7 +1395,7 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
 }
 
 INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
-    print("closure.run");
+    trace("closure.run");
     tlBCall* call = tlBCallNew(tlArgsSize(args));
     call->fn = _fn;
     // TODO names

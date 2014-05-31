@@ -12,10 +12,11 @@ test = n ->
     res[n] = "load"
     mod = compiler.load(bytes)
     res[n] = "ok"
-    //mod.run
+    mod.run
 
-//test("bad.tl")
+test("bad.tl")
 
+/*
 tests = "test/noboot/"
 io.Path(tests).each: n ->
     if not n.endsWith(".tl"): continue
