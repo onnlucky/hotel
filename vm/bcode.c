@@ -816,7 +816,7 @@ exit:;
      return tlNull;
 }
 
-#include "trace-on.h"
+#include "trace-off.h"
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     trace("linking: %p", mod);
     assert(!mod->linked);
@@ -940,7 +940,6 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method) {
     tlKind* kind = tl_kind(target);
     if (kind->send) return tlBSendTokenNew(method);
     if (kind->klass) return mapResolve(kind->klass, method);
-    fatal("not implemented %s.%s", tl_str(target), tl_str(method));
     return null;
 }
 
@@ -1115,6 +1114,11 @@ again:;
         case OP_SYSTEM:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
+            if (tlStringEquals(v, tlSTR("args"))) {
+                trace("syscall args: %s", tl_str(args));
+                v = args;
+                break;
+            }
             fatal("syscall: %s", tl_str(v));
             break;
         case OP_MODULE:
@@ -1382,6 +1386,20 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle _bcall_get(tlArgs* args) {
+    tlBCall* call = tlBCallAs(tlArgsTarget(args));
+
+    tlHandle v = tlArgsGet(args, 0);
+    if (!v || tlIntIs(v) || tlFloatIs(v)) {
+        int at = at_offset(v, call->size);
+        return tlMAYBE(tlBCallGet(call, at));
+    }
+    if (tlSymIs(v)) {
+        //return tlMAYBE(tlBCallMapGet(call, tlSymAs(v)));
+    }
+    TL_THROW("Expected an index or name");
+}
+
 // TODO really, tlArgs == tlBCall if we rework both a bit
 INTERNAL tlHandle _closure_call(tlArgs* args) {
     trace("closure.call");
@@ -1406,6 +1424,10 @@ INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
 }
 
 void bcode_init() {
+    _tlBCallKind.klass = tlClassMapFrom(
+        "get", _bcall_get,
+        null
+    );
     _tlBClosureKind.klass = tlClassMapFrom(
         "call", _closure_call,
         null

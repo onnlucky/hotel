@@ -187,6 +187,9 @@ compile = (code ->
             ref = this.names[name]
             if try(ref.fn):
                 if functions[ref.fn].open: close(ref.fn)
+            if name == "args":
+                assert not level
+                return ["system", "args"]
             if ref:
                 if ref.arg:
                     if not level: return ["arg", ref.local]
