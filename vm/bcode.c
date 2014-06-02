@@ -298,6 +298,9 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
     tlList* argspec = tlListAs(tlListGet(code->argspec, at));
     tlString* name = tlStringCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
+    if (tlStringEquals(name, tlSTR("this"))) {
+        return tlBCallGetTarget(call);
+    }
     if (call->names) {
         int index = tlBCallNameIndex(call, name);
         if (index >= 0) return call->args[index];
@@ -1114,6 +1117,7 @@ again:;
         case OP_SYSTEM:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
+            // TODO this doesn't take care of blocks vs function vs methods
             if (tlStringEquals(v, tlSTR("args"))) {
                 trace("syscall args: %s", tl_str(args));
                 v = args;

@@ -170,8 +170,8 @@ compile = (code ->
     Scope = parent -> {{parent},
         names = HashMap.new
         locals = Array.new
-        addOpen = name, function, inMethods ->
-            _, fn = functions.add {{name, inMethods}, open = function, scope = this}
+        addOpen = name, function ->
+            _, fn = functions.add {{name}, open = function, scope = this}
             _, local = this.locals.add(name)
             local = local - 1
             this.names[name] = {{fn, local}, arg =false}
@@ -187,15 +187,15 @@ compile = (code ->
             ref = this.names[name]
             if try(ref.fn):
                 if functions[ref.fn].open: close(ref.fn)
-            if name == "args":
-                assert not level
-                return ["system", "args"]
             if ref:
                 if ref.arg:
                     if not level: return ["arg", ref.local]
                     return ["envarg", level, ref.local]
                 if not level: return ["local", ref.local]
                 return ["env", level, ref.local]
+            if name == "args":
+                assert not level
+                return ["system", "args"]
             if parent:
                 return parent.ref name, 0
             globals[name] = true
@@ -205,7 +205,7 @@ compile = (code ->
     close = n ->
         ref = functions[n]
         functions[n] = {name=ref.name,open=false}
-        fn = emittop ref.scope, ref.open, ref.inMethods
+        fn = emittop ref.scope, ref.open
         functions[n] = {name=ref.name,open=false,function=fn}
 
     argspec = arg ->
@@ -213,7 +213,13 @@ compile = (code ->
         if arg.d: return [arg.name, arg.d]
         [arg.name]
 
-    emittop = scope, term, inMethods ->
+    functionAssign = term ->
+        if term.type != "assign": return false
+        if term.to.type != "local": return false
+        type = try(term.value.type)
+        return type == "function" or type == "class" or type == "block"
+
+    emittop = scope, term ->
         { term.type == "function" }:
             scope = Scope(scope)
             as = try(term.as, [])
@@ -247,7 +253,7 @@ compile = (code ->
         {             }: null
 
 
-    emit = scope, term, inMethods ->
+    emit = scope, term ->
         { term == "undefined"  }: ["undef"]
         { term == "null"  }: ["null"]
         { term == "false" }: ["false"]
@@ -266,11 +272,11 @@ compile = (code ->
             )
             ["fcall", strs.size, "global", "_String_cat", strs, "invoke"].flatten
         { term.type == "scope" }:
-            function = emittop scope, term, inMethods
+            function = emittop scope, term
             _, fn = functions.add {name = "-", open = false, function = function}
             ["fcall", 0, "bind", fn, "invoke"]
         { term.type == "function" or term.type == "class" or term.type == "block" }:
-            function = emittop scope, term, inMethods
+            function = emittop scope, term
             _, fn = functions.add {name = "-", open = false, function = function}
             ["bind", fn]
         { term.type == "assign" }:
@@ -356,7 +362,7 @@ compile = (code ->
             ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
         { term.type == "object" }:
             elements = try(term.data, []).map(entry ->
-                { try(entry.n) }: ["data", entry.n, emit(scope, entry.v, inMethods)]
+                { try(entry.n) }: ["data", entry.n, emit(scope, entry.v)]
                 {              }: entry.names.map(term -> ["data", term.name, emit(scope, term)]).flatten
             )
             ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
@@ -364,7 +370,7 @@ compile = (code ->
             elements = try(term.data, []).map(entry -> [emit(scope, entry)])
             ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
         { term.type == "map" }:
-            elements = try(term.data, []).map(entry -> ["data", entry.n, emit(scope, entry.v, inMethods)])
+            elements = try(term.data, []).map(entry -> ["data", entry.n, emit(scope, entry.v)])
             ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
         { term.type == "guards" }:
             scope = Scope(scope)
