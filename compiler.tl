@@ -174,7 +174,7 @@ compile = (code ->
             _, fn = functions.add {{name}, open = function, scope = this}
             _, local = this.locals.add(name)
             local = local - 1
-            this.names[name] = {{fn, local}, arg =false}
+            this.names[name] = {{fn, local}, arg = false}
             return local, fn
         add = name ->
             _, local = this.locals.add(name)
@@ -197,9 +197,39 @@ compile = (code ->
                 assert not level
                 return ["system", "args"]
             if parent:
-                return parent.ref name, 0
+                if not level: return parent.ref name, 0
+                return parent.ref name, level + 1
             globals[name] = true
             return ["global", name]
+    }
+
+    ClassScope = parent -> {{parent},
+        names = HashMap.new
+        locals = Array.new
+        methods = Array.new
+        addOpen = name, function ->
+            _, fn = functions.add {{name}, open = function, scope = this}
+            _, method = this.methods.add(name)
+            method = method - 1
+            this.names[name] = {{fn, method}, arg = false}
+            return method, fn
+        add = name ->
+            _, local = this.locals.add(name)
+            local = local - 1
+            this.names[name] = {{local}, arg = false}
+            return local
+        addarg = name ->
+            this.names[name] = true
+        ref = name, level ->
+            ref = this.names[name]
+            if ref:
+                if not level: return ["mcall", 0, "local", 0, "data", name, "invoke"]
+                return ["mcall", 0, "env", level, 0, "data", name, "invoke"]
+            if name == "args":
+                assert not level
+                return ["system", "args"]
+            if not level: return parent.ref name, 0
+            parent.ref name, level + 1
     }
 
     close = n ->
@@ -227,11 +257,21 @@ compile = (code ->
             code = term.body.map(stm -> emit scope, stm).flatten
             {{code, args}, locals = scope.locals.toList}
         { term.type == "class" }:
-            scope = Scope(scope)
+            outerscope = scope
+            scope = ClassScope(scope)
             as = try(term.as, [])
             scope.addarg("this")
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
-            code = term.body.map(stm -> emit scope, stm).flatten
+            code = term.body.map(stm -> emit scope, stm)
+            class = code.filter(stm -> stm[1] == "bind").map(stm, i -> ["data", scope.methods[i], stm[1], stm[2]])
+            class = ["fcall", class.size * 2, "global", "__map"] + class + ["invoke"]
+            l = outerscope.add("__class__")
+            print repr class
+            constructor = code.filter(stm -> stm[1] != "bind")
+            fields = scope.locals.map(n, i -> ["data", n, "local", i - 1]) + [["data", "class", "env", 0, l]]
+            constructor = constructor + ["fcall", fields.size * 2, "global", "__map"] + fields + ["invoke"]
+            print repr constructor
+            throw "HELLO"
             {{code, args}, locals = scope.locals.toList}
         { term.type == "block" }:
             scope = Scope(scope)
