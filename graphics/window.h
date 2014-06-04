@@ -23,6 +23,7 @@ struct Window {
     int x; int y; int width; int height;
 
     tlHandle onkey;
+    tlHandle onmouse;
     tlHandle onresize;
 };
 
@@ -47,7 +48,7 @@ tlString* nativeWindowTitle(NativeWindow*);
 void nativeWindowSetTitle(NativeWindow*, tlString* title);
 
 // platform can call the following for callbacks
-void windowPointerEvent(Window* w);
+void windowMouseEvent(Window* w, double x, double y);
 void windowKeyEvent(Window* w, int code, tlString* input);
 
 #endif // _window_h_

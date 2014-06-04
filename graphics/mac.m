@@ -137,7 +137,9 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
     cairo_surface_destroy(surface);
 }
 -(void)mouseDown:(NSEvent*)event {
-    NSLog(@"mouseDown: %@", event);
+    //NSLog(@"mouseDown: %@", event);
+    NSPoint loc = [event locationInWindow];
+    windowMouseEvent(window, loc.x, loc.y);
 }
 @end
 

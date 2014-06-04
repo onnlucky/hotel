@@ -5,13 +5,13 @@ run: mac
 	TL_MODULE_PATH=../modules ./mac run.tl
 
 mac: mac.m graphics.o window.o app.o image.o ../libtl.a
-	$(CC) $(CFLAGS) mac.m -o mac graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto
+	$(CC) $(CFLAGS) mac.m -o mac graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz
 
 runm: gtk
 	TL_MODULE_PATH=../modules ./gtk run.tl
 
 gtk: gtk.c graphics.o window.o app.o image.o ../libtl.a
-	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -o gtk
+	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -o gtk
 
 graphics.o: graphics.h graphics.c
 	$(CC) $(CFLAGS) -c graphics.c

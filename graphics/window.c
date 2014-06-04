@@ -26,7 +26,6 @@ struct Box {
 
     tlHandle ondraw;
     tlHandle onkey;
-    tlHandle onpointer;
 };
 
 static tlKind _WindowKind = { .name = "Window", .locked = true, };
@@ -238,6 +237,14 @@ void windowKeyEvent(Window* window, int code, tlString* input) {
     unblock_toolkit();
 }
 
+void windowMouseEvent(Window* window, double x, double y) {
+    if (!window->onmouse) return;
+
+    block_toolkit();
+    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), null));
+    unblock_toolkit();
+}
+
 // ** boxes **
 
 Box* BoxNew(int x, int y, int width, int height) {
@@ -378,6 +385,12 @@ static tlHandle _window_onkey(tlArgs* args) {
     return window->onkey?window->onkey : tlNull;
 }
 
+static tlHandle _window_onmouse(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) window->onmouse = tlArgsGet(args, 0);
+    return window->onmouse?window->onmouse : tlNull;
+}
+
 void window_init(tlVm* vm) {
     _BoxKind.klass = tlClassMapFrom(
         "add", _box_add,
@@ -413,6 +426,7 @@ void window_init(tlVm* vm) {
         "height", _window_height,
 
         "onkey", _window_onkey,
+        "onmouse", _window_onmouse,
 
         "title", _window_title,
         "focus", _window_focus,
