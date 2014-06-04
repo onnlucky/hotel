@@ -7,10 +7,6 @@ TL_REF_TYPE(tlQueue);
 static tlKind _tlQueueKind = { .name = "Queue" };
 tlKind* tlQueueKind = &_tlQueueKind;
 
-TL_REF_TYPE(tlTaskQueue);
-static tlKind _tlTaskQueueKind = { .name = "TaskQueue" };
-tlKind* tlTaskQueueKind = &_tlTaskQueueKind;
-
 TL_REF_TYPE(tlMsgQueue);
 static tlKind _tlMsgQueueKind = { .name = "MsgQueue" };
 tlKind* tlMsgQueueKind = &_tlMsgQueueKind;
@@ -25,14 +21,12 @@ tlKind* tlMessageKind = &_tlMessageKind;
 
 typedef void(*tlMsgQueueSignalFn)(void);
 
-// TODO how can we do this effeciently? should be possible
 struct tlQueue {
     tlHead head;
+    // TODO make more efficient? And we can also swap stuff ...
+    pthread_mutex_t lock;
     lqueue add_q;
     lqueue get_q;
-
-    int size;
-    tlHandle buf[];
 };
 
 struct tlMsgQueue {
@@ -55,6 +49,7 @@ struct tlMessage {
 
 tlQueue* tlQueueNew(int buffer) {
     tlQueue* queue = tlAlloc(tlQueueKind, sizeof(tlQueue));
+    pthread_mutex_init(&queue->lock, null);
     assert(queue);
     return queue;
 }
@@ -62,22 +57,68 @@ tlHandle _Queue_new(tlArgs* args) {
     int size = tl_int_or(tlArgsGet(args, 0), 0);
     return tlQueueNew(size);
 }
-tlHandle _queue_add(tlArgs* args) {
-    return tlNull;
-}
-tlHandle _queue_poll(tlArgs* args) {
-    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
-    tlTask* adder = tlTaskFromEntry(lqueue_get(&queue->add_q));
-    trace("ADDER: %s", tl_str(adder));
-    if (!adder) return tlNull;
 
-    assert(adder->value);
-    tlHandle res = adder->value;
-    tlTaskReady(adder);
-    return res;
+INTERNAL tlHandle _queue_add_resume(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (throw) return null;
+    tlQueue* queue = tlQueueAs(tlArgsTarget(tlArgsAs(res)));
+
+    pthread_mutex_lock(&queue->lock);
+    if (!queue->add_q.head) {
+        // we are first
+        tlTask* getter = tlTaskFromEntry(lqueue_get(&queue->get_q));
+        if (getter) {
+            trace("found an getter ... giving it values: %s", tl_str(res));
+            getter->value = tlResultFromArgs(tlArgsAs(res));
+            tlTaskReady(getter);
+            pthread_mutex_unlock(&queue->lock);
+            return tlNull;
+        }
+    }
+
+    // enqueue as we are not first, or there is no getter
+    trace("waiting for getter");
+    frame->resumecb = null; // don't restart this function
+    tlTaskWaitFor(null);
+    tlTask* task = tlTaskCurrent();
+    task->value = res;
+    lqueue_put(&queue->add_q, &task->entry);
+    pthread_mutex_unlock(&queue->lock);
+    return tlTaskNotRunning;
 }
+tlHandle _queue_add(tlArgs* args) {
+    return tlTaskPauseResuming(_queue_add_resume, args);
+}
+
+INTERNAL tlHandle _queue_get_resume(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (throw) return null;
+    tlQueue* queue = tlQueueAs(tlArgsTarget(tlArgsAs(res)));
+
+    pthread_mutex_lock(&queue->lock);
+    if (!queue->get_q.head) {
+        // we are first
+        tlTask* adder = tlTaskFromEntry(lqueue_get(&queue->add_q));
+        if (adder) {
+            trace("found an adder ... taking its values %s", tl_str(adder->value));
+            tlArgs* res = tlArgsAs(adder->value);
+            adder->value = tlNull;
+            tlTaskReady(adder);
+            pthread_mutex_unlock(&queue->lock);
+            return tlResultFromArgs(res);
+        }
+    }
+
+    // enqueue as we are not first, or there is no adder
+    trace("waiting for adder");
+    frame->resumecb = null; // don't restart this function
+    tlTaskWaitFor(null);
+    tlTask* task = tlTaskCurrent();
+    lqueue_put(&queue->get_q, &task->entry);
+    pthread_mutex_unlock(&queue->lock);
+    return tlTaskNotRunning;
+}
+
 tlHandle _queue_get(tlArgs* args) {
-    return tlNull;
+        return tlTaskPauseResuming(_queue_get_resume, args);
 }
 
 // Message Queue
@@ -219,7 +260,6 @@ void queue_init() {
     queueClass = tlClassMapFrom("new", _Queue_new, null);
     _tlQueueKind.klass = tlClassMapFrom(
         "add", _queue_add,
-        "poll", _queue_poll,
         "get", _queue_get,
         null
     );
