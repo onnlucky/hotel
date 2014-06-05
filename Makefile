@@ -16,7 +16,7 @@ endif
 endif
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
-LIBGC:=libgc/objs/libgc.a
+LIBGC:=libgc/.libs/objs/libgc.a
 LIBMP:=libmp/libtommath.a
 
 TLG_MODULES=modules/html.tl modules/sizzle.tl
@@ -59,7 +59,7 @@ libtl.a: $(LIBGC) $(LIBMP) parser.o ev.o vm.o
 	ar -q libtl.a parser.o ev.o vm.o
 	ar -q libtl.a libmp/*.o
 ifneq ($(BOEHM),)
-	ar -q libtl.a libgc/objs/*.o
+	ar -q libtl.a libgc/.libs/objs/*.o
 endif
 	ar -s libtl.a
 
@@ -86,7 +86,7 @@ clean:
 	rm -f tlmeta
 	$(MAKE) -C graphics clean
 distclean: clean
-	rm -rf greg/ libgc/
+	rm -rf greg/ libgc/ libatomic_ops/
 dist-clean: distclean
 
 docgen.tl: docgen.tlg

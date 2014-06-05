@@ -12,14 +12,14 @@ THREADS="--enable-threads=posix"
 OPS="--disable-dependency-tracking --enable-cplusplus"
 cd libgc
 if ! cd libatomic_ops; then
-    ln -sf ../libatomic_ops .
+    cp -r ../libatomic_ops .
 else
     cd ..
 fi
 CFLAGS="$CFLAGS" ./configure $DEBUG $NOTHREADS $THREADS $OPS
 make
-rm -rf objs
-mkdir objs
-cd objs
-cp ../.libs/libgc.a .
+mkdir -p .libs/objs
+rm -rf .libs/objs/*
+cd .libs/objs
+cp ../libgc.a .
 ar -x libgc.a
