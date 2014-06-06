@@ -1,18 +1,7 @@
 class = { x ->
-    y = -> print z, x
-    z = 100
+    z = 42
+    y = -> print x
 }
-/*
-class = x -> {
-    z = 100
-    y = -> print this.z, x
-}
-_class = { y = this -> print this.z, this.x }
-class = x -> { class = _class, x = x, z = 100 }
-*/
-
-print repr(class)
-object = class(42)
-print repr(object)
-object.y
+// class = { y = -> this=args["this"]; print this.x }
+// constructor = x -> {{x,class}}
 

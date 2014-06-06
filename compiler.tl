@@ -211,33 +211,39 @@ compile = (code ->
         names = HashMap.new
         locals = Array.new
         methods = Array.new
-        addOpen = name, function ->
-            _, fn = functions.add {{name}, open = function, scope = this}
-            _, method = this.methods.add(name)
-            method = method - 1
-            this.names[name] = {{fn, method}, arg = false}
-            return method, fn
-        add = name ->
-            _, local = this.locals.add(name)
-            local = local - 1
-            this.names[name] = {{local}, arg = false}
-            return local
-        addarg = name ->
-            this.names[name] = true
+        addOpen = function, name ->
+            _, method = functions.add {name=name or "",open=function,scope=this}
+            if name:
+                // TODO perhaps change type="function" to type="method"
+                ref = this.names[name]
+                assert ref and ref.at == this.locals.size
+                this.locals.remove(ref.at)
+                this.names[name] = {arg=false,id=ref.id,{method}}
+            return method
+        add = name, pos ->
+            _, id = ids.add({{name},at=Array.new([pos])})
+            _, at = this.locals.add(name)
+            this.names[name] = {arg=false,{at,id}}
+            return at, id
+        addarg = name, pos ->
+            _, id = ids.add({{name},at=Array.new([pos])})
+            this.names[name] = {arg=true,{id}}
+            return id
         ref = name, level ->
             ref = this.names[name]
             if ref:
-                if not level: return ["mcall", 0, "local", 0, "data", name, "invoke"]
-                return ["mcall", 0, "env", level, 0, "data", name, "invoke"]
+                if not level: return {type="local",at=ref.at,id=ref.id}
+                return {type="field",name=name}
             if name == "args":
-                assert not level
-                return ["system", "args"]
+                if not level: return {type="args"}
+                return {type="thisargs",up=level}
             if not level: return parent.ref name, 0
             parent.ref name, level + 1
     }
 
     close = n ->
         ref = functions[n]
+        print "CLOSING:", n, ref.name
         functions[n] = {name=ref.name,open=false}
         fn = lextop(ref.scope, ref.open)
         functions[n] = {name=ref.name,open=false,function=fn}
@@ -253,21 +259,6 @@ compile = (code ->
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             {type="function",{args,body},locals=scope.locals.toList}
-        { term.type == "class" }:
-            outerscope = scope
-            scope = ClassScope(scope)
-            as = try(term.as, [])
-            scope.addarg("this")
-            args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
-            code = term.body.map(stm -> lex(scope, stm))
-            class = code.filter(stm -> stm[1] == "bind").map(stm, i -> ["data", scope.methods[i], stm[1], stm[2]])
-            class = ["fcall", class.size * 2, "global", "__map"] + class + ["invoke"]
-            l = outerscope.add("__class__")
-            constructor = code.filter(stm -> stm[1] != "bind")
-            fields = scope.locals.map(n, i -> ["data", n, "local", i - 1]) + [["data", "class", "env", 0, l]]
-            constructor = constructor + ["fcall", fields.size * 2, "global", "__map"] + fields + ["invoke"]
-            throw "HELLO"
-            {type="class",{args,body},locals=scope.locals.toList}
         { term.type == "block" }:
             scope = Scope(scope)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
@@ -291,10 +282,25 @@ compile = (code ->
             function = lextop scope, term
             _, fn = functions.add {name="",open=false,function=function}
             {type="call",target={type="function",function=fn}}
-        { term.type == "function" or term.type == "class" or term.type == "block" }:
+        { term.type == "function" or term.type == "block" }:
             function = scope.addOpen(term, name)
             if not name: close(function)
             {type="function",{function}}
+        { term.type == "class" }:
+            outerscope = scope
+            local = scope.add("")
+            scope = ClassScope(scope)
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            body = term.body.map(stm -> lex(scope, stm))
+            class = body.filter(stm -> try(stm.type == "assign" and stm.value.type == "function")).map(stm, i -> {n=stm.to.name,v=stm.value})
+            constructor = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function"))
+            fields = scope.locals.map(name -> {n=name,v=scope.ref(name)})
+            print "---- class: $class ----"
+            print repr class
+            print repr constructor
+            print repr fields
+            print "---- class: $class ----"
+            {type="class",{class,constructor,fields,name,local}}
         { term.type == "assign" }:
             { term.to.type == "local" }:
                 local, id = scope.add(term.to.name)
@@ -403,6 +409,8 @@ compile = (code ->
     parseemit = text ->
         ast = parse(text)
         ast = lextop(Scope(null), ast)
+        // TODO wait until stable? as closing functions might produce new functions ...
+        functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> print "fn $n:", repr(fn)
         print "fn 0:", repr(ast)
