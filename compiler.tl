@@ -166,41 +166,45 @@ opname = op ->
 compile = (code ->
     globals = HashMap.new
     functions = Array.new
+    ids = Array.new
 
     Scope = parent -> {{parent},
         names = HashMap.new
         locals = Array.new
-        addOpen = name, function ->
-            _, fn = functions.add {{name}, open = function, scope = this}
-            _, local = this.locals.add(name)
-            local = local - 1
-            this.names[name] = {{fn, local}, arg = false}
-            return local, fn
-        add = name ->
-            _, local = this.locals.add(name)
-            local = local - 1
-            this.names[name] = {{local}, arg = false}
-            return local
-        addarg = name ->
-            this.names[name] = {arg = true, local = this.names.size}
+        addOpen = function, name ->
+            _, fn = functions.add {name=name or "",open=function,scope=this}
+            if name:
+                ref = this.names[name]
+                assert ref and ref.at == this.locals.size
+                this.names[name] = {arg=false,at=ref.at,id=ref.id,{fn}}
+            return fn
+        add = name, pos ->
+            _, id = ids.add({{name},at=Array.new([pos])})
+            _, at = this.locals.add(name)
+            this.names[name] = {arg=false,{at,id}}
+            return at, id
+        addarg = name, pos ->
+            _, id = ids.add({{name},at=Array.new([pos])})
+            this.names[name] = {arg=true,{id}}
+            return id
         ref = name, level ->
             ref = this.names[name]
             if try(ref.fn):
                 if functions[ref.fn].open: close(ref.fn)
             if ref:
                 if ref.arg:
-                    if not level: return ["arg", ref.local]
-                    return ["envarg", level, ref.local]
-                if not level: return ["local", ref.local]
-                return ["env", level, ref.local]
-            if name == "args":
-                assert not level
-                return ["system", "args"]
+                    if not level: return {type="arg",at=ref.at,id=ref.id}
+                    return {type="envarg",up=level,at=ref.at,id=ref.id}
+                if not level: return {type="local",at=ref.at,id=ref.id}
+                return {type="env",up=level,at=ref.at,id=ref.id}
+            if name == "args": // TODO only if function ...
+                if not level: return {type="args"}
+                return {type="envargs",up=level}
             if parent:
                 if not level: return parent.ref name, 0
                 return parent.ref name, level + 1
             globals[name] = true
-            return ["global", name]
+            return {type="global",{name}}
     }
 
     ClassScope = parent -> {{parent},
@@ -235,7 +239,7 @@ compile = (code ->
     close = n ->
         ref = functions[n]
         functions[n] = {name=ref.name,open=false}
-        fn = emittop ref.scope, ref.open
+        fn = lextop(ref.scope, ref.open)
         functions[n] = {name=ref.name,open=false,function=fn}
 
     argspec = arg ->
@@ -243,198 +247,167 @@ compile = (code ->
         if arg.d: return [arg.name, arg.d]
         [arg.name]
 
-    functionAssign = term ->
-        if term.type != "assign": return false
-        if term.to.type != "local": return false
-        type = try(term.value.type)
-        return type == "function" or type == "class" or type == "block"
-
-    emittop = scope, term ->
+    lextop = scope, term ->
         { term.type == "function" }:
             scope = Scope(scope)
-            as = try(term.as, [])
-            args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
-            code = term.body.map(stm -> emit scope, stm).flatten
-            {{code, args}, locals = scope.locals.toList}
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            body = term.body.map(stm -> lex(scope, stm))
+            {type="function",{args,body},locals=scope.locals.toList}
         { term.type == "class" }:
             outerscope = scope
             scope = ClassScope(scope)
             as = try(term.as, [])
             scope.addarg("this")
             args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
-            code = term.body.map(stm -> emit scope, stm)
+            code = term.body.map(stm -> lex(scope, stm))
             class = code.filter(stm -> stm[1] == "bind").map(stm, i -> ["data", scope.methods[i], stm[1], stm[2]])
             class = ["fcall", class.size * 2, "global", "__map"] + class + ["invoke"]
             l = outerscope.add("__class__")
-            print repr class
             constructor = code.filter(stm -> stm[1] != "bind")
             fields = scope.locals.map(n, i -> ["data", n, "local", i - 1]) + [["data", "class", "env", 0, l]]
             constructor = constructor + ["fcall", fields.size * 2, "global", "__map"] + fields + ["invoke"]
-            print repr constructor
             throw "HELLO"
-            {{code, args}, locals = scope.locals.toList}
+            {type="class",{args,body},locals=scope.locals.toList}
         { term.type == "block" }:
             scope = Scope(scope)
-            as = try(term.as, [])
-            args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
-            code = term.body.map(stm -> emit scope, stm).flatten
-            {{code, args}, locals = scope.locals.toList}
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            body = term.body.map(stm -> lex(scope, stm))
+            {type="block",{args,body},locals=scope.locals.toList}
         { term.type == "scope" }:
             scope = Scope(scope)
-            as = try(term.as, [])
-            args = as.map(arg, n -> scope.addarg(arg.name); argspec(arg))
-            code = term.body.map(stm -> emit scope, stm).flatten
-            {{code, args}, locals = scope.locals.toList}
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            body = term.body.map(stm -> lex(scope, stm))
+            {type="scope",{args,body},locals=scope.locals.toList}
 
-    whenPrimitive = v ->
-        { isNumber(v) }: v
-        { isString(v) }: v
-        { isBool(v)   }: v
-        {             }: null
-
-
-    emit = scope, term ->
-        { term == "undefined"  }: ["undef"]
-        { term == "null"  }: ["null"]
-        { term == "false" }: ["false"]
-        { term == "true"  }: ["true"]
-        { isNumber(term)  }:
-            { isFloat(term) }: ["data", term]
-            { term < 0      }: ["data", term]
-            { term > 2^25   }: ["data", term]
-            {               }: ["int", term]
-        { isChar(term)      }: ["int", term.toNumber] // TODO add "char"
-        { term.type == "string" }: ["data", term.data]
+    lex = scope, term, name ->
+        { not try(term.type)        }: return term
         { term.type == "stringlist" }:
-            strs = term.data.map(s ->
-                { isString(s) }: ["data", s]
-                {             }: emit(scope, s)
+            data = term.data.map(s ->
+                { isString(s) }: s
+                {             }: lex(scope, s)
             )
-            ["fcall", strs.size, "global", "_String_cat", strs, "invoke"].flatten
+            {type="stringlist",{data}}
         { term.type == "scope" }:
-            function = emittop scope, term
-            _, fn = functions.add {name = "-", open = false, function = function}
-            ["fcall", 0, "bind", fn, "invoke"]
+            function = lextop scope, term
+            _, fn = functions.add {name="",open=false,function=function}
+            {type="call",target={type="function",function=fn}}
         { term.type == "function" or term.type == "class" or term.type == "block" }:
-            function = emittop scope, term
-            _, fn = functions.add {name = "-", open = false, function = function}
-            ["bind", fn]
+            function = scope.addOpen(term, name)
+            if not name: close(function)
+            {type="function",{function}}
         { term.type == "assign" }:
             { term.to.type == "local" }:
-                type = try(term.value.type)
-                if type == "function" or type == "class" or type == "block":
-                    local, fn = scope.addOpen(term.to.name, term.value)
-                    return ["bind", fn, "store", local]
-                local = scope.add(term.to.name)
-                v = emit scope, term.value
-                v + ["store", local]
+                local, id = scope.add(term.to.name)
+                value = lex(scope, term.value, term.to.name)
+                to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
+                {type="assign",{to,value}}
             { term.to.type == "newvar" }:
-                _var = scope.ref("Var")
-                local = scope.add(term.to.name)
-                v = emit scope, term.value
-                ["mcall", 1, _var, "data", "new"] + v + ["invoke", "store", local]
+                local, id = scope.add(term.to.name)
+                value = lex(scope, term.value)
+                value = {type="method",target={type="global",name="Var"},method="new",args=[value]}
+                to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
+                {type="assign",{to,value}}
             { term.to.type == "var"    }:
-                _ref = scope.ref(term.to.name)
-                v = emit scope, term.value
-                ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
+                ref = scope.ref(term.to.name)
+                value = lex(scope, term.value)
+                {type="method",target=ref,method="set",args=[value]}
         { term.type == "multiassign" }:
-            v = emit scope, term.value
-            locals = term.multi.map: to ->
+            // TODO perhaps function defined this way must stay open?
+            value = lex(scope, term.value)
+            locals = term.multi.map(to ->
                 { to.type == "local" }: scope.add(to.name)
-                {                    }: scope.add("-")
-            stores = locals.map(l, n -> ["rstore", n - 1, l]).flatten
-            posts = locals.map(l, n ->
-                print l, n, term.multi[n]
+                {                    }: scope.add("") // anonymous locals for Var.new and var.set
+            )
+            assigns = locals.map(l, n ->
                 to = term.multi[n]
-                { to.type == "local" }: []
+                { to.type == "local" }: null // nothing to do
                 { to.type == "newvar" }:
-                    _var = scope.ref("Var")
-                    local = scope.add(to.name)
-                    _var = scope.ref("Var")
-                    ["mcall", 1, _var, "data", "new", "local", l, "invoke", "store", local]
+                    at, id = scope.add(to.name, to.pos)
+                    value = {type="method",target={type="global",name="Var"},method="new",args=[{type="local",at=l.at,id=l.id}]}
+                    to={type="local",name=to.name,pos=to.pos,{at,id}}
+                    {type="asign",{to,value}}
                 { to.type == "var" }:
-                    _ref = scope.ref(to.name)
-                    ["mcall", 1, _ref, "data", "set", "local", l, "invoke"]
-            ).flatten
-            v + stores + posts
+                    ref = scope.ref(to.name)
+                    value = {type="local",at=l.at,id=l.id}
+                    {type="method",target=ref,method="set",args=[value]}
+            )
+            {type="multiassign",{locals,assigns}}
         { term.type == "call" }:
-            args = try(term.args, [])
-            fn = emit scope, term.target
-            names = args.map: stm -> try(stm.n)
-            args = args.map: stm -> emit scope, stm.v
-            if try(term.block):
-                function = emittop scope, term.block
-                _, blk = functions.add {name="block",open=false,function=function}
-                names = names.add "block"
-                args = args.add ["bind", blk]
-                print repr names
-                print repr args
-                return ["fcalln", args.size, {ns=names}] + fn + args + ["invoke"]
-            if names.filter.size > 0: return ["fcalln", args.size, {ns=names}] + fn + args + ["invoke"]
-            ["fcall", args.size] + fn + args + ["invoke"]
+            target = lex(scope, term.target)
+            names = try(term.args, []).map: stm -> try(stm.n)
+            args = try(term.args, []).map: stm -> lex(scope, stm.v)
+            block = try(lex(scope, term.block))
+            {type="call",{target,args,names,block}}
         { term.type == "method" }:
-            args = try(term.args, [])
-            target = emit scope, term.target
-            names = args.map: stm -> try(stm.n)
-            args = args.map: stm -> emit scope, (stm.v or "null")
-            if names.filter.size > 0: return ["mcalln", args.size, {ns = names}] + target + ["data", term.method] + args + ["invoke"]
-            ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
+            target = lex(scope, term.target)
+            names = try(term.args, []).map: stm -> try(stm.n)
+            args = try(term.args, []).map: stm -> lex(scope, stm.v)
+            block = try(lex(scope, term.block))
+            {type="method",method=term.method,{target,args,names,block}}
         { term.type == "async" }:
-            rhs = emit scope, term.rhs
-            ["fcall", 1, "global", "_Task_new", rhs, "invoke"]
+            rhs = lex(scope, term.rhs)
+            {type="async",{rhs}}
         { term.type == "not" }:
-            rhs = emit scope, term.rhs
-            ["fcall", 1, "global", "not", rhs, "invoke"]
+            rhs = lex(scope, term.rhs)
+            {type="not",{rhs}}
         { term.type == "op"  }:
-            lhs = emit scope, term.lhs
-            rhs = emit scope, term.rhs
-            ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
+            lhs = lex(scope, term.lhs)
+            rhs = lex(scope, term.rhs)
+            {type="op",op=term.op,{lhs,rhs}}
         { term.type == "ref" }:
             scope.ref(term.name)
         { term.type == "varref" }:
-            _ref = scope.ref(term.name)
-            ["mcall", 0, _ref, "data", "get", "invoke"]
+            ref = scope.ref(term.name)
+            {type="method",method="get",target=ref,args=[]}
         { term.type == "assignop" }:
-            _ref = scope.ref(term.to)
-            lhs = ["mcall", 0, _ref, "data", "get", "invoke"]
-            rhs = emit scope, term.value
-            v = ["bcall", 2, "global", opname(term.op), rhs, lhs, "invoke"]
-            ["mcall", 1, _ref, "data", "set"] + v + ["invoke"]
+            ref = scope.ref(term.to)
+            lhs = {type="method",method="get",target=ref,args=[]}
+            rhs = lex(scope, term.value)
+            value = {type="op",op=term.op,{lhs,rhs}}
+            {type="method",target=ref,method="set",args=[value]}
         { term.type == "object" }:
-            elements = try(term.data, []).map(entry ->
-                { try(entry.n) }: ["data", entry.n, emit(scope, entry.v)]
-                {              }: entry.names.map(term -> ["data", term.name, emit(scope, term)]).flatten
-            )
-            ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
+            data = try(term.data, []).map(entry ->
+                { try(entry.n) }: {n=entry.n,v=lex(scope, entry.v)}
+                {              }: entry.names.map(term -> {n=term.name,v=lex(scope, term)})
+            ).flatten
+            {type="object",{data}}
         { term.type == "list" }:
-            elements = try(term.data, []).map(entry -> [emit(scope, entry)])
-            ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
+            data = try(term.data, []).map(term -> lex(scope, term))
+            {type="list",{data}}
         { term.type == "map" }:
-            elements = try(term.data, []).map(entry -> ["data", entry.n, emit(scope, entry.v)])
-            ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
+            data = try(term.data, []).map(entry ->
+                { try(entry.n) }: {n=entry.n,v=lex(scope, entry.v)}
+                {              }: entry.names.map(term -> {n=term.name,v=lex(scope, term)})
+            ).flatten
+            {type="map",{data}}
         { term.type == "guards" }:
             scope = Scope(scope)
+            target = {type="global",name="_match"}
             gs = term.guards.map(guard ->
-                function = emittop scope, {type="block", body=guard.body}
-                _, fn = functions.add {name="-", open=false, function=function}
-                ns = {ns=[null,"block"]}
-                cond = emit(scope, try(guard.cond, "true"))
-                ["fcalln", 2, ns, "global", "_match", cond, "bind", fn, "invoke"].flatten
+                args = [lex(scope, try(guard.cond, "true"))]
+                names =[null]
+                function = lextop(scope,{type="block", body=guard.body})
+                _, fn = functions.add {name="",open=false,function=function}
+                block = {type="function",function=fn}
+                {type="call",{target,args,names,block}}
             )
-            function = {code=(gs + ["fcall", 0, "global", "_nomatch", "invoke"]).flatten, args=[], locals=[]}
-            _, fn = functions.add {name="-", open=false, function=function}
-            ["fcall", 0, "bind", fn, "invoke"]
+            function = {body=gs + [{type="call",target={type="global",name="_nomatch"},args=[]}],locals=[],args=[]}
+            _, fn = functions.add {name="", open=false, function=function}
+            target = {type="function",function=fn}
+            {type="call",{target},args=[],names=[],block=null}
         { }:
             print "ERROR"
             print repr(term)
             throw "unknown term $(term.type)"
 
     parseemit = text ->
-        res = emittop Scope(null), parse(text)
+        ast = parse(text)
+        ast = lextop(Scope(null), ast)
         functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> print "fn $n:", repr(fn)
-        print "main:", repr(res)
-        return res, functions
+        print "fn 0:", repr(ast)
+        //emit(ast)
+        //return ast, functions
 
     builder_new = functions -> {
         functions = functions
