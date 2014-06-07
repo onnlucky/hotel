@@ -271,13 +271,14 @@ compile = (code ->
             {type="scope",{args,body},locals=scope.locals.toList}
 
     lex = scope, term, name ->
-        { not try(term.type)        }: return term
+        { not try(term.type)        }: term
+        { term.type == "string"     }: term
         { term.type == "stringlist" }:
             data = term.data.map(s ->
-                { isString(s) }: s
+                { isString(s) }: {type="string",data=s}
                 {             }: lex(scope, s)
             )
-            {type="stringlist",{data}}
+            {type="call",target={type="global",name="_String_cat"},args=data}
         { term.type == "scope" }:
             function = lextop scope, term
             _, fn = functions.add {name="",open=false,function=function}
@@ -406,6 +407,93 @@ compile = (code ->
             print repr(term)
             throw "unknown term $(term.type)"
 
+    emit = term ->
+        print "TERM", repr(term)
+        { term == "undefined" }: ["undef"]
+        { term == "null"      }: ["null"]
+        { term == "false"     }: ["false"]
+        { term == "true"      }: ["true"]
+        { isNumber(term) }:
+            { isFloat(term) }: ["data", term]
+            { term < 0      }: ["data", term]
+            { term > 2^25   }: ["data", term]
+            {               }: ["int", term]
+        { isChar(term)            }: ["int", term.toNumber] // TODO add "char"
+        { term.type == "string"   }: ["data", term.data]
+        { term.type == "function" }: ["bind", term.function]
+        { term.type == "assign"   }: emit(term.value) + ["store", term.to.at]
+        { term.type == "multiassign" }:
+            v = emit(term.value)
+            ls = term.locals.map(l, n -> ["rstore", n - 1, l]).flatten
+            as = term.assigns.map(a -> emit(a)).flatten
+            v + ls + as
+        { term.type == "call" }:
+            target = emit(term.target)
+            args = try(term.args,[]).map(arg -> emit(arg))
+            if try(term.block):
+                names = term.names.add("block")
+                args = args.add(term.block)
+                return ["fcalln", args.size, {ns=names}] + target + args + ["invoke"]
+            if try(term.names.filter.size > 0):
+                return ["fcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
+            ["fcall", args.size] + target + args + ["invoke"]
+        { term.type == "method" }:
+            target = emit(term.target)
+            args = term.args.map(arg -> emit(arg))
+            if term.block:
+                names = term.names.add("block")
+                args = args.add(term.block)
+                return ["mcalln", args.size, {ns=names}] + target + args + ["invoke"]
+            if term.names.filter.size > 0:
+                return ["mcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
+            ["mcall", args.size] + target + args + ["invoke"]
+        { term.type == "async" }:
+            rhs = emit(term.rhs)
+            ["fcall", 1, "global", "_Task_new", rhs, "invoke"]
+        { term.type == "not" }:
+            rhs = emit(term.rhs)
+            ["fcall", 1, "global", "not", rhs, "invoke"]
+        { term.type == "op"  }:
+            lhs = emit(term.lhs)
+            rhs = emit(term.rhs)
+            ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
+        { term.type == "local"  }: ["local", term.at]
+        { term.type == "arg"    }: ["arg", term.arg]
+        { term.type == "env"    }: ["env", term.up, term.at]
+        { term.type == "envarg" }: ["envarg", term.up, term.arg]
+        { term.type == "global" }: ["global", term.name]
+        { term.type == "object" }:
+            elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
+            ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
+        { term.type == "list" }:
+            elements = term.data.map(entry -> emit(entry))
+            ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
+        { term.type == "map" }:
+            elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
+            ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
+        /*
+        { term.type == "guards" }:
+            scope = Scope(scope)
+            gs = term.guards.map(guard ->
+                function = emittop scope, {type="block", body=guard.body}
+                _, fn = functions.add {name="-", open=false, function=function}
+                ns = {ns=[null,"block"]}
+                cond = emit(scope, try(guard.cond, "true"))
+                ["fcalln", 2, ns, "global", "_match", cond, "bind", fn, "invoke"].flatten
+            )
+            function = {code=(gs + ["fcall", 0, "global", "_nomatch", "invoke"]).flatten, args=[], locals=[]}
+            _, fn = functions.add {name="-", open=false, function=function}
+            ["fcall", 0, "bind", fn, "invoke"]
+        */
+        { }:
+            print "ERROR"
+            print repr(term)
+            throw "unknown term $(term.type)"
+
+    emittop = fn ->
+        code = fn.body.map(term -> emit(term)).flatten
+        {{code},name=try(fn.name,""),locals=fn.locals,args=fn.args}
+
     parseemit = text ->
         ast = parse(text)
         ast = lextop(Scope(null), ast)
@@ -414,8 +502,9 @@ compile = (code ->
         functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> print "fn $n:", repr(fn)
         print "fn 0:", repr(ast)
-        //emit(ast)
-        //return ast, functions
+        functions.each: fn, n -> functions[n] = emittop(fn.function)
+        main = emittop(ast)
+        return main, functions
 
     builder_new = functions -> {
         functions = functions
@@ -453,7 +542,7 @@ compile = (code ->
         code = v ->
             fn = functions[v]
             print "code:", repr(fn)
-            return this.function(fn.name, fn.function.code, fn.function.locals, fn.function.args, {text="",offset=0,pos=[]})
+            return this.function(fn.name, fn.code, fn.locals, fn.args, {text="",offset=0,pos=[]})
         create = ->
             buf = Buffer.new
             buf.write "tl01"

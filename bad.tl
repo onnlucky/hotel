@@ -1,3 +1,5 @@
+print "hello world! $(42)"
+/*
 class = { x ->
     z = 42
     y = -> print x
