@@ -7,7 +7,7 @@ test = n ->
         print "---- $n: FAIL :( ----"
         print e.toString.strip
         print "---- $n: FAIL :( ----"
-        throw "STOP"
+        //throw "STOP"
     print "---- $n ----"
     res[n] = "load"
     code = io.File(n).readString
@@ -35,6 +35,7 @@ test = n ->
 
 test("bad.tl")
 
+/*
 tests = "test/noboot/"
 io.Path(tests).each: n ->
     if not n.endsWith(".tl"): continue

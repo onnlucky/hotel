@@ -1,9 +1,2 @@
-out "$(42)\n"
-/*
-class = { x ->
-    z = 42
-    y = -> print x
-}
-// class = { y = -> this=args["this"]; print this.x }
-// constructor = x -> {{x,class}}
-
+if true: return
+out "NO\n"

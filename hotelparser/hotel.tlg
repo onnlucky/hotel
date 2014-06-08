@@ -180,11 +180,13 @@ mcallarg: v=mcall
  newvar*: "var" sp."$" name
   tovar*: "$" name
 
+selfref*: pos=pos !opname name=("return"|"break"|"continue") type=<ref>
   assign: pos=pos name=newvar type=<newvar>
         | pos=pos name=tovar type=<var>
         | pos=pos name=intro type=<local>
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
+        | pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos));
         | "!". rhs=mbcall &eostm type=<async>
         | e=mbcall &eostm                                                    -> e
         | expr
