@@ -1,4 +1,4 @@
-print "hello world! $(42)"
+out "$(42)\n"
 /*
 class = { x ->
     z = 42

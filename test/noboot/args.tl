@@ -4,8 +4,8 @@ testargs("zero", " size: ")
 
 test = -> args.block.call(42, 43, foo=44)
 
-test: a1, a2, a3 -> print a1, a2, a3
-test: -> print args[1], args[2], args[3]
-test: -> print args[2:].size
-test: -> print args["foo"]
+test: a1, a2, a3 -> out a1, " ", a2, " ", a3, "\n"
+test: -> out args[1], " ", args[2], " ", args[3], "\n"
+test: -> out args[2:].size, "\n"
+test: -> out args["foo"], "\n"
 

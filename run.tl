@@ -1,7 +1,7 @@
 res = HashMap.new
 test = n ->
     output = Array.new
-    out = -> args.each(a -> output.add(a)); print repr ["out>"] + args[:]
+    out = -> args.each(a -> output.add(str(a)))
     catch: e ->
         res[n] = res[n] +" fail: "+ e.toString
         print "---- $n: FAIL :( ----"
@@ -24,7 +24,7 @@ test = n ->
     r = mod.run
     res[n] = "compare"
     print "---- $n: output ----:"
-    print repr output.toList
+    print output.map(e -> str(e)).join("")
     ref = io.File(n[:-3] + "ref").readString
     print "---- $n: ref ----:"
     print ref
