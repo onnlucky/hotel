@@ -107,7 +107,7 @@ writeCode = mod, c ->
             buf.write mod.data(c.code[($pc += 1)])
         { op == "data"   }: // a reference module data
             buf.write 0b1100_0000 + 6
-            buf.write mod.data(c.code[($pc += 1)])
+            buf.write mod.data(c.code[($pc += 1)], true)
         { op == "global" }: // a reference to the linked list (a string)
             buf.write 0b1100_0000 + 7
             buf.write mod.global(c.code[($pc += 1)])
@@ -171,6 +171,7 @@ compile = (code ->
     Scope = parent -> {{parent},
         names = HashMap.new
         locals = Array.new
+        args = Array.new
         addOpen = function, name ->
             _, fn = functions.add {name=name or "",open=function,scope=this}
             if name:
@@ -185,7 +186,8 @@ compile = (code ->
             return at, id
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
-            this.names[name] = {arg=true,{id}}
+            _, at = this.args.add(name)
+            this.names[name] = {arg=true,{at,id}}
             return id
         ref = name, level ->
             ref = this.names[name]
@@ -271,6 +273,7 @@ compile = (code ->
             {type="scope",{args,body},locals=scope.locals.toList}
 
     lex = scope, term, name ->
+        { term == null              }: "null"
         { not try(term.type)        }: term
         { term.type == "string"     }: term
         { term.type == "stringlist" }:
@@ -421,7 +424,7 @@ compile = (code ->
         { isChar(term)            }: ["int", term.toNumber] // TODO add "char"
         { term.type == "string"   }: ["data", term.data]
         { term.type == "function" }: ["bind", term.function]
-        { term.type == "assign"   }: emit(term.value) + ["store", term.to.at]
+        { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
             ls = term.locals.map(l, n -> ["rstore", n - 1, l]).flatten
@@ -432,7 +435,7 @@ compile = (code ->
             args = try(term.args,[]).map(arg -> emit(arg))
             if try(term.block):
                 names = term.names.add("block")
-                args = args.add(term.block)
+                args = args.add(emit(term.block))
                 return ["fcalln", args.size, {ns=names}] + target + args + ["invoke"]
             if try(term.names.filter.size > 0):
                 return ["fcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
@@ -442,11 +445,11 @@ compile = (code ->
             args = term.args.map(arg -> emit(arg))
             if term.block:
                 names = term.names.add("block")
-                args = args.add(term.block)
-                return ["mcalln", args.size, {ns=names}] + target + args + ["invoke"]
+                args = args.add(emit(term.block))
+                return ["mcalln", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
             if term.names.filter.size > 0:
-                return ["mcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
-            ["mcall", args.size] + target + args + ["invoke"]
+                return ["mcalln", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
+            ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "async" }:
             rhs = emit(term.rhs)
             ["fcall", 1, "global", "_Task_new", rhs, "invoke"]
@@ -457,11 +460,12 @@ compile = (code ->
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
             ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
-        { term.type == "local"  }: ["local", term.at]
-        { term.type == "arg"    }: ["arg", term.arg]
-        { term.type == "env"    }: ["env", term.up, term.at]
-        { term.type == "envarg" }: ["envarg", term.up, term.arg]
+        { term.type == "local"  }: ["local", term.at - 1]
+        { term.type == "arg"    }: ["arg", term.at - 1]
+        { term.type == "env"    }: ["env", term.up, term.at - 1]
+        { term.type == "envarg" }: ["envarg", term.up, term.at - 1]
         { term.type == "global" }: ["global", term.name]
+        { term.type == "args"   }: ["system", "args"]
         { term.type == "object" }:
             elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
             ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
@@ -513,9 +517,10 @@ compile = (code ->
         globals = Array.new
         globalsIndex = HashMap.new
         functions = HashMap.new
-        data = v ->
-            ref = encodeLiteral v
-            if ref: return ref
+        data = v, code ->
+            if not code:
+                ref = encodeLiteral v
+                if ref: return ref
             ref = this.dataIndex[v]
             if ref: return ref
             bin = { isList(v)   }: encodeList v.map(v -> this.data v)
@@ -535,13 +540,13 @@ compile = (code ->
             this.globalsIndex[v] = encodeInt(at - 1)
         function = name, code, locals, argspecs, debuginfo ->
             code = code.add("end")
+            print "code:", name, repr(code)
             bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
             _, at = this.datas.add bin
             print "function", at, name
             this.functions[name] = encodeInt(at - 1)
         code = v ->
             fn = functions[v]
-            print "code:", repr(fn)
             return this.function(fn.name, fn.code, fn.locals, fn.args, {text="",offset=0,pos=[]})
         create = ->
             buf = Buffer.new
@@ -554,7 +559,7 @@ compile = (code ->
     }
 
     compilemain = main, function ->
-        name = try(main.name, "")
+        name = try(main.name, "<main>")
         locals = try(main.locals, [])
         argspec = try(main.args, [])
         text = try(main.text, "")
@@ -597,8 +602,8 @@ SimpleDebugger = debugger ->
             debugger.continue
             break
 
-load = bytes ->
-    m = _Module_new(Buffer.new(bytes), "")
+load = bytes, out ->
+    m = _Module_new(Buffer.new(bytes), "", out)
     {
         bytes = bytes
         links = -> _module_links(m)

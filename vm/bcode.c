@@ -651,7 +651,7 @@ static void disasm(tlBCode* bcode) {
             case OP_MCALLN: case OP_FCALLN: case OP_BCALLN:
                 r = pcreadsize(ops, &pc);
                 o = pcreadref(ops, &pc, data);
-                print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_repr(o));
+                print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_str(o));
                 break;
             case OP_SYSTEM: case OP_MODULE:
                 o = pcreadref(ops, &pc, data);
@@ -819,7 +819,7 @@ exit:;
      return tlNull;
 }
 
-#include "trace-off.h"
+#include "trace-on.h"
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     trace("linking: %p", mod);
     assert(!mod->linked);
@@ -838,32 +838,44 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
 
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* locals);
 
+tlArgs* argsFromBCall(tlBCall* call) {
+    tlMap* map = tlMapEmpty();
+    if (call->names) {
+        for (int i = 0; i < call->size; i++) {
+            tlHandle name = tlListGet(call->names, i);
+            if (name && name != tlNull) {
+                trace("ARGS: %s = %s", tl_str(name), tl_str(call->args[i]));
+                map = tlMapSet(map, tlSymAs(name), call->args[i]);
+            }
+        }
+    }
+
+    tlArgs* args = tlArgsNew(tlListNew(call->size - tlMapSize(map)), map);
+    tlArgsSetTarget_(args, call->target);
+    tlArgsSetFn_(args, call->fn);
+    //if (tlBSendTokenIs(fn)) tlArgsSetMsg_(args, tlBSendTokenAs(fn)->method);
+    for (int i = 0, j = 0; i < call->size; i++) {
+        if (call->names) {
+            tlHandle name = tlListGet(call->names, i);
+            if (name && name != tlNull) continue;
+        }
+        trace("ARGS: %d = %s", j, tl_str(call->args[i]));
+        tlArgsSet_(args, j++, call->args[i]);
+    }
+    return args;
+}
+
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
     trace(" %s invoke %s", tl_str(call), tl_str(fn));
-    if (tlBSendTokenIs(fn)) {
-        tlArgs* args = tlArgsNew(tlListNew(call->size), null);
-        tlArgsSetTarget_(args, call->target);
-        tlArgsSetMsg_(args, tlBSendTokenAs(fn)->method);
-        for (int i = 0; i < call->size; i++) tlArgsSet_(args, i, call->args[i]);
-        return tl_kind(call->target)->send(args);
-    }
-    if (tlNativeIs(fn)) {
-        tlArgs* args = tlArgsNew(tlListNew(call->size), null);
-        tlArgsSetTarget_(args, call->target);
-        tlArgsSetFn_(args, call->fn);
-        for (int i = 0; i < call->size; i++) tlArgsSet_(args, i, call->args[i]);
-        if (call->names) {
-            tlMap* map = tlMapEmpty();
-            for (int i = 0; i < call->size; i++) {
-                tlHandle name = tlListGet(call->names, i);
-                if (name && name != tlNull) {
-                    map = tlMapSet(map, tlSymAs(name), call->args[i]);
-                }
-            }
-            if (tlMapSize(map) > 0) args->map = map; //tlArgsSetMap_(args, map);
+    if (tlBSendTokenIs(fn) || tlNativeIs(fn) || tlClosureIs(fn)) {
+        tlArgs* args = argsFromBCall(call);
+        if (tlBSendTokenIs(fn)) {
+            tlArgsSetMsg_(args, tlBSendTokenAs(fn)->method);
+            return tl_kind(call->target)->send(args);
         }
-        return tlNativeKind->run(tlNativeAs(fn), args);
+        if (tlNativeIs(fn)) return tlNativeKind->run(tlNativeAs(fn), args);
+        return runClosure(tlClosureAs(fn), args);
     }
     if (tlBClosureIs(fn)) {
         return beval(task, null, call, 0, null);
@@ -1077,6 +1089,7 @@ again:;
         if (op & 0x10) {
             int at = pcreadsize(ops, &pc);
             tlBCallSetNames_(call, tlListAs(tlListGet(data, at)));
+            trace("set names: %s", tl_str(call->names));
         }
         // for non methods, skip target
         if (op & 0x0F) tlBCallAdd_(call, tlNull, arg++);
@@ -1120,7 +1133,7 @@ again:;
             // TODO this doesn't take care of blocks vs function vs methods
             if (tlStringEquals(v, tlSTR("args"))) {
                 trace("syscall args: %s", tl_str(args));
-                v = args;
+                v = argsFromBCall(args);
                 break;
             }
             fatal("syscall: %s", tl_str(v));
@@ -1205,11 +1218,13 @@ resume:;
     if (lazy) v = tlBLazyDataNew(v);
 
     // set the data to the call
+    trace("load: %s[%d] = %s", tl_str(call), arg, tl_str(v));
     tlBCallAdd_(call, v, arg++);
 
-    // TODO resolve method at object ...
+    // resolve method at object ...
     if (arg == 2 && call->target && tlStringIs(call->fn)) {
         tlHandle method = bmethodResolve(call->target, tlSymFromString(call->fn));
+        trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
         if (!method) TL_THROW("undefined");
         call->fn = method;
     }
@@ -1245,12 +1260,13 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
 }
 
 INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    trace("running resuming from a frame");
+    trace("running resuming from a frame: %s", tl_str(res));
     tlBFrame* frame = tlBFrameAs(_frame);
     if (throw) {
         if (frame->handler) return handleBFrameThrow(frame, throw);
         return null;
     }
+    tlTaskCurrent()->value = res;
     return beval(tlTaskCurrent(), frame, null, 0, null);
 }
 
@@ -1264,11 +1280,15 @@ tlHandle beval_module(tlTask* task, tlBModule* mod) {
 INTERNAL tlHandle _Module_new(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     tlString* name = tlStringCast(tlArgsGet(args, 1));
+    tlHandle* out = tlArgsGet(args, 2);
     tlBModule* mod = tlBModuleNew(name);
     const char* error = null;
     deserialize(buf, mod, &error);
     if (error) TL_THROW("invalid bytecode: %s", error);
-    tlBModuleLink(mod, tlVmGlobalEnv(tlVmCurrent()), &error);
+    tlEnv* current = tlVmGlobalEnv(tlVmCurrent());
+    if (out) current = tlEnvSet(current, tlSYM("out"), out);
+    assert(out);
+    tlBModuleLink(mod, current, &error);
     if (error) TL_THROW("invalid bytecode: %s", error);
     return mod;
 }
@@ -1390,28 +1410,34 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _bcall_get(tlArgs* args) {
-    tlBCall* call = tlBCallAs(tlArgsTarget(args));
-
-    tlHandle v = tlArgsGet(args, 0);
-    if (!v || tlIntIs(v) || tlFloatIs(v)) {
-        int at = at_offset(v, call->size);
-        return tlMAYBE(tlBCallGet(call, at));
-    }
-    if (tlSymIs(v)) {
-        //return tlMAYBE(tlBCallMapGet(call, tlSymAs(v)));
-    }
-    TL_THROW("Expected an index or name");
-}
-
 // TODO really, tlArgs == tlBCall if we rework both a bit
 INTERNAL tlHandle _closure_call(tlArgs* args) {
-    trace("closure.call");
-    tlBCall* call = tlBCallNew(tlArgsSize(args));
+    trace("closure.call; translating args into bcall");
+    if (tlArgsMapSize(args) == 0) {
+        tlBCall* call = tlBCallNew(tlArgsSize(args));
+        call->target = call->fn = tlArgsTarget(args);
+        for (int i = 0; i < tlArgsSize(args); i++) {
+            call->args[i] = tlArgsGet(args, i);
+        }
+        return beval(tlTaskCurrent(), null, call, 0, null);
+    }
+
+    tlBCall* call = tlBCallNew(tlArgsSize(args) + tlArgsMapSize(args));
+    tlList* names = tlListNew(tlArgsSize(args) + tlArgsMapSize(args));
+    call->names = names;
     call->target = call->fn = tlArgsTarget(args);
-    // TODO names
-    for (int i = 0; i < tlArgsSize(args); i++) {
-        call->args[i] = tlArgsGet(args, 0);
+    int i = 0;
+    for (; i < tlArgsSize(args); i++) {
+        call->args[i] = tlArgsGet(args, i);
+        tlListSet_(names, i, tlNull);
+        trace("BCALL[%d] = %s", i, tl_str(call->args[i]));
+    }
+
+    tlMap* kargs = tlArgsMap(args);
+    for (int j = 0; j < tlMapSize(kargs); j++) {
+        call->args[i + j] = tlMapValueIter(kargs, j);
+        tlListSet_(names, i + j, tlStringFromSym(tlMapKeyIter(kargs, j)));
+        trace("BCALL[%d](%s) = %s", i + j, tl_str(tlListGet(names, i + j)), tl_str(call->args[i + j]));
     }
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
@@ -1428,10 +1454,6 @@ INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
 }
 
 void bcode_init() {
-    _tlBCallKind.klass = tlClassMapFrom(
-        "get", _bcall_get,
-        null
-    );
     _tlBClosureKind.klass = tlClassMapFrom(
         "call", _closure_call,
         null
