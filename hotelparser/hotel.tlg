@@ -180,7 +180,7 @@ mcallarg: v=mcall
  newvar*: "var" sp."$" name
   tovar*: "$" name
 
-selfref*: pos=pos !opname name=("return"|"break"|"continue") type=<ref>
+selfref*: pos=pos !opname name=("return"|"goto"|"break"|"continue") type=<ref>
   assign: pos=pos name=newvar type=<newvar>
         | pos=pos name=tovar type=<var>
         | pos=pos name=intro type=<local>

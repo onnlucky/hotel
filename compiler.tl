@@ -193,6 +193,9 @@ compile = (code ->
         greturn = level ->
             if this.block: return parent.greturn(level + 1)
             {type="return",scope=level}
+        ggoto = level ->
+            if this.block: return parent.ggoto(level + 1)
+            {type="goto",scope=level}
         gbreak = level, ls ->
             if this.block: return parent.gbreak(level + 1, ls.add(level))
             if this.parent: return parent.gbreak(level + 1, ls)
@@ -203,6 +206,7 @@ compile = (code ->
             {type="continue",scope=ls}
         ref = name, level ->
             if name == "return": return this.greturn(0)
+            if name == "goto": return this.ggoto(0)
             if name == "break": return this.gbreak(0, [])
             if name == "continue": return this.gcontinue(0, [])
             ref = this.names[name]
@@ -364,7 +368,7 @@ compile = (code ->
             names = try(term.args, []).map: stm -> try(stm.n)
             args = try(term.args, []).map: stm -> lex(scope, stm.v)
             block = try(lex(scope, term.block))
-            if try(target.type) == "return":
+            if try(target.type) == "return" or try(target.type) == "goto":
                 t = {type="global",name=target.type}
                 return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block}}
             if try(target.type) == "break" or try(target.type) == "continue":

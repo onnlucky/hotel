@@ -993,7 +993,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     bool lazy = false; // if current call[arg] is lazy
 
     uint8_t op = 0; // current opcode
-    tlHandle v = null; // tmp result register
+    tlHandle v = tlNull; // tmp result register
 
     // get current attached debugger, if any
     tlDebugger* debugger = tlDebuggerFor(task);
@@ -1073,7 +1073,10 @@ again:;
         }
     }
     op = ops[pc++];
-    if (!op) return v; // OP_END
+    if (!op) {
+        assert(v);
+        return v; // OP_END
+    }
     assert(op & 0xC0);
 
     lazy = tlBCallIsLazy(call, arg);
@@ -1433,9 +1436,50 @@ INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw)
     assert(scopeframe);
     return tlTaskStackUnwind(((tlFrame*)scopeframe)->caller, res);
 }
-
 INTERNAL tlHandle __return(tlArgs* args) {
     return tlTaskPauseResuming(resume_breturn, args);
+}
+
+INTERNAL tlHandle resume_bgoto(tlFrame* _frame, tlHandle _res, tlHandle throw) {
+    if (throw || !_res) return null;
+    tlArgs* args = tlArgsAs(_res);
+
+    int deep = tl_int(tlArgsGet(args, 0));
+    trace("RETURN SCOPES: %d", deep);
+
+    // TODO we should return our scoped function, not the first frame ...
+    tlHandle res = tlNull;
+    if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
+    if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
+
+    tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
+    assert(scopeframe->locals);
+    tlBCall* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
+
+    tlFrame* frame = (tlFrame*)scopeframe;
+    while (frame) {
+        trace("%p", frame);
+        if (tlBFrameIs(frame)) {
+            tlBFrame* bframe = tlBFrameAs(frame);
+            trace("found a bframe: %s{.pc=%d,.args=%s) env->args=%s", tl_str(bframe), bframe->pc, tl_str(bframe->args), tl_str(bframe->locals->args));
+            // negative pc means a lazy frame, has same locals and bcall as target ... but we ignore it
+            if (bframe->pc > 0 && bframe->args == target) {
+                scopeframe = bframe;
+                break;
+            }
+            // we keep track of lexically related frames, for when the to return to target is not on stack (captured blocks)
+            if (bframe->locals == scopeframe->locals->parent) {
+                scopeframe = tlBFrameAs(frame);
+                trace("found a scope frame: %s.pc=%d (%d)", tl_str(frame), scopeframe->pc, deep);
+            }
+        }
+        frame = frame->caller;
+    }
+    assert(scopeframe);
+    return tlTaskStackUnwind(((tlFrame*)scopeframe)->caller, res);
+}
+INTERNAL tlHandle __goto(tlArgs* args) {
+    return tlTaskPauseResuming(resume_bgoto, args);
 }
 
 INTERNAL tlHandle _bcatch(tlArgs* args) {
@@ -1494,7 +1538,21 @@ INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
+static const tlNativeCbs __bcode_natives[] = {
+    { "_Module_new", _Module_new },
+    { "_module_run", _module_run },
+    { "_module_links", _module_links },
+    { "_module_link", _module_link },
+    { "__list", __list },
+    { "__map", __map },
+    { "__object", __object },
+    { "return", __return },
+    { "goto", __goto },
+    { 0, 0 }
+};
+
 void bcode_init() {
+    tl_register_natives(__bcode_natives);
     _tlBClosureKind.klass = tlClassMapFrom(
         "call", _closure_call,
         null

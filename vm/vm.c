@@ -619,15 +619,6 @@ static const tlNativeCbs __vm_natives[] = {
     { "_deflate", _deflate },
     { "_inflate", _inflate },
 
-    { "_Module_new", _Module_new },
-    { "_module_run", _module_run },
-    { "_module_links", _module_links },
-    { "_module_link", _module_link },
-    { "__list", __list },
-    { "__map", __map },
-    { "__object", __object },
-    { "return", __return },
-
     { 0, 0 },
 };
 

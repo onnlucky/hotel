@@ -5346,6 +5346,9 @@ static State r_selfref_302(Parser* _p, int _start) { // or
  _r = prim_text(_p, _pos, "return");
  if (_r.ok) return parser_pass(_p, "r_selfref_302", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_selfref_302");*/ return _r; }
+ _r = prim_text(_p, _pos, "goto");
+ if (_r.ok) return parser_pass(_p, "r_selfref_302", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_selfref_302");*/ return _r; }
  _r = prim_text(_p, _pos, "break");
  if (_r.ok) return parser_pass(_p, "r_selfref_302", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_selfref_302");*/ return _r; }
