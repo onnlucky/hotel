@@ -225,6 +225,7 @@ tlBLazy* tlBLazyNew(tlBCall* args, tlBEnv* locals, int pc) {
 tlBLazyData* tlBLazyDataNew(tlHandle data) {
     tlBLazyData* lazy = tlAlloc(tlBLazyDataKind, sizeof(tlBLazyData));
     lazy->data = data;
+    if (!data) lazy->data = tlNull;
     return lazy;
 }
 
@@ -284,14 +285,15 @@ int tlBCallNameIndex(tlBCall* call, tlString* name) {
     return -1;
 }
 
-tlHandle tlBCallGetUnnamed(tlBCall* call, int skipped) {
+int tlBCallGetUnnamedIndex(tlBCall* call, int skipped) {
     trace("get unnamed: %d", skipped);
-    for (int i = 0; i < call->size; i++) {
+    int i = 0;
+    for (; i < call->size; i++) {
         if (tlStringIs(tlListGet(call->names, i))) continue;
-        if (!skipped) return call->args[i];
+        if (!skipped) break;
         skipped--;
     }
-    return tlNull;
+    return i;
 }
 
 tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
@@ -311,12 +313,14 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
             if (tlBCallNameIndex(call, name) < 0) skipped++;
         }
 
-        return tlBCallGetUnnamed(call, skipped);
+        at = tlBCallGetUnnamedIndex(call, skipped);
     }
 
     tlHandle v = tlBCallGet(call, at);
     if (v) return v;
     v = tlListGet(argspec, 1);
+    bool lazy = tl_bool(tlListGet(argspec, 2));
+    if (lazy) return tlBLazyDataNew(v);
     if (!v) return tlNull;
     return v;
 }
@@ -960,7 +964,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method) {
 }
 
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
-    trace("here");
+    trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
     assert(task);
     if (!args) {
         assert(frame);
@@ -1003,6 +1007,11 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     if (frame) { // 3 or 4 or 5
         assert(args == frame->args);
         pc = frame->pc;
+        if (pc < 0) {
+            pc = -pc;
+            lazypc = 1;
+            trace("restoring lazypc to 1");
+        }
         calls = &frame->calls;
         lazylocals = frame->locals;
         locals = &lazylocals->data;
@@ -1010,7 +1019,12 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 
         // TODO we really need to know if we came from debugger or not ... just having a debugger is not good enough
         // plus, debuggers attach/deattach any time
-        if (bcode->calldepth == 0 || !(*calls)[0].call) goto again;
+        if (bcode->calldepth == 0 || !(*calls)[0].call) {
+            trace("resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
+                tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
+            if (lazypc) goto resume;
+            goto again;
+        }
 
         // find current call, we mark non current call by setting sign bit
         assert(bcode->calldepth > 0); // cannot be zero, or we would never suspend
@@ -1123,6 +1137,7 @@ again:;
             if (!v) { // task paused instead of actually doing work, suspend and return
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
                 if (calltop >= 0) (*calls)[calltop].at = arg;
+                if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
                 return tlTaskPauseAttach(frame);
             }
             pc = frame->pc;
@@ -1394,15 +1409,23 @@ INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw)
 
     tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
     assert(scopeframe->locals);
+    tlBCall* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
     tlFrame* frame = (tlFrame*)scopeframe;
-    while (deep && frame) {
+    while (frame) {
         trace("%p", frame);
         if (tlBFrameIs(frame)) {
-            if (tlBFrameAs(frame)->locals == scopeframe->locals->parent) {
+            tlBFrame* bframe = tlBFrameAs(frame);
+            trace("found a bframe: %s{.pc=%d,.args=%s) env->args=%s", tl_str(bframe), bframe->pc, tl_str(bframe->args), tl_str(bframe->locals->args));
+            // negative pc means a lazy frame, has same locals and bcall as target ... but we ignore it
+            if (bframe->pc > 0 && bframe->args == target) {
+                scopeframe = bframe;
+                break;
+            }
+            // we keep track of lexically related frames, for when the to return to target is not on stack (captured blocks)
+            if (bframe->locals == scopeframe->locals->parent) {
                 scopeframe = tlBFrameAs(frame);
-                deep--;
-                trace("found a scope frame: %s (%d)", tl_str(frame), deep);
+                trace("found a scope frame: %s.pc=%d (%d)", tl_str(frame), scopeframe->pc, deep);
             }
         }
         frame = frame->caller;
@@ -1431,6 +1454,7 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
         tlBCall* call = tlBCallNew(tlArgsSize(args));
         call->target = tlArgsTarget(args);
         call->fn = tlArgsFn(args);
+        if (call->fn) call->fn = call->target;
         for (int i = 0; i < tlArgsSize(args); i++) {
             call->args[i] = tlArgsGet(args, i);
         }
@@ -1442,6 +1466,7 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
     call->names = names;
     call->target = tlArgsTarget(args);
     call->fn = tlArgsFn(args);
+    if (call->fn) call->fn = call->target;
     int i = 0;
     for (; i < tlArgsSize(args); i++) {
         call->args[i] = tlArgsGet(args, i);

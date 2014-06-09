@@ -7,7 +7,7 @@ test = n ->
         print "---- $n: FAIL :( ----"
         print e.toString.strip
         print "---- $n: FAIL :( ----"
-        //throw "STOP"
+        throw "STOP"
     print "---- $n ----"
     res[n] = "load"
     code = io.File(n).readString
@@ -22,6 +22,7 @@ test = n ->
     mod = compiler.load(bytes, out)
     res[n] = "run"
     r = mod.run
+    if r: out(r, "\n")
     res[n] = "compare"
     print "---- $n: output ----:"
     print output.map(e -> str(e)).join("")
