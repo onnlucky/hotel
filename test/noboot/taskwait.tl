@@ -1,10 +1,10 @@
 x = !Task.yield; 42
-print x.isDone
-print x.wait
+out x.isDone, "\n"
+out x.wait, "\n"
 
 x = !Task.yield; 42
 Task.yield
 Task.yield
-print x.isDone
-print x.wait
+out x.isDone, "\n"
+out x.wait, "\n"
 

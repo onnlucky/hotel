@@ -1,2 +1,2 @@
-{ call = x -> print "hello", x }("world!")
-print { call = "hello" }("world!")
+{ call = x -> out "hello ", x, "\n" }("world!")
+out { call = "hello" }("world!"), "\n"

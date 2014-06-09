@@ -1,2 +1,1 @@
-if true: return
-out "NO\n"
+out "$(42)\n"

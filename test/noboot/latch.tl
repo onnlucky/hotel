@@ -9,12 +9,12 @@ Latch = max ->
                 if count < max: msg.reply; goto loop(count + 1, hold)
                 goto loop(count + 1, hold.add(msg))
             if msg.name == "exit":
-                print "EXITING:", hold.size
+                out "EXITING: ", hold.size, "\n"
                 msg.reply
                 if hold.size == 0: goto loop(count - 1, hold)
                 hold[1].reply
                 goto loop(count - 1, hold[2:])
-            print "********ERROR*********"
+            out "********ERROR*********\n"
             msg.reply; loop(count, hold)
         loop(0, [])
     )

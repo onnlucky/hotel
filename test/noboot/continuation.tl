@@ -1,7 +1,7 @@
 cc, extra = continuation
-print "HELLO", extra
+out "HELLO ", extra, "\n"
 done = return
 bool(extra, (->done()), (->))()
 cc("WORLD!")
-print("ERROR")
+out "ERROR", "\n"
 

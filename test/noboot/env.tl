@@ -1,3 +1,3 @@
 first = "hello"
 second = "world"
-print(first, second)
+out(first, " ", second, "\n")

@@ -169,6 +169,7 @@ INTERNAL tlHandle tlTaskStackUnwind(tlFrame* upto, tlHandle res) {
     task->stack = upto;
     task->value = res;
     assert(task->value);
+    trace("UNWINDING DONE");
     return tlTaskJumping;
 }
 

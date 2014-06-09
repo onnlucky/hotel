@@ -2,14 +2,14 @@ max = 10000
 
 ls = Array.new
 x = Var.new 0
-print "starting:", $x
+out "starting: ", $x, "\n"
 
 // while is in boot.tl
 loop:
     if $x >= max: break
     ls.add $x
     $x += 1
-print "removing", $x, ls.size
+out "removing ", $x, " ", ls.size, "\n"
 
 y = Var.new 0
 loop:
@@ -17,5 +17,5 @@ loop:
     ls.pop
     $y += 1
 
-print $x, "==", $y
+out $x, " == ", $y, "\n"
 

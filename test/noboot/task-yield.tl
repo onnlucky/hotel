@@ -1,3 +1,3 @@
-_Task_new -> print "hello"
+_Task_new -> out "hello\n"
 Task.yield
-print "DONE"
+out "DONE\n"

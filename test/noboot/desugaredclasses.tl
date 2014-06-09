@@ -27,7 +27,7 @@ Square = {
 }
 
 s1 = Square(10, 20, 42, 10)
-print s1.x, s1.y, s1.width, s1.height, "area:", s1.area
+out s1.x, " ", s1.y, " ", s1.width, " ", s1.height, " area: ", s1.area, "\n"
 s2 = s1.move 100, 100
-print s2.x, s2.y, s2.area
+out s2.x, " ", s2.y, " ", s2.area, "\n"
 
