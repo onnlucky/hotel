@@ -867,7 +867,7 @@ tlArgs* argsFromBCall(tlBCall* call) {
 
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
-    trace(" %s invoke %s", tl_str(call), tl_str(fn));
+    trace(" %s invoke %s.%s", tl_str(call), tl_str(call->target), tl_str(fn));
     if (tlBSendTokenIs(fn) || tlNativeIs(fn) || tlClosureIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
@@ -887,12 +887,13 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     if (tlBLazyDataIs(fn)) {
         return tlBLazyDataAs(fn)->data;
     }
+    // if method call and target is set, field is already resolved and apparently not callable
     if (call->target) {
         assert(fn);
-        return call->fn;
+        assert(!tlCallableIs(fn));
+        return fn;
     }
-    fatal("don't know how to invoke: %s", tl_str(fn));
-    return null;
+    TL_THROW("'%s' not callable", tl_str(fn));
 }
 
 static tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv* locals) {
@@ -1092,7 +1093,7 @@ again:;
             trace("set names: %s", tl_str(call->names));
         }
         // for non methods, skip target
-        if (op & 0x0F) tlBCallAdd_(call, tlNull, arg++);
+        if (op & 0x0F) tlBCallAdd_(call, null, arg++);
         goto again;
     }
 
@@ -1153,6 +1154,7 @@ again:;
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
             tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            assert(parent);
             v = tlBEnvGet(parent, at);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
@@ -1427,7 +1429,8 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
     trace("closure.call; translating args into bcall");
     if (tlArgsMapSize(args) == 0) {
         tlBCall* call = tlBCallNew(tlArgsSize(args));
-        call->target = call->fn = tlArgsTarget(args);
+        call->target = tlArgsTarget(args);
+        call->fn = tlArgsFn(args);
         for (int i = 0; i < tlArgsSize(args); i++) {
             call->args[i] = tlArgsGet(args, i);
         }
@@ -1437,7 +1440,8 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
     tlBCall* call = tlBCallNew(tlArgsSize(args) + tlArgsMapSize(args));
     tlList* names = tlListNew(tlArgsSize(args) + tlArgsMapSize(args));
     call->names = names;
-    call->target = call->fn = tlArgsTarget(args);
+    call->target = tlArgsTarget(args);
+    call->fn = tlArgsFn(args);
     int i = 0;
     for (; i < tlArgsSize(args); i++) {
         call->args[i] = tlArgsGet(args, i);

@@ -145,8 +145,8 @@ opname = op ->
     { op == "==" }: return "eq"
     { op == "!=" }: return "neq"
 
-    { op == ">" }: return "qt"
-    { op == ">=" }: return "qte"
+    { op == ">" }: return "gt"
+    { op == ">=" }: return "gte"
     { op == "<" }: return "lt"
     { op == "<=" }: return "lte"
 
@@ -364,10 +364,10 @@ compile = (code ->
             names = try(term.args, []).map: stm -> try(stm.n)
             args = try(term.args, []).map: stm -> lex(scope, stm.v)
             block = try(lex(scope, term.block))
-            if target.type == "return":
+            if try(target.type) == "return":
                 t = {type="global",name=target.type}
                 return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block}}
-            if target.type == "break" or target.type == "continue":
+            if try(target.type) == "break" or try(target.type) == "continue":
                 t = {type="global",name=target.type}
                 s = lex(scope, {type="list",data=target.scope})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
@@ -466,12 +466,12 @@ compile = (code ->
             ["fcall", args.size] + target + args + ["invoke"]
         { term.type == "method" }:
             target = emit(term.target)
-            args = term.args.map(arg -> emit(arg))
-            if term.block:
+            args = try(term.args,[]).map(arg -> emit(arg))
+            if try(term.block):
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
                 return ["mcalln", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
-            if term.names.filter.size > 0:
+            if try(term.names.filter.size > 0):
                 return ["mcalln", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
             ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "async" }:
@@ -486,8 +486,8 @@ compile = (code ->
             ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
         { term.type == "local"  }: ["local", term.at - 1]
         { term.type == "arg"    }: ["arg", term.at - 1]
-        { term.type == "env"    }: ["env", term.up, term.at - 1]
-        { term.type == "envarg" }: ["envarg", term.up, term.at - 1]
+        { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
+        { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
         { term.type == "global" }: ["global", term.name]
         { term.type == "args"   }: ["system", "args"]
         { term.type == "object" }:
