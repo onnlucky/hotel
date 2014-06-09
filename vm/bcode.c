@@ -1266,6 +1266,7 @@ INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
         if (frame->handler) return handleBFrameThrow(frame, throw);
         return null;
     }
+    if (!res) return null;
     tlTaskCurrent()->value = res;
     return beval(tlTaskCurrent(), frame, null, 0, null);
 }
@@ -1377,28 +1378,39 @@ INTERNAL tlHandle __map(tlArgs* args) {
     return map;
 }
 
-INTERNAL tlHandle __return(tlArgs* args) {
+INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw) {
+    if (throw || !_res) return null;
+    tlArgs* args = tlArgsAs(_res);
+
+    int deep = tl_int(tlArgsGet(args, 0));
+    trace("RETURN SCOPES: %d", deep);
+
     // TODO we should return our scoped function, not the first frame ...
     tlHandle res = tlNull;
-    if (tlArgsSize(args) == 1) res = tlArgsGet(args, 0);
-    if (tlArgsSize(args) > 1) res = tlResultFromArgs(args);
+    if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
+    if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlFrame* returnframe = tlTaskCurrentFrame(tlTaskCurrent());
-    tlFrame* frame = returnframe;
-    while (frame) {
+    tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
+    assert(scopeframe->locals);
+
+    tlFrame* frame = (tlFrame*)scopeframe;
+    while (deep && frame) {
+        trace("%p", frame);
         if (tlBFrameIs(frame)) {
-            ((tlBFrame*)frame)->pc = 999999;
-            return res;
-            trace("%s - bframe", tl_str(frame));
-            trace("  %s", tl_str(((tlBFrame*)frame)->args->fn));
-        } else {
-            trace("%s", tl_str(frame));
+            if (tlBFrameAs(frame)->locals == scopeframe->locals->parent) {
+                scopeframe = tlBFrameAs(frame);
+                deep--;
+                trace("found a scope frame: %s (%d)", tl_str(frame), deep);
+            }
         }
         frame = frame->caller;
     }
+    assert(scopeframe);
+    return tlTaskStackUnwind(((tlFrame*)scopeframe)->caller, res);
+}
 
-    assert(false);
-    return res;
+INTERNAL tlHandle __return(tlArgs* args) {
+    return tlTaskPauseResuming(resume_breturn, args);
 }
 
 INTERNAL tlHandle _bcatch(tlArgs* args) {

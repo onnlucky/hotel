@@ -168,7 +168,8 @@ compile = (code ->
     functions = Array.new
     ids = Array.new
 
-    Scope = parent -> {{parent},
+    Scope = parent, block -> {{parent},
+        block = block or false
         names = HashMap.new
         locals = Array.new
         args = Array.new
@@ -189,7 +190,21 @@ compile = (code ->
             _, at = this.args.add(name)
             this.names[name] = {arg=true,{at,id}}
             return id
+        greturn = level ->
+            if this.block: return parent.greturn(level + 1)
+            {type="return",scope=level}
+        gbreak = level, ls ->
+            if this.block: return parent.gbreak(level + 1, ls.add(level))
+            if this.parent: return parent.gbreak(level + 1, ls)
+            {type="break",scope=ls}
+        gcontinue = level, ls ->
+            if this.block: return parent.gcontinue(level + 1, ls.add(level))
+            if this.parent: return parent.gcontinue(level + 1, ls)
+            {type="continue",scope=ls}
         ref = name, level ->
+            if name == "return": return this.greturn(0)
+            if name == "break": return this.gbreak(0, [])
+            if name == "continue": return this.gcontinue(0, [])
             ref = this.names[name]
             if try(ref.fn):
                 if functions[ref.fn].open: close(ref.fn)
@@ -203,7 +218,7 @@ compile = (code ->
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
             if parent:
-                if not level: return parent.ref name, 0
+                if not level: return parent.ref name, 1
                 return parent.ref name, level + 1
             globals[name] = true
             return {type="global",{name}}
@@ -262,7 +277,7 @@ compile = (code ->
             body = term.body.map(stm -> lex(scope, stm))
             {type="function",{args,body},locals=scope.locals.toList}
         { term.type == "block" }:
-            scope = Scope(scope)
+            scope = Scope(scope, true)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             {type="block",{args,body},locals=scope.locals.toList}
@@ -273,6 +288,7 @@ compile = (code ->
             {type="scope",{args,body},locals=scope.locals.toList}
 
     lex = scope, term, name ->
+        print "LEX", name, repr(term)
         { term == null              }: "null"
         { not try(term.type)        }: term
         { term.type == "string"     }: term
@@ -344,9 +360,17 @@ compile = (code ->
             {type="multiassign",{locals,assigns}}
         { term.type == "call" }:
             target = lex(scope, term.target)
+            print "CALL", repr(term)
             names = try(term.args, []).map: stm -> try(stm.n)
             args = try(term.args, []).map: stm -> lex(scope, stm.v)
             block = try(lex(scope, term.block))
+            if target.type == "return":
+                t = {type="global",name=target.type}
+                return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block}}
+            if target.type == "break" or target.type == "continue":
+                t = {type="global",name=target.type}
+                s = lex(scope, {type="list",data=target.scope})
+                return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
             {type="call",{target,args,names,block}}
         { term.type == "method" }:
             target = lex(scope, term.target)
