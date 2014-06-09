@@ -361,7 +361,7 @@ compile = (code ->
                     value = {type="local",at=l.at,id=l.id}
                     {type="method",target=ref,method="set",args=[value]}
             )
-            {type="multiassign",{locals,assigns}}
+            {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
             target = lex(scope, term.target)
             print "CALL", repr(term)
@@ -455,8 +455,8 @@ compile = (code ->
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
-            ls = term.locals.map(l, n -> ["rstore", n - 1, l]).flatten
-            as = term.assigns.map(a -> emit(a)).flatten
+            ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
+            as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "call" }:
             target = emit(term.target)
