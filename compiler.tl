@@ -221,6 +221,9 @@ compile = (code ->
             if name == "args": // TODO only if function ...
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
+            if name == "this": // TODO only if function ...
+                if not level: return {type="this"}
+                return {type="envthis",up=level}
             if parent:
                 if not level: return parent.ref name, 1
                 return parent.ref name, level + 1
@@ -494,6 +497,7 @@ compile = (code ->
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
         { term.type == "global" }: ["global", term.name]
         { term.type == "args"   }: ["system", "args"]
+        { term.type == "this"   }: ["system", "this"]
         { term.type == "object" }:
             elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
             ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]

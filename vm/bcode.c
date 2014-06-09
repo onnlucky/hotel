@@ -892,10 +892,15 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         return tlBLazyDataAs(fn)->data;
     }
     // if method call and target is set, field is already resolved and apparently not callable
-    if (call->target) {
+    if (call->target && !tlCallableIs(fn)) {
         assert(fn);
-        assert(!tlCallableIs(fn));
         return fn;
+    }
+    // oldstyle hotel, include {call=(->)}
+    if (tlCallableIs(fn)) {
+        tlArgs* args = argsFromBCall(call);
+        tlKind* kind = tl_kind(fn);
+        if (kind->run) return kind->run(fn, args);
     }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
@@ -1153,6 +1158,17 @@ again:;
             if (tlStringEquals(v, tlSTR("args"))) {
                 trace("syscall args: %s", tl_str(args));
                 v = argsFromBCall(args);
+                break;
+            }
+            if (tlStringEquals(v, tlSTR("this"))) {
+                v = args->target;
+                tlBEnv* env = lazylocals;
+                trace("syscall this: %s (%s)", tl_str(args), tl_str(v));
+                while (!v && env) {
+                    env = env->parent;
+                    if (env) v = env->args->target;
+                }
+                if (!v) v = tlNull;
                 break;
             }
             fatal("syscall: %s", tl_str(v));
