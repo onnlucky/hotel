@@ -184,6 +184,12 @@ static tlHandle _int_toString(tlArgs* args) {
 static tlHandle _int_self(tlArgs* args) {
     return tlArgsTarget(args);
 }
+static tlHandle _int_abs(tlArgs* args) {
+    int i = tl_int(tlArgsTarget(args));
+    // TODO check for overflow and move to tlNum
+    if (i < 0) return tlINT(-i);
+    return tlArgsTarget(args);
+}
 
 static tlHandle _isUndefined(tlArgs* args) {
     return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0)));
@@ -243,6 +249,7 @@ static void value_init() {
     );
     _tlIntKind.klass = tlClassMapFrom(
         "hash", _int_hash,
+        "abs", _int_abs,
         "toChar", _int_toChar,
         "toString", _int_toString,
         "floor", _int_self,

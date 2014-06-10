@@ -7,7 +7,7 @@ test = n ->
         print "---- $n: FAIL :( ----"
         print e.toString.strip
         print "---- $n: FAIL :( ----"
-        throw "STOP"
+        //throw "STOP"
     print "---- $n ----"
     res[n] = "load"
     code = io.File(n).readString

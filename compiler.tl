@@ -61,7 +61,14 @@ encodeInt = i ->
 
 encodeFloat = f -> bin(0)
 
-encodeNumber = n -> bin(0)
+encodeNumber = n ->
+    pos = n >= 0
+    n = n.abs
+    if n < 1 <<   7: return bin(0b1100_0000 | 1,                           n << 1 | bool(pos,0,1))
+    if n < 1 <<  15: return bin(0b1100_0000 | 2,                   n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  23: return bin(0b1100_0000 | 3,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  31: return bin(0b1100_0000 | 4, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    assert false
 
 encodeString = s ->
     assert isString s

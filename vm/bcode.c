@@ -557,12 +557,16 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
             trace("short bytecode: %d", size);
             return readbytecode(buf, data, mod, size, error);
         case 0xC0: { // short size number
-            if (size > 8) FAIL("not implemented: floats");
-            trace("int %d", size);
+            if (size < 0 || size > 4) FAIL("bad number or not implemented");
+            trace("int size %d", size);
             int val = 0;
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size - 1; i++) {
                 val = (val << 8) + tlBufferReadByte(buf);
             }
+            int last = tlBufferReadByte(buf);
+            val = (val << 7) + (last >> 1);
+            if (last & 0x1) val = -val;
+            trace("read int: %d", val);
             return tlINT(val);
         }
         case 0xE0: // sized types
@@ -823,7 +827,7 @@ exit:;
      return tlNull;
 }
 
-#include "trace-on.h"
+#include "trace-off.h"
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     trace("linking: %p", mod);
     assert(!mod->linked);

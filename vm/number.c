@@ -96,6 +96,9 @@ tlKind* tlFloatKind = &_tlFloatKind;
 static tlHandle _float_hash(tlArgs* args) {
     return tlINT(floatHash(tlArgsTarget(args)));
 }
+static tlHandle _float_abs(tlArgs* args) {
+    return tlFLOAT(abs(tl_double(tlArgsTarget(args))));
+}
 static tlHandle _float_floor(tlArgs* args) {
     return tlNUM(floor(tl_double(tlArgsTarget(args))));
 }
@@ -316,6 +319,7 @@ static void number_init() {
 
     _tlFloatKind.klass = tlClassMapFrom(
         "hash", _float_hash,
+        "abs", _float_abs,
         "floor", _float_floor,
         "round", _float_round,
         "ceil", _float_ceil,
