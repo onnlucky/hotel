@@ -751,7 +751,6 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
     int locals = tlListSize(bcode->localnames);
     int maxdepth = 0;
     int depth = 0;
-    bool realize_locals = false;
 
     assert(bcode->mod);
     const uint8_t* code = bcode->code;
@@ -798,7 +797,6 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 break;
             case OP_ARG: dreadsize(&code); break;
             case OP_BIND:
-                realize_locals = true;
                 v = dreadref(&code, data);
                 tlBCodeVerify(tlBCodeAs(v), error); // TODO pass in our locals somehow for ENV
                 if (*error) return null;
@@ -840,7 +838,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
     }
 exit:;
      if (depth != 0) FAIL("call without invoke");
-     trace("verified; locals: %d%s, calldepth: %d, %s", locals, realize_locals?" (captured)":"", maxdepth, tl_str(bcode));
+     trace("verified; locals: %d%s, calldepth: %d, %s", locals, maxdepth, tl_str(bcode));
      bcode->locals = locals;
      bcode->calldepth = maxdepth;
      return tlNull;

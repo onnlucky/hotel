@@ -394,8 +394,10 @@ compile = (code ->
             block = try(lex(scope, term.block))
             {type="method",method=term.method,{target,args,names,block}}
         { term.type == "async" }:
-            rhs = lex(scope, term.rhs)
-            {type="async",{rhs}}
+            body = { try(term.body) }: term.body
+                   {                }: [term.rhs]
+            body = lex(scope, {type="scope",{body}})
+            {type="async",{body}}
         { term.type == "not" }:
             rhs = lex(scope, term.rhs)
             {type="not",{rhs}}
@@ -490,8 +492,8 @@ compile = (code ->
                 return ["mcalln", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
             ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "async" }:
-            rhs = emit(term.rhs)
-            ["fcall", 1, "global", "_Task_new", rhs, "invoke"]
+            body = emit(term.body)
+            ["fcall", 1, "global", "_Task_new", body, "invoke"]
         { term.type == "not" }:
             rhs = emit(term.rhs)
             ["fcall", 1, "global", "not", rhs, "invoke"]

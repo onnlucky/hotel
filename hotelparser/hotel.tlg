@@ -153,7 +153,7 @@ mcallarg: v=mcall
   mbcall: pos=pos value=value t=mtail block=block?                                 -> process_add_block(process_tail(value, t), block, pos)
 
       op: "+" | "-" | "*" | "//" | "/" | "%" | "^" | "|" | "&"
-    expr: "!". body=logical &eoexpr type=<async>
+    expr: "!". rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
@@ -187,7 +187,7 @@ selfref*: pos=pos !opname name=("return"|"goto"|"break"|"continue") type=<ref>
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
         | pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos));
-        | "!". rhs=mbcall &eostm type=<async>
+        | "!". body=stms &eostm type=<async>
         | e=mbcall &eostm                                                    -> e
         | expr
      stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>

@@ -360,7 +360,7 @@ static State r_expr_3(Parser* _p, int _start) { // and
  _r = r_logical(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_expr_3", _pos); }
  _pos = _r.pos;
- tlHandle body = _r.value;
+ tlHandle rhs = _r.value;
  _r = meta_ahead(_p, _pos, r_expr_3_3);
  if (!_r.ok) { return parser_fail(_p, "r_expr_3", _pos); }
  _pos = _r.pos;
@@ -368,7 +368,7 @@ static State r_expr_3(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_expr_3", _pos); }
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("body", body, "type", type, null);
+ tlHandle _v = tlObjectFrom("rhs", rhs, "type", type, null);
  return parser_pass(_p, "r_expr_3", 0, _start, state_ok(_pos, _v));
 }
 static State r_expr_5_5(Parser* _p, int _start) { // and
@@ -2769,10 +2769,10 @@ static State r_mexpr_138(Parser* _p, int _start) { // and
  _r = r_ws(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_mexpr_138", _pos); }
  _pos = _r.pos;
- _r = r_mbcall(_p, _pos);
+ _r = r_stms(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_mexpr_138", _pos); }
  _pos = _r.pos;
- tlHandle rhs = _r.value;
+ tlHandle body = _r.value;
  _r = meta_ahead(_p, _pos, r_mexpr_138_138);
  if (!_r.ok) { return parser_fail(_p, "r_mexpr_138", _pos); }
  _pos = _r.pos;
@@ -2780,7 +2780,7 @@ static State r_mexpr_138(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_mexpr_138", _pos); }
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("rhs", rhs, "type", type, null);
+ tlHandle _v = tlObjectFrom("body", body, "type", type, null);
  return parser_pass(_p, "r_mexpr_138", 0, _start, state_ok(_pos, _v));
 }
 static State r_mexpr_140_140(Parser* _p, int _start) { // and
