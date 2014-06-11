@@ -396,8 +396,9 @@ compile = (code ->
         { term.type == "async" }:
             body = { try(term.body) }: term.body
                    {                }: [term.rhs]
-            body = lex(scope, {type="scope",{body}})
-            {type="async",{body}}
+            function = lextop(scope, {type="scope",{body}})
+            _, fn = functions.add {name="",open=false,function=function}
+            {type="async",body={type="function",function=fn}}
         { term.type == "not" }:
             rhs = lex(scope, term.rhs)
             {type="not",{rhs}}
