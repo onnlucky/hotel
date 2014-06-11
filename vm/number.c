@@ -96,6 +96,14 @@ tlKind* tlFloatKind = &_tlFloatKind;
 static tlHandle _float_hash(tlArgs* args) {
     return tlINT(floatHash(tlArgsTarget(args)));
 }
+static tlHandle _float_bin(tlArgs* args) {
+    double d = tl_double(tlArgsTarget(args));
+    int64_t n = *(int64_t*)&d;
+    assert(d == *(double*)&n);
+    char bytes[8];
+    for (int i = 0; i < 8; i++) bytes[7 - i] = n >> (8 * i);
+    return tlBinFromCopy(bytes, 8);
+}
 static tlHandle _float_abs(tlArgs* args) {
     return tlFLOAT(abs(tl_double(tlArgsTarget(args))));
 }
@@ -319,6 +327,7 @@ static void number_init() {
 
     _tlFloatKind.klass = tlClassMapFrom(
         "hash", _float_hash,
+        "bytes", _float_bin,
         "abs", _float_abs,
         "floor", _float_floor,
         "round", _float_round,

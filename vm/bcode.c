@@ -557,14 +557,33 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
             trace("short bytecode: %d", size);
             return readbytecode(buf, data, mod, size, error);
         case 0xC0: { // short size number
-            if (size < 0 || size > 4) FAIL("bad number or not implemented");
-            trace("int size %d", size);
-            int val = 0;
-            for (int i = 0; i < size - 1; i++) {
-                val = (val << 8) + tlBufferReadByte(buf);
+            if (size == 8) {
+                trace("float size 4");
+                uint32_t n = 0;
+                for (int i = 0; i < 4; i++) {
+                    n = (n << 8) | tlBufferReadByte(buf);
+                }
+                trace("float: %x %f", n, *(float*)&n);
+                return tlFLOAT(*(float*)&n);
             }
+            if (size == 9) {
+                trace("float size 8");
+                uint64_t n = 0;
+                for (int i = 0; i < 8; i++) {
+                    n = (n << 8) | tlBufferReadByte(buf);
+                }
+                trace("float: %llx %f", n, *(double*)&n);
+                return tlFLOAT(*(double*)&n);
+            }
+            if (size > 3) FAIL("bad number or not implemented");
+            trace("int size %d", size + 1);
+            int val = 0;
+            for (int i = 0; i < size; i++) {
+                val = (val << 8) | tlBufferReadByte(buf);
+            }
+            // size is off by one, but last byte is 7 bits + sign
             int last = tlBufferReadByte(buf);
-            val = (val << 7) + (last >> 1);
+            val = (val << 7) | (last >> 1);
             if (last & 0x1) val = -val;
             trace("read int: %d", val);
             return tlINT(val);

@@ -59,15 +59,16 @@ encodeInt = i ->
                                     0b1000_0000 | (i >> 13 & 0b0011_1111), 0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
     assert false
 
-encodeFloat = f -> bin(0)
+encodeFloat = f ->
+    bin(0b1100_1001) + f.bytes
 
 encodeNumber = n ->
     pos = n >= 0
     n = n.abs
-    if n < 1 <<   7: return bin(0b1100_0000 | 1,                           n << 1 | bool(pos,0,1))
-    if n < 1 <<  15: return bin(0b1100_0000 | 2,                   n >> 7, n << 1 | bool(pos,0,1))
-    if n < 1 <<  23: return bin(0b1100_0000 | 3,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
-    if n < 1 <<  31: return bin(0b1100_0000 | 4, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<   7: return bin(0b1100_0000 | 0,                           n << 1 | bool(pos,0,1))
+    if n < 1 <<  15: return bin(0b1100_0000 | 1,                   n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  23: return bin(0b1100_0000 | 2,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  31: return bin(0b1100_0000 | 3, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
     assert false
 
 encodeString = s ->
