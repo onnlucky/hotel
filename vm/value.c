@@ -190,6 +190,12 @@ static tlHandle _int_abs(tlArgs* args) {
     if (i < 0) return tlINT(-i);
     return tlArgsTarget(args);
 }
+static tlHandle _int_bytes(tlArgs* args) {
+    int32_t n = tl_int(tlArgsTarget(args));
+    char bytes[4];
+    for (int i = 0; i < 4; i++) bytes[3 - i] = n >> (8 * i);
+    return tlBinFromCopy(bytes, 4);
+}
 
 static tlHandle _isUndefined(tlArgs* args) {
     return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0)));
@@ -249,6 +255,7 @@ static void value_init() {
     );
     _tlIntKind.klass = tlClassMapFrom(
         "hash", _int_hash,
+        "bytes", _int_bytes,
         "abs", _int_abs,
         "toChar", _int_toChar,
         "toString", _int_toString,
