@@ -5,7 +5,8 @@ LJACK:=$(shell if ls /usr/lib*/libjack.* /usr/lib/*/libjack.* 2>/dev/null ; then
 CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
 
 ifeq ($(VALGRIND),1)
-TOOL=valgrind -q --track-origins=yes
+TOOL=valgrind --leak-check=full --track-origins=yes --suppressions=libgc.supp
+TOOL=valgrind -q --track-origins=yes --suppressions=libgc.supp
 endif
 ifeq ($(GDB),1)
 ifneq ($(shell which gdb),)

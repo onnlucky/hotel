@@ -1,0 +1,19 @@
+# Don't look into libgc
+{
+  <libgc>
+  Memcheck:Cond
+  fun:GC_*
+}
+{
+  <libgc2>
+  Memcheck:Value8
+  fun:GC_*
+}
+#{
+#  <gc3>
+#  Memcheck:Addr4
+#  fun:memset
+#  fun:GC_stopped_mark
+#  fun:GC_try_to_collect_inner
+#  fun:GC_init
+#}
