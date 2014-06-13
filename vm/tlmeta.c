@@ -408,6 +408,17 @@ static tlHandle process_tail(tlHandle value, tlHandle tail) {
     return tlObjectSet(tail, tlSYM("target"), process_tail(value, target));
 }
 
+static tlHandle process_assert(tlHandle args, tlHandle tail, tlHandle pos, tlHandle begin, tlHandle end, Parser* parser) {
+    int b = tl_int(begin);
+    int e = tl_int(end);
+    tlString* data = tlStringFromCopy(parser->input + b, e - b);
+    tlHandle text = tlObjectFrom("n", tlSTR("string"), "v", tlObjectFrom("type", tlSTR("string"), "data", data, null), null);
+    args = tlListAppend(tlListAs(args), text);
+    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("assert"), "pos", pos, null);
+    tlHandle value = tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "pos", begin, "endpos", end, null);
+    return process_tail(value, tail);
+}
+
 static tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", args,
             "type", tlSTR("call"), "pos", pos, null);

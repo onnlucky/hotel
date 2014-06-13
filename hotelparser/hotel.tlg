@@ -166,6 +166,7 @@ mcallarg: v=mcall
      pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
         //| "("..@"a closing ')'" body=body ..")" type=<scope>
+        | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail  -> process_assert(args, t, p, b, e, _p)
         | call
 
 // ---- STATEMENTS ----
@@ -186,9 +187,11 @@ selfref*: pos=pos !opname name=("return"|"goto"|"break"|"continue") type=<ref>
         | pos=pos name=intro type=<local>
    mexpr: guards
         | e=mfunction &eoexpr                                                -> e
-        | pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos));
+        | pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos))
         | "!". body=stms &eostm type=<async>
-        | e=mbcall &eostm                                                    -> e
+        | p=pos "assert" " ". !met !"(" !":" b=pos args=margs e=pos &eostm           -> process_assert(args, tlNull, p, b, e, _p)
+        | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail -> process_assert(args, t, p, b, e, _p)
+        | e=mbcall &eostm                                                            -> e
         | expr
      stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
         | to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
