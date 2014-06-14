@@ -368,7 +368,7 @@ static tlHandle _measureText(tlArgs* args) {
     const char* utf8 = (str)?tlStringData(str):"";
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_extents(g->cairo, utf8,  &extents);
-    return tlResultFrom(tlINT(extents.width), tlINT(extents.height), null);
+    return tlResultFrom(tlINT(max(extents.width,extents.x_advance)), tlINT(max(extents.height,extents.y_advance)), null);
 }
 
 // ** images **
