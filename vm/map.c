@@ -352,6 +352,16 @@ static tlHandle _Object_set(tlArgs* args) {
     trace("");
     if (!tlMapOrObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
+    if (tlMapOrObjectIs(tlArgsGet(args, 1))) {
+        tlMap* from = tlArgsGet(args, 1);
+        for (int i = 0; i < 1000; i++) {
+            tlHandle key = tlMapKeyIter(from, i);
+            if (!key) return tlMapToObject_(map);
+            tlHandle val = tlMapValueIter(from, i);
+            assert(val);
+            map = tlMapSet(map, key, val);
+        }
+    }
     tlString* key = tlStringCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a symbol");
     tlHandle val = tlArgsGet(args, 2);
