@@ -111,8 +111,7 @@ static tlHandle __Window_new(tlArgs* args) {
 }
 static tlHandle _Window_new(tlArgs* args) {
     toolkit_launch();
-    tlHandle res = tl_on_toolkit(__Window_new, args);
-    return res;
+    return tl_on_toolkit(__Window_new, args);
 }
 void closeWindow(Window* window) {
     if (!window->native) return;
@@ -126,7 +125,8 @@ static tlHandle __window_close(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _window_close(tlArgs* args) {
-    return tl_on_toolkit(__window_close, args);
+    tl_on_toolkit_async(__window_close, args);
+    return tlNull;
 }
 static tlHandle _window_isClosed(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
@@ -233,7 +233,7 @@ static tlHandle __window_focus(tlArgs* args) {
     nativeWindowFocus(window->native);
     return tlNull;
 }
-static tlHandle _window_focus(tlArgs* args) { return tl_on_toolkit(__window_focus, args); }
+static tlHandle _window_focus(tlArgs* args) { tl_on_toolkit_async(__window_focus, args); return tlNull; }
 
 void windowKeyEvent(Window* window, int code, tlString* input) {
     if (!window->onkey) return;
