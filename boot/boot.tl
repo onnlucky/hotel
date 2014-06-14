@@ -179,16 +179,30 @@ _join = sep ->
     return $res
 
 _split = on ->
+    // TODO on should support a regex and default to breaking whitespace
     on = on or " "
+    empty = args["keepempty"]
+    strip = args["strip"]
+    limit = args["limit"]
+
     res = Array.new
+
+    process = s ->
+        s = { isString(strip) }: s.strip(strip)
+            { strip           }: s.strip
+            {                 }: s
+        if not empty and s.size == 0: return
+        res.add(s)
+
     loop = start ->
         end = this.find(on, start)
         if not end:
-            if start <= this.size: res.add(this[start:])
-        if end == start:
-            goto loop(end + on.size)
-        if end > start:
-            res.add(this[start:end - 1])
+            process(this[start:])
+        if end >= start:
+            process(this[start:end - 1])
+            if limit and res.size >= limit - 1:
+                process(this[end + on.size:])
+                return
             goto loop(end + on.size)
     loop(1)
     return res.toList
