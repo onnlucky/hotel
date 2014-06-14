@@ -35,6 +35,7 @@ NativeWindow* nativeWindowNew(Window* window) {
                       styleMask: NSResizableWindowMask|NSClosableWindowMask|NSTitledWindowMask
                         backing: NSBackingStoreBuffered
                           defer: NO];
+    [w setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
     [w setDelegate: (id)w];
     NView* v = [[NView new] autorelease];
     [w setContentView: v];
@@ -93,6 +94,11 @@ void nativeWindowSetPos(NativeWindow* _w, int x, int y) {
 void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
     //NWindow* w = (NWindow*)_w;
 }
+void nativeWindowToggleFullScreen(NativeWindow* _w) {
+    trace("toggleFullScreen: %p", _w);
+    NWindow* w = (NWindow*)_w;
+    [w toggleFullScreen:nil];
+}
 
 @implementation NWindow
 - (void)keyDown: (NSEvent*)event {
@@ -115,6 +121,14 @@ void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
 }
 - (void)windowWillClose:(NSNotification *)notification {
     closeWindow(window);
+}
+- (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
+    windowResizeEvent(window, 0, 0, frameSize.width, frameSize.height);
+    return frameSize;
+}
+- (void)windowDidExitFullScreen:(NSNotification *)notification {
+    NSRect rect = [self frame];
+    windowResizeEvent(window, rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
 }
 @end
 

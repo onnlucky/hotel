@@ -30,8 +30,10 @@ app.o: app.h app.c
 
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin
-install: gtk
-	cp gtk $(BINDIR)/tl-gtk
+installm: gtk
+	cp gtk $(BINDIR)/gtl
+install: mac
+	cp mac $(BINDIR)/gtl
 
 clean:
 	rm -rf mac

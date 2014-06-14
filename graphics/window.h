@@ -43,6 +43,7 @@ void nativeWindowRedraw(NativeWindow* w);
 void nativeWindowFrame(NativeWindow*, int* x, int* y, int* width, int* height);
 void nativeWindowSetPos(NativeWindow*, int x, int y);
 void nativeWindowSetSize(NativeWindow*, int width, int height);
+void nativeWindowToggleFullScreen(NativeWindow*);
 
 tlString* nativeWindowTitle(NativeWindow*);
 void nativeWindowSetTitle(NativeWindow*, tlString* title);
@@ -50,5 +51,6 @@ void nativeWindowSetTitle(NativeWindow*, tlString* title);
 // platform can call the following for callbacks
 void windowMouseEvent(Window* w, double x, double y);
 void windowKeyEvent(Window* w, int code, tlString* input);
+void windowResizeEvent(Window* w, int x, int y, int width, int height);
 
 #endif // _window_h_

@@ -128,10 +128,19 @@ static tlHandle __window_close(tlArgs* args) {
 static tlHandle _window_close(tlArgs* args) {
     return tl_on_toolkit(__window_close, args);
 }
-
 static tlHandle _window_isClosed(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     return tlBOOL(window->native == null);
+}
+
+static tlHandle __window_toggleFullScreen(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    nativeWindowToggleFullScreen(window->native);
+    return tlNull;
+}
+static tlHandle _window_toggleFullScreen(tlArgs* args) {
+    tl_on_toolkit_async(__window_toggleFullScreen, args);
+    return tlNull;
 }
 
 static tlHandle _window_add(tlArgs* args) {
@@ -242,6 +251,14 @@ void windowMouseEvent(Window* window, double x, double y) {
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), null));
+    unblock_toolkit();
+}
+
+void windowResizeEvent(Window* window, int x, int y, int width, int height) {
+    if (!window->onresize) return;
+
+    block_toolkit();
+    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
     unblock_toolkit();
 }
 
@@ -391,6 +408,12 @@ static tlHandle _window_onmouse(tlArgs* args) {
     return window->onmouse?window->onmouse : tlNull;
 }
 
+static tlHandle _window_onresize(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    if (tlArgsSize(args) > 0) window->onresize = tlArgsGet(args, 0);
+    return window->onresize?window->onresize : tlNull;
+}
+
 void window_init(tlVm* vm) {
     _BoxKind.klass = tlClassMapFrom(
         "add", _box_add,
@@ -427,11 +450,13 @@ void window_init(tlVm* vm) {
 
         "onkey", _window_onkey,
         "onmouse", _window_onmouse,
+        "onresize", _window_onresize,
 
         "title", _window_title,
         "focus", _window_focus,
         "visible", _window_visible,
         "close", _window_close,
+        "toggleFullScreen", _window_toggleFullScreen,
 
         "isClosed", _window_isClosed,
         null

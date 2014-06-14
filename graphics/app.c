@@ -47,6 +47,12 @@ tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args) {
     pthread_mutex_unlock(&toolkit_lock);
     return onmain.result;
 }
+void tl_on_toolkit_async(tlNativeCb cb, tlArgs* args) {
+    tlRunOnMain* onmain = malloc(sizeof(tlRunOnMain));
+    onmain->cb = cb;
+    onmain->args = args;
+    toolkit_schedule(onmain);
+}
 
 // can be called many times, will once init the native toolkit
 void toolkit_launch() {
