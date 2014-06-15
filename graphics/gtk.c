@@ -93,7 +93,7 @@ int nativeWindowVisible(NativeWindow* w) {
 
 bool nativeWindowFullScreen(NativeWindow* w) {
     GdkWindowState state = gdk_window_get_state(gtk_widget_get_window(GTK_WIDGET(w)));
-    return state & GDK_WINDOW_STATE_FULLSCREEN;
+    return (state & GDK_WINDOW_STATE_FULLSCREEN) == GDK_WINDOW_STATE_FULLSCREEN;
 }
 void nativeWindowSetFullScreen(NativeWindow* w, bool full) {
     if (full) {

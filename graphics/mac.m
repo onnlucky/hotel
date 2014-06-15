@@ -94,8 +94,13 @@ void nativeWindowSetPos(NativeWindow* _w, int x, int y) {
 void nativeWindowSetSize(NativeWindow* _w, int width, int height) {
     //NWindow* w = (NWindow*)_w;
 }
-void nativeWindowToggleFullScreen(NativeWindow* _w) {
+bool nativeWindowFullScreen(NativeWindow* _w) {
+    NWindow* w = (NWindow*)_w;
+    return ([w styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask;
+}
+void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     trace("toggleFullScreen: %p", _w);
+    if (nativeWindowFullScreen(_w) == full) return;
     NWindow* w = (NWindow*)_w;
     [w toggleFullScreen:nil];
 }
