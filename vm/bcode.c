@@ -933,6 +933,7 @@ static tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv*
     int depth = 1;
     while (true) {
         uint8_t op = ops[pc++];
+        assert(op);
         if (op == OP_INVOKE) {
             depth--;
             if (!depth) {
