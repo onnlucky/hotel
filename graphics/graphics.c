@@ -46,6 +46,7 @@ static tlSym s_hsl_luminosity;
 
 struct Graphics {
     tlLock lock;
+    Image* img;
     cairo_t* cairo;
 };
 
@@ -61,6 +62,10 @@ Graphics* GraphicsNew(cairo_t* cairo) {
     Graphics* g = tlAlloc(GraphicsKind, sizeof(Graphics));
     g->cairo = cairo;
     return g;
+}
+
+void GraphicsSetImage(Graphics* g, Image* img) {
+    g->img = img;
 }
 
 /** cairo api **/

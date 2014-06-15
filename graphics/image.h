@@ -7,6 +7,7 @@
 TL_REF_TYPE(Image);
 void image_init(tlVm* vm);
 Graphics* imageGetGraphics(Image* img);
+void GraphicsSetImage(Graphics* g, Image* img);
 
 int imageWidth(Image* img);
 int imageHeight(Image* img);

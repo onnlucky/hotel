@@ -8,9 +8,18 @@ struct Image {
     tlLock lock;
     Graphics* graphics;
     cairo_surface_t* surface;
+    cairo_t* cairo;
 };
 tlKind _ImageKind = { .name = "Image", .locked = true, };
 tlKind* ImageKind = &_ImageKind;
+
+
+#ifdef HAVE_BOEHMGC
+#undef malloc
+#undef free
+#endif
+static cairo_user_data_key_t jpeg_free_key;
+void jpeg_free(void* data) { free(data); }
 
 // ** jpg **
 cairo_surface_t* readjpg(tlBuffer* buf) {
@@ -66,8 +75,14 @@ cairo_surface_t* readjpg(tlBuffer* buf) {
     jpeg_finish_decompress(&info);
     jpeg_destroy_decompress(&info);
 
-    return cairo_image_surface_create_for_data(img, format, width, height, stride);
+    cairo_surface_t* surface = cairo_image_surface_create_for_data(img, format, width, height, stride);
+    cairo_surface_set_user_data(surface, &jpeg_free_key, img, jpeg_free);
+    return surface;
 }
+#ifdef HAVE_BOEHMGC
+#define free GC_free
+#define malloc GC_malloc
+#endif
 
 // ** png **
 cairo_status_t readbuffer(void* _buf, unsigned char* data, unsigned int length) {
@@ -75,14 +90,23 @@ cairo_status_t readbuffer(void* _buf, unsigned char* data, unsigned int length) 
     return len?CAIRO_STATUS_SUCCESS:CAIRO_STATUS_READ_ERROR;
 }
 cairo_surface_t* readpng(tlBuffer* buf) {
-    // TODO mark the buffer as atomic to the gc
     return cairo_image_surface_create_from_png_stream(readbuffer, buf);
 }
 // **
 
+
+void clear_img(void* _img, void* data) {
+    Image* img = ImageAs(_img);
+    if (img->surface) cairo_surface_destroy(img->surface);
+    if (img->cairo) cairo_destroy(img->cairo);
+}
+
 Image* ImageNew(int width, int height) {
     Image* img = tlAlloc(ImageKind, sizeof(Image));
     img->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+#ifdef HAVE_BOEHMGC
+    GC_REGISTER_FINALIZER_NO_ORDER(img, clear_img, null, null, null);
+#endif
     return img;
 }
 Image* ImageFromBuffer(tlBuffer* buf) {
@@ -92,12 +116,19 @@ Image* ImageFromBuffer(tlBuffer* buf) {
     } else {
         img->surface = readjpg(buf);
     }
+#ifdef HAVE_BOEHMGC
+    GC_REGISTER_FINALIZER_NO_ORDER(img, clear_img, null, null, null);
+#endif
     return img;
 }
 
 Graphics* imageGetGraphics(Image* img) {
     if (!img->surface) return tlNull;
-    if (!img->graphics) img->graphics = GraphicsNew(cairo_create(img->surface));
+    if (!img->graphics) {
+        img->cairo = cairo_create(img->surface);
+        img->graphics = GraphicsNew(img->cairo);
+        GraphicsSetImage(img->graphics, img); // for gc, doubly bind the two together
+    }
     return img->graphics;
 }
 
