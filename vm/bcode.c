@@ -878,7 +878,6 @@ tlArgs* argsFromBCall(tlBCall* call) {
     tlArgs* args = tlArgsNew(tlListNew(call->size - tlMapSize(map)), map);
     tlArgsSetTarget_(args, call->target);
     tlArgsSetFn_(args, call->fn);
-    //if (tlBSendTokenIs(fn)) tlArgsSetMsg_(args, tlBSendTokenAs(fn)->method);
     for (int i = 0, j = 0; i < call->size; i++) {
         if (call->names) {
             tlHandle name = tlListGet(call->names, i);
@@ -1528,18 +1527,16 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     return tlNull;
 }
 
-// TODO really, tlArgs == tlBCall if we rework both a bit
-INTERNAL tlHandle _closure_call(tlArgs* args) {
-    trace("closure.call; translating args into bcall");
+tlBCall* bcallFromArgs(tlArgs* args) {
     if (tlArgsMapSize(args) == 0) {
         tlBCall* call = tlBCallNew(tlArgsSize(args));
         call->target = tlArgsTarget(args);
         call->fn = tlArgsFn(args);
-        if (call->fn) call->fn = call->target;
         for (int i = 0; i < tlArgsSize(args); i++) {
             call->args[i] = tlArgsGet(args, i);
+            trace("BCALL[%d] = %s", i, tl_str(call->args[i]));
         }
-        return beval(tlTaskCurrent(), null, call, 0, null);
+        return call;
     }
 
     tlBCall* call = tlBCallNew(tlArgsSize(args) + tlArgsMapSize(args));
@@ -1547,7 +1544,6 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
     call->names = names;
     call->target = tlArgsTarget(args);
     call->fn = tlArgsFn(args);
-    if (call->fn) call->fn = call->target;
     int i = 0;
     for (; i < tlArgsSize(args); i++) {
         call->args[i] = tlArgsGet(args, i);
@@ -1561,17 +1557,23 @@ INTERNAL tlHandle _closure_call(tlArgs* args) {
         tlListSet_(names, i + j, tlStringFromSym(tlMapKeyIter(kargs, j)));
         trace("BCALL[%d](%s) = %s", i + j, tl_str(tlListGet(names, i + j)), tl_str(call->args[i + j]));
     }
+    return call;
+}
+
+INTERNAL tlHandle _closure_call(tlArgs* args) {
+    trace("closure.call");
+    tlBCall* call = bcallFromArgs(args);
+    call->target = null; // TODO unless this was passed in?
+    call->fn = tlArgsTarget(args);
+    assert(tlBClosureIs(call->fn));
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
 INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
     trace("closure.run");
-    tlBCall* call = tlBCallNew(tlArgsSize(args));
+    tlBCall* call = bcallFromArgs(args);
     call->fn = _fn;
-    // TODO names
-    for (int i = 0; i < tlArgsSize(args); i++) {
-        call->args[i] = tlArgsGet(args, 0);
-    }
+    assert(tlBClosureIs(call->fn));
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
