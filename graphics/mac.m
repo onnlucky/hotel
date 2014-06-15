@@ -22,6 +22,7 @@
 @interface NWindow: NSWindow {
 @public
     Window* window;
+    NSRect restoreRect;
 } @end
 @interface NView: NSView {
 @public
@@ -128,12 +129,16 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     closeWindow(window);
 }
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
-    windowResizeEvent(window, 0, 0, frameSize.width, frameSize.height);
+    NSRect rect = [self contentRectForFrameRect:NSMakeRect(0, 0, frameSize.width, frameSize.height)];
+    windowResizeEvent(window, 0, 0, rect.size.width, rect.size.height);
     return frameSize;
 }
-- (void)windowDidExitFullScreen:(NSNotification *)notification {
-    NSRect rect = [self frame];
+- (void)windowWillExitFullScreen:(NSNotification *)notification {
+    NSRect rect = restoreRect;
     windowResizeEvent(window, rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+}
+- (void)windowWillEnterFullScreen:(NSNotification *)notification {
+    restoreRect = [self contentRectForFrameRect:[self frame]];
 }
 @end
 
