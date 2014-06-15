@@ -8,6 +8,14 @@
 #include "window.h"
 #include "app.h"
 
+static void configure_window(GtkWindow* window, GdkEvent* event, gpointer data) {
+    int x = event->configure.x;
+    int y = event->configure.y;
+    int width = event->configure.width;
+    int height = event->configure.height;
+    windowResizeEvent(WindowAs(g_object_get_data(G_OBJECT(window), "tl")), x, y, width, height);
+}
+
 static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
     cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(w));
     cairo_set_source_rgb(cr, 1, 1, 1);
@@ -52,6 +60,7 @@ NativeWindow* nativeWindowNew(Window* window) {
     g_signal_connect(w, "destroy", G_CALLBACK(destroy_window), NULL);
     g_signal_connect(w, "key_press_event", G_CALLBACK(key_press_window), NULL);
     g_signal_connect(w, "key_release_event", G_CALLBACK(key_release_window), NULL);
+    g_signal_connect(w, "configure-event", G_CALLBACK(configure_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
     gtk_window_resize(GTK_WINDOW(w), window->width, window->height);
@@ -80,6 +89,18 @@ void nativeWindowSetVisible(NativeWindow* w, bool visible) {
 }
 int nativeWindowVisible(NativeWindow* w) {
     return gtk_widget_is_visible(GTK_WIDGET(w));
+}
+
+bool nativeWindowFullScreen(NativeWindow* w) {
+    GdkWindowState state = gdk_window_get_state(gtk_widget_get_window(GTK_WIDGET(w)));
+    return state & GDK_WINDOW_STATE_FULLSCREEN;
+}
+void nativeWindowSetFullScreen(NativeWindow* w, bool full) {
+    if (full) {
+        gtk_window_fullscreen(GTK_WINDOW(w));
+    } else {
+        gtk_window_unfullscreen(GTK_WINDOW(w));
+    }
 }
 
 static gboolean redraw(gpointer w) {

@@ -43,7 +43,8 @@ void nativeWindowRedraw(NativeWindow* w);
 void nativeWindowFrame(NativeWindow*, int* x, int* y, int* width, int* height);
 void nativeWindowSetPos(NativeWindow*, int x, int y);
 void nativeWindowSetSize(NativeWindow*, int width, int height);
-void nativeWindowToggleFullScreen(NativeWindow*);
+bool nativeWindowFullScreen(NativeWindow*);
+void nativeWindowSetFullScreen(NativeWindow*, bool full);
 
 tlString* nativeWindowTitle(NativeWindow*);
 void nativeWindowSetTitle(NativeWindow*, tlString* title);

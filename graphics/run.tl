@@ -1,5 +1,6 @@
 w = Window.new 400, 400
 w.title "Hello World!"
+w.onresize(width, height -> print "resize", width, height)
 
 lenna = Image.new "lenna.png"
 b3 = Box.new(100, 100, 200, 200)

@@ -133,14 +133,19 @@ static tlHandle _window_isClosed(tlArgs* args) {
     return tlBOOL(window->native == null);
 }
 
-static tlHandle __window_toggleFullScreen(tlArgs* args) {
+static tlHandle __window_fullscreen(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    nativeWindowToggleFullScreen(window->native);
+    bool full = tl_bool(tlArgsGet(args, 0));
+    nativeWindowSetFullScreen(window->native, full);
     return tlNull;
 }
-static tlHandle _window_toggleFullScreen(tlArgs* args) {
-    tl_on_toolkit_async(__window_toggleFullScreen, args);
-    return tlNull;
+static tlHandle _window_fullscreen(tlArgs* args) {
+    if (tlArgsSize(args) == 0) {
+        Window* window = WindowAs(tlArgsTarget(args));
+        return tlBOOL(nativeWindowFullScreen(window->native));
+    }
+    tl_on_toolkit_async(__window_fullscreen, args);
+    return tlArgsGet(args, 0);
 }
 
 static tlHandle _window_add(tlArgs* args) {
@@ -456,7 +461,7 @@ void window_init(tlVm* vm) {
         "focus", _window_focus,
         "visible", _window_visible,
         "close", _window_close,
-        "toggleFullScreen", _window_toggleFullScreen,
+        "fullscreen", _window_fullscreen,
 
         "isClosed", _window_isClosed,
         null
