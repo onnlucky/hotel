@@ -1,17 +1,21 @@
+UNAME := $(shell uname)
+
+ifneq ($(UNAME),Darwin)
 GTKFLAGS:=$(shell pkg-config --cflags --libs gtk+-3.0)
+endif
+
 CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -I.. $(GTKFLAGS)
 
-run: mac
-	TL_MODULE_PATH=../modules ./mac run.tl
+run: gtl
+	TL_MODULE_PATH=../modules ./gtl run.tl
 
-mac: mac.m graphics.o window.o app.o image.o ../libtl.a
-	$(CC) $(CFLAGS) mac.m -o mac graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz
-
-runm: gtk
-	TL_MODULE_PATH=../modules ./gtk run.tl
-
-gtk: gtk.c graphics.o window.o app.o image.o ../libtl.a
-	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -o gtk
+ifeq ($(UNAME),Darwin)
+gtl: mac.m graphics.o window.o app.o image.o ../libtl.a
+	$(CC) $(CFLAGS) mac.m -o gtl graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz
+else
+gtl: gtk.c graphics.o window.o app.o image.o ../libtl.a
+	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -o gtl
+endif
 
 graphics.o: graphics.h graphics.c
 	$(CC) $(CFLAGS) -c graphics.c
@@ -30,13 +34,11 @@ app.o: app.h app.c
 
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin
-installm: gtk
-	cp gtk $(BINDIR)/gtl
-install: mac
-	cp mac $(BINDIR)/gtl
+install: gtl
+	cp gtl $(BINDIR)/gtl
 
 clean:
-	rm -rf mac
+	rm -rf gtl
 	rm -rf *.o
 
 .PHONY: run clean
