@@ -48,6 +48,8 @@ static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer
         case GDK_KEY_Right: key = 39; break;
         case GDK_KEY_Down: key = 40; break;
     }
+    if (key >= 'a' && key <= 'z') key = key & ~0x20;
+
     if (key < 0 || key > 4000) return FALSE;
     windowKeyEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), key, tlStringFromCopy(input, 0));
     return FALSE;
