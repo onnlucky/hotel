@@ -925,15 +925,15 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
-static tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv* locals) {
+static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlBCall* args, tlBEnv* locals) {
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
     int start = pc - 2; // we re-interpret OP_CALL and SIZE when working on lazy; TODO - 2 is not always correct?
     int depth = 1;
-    while (true) {
+    while (pc < len) {
         uint8_t op = ops[pc++];
-        assert(op);
+        trace("SEARCHING: %d - %d - %s", depth, pc - 1, op_name(op));
         if (op == OP_INVOKE) {
             depth--;
             if (!depth) {
@@ -941,10 +941,12 @@ static tlBLazy* create_lazy(const uint8_t* ops, int* ppc, tlBCall* args, tlBEnv*
                 trace("%d", start);
                 return tlBLazyNew(args, locals, start);
             }
-        } else if (op & 0x20) { // OP_CALL mask
+        } else if (op & 0xC0 && op & 0x20) { // OP_CALL mask
             depth++;
         }
     }
+    fatal("bytecode invalid");
+    return null;
 }
 
 // TODO this is not really needed, compiler or verifier can tell if a real locals needs to be realized
@@ -1116,7 +1118,7 @@ again:;
         if (lazy) {
             trace("lazy call");
             ensure_locals(&locals, &lazylocals, args, closure);
-            v = create_lazy(ops, &pc, args, lazylocals);
+            v = create_lazy(ops, bcode->size, &pc, args, lazylocals);
             tlBCallAdd_(call, v, arg++);
             goto again;
         }
