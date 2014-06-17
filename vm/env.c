@@ -136,12 +136,17 @@ static tlHandle _Env_current(tlArgs* args) {
     return tlTaskPauseResuming(resumeEnvCurrent, tlNull);
 }
 
+bool tlBFrameIs(tlHandle);
+tlMap* tlBEnvLocalObject(tlFrame*);
 static tlHandle resumeEnvLocalObject(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     while (frame) {
         if (tlCodeFrameIs(frame)) {
             tlEnv* env = tlCodeFrameGetEnv(frame);
             return tlMapToObject_(env->map);
+        }
+        if (tlBFrameIs(frame)) {
+            return tlBEnvLocalObject(frame);
         }
         frame = frame->caller;
     }

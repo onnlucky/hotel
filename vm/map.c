@@ -443,7 +443,7 @@ INTERNAL tlHandle mapResolve(tlMap* map, tlSym msg) {
 
     // search for field
     cls = map;
-    while (cls) {
+    while (cls && tlMapOrObjectIs(cls)) {
         trace("CLASS: %s %s", tl_str(cls), tl_str(msg));
         field = tlMapGet(cls, msg);
         if (field) goto send;
@@ -452,7 +452,7 @@ INTERNAL tlHandle mapResolve(tlMap* map, tlSym msg) {
 
     // search for getter
     cls = map;
-    while (cls) {
+    while (cls && tlMapOrObjectIs(cls)) {
         trace("CLASS: %s %s", tl_str(cls), tl_str(s__get));
         field = tlMapGet(cls, s__get);
         if (field) goto send;

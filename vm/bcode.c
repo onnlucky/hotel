@@ -325,6 +325,37 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
     return v;
 }
 
+tlMap* tlBEnvLocalObject(tlFrame* frame) {
+    tlBEnv* env = tlBFrameAs(frame)->locals;
+    tlList* names = env->names;
+    tlMap* map = tlMapNew(0);
+    for (int i = 0; i < tlListSize(names); i++) {
+        if (!names) continue;
+        tlHandle name = tlListGet(names, i);
+        tlHandle v = env->data[i];
+        trace("env locals: %s=%s", tl_str(name), tl_str(v));
+        if (!name) continue;
+        if (!v) continue;
+        map = tlMapSet(map, tlSymAs(name), env->data[i]);
+    }
+
+    tlBCall* args = env->args;
+    tlList* argspec = tlBClosureAs(args->fn)->code->argspec;
+    for (int i = 0; i < tlListSize(argspec); i++) {
+        tlHandle name = tlListGet(tlListGet(argspec, i), 0);
+        tlHandle v = tlBCallGetExtra(args, i, tlBClosureAs(args->fn)->code);
+        trace("args locals: %s=%s", tl_str(name), tl_str(v));
+        if (!name) continue;
+        if (!v) continue;
+        map = tlMapSet(map, tlSymAs(name), v);
+    }
+
+    assert(map != tlMapEmpty());
+    map = tlMapToObject_(map);
+    assert(tlMapOrObjectIs(map));
+    return map;
+}
+
 tlHandle tlBEnvGet(tlBEnv* env, int at) {
     assert(env);
     assert(at >= 0 && at <= tlListSize(env->names));
@@ -1124,7 +1155,11 @@ again:;
         }
 
         // create a new call
-        if (calltop >= 0) (*calls)[calltop].at = -arg; // store current arg, marked as not current
+        if (calltop >= 0) {
+            assert((*calls)[calltop].call == call);
+            (*calls)[calltop].at = -(arg + 1); // store current arg, marked as not current
+            trace("push call: %d: %d %s", calltop, arg, tl_str(call));
+        }
         arg = 0;
         call = tlBCallNew(size);
         calltop++;
@@ -1157,7 +1192,9 @@ again:;
             calltop--;
             if (calltop >= 0) {
                 call = (*calls)[calltop].call;
-                arg = (*calls)[calltop].at *= -1; // mark as current again
+                arg = (*calls)[calltop].at;
+                arg = (*calls)[calltop].at = -arg - 1; // mark as current again
+                trace("pop call: %d: %d %s", calltop, arg, tl_str(call));
             } else {
                 call = null;
                 arg = 0;
@@ -1167,7 +1204,7 @@ again:;
             v = tlInvoke(task, invoke);
             if (!v) { // task paused instead of actually doing work, suspend and return
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
-                if (calltop >= 0) (*calls)[calltop].at = arg;
+                if (calltop >= 0) (*calls)[calltop].at = arg; // mark as current
                 if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
                 return tlTaskPauseAttach(frame);
             }

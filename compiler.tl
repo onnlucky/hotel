@@ -181,14 +181,18 @@ compile = (code ->
         names = HashMap.new
         locals = Array.new
         args = Array.new
-        addOpen = function, name ->
+        // TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
+        addOpen = function, name, pos ->
             _, fn = functions.add {name=name or "",open=function,scope=this}
             if name:
-                ref = this.names[name]
-                assert ref and ref.at == this.locals.size
-                this.names[name] = {arg=false,at=ref.at,id=ref.id,{fn}}
+                _, id = ids.add({{name},at=Array.new([pos])})
+                _, at = this.locals.add(name)
+                this.names[name] = {arg=false,{at,id,fn}}
             return fn
         add = name, pos ->
+            if this.locals[-1] == name and try(this.names[name].fn):
+                ref = this.names[name]
+                return ref.at, ref.id
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.locals.add(name)
             this.names[name] = {arg=false,{at,id}}
@@ -302,7 +306,7 @@ compile = (code ->
             body = term.body.map(stm -> lex(scope, stm))
             {type="scope",{args,body},locals=scope.locals.toList}
 
-    lex = scope, term, name ->
+    lex = scope, term, name, pos ->
         print "LEX", name, repr(term)
         { term == null              }: "null"
         { not try(term.type)        }: term
@@ -318,7 +322,7 @@ compile = (code ->
             _, fn = functions.add {name="",open=false,function=function}
             {type="call",target={type="function",function=fn}}
         { term.type == "function" or term.type == "block" }:
-            function = scope.addOpen(term, name)
+            function = scope.addOpen(term, name, pos)
             if not name: close(function)
             {type="function",{function}}
         { term.type == "class" }:
@@ -338,8 +342,8 @@ compile = (code ->
             {type="class",{class,constructor,fields,name,local}}
         { term.type == "assign" }:
             { term.to.type == "local" }:
+                value = lex(scope, term.value, term.to.name, term.to.pos)
                 local, id = scope.add(term.to.name)
-                value = lex(scope, term.value, term.to.name)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
