@@ -64,11 +64,12 @@ void renderWindow(Window* window, cairo_t* cairo) {
     assert(window->rendertask);
     assert(cairo);
 
-    block_toolkit();
     window->dirty = false;
+    block_toolkit();
     Graphics* g = GraphicsNew(cairo);
     for (Box* sb = window->root; sb; sb = sb->next) renderBox(cairo, sb, g);
     unblock_toolkit();
+    if (window && window->dirty) nativeWindowRedraw(window->native);
 }
 
 void window_dirty(Window* window) {
