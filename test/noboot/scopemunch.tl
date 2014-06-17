@@ -1,5 +1,7 @@
 x = 100
+x = x
 test1 = -> out(x, "\n")
+test1 = test1
 x2 = 200
 test2 = -> out(x2, "\n")
 x3 = 300
