@@ -1558,6 +1558,9 @@ INTERNAL tlHandle __goto(tlArgs* args) {
     return tlTaskPauseResuming(resume_bgoto, args);
 }
 
+INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
+    tlBFrameAs(_frame)->handler = handler;
+}
 INTERNAL tlHandle _bcatch(tlArgs* args) {
     tlBFrame* frame = tlBFrameAs(tlTaskCurrentFrame(tlTaskCurrent()));
     tlHandle handler = tlArgsBlock(args);

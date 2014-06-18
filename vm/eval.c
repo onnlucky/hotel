@@ -712,12 +712,18 @@ INTERNAL tlHandle _backtrace(tlArgs* args) {
     return tlTaskPauseResuming(resumeBacktrace, tlNull);
 }
 
+INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
+
 // install a catch handler (bit primitive like this)
 INTERNAL tlHandle resumeCatch(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     tlHandle handler = tlArgsBlock(args);
     trace("%p.handler = %s", _frame->caller, tl_str(handler));
+    if (tlBFrameIs(_frame->caller)) {
+        install_bcatch(_frame->caller, handler);
+        return tlNull;
+    }
     tlCodeFrame* frame = tlCodeFrameAs(_frame->caller);
     frame->handler = handler;
     return tlNull;

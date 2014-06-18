@@ -1,3 +1,5 @@
+_env = Env.current
+
 res = HashMap.new
 test = n ->
     output = Array.new
@@ -20,16 +22,22 @@ test = n ->
     bytes = compiler.compile(code)
     res[n] = "load"
     mod = compiler.load(bytes, out)
+    links = mod.links.map(link ->
+        if link == "out": return out
+        _env.get(link) or Env.module(link)
+    )
+    mod.link(links)
     res[n] = "run"
     r = mod.run
     if r: out(r, "\n")
     res[n] = "compare"
     print "---- $n: output ----:"
     print output.map(e -> str(e)).join("")
-    ref = io.File(n[:-3] + "ref").readString
-    print "---- $n: ref ----:"
-    print ref
-    assert ref == output.join("")
+    ref = try(io.File(n[:-3] + "ref").readString)
+    if ref:
+        print "---- $n: ref ----:"
+        print ref
+        assert ref == output.join("")
     res[n] = "ok"
     print "---- $n: OK! ----"
     print()
