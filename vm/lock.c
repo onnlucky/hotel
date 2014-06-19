@@ -112,6 +112,51 @@ INTERNAL tlHandle lockEvalSend(tlLock* lock, tlArgs* args) {
     return res;
 }
 
+// ** lock a native object to send it a message from bytecode **
+tlHandle tlInvoke(tlTask* task, tlBCall* call);
+tlHandle tlBCallTarget(tlBCall* call);
+INTERNAL tlHandle lockedInvoke(tlLock* lock, tlBCall* call);
+
+INTERNAL tlHandle resumeInvoke(tlFrame* _frame, tlHandle res, tlHandle throw) {
+    trace("%s", tl_str(res));
+    if (!res) return null;
+    return lockedInvoke(tlLockAs(tlBCallTarget(res)), res);
+}
+INTERNAL tlHandle resumeInvokeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
+    trace("%s", tl_str(res));
+    if (!res) return null;
+    frame->resumecb = resumeInvoke;
+    return lockEnqueue(tlLockAs(tlBCallTarget(res)), frame);
+}
+tlHandle tlLockAndInvoke(tlBCall* call) {
+    tlTask* task = tlTaskCurrent();
+    tlLock* lock = tlLockAs(tlBCallTarget(call));
+    trace("%s", tl_str(lock));
+    assert(lock);
+
+    if (tlLockIsOwner(lock, task)) return tlInvoke(task, call);
+
+    // if the lock is taken and there are tasks in the queue, there is never a point that owner == null
+    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
+        // failed to own lock; pause current task, and enqueue it
+        return tlTaskPauseResuming(resumeInvokeEnqueue, call);
+    }
+    return lockedInvoke(lock, call);
+}
+INTERNAL tlHandle lockedInvoke(tlLock* lock, tlBCall* call) {
+    tlTask* task = tlTaskCurrent();
+    trace("%s", tl_str(lock));
+    assert(lock->owner == task);
+
+    tlHandle res = tlInvoke(task, call);
+    if (!res) {
+        ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
+        frame->lock = lock;
+        return tlTaskPauseAttach(frame);
+    }
+    lockScheduleNext(lock);
+    return res;
+}
 
 // ** acquire and release from native **
 

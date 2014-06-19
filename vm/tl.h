@@ -145,6 +145,7 @@ TL_REF_TYPE(tlHandleObject);
 
 TL_REF_TYPE(tlCall);
 TL_REF_TYPE(tlArgs);
+TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlResult);
 
 TL_REF_TYPE(tlEnv);

@@ -34,7 +34,6 @@ const char* op_name(uint8_t op) {
 TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBDebugInfo);
 TL_REF_TYPE(tlBCode);
-TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
 TL_REF_TYPE(tlBLazy);
@@ -270,7 +269,7 @@ tlHandle tlBCallGet(tlBCall* call, int at) {
     if (at < 0 || at >= call->size) return null;
     return call->args[at];
 }
-tlHandle tlBCallGetTarget(tlBCall* call) {
+tlHandle tlBCallTarget(tlBCall* call) {
     return call->target;
 }
 tlHandle tlBCallGetFn(tlBCall* call) {
@@ -301,7 +300,7 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
     tlString* name = tlStringCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
     if (tlStringEquals(name, tlSTR("this"))) {
-        return tlBCallGetTarget(call);
+        return tlBCallTarget(call);
     }
     if (call->names) {
         int index = tlBCallNameIndex(call, name);
@@ -923,6 +922,10 @@ tlArgs* argsFromBCall(tlBCall* call) {
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     tlHandle fn = tlBCallGetFn(call);
     trace(" %s invoke %s.%s", tl_str(call), tl_str(call->target), tl_str(fn));
+    if (call->target && tl_kind(call->target)->locked) {
+        if (!tlLockIsOwner(tlLockAs(call->target), task)) return tlLockAndInvoke(call);
+    }
+
     if (tlBSendTokenIs(fn) || tlNativeIs(fn) || tlClosureIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
@@ -931,6 +934,9 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         }
         if (tlNativeIs(fn)) return tlNativeKind->run(tlNativeAs(fn), args);
         return runClosure(tlClosureAs(fn), args);
+    }
+    if (call->target && tl_kind(call->target)->locked) {
+        fatal("cannot lock yet: %s", tl_str(call->target));
     }
     if (tlBClosureIs(fn)) {
         return beval(task, null, call, 0, null);
