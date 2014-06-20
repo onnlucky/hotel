@@ -28,6 +28,9 @@
 @public
     Window* window;
 } @end
+@interface NTextView : NSScrollView {
+    NSTextView *textView;
+} @end
 
 NativeWindow* nativeWindowNew(Window* window) {
     // TODO use or update x and y
@@ -143,15 +146,18 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
 @end
 
 @implementation NView
+-(BOOL)isFlipped { return YES; }
 - (void)drawRect: (NSRect)rect {
+    [super drawRect:rect];
     if (!window) return;
 
     int width = self.bounds.size.width;
     int height = self.bounds.size.height;
 
     CGContextRef cgx = [[NSGraphicsContext currentContext] graphicsPort];
-    CGContextTranslateCTM(cgx, 0.0, height);
-    CGContextScaleCTM(cgx, 1.0, -1.0);
+    //use when not using isFlipped:YES
+    //CGContextTranslateCTM(cgx, 0.0, height);
+    //CGContextScaleCTM(cgx, 1.0, -1.0);
     cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(cgx, width, height);
     cairo_t* cairo = cairo_create(surface);
 
@@ -166,6 +172,51 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     windowMouseEvent(window, loc.x, loc.y);
 }
 @end
+
+@implementation NTextView
+- (id)initWithFrame: (NSRect)frame {
+    if ((self = [super initWithFrame: frame])) {
+        textView = [[NSTextView alloc] initWithFrame: NSMakeRect(0, 0, frame.size.width, frame.size.height)];
+        [textView setVerticallyResizable: YES];
+        [textView setHorizontallyResizable: YES];
+        [self setBorderType: NSBezelBorder];
+        [self setHasVerticalScroller: YES];
+        [self setHasHorizontalScroller: NO];
+        [self setDocumentView: textView];
+        //[textView setDelegate: self];
+    }
+    [textView setString:@"hello world!"];
+    return self;
+}
+-(tlString*)text {
+    return tlStringFromCopy([[[textView textStorage] string] UTF8String], 0);
+}
+-(void)setText:(tlString*)text {
+    [textView setString:[NSString stringWithUTF8String:tlStringData(text)]];
+}
+-(void)textDidChange: (NSNotification *)notification {
+    // TODO implement
+}
+@end
+
+NativeTextBox* nativeTextBoxNew(NativeWindow* _w, int x, int y, int width, int height) {
+    NWindow* window = (NWindow*)_w;
+    NTextView* text = [[NTextView alloc] initWithFrame:NSMakeRect(x, y, width, height)];
+    [window.contentView addSubview:text];
+    return text;
+}
+void nativeTextBoxPosition(NativeTextBox* _text, int x, int y, int width, int height) {
+    NTextView* view = (NTextView*)_text;
+    [view setFrame:NSMakeRect(x, y, width, height)];
+}
+void nativeTextBoxSetText(NativeTextBox* _text, tlString* string) {
+    NTextView* view = (NTextView*)_text;
+    [view setText:string];
+}
+tlString* nativeTextBoxGetText(NativeTextBox* _text) {
+    NTextView* view = (NTextView*)_text;
+    return [view text];
+}
 
 // **** connect to app.h ****
 

@@ -5,6 +5,7 @@
 #include <cairo/cairo.h>
 
 TL_REF_TYPE(Box);
+TL_REF_TYPE(Text);
 TL_REF_TYPE(Window);
 
 void window_init(tlVm* vm);
@@ -12,6 +13,7 @@ void window_init(tlVm* vm);
 // platform integration
 
 typedef void NativeWindow;
+typedef void NativeTextBox;
 
 struct Window {
     tlLock lock;
@@ -54,4 +56,10 @@ void windowMouseEvent(Window* w, double x, double y);
 void windowKeyEvent(Window* w, int code, tlString* input);
 void windowResizeEvent(Window* w, int x, int y, int width, int height);
 
+// textbox support
+NativeTextBox* nativeTextBoxNew(NativeWindow*, int x, int y, int width, int height);
+void nativeTextBoxPosition(NativeTextBox*, int x, int y, int with, int height);
+tlString* nativeTextBoxGetText(NativeTextBox*);
+
 #endif // _window_h_
+

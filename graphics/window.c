@@ -5,7 +5,6 @@
 #include <math.h>
 #include <cairo/cairo.h>
 
-
 static tlSym _s_key;
 static tlSym _s_input;
 static tlMap* _keyEventMap;
@@ -13,6 +12,8 @@ static tlMap* _keyEventMap;
 struct Box {
     tlLock lock;
     Window* window;
+    NativeTextBox* textbox;
+
     Box* up;
     Box* prev; Box* next;
     Box* boxes;
@@ -28,14 +29,28 @@ struct Box {
     tlHandle onkey;
 };
 
+struct Text {
+    tlLock lock;
+    Box* box;
+    NativeTextBox* native;
+
+    tlHandle onchange;
+};
+
 static tlKind _WindowKind = { .name = "Window", .locked = true, };
 tlKind* WindowKind = &_WindowKind;
 static tlKind _BoxKind = { .name = "Box", .locked = true, };
 tlKind* BoxKind = &_BoxKind;
+static tlKind _TextKind = { .name = "Text", .locked = true, };
+tlKind* TextKind = &_TextKind;
 
 static void renderBox(cairo_t* c, Box* b, Graphics* g) {
     if (!b) return;
     b->dirty = false;
+    if (b->textbox) {
+        nativeTextBoxPosition(b->textbox, b->x, b->y, b->width, b->height);
+        return;
+    }
 
     cairo_save(c);
 
@@ -402,6 +417,26 @@ static tlHandle _box_redraw(tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle __Text_new(tlArgs* args) {
+    Box* box = BoxAs(tlArgsGet(args, 0));
+    Text* text = tlAlloc(TextKind, sizeof(Text));
+    text->box = box;
+    text->native = nativeTextBoxNew(box->window->native, box->x, box->y, box->width, box->height);
+    box->textbox = text->native;
+    return text;
+}
+
+static tlHandle _Text_new(tlArgs* args) {
+    Box* box = BoxAs(tlArgsGet(args, 0));
+    if (!box) TL_THROW("need a box to render in");
+    return tl_on_toolkit(__Text_new, args);
+}
+
+static tlHandle _text_text(tlArgs* args) {
+    Text* text = TextAs(tlArgsTarget(args));
+    return nativeTextBoxGetText(text->native);
+}
+
 static tlHandle _window_onkey(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) window->onkey = tlArgsGet(args, 0);
@@ -443,6 +478,10 @@ void window_init(tlVm* vm) {
         "ondraw", _box_ondraw,
         null
     );
+    _TextKind.klass = tlClassMapFrom(
+        "text", _text_text,
+        null
+    );
     _WindowKind.klass = tlClassMapFrom(
         "add", _window_add,
         "remove", _window_remove,
@@ -472,12 +511,17 @@ void window_init(tlVm* vm) {
         "new", _Box_new,
         null
     );
+    tlMap* TextStatic = tlClassMapFrom(
+        "new", _Text_new,
+        null
+    );
     tlMap* WindowStatic = tlClassMapFrom(
         "new", _Window_new,
         null
     );
 
     tlVmGlobalSet(vm, tlSYM("Box"), BoxStatic);
+    tlVmGlobalSet(vm, tlSYM("Text"), TextStatic);
     tlVmGlobalSet(vm, tlSYM("Window"), WindowStatic);
 
     // for key events
