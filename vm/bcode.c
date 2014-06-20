@@ -1321,7 +1321,7 @@ resume:;
 
     // set the data to the call
     trace("load: %s[%d] = %s", tl_str(call), arg, tl_str(v));
-    tlBCallAdd_(call, v, arg++);
+    tlBCallAdd_(call, tlFirst(v), arg++);
 
     // resolve method at object ...
     if (arg == 2 && call->target && tlStringIs(call->fn)) {
