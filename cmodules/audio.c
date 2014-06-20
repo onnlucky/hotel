@@ -1,4 +1,5 @@
 #include <portaudio.h>
+#include <tl.h>
 
 #include "trace-off.h"
 
@@ -28,7 +29,7 @@ static tlBuffer* nextbuffer(tlAudio* audio) {
             tlBuffer* buf = tlBufferAs(tlArgsGet(tlArgsAs(tlTaskGetValue(audio->current)), 0));
             if (tlBufferSize(buf) > 0) return buf;
 
-            audio->current->value = buf;
+            tlTaskSetValue(audio->current, buf);
             tlTaskReadyExternal(audio->current);
         }
         audio->current = tlTaskFromEntry(lqueue_get(&audio->wait_q));
@@ -119,7 +120,7 @@ static tlHandle resumeAudioWrite(tlFrame* frame, tlHandle res, tlHandle throw) {
 
     frame->resumecb = null;
     tlTask* task = tlTaskWaitExternal();
-    lqueue_put(&audio->wait_q, &task->entry);
+    lqueue_put(&audio->wait_q, tlTaskGetEntry(task));
 
     if (!Pa_IsStreamActive(audio->stream)) {
         int err = Pa_StartStream(audio->stream);

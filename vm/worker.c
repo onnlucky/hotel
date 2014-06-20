@@ -10,7 +10,7 @@
 
 #include "trace-off.h"
 
-INTERNAL tlTask* tlTaskFromEntry(lqentry* entry);
+tlTask* tlTaskFromEntry(lqentry* entry);
 INTERNAL void tlTaskRun(tlTask* task);
 INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task);
 INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task);

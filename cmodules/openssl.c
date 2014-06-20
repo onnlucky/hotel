@@ -3,7 +3,7 @@
 #include <openssl/err.h>
 #include <openssl/md5.h>
 
-#include "tl.h"
+#include <tl.h>
 
 #include "trace-off.h"
 
@@ -170,11 +170,12 @@ INTERNAL tlHandle _ssl_read(tlArgs* args) {
     if (!buf) TL_THROW("require a buffer");
     trace("READ: %p", ssl);
 
-    tlBufferBeforeWrite(buf, 5*1024);
-    int len = SSL_read(ssl->session, writebuf(buf), canwrite(buf));
+    char* writebuf = tlBufferWriteData(buf, 5*1024);
+    size_t canwrite = tlBufferCanWrite(buf);
+    int len = SSL_read(ssl->session, writebuf, canwrite);
     trace("DIDREAD: %d", len);
     if (len > 0) {
-        didwrite(buf, len);
+        tlBufferDidWrite(buf, len);
         return tlINT(len);
     }
     int err;

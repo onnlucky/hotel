@@ -369,6 +369,10 @@ void tl_register_global(const char* name, tlHandle v);
 tlTask* tlTaskNew(tlVm* vm, tlMap* locals);
 tlVm* tlTaskGetVm(tlTask* task);
 
+// task internals ... cleanup?
+tlTask* tlTaskFromEntry(lqentry* entry);
+lqentry* tlTaskGetEntry(tlTask* task);
+
 // stack reification
 // native frame activation/resume signature
 // if res is set, a call returned a regular result
@@ -539,8 +543,15 @@ const char* tlBufferData(tlBuffer* buf);
 
 int tlBufferFind(tlBuffer* buf, const char* text, int len);
 int tlBufferRead(tlBuffer* buf, char* to, int count);
+int tlBufferReadSkip(tlBuffer* buf, int count);
 uint8_t tlBufferReadByte(tlBuffer* buf);
 
+int tlBufferWrite(tlBuffer* buf, const char* from, int count);
+char* tlBufferWriteData(tlBuffer* buf, int len);
+void tlBufferDidWrite(tlBuffer* buf, int count);
+int tlBufferCanWrite(tlBuffer* buf);
+
+tlBin* tlBinFromBufferTake(tlBuffer* buf);
 tlBin* tlBinFromCopy(const char* data, int len);
 int tlBinSize(tlBin* bin);
 const uint8_t* tlBinData(tlBin* bin);

@@ -79,9 +79,12 @@ void tlVmScheduleTask(tlVm* vm, tlTask* task) {
     lqueue_put(&vm->run_q, &task->entry);
 }
 
-INTERNAL tlTask* tlTaskFromEntry(lqentry* entry) {
+tlTask* tlTaskFromEntry(lqentry* entry) {
     if (!entry) return null;
     return (tlTask*)(((char *)entry) - ((intptr_t) &((tlTask*)0)->entry));
+}
+lqentry* tlTaskGetEntry(tlTask* task) {
+    return &task->entry;
 }
 
 TL_REF_TYPE(tlWaitQueue);

@@ -48,7 +48,6 @@
 #include "regex.c"
 #include "serialize.c"
 
-#include "openssl.c"
 //#include "audio.c"
 //#include "storage.c"
 #include "hotelparser.c"
@@ -57,6 +56,8 @@
 //#include "http.c"
 
 #include "trace-off.h"
+
+tlHandle _dlopen(tlArgs* args);
 
 tlString* tl_boot_code;
 
@@ -487,7 +488,7 @@ void tl_init() {
     time_init();
     serialize_init();
 
-    openssl_init();
+    //openssl_init();
     //storage_init();
 
     tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
@@ -510,7 +511,7 @@ tlVm* tlVmNew() {
     buffer_init_vm(vm);
     regex_init_vm(vm);
 
-    openssl_init_vm(vm);
+    //openssl_init_vm(vm);
     //audio_init_vm(vm);
     //storage_init_vm(vm);
     parser_init();
@@ -616,8 +617,10 @@ static const tlNativeCbs __vm_natives[] = {
     { "isBin", _isBin },
 
     { "_set_exitcode", _set_exitcode },
-    { "_deflate", _deflate },
-    { "_inflate", _inflate },
+    //{ "_deflate", _deflate },
+    //{ "_inflate", _inflate },
+
+    { "dlopen", _dlopen },
 
     { 0, 0 },
 };
@@ -730,4 +733,20 @@ static tlKind _tlWorkerKind = {
 };
 tlKind* tlVmKind = &_tlVmKind;
 tlKind* tlWorkerKind = &_tlWorkerKind;
+
+#include <dlfcn.h>
+typedef tlHandle(*tlCModuleLoad)();
+tlHandle _dlopen(tlArgs* args) {
+    tlString* name = tlStringAs(tlArgsGet(args, 0));
+    void* lib = dlopen(tlStringData(name), RTLD_NOW|RTLD_LOCAL);
+    if (!lib) TL_THROW("dlopen: %s", dlerror());
+
+    void* tl_load = dlsym(lib, "tl_load");
+    if (!tl_load) TL_THROW("dlopen: %s", dlerror());
+
+    tlHandle res = ((tlCModuleLoad)tl_load)();
+    if (!res) TL_THROW("dlopen: unable to initialize lib");
+    if (!tl_kind(res)->name) TL_THROW("dlopen: unable to initialize lib");
+    return res;
+}
 
