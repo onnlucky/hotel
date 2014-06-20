@@ -438,7 +438,7 @@ fileFromModulePath = name, path ->
     _module_paths.each: p =>
         file = "$p/$name"
         if _Path_stat(file).ino != 0: return file
-    Error("Not a file in module path: '$name'").throw
+    return null
 
 // used for resolve, and somewhat public, *cough*
 _modules = HashMap.new
@@ -453,11 +453,18 @@ resolve = name, path ->
     if isDefined res: return res
     catch: e => return null, "Unable to read module '$name': $(e.msg)"
     file = fileFromModulePath("$name.tl", path)
-    catch: e => return null, "Unable to parse module '$name': $(e.msg)"
-    mod = _parse(_stringFromFile(file), file)
-    catch: e => return null, "Unable to run module '$name': $(e.msg)"
-    res = mod(_env)
-    _modules.set(name, res)
+    if file:
+        catch: e => return null, "Unable to parse module '$name': $(e.msg)"
+        mod = _parse(_stringFromFile(file), file)
+        catch: e => return null, "Unable to run module '$name': $(e.msg)"
+        res = mod(_env)
+        return _modules.set(name, res)
+    file = fileFromModulePath("$name.mod", path)
+    if file:
+        catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
+        res = dlopen(file);
+        return _modules.set(name, res)
+    return null, "Unable to read module '$name': no module found"
 
 // unresolved names will call this, for auto module loading
 // NOT A MISTAKE ... crazy, sorry ...

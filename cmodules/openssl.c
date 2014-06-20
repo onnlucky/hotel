@@ -217,13 +217,14 @@ INTERNAL tlHandle _ssl_sha1(tlArgs* args) {
 }
 
 static tlKind _tlSSLKind = {
-    .name = "SSL",
+    .name = "SSLCodec",
     .locked = true,
 };
 tlKind* tlSSLKind = &_tlSSLKind;
 
+static bool init = false;
 static void openssl_init() {
-    // TODO make lazy ...
+    init = true;
     SSL_load_error_strings();
     SSL_library_init();
 
@@ -235,13 +236,9 @@ static void openssl_init() {
         null
     );
 }
-static void openssl_init_vm(tlVm* vm) {
-    tlMap* SSLStatic = tlClassMapFrom(
-        "new", _SSL_new,
-        "md5", _ssl_md5,
-        "sha1", _ssl_sha1,
-        null
-    );
-    tlVmGlobalSet(vm, tlSYM("SSL"), SSLStatic);
+
+tlHandle tl_load() {
+    if (!init) openssl_init();
+    return tlClassMapFrom("newCodec", _SSL_new, "md5", _ssl_md5, "sha1", _ssl_sha1, null);
 }
 

@@ -20,3 +20,14 @@ audio.mod: audio.c Makefile ../vm/tl.h
 
 clean:
 	rm -rf *.o *.mod
+
+PREFIX?=/usr/local
+BINDIR:=$(DESTDIR)$(PREFIX)/bin
+LIBDIR:=$(DESTDIR)$(PREFIX)/lib
+INCDIR:=$(DESTDIR)$(PREFIX)/include
+MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
+install: all
+	mkdir -p $(MODDIR)
+	cp -r *.mod $(MODDIR)/
+uninstall:
+	rm -rf $(MODDIR)/*.mod

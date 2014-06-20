@@ -48,12 +48,8 @@
 #include "regex.c"
 #include "serialize.c"
 
-//#include "audio.c"
 //#include "storage.c"
 #include "hotelparser.c"
-
-// super extra
-//#include "http.c"
 
 #include "trace-off.h"
 

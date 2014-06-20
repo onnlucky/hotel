@@ -23,14 +23,14 @@ TLG_MODULES=modules/html.tl modules/sizzle.tl
 all: tl $(TLG_MODULES)
 
 run: tl
-	TL_MODULE_PATH=./modules $(TOOL) ./tl run.tl
-	#TL_MODULE_PATH=./modules $(TOOL) ./tl --noboot run.tl
-	#TL_MODULE_PATH=./modules $(TOOL) ./tl
+	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
+	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --noboot run.tl
+	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
 test-noboot: tl
 	cd test/noboot/ && ./run.sh
 test: test-noboot $(TLG_MODULES)
-	cd test/ && TL_MODULE_PATH=../modules $(TOOL) ../tl tester.tl
+	cd test/ && TL_MODULE_PATH=../modules:../cmodules $(TOOL) ../tl tester.tl
 
 $(LIBGC):
 	./libgc.sh
