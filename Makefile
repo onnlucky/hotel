@@ -19,8 +19,9 @@ LIBGC:=libgc/.libs/objs/libgc.a
 LIBMP:=libmp/libtommath.a
 
 TLG_MODULES=modules/html.tl modules/sizzle.tl
+C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
-all: tl $(TLG_MODULES)
+all: tl $(TLG_MODULES) $(C_MODULES)
 
 run: tl
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
@@ -29,7 +30,7 @@ run: tl
 
 test-noboot: tl
 	cd test/noboot/ && ./run.sh
-test: test-noboot $(TLG_MODULES)
+test: test-noboot $(TLG_MODULES) $(C_MODULES)
 	cd test/ && TL_MODULE_PATH=../modules:../cmodules $(TOOL) ../tl tester.tl
 
 $(LIBGC):
@@ -68,6 +69,9 @@ vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBMP)
 tl: libtl.a vm/tl.c
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread
 
+$(C_MODULES): cmodules/*.c
+	$(MAKE) -C cmodules
+
 # meta parser and modules depending on it
 tlmeta: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl
 	TL_MODULE_PATH=./modules ./tl boot-tlmeta.tl tlmeta.tlg tlmeta
@@ -84,6 +88,7 @@ clean:
 	rm -f modules/html.tl modules/sizzle.tl
 	rm -f tlmeta
 	$(MAKE) -C graphics clean
+	$(MAKE) -C cmodules clean
 distclean: clean
 	rm -rf greg/ libgc/ libatomic_ops/
 dist-clean: distclean
@@ -98,7 +103,7 @@ BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib
 INCDIR:=$(DESTDIR)$(PREFIX)/include
 MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
-install: libtl.a tl tlmeta $(TLG_MODULES)
+install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES)
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
 	mkdir -p $(INCDIR)
@@ -107,6 +112,7 @@ install: libtl.a tl tlmeta $(TLG_MODULES)
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
 	cp -r modules/*.tl $(MODDIR)/
+	cp -r cmodules/*.mod $(MODDIR)/
 	cp tlmeta $(BINDIR)/
 	cp tlmeta-base.tl $(MODDIR)/
 uninstall:
