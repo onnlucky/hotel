@@ -236,10 +236,27 @@ tlBSendToken* tlBSendTokenNew(tlSym method) {
 
 bool tlBCallIsLazy(const tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
-    if (arg < 0 || !call || arg >= call->size || !tlBClosureIs(call->fn)) return false;
-    tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
-    if (!spec || spec == tlNull) return false;
-    return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
+    if (arg < 0 || !call || arg >= call->size) return false;
+    if (tlBClosureIs(call->fn)) {
+        // TODO this ignores FCALLN names
+        tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
+        if (!spec || spec == tlNull) return false;
+        return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
+    }
+    // for old style interpreter compatibility
+    // TODO this ignores FCALLN names
+    if (tlClosureIs(call->fn)) {
+        tlCode* code = tlClosureAs(call->fn)->code;
+        tlList* names = code->argnames;
+        tlMap* defaults = code->argdefaults;
+        if (!defaults) return false;
+        tlSym name = tlListGet(names, arg);
+        if (!name) return false;
+        tlHandle d = tlMapGetSym(defaults, name);
+        if (tlThunkIs(d) || d == tlThunkNull) return true;
+        return false;
+    }
+    return false;
 }
 
 void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
@@ -1609,21 +1626,45 @@ tlBCall* bcallFromArgs(tlArgs* args) {
     return call;
 }
 
-INTERNAL tlHandle _closure_call(tlArgs* args) {
-    trace("closure.call");
+INTERNAL tlHandle _bclosure_call(tlArgs* args) {
+    trace("bclosure.call");
     tlBCall* call = bcallFromArgs(args);
-    call->target = null; // TODO unless this was passed in?
+    call->target = null; // TODO unless this was passed in? e.g. method.call(this=target, 10, 10)
     call->fn = tlArgsTarget(args);
     assert(tlBClosureIs(call->fn));
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
-
 INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
-    trace("closure.run");
+    trace("bclosure.run");
     tlBCall* call = bcallFromArgs(args);
     call->fn = _fn;
     assert(tlBClosureIs(call->fn));
     return beval(tlTaskCurrent(), null, call, 0, null);
+}
+
+INTERNAL tlHandle _blazy_call(tlArgs* args) {
+    trace("blazy.call");
+    tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
+    tlBCall* call = bcallFromArgs(args);
+    call->target = null;
+    call->fn = lazy;
+    return beval(tlTaskCurrent(), null, lazy->args, lazy->pc, lazy->locals);
+}
+INTERNAL tlHandle runBLazy(tlHandle fn, tlArgs* args) {
+    trace("blazy.run");
+    tlBLazy* lazy = tlBLazyAs(fn);
+    tlBCall* call = bcallFromArgs(args);
+    call->fn = lazy;
+    return beval(tlTaskCurrent(), null, lazy->args, lazy->pc, lazy->locals);
+}
+
+INTERNAL tlHandle _blazydata_call(tlArgs* args) {
+    trace("blazydata.call");
+    return tlBLazyDataAs(tlArgsTarget(args))->data;
+}
+INTERNAL tlHandle runBLazyData(tlHandle fn, tlArgs* args) {
+    trace("blazydata.run");
+    return tlBLazyDataAs(tlArgsTarget(fn))->data;
 }
 
 static const tlNativeCbs __bcode_natives[] = {
@@ -1641,10 +1682,11 @@ static const tlNativeCbs __bcode_natives[] = {
 
 void bcode_init() {
     tl_register_natives(__bcode_natives);
-    _tlBClosureKind.klass = tlClassMapFrom(
-        "call", _closure_call,
-        null
-    );
+    _tlBClosureKind.klass = tlClassMapFrom("call", _bclosure_call, null);
+    _tlBLazyKind.klass = tlClassMapFrom("call", _blazy_call, null);
+    _tlBLazyDataKind.klass = tlClassMapFrom("call", _blazydata_call, null);
     _tlBClosureKind.run = runBClosure;
+    _tlBLazyKind.run = runBLazy;
+    _tlBLazyDataKind.run = runBLazyData;
 }
 
