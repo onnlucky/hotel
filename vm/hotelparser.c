@@ -2195,9 +2195,6 @@ static State r_function(Parser* _p, int _start) { // or
  _r = r_function_101(_p, _pos);
  if (_r.ok) return parser_pass(_p, "r_function", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_function");*/ return _r; }
- _r = r_block(_p, _pos);
- if (_r.ok) return parser_pass(_p, "r_function", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_function");*/ return _r; }
  return parser_fail(_p, "r_function", _start);
 }
 static State r_guards(Parser* _p, int _start) { // and

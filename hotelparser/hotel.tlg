@@ -82,7 +82,7 @@ mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
  function: pos=pos "(".. as=fargs .."->"..@"a closing ')'" body=body ..")" type=<function>
          | pos=pos as=farg ."->".. body=bodynl                             type=<function>
          | pos=pos "->".. body=bodynl                                      type=<function>
-         | block
+//         | block
 mfunction: pos=pos as=fargs .arrow.. body=bodynl                                type=<function>
     block: pos=pos ":".. as=fargs ..arrow.. body=bodynl                         type=<block>
          | pos=pos ":".."("..as=fargs ..arrow..@"a closing ')'" body=body ..")" type=<block>

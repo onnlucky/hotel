@@ -44,17 +44,20 @@ test = n ->
 
 test("bad.tl")
 
+
 tests = "test/noboot/"
 io.Path(tests).each: n ->
     if not n.endsWith(".tl"): continue
     test(tests + n)
 
-/*
+
 tests = "test/"
 io.Path(tests).each: n ->
+    if n == "tester.tl": continue
     if not n.endsWith(".tl"): continue
     test(tests + n)
 
+/*
 tests = "modules/"
 io.Path(tests).each: n ->
     if not n.endsWith(".tl"): continue
