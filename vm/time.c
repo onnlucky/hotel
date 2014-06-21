@@ -18,10 +18,16 @@ static tlSym _s_gmtoff;
 static tlMap* _timeMap;
 
 static tlHandle _Time(tlArgs* args) {
-    struct timeval tv;
-    gettimeofday(&tv, null);
+    time_t time;
+    if (tlArgsSize(args) > 0) {
+        time = tl_double(tlArgsGet(args, 0));
+    } else {
+        struct timeval tv;
+        gettimeofday(&tv, null);
+        time = tv.tv_sec;
+    }
     struct tm tm;
-    localtime_r(&tv.tv_sec, &tm);
+    localtime_r(&time, &tm);
 
     // TODO add tv using a float ...
     tlMap *res = tlClone(_timeMap);
