@@ -410,14 +410,8 @@ test "split":
     sp = "hello world".split
     assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
 
-// TODO should not sleep in ms, but need float ... should also add Time module
-sleep =   s -> io.wait s
-wait  =   s -> io.wait s
-millis  = s -> s / 1000.0
-seconds = s -> s
-minutes = m -> m * 60
-hours   = h -> m * 60 * 60
-days    = d -> d * 60 * 60 * 24
+sleep = s -> io.wait s
+wait  = s -> io.wait s
 
 eval2 = string -> _parse(string)(Env.current)
 /// String.eval: evalute the string as a script to run in the current environment

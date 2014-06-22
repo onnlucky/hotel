@@ -17,7 +17,7 @@ static tlSym _s_gmtoff;
 
 static tlMap* _timeMap;
 
-static tlHandle _Time(tlArgs* args) {
+static tlHandle _Date(tlArgs* args) {
     time_t time;
     if (tlArgsSize(args) > 0) {
         time = tl_double(tlArgsGet(args, 0));
@@ -45,11 +45,30 @@ static tlHandle _Time(tlArgs* args) {
     return res;
 }
 
-static tlHandle _now(tlArgs* args) {
-    struct timeval tv;
-    gettimeofday(&tv, null);
-    double seconds = (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-    return tlFLOAT(seconds);
+static tlHandle _seconds(tlArgs* args) {
+    if (tlArgsSize(args) == 0) {
+        struct timeval tv;
+        gettimeofday(&tv, null);
+        double seconds = (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
+        return tlFLOAT(seconds);
+    }
+
+    tlMap* from = tlMapOrObjectCast(tlArgsGet(args, 0));
+    if (!from) TL_THROW("expect a map");
+    struct tm tm;
+    tm.tm_sec = tl_int(tlMapGet(from, _s_sec));
+    tm.tm_min = tl_int(tlMapGet(from, _s_min));
+    tm.tm_hour = tl_int(tlMapGet(from, _s_hour));
+    tm.tm_mon = tl_int(tlMapGet(from, _s_mon));
+    tm.tm_year = tl_int(tlMapGet(from, _s_year));
+    tm.tm_wday = tl_int(tlMapGet(from, _s_wday));
+    tm.tm_mday = tl_int(tlMapGet(from, _s_mday));
+    tm.tm_yday = tl_int(tlMapGet(from, _s_yday));
+    tm.tm_isdst = tl_int(tlMapGet(from, _s_isdst));
+    tlString* zone = tlStringCast(tlMapGet(from, _s_isdst));
+    if (zone) tm.tm_zone = (char*)tlStringData(zone);
+    tm.tm_gmtoff = tl_int(tlMapGet(from, _s_gmtoff));
+    return tlFLOAT(mktime(&tm));
 }
 
 static void time_init() {
@@ -68,7 +87,7 @@ static void time_init() {
     _timeMap = tlMapNew(keys);
     tlMapToObject_(_timeMap);
 
-    tl_register_global("Time", tlNATIVE(_Time, "Time"));
-    tl_register_global("now", tlNATIVE(_now, "now"));
+    tl_register_global("Date", tlNATIVE(_Date, "Date"));
+    tl_register_global("seconds", tlNATIVE(_seconds, "seconds"));
 }
 
