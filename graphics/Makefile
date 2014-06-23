@@ -1,7 +1,7 @@
 UNAME := $(shell uname)
 
 ifneq ($(UNAME),Darwin)
-GTKFLAGS:=$(shell pkg-config --cflags --libs gtk+-3.0)
+GTKFLAGS:=-ldl $(shell pkg-config --cflags --libs gtk+-3.0)
 endif
 
 CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -I.. $(GTKFLAGS)

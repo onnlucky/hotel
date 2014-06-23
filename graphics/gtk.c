@@ -134,6 +134,15 @@ void nativeWindowSetTitle(NativeWindow* w, tlString* title) {
     gtk_window_set_title(GTK_WINDOW(w), tlStringData(title));
 }
 
+NativeTextBox* nativeTextBoxNew(NativeWindow* window, int x, int y, int width, int height) {
+    return null;
+}
+void nativeTextBoxPosition(NativeTextBox* textbox, int x, int y, int with, int height) {
+}
+tlString* nativeTextBoxGetText(NativeTextBox* textbox) {
+    return tlStringEmpty();
+}
+
 // platform can call the following for callbacks
 void windowPointerEvent(Window* w);
 void windowKeyEvent(Window* w, int code, tlString* input);
