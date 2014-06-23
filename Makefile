@@ -1,6 +1,11 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
 
-CFLAGS:=-std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+
+LDFLAGS:=-lm -lpthread
+ifneq ($(UNAME),Darwin)
+LDFLAGS:=$(LDFLAGS) -ldl
+endif
 
 ifeq ($(VALGRIND),1)
 TOOL=valgrind --leak-check=full --track-origins=yes --suppressions=libgc.supp
@@ -67,7 +72,7 @@ vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBMP)
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
-	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a -lm -lpthread
+	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a $(LDFLAGS)
 
 $(C_MODULES): cmodules/*.c
 	$(MAKE) -C cmodules
