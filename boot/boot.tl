@@ -14,6 +14,7 @@ and = left, &right ->
     return left
 
 asBool = v -> bool(v, true, false)
+asBoolInv = v -> bool(v, false, true)
 isSmaller = l, r -> return l < r
 
 
@@ -64,24 +65,33 @@ _map = fn ->
 
 _find = fn ->
     block = args.block or fn
-    if not block: throw "find expects a block or fn"
+    if not block: throw "find expects a block or fn or value"
     len = this.size
     loop = at =>
         if at > len: return null
         e = this.get(at)
-        if e == block: return e, at
-        if try(block(e, at)): return e, at
+        if e == block: return at, e
+        if try(block(e, at)): return at, e
         goto(loop(at + 1))
     loop(1)
 
+_removeItem = fn ->
+    block = args.block or fn
+    if not block: throw "remove expects block or fn or value"
+    at = this.find(fn)
+    if at: return this.remove(at)
+    return this
+
+/// List.filter: remove all elements equal to passed in arg, or matching block
 _filter = fn ->
-    block = args.block or fn or asBool
+    block = args.block or fn or asBoolInv
     arr = Array.new
     len = this.size
     loop = at =>
         if at > len: return arr.toList
         e = this.get(at)
-        if block(e, at): arr.add(e)
+        if e == block or try(block(e, at)): goto(loop(at + 1))
+        arr.add(e)
         goto(loop(at + 1))
     loop(1)
 
@@ -290,6 +300,7 @@ _install(List.class, "each", _each)
 _install(List.class, "map", _map)
 _install(List.class, "find", _find)
 _install(List.class, "filter", _filter)
+_install(List.class, "removeItem", _removeItem)
 _install(List.class, "reduce", _reduce)
 _install(List.class, "min", _min)
 _install(List.class, "max", _max)

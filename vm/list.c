@@ -367,6 +367,15 @@ INTERNAL tlHandle _list_set_(tlArgs* args) {
     return tlNull;
 }
 
+/// remove(at): return a new list with the item at index #at removed
+INTERNAL tlHandle _list_remove(tlArgs* args) {
+    tlList* list = tlListAs(tlArgsTarget(args));
+    int size = tlListSize(list);
+    int at = at_offset(tlArgsGet(args, 0), size);
+    if (at < 0) return list;
+    return tlListCat(tlListSub(list, 0, at), tlListSub(list, at + 1, size - at - 1));
+}
+
 static size_t listSize(tlHandle v) {
     return sizeof(tlList) + sizeof(tlHandle) * tlListAs(v)->size;
 }
@@ -428,12 +437,14 @@ static void list_init() {
         "prepend", _list_prepend,
         "cat", _list_cat,
         "slice", _list_slice,
+        "remove", _list_remove,
         "toChar", _list_toChar,
         "flatten", null,
         "join", null,
         "random", null,
         "each", null,
         "find", null,
+        "removeItem", null,
         "filter", null,
         "map", null,
         "reduce", null,
