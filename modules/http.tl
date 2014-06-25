@@ -128,7 +128,7 @@ ChuckedStream = stream ->
 InflateStream = stream, gzip ->
     {
         read = ->
-            _inflate(stream.read)
+            zlib.inflate(stream.read, gzip)
         readString = ->
             this.read.toString
     }
