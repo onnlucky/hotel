@@ -8,6 +8,10 @@ struct tlSet {
 
 static tlSet* _tl_set_empty;
 
+tlSet* tlSetEmpty() {
+    return _tl_set_empty;
+}
+
 int tlSetSize(tlSet* set) {
     assert(tlSetIs(set));
     return set->size;
@@ -137,7 +141,7 @@ tlKind* tlSetKind = &_tlSetKind;
 
 static void set_init() {
     _tl_set_empty = tlSetNew(0);
-    _tlSetKind.klass = tlClassMapFrom(
+    _tlSetKind.klass = tlClassObjectFrom(
         "size", _set_size,
         "has", _set_has,
         "get", _set_get,
@@ -146,12 +150,12 @@ static void set_init() {
         "map", null,
         null
     );
-    tlMap* constructor = tlClassMapFrom(
+    tlObject* constructor = tlClassObjectFrom(
         //"call", _Set_from,
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlSetKind.klass);
+    tlObjectSet_(constructor, s_class, _tlSetKind.klass);
     tl_register_global("Set", constructor);
 }
 

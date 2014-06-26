@@ -38,7 +38,7 @@ struct tlVm {
     a_val waitevent; // external events ...
 
     tlEnv* globals;
-    tlMap* locals; // default task locals
+    tlObject* locals; // default task locals
     tlHandle resolve;
 
     // to wake up select

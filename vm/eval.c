@@ -347,7 +347,7 @@ INTERNAL tlArgs* evalCall2(CallFrame* frame, tlHandle _res) {
     int argc = tlCallSize(call);
 
     tlList* names = null;
-    tlMap* defaults = null;
+    tlObject* defaults = null;
 
     tlHandle fn = tlCallGetFn(call);
     if (tlClosureIs(fn)) {
@@ -388,14 +388,14 @@ INTERNAL tlArgs* evalCall2(CallFrame* frame, tlHandle _res) {
         tlSym name = tlCallGetName(call, at);
         tlHandle d = tlNull;
         if (name) {
-            if (defaults) d = tlMapGetSym(defaults, name);
+            if (defaults) d = tlObjectGetSym(defaults, name);
         } else {
             while (true) {
                 if (!names) break;
                 tlSym fnname = tlListGet(names, at - named + skipped);
                 if (!fnname) break;
                 if (!tlCallNamesContains(call, fnname)) {
-                    if (defaults) d = tlMapGetSym(defaults, fnname);
+                    if (defaults) d = tlObjectGetSym(defaults, fnname);
                     break;
                 }
                 skipped++;
@@ -461,7 +461,7 @@ INTERNAL tlHandle evalCode(tlArgs* args, tlClosure* fn) {
     frame->code = fn->code;
 
     tlList* names = fn->code->argnames;
-    tlMap* defaults = fn->code->argdefaults;
+    tlObject* defaults = fn->code->argdefaults;
 
     if (names) {
         int first = 0;
@@ -473,7 +473,7 @@ INTERNAL tlHandle evalCode(tlArgs* args, tlClosure* fn) {
                 v = tlArgsGet(args, first); first++;
             }
             if (!v && defaults) {
-                v = tlMapGetSym(defaults, name);
+                v = tlObjectGetSym(defaults, name);
                 if (tlThunkIs(v) || v == tlThunkNull) {
                     v = tlThunkNew(tlNull);
                 } else if (tlCallIs(v)) {
@@ -747,17 +747,17 @@ INTERNAL tlHandle _resolve(tlArgs* args) {
 // TODO and maybe an object.class.call is defined or from a _get it returns something callable ...
 bool tlCallableIs(tlHandle v) {
     if (!tlRefIs(v)) return false;
-    if (tlHandleObjectIs(v)) return tlMapGetSym(v, s_call) != null;
+    if (tlObjectIs(v)) return tlObjectGetSym(v, s_call) != null;
     tlKind* kind = tl_kind(v);
     if (kind->call) return true;
     if (kind->run) return true;
-    if (kind->klass && tlMapGetSym(kind->klass, s_call)) return true;
+    if (kind->klass && tlObjectGetSym(kind->klass, s_call)) return true;
     return false;
 }
 
 // send messages
-INTERNAL tlHandle evalMapSend(tlMap* map, tlSym msg, tlArgs* args, tlHandle target) {
-    tlHandle field = tlMapGet(map, msg);
+INTERNAL tlHandle evalMapSend(tlObject* map, tlSym msg, tlArgs* args, tlHandle target) {
+    tlHandle field = tlObjectGet(map, msg);
     trace(".%s -> %s()", tl_str(msg), tl_str(field));
     if (!field) TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
     if (!tlCallableIs(field)) return field;
@@ -893,14 +893,14 @@ static tlHandle _eval(tlArgs* args) {
 
 INTERNAL tlHandle _install(tlArgs* args) {
     trace("install: %s", tl_str(tlArgsGet(args, 0)));
-    tlMap* map = tlMapFromObjectCast(tlArgsGet(args, 0));
+    tlObject* map = tlObjectCast(tlArgsGet(args, 0));
     if (!map) TL_THROW("expected a Map");
     tlSym sym = tlSymCast(tlArgsGet(args, 1));
     if (!sym) TL_THROW("expected a Sym");
     tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("expected a Value");
     // TODO some safety here?
-    tlMapSetSym_(map, sym, val);
+    tlObjectSet_(map, sym, val);
     return tlNull;
 }
 
@@ -919,11 +919,7 @@ static const tlNativeCbs __eval_natives[] = {
     { "_String_cat", _String_cat },
     { "_List_clone", _List_clone },
     { "_Map_clone", _Map_clone },
-    { "_Map_update", _Map_update },
-    { "_Map_inherit", _Map_inherit },
-    { "_Map_keys", _Map_keys },
-    { "_Map_get", _Map_get },
-    { "_Map_set", _Map_set },
+    { "_Object_clone", _Object_clone },
 
     { "_install", _install },
 
@@ -943,7 +939,7 @@ static void eval_init() {
     _tlCallKind.call = callCall;
     _tlClosureKind.call = callClosure;
     _tlClosureKind.run = runClosure;
-    _tlClosureKind.klass = tlClassMapFrom(
+    _tlClosureKind.klass = tlClassObjectFrom(
         "call", _call,
         null
     );

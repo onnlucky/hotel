@@ -144,7 +144,7 @@ INTERNAL tlHandle _Storage_new(tlArgs* args) {
 }
 
 void storage_init() {
-    _tlStorageKind.klass = tlClassMapFrom(
+    _tlStorageKind.klass = tlClassObjectFrom(
         "get", _storage_get,
         "set", _storage_set,
         "del", _storage_del,
@@ -153,7 +153,7 @@ void storage_init() {
 }
 
 static void storage_init_vm(tlVm* vm) {
-    tlMap* StorageStatic = tlClassMapFrom(
+    tlObject* StorageStatic = tlClassObjectFrom(
         "new", _Storage_new,
         null
     );

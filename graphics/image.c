@@ -181,14 +181,14 @@ static tlHandle _image_writePNG(tlArgs* args) {
 }
 
 void image_init(tlVm* vm) {
-    _ImageKind.klass = tlClassMapFrom(
+    _ImageKind.klass = tlClassObjectFrom(
         "width", _image_width,
         "height", _image_height,
         "graphics", _image_graphics,
         "writePNG", _image_writePNG,
         null
     );
-    tlMap* ImageStatic = tlClassMapFrom(
+    tlObject* ImageStatic = tlClassObjectFrom(
         "new", _Image_new,
         null
     );

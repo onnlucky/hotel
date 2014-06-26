@@ -16,14 +16,14 @@ struct tlEnv {
     tlEnv* parent;
     tlEnv* future; // when a closed environment is captured, the future is used
     tlArgs* args;
-    tlMap* map;
+    tlObject* map;
 };
 
 tlEnv* tlEnvNew(tlEnv* parent) {
     tlEnv* env = tlAlloc(tlEnvKind, sizeof(tlEnv));
     trace("env new parent: %p, new: %p", parent, env);
     env->parent = parent;
-    env->map = _tl_emptyMap;
+    env->map = tlObjectEmpty();
     return env;
 }
 
@@ -83,7 +83,7 @@ tlHandle tlEnvGet(tlEnv* env, tlSym key) {
     trace("%p.get %s", env, tl_str(key));
 
     if (env->map) {
-        tlHandle v = tlMapGetSym(env->map, key);
+        tlHandle v = tlObjectGetSym(env->map, key);
         if (v) return v;
     }
     return tlEnvGet(env->parent, key);
@@ -96,19 +96,19 @@ tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
     if (tlflag_isset(env, TL_FLAG_CLOSED)) {
         env = tlEnvCopy(env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
-    } else if (tlMapGetSym(env->map, key)) {
+    } else if (tlObjectGetSym(env->map, key)) {
         env = tlEnvCopy(env);
         trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
     }
 
-    env->map = tlMapSet(env->map, key, v);
-    assert(tlMapGetSym(env->map, key));
+    env->map = tlObjectSet(env->map, key, v);
+    assert(tlObjectGetSym(env->map, key));
     return env;
 }
 
 static tlHandle _env_size(tlArgs* args) {
     tlEnv* env = tlEnvAs(tlArgsTarget(args));
-    return tlINT(tlMapSize(env->map));
+    return tlINT(tlObjectSize(env->map));
 }
 static tlHandle _env_get(tlArgs* args) {
     tlEnv* env = tlEnvAs(tlArgsTarget(args));
@@ -150,13 +150,13 @@ static tlHandle _Env_module(tlArgs* args) {
 }
 
 bool tlBFrameIs(tlHandle);
-tlMap* tlBEnvLocalObject(tlFrame*);
+tlObject* tlBEnvLocalObject(tlFrame*);
 static tlHandle resumeEnvLocalObject(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     while (frame) {
         if (tlCodeFrameIs(frame)) {
             tlEnv* env = tlCodeFrameGetEnv(frame);
-            return tlMapToObject_(env->map);
+            return tlObjectToObject_(env->map);
         }
         if (tlBFrameIs(frame)) {
             return tlBEnvLocalObject(frame);
@@ -174,14 +174,14 @@ static tlHandle _Env_path(tlArgs* args) {
     return tlWorkerCurrent()->codeframe->code->path;
 }
 
-static tlMap* envClass;
+static tlObject* envClass;
 static void env_init() {
-    _tlEnvKind.klass = tlClassMapFrom(
+    _tlEnvKind.klass = tlClassObjectFrom(
         "size", _env_size,
         "get", _env_get,
         null
     );
-    envClass = tlClassMapFrom(
+    envClass = tlClassObjectFrom(
         "new", _Env_new,
         "current", _Env_current,
         "localObject", _Env_localObject,

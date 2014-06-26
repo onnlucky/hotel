@@ -140,8 +140,8 @@ TL_REF_TYPE(tlNum);
 TL_REF_TYPE(tlChar);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
+TL_REF_TYPE(tlObject);
 TL_REF_TYPE(tlMap);
-TL_REF_TYPE(tlHandleObject);
 
 TL_REF_TYPE(tlCall);
 TL_REF_TYPE(tlArgs);
@@ -262,42 +262,47 @@ tlList* tlListSplice(tlList* list, int first, int size);
 void tlListSet_(tlList* list, int at, tlHandle v);
 
 
-// ** map **
-int tlMapSize(const tlMap* map);
-int tlMapIsEmpty(const tlMap* map);
-tlSet* tlMapKeys(const tlMap* map);
-tlHandle tlMapGetInt(const tlMap* map, int key);
-tlHandle tlMapGetSym(const tlMap* map, tlSym key);
-tlHandle tlMapValueIter(const tlMap* map, int i);
-tlHandle tlMapKeyIter(const tlMap* map, int i);
+// ** object **
+int tlObjectSize(const tlObject* o);
+int tlObjectIsEmpty(const tlObject* o);
+tlSet* tlObjectKeys(const tlObject* o);
+tlHandle tlObjectGetInt(const tlObject* o, int key);
+tlHandle tlObjectGetSym(const tlObject* o, tlSym key);
+tlHandle tlObjectValueIter(const tlObject* o, int i);
+tlHandle tlObjectKeyIter(const tlObject* o, int i);
 
-void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
-void tlMapSetInt_(tlMap* map, int key, tlHandle v);
-void tlMapSetSym_(tlMap* map, tlSym key, tlHandle v);
-tlMap* tlMapToObject_(tlMap* map);
+void tlObjectValueIterSet_(tlObject* o, int i, tlHandle v);
+void tlObjectSet_(tlObject* o, tlSym key, tlHandle v);
+tlObject* tlMapToObject_(tlMap* o);
 
+tlSet* tlSetEmpty();
 tlSet* tlSetNew(int size);
 tlHandle tlSetGet(tlSet* set, int at);
 int tlSetAdd_(tlSet* set, tlHandle key);
 
+tlObject* tlObjectEmpty();
+tlObject* tlObjectNew(tlSet* keys);
+tlObject* tlObjectCopy(tlObject* o);
+// TODO tlObject is String -> Value and not just that, String.intern == true
+tlObject* tlObjectFrom(const char* k1, tlHandle v1, ...);
+tlObject* tlObjectFromStrings(tlString* k1, tlHandle v1, ...);
+tlObject* tlObjectFrom1(tlHandle key, tlHandle v);
+tlObject* tlObjectFromMany(tlHandle vs[], int len /*multiple of 2*/);
+tlObject* tlObjectFromList(tlList* ls);
+tlObject* tlObjectFromPairs(tlList* ls);
+
+tlHandle tlObjectGet(tlObject* o, tlHandle key);
+tlObject* tlObjectSet(tlObject* o, tlHandle key, tlHandle v);
+tlObject* tlObjectDel(tlObject* o, tlHandle key);
+tlObject* tlObjectJoin(tlObject* lhs, tlObject* rhs);
+
 tlMap* tlMapEmpty();
 tlMap* tlMapNew(tlSet* keys);
-tlMap* tlMapCopy(tlMap* map);
-tlMap* tlMapToObject(tlMap* map);
-tlMap* tlMapFrom1(tlHandle key, tlHandle v);
-tlMap* tlMapFrom(tlHandle v1, ... /*tlHandle, tlHandle*/);
-tlMap* tlMapFromMany(tlHandle vs[], int len /*multiple of 2*/);
-tlMap* tlMapFromList(tlList* ls);
 tlMap* tlMapFromPairs(tlList* ls);
-
-bool tlMapOrObjectIs(tlHandle);
-tlMap* tlObjectFrom(const char* n1, tlHandle v1, ...);
-tlMap* tlObjectSet(tlMap* map, tlHandle key, tlHandle v);
-
+int tlMapSize(tlMap* map);
 tlHandle tlMapGet(tlMap* map, tlHandle key);
-tlMap* tlMapSet(tlMap* map, tlHandle key, tlHandle v);
-tlMap* tlMapDel(tlMap* map, tlHandle key);
-tlMap* tlMapJoin(tlMap* lhs, tlMap* rhs);
+tlHandle tlMapValueIter(tlMap* map, int i);
+void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
 
 
 // ** creating and running vms **
@@ -366,7 +371,7 @@ void tl_register_natives(const tlNativeCbs* cbs);
 void tl_register_global(const char* name, tlHandle v);
 
 // task management
-tlTask* tlTaskNew(tlVm* vm, tlMap* locals);
+tlTask* tlTaskNew(tlVm* vm, tlObject* locals);
 tlVm* tlTaskGetVm(tlTask* task);
 
 // task internals ... cleanup?
@@ -396,7 +401,7 @@ tlTask* tlTaskWaitExternal();
 void tlTaskReadyExternal(tlTask* task);
 void tlTaskSetValue(tlTask* task, tlHandle h);
 
-// throws value, if it is a map with a stack, it will be filled in witha stacktrace
+// throws value, if it is a o with a stack, it will be filled in witha stacktrace
 tlHandle tlTaskThrow(tlHandle err);
 
 // throw errors
@@ -418,7 +423,7 @@ tlHandle tlUndefMsg(tlString* msg);
     return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)
 
 // args
-tlArgs* tlArgsNew(tlList* list, tlMap* map);
+tlArgs* tlArgsNew(tlList* list, tlObject* o);
 void tlArgsSetTarget_(tlArgs* args, tlHandle target);
 void tlArgsSetFn_(tlArgs* args, tlHandle fn);
 void tlArgsSet_(tlArgs* args, int at, tlHandle v);
@@ -451,7 +456,7 @@ tlHandle tlClone(tlHandle v);
 tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
 
 // create objects with only native functions (to use as classes)
-tlMap* tlClassMapFrom(const char* n1, tlNativeCb fn1, ...);
+tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...);
 
 
 // ** environment (scope) **
@@ -490,7 +495,7 @@ typedef tlHandle(*tlRunFn)(tlHandle fn, tlArgs* args);
 typedef tlHandle(*tlSendFn)(tlArgs* args);
 
 // a kind describes a hotel value for the vm (not at the language level)
-// a kind can have a tlMap* klass, which represents its class from the language level
+// a kind can have a tlObject* klass, which represents its class from the language level
 // fields with a null value is usually perfectly fine
 struct tlKind {
     const char* name;  // general name of the value
@@ -507,7 +512,7 @@ struct tlKind {
 
     bool locked;       // if the object has a lock, the task will aqcuire the lock
     tlSendFn send;     // if send a message args.this and args.msg are filled in
-    tlMap* klass;      // if send a message, lookup args.msg here and eval its field
+    tlObject* klass;      // if send a message, lookup args.msg here and eval its field
 };
 
 // any non-value object will have to be protected from concurrent access

@@ -57,17 +57,17 @@ tlMap* tlHashMapToMap(tlHashMap* map) {
         tlSetAdd_(keys, k);
         lhashmapiter_next(iter);
     }
-    tlMap* object = tlMapNew(keys);
+    tlMap* nmap = tlMapNew(keys);
     for (int i = 0; i < size; i++) {
         tlHandle k = tlSetGet(keys, i);
         if (!k) break;
         tlHandle v = tlHashMapGet(map, k);
-        tlMapSetSym_(object, k, v);
+        tlMapSet_(nmap, k, v);
     }
-    return object;
+    return nmap;
 }
-tlMap* tlHashMapToObject(tlHashMap* map) {
-    return tlMapToObject_(tlHashMapToMap(map));
+tlObject* tlHashMapToObject(tlHashMap* map) {
+    return tlObjectFromMap_(tlHashMapToMap(map));
 }
 
 INTERNAL tlHandle _HashMap_new(tlArgs* args) {
@@ -75,9 +75,9 @@ INTERNAL tlHandle _HashMap_new(tlArgs* args) {
     for (int i = 0; i < 1000; i++) {
         tlHandle h = tlArgsGet(args, i);
         if (!h) break;
-        if (tlMapOrObjectIs(h)) {
-            tlMap* map = tlMapOrObjectCast(h);
-            for (int i = 0; i < tlMapSize(map); i++) {
+        if (tlObjectIs(h)) {
+            tlObject* map = tlObjectCast(h);
+            for (int i = 0; i < tlObjectSize(map); i++) {
                 tlHashMapSet(hash, map->keys->data[i], map->data[i]);
             }
             continue;
@@ -212,9 +212,9 @@ INTERNAL tlHandle _hashmap_toMap(tlArgs* args) {
     return tlHashMapToObject(tlHashMapAs(tlArgsTarget(args)));
 }
 
-static tlMap* hashmapClass;
+static tlObject* hashmapClass;
 void hashmap_init() {
-    _tlHashMapKind.klass = tlClassMapFrom(
+    _tlHashMapKind.klass = tlClassObjectFrom(
         "size", _hashmap_size,
         "clear", _hashmap_clear,
         "get", _hashmap_get,
@@ -226,7 +226,7 @@ void hashmap_init() {
         "toMap", _hashmap_toMap,
         null
     );
-    hashmapClass = tlClassMapFrom(
+    hashmapClass = tlClassObjectFrom(
         "new", _HashMap_new,
         null
     );

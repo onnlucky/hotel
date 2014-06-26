@@ -51,12 +51,12 @@ static tlHandle _regex_match(tlArgs* args) {
 
 void regex_init_vm(tlVm* vm) {
     if (!_tlRegexKind.klass) {
-        _tlRegexKind.klass = tlClassMapFrom(
+        _tlRegexKind.klass = tlClassObjectFrom(
             "match", _regex_match,
             null
         );
     }
-    tlMap* RegexStatic = tlClassMapFrom(
+    tlObject* RegexStatic = tlClassObjectFrom(
         "call", _Regex_new,
         null
     );

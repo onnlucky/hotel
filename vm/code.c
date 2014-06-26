@@ -13,7 +13,7 @@ struct tlCode {
     tlInt line;
     tlSym name;
     tlList* argnames;
-    tlMap* argdefaults;
+    tlObject* argdefaults;
     intptr_t size;
     tlHandle ops[];
 };
@@ -69,7 +69,7 @@ void tlCodeSetArgs_(tlCode* code, tlList* args) {
     // output: name*, {name->default}
 
     int size = tlListSize(args);
-    tlMap* defaults = tlMapFromPairs(args);
+    tlObject* defaults = tlObjectFromPairs(args);
 
     tlList* names = tlListNew(size);
     for (int i = 0; i < size; i++) {

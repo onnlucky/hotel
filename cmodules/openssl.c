@@ -228,7 +228,7 @@ static void openssl_init() {
     SSL_load_error_strings();
     SSL_library_init();
 
-    _tlSSLKind.klass = tlClassMapFrom(
+    _tlSSLKind.klass = tlClassObjectFrom(
         "rbuf", _ssl_rbuf,
         "wbuf", _ssl_wbuf,
         "read", _ssl_read,
@@ -239,6 +239,6 @@ static void openssl_init() {
 
 tlHandle tl_load() {
     if (!init) openssl_init();
-    return tlClassMapFrom("newCodec", _SSL_new, "md5", _ssl_md5, "sha1", _ssl_sha1, null);
+    return tlClassObjectFrom("newCodec", _SSL_new, "md5", _ssl_md5, "sha1", _ssl_sha1, null);
 }
 

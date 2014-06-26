@@ -425,7 +425,7 @@ static tlKind _tlListKind = {
 
 static void list_init() {
     _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
-    _tlListKind.klass = tlClassMapFrom(
+    _tlListKind.klass = tlClassObjectFrom(
         "hash", _list_hash,
         "toList", _list_toList,
         "size", _list_size,
@@ -456,12 +456,12 @@ static void list_init() {
         "sort", null,
         null
     );
-    tlMap* constructor = tlClassMapFrom(
+    tlObject* constructor = tlClassObjectFrom(
         //"call", _List_cat,
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlListKind.klass);
+    tlObjectSet_(constructor, s_class, _tlListKind.klass);
     tl_register_global("List", constructor);
     tl_register_global("_List_unsafe", tlNativeNew(_List_unsafe, tlSYM("_List_unsafe")));
     tl_register_global("_list_set_", tlNativeNew(_list_set_, tlSYM("_list_set_")));

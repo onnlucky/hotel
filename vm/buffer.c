@@ -414,7 +414,7 @@ static tlHandle _isBuffer(tlArgs* args) {
 }
 
 static void buffer_init() {
-    _tlBufferKind.klass = tlClassMapFrom(
+    _tlBufferKind.klass = tlClassObjectFrom(
             "size", _buffer_size,
             "compact", _buffer_compact,
             "clear", _buffer_clear,
@@ -433,7 +433,7 @@ static void buffer_init() {
 }
 
 static void buffer_init_vm(tlVm* vm) {
-    tlMap* BufferStatic = tlClassMapFrom(
+    tlObject* BufferStatic = tlClassObjectFrom(
         "new", _Buffer_new,
         null
     );

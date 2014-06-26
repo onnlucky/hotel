@@ -248,11 +248,11 @@ bool tlBCallIsLazy(const tlBCall* call, int arg) {
     if (tlClosureIs(call->fn)) {
         tlCode* code = tlClosureAs(call->fn)->code;
         tlList* names = code->argnames;
-        tlMap* defaults = code->argdefaults;
+        tlObject* defaults = code->argdefaults;
         if (!defaults) return false;
         tlSym name = tlListGet(names, arg);
         if (!name) return false;
-        tlHandle d = tlMapGetSym(defaults, name);
+        tlHandle d = tlObjectGetSym(defaults, name);
         if (tlThunkIs(d) || d == tlThunkNull) return true;
         return false;
     }
@@ -341,10 +341,10 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
     return v;
 }
 
-tlMap* tlBEnvLocalObject(tlFrame* frame) {
+tlObject* tlBEnvLocalObject(tlFrame* frame) {
     tlBEnv* env = tlBFrameAs(frame)->locals;
     tlList* names = env->names;
-    tlMap* map = tlMapNew(0);
+    tlObject* map = tlObjectNew(0);
     for (int i = 0; i < tlListSize(names); i++) {
         if (!names) continue;
         tlHandle name = tlListGet(names, i);
@@ -352,7 +352,7 @@ tlMap* tlBEnvLocalObject(tlFrame* frame) {
         trace("env locals: %s=%s", tl_str(name), tl_str(v));
         if (!name) continue;
         if (!v) continue;
-        map = tlMapSet(map, tlSymAs(name), env->data[i]);
+        map = tlObjectSet(map, tlSymAs(name), env->data[i]);
     }
 
     tlBCall* args = env->args;
@@ -363,12 +363,12 @@ tlMap* tlBEnvLocalObject(tlFrame* frame) {
         trace("args locals: %s=%s", tl_str(name), tl_str(v));
         if (!name) continue;
         if (!v) continue;
-        map = tlMapSet(map, tlSymAs(name), v);
+        map = tlObjectSet(map, tlSymAs(name), v);
     }
 
-    assert(map != tlMapEmpty());
-    map = tlMapToObject_(map);
-    assert(tlMapOrObjectIs(map));
+    assert(map != tlObjectEmpty());
+    map = tlObjectToObject_(map);
+    assert(tlObjectIs(map));
     return map;
 }
 
@@ -439,7 +439,7 @@ static inline tlHandle decodelit(uint8_t b1) {
         case 2: return tlTrue;
         case 3: return tlStringEmpty();
         case 4: return tlListEmpty();
-        case 5: return tlMapEmpty();
+        case 5: return tlObjectEmpty();
     }
     return tlINT(lit - 8);
 }
@@ -497,7 +497,7 @@ tlList* readList(tlBuffer* buf, int size, tlList* data, const char** error) {
     return list;
 }
 
-tlMap* readMap(tlBuffer* buf, int size, tlList* data, const char** error) {
+tlObject* readMap(tlBuffer* buf, int size, tlList* data, const char** error) {
     trace("map: %d (%d)", size, tlBufferSize(buf));
     tlList* pairs = tlListNew(size);
     for (int i = 0; i < size; i++) {
@@ -508,7 +508,7 @@ tlMap* readMap(tlBuffer* buf, int size, tlList* data, const char** error) {
         trace("MAP: %s: %s", tl_str(key), tl_str(v));
         tlListSet_(pairs, i, tlListFrom2(tlSymFromString(key), v));
     }
-    return tlMapFromPairs(pairs);
+    return tlObjectFromPairs(pairs);
 }
 
 tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, const char** error) {
@@ -529,14 +529,14 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     trace(" %s -- %s %s", tl_str(tlBCodeName(bcode)), tl_str(bcode->argspec), tl_str(bcode->localnames));
 
     tlHandle debuginfo = readref(buf, data, null);
-    if (!tlMapIs(debuginfo) || tlNullIs(debuginfo)) FAIL("code[4] must be debuginfo (object|null)");
+    if (!tlObjectIs(debuginfo) || tlNullIs(debuginfo)) FAIL("code[4] must be debuginfo (object|null)");
 
     tlBDebugInfo* info = tlBDebugInfoNew();
     info->name = tlStringAs(name);
-    if (tlMapIs(debuginfo)) {
-        info->offset = tlIntAs(tlMapGet(debuginfo, tlSYM("offset")));
-        info->text = tlStringAs(tlMapGet(debuginfo, tlSYM("text")));
-        info->pos = tlListAs(tlMapGet(debuginfo, tlSYM("pos")));
+    if (tlObjectIs(debuginfo)) {
+        info->offset = tlIntAs(tlObjectGet(debuginfo, tlSYM("offset")));
+        info->text = tlStringAs(tlObjectGet(debuginfo, tlSYM("text")));
+        info->pos = tlListAs(tlObjectGet(debuginfo, tlSYM("pos")));
     } else {
         info->offset = tlINT(0);
         info->text = tlStringEmpty();
@@ -766,13 +766,13 @@ void bpprint(tlHandle v) {
         disasm(code);
         return;
     }
-    if (tlMapIs(v)) {
-        tlMap* map = tlMapAs(v);
+    if (tlObjectIs(v)) {
+        tlObject* map = tlObjectAs(v);
         print("{");
         for (int i = 0;; i++) {
-            tlHandle v = tlMapValueIter(map, i);
+            tlHandle v = tlObjectValueIter(map, i);
             if (!v) break;
-            tlHandle k = tlMapKeyIter(map, i);
+            tlHandle k = tlObjectKeyIter(map, i);
             print("%s:", tl_str(k));
             bpprint(v);
         }
@@ -911,18 +911,18 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* locals);
 
 tlArgs* argsFromBCall(tlBCall* call) {
-    tlMap* map = tlMapEmpty();
+    tlObject* map = tlObjectEmpty();
     if (call->names) {
         for (int i = 0; i < call->size; i++) {
             tlHandle name = tlListGet(call->names, i);
             if (name && name != tlNull) {
                 trace("ARGS: %s = %s", tl_str(name), tl_str(call->args[i]));
-                map = tlMapSet(map, tlSymAs(name), call->args[i]);
+                map = tlObjectSet(map, tlSymAs(name), call->args[i]);
             }
         }
     }
 
-    tlArgs* args = tlArgsNew(tlListNew(call->size - tlMapSize(map)), map);
+    tlArgs* args = tlArgsNew(tlListNew(call->size - tlObjectSize(map)), map);
     tlArgsSetTarget_(args, call->target);
     tlArgsSetFn_(args, call->fn);
     for (int i = 0, j = 0; i < call->size; i++) {
@@ -1038,10 +1038,10 @@ static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** 
 
 static tlHandle bmethodResolve(tlHandle target, tlSym method) {
     trace("resolve method: %s.%s", tl_str(target), tl_str(method));
-    if (tlHandleObjectIs(target)) return mapResolve(target, method);
+    if (tlObjectIs(target)) return objectResolve(target, method);
     tlKind* kind = tl_kind(target);
     if (kind->send) return tlBSendTokenNew(method);
-    if (kind->klass) return mapResolve(kind->klass, method);
+    if (kind->klass) return objectResolve(kind->klass, method);
     return null;
 }
 
@@ -1481,18 +1481,18 @@ INTERNAL tlHandle __list(tlArgs* args) {
 
 INTERNAL tlHandle __object(tlArgs* args) {
     // TODO make faster ;)
-    tlMap* map = tlMapEmpty();
+    tlObject* map = tlObjectEmpty();
     for (int i = 0; i < tlArgsSize(args); i += 2) {
-        map = tlMapSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+        map = tlObjectSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
-    return tlMapToObject_(map);
+    return tlObjectToObject_(map);
 }
 
 INTERNAL tlHandle __map(tlArgs* args) {
     // TODO make faster ;)
-    tlMap* map = tlMapEmpty();
+    tlObject* map = tlObjectEmpty();
     for (int i = 0; i < tlArgsSize(args); i += 2) {
-        map = tlMapSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+        map = tlObjectSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
     return map;
 }
@@ -1617,10 +1617,10 @@ tlBCall* bcallFromArgs(tlArgs* args) {
         trace("BCALL[%d] = %s", i, tl_str(call->args[i]));
     }
 
-    tlMap* kargs = tlArgsMap(args);
-    for (int j = 0; j < tlMapSize(kargs); j++) {
-        call->args[i + j] = tlMapValueIter(kargs, j);
-        tlListSet_(names, i + j, tlStringFromSym(tlMapKeyIter(kargs, j)));
+    tlObject* kargs = tlArgsObject(args);
+    for (int j = 0; j < tlObjectSize(kargs); j++) {
+        call->args[i + j] = tlObjectValueIter(kargs, j);
+        tlListSet_(names, i + j, tlStringFromSym(tlObjectKeyIter(kargs, j)));
         trace("BCALL[%d](%s) = %s", i + j, tl_str(tlListGet(names, i + j)), tl_str(call->args[i + j]));
     }
     return call;
@@ -1682,9 +1682,9 @@ static const tlNativeCbs __bcode_natives[] = {
 
 void bcode_init() {
     tl_register_natives(__bcode_natives);
-    _tlBClosureKind.klass = tlClassMapFrom("call", _bclosure_call, null);
-    _tlBLazyKind.klass = tlClassMapFrom("call", _blazy_call, null);
-    _tlBLazyDataKind.klass = tlClassMapFrom("call", _blazydata_call, null);
+    _tlBClosureKind.klass = tlClassObjectFrom("call", _bclosure_call, null);
+    _tlBLazyKind.klass = tlClassObjectFrom("call", _blazy_call, null);
+    _tlBLazyDataKind.klass = tlClassObjectFrom("call", _blazydata_call, null);
     _tlBClosureKind.run = runBClosure;
     _tlBLazyKind.run = runBLazy;
     _tlBLazyDataKind.run = runBLazyData;

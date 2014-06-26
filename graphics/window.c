@@ -7,7 +7,7 @@
 
 static tlSym _s_key;
 static tlSym _s_input;
-static tlMap* _keyEventMap;
+static tlObject* _keyEventMap;
 
 struct Box {
     tlLock lock;
@@ -260,9 +260,9 @@ void windowKeyEvent(Window* window, int code, tlString* input) {
     if (!window->onkey) return;
 
     block_toolkit();
-    tlMap *res = tlClone(_keyEventMap);
-    tlMapSetSym_(res, _s_key, tlINT(code));
-    tlMapSetSym_(res, _s_input, input);
+    tlObject *res = tlClone(_keyEventMap);
+    tlObjectSet_(res, _s_key, tlINT(code));
+    tlObjectSet_(res, _s_input, input);
     tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onkey, res, null));
     unblock_toolkit();
 }
@@ -456,7 +456,7 @@ static tlHandle _window_onresize(tlArgs* args) {
 }
 
 void window_init(tlVm* vm) {
-    _BoxKind.klass = tlClassMapFrom(
+    _BoxKind.klass = tlClassObjectFrom(
         "add", _box_add,
         "remove", _box_remove,
         "get", _box_get,
@@ -478,11 +478,11 @@ void window_init(tlVm* vm) {
         "ondraw", _box_ondraw,
         null
     );
-    _TextKind.klass = tlClassMapFrom(
+    _TextKind.klass = tlClassObjectFrom(
         "text", _text_text,
         null
     );
-    _WindowKind.klass = tlClassMapFrom(
+    _WindowKind.klass = tlClassObjectFrom(
         "add", _window_add,
         "remove", _window_remove,
         "get", _window_get,
@@ -507,15 +507,15 @@ void window_init(tlVm* vm) {
         null
     );
 
-    tlMap* BoxStatic = tlClassMapFrom(
+    tlObject* BoxStatic = tlClassObjectFrom(
         "new", _Box_new,
         null
     );
-    tlMap* TextStatic = tlClassMapFrom(
+    tlObject* TextStatic = tlClassObjectFrom(
         "new", _Text_new,
         null
     );
-    tlMap* WindowStatic = tlClassMapFrom(
+    tlObject* WindowStatic = tlClassObjectFrom(
         "new", _Window_new,
         null
     );
@@ -528,7 +528,6 @@ void window_init(tlVm* vm) {
     tlSet* keys = tlSetNew(2);
     _s_key = tlSYM("key"); tlSetAdd_(keys, _s_key);
     _s_input = tlSYM("input"); tlSetAdd_(keys, _s_input);
-    _keyEventMap = tlMapNew(keys);
-    tlMapToObject_(_keyEventMap);
+    _keyEventMap = tlObjectNew(keys);
 }
 

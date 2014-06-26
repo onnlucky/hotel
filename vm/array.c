@@ -257,9 +257,9 @@ INTERNAL tlHandle _isArray(tlArgs* args) {
     return tlBOOL(tlArrayIs(tlArgsGet(args, 0)));
 }
 
-static tlMap* arrayClass;
+static tlObject* arrayClass;
 static void array_init() {
-    _tlArrayKind.klass = tlClassMapFrom(
+    _tlArrayKind.klass = tlClassObjectFrom(
         "toList", _array_toList,
         "size", _array_size,
         "clear", _array_clear,
@@ -288,12 +288,12 @@ static void array_init() {
         "join", null,
         null
     );
-    arrayClass = tlClassMapFrom(
+    arrayClass = tlClassObjectFrom(
         "new", _Array_new,
         "class", null,
         null
     );
-    tlMapSetSym_(arrayClass, s_class, _tlArrayKind.klass);
+    tlObjectSet_(arrayClass, s_class, _tlArrayKind.klass);
 }
 
 static void array_vm_default(tlVm* vm) {

@@ -14,7 +14,7 @@
 static tlHandle sa_send, sa_try_send, sa_this_send;
 static tlSym s__undefined;
 static tlSym s_send, s_try_send;
-static tlSym s_String_cat, s_List_clone, s_Map_clone, s_Map_update, s_Map_inherit;
+static tlSym s_String_cat, s_List_clone, s_Map_clone, s_Object_clone;
 static tlSym s_Var_new, s_var_get, s_var_set;
 static tlSym s_this, s_this_get, s_this_set, s_this_send;
 static tlSym s_Task_new;
@@ -75,6 +75,29 @@ void try_name(tlSym name, tlHandle v, ParseContext* cx) {
     assert(tlSymIs(name));
 }
 
+tlHandle object_activate(tlObject* o) {
+    int i = 0;
+    int argc = 0;
+    for (int i = 0;; i++) {
+        tlHandle v = tlObjectValueIter(o, i);
+        if (!v) break;
+        if (tlActiveIs(v) || tlCallIs(v)) argc++;
+    }
+    if (!argc) return o;
+    tlCall* call = tlCallNew(argc + 1, null);
+    tlCallSetFn_(call, tl_active(s_Object_clone));
+    tlCallSet_(call, 0, o);
+    argc = 1;
+    for (int i = 0;; i++) {
+        tlHandle v = tlObjectValueIter(o, i);
+        if (!v) break;
+        if (tlActiveIs(v) || tlCallIs(v)) {
+            tlObjectValueIterSet_(o, i, null);
+            tlCallSet_(call, argc++, v);
+        }
+    }
+    return call;
+}
 tlHandle map_activate(tlMap* map) {
     int i = 0;
     int argc = 0;
@@ -529,8 +552,8 @@ op_pow = l:paren  _ ("^"  __ r:paren  { l = tlCallFrom(tl_active(s_pow), l, r, n
        | v:value t:tail             { $$ = set_target(t, v); }
 
 
-object = "{"__ is:items __"}"!":"  { $$ = map_activate(tlMapToObject_(tlMapFromPairs(L(is)))); }
-       | "{"__"}"!":"              { $$ = map_activate(tlMapToObject_(tlMapEmpty())); }
+object = "{"__ is:items __"}"!":"  { $$ = object_activate(tlObjectFromPairs(L(is))); }
+       | "{"__"}"!":"              { $$ = object_activate(tlObjectEmpty()); }
    map = "["__ is:items __"]"  { $$ = map_activate(tlMapFromPairs(L(is))); }
        | "["__":"__"]"         { $$ = map_activate(tlMapEmpty()); }
  items = "{"__ ts:tms __"}"!":" eom is:items
@@ -662,8 +685,7 @@ tlHandle tlParse(tlString* str, tlString* file) {
         s_String_cat = tlSYM("_String_cat");
         s_List_clone = tlSYM("_List_clone");
         s_Map_clone = tlSYM("_Map_clone");
-        s_Map_update = tlSYM("_Map_udpate");
-        s_Map_inherit = tlSYM("_Map_inherit");
+        s_Object_clone = tlSYM("_Object_clone");
         s_Var_new = tlSYM("_Var_new");
         s_var_get = tlSYM("_var_get");
         s_var_set = tlSYM("_var_set");

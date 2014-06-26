@@ -49,7 +49,7 @@ struct tlTask {
     tlFrame* stack;     // current frame (== top of stack or current continuation)
     tlDebugger* debugger; // current debugger
 
-    tlMap* locals;     // task local storage, for cwd, stdout etc ...
+    tlObject* locals;     // task local storage, for cwd, stdout etc ...
     // TODO remove these in favor a some flags
     tlTaskState state; // state it is currently in
     bool read;
@@ -309,7 +309,7 @@ void tlTaskFinalize(void* _task, void* data) {
     }
 }
 
-tlTask* tlTaskNew(tlVm* vm, tlMap* locals) {
+tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     tlTask* task = tlAlloc(tlTaskKind, sizeof(tlTask));
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
@@ -726,17 +726,17 @@ static const tlNativeCbs __task_natives[] = {
     { 0, 0 }
 };
 
-static tlMap* taskClass;
+static tlObject* taskClass;
 
 static void task_init() {
     tl_register_natives(__task_natives);
-    _tlTaskKind.klass = tlClassMapFrom(
+    _tlTaskKind.klass = tlClassObjectFrom(
         "isDone", _task_isDone,
         "wait", _task_wait,
         "value", _task_wait,
         null
     );
-    taskClass = tlClassMapFrom(
+    taskClass = tlClassObjectFrom(
         "new", _Task_new_none,
         "current", _Task_current,
         "locals", _Task_locals,

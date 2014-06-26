@@ -553,7 +553,7 @@ static tlKind _tlStringKind = {
 
 static void string_init() {
     _tl_emptyString = tlSTR("");
-    _tlStringKind.klass = tlClassMapFrom(
+    _tlStringKind.klass = tlClassObjectFrom(
         "toString", _string_toString,
         "toSym", _string_toSym,
         "size", _string_size,
@@ -577,13 +577,13 @@ static void string_init() {
         "eval", null,
         null
     );
-    tlMap* constructor = tlClassMapFrom(
+    tlObject* constructor = tlClassObjectFrom(
         "call", null,
         "cat", _String_cat,
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlStringKind.klass);
+    tlObjectSet_(constructor, s_class, _tlStringKind.klass);
     tl_register_global("String", constructor);
 }
 

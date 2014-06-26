@@ -254,25 +254,25 @@ INTERNAL tlHandle _message_get(tlArgs* args) {
     return tlArgsMapGet(msg->args, key);
 }
 
-static tlMap* queueClass;
-static tlMap* msgQueueClass;
+static tlObject* queueClass;
+static tlObject* msgQueueClass;
 void queue_init() {
-    queueClass = tlClassMapFrom("new", _Queue_new, null);
-    _tlQueueKind.klass = tlClassMapFrom(
+    queueClass = tlClassObjectFrom("new", _Queue_new, null);
+    _tlQueueKind.klass = tlClassObjectFrom(
         "add", _queue_add,
         "get", _queue_get,
         null
     );
 
-    msgQueueClass = tlClassMapFrom("new", _MsgQueue_new, null);
+    msgQueueClass = tlClassObjectFrom("new", _MsgQueue_new, null);
     _tlMsgQueueInputKind.send = queueInputReceive;
-    _tlMsgQueueKind.klass = tlClassMapFrom(
+    _tlMsgQueueKind.klass = tlClassObjectFrom(
         "input", _msg_queue_input,
         "get", _msg_queue_get,
         "poll", _msg_queue_poll,
         null
     );
-    _tlMessageKind.klass = tlClassMapFrom(
+    _tlMessageKind.klass = tlClassObjectFrom(
         "reply", _message_reply,
         "throw", _message_throw,
         "name", _message_name,

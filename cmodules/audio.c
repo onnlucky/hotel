@@ -139,17 +139,17 @@ static tlHandle _audio_write(tlArgs* args) {
 
 void audio_init_vm(tlVm* vm) {
     if (!_tlAudioKind.klass) {
-        _tlAudioKind.klass = tlClassMapFrom(
+        _tlAudioKind.klass = tlClassObjectFrom(
             "write", _audio_write,
             null
         );
     }
-    tlMap* AudioStatic = tlClassMapFrom(
+    tlObject* AudioStatic = tlClassObjectFrom(
         "open", _Audio_open,
         "byte8", null,
         null
     );
-    tlMapSetSym_(AudioStatic, tlSYM("byte8"), tlINT(paUInt8));
+    tlObjectSet_(AudioStatic, tlSYM("byte8"), tlINT(paUInt8));
     tlVmGlobalSet(vm, tlSYM("Audio"), AudioStatic);
 }
 

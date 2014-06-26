@@ -114,8 +114,8 @@ static tlHandle parse(tlBuffer* buf) {
             c = tlBufferReadByte(buf);
             if (c != '}') { warning("no '}' %c", c); return null; }
             trace("}");
-            tlMap* res = tlHashMapToObject(map);
-            trace("map: %d", tlMapSize(res));
+            tlObject* res = tlHashMapToObject(map);
+            trace("map: %d", tlObjectSize(res));
             return res;
         }
         case '[': {
@@ -186,14 +186,14 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print) {
         return false;
     }
 
-    if (tlMapOrObjectIs(h)) {
-        tlMap* map = (tlMap*)h;
+    if (tlObjectIs(h)) {
+        tlObject* map = (tlObject*)h;
         tlBufferWrite(buf, "{", 1);
         bool written = false;
         for (int i = 0;; i++) {
-            tlHandle v = tlMapValueIter(map, i);
+            tlHandle v = tlObjectValueIter(map, i);
             if (!v) break;
-            tlHandle k = tlSetGet(tlMapKeys(map), i);
+            tlHandle k = tlSetGet(tlObjectKeys(map), i);
             if (pprint(buf, k, true, print)) {
                 tlBufferWrite(buf, "=", 1);
                 pprint(buf, v, false, print);

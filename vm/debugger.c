@@ -222,7 +222,7 @@ static tlKind _tlDebuggerKind = {
 };
 
 static void debugger_init() {
-    _tlDebuggerKind.klass = tlClassMapFrom(
+    _tlDebuggerKind.klass = tlClassObjectFrom(
         "attach", _debugger_attach,
         "detach", _debugger_detach,
         "step", _debugger_step,
@@ -234,12 +234,12 @@ static void debugger_init() {
         "locals", _debugger_locals,
         null
     );
-    tlMap* constructor = tlClassMapFrom(
+    tlObject* constructor = tlClassObjectFrom(
         "new", _Debugger_new,
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlDebuggerKind.klass);
+    tlObjectSet_(constructor, s_class, _tlDebuggerKind.klass);
     tl_register_global("Debugger", constructor);
 }
 

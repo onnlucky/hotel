@@ -53,14 +53,14 @@ static const tlNativeCbs __var_natives[] = {
     { 0, 0 }
 };
 
-static tlMap* varClass;
+static tlObject* varClass;
 static void var_init() {
-    _tlVarKind.klass = tlClassMapFrom(
+    _tlVarKind.klass = tlClassObjectFrom(
         "get", _var_get,
         "set", _var_set,
         null
     );
-    varClass = tlClassMapFrom(
+    varClass = tlClassObjectFrom(
         "new", _Var_new,
         null
     );

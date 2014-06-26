@@ -15,7 +15,7 @@
 
 static tlSym _s_cwd;
 
-static tlMap* _statMap;
+static tlObject* _statMap;
 static tlSym _s_dev;
 static tlSym _s_ino;
 static tlSym _s_mode;
@@ -29,7 +29,7 @@ static tlSym _s_blocks;
 static tlSym _s_atime;
 static tlSym _s_mtime;
 
-static tlMap* _usageMap;
+static tlObject* _usageMap;
 static tlSym _s_cpu;
 static tlSym _s_mem;
 static tlSym _s_pid;
@@ -53,14 +53,14 @@ static int setblock(int fd) {
 }
 
 static tlHandle _io_getrusage(tlArgs* args) {
-    tlMap *res = tlClone(_usageMap);
+    tlObject *res = tlClone(_usageMap);
     struct rusage use;
     getrusage(RUSAGE_SELF, &use);
-    tlMapSetSym_(res, _s_cpu, tlINT(use.ru_utime.tv_sec + use.ru_stime.tv_sec));
-    tlMapSetSym_(res, _s_mem, tlINT(use.ru_maxrss));
-    tlMapSetSym_(res, _s_pid, tlINT(getpid()));
+    tlObjectSet_(res, _s_cpu, tlINT(use.ru_utime.tv_sec + use.ru_stime.tv_sec));
+    tlObjectSet_(res, _s_mem, tlINT(use.ru_maxrss));
+    tlObjectSet_(res, _s_pid, tlINT(getpid()));
 #ifdef HAVE_BOEHMGC
-    tlMapSetSym_(res, _s_gcs, tlINT(GC_gc_no));
+    tlObjectSet_(res, _s_gcs, tlINT(GC_gc_no));
 #endif
     return res;
 }
@@ -96,7 +96,7 @@ static tlString* path_join(tlString* lhs, tlString* rhs) {
 static tlString* cwd_join(tlString* path) {
     tlTask* task = tlTaskCurrent();
     tlString* cwd = null;
-    if (task->locals) cwd = tlStringCast(tlMapGetSym(task->locals, _s_cwd));
+    if (task->locals) cwd = tlStringCast(tlObjectGetSym(task->locals, _s_cwd));
     tlString* res = path_join(cwd, path);
     return res;
 }
@@ -115,7 +115,7 @@ static tlHandle _io_chdir(tlArgs* args) {
     if (!(buf.st_mode & S_IFDIR)) TL_THROW("chdir: not a directory: %s", p);
 
     tlTask* task = tlTaskCurrent();
-    task->locals = tlMapSet(task->locals, _s_cwd, path);
+    task->locals = tlObjectSet(task->locals, _s_cwd, path);
     return tlNull;
 }
 static tlHandle _io_mkdir(tlArgs* args) {
@@ -658,19 +658,19 @@ static tlHandle _Path_stat(tlArgs* args) {
         }
     }
 
-    tlMap *res = tlClone(_statMap);
-    tlMapSetSym_(res, _s_dev, tlINT(buf.st_dev));
-    tlMapSetSym_(res, _s_ino, tlINT(buf.st_ino));
-    tlMapSetSym_(res, _s_mode, tlINT(buf.st_mode));
-    tlMapSetSym_(res, _s_nlink, tlINT(buf.st_nlink));
-    tlMapSetSym_(res, _s_uid, tlINT(buf.st_uid));
-    tlMapSetSym_(res, _s_gid, tlINT(buf.st_gid));
-    tlMapSetSym_(res, _s_rdev, tlINT(buf.st_rdev));
-    tlMapSetSym_(res, _s_size, tlINT(buf.st_size));
-    tlMapSetSym_(res, _s_blksize, tlINT(buf.st_blksize));
-    tlMapSetSym_(res, _s_blocks, tlINT(buf.st_blocks));
-    tlMapSetSym_(res, _s_atime, tlINT(buf.st_atime));
-    tlMapSetSym_(res, _s_mtime, tlINT(buf.st_mtime));
+    tlObject *res = tlClone(_statMap);
+    tlObjectSet_(res, _s_dev, tlINT(buf.st_dev));
+    tlObjectSet_(res, _s_ino, tlINT(buf.st_ino));
+    tlObjectSet_(res, _s_mode, tlINT(buf.st_mode));
+    tlObjectSet_(res, _s_nlink, tlINT(buf.st_nlink));
+    tlObjectSet_(res, _s_uid, tlINT(buf.st_uid));
+    tlObjectSet_(res, _s_gid, tlINT(buf.st_gid));
+    tlObjectSet_(res, _s_rdev, tlINT(buf.st_rdev));
+    tlObjectSet_(res, _s_size, tlINT(buf.st_size));
+    tlObjectSet_(res, _s_blksize, tlINT(buf.st_blksize));
+    tlObjectSet_(res, _s_blocks, tlINT(buf.st_blocks));
+    tlObjectSet_(res, _s_atime, tlINT(buf.st_atime));
+    tlObjectSet_(res, _s_mtime, tlINT(buf.st_mtime));
     return res;
 }
 
@@ -934,10 +934,10 @@ static tlHandle _io_launch(tlArgs* args) {
             want_in, want_out, want_err, join_err);
 
     tlHandle henv = tlArgsGet(args, 6);
-    if (tl_bool(henv) && !tlMapOrObjectIs(henv)) TL_THROW("environment must be a map");
-    tlMap* env = tlMapFromObjectCast(henv);
+    if (tl_bool(henv) && !tlObjectIs(henv)) TL_THROW("environment must be a map");
+    tlObject* env = tlObjectCast(henv);
     if (env) for (int i = 0;; i++) {
-        tlHandle val = tlMapValueIter(env, i);
+        tlHandle val = tlObjectValueIter(env, i);
         if (!val) break;
         if (!tlStringIs(val)) TL_THROW("expected only Strings in the environment map");
     }
@@ -1006,9 +1006,9 @@ static tlHandle _io_launch(tlArgs* args) {
         // TODO how?
     }
     if (env) for (int i = 0;; i++) {
-        tlString* str = tlStringCast(tlMapValueIter(env, i));
+        tlString* str = tlStringCast(tlObjectValueIter(env, i));
         if (!str) break;
-        tlSym key = tlSetGet(tlMapKeys(env), i);
+        tlSym key = tlSetGet(tlObjectKeys(env), i);
         setenv(tlSymData(key), tlStringData(str), 1);
     }
 
@@ -1325,21 +1325,21 @@ static const tlNativeCbs __evio_natives[] = {
 };
 
 void evio_init() {
-    _tlReaderKind.klass = tlClassMapFrom(
+    _tlReaderKind.klass = tlClassObjectFrom(
         "read", _reader_read,
         "accept", _reader_accept,
         "isClosed", _reader_isClosed,
         "close", _reader_close,
         null
     );
-    _tlWriterKind.klass = tlClassMapFrom(
+    _tlWriterKind.klass = tlClassObjectFrom(
         "write", _writer_write,
         "isClosed", _writer_isClosed,
         "close", _writer_close,
         null
     );
     _tlFileKind.toString = filetoString;
-    _tlFileKind.klass = tlClassMapFrom(
+    _tlFileKind.klass = tlClassObjectFrom(
         "port", _file_port,
         "isClosed", _file_isClosed,
         "close", _file_close,
@@ -1347,12 +1347,12 @@ void evio_init() {
         "writer", _file_writer,
         null
     );
-    _tlDirKind.klass = tlClassMapFrom(
+    _tlDirKind.klass = tlClassObjectFrom(
         "read", _DirRead,
         "each", _DirEach,
         null
     );
-    _tlChildKind.klass = tlClassMapFrom(
+    _tlChildKind.klass = tlClassObjectFrom(
         "isRunning", _child_running,
         "wait", _child_wait,
         "in", _child_in,
@@ -1392,8 +1392,8 @@ void evio_init() {
     _s_blocks = tlSYM("blocks"); tlSetAdd_(keys, _s_blocks);
     _s_atime = tlSYM("atime"); tlSetAdd_(keys, _s_atime);
     _s_mtime = tlSYM("mtime"); tlSetAdd_(keys, _s_mtime);
-    _statMap = tlMapNew(keys);
-    tlMapToObject_(_statMap);
+    _statMap = tlObjectNew(keys);
+    tlObjectToObject_(_statMap);
 
     // for rusage syscall
     keys = tlSetNew(4);
@@ -1401,8 +1401,8 @@ void evio_init() {
     _s_mem = tlSYM("mem"); tlSetAdd_(keys, _s_mem);
     _s_pid = tlSYM("pid"); tlSetAdd_(keys, _s_pid);
     _s_gcs = tlSYM("gcs"); tlSetAdd_(keys, _s_gcs);
-    _usageMap = tlMapNew(keys);
-    tlMapToObject_(_usageMap);
+    _usageMap = tlObjectNew(keys);
+    tlObjectToObject_(_usageMap);
 
     char buf[MAXPATHLEN + 1];
     char* cwd = getcwd(buf, sizeof(buf));

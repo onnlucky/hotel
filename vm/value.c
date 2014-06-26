@@ -17,6 +17,7 @@ static inline tlTask* tlTaskCurrent() {
 }
 
 static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
+static inline void set_kind(tlHandle v, tlKind* kind) { ((tlHead*)v)->kind = (intptr_t)kind; } // TODO take care of flags?
 
 INTERNAL bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) & flag; }
 INTERNAL void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
@@ -228,7 +229,7 @@ static tlHandle _isList(tlArgs* args) {
 }
 static tlHandle _isObject(tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
-    return tlBOOL(tlMapIs(v)||tlHandleObjectIs(v));
+    return tlBOOL(tlObjectIs(v)||tlObjectIs(v));
 }
 
 static const tlNativeCbs __value_natives[] = {
@@ -249,11 +250,11 @@ static void value_init() {
     _t_true = tlSTR("true");
     _t_false = tlSTR("false");
     tl_register_natives(__value_natives);
-    _tlBoolKind.klass = tlClassMapFrom(
+    _tlBoolKind.klass = tlClassObjectFrom(
         "toString", _bool_toString,
         null
     );
-    _tlIntKind.klass = tlClassMapFrom(
+    _tlIntKind.klass = tlClassObjectFrom(
         "hash", _int_hash,
         "bytes", _int_bytes,
         "abs", _int_abs,
@@ -266,11 +267,11 @@ static void value_init() {
         "to", null,
         null
     );
-    tlMap* intStatic= tlClassMapFrom(
+    tlObject* intStatic= tlClassObjectFrom(
         "class", null,
         null
     );
-    tlMapSetSym_(intStatic, s_class, _tlIntKind.klass);
+    tlObjectSet_(intStatic, s_class, _tlIntKind.klass);
     tl_register_global("Int", intStatic);
 }
 

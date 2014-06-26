@@ -396,8 +396,8 @@ tlHandle Number(tlHandle s, tlHandle whole, int radix) {
 
 tlHandle process_tail(tlHandle value, tlHandle tail) {
     if (tail == tlNull) return value;
-    tlHandle target = tlMapGet(tail, tlSYM("target"));
-    return tlMapSet(tail, tlSYM("target"), process_tail(value, target));
+    tlHandle target = tlObjectGet(tail, tlSYM("target"));
+    return tlObjectSet(tail, tlSYM("target"), process_tail(value, target));
 }
 
 tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
@@ -442,8 +442,8 @@ tlHandle process_slice(tlHandle from, tlHandle to, tlHandle tail, tlHandle pos) 
 
 tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
     if (rhs == tlNull) return lhs;
-    return tlObjectFrom("op", tlMapGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlMapGet(rhs, tlSYM("r")),
-            "type", tlSYM("op"), "pos", tlMapGet(rhs, tlSYM("pos")), null);
+    return tlObjectFrom("op", tlObjectGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlObjectGet(rhs, tlSYM("r")),
+            "type", tlSYM("op"), "pos", tlObjectGet(rhs, tlSYM("pos")), null);
 }
 
 tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
@@ -453,11 +453,11 @@ tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
 
 tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     if (block == tlNull) return call;
-    if (!tlMapOrObjectIs(call) || !tlMapGet(call, tlSYM("target"))) {
+    if (!tlObjectIs(call) || !tlObjectGet(call, tlSYM("target"))) {
         call = tlObjectFrom("target", call, "args", tlListEmpty(),
                 "type", tlSTR("call"), "pos", pos, null);
     }
-    return tlMapSet(call, tlSYM("block"), block);
+    return tlObjectSet(call, tlSYM("block"), block);
 }
 
 static tlHandle _parser_parse(tlArgs* args) {

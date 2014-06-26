@@ -285,7 +285,7 @@ static tlKind _tlCallKind = {
     .size = callSize,
 };
 static void call_init() {
-    _tlNativeKind.klass = tlClassMapFrom(
+    _tlNativeKind.klass = tlClassObjectFrom(
         "call", _call,
         null
     );

@@ -134,33 +134,33 @@ static const tlNativeCbs __error_natives[] = {
     { 0, 0 }
 };
 
-static tlMap* errorClass;
-static tlMap* undefinedErrorClass;
-static tlMap* argumentErrorClass;
+static tlObject* errorClass;
+static tlObject* undefinedErrorClass;
+static tlObject* argumentErrorClass;
 
 INTERNAL void error_init() {
     tl_register_natives(__error_natives);
-    _tlStackTraceKind.klass = tlClassMapFrom(
+    _tlStackTraceKind.klass = tlClassObjectFrom(
         "get", _stackTrace_get,
         null
     );
-    errorClass = tlClassMapFrom(
+    errorClass = tlClassObjectFrom(
         "call", null,
         "class", null,
         null
     );
-    undefinedErrorClass = tlClassMapFrom(
+    undefinedErrorClass = tlClassObjectFrom(
         "call", null,
         "class", null,
         null
     );
-    argumentErrorClass = tlClassMapFrom(
+    argumentErrorClass = tlClassObjectFrom(
         "call", null,
         "class", null,
         null
     );
-    tlMapSetSym_(undefinedErrorClass, s_class, errorClass);
-    tlMapSetSym_(argumentErrorClass, s_class, errorClass);
+    tlObjectSet_(undefinedErrorClass, s_class, errorClass);
+    tlObjectSet_(argumentErrorClass, s_class, errorClass);
 
     // for rusage syscall
     _errorKeys = tlSetNew(3);
@@ -176,30 +176,30 @@ static void error_vm_default(tlVm* vm) {
 }
 
 tlHandle tlErrorThrow(tlHandle msg) {
-    tlMap* err = tlMapNew(_errorKeys);
-    tlMapSetSym_(err, _s_msg, msg);
-    tlMapSetSym_(err, s_class, errorClass);
-    tlMapToObject_(err);
+    tlObject* err = tlObjectNew(_errorKeys);
+    tlObjectSet_(err, _s_msg, msg);
+    tlObjectSet_(err, s_class, errorClass);
+    tlObjectToObject_(err);
     return tlTaskThrow(err);
 }
 tlHandle tlUndefinedErrorThrow(tlHandle msg) {
-    tlMap* err = tlMapNew(_errorKeys);
-    tlMapSetSym_(err, _s_msg, msg);
-    tlMapSetSym_(err, s_class, undefinedErrorClass);
-    tlMapToObject_(err);
+    tlObject* err = tlObjectNew(_errorKeys);
+    tlObjectSet_(err, _s_msg, msg);
+    tlObjectSet_(err, s_class, undefinedErrorClass);
+    tlObjectToObject_(err);
     return tlTaskThrow(err);
 }
 tlHandle tlArgumentErrorThrow(tlHandle msg) {
-    tlMap* err = tlMapNew(_errorKeys);
-    tlMapSetSym_(err, _s_msg, msg);
-    tlMapSetSym_(err, s_class, argumentErrorClass);
-    tlMapToObject_(err);
+    tlObject* err = tlObjectNew(_errorKeys);
+    tlObjectSet_(err, _s_msg, msg);
+    tlObjectSet_(err, s_class, argumentErrorClass);
+    tlObjectToObject_(err);
     return tlTaskThrow(err);
 }
 void tlErrorAttachStack(tlHandle _err, tlFrame* frame) {
-    tlMap* err = tlMapFromObjectCast(_err);
+    tlObject* err = tlObjectCast(_err);
     if (!err || err->keys != _errorKeys) return;
-    assert(tlMapGetSym(err, _s_stack) == null);
-    tlMapSetSym_(err, _s_stack, tlStackTraceNew(frame, 0));
+    assert(tlObjectGetSym(err, _s_stack) == null);
+    tlObjectSet_(err, _s_stack, tlStackTraceNew(frame, 0));
 }
 

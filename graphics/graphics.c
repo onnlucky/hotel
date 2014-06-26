@@ -442,7 +442,7 @@ void graphics_init(tlVm* vm) {
     s_hsl_color = tlSYM("hsl_color");
     s_hsl_luminosity = tlSYM("hsl_luminosity");
 
-    _GraphicsKind.klass = tlClassMapFrom(
+    _GraphicsKind.klass = tlClassObjectFrom(
         "save", _save,
         "restore", _restore,
 
@@ -486,7 +486,7 @@ void graphics_init(tlVm* vm) {
         null
     );
 
-    tlMap* GraphicsStatic = tlClassMapFrom(
+    tlObject* GraphicsStatic = tlClassObjectFrom(
         "winding", s_winding,
         "even_odd", s_even_odd,
 

@@ -335,8 +335,6 @@ _install(Map.class, "map", (map = (fn ->
     keys = Map.keys(this)
     keys.map: k -> block(k, this[k])
 )))
-_install(Map, "each", _map_each)
-_install(Map, "map", _map_map)
 _install(Object, "each", _map_each)
 _install(Object, "map", _map_map)
 

@@ -77,6 +77,6 @@ static tlHandle _inflate(tlArgs* args) {
 }
 
 tlHandle tl_load() {
-    return tlClassMapFrom("deflate", _deflate, "inflate", _inflate, null);
+    return tlClassObjectFrom("deflate", _deflate, "inflate", _inflate, null);
 }
 

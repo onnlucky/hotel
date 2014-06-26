@@ -325,7 +325,7 @@ static void number_init() {
 
     mp_clear(&test);
 
-    _tlFloatKind.klass = tlClassMapFrom(
+    _tlFloatKind.klass = tlClassObjectFrom(
         "hash", _float_hash,
         "bytes", _float_bytes,
         "abs", _float_abs,
@@ -336,12 +336,12 @@ static void number_init() {
         null
     );
 
-    //_tlNumKind.klass = tlClassMapFrom(
+    //_tlNumKind.klass = tlClassObjectFrom(
     //    "toString", _num_toString,
     //    null
     //);
 
-    _tlCharKind.klass = tlClassMapFrom(
+    _tlCharKind.klass = tlClassObjectFrom(
         "hash", _char_hash,
         "toString", _char_toString,
         "toNumber", _char_toNumber,

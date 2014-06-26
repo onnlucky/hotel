@@ -15,7 +15,7 @@ struct tlArgs {
     tlHandle fn;
     tlHandle target;
     tlSym msg;
-    tlMap* map;
+    tlObject* map;
     tlList* list;
 };
 
@@ -25,13 +25,13 @@ tlArgs* tlArgsNewNames(int size, tlSet* names) {
     if (!names) names = _tl_set_empty;
     tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs));
     args->list = tlListNew(size - tlSetSize(names));
-    args->map = tlMapNew(names);
+    args->map = tlObjectNew(names);
     return args;
 }
 
-tlArgs* tlArgsNew(tlList* list, tlMap* map) {
+tlArgs* tlArgsNew(tlList* list, tlObject* map) {
     if (!list) list = _tl_emptyList;
-    if (!map) map = tlMapEmpty();
+    if (!map) map = tlObjectEmpty();
     tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs));
     args->list = list;
     args->map = map;
@@ -48,22 +48,26 @@ int tlArgsSize(tlArgs* args) {
 }
 int tlArgsMapSize(tlArgs* args) {
     assert(tlArgsIs(args));
-    return tlMapSize(args->map);
+    return tlObjectSize(args->map);
 }
 tlList* tlArgsList(tlArgs* args) {
     assert(tlArgsIs(args));
     return args->list;
 }
-tlMap* tlArgsMap(tlArgs* args) {
+tlObject* tlArgsObject(tlArgs* args) {
     assert(tlArgsIs(args));
     return args->map;
+}
+tlMap* tlArgsMap(tlArgs* args) {
+    assert(tlArgsIs(args));
+    return tlMapFromObject(args->map);
 }
 tlHandle tlArgsGet(const tlArgs* args, int at) {
     return tlListGet(args->list, at);
 }
 tlHandle tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
-    return tlMapGetSym(args->map, name);
+    return tlObjectGetSym(args->map, name);
 }
 tlHandle tlArgsBlock(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -91,7 +95,7 @@ void tlArgsSet_(tlArgs* args, int at, tlHandle v) {
 }
 void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v) {
     assert(tlArgsIs(args));
-    tlMapSetSym_(args->map, name, v);
+    tlObjectSet_(args->map, name, v);
 }
 
 static tlHandle _args_size(tlArgs* args) {
@@ -134,14 +138,14 @@ static tlHandle _args_block(tlArgs* args) {
     tlHandle res = tlArgsBlock(as);
     return tlMAYBE(res);
 }
+static tlHandle _args_names(tlArgs* args) {
+    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlHandle res = tlArgsObject(as);
+    return tlMAYBE(res);
+}
 static tlHandle _args_namesmap(tlArgs* args) {
     tlArgs* as = tlArgsCast(tlArgsTarget(args));
     tlHandle res = tlArgsMap(as);
-    return tlMAYBE(res);
-}
-static tlHandle _args_names(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    tlHandle res = tlMapToObject(tlArgsMap(as));
     return tlMAYBE(res);
 }
 static tlHandle _args_slice(tlArgs* args) {
@@ -168,7 +172,7 @@ static tlKind _tlArgsKind = {
 
 static void args_init() {
     v_args_empty = tlArgsNew(null, null);
-    _tlArgsKind.klass = tlClassMapFrom(
+    _tlArgsKind.klass = tlClassObjectFrom(
             "this", _args_this,
             "msg", _args_msg,
             "block", _args_block,
@@ -191,11 +195,11 @@ static void args_init() {
             "join", null,
             null
     );
-    tlMap* constructor = tlClassMapFrom(
+    tlObject* constructor = tlClassObjectFrom(
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlArgsKind.klass);
+    tlObjectSet_(constructor, s_class, _tlArgsKind.klass);
     tl_register_global("Args", constructor);
 }
 

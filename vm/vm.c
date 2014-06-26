@@ -18,6 +18,7 @@
 #include "sym.c"
 #include "list.c"
 #include "set.c"
+#include "object.c"
 #include "map.c"
 
 // evaluator internals
@@ -457,6 +458,7 @@ void tl_init() {
     bin_init();
     list_init();
     set_init();
+    object_init();
     map_init();
 
     value_init();
@@ -613,9 +615,6 @@ static const tlNativeCbs __vm_natives[] = {
     { "isBin", _isBin },
 
     { "_set_exitcode", _set_exitcode },
-    //{ "_deflate", _deflate },
-    //{ "_inflate", _inflate },
-
     { "dlopen", _dlopen },
 
     { 0, 0 },
@@ -623,7 +622,7 @@ static const tlNativeCbs __vm_natives[] = {
 
 static void vm_init() {
     tl_register_natives(__vm_natives);
-    tlMap* system = tlObjectFrom("version", tlSTR(TL_VERSION), null);
+    tlObject* system = tlObjectFrom("version", tlSTR(TL_VERSION), null);
     tl_register_global("system", system);
 }
 

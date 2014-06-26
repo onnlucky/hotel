@@ -165,7 +165,7 @@ static void bin_init() {
     char buf[0];
     _tl_emptyBin = tlBinFromCopy(buf, 0);
 
-    _tlBinKind.klass = tlClassMapFrom(
+    _tlBinKind.klass = tlClassObjectFrom(
         "toString", _bin_toString,
         "toHex", _bin_toHex,
         //"toBuffer", _bin_toBuffer,
@@ -175,12 +175,12 @@ static void bin_init() {
         //"slice", _bin_slice,
         null
     );
-    tlMap* constructor = tlClassMapFrom(
+    tlObject* constructor = tlClassObjectFrom(
         "call", _Bin_new,
         "class", null,
         null
     );
-    tlMapSetSym_(constructor, s_class, _tlBinKind.klass);
+    tlObjectSet_(constructor, s_class, _tlBinKind.klass);
     tl_register_global("bin", constructor);
 }
 
