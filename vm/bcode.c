@@ -1481,18 +1481,18 @@ INTERNAL tlHandle __list(tlArgs* args) {
 
 INTERNAL tlHandle __object(tlArgs* args) {
     // TODO make faster ;)
-    tlObject* map = tlObjectEmpty();
+    tlObject* o = tlObjectEmpty();
     for (int i = 0; i < tlArgsSize(args); i += 2) {
-        map = tlObjectSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+        o = tlObjectSet(o, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
-    return tlObjectToObject_(map);
+    return o;
 }
 
 INTERNAL tlHandle __map(tlArgs* args) {
     // TODO make faster ;)
-    tlObject* map = tlObjectEmpty();
+    tlMap* map = tlMapEmpty();
     for (int i = 0; i < tlArgsSize(args); i += 2) {
-        map = tlObjectSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+        map = tlMapSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
     return map;
 }

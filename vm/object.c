@@ -242,7 +242,7 @@ tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...) {
 // called when map literals contain lookups or expressions to evaluate
 static tlHandle _Object_clone(tlArgs* args) {
     tlObject* o = tlObjectCast(tlArgsGet(args, 0));
-    if (!o) TL_THROW("Expected a Object");
+    if (!o) TL_THROW("Expected an Object");
     int size = tlObjectSize(o);
     o = tlClone(o);
     int argc = 1;
@@ -268,10 +268,10 @@ static tlHandle _Object_from(tlArgs* args) {
 /// {class=SomeThing},{foo=bar,class=brr} -> {class=SomeThing,foo=bar}
 static tlHandle _Object_inherit(tlArgs* args) {
     tlObject* o = tlObjectCast(tlArgsGet(args, 0));
-    if (!o) TL_THROW("Expected a Object");
+    if (!o) TL_THROW("Expected an Object");
     tlHandle oclass = tlObjectGetSym(o, s_class);
     for (int i = 1; i < tlArgsSize(args); i++) {
-        if (!tlObjectIs(tlArgsGet(args, i))) TL_THROW("Expected a Object");
+        if (!tlObjectIs(tlArgsGet(args, i))) TL_THROW("Expected an Object");
         tlObject* add = tlArgsGet(args, i);
         for (int i = 0; i < add->keys->size; i++) {
             o = tlObjectSet(o, add->keys->data[i], add->data[i]);
@@ -282,44 +282,44 @@ static tlHandle _Object_inherit(tlArgs* args) {
 }
 static tlHandle _Object_hash(tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
-    if (!object) TL_THROW("Expected a Map");
+    if (!object) TL_THROW("Expected an Object");
     return tlINT(tlObjectHash(object));
 }
 static tlHandle _Object_size(tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
-    if (!object) TL_THROW("Expected a Map");
+    if (!object) TL_THROW("Expected an Object");
     return tlINT(tlObjectSize(object));
 }
 static tlHandle _Object_keys(tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
-    if (!object) TL_THROW("Expected a Map");
+    if (!object) TL_THROW("Expected an Object");
     return tlObjectKeys(object);
 }
 static tlHandle _Object_values(tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
-    if (!object) TL_THROW("Expected a Map");
+    if (!object) TL_THROW("Expected an Object");
     return tlObjectValues(object);
 }
 static tlHandle _Object_has(tlArgs* args) {
     trace("");
-    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
     tlString* key = tlStringCast(tlArgsGet(args, 1));
-    if (!key) TL_THROW("Expected a symbol");
+    if (!key) TL_THROW("Expected a String");
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
     return tlBOOL(res != null);
 }
 static tlHandle _Object_get(tlArgs* args) {
     trace("");
-    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
     tlString* key = tlStringCast(tlArgsGet(args, 1));
-    if (!key) TL_THROW("Expected a symbol");
+    if (!key) TL_THROW("Expected a String");
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
     return tlMAYBE(res);
 }
 static tlHandle _Object_set(tlArgs* args) {
-    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
+    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
     if (tlObjectIs(tlArgsGet(args, 1))) {
         tlObject* from = tlArgsGet(args, 1);
@@ -332,52 +332,12 @@ static tlHandle _Object_set(tlArgs* args) {
         }
     }
     tlString* key = tlStringCast(tlArgsGet(args, 1));
-    if (!key) TL_THROW("Expected a symbol");
+    if (!key) TL_THROW("Expected a String");
     tlHandle val = tlArgsGet(args, 2);
     if (!val) TL_THROW("Expected a value");
     return tlObjectToObject_(tlObjectSet(object, tlSymFromString(key), val));
 }
 
-static tlHandle _object_hash(tlArgs* args) {
-    tlObject* object = tlObjectAs(tlArgsTarget(args));
-    return tlINT(tlObjectHash(object));
-}
-static tlHandle _object_size(tlArgs* args) {
-    tlObject* object = tlObjectCast(tlArgsTarget(args));
-    if (!object) TL_THROW("Expected a object");
-    return tlINT(tlObjectSize(object));
-}
-static tlHandle _object_keys(tlArgs* args) {
-    tlObject* object = tlObjectAs(tlArgsTarget(args));
-    return tlObjectKeys(object);
-}
-static tlHandle _object_values(tlArgs* args) {
-    tlObject* object = tlObjectAs(tlArgsTarget(args));
-    return tlObjectValues(object);
-}
-static tlHandle _object_get(tlArgs* args) {
-    tlObject* object = tlObjectCast(tlArgsTarget(args));
-    if (!object) TL_THROW("Expected a object");
-    tlHandle key = tlArgsGet(args, 0);
-    if (!key) TL_THROW("Excpected a key");
-    tlHandle res = tlObjectGet(object, key);
-    return tlMAYBE(res);
-}
-static tlHandle _object_set(tlArgs* args) {
-    tlObject* object = tlObjectCast(tlArgsTarget(args));
-    if (!object) TL_THROW("Expected a object");
-    tlHandle key = tlArgsGet(args, 0);
-    if (!key) TL_THROW("Expected a key");
-    tlHandle val = tlArgsGet(args, 1);
-    if (!val || tlUndefinedIs(val)) val = tlNull;
-    tlObject* nobject = tlObjectSet(object, key, val);
-    return nobject;
-}
-static tlHandle _object_toObject(tlArgs* args) {
-    tlObject* object = tlObjectCast(tlArgsTarget(args));
-    if (!object) TL_THROW("Expected a object");
-    return tlObjectToObject(object);
-}
 static size_t objectSize(tlHandle v) {
     return sizeof(tlObject) + sizeof(tlHandle) * tlObjectAs(v)->keys->size;
 }
