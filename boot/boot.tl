@@ -311,32 +311,30 @@ _install(List.class, "sort", _sort)
 _install(List.class, "flatten", _flatten)
 _install(List.class, "join", _join)
 
-_map_each = (m, fn ->
-    block = args.block or fn
-    if not block: throw "each expects a block or fn"
-    keys = Map.keys(m)
-    keys.each: k -> block(k, m[k])
-)
-_map_map = (m, fn ->
-    block = args.block or fn
-    if not block: throw "map expects a block or fn"
-    keys = Map.keys(m)
-    keys.map: k -> block(k, Map.get(m, k))
-)
 _install(Map.class, "each", (each = (fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
-    keys = Map.keys(this)
-    keys.each: k -> block(k, this[k])
+    this.keys.each: k -> block(k, this[k])
 )))
 _install(Map.class, "map", (map = (fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
-    keys = Map.keys(this)
-    keys.map: k -> block(k, this[k])
+    this.keys.map: k -> block(k, this[k])
 )))
-_install(Object, "each", _map_each)
-_install(Object, "map", _map_map)
+_object_each = (m, fn ->
+    block = args.block or fn
+    if not block: throw "each expects a block or fn"
+    keys = Object.keys(m)
+    keys.each: k -> block(k, Object.get(m, k))
+)
+_object_map = (m, fn ->
+    block = args.block or fn
+    if not block: throw "map expects a block or fn"
+    keys = Object.keys(m)
+    keys.map: k -> block(k, Object.get(m, k))
+)
+_install(Object, "each", _object_each)
+_install(Object, "map", _object_map)
 
 _install(Array.class, "random", _get_random)
 _install(Array.class, "each", _each)
