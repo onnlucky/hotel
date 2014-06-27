@@ -149,9 +149,10 @@ innerqsort = list, smallerfn, b, e ->
     innerqsort(list, smallerfn, b, $end - 1)
     innerqsort(list, smallerfn, $end + 1, e)
 
-
 qsort = list, smallerfn ->
-    if isArray(list): inqsort(1, list.size); return list
+    if isArray(list):
+        innerqsort(list, smallerfn, 1, list.size)
+        return list
     list = Array.new(list)
     innerqsort(list, smallerfn, 1, list.size)
     return list.toList
@@ -463,7 +464,7 @@ resolve = name, path ->
     file = fileFromModulePath("$name.mod", path)
     if file:
         catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
-        res = dlopen(file);
+        res = dlopen(file)
         return _modules.set(name, res)
     return null, "Unable to read module '$name': no module found"
 
