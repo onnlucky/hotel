@@ -82,6 +82,7 @@ struct tlBCall {
     tlHead head;
     int size;
     tlHandle target;
+    tlHandle msg;
     tlHandle fn;
     tlList* names;
     tlHandle args[];
@@ -925,6 +926,7 @@ tlArgs* argsFromBCall(tlBCall* call) {
     tlArgs* args = tlArgsNew(tlListNew(call->size - tlObjectSize(map)), map);
     tlArgsSetTarget_(args, call->target);
     tlArgsSetFn_(args, call->fn);
+    tlArgsSetMsg_(args, call->msg);
     for (int i = 0, j = 0; i < call->size; i++) {
         if (call->names) {
             tlHandle name = tlListGet(call->names, i);
@@ -946,7 +948,7 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
     if (tlBSendTokenIs(fn) || tlNativeIs(fn) || tlClosureIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
-            tlArgsSetMsg_(args, tlBSendTokenAs(fn)->method);
+            assert(tlArgsMsg(args) == tlBSendTokenAs(fn)->method);
             return tl_kind(call->target)->send(args);
         }
         if (tlNativeIs(fn)) return tlNativeKind->run(tlNativeAs(fn), args);
@@ -1342,9 +1344,11 @@ resume:;
 
     // resolve method at object ...
     if (arg == 2 && call->target && tlStringIs(call->fn)) {
-        tlHandle method = bmethodResolve(call->target, tlSymFromString(call->fn));
+        tlSym msg = tlSymFromString(call->fn);
+        tlHandle method = bmethodResolve(call->target, msg);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
         if (!method) TL_THROW("undefined");
+        call->msg = msg;
         call->fn = method;
     }
     goto again;
@@ -1610,6 +1614,7 @@ tlBCall* bcallFromArgs(tlArgs* args) {
     call->names = names;
     call->target = tlArgsTarget(args);
     call->fn = tlArgsFn(args);
+    call->msg = tlArgsMsg(args);
     int i = 0;
     for (; i < tlArgsSize(args); i++) {
         call->args[i] = tlArgsGet(args, i);
