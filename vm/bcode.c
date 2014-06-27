@@ -744,7 +744,7 @@ static void disasm(tlBCode* bcode) {
             case OP_BIND:
                 o = pcreadref(ops, &pc, data);
                 print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
-                if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
+                //if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
                 break;
             case OP_STORE:
                 r = pcreadsize(ops, &pc);
@@ -808,7 +808,8 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
     int parent;
     int at;
 
-    disasm(bcode);
+    // print the code
+    //disasm(bcode);
 
     while (true) {
         uint8_t op = *code; code++;

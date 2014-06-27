@@ -279,7 +279,6 @@ compile = (code ->
 
     close = n ->
         ref = functions[n]
-        print "CLOSING:", n, ref.name
         functions[n] = {name=ref.name,open=false}
         fn = lextop(ref.scope, ref.open)
         functions[n] = {name=ref.name,open=false,function=fn}
@@ -307,7 +306,6 @@ compile = (code ->
             {type="scope",{args,body},locals=scope.locals.toList}
 
     lex = scope, term, name, pos ->
-        print "LEX", name, repr(term)
         { term == null              }: "null"
         { not try(term.type)        }: term
         { term.type == "string"     }: term
@@ -379,7 +377,6 @@ compile = (code ->
             {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
             target = lex(scope, term.target)
-            print "CALL", repr(term)
             names = try(term.args, []).map: stm -> try(stm.n)
             args = try(term.args, []).map: stm -> lex(scope, stm.v)
             block = try(lex(scope, term.block))
@@ -457,7 +454,6 @@ compile = (code ->
             throw "unknown term $(term.type)"
 
     emit = term ->
-        print "TERM", repr(term)
         { term == "undefined" }: ["undef"]
         { term == "null"      }: ["null"]
         { term == "false"     }: ["false"]
@@ -522,20 +518,6 @@ compile = (code ->
         { term.type == "map" }:
             elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
             ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
-        /*
-        { term.type == "guards" }:
-            scope = Scope(scope)
-            gs = term.guards.map(guard ->
-                function = emittop scope, {type="block", body=guard.body}
-                _, fn = functions.add {name="-", open=false, function=function}
-                ns = {ns=[null,"block"]}
-                cond = emit(scope, try(guard.cond, "true"))
-                ["fcalln", 2, ns, "global", "_match", cond, "bind", fn, "invoke"].flatten
-            )
-            function = {code=(gs + ["fcall", 0, "global", "_nomatch", "invoke"]).flatten, args=[], locals=[]}
-            _, fn = functions.add {name="-", open=false, function=function}
-            ["fcall", 0, "bind", fn, "invoke"]
-        */
         { }:
             print "ERROR"
             print repr(term)
@@ -551,8 +533,9 @@ compile = (code ->
         // TODO wait until stable? as closing functions might produce new functions ...
         functions.each: fn, n -> if fn.open: close(n)
         functions.each: fn, n -> if fn.open: close(n)
-        functions.each: fn, n -> print "fn $n:", repr(fn)
-        print "fn 0:", repr(ast)
+        functions.each: fn, n -> if fn.open: close(n)
+        //functions.each: fn, n -> print "fn $n:", repr(fn)
+        //print "fn 0:", repr(ast)
         functions.each: fn, n -> functions[n] = emittop(fn.function)
         main = emittop(ast)
         return main, functions
@@ -576,7 +559,7 @@ compile = (code ->
                   { isFloat(v)  }: encodeFloat v
                   { isNumber(v) }: encodeNumber v
             _, at = this.datas.add bin
-            print "data", at, repr(v)
+            //print "data", at, repr(v)
             this.dataIndex[v] = encodeInt(at - 1)
         global = v ->
             assert isString(v)
@@ -587,10 +570,10 @@ compile = (code ->
             this.globalsIndex[v] = encodeInt(at - 1)
         function = name, code, locals, argspecs, debuginfo ->
             code = code.add("end")
-            print "code:", name, repr(code)
+            //print "code:", name, repr(code)
             bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
             _, at = this.datas.add bin
-            print "function", at, name
+            //print "function", at, name
             this.functions[name] = encodeInt(at - 1)
         code = v ->
             fn = functions[v]

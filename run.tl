@@ -10,14 +10,8 @@ test = n ->
         print e.toString.strip
         print "---- $n: FAIL :( ----"
         //throw "STOP"
-    print "---- $n ----"
     res[n] = "load"
     code = io.File(n).readString
-    print code.strip
-    print "---- $n ----"
-    res[n] = "parse"
-    parse = parse(code)
-    print repr parse
     res[n] = "compile"
     bytes = compiler.compile(code)
     res[n] = "load"
@@ -43,7 +37,6 @@ test = n ->
     print()
 
 test("bad.tl")
-
 
 tests = "test/noboot/"
 io.Path(tests).each: n ->
