@@ -276,6 +276,10 @@ _install(String.class, "each", _each)
 _install(String.class, "map", _map)
 _install(String.class, "random", _get_random)
 
+_install(bin.class, "each", _each)
+_install(bin.class, "map", _map)
+_install(bin.class, "random", _get_random)
+
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
 _install(String.class, "split", _split)
 /// String.replace: replace all occurances of args[1] with args[2], returns a new "String"
