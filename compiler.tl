@@ -51,30 +51,30 @@ encodeLiteral = v ->
 encodeInt = i ->
     assert i >= 0
     if i >>  0 < 1 << 7: return i
-    if i >>  7 < 1 << 6: return bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
-    if i >> 13 < 1 << 6: return bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
-    if i >> 19 < 1 << 6: return bin(0b1000_0000 | i >> 19, 0b1000_0000 | (i >> 13 & 0b0011_1111),
+    if i >>  7 < 1 << 6: return Bin(0b1000_0000 | i >> 7, i & 0b0111_1111)
+    if i >> 13 < 1 << 6: return Bin(0b1000_0000 | i >> 13, 0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
+    if i >> 19 < 1 << 6: return Bin(0b1000_0000 | i >> 19, 0b1000_0000 | (i >> 13 & 0b0011_1111),
                                     0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
-    if i >> 25 < 1 << 6: return bin(0b1000_0000 | i >> 25, 0b1000_0000 | (i >> 19 & 0b0011_1111),
+    if i >> 25 < 1 << 6: return Bin(0b1000_0000 | i >> 25, 0b1000_0000 | (i >> 19 & 0b0011_1111),
                                     0b1000_0000 | (i >> 13 & 0b0011_1111), 0b1000_0000 | (i >> 7 & 0b0011_1111), i & 0b0111_1111)
     assert false
 
 encodeFloat = f ->
-    bin(0b1100_1001) + f.bytes
+    Bin(0b1100_1001) + f.bytes
 
 encodeNumber = n ->
     pos = n >= 0
     n = n.abs
-    if n < 1 <<   7: return bin(0b1100_0000 | 0,                           n << 1 | bool(pos,0,1))
-    if n < 1 <<  15: return bin(0b1100_0000 | 1,                   n >> 7, n << 1 | bool(pos,0,1))
-    if n < 1 <<  23: return bin(0b1100_0000 | 2,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
-    if n < 1 <<  31: return bin(0b1100_0000 | 3, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<   7: return Bin(0b1100_0000 | 0,                           n << 1 | bool(pos,0,1))
+    if n < 1 <<  15: return Bin(0b1100_0000 | 1,                   n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  23: return Bin(0b1100_0000 | 2,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  31: return Bin(0b1100_0000 | 3, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
     assert false
 
 encodeString = s ->
     assert isString s
-    if s.size < 32: return bin(0b0000_0000 | s.size, s)
-    return bin(0b1110_0000, encodeInt(s.size), s)
+    if s.size < 32: return Bin(0b0000_0000 | s.size, s)
+    return Bin(0b1110_0000, encodeInt(s.size), s)
 
 encodeList = l ->
     if l.size < 32:
@@ -142,8 +142,8 @@ writeCode = mod, c ->
         { op == "bcalln" }: buf.write 0b1111_0000 + 2; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
         {                }: throw "unknown op: $op $(repr(op))"
 
-    if buf.size < 32: return bin(0b1010_0000 | buf.size, buf.read)
-    return bin(0b1110_0101, encodeInt(buf.size), buf)
+    if buf.size < 32: return Bin(0b1010_0000 | buf.size, buf.read)
+    return Bin(0b1110_0101, encodeInt(buf.size), buf)
 
 opname = op ->
     { op == "or"  }: op
@@ -160,8 +160,8 @@ opname = op ->
 
     { op == "|" }: return "band"
     { op == "&" }: return "bor"
-    { op == "<<" }: return "lshift"
-    { op == ">>" }: return "rshift"
+    { op == "<<" }: return "lsh"
+    { op == ">>" }: return "rsh"
 
     { op == "+" }: return "add"
     { op == "-" }: return "sub"

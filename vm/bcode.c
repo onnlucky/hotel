@@ -955,9 +955,6 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         if (tlNativeIs(fn)) return tlNativeKind->run(tlNativeAs(fn), args);
         return runClosure(tlClosureAs(fn), args);
     }
-    if (call->target && tl_kind(call->target)->locked) {
-        fatal("cannot lock yet: %s", tl_str(call->target));
-    }
     if (tlBClosureIs(fn)) {
         return beval(task, null, call, 0, null);
     }
@@ -1412,7 +1409,6 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
     if (error) TL_THROW("invalid bytecode: %s", error);
     tlEnv* current = tlVmGlobalEnv(tlVmCurrent());
     if (out) current = tlEnvSet(current, tlSYM("out"), out);
-    assert(out);
     tlBModuleLink(mod, current, &error);
     if (error) TL_THROW("invalid bytecode: %s", error);
     return mod;
@@ -1670,7 +1666,7 @@ INTERNAL tlHandle _blazydata_call(tlArgs* args) {
 }
 INTERNAL tlHandle runBLazyData(tlHandle fn, tlArgs* args) {
     trace("blazydata.run");
-    return tlBLazyDataAs(tlArgsTarget(fn))->data;
+    return tlBLazyDataAs(fn)->data;
 }
 
 static const tlNativeCbs __bcode_natives[] = {

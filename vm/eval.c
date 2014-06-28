@@ -825,6 +825,14 @@ static tlHandle resumeEval(tlFrame* _frame, tlHandle res, tlHandle throw) {
     return res;
 }
 
+static tlHandle _bufferFromFile(tlArgs* args) {
+    tlString* file = tlStringCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expected a file name");
+    tlBuffer* buf = tlBufferFromFile(tlStringData(file));
+    if (!buf) TL_THROW("unable to read file: '%s'", tlStringData(file));
+    return buf;
+}
+
 static tlHandle _stringFromFile(tlArgs* args) {
     tlString* file = tlStringCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a file name");
@@ -905,6 +913,7 @@ INTERNAL tlHandle _install(tlArgs* args) {
 }
 
 static const tlNativeCbs __eval_natives[] = {
+    { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
     { "_parse", _parse },
     { "_eval", _eval },
