@@ -196,10 +196,10 @@ static void args_init() {
             null
     );
     tlObject* constructor = tlClassObjectFrom(
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlArgsKind.klass);
+    tlObjectSet_(constructor, s__methods, _tlArgsKind.klass);
     tl_register_global("Args", constructor);
 }
 

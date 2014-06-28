@@ -580,10 +580,10 @@ static void string_init() {
     tlObject* constructor = tlClassObjectFrom(
         "call", null,
         "cat", _String_cat,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlStringKind.klass);
+    tlObjectSet_(constructor, s__methods, _tlStringKind.klass);
     tl_register_global("String", constructor);
 }
 

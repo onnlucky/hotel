@@ -458,10 +458,10 @@ static void list_init() {
     );
     tlObject* constructor = tlClassObjectFrom(
         //"call", _List_cat,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlListKind.klass);
+    tlObjectSet_(constructor, s__methods, _tlListKind.klass);
     tl_register_global("List", constructor);
     tl_register_global("_List_unsafe", tlNativeNew(_List_unsafe, tlSYM("_List_unsafe")));
     tl_register_global("_list_set_", tlNativeNew(_list_set_, tlSYM("_list_set_")));

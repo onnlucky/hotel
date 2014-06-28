@@ -5,6 +5,7 @@
 #include "trace-off.h"
 
 static tlSym s_class;
+static tlSym s__methods;
 
 static unsigned int murmurhash2a(const void * key, int len);
 
@@ -268,10 +269,10 @@ static void value_init() {
         null
     );
     tlObject* intStatic= tlClassObjectFrom(
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(intStatic, s_class, _tlIntKind.klass);
+    tlObjectSet_(intStatic, s__methods, _tlIntKind.klass);
     tl_register_global("Int", intStatic);
 }
 

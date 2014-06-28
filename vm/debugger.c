@@ -236,10 +236,10 @@ static void debugger_init() {
     );
     tlObject* constructor = tlClassObjectFrom(
         "new", _Debugger_new,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlDebuggerKind.klass);
+    tlObjectSet_(constructor, s__methods, _tlDebuggerKind.klass);
     tl_register_global("Debugger", constructor);
 }
 

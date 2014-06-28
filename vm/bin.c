@@ -132,10 +132,10 @@ INTERNAL tlHandle _isBin(tlArgs* args) {
 INTERNAL const char* bintoString(tlHandle v, char* buf, int size) {
     tlBin* bin = tlBinAs(v);
     if (tlBinSize(bin) == 0) {
-        snprintf(buf, size, "bin()");
+        snprintf(buf, size, "Bin()");
         return buf;
     }
-    size -= snprintf(buf, size, "bin(");
+    size -= snprintf(buf, size, "Bin(");
     int i = 0;
     for (; i < tlBinSize(bin) && size > 6; i++) {
         size -= snprintf(buf + 4 + 5 * i, size, "0x%02X,", tlBinGet(bin, i));
@@ -180,10 +180,10 @@ static void bin_init() {
     );
     tlObject* constructor = tlClassObjectFrom(
         "call", _Bin_new,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlBinKind.klass);
-    tl_register_global("bin", constructor);
+    tlObjectSet_(constructor, s__methods, _tlBinKind.klass);
+    tl_register_global("Bin", constructor);
 }
 

@@ -152,10 +152,10 @@ static void set_init() {
     );
     tlObject* constructor = tlClassObjectFrom(
         //"call", _Set_from,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlSetKind.klass);
+    tlObjectSet_(constructor, s__methods, _tlSetKind.klass);
     tl_register_global("Set", constructor);
 }
 

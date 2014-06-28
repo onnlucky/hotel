@@ -290,10 +290,10 @@ static void array_init() {
     );
     arrayClass = tlClassObjectFrom(
         "new", _Array_new,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(arrayClass, s_class, _tlArrayKind.klass);
+    tlObjectSet_(arrayClass, s__methods, _tlArrayKind.klass);
 }
 
 static void array_vm_default(tlVm* vm) {

@@ -245,8 +245,8 @@ _to = to, fn ->
         goto again(at - 1)
     goto again(this)
 
-_install(Int.class, "times", _times)
-_install(Int.class, "to", _to)
+_install(Int._methods, "times", _times)
+_install(Int._methods, "to", _to)
 
 _str = o ->
     if isString(o): return o
@@ -267,61 +267,61 @@ _install(String, "call", (new = (->
 
 // TODO should have special boot places for string, list and such
 /// String.each: for ever character run block or function given
-_install(String.class, "times", (times = (n ->
+_install(String._methods, "times", (times = (n ->
     arr = Array.new
     n.times: arr.add(this)
     arr.join("")
 )))
-_install(String.class, "each", _each)
-_install(String.class, "map", _map)
-_install(String.class, "random", _get_random)
+_install(String._methods, "each", _each)
+_install(String._methods, "map", _map)
+_install(String._methods, "random", _get_random)
 
-_install(bin.class, "each", _each)
-_install(bin.class, "map", _map)
-_install(bin.class, "random", _get_random)
+_install(Bin._methods, "each", _each)
+_install(Bin._methods, "map", _map)
+_install(Bin._methods, "random", _get_random)
 
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
-_install(String.class, "split", _split)
+_install(String._methods, "split", _split)
 /// String.replace: replace all occurances of args[1] with args[2], returns a new "String"
-_install(String.class, "replace", (replace = (from, to ->
+_install(String._methods, "replace", (replace = (from, to ->
     if from.size == 0: return this
     if not this.find(from): return this
     return this.split(from).join(to)
 )))
 
-_install(Args.class, "each", _each)
-_install(Args.class, "map", _map)
-_install(Args.class, "find", _find)
-_install(Args.class, "reduce", _reduce)
-_install(Args.class, "filter", _filter)
-_install(Args.class, "flatten", _flatten)
-_install(Args.class, "join", _join)
+_install(Args._methods, "each", _each)
+_install(Args._methods, "map", _map)
+_install(Args._methods, "find", _find)
+_install(Args._methods, "reduce", _reduce)
+_install(Args._methods, "filter", _filter)
+_install(Args._methods, "flatten", _flatten)
+_install(Args._methods, "join", _join)
 
-_install(Set.class, "random", _get_random)
-_install(Set.class, "each", _each)
-_install(Set.class, "map", _map)
-_install(List.class, "random", _get_random)
-_install(List.class, "each", _each)
-_install(List.class, "map", _map)
-_install(List.class, "find", _find)
-_install(List.class, "filter", _filter)
-_install(List.class, "removeItem", _removeItem)
-_install(List.class, "reduce", _reduce)
-_install(List.class, "min", _min)
-_install(List.class, "max", _max)
-_install(List.class, "sum", _sum)
-_install(List.class, "mean", _mean)
-_install(List.class, "median", _median)
-_install(List.class, "sort", _sort)
-_install(List.class, "flatten", _flatten)
-_install(List.class, "join", _join)
+_install(Set._methods, "random", _get_random)
+_install(Set._methods, "each", _each)
+_install(Set._methods, "map", _map)
+_install(List._methods, "random", _get_random)
+_install(List._methods, "each", _each)
+_install(List._methods, "map", _map)
+_install(List._methods, "find", _find)
+_install(List._methods, "filter", _filter)
+_install(List._methods, "removeItem", _removeItem)
+_install(List._methods, "reduce", _reduce)
+_install(List._methods, "min", _min)
+_install(List._methods, "max", _max)
+_install(List._methods, "sum", _sum)
+_install(List._methods, "mean", _mean)
+_install(List._methods, "median", _median)
+_install(List._methods, "sort", _sort)
+_install(List._methods, "flatten", _flatten)
+_install(List._methods, "join", _join)
 
-_install(Map.class, "each", (each = (fn ->
+_install(Map._methods, "each", (each = (fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
     this.keys.each: k -> block(k, this[k])
 )))
-_install(Map.class, "map", (map = (fn ->
+_install(Map._methods, "map", (map = (fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
     this.keys.map: k -> block(k, this[k])
@@ -341,20 +341,20 @@ _object_map = (m, fn ->
 _install(Object, "each", _object_each)
 _install(Object, "map", _object_map)
 
-_install(Array.class, "random", _get_random)
-_install(Array.class, "each", _each)
-_install(Array.class, "map", _map)
-_install(Array.class, "find", _find)
-_install(Array.class, "filter", _filter)
-_install(Array.class, "reduce", _reduce)
-_install(Array.class, "min", _min)
-_install(Array.class, "max", _max)
-_install(Array.class, "sum", _sum)
-_install(Array.class, "mean", _mean)
-_install(Array.class, "median", _median)
-_install(Array.class, "sort", _sort)
-_install(Array.class, "flatten", _flatten)
-_install(Array.class, "join", _join)
+_install(Array._methods, "random", _get_random)
+_install(Array._methods, "each", _each)
+_install(Array._methods, "map", _map)
+_install(Array._methods, "find", _find)
+_install(Array._methods, "filter", _filter)
+_install(Array._methods, "reduce", _reduce)
+_install(Array._methods, "min", _min)
+_install(Array._methods, "max", _max)
+_install(Array._methods, "sum", _sum)
+_install(Array._methods, "mean", _mean)
+_install(Array._methods, "median", _median)
+_install(Array._methods, "sort", _sort)
+_install(Array._methods, "flatten", _flatten)
+_install(Array._methods, "join", _join)
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
@@ -427,7 +427,7 @@ wait  = s -> io.wait s
 
 eval2 = string -> _parse(string)(Env.current)
 /// String.eval: evalute the string as a script to run in the current environment
-_install(String.class, "eval", (_eval_ = (->
+_install(String._methods, "eval", (_eval_ = (->
     eval2(this)
 )))
 

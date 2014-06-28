@@ -228,10 +228,10 @@ static void map_init() {
     );
     tlObject* constructor = tlClassObjectFrom(
         "call", _Map_from,
-        "class", null,
+        "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s_class, _tlMapKind.klass);
+    tlObjectSet_(constructor, s__methods, _tlMapKind.klass);
     tl_register_global("Map", constructor);
 }
 
