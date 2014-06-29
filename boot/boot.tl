@@ -5,13 +5,15 @@
 
 catch: e -> print "boot exception: $(e.toString)"
 
-or = left, &right ->
+_or = left, &right ->
     if not left: return right()
     return left
+_install_global("or", _or)
 
-and = left, &right ->
+_and = left, &right ->
     if left: return right()
     return left
+_install_global("and", _and)
 
 asBool = v -> bool(v, true, false)
 asBoolInv = v -> bool(v, false, true)

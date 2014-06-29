@@ -900,7 +900,7 @@ static tlHandle _eval(tlArgs* args) {
 }
 
 INTERNAL tlHandle _install(tlArgs* args) {
-    trace("install: %s", tl_str(tlArgsGet(args, 0)));
+    trace("install: %s", tl_str(tlArgsGet(args, 1)));
     tlObject* map = tlObjectCast(tlArgsGet(args, 0));
     if (!map) TL_THROW("expected a Map");
     tlSym sym = tlSymCast(tlArgsGet(args, 1));
@@ -909,6 +909,16 @@ INTERNAL tlHandle _install(tlArgs* args) {
     if (!val) TL_THROW("expected a Value");
     // TODO some safety here?
     tlObjectSet_(map, sym, val);
+    return tlNull;
+}
+
+INTERNAL tlHandle _install_global(tlArgs* args) {
+    trace("install global: %s %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
+    tlString* key = tlStringCast(tlArgsGet(args, 0));
+    if (!key) TL_THROW("expected a String");
+    tlHandle val = tlArgsGet(args, 1);
+    if (!val) TL_THROW("expected a Value");
+    tl_register_global(tlStringData(key), val);
     return tlNull;
 }
 
@@ -931,6 +941,7 @@ static const tlNativeCbs __eval_natives[] = {
     { "_Object_clone", _Object_clone },
 
     { "_install", _install },
+    { "_install_global", _install_global },
 
     { "catch", _catch },
 
