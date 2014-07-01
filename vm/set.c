@@ -122,15 +122,14 @@ static tlHandle _set_has(tlArgs* args) {
 }
 
 static tlHandle _set_get(tlArgs* args) {
-    tlSet* set = tlSetCast(tlArgsTarget(args));
+    tlSet* set = tlSetAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlSetSize(set));
     if (at < 0) return tlNull;
     return tlMAYBE(tlSetGet(set, at));
 }
 
 static tlHandle _set_size(tlArgs* args) {
-    tlSet* set = tlSetCast(tlArgsTarget(args));
-    if (!set) TL_THROW("expected a Set");
+    tlSet* set = tlSetAs(tlArgsTarget(args));
     return tlINT(tlSetSize(set));
 }
 

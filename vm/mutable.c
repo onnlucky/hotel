@@ -24,9 +24,8 @@ INTERNAL tlHandle _Mutable_new(tlArgs* args) {
     return obj;
 }
 INTERNAL tlHandle mutableSend(tlArgs* args) {
+    tlMutable* obj = tlMutableAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    tlMutable* obj = tlMutableCast(tlArgsTarget(args));
-    if (!obj) TL_THROW("expected an Mutable");
     assert(tlLockOwner(tlLockAs(obj)) == task);
 
     assert(tlArgsMsg(args));

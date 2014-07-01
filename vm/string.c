@@ -289,26 +289,22 @@ INTERNAL tlHandle _String_cat(tlArgs* args) {
 /// object String: represents a series of characters
 /// toString: returns itself
 INTERNAL tlHandle _string_toString(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     return str;
 }
 /// toSym: create a #Symbol from this #String, throws an error if the string cannot be a valid symbol
 INTERNAL tlHandle _string_toSym(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     return tlSymFromString(str);
 }
 /// size: return the amount of characters in the #String
 INTERNAL tlHandle _string_size(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     return tlINT(tlStringSize(str));
 }
 /// hash: return the hashcode for this #String
 INTERNAL tlHandle _string_hash(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsTarget(args));
+    tlString* str = tlStringAs(tlArgsTarget(args));
     // TODO this can overflow/underflow ... sometimes, need to fix
     return tlINT(tlStringHash(str));
 }
@@ -316,7 +312,7 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
 /// find: find the first occurance of arg[1] in #String, returns null if not found
 // TODO find bytes, find from, find upto, like buffer ...
 INTERNAL tlHandle _string_find(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsTarget(args));
+    tlString* str = tlStringAs(tlArgsTarget(args));
     bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
     if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
         uint8_t b = (int)tl_double(tlArgsGet(args, 0));
@@ -349,9 +345,7 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
 
 /// cat: concatenate multiple #"String"s together
 INTERNAL tlHandle _string_cat(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* add = tlStringCast(tlArgsGet(args, 0));
     if (!add) TL_THROW("arg must be a String");
 
@@ -360,9 +354,7 @@ INTERNAL tlHandle _string_cat(tlArgs* args) {
 
 /// get: return character at args[1] characters are just #"Int"s
 INTERNAL tlHandle _string_get(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
 
     int at = at_offset(tlArgsGet(args, 0), tlStringSize(str));
     if (at < 0) return tlUndef();
@@ -371,9 +363,7 @@ INTERNAL tlHandle _string_get(tlArgs* args) {
 
 /// lower: return a new #String with only lower case characters, only works properly for ascii str
 INTERNAL tlHandle _string_lower(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
 
     tlString* res = tlStringFromCopy(tlStringData(str), size);
@@ -386,9 +376,7 @@ INTERNAL tlHandle _string_lower(tlArgs* args) {
 
 /// upper: return a new #String with all upper case characters, only works properly for ascii str
 INTERNAL tlHandle _string_upper(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
 
     tlString* res = tlStringFromCopy(tlStringData(str), size);
@@ -401,9 +389,7 @@ INTERNAL tlHandle _string_upper(tlArgs* args) {
 
 /// slice: return a subsection of the #String withing bounds of args[1], args[2]
 INTERNAL tlHandle _string_slice(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     int first = tl_int_or(tlArgsGet(args, 0), 1);
     int last = tl_int_or(tlArgsGet(args, 1), -1);
 
@@ -451,9 +437,7 @@ tlString* tlStringEscape(tlString* str, bool cstr) {
 
 /// escape: return a #String that has all special characters escaped by a '\'
 INTERNAL tlHandle _string_escape(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     return tlStringEscape(str, tl_bool(tlArgsGet(args, 0)));
 }
 
@@ -500,7 +484,7 @@ static int intmin(int left, int right) { return (left<right)?left:right; }
 
 /// startsWith: return true when this #String begins with the #String in args[1]
 INTERNAL tlHandle _string_startsWith(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsTarget(args));
+    tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
 
@@ -517,9 +501,7 @@ INTERNAL tlHandle _string_startsWith(tlArgs* args) {
 
 /// endsWith: return true when this #String ends with the #String in args[1]
 INTERNAL tlHandle _string_endsWith(tlArgs* args) {
-    trace("");
-    tlString* str = tlStringCast(tlArgsTarget(args));
-    if (!str) TL_THROW("this must be a String");
+    tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
 

@@ -373,7 +373,7 @@ send:;
 }
 
 static tlHandle objectSend(tlArgs* args) {
-    tlObject* object = tlObjectCast(tlArgsTarget(args));
+    tlObject* object = tlObjectAs(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
     tlHandle field = null;
     tlObject* cls;

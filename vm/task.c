@@ -604,17 +604,17 @@ INTERNAL tlHandle _Task_locals(tlArgs* args) {
 }
 
 INTERNAL tlHandle _task_isDone(tlArgs* args) {
-    tlTask* other = tlTaskCast(tlArgsTarget(args));
+    tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
 
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
 INTERNAL tlHandle _task_wait(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    tlTask* other = tlTaskCast(tlArgsTarget(args));
+    tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.wait: %s", tl_str(other));
 
+    tlTask* task = tlTaskCurrent();
     if (tlTaskIsDone(other)) {
         tlTaskCopyValue(task, other);
         if (task->throw) return tlTaskRunThrow(task, task->throw);

@@ -130,8 +130,7 @@ static tlHandle _map_hash(tlArgs* args) {
     return tlINT(tlMapHash(map));
 }
 static tlHandle _map_size(tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsTarget(args));
-    if (!map) TL_THROW("Expected a map");
+    tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlINT(tlMapSize(map));
 }
 static tlHandle _map_keys(tlArgs* args) {
@@ -143,16 +142,14 @@ static tlHandle _map_values(tlArgs* args) {
     return tlMapValues(map);
 }
 static tlHandle _map_get(tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsTarget(args));
-    if (!map) TL_THROW("Expected a map");
+    tlMap* map = tlMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
     tlHandle res = tlMapGet(map, key);
     return tlMAYBE(res);
 }
 static tlHandle _map_set(tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsTarget(args));
-    if (!map) TL_THROW("Expected a map");
+    tlMap* map = tlMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Expected a key");
     tlHandle val = tlArgsGet(args, 1);
@@ -161,8 +158,7 @@ static tlHandle _map_set(tlArgs* args) {
     return nmap;
 }
 static tlHandle _map_toObject(tlArgs* args) {
-    tlMap* map = tlMapCast(tlArgsTarget(args));
-    if (!map) TL_THROW("Expected a map");
+    tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlObjectFromMap(map);
 }
 const char* maptoString(tlHandle v, char* buf, int size) {

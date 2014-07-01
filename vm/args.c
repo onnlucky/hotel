@@ -124,33 +124,32 @@ static tlHandle _args_get(tlArgs* args) {
     TL_THROW("Expected an index or name");
 }
 static tlHandle _args_this(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsTarget(as);
     return tlMAYBE(res);
 }
 static tlHandle _args_msg(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsMsg(as);
     return tlMAYBE(res);
 }
 static tlHandle _args_block(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsBlock(as);
     return tlMAYBE(res);
 }
 static tlHandle _args_names(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsObject(as);
     return tlMAYBE(res);
 }
 static tlHandle _args_namesmap(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsMap(as);
     return tlMAYBE(res);
 }
 static tlHandle _args_slice(tlArgs* args) {
-    tlArgs* as = tlArgsCast(tlArgsTarget(args));
-    if (!as) TL_THROW("Expected a args object");
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
 
     tlList* list = as->list;
     int first = tl_int_or(tlArgsGet(args, 0), 0);

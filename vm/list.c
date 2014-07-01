@@ -252,74 +252,66 @@ INTERNAL tlHandle _list_toList(tlArgs* args) {
 
 /// size: returns amount of elements in the list
 INTERNAL tlHandle _list_size(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     return tlINT(tlListSize(list));
 }
 static unsigned int listHash(tlHandle v);
 /// hash: traverse all elements for a hash, then calculate a final hash
 /// throws an exception if elements could not be hashed
 INTERNAL tlHandle _list_hash(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     return tlINT(listHash(list));
 }
 /// get(index): return the element from the list at index
 INTERNAL tlHandle _list_get(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlListSize(list));
     return tlMAYBE(tlListGet(list, at));
 }
 INTERNAL tlHandle _list_first(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
+    tlList* list = tlListAs(tlArgsTarget(args));
     return tlMAYBE(tlListGet(list, 0));
 }
 INTERNAL tlHandle _list_last(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
+    tlList* list = tlListAs(tlArgsTarget(args));
     return tlMAYBE(tlListGet(list, tlListSize(list) - 1));
 }
 /// set(index, element): return a new list, replacing or adding element at index
 /// will pad the list with elements set to null index is beyond the end of the current list
 INTERNAL tlHandle _list_set(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     int at = at_offset_raw(tlArgsGet(args, 0));
     if (at < 0) TL_THROW("index out of bounds");
     tlHandle val = tlArgsGet(args, 1);
     if (!val || tlUndefinedIs(val)) val = tlNull;
-    fatal("not implemented yet");
+    fatal("not implemented yet %p", list);
     tlList* nlist = tlNull; //tlListSet(list, at, val);
     return nlist;
 }
 /// add(element): return a new list, with element added to the end
 INTERNAL tlHandle _list_add(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     tlHandle val = tlArgsGet(args, 0);
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListAppend(list, val);
 }
 /// prepend(element): return a new list, with element added to the front of the list
 INTERNAL tlHandle _list_prepend(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     tlHandle val = tlArgsGet(args, 0);
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListPrepend(list, val);
 }
 /// cat(list): return a new list, concatenating this with list
 INTERNAL tlHandle _list_cat(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
     tlList* l1 = tlListCast(tlArgsGet(args, 0));
     if (!l1) TL_THROW("Expected a list");
     return tlListCat(list, l1);
 }
 /// slice(left, right): return a new list, from the range between left and right
 INTERNAL tlHandle _list_slice(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
 
     int first = tl_int_or(tlArgsGet(args, 0), 0);
     int last = tl_int_or(tlArgsGet(args, 1), -1);
@@ -333,8 +325,7 @@ INTERNAL tlHandle _list_slice(tlArgs* args) {
 /// toChar: return a string, formed from a list of numbers
 /// if the list contains numbers that are not valid characters, it throws an exception
 INTERNAL tlHandle _list_toChar(tlArgs* args) {
-    tlList* list = tlListCast(tlArgsTarget(args));
-    if (!list) TL_THROW("Expected a list");
+    tlList* list = tlListAs(tlArgsTarget(args));
 
     int size = tlListSize(list);
     char* buf = malloc_atomic(size + 1);
