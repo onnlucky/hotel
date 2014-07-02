@@ -243,7 +243,7 @@ INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
     return buf;
 }
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int max = canread(buf);
     int len = tl_int_or(tlArgsGet(args, 0), max);
@@ -257,7 +257,7 @@ INTERNAL tlHandle _buffer_read(tlArgs* args) {
 
 static int process_utf8(const char* from, int len, char** into, int* intolen, int* intochars);
 INTERNAL tlHandle _buffer_readString(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int max = canread(buf);
     int len = tl_int_or(tlArgsGet(args, 0), max);
@@ -276,7 +276,7 @@ INTERNAL tlHandle _buffer_readString(tlArgs* args) {
     return tlStringFromTake(into, written);
 }
 INTERNAL tlHandle _buffer_readByte(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     if (canread(buf) == 0) return tlNull;
     return tlINT(tlBufferReadByte(buf));
 }
@@ -308,8 +308,7 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
 }
 
 INTERNAL tlHandle _buffer_write(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
-    if (!buf) TL_THROW("expected a Buffer");
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int written = 0;
     const char* error = null;
@@ -323,7 +322,7 @@ INTERNAL tlHandle _buffer_write(tlArgs* args) {
 }
 
 INTERNAL tlHandle _buffer_find(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
@@ -341,7 +340,7 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     return tlINT(1 + at - begin);
 }
 INTERNAL tlHandle _buffer_findByte(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int b = tl_int_or(tlArgsGet(args, 0), -1);
     if (b == -1) TL_THROW("expected a number (0 - 255)");
@@ -356,7 +355,7 @@ INTERNAL tlHandle _buffer_findByte(tlArgs* args) {
     return tlNull;
 }
 INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");

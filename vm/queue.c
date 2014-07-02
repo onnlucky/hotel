@@ -180,14 +180,12 @@ INTERNAL tlHandle resumeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle queueInputReceive(tlArgs* args) {
-    tlMsgQueueInput* input = tlMsgQueueInputCast(tlArgsTarget(args));
-    if (!input) TL_THROW("expected a Queue");
     return tlTaskPauseResuming(resumeEnqueue, args);
 }
 
 INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlArgs* args = tlArgsAs(res);
-    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
+    tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get 2: %s", tl_str(queue));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
@@ -200,8 +198,7 @@ INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
-    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
-    if (!queue) TL_THROW("expected a Queue");
+    tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(task));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
@@ -210,8 +207,7 @@ INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
     return tlTaskPauseResuming(resumeGet, args);
 }
 INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
-    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
-    if (!queue) TL_THROW("expected a Queue");
+    tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(task));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
@@ -220,8 +216,7 @@ INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
     return tlNull;
 }
 INTERNAL tlHandle _msg_queue_input(tlArgs* args) {
-    tlMsgQueue* queue = tlMsgQueueCast(tlArgsTarget(args));
-    if (!queue) TL_THROW("expected a Queue");
+    tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     return queue->input;
 }
 INTERNAL tlHandle _MsgQueue_new(tlArgs* args) {
@@ -229,25 +224,21 @@ INTERNAL tlHandle _MsgQueue_new(tlArgs* args) {
 }
 
 INTERNAL tlHandle _message_reply(tlArgs* args) {
-    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
-    if (!msg) TL_THROW("expected a Message");
+    tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     // TODO do multiple return ...
     return tlMessageReply(msg, tlArgsGet(args, 0));
 }
 INTERNAL tlHandle _message_throw(tlArgs* args) {
-    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
-    if (!msg) TL_THROW("expected a Message");
+    tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     // TODO do multiple return ...
     return tlMessageThrow(msg, tlArgsGet(args, 0));
 }
 INTERNAL tlHandle _message_name(tlArgs* args) {
-    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
-    if (!msg) TL_THROW("expected a Message");
+    tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     return tlArgsMsg(msg->args);
 }
 INTERNAL tlHandle _message_get(tlArgs* args) {
-    tlMessage* msg = tlMessageCast(tlArgsTarget(args));
-    if (!msg) TL_THROW("expected a Message");
+    tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));
     if (tlIntIs(key)) return tlMAYBE(tlArgsGet(msg->args, at_offset(key, tlArgsSize(msg->args))));
