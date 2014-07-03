@@ -251,8 +251,7 @@ static tlFile* tlFileNew(int fd) {
 }
 
 static tlHandle _file_port(tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
+    tlFile* file = tlFileAs(tlArgsTarget(args));
 
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
@@ -262,15 +261,13 @@ static tlHandle _file_port(tlArgs* args) {
     return tlINT(ntohs(sockaddr.sin_port));
 }
 static tlHandle _file_isClosed(tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
+    tlFile* file = tlFileAs(tlArgsTarget(args));
     return tlBOOL(file->ev.fd < 0);
 }
 
 static tlHandle _file_close(tlArgs* args) {
+    tlFile* file = tlFileAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    tlFile* file = tlFileCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
     if (!tlLockIsOwner(tlLockAs(file->reader), task)) TL_THROW("expected a locked Reader");
     if (!tlLockIsOwner(tlLockAs(file->writer), task)) TL_THROW("expected a locked Writer");
 
@@ -287,23 +284,20 @@ static tlHandle _file_close(tlArgs* args) {
 }
 
 static tlHandle _file_reader(tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
+    tlFile* file = tlFileAs(tlArgsTarget(args));
     if (file->reader) return file->reader;
     return tlNull;
 }
 static tlHandle _file_writer(tlArgs* args) {
-    tlFile* file = tlFileCast(tlArgsTarget(args));
-    if (!file) TL_THROW("expected a File");
+    tlFile* file = tlFileAs(tlArgsTarget(args));
     if (file->writer) return file->writer;
     return tlNull;
 }
 
 static tlHandle _reader_isClosed(tlArgs* args) {
+    tlReader* reader = tlReaderAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    trace("");
-    tlReader* reader = tlReaderCast(tlArgsTarget(args));
-    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+    if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
 
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
@@ -311,10 +305,9 @@ static tlHandle _reader_isClosed(tlArgs* args) {
     return tlBOOL(file->ev.fd < 0 || reader->closed);
 }
 static tlHandle _reader_close(tlArgs* args) {
+    tlReader* reader = tlReaderAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    trace("");
-    tlReader* reader = tlReaderCast(tlArgsTarget(args));
-    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+    if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
 
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
@@ -326,11 +319,10 @@ static tlHandle _reader_close(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _reader_read(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    trace("");
-    tlReader* reader = tlReaderCast(tlArgsTarget(args));
+    tlReader* reader = tlReaderAs(tlArgsTarget(args));
     tlBuffer* buf= tlBufferCast(tlArgsGet(args, 0));
-    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+    tlTask* task = tlTaskCurrent();
+    if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     if (!buf|| !tlLockIsOwner(tlLockAs(buf), task)) TL_THROW("expected a locked Buffer");
 
     tlFile* file = tlFileFromReader(reader);
@@ -357,10 +349,9 @@ static tlHandle _reader_read(tlArgs* args) {
 }
 
 static tlHandle _writer_isClosed(tlArgs* args) {
+    tlWriter* writer = tlWriterAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    trace("");
-    tlWriter* writer = tlWriterCast(tlArgsTarget(args));
-    if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
+    if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
 
     tlFile* file = tlFileFromWriter(writer);
     assert(tlFileIs(file));
@@ -368,10 +359,9 @@ static tlHandle _writer_isClosed(tlArgs* args) {
     return tlBOOL(file->ev.fd < 0 || writer->closed);
 }
 static tlHandle _writer_close(tlArgs* args) {
+    tlWriter* writer = tlWriterAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    trace("");
-    tlWriter* writer = tlWriterCast(tlArgsTarget(args));
-    if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
+    if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
 
     tlFile* file = tlFileFromWriter(writer);
     assert(tlFileIs(file));
@@ -384,11 +374,10 @@ static tlHandle _writer_close(tlArgs* args) {
     return tlNull;
 }
 static tlHandle _writer_write(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    trace("");
-    tlWriter* writer = tlWriterCast(tlArgsTarget(args));
+    tlWriter* writer = tlWriterAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
-    if (!writer || !tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
+    tlTask* task = tlTaskCurrent();
+    if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
     if (!buf || !tlLockIsOwner(tlLockAs(buf), task)) TL_THROW("expected a locked Buffer");
 
     tlFile* file = tlFileFromWriter(writer);
@@ -412,10 +401,9 @@ static tlHandle _writer_write(tlArgs* args) {
 }
 
 static tlHandle _reader_accept(tlArgs* args) {
+    tlReader* reader = tlReaderAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
-    trace("");
-    tlReader* reader = tlReaderCast(tlArgsTarget(args));
-    if (!reader || !tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
+    if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
 
@@ -704,17 +692,15 @@ static tlHandle _Dir_open(tlArgs* args) {
     return tlDirNew(dir);
 }
 
-static tlHandle _DirClose(tlArgs* args) {
-    tlDir* dir = tlDirCast(tlArgsTarget(args));
-    if (!dir) TL_THROW("expected a Dir");
+static tlHandle _dir_close(tlArgs* args) {
+    tlDir* dir = tlDirAs(tlArgsTarget(args));
     trace("closedir: %p", dir);
     if (closedir(dir->p)) TL_THROW("closedir: failed: %s", strerror(errno));
     return tlNull;
 }
 
-static tlHandle _DirRead(tlArgs* args) {
-    tlDir* dir = tlDirCast(tlArgsTarget(args));
-    if (!dir) TL_THROW("expected a Dir");
+static tlHandle _dir_read(tlArgs* args) {
+    tlDir* dir = tlDirAs(tlArgsTarget(args));
 
     struct dirent dp;
     struct dirent *dpp;
@@ -748,9 +734,8 @@ again:;
     return tlNull;
 }
 
-static tlHandle _DirEach(tlArgs* args) {
-    tlDir* dir = tlDirCast(tlArgsTarget(args));
-    if (!dir) TL_THROW("expected a Dir");
+static tlHandle _dir_each(tlArgs* args) {
+    tlDir* dir = tlDirAs(tlArgsTarget(args));
     tlHandle* block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) return tlNull;
 
@@ -877,8 +862,7 @@ static tlHandle resumeChildWait(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlTaskNotRunning;
 }
 static tlHandle _child_wait(tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
+    tlChild* child = tlChildAs(tlArgsTarget(args));
     trace("child_wait: %d", child->ev.pid);
 
     // TODO use a_var and this will be thread safe ... (child_cb)
@@ -886,23 +870,19 @@ static tlHandle _child_wait(tlArgs* args) {
     return tlTaskPauseResuming(resumeChildWait, child);
 }
 static tlHandle _child_running(tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
+    tlChild* child = tlChildAs(tlArgsTarget(args));
     return tlBOOL(child->res == 0);
 }
 static tlHandle _child_in(tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
+    tlChild* child = tlChildAs(tlArgsTarget(args));
     return child->in;
 }
 static tlHandle _child_out(tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
+    tlChild* child = tlChildAs(tlArgsTarget(args));
     return child->out;
 }
 static tlHandle _child_err(tlArgs* args) {
-    tlChild* child = tlChildCast(tlArgsTarget(args));
-    if (!child) TL_THROW("expected a Child");
+    tlChild* child = tlChildAs(tlArgsTarget(args));
     return child->err;
 }
 
@@ -1348,8 +1328,8 @@ void evio_init() {
         null
     );
     _tlDirKind.klass = tlClassObjectFrom(
-        "read", _DirRead,
-        "each", _DirEach,
+        "read", _dir_read,
+        "each", _dir_each,
         null
     );
     _tlChildKind.klass = tlClassObjectFrom(
