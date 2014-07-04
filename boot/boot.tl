@@ -65,17 +65,17 @@ _map = fn ->
         goto(loop(at + 1))
     loop(1)
 
-_find = fn ->
-    block = args.block or fn
-    if not block: throw "find expects a block or fn or value"
-    len = this.size
-    loop = at =>
-        if at > len: return null
-        e = this.get(at)
-        if e == block: return at, e
-        if try(block(e, at)): return at, e
-        goto(loop(at + 1))
-    loop(1)
+/// find an element, returns its position or null if not found
+/// optinally give a position from where to start searching
+_find = element /*, [Number from=0]*/ ->
+    size = this.size
+    at = Var.new args["from"] or 1
+    if $at < 0: $at = size + 1 + $at
+    if $at < 1: $at = 1
+    while $at <= this.size:
+        if this[$at] == element: return $at
+        $at += 1
+    return
 
 _removeItem = fn ->
     block = args.block or fn
@@ -166,6 +166,7 @@ _sort = fn -> qsort(this, fn or args.block or isSmaller)
 /// returns null otherwise
 Number = s ->
     if isNumber(s): return s
+    // TODO regex for [0-9_-+]
     v = try(s.eval)
     if isNumber(v): return v
     return null
@@ -427,12 +428,6 @@ test "split":
 sleep = s -> io.wait s
 wait  = s -> io.wait s
 
-eval2 = string -> _parse(string)(Env.current)
-/// String.eval: evalute the string as a script to run in the current environment
-_install(String._methods, "eval", (_eval_ = (->
-    eval2(this)
-)))
-
 _module_paths = Array.new
 
 // add a path to the global module path
@@ -453,6 +448,11 @@ _modules = HashMap.new
 
 // this captured env is the root of all defined things
 _env = Env.current
+
+_eval = /*Env*/ env -> _parse(this)(env or _env)
+/// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
+_install(String._methods, "eval", _eval)
+
 
 // resolve
 resolve = name, path ->

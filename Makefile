@@ -36,6 +36,7 @@ run: tl
 test-noboot: tl
 	cd test/noboot/ && ./run.sh
 test: test-noboot $(TLG_MODULES) $(C_MODULES)
+	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl runspec.tl
 	cd test/ && TL_MODULE_PATH=../modules:../cmodules $(TOOL) ../tl tester.tl
 
 $(LIBGC):
