@@ -50,8 +50,17 @@ test "string - not found":
     assert test.find("99") == null
 test "string - from":
     test = "12345678910hello"
-    assert test.find("1", 2) == 1
+    assert test.find("1", 2) == 10
     assert test.find("1", from=2) == 10
+test "string - chars":
+    test = "12345678910hello"
+    assert test.find('1') == 1
+    assert test.find('1', 2) == 10
+    assert test.find('1', from=2) == 10
+
+    assert test.find(49) == 1
+    assert test.find(49, 2) == 10
+    assert test.find(49, from=2) == 10
 
 test "bin":
     test = Bin(1,2,3,4,5,6,7,8,9,10)

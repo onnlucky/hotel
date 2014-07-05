@@ -173,6 +173,7 @@ static void bin_init() {
         //"hash", _bin_hash,
         "get", _bin_get,
         //"slice", _bin_slice,
+        "find", null,
         "each", null,
         "map", null,
         "random", null,

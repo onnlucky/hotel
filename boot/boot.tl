@@ -279,6 +279,7 @@ _install(String._methods, "each", _each)
 _install(String._methods, "map", _map)
 _install(String._methods, "random", _get_random)
 
+_install(Bin._methods, "find", _find)
 _install(Bin._methods, "each", _each)
 _install(Bin._methods, "map", _map)
 _install(Bin._methods, "random", _get_random)

@@ -314,11 +314,13 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
 INTERNAL tlHandle _string_find(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
-    if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
-        uint8_t b = (int)tl_double(tlArgsGet(args, 0));
+    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    if (!afrom) afrom = tlArgsGet(args, 1);
+    int from = at_offset(afrom, tlStringSize(str));
 
-        int from = at_offset(tlArgsGet(args, 1), tlStringSize(str));
-        if (from < 0) return tlUndef();
+    if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
+        if (from < 0) return tlNull;
+        uint8_t b = (int)tl_double(tlArgsGet(args, 0));
 
         const char* data = tlStringData(str);
         if (backward) {
@@ -330,16 +332,14 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
                 if (data[at] == b) return tlINT(at + 1);
             }
         }
-        return tlUndef();
+        return tlNull;
     }
     tlString* find = tlStringCast(tlArgsGet(args, 0));
     if (!find) TL_THROW("expected a String, Char or Number");
-
-    int from = at_offset(tlArgsGet(args, 1), tlStringSize(str));
-    if (from < 0) return tlUndef();
+    if (from < 0) return tlNull;
 
     const char* p = strstr(tlStringData(str) + from, tlStringData(find));
-    if (!p) return tlUndef();
+    if (!p) return tlNull;
     return tlINT(1 + p - tlStringData(str));
 }
 
