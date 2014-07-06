@@ -37,14 +37,20 @@ env = Env.current
 
 pass = Var.new 0
 total = Var.new 0
-io.Path("spec").each: n ->
-    // TODO run sub directories
-    if not n.endsWith(".tl"): continue
-    starttest(n[:-4])
-    io.File("spec/$n").readString.eval(env)
+runtest = file ->
+    starttest(file[:-4])
+    io.File("spec/$file").readString.eval(env)
     p, t = endtest()
     $pass += p
     $total += t
+
+if args.size == 0:
+    io.Path("spec").each: n ->
+        if not n.endsWith(".tl"): continue
+        runtest(n)
+if args.size > 0:
+    args.each: n ->
+        runtest(n + ".tl")
 
 percent = ($pass / $total * 100)
 percent = { percent >= 100       }: 100
