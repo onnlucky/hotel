@@ -83,6 +83,21 @@ tlBin* tlBinCat(tlBin* b1, tlBin* b2) {
     return bin;
 }
 
+tlBin* tlBinSub(tlBin* from, int offset, int len) {
+    if (tlBinSize(from) == len) return from;
+    if (len == 0) return tlBinEmpty();
+
+    assert(len > 0);
+    assert(offset >= 0);
+    assert(offset + len <= tlBinSize(from));
+
+    char* data = malloc_atomic(len + 1);
+    memcpy(data, from->data + offset, len);
+    data[len] = 0;
+
+    return tlBinFromTake(data, len);
+}
+
 INTERNAL tlHandle _Bin_new(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
@@ -101,9 +116,19 @@ INTERNAL tlHandle _bin_size(tlArgs* args) {
 }
 INTERNAL tlHandle _bin_get(tlArgs* args) {
     tlBin* bin = tlBinAs(tlArgsTarget(args));
-    int at = tl_int_or(tlArgsGet(args, 0), -1);
-    if (at < 1 || at > bin->len) return tlUndef();
-    return tlINT(tlBinGet(bin, at - 1));
+    int at = at_offset(tlArgsGet(args, 0), tlBinSize(bin));
+    if (at < 0) return tlUndef();
+    return tlINT(tlBinGet(bin, at));
+}
+/// slice: return a subsection of the binary withing bounds of args[1], args[2]
+INTERNAL tlHandle _bin_slice(tlArgs* args) {
+    tlBin* str = tlBinAs(tlArgsTarget(args));
+    int first = tl_int_or(tlArgsGet(args, 0), 1);
+    int last = tl_int_or(tlArgsGet(args, 1), -1);
+
+    int offset;
+    int len = sub_offset(first, last, tlBinSize(str), &offset);
+    return tlBinSub(str, offset, len);
 }
 INTERNAL tlHandle _bin_toHex(tlArgs* args) {
     static const char hexchars[] =
@@ -172,7 +197,7 @@ static void bin_init() {
         "size", _bin_size,
         //"hash", _bin_hash,
         "get", _bin_get,
-        //"slice", _bin_slice,
+        "slice", _bin_slice,
         "find", null,
         "each", null,
         "map", null,
