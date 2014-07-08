@@ -253,7 +253,11 @@ _install(Int._methods, "to", _to)
 
 _str = o ->
     if isString(o): return o
-    if isNumber(o) or isList(o) or isArray(o): return o.toChar
+    if isBin(o): return o.toString
+    if isBuffer(o): return o.readString
+    // TODO these are weird ...
+    if isNumber(o): return o.toChar
+    if isList(o) or isArray(o): return o.flatten(true).toChar
     return "$o"
 
 /// String()
