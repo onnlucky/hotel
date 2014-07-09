@@ -40,3 +40,16 @@ test "from various constructors":
 
 test "from flattened list":
     assert String([[104,101],[108,108,[111]]]) == "hello"
+
+test "reverse":
+    assert "".reverse == ""
+    assert "a".reverse == "a"
+    assert "hello".reverse == "olleh"
+    ref = "this is a very looooooooooooooooooooooooooong string that is veeeeeeeeeery long ..."
+    assert ref.reverse.reverse == ref
+
+test "upper":
+    assert "hello".upper == "HELLO"
+
+test "lower":
+    assert "HELLO".lower == "hello"

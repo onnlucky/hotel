@@ -480,6 +480,20 @@ INTERNAL tlHandle _string_strip(tlArgs* args) {
     return tlStringFromTake(ndata, size);
 }
 
+INTERNAL tlHandle _string_reverse(tlArgs* args) {
+    tlString* str = tlStringAs(tlArgsTarget(args));
+    int size = tlStringSize(str);
+    if (size <= 1) return str;
+
+    char* data = malloc_atomic(size + 1);
+    const char* from = tlStringData(str);
+    for (int i = 0; i < size; i++) {
+        data[i] = from[size - i - 1];
+    }
+    data[size] = 0;
+    return tlStringFromTake(data, size);
+}
+
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
 /// startsWith: return true when this #String begins with the #String in args[1]
@@ -550,6 +564,7 @@ static void string_init() {
         "cat", _string_cat,
         "escape", _string_escape,
         "strip", _string_strip,
+        "reverse", _string_reverse,
         "times", null,
         "each", null,
         "map", null,

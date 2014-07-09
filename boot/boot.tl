@@ -167,7 +167,7 @@ _sort = fn -> qsort(this, fn or args.block or isSmaller)
 Number = s ->
     if isNumber(s): return s
     // TODO regex for [0-9_-+]
-    v = try(s.eval)
+    v = try(s.toString.eval)
     if isNumber(v): return v
     return null
 
