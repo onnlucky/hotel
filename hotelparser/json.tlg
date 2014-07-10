@@ -60,7 +60,7 @@ static tlHandle _json_parse(tlArgs* args) {
     return p->value;
 }
 
-static void parser_init() {
+void jsonparser_init() {
     tl_register_global("_json_parse", tlNATIVE(_json_parse, "_json_parse"));
 }
 #endif

@@ -57,12 +57,18 @@ parser.c: vm/parser.g greg/greg
 parser.o: parser.c vm/tl.h config.h $(LIBGC)
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c parser.c -o parser.o
 
+hotelparser.o: vm/tl.h config.h vm/hotelparser.c vm/tlmeta.c
+	$(CC) $(subst -Wall,,$(CFLAGS)) -c vm/hotelparser.c -o hotelparser.o
+
+jsonparser.o: vm/tl.h config.h vm/jsonparser.c vm/tlmeta.c
+	$(CC) $(subst -Wall,,$(CFLAGS)) -c vm/jsonparser.c -o jsonparser.o
+
 ev.o: ev/*.c ev/*.h config.h $(LIBGC)
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
-libtl.a: $(LIBGC) $(LIBMP) parser.o ev.o vm.o
+libtl.a: $(LIBGC) $(LIBMP) parser.o ev.o vm.o hotelparser.o jsonparser.o
 	rm -f libtl.a
-	ar -q libtl.a parser.o ev.o vm.o
+	ar -q libtl.a parser.o ev.o vm.o hotelparser.o jsonparser.o
 	ar -q libtl.a libmp/*.o
 ifneq ($(BOEHM),)
 	ar -q libtl.a libgc/.libs/objs/*.o

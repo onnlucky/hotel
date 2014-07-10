@@ -5612,7 +5612,7 @@ static tlHandle _parser_parse(tlArgs* args) {
     return p->value;
 }
 
-static void parser_init() {
+void hotelparser_init() {
     tl_register_global("parse", tlNATIVE(_parser_parse, "parse"));
 }
 #endif

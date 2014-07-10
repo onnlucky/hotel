@@ -50,7 +50,6 @@
 #include "serialize.c"
 
 //#include "storage.c"
-#include "hotelparser.c"
 
 #include "trace-off.h"
 
@@ -492,6 +491,9 @@ void tl_init() {
     tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
 }
 
+void hotelparser_init();
+void jsonparser_init();
+
 tlVm* tlVmNew() {
     srandom(time(NULL));
     tlVm* vm = tlAlloc(tlVmKind, sizeof(tlVm));
@@ -512,7 +514,8 @@ tlVm* tlVmNew() {
     //openssl_init_vm(vm);
     //audio_init_vm(vm);
     //storage_init_vm(vm);
-    parser_init();
+    hotelparser_init();
+    jsonparser_init();
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;
