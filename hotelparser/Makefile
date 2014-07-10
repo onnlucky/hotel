@@ -19,4 +19,4 @@ clean:
 boot: hotelparser.c jsonparser.c tlmeta.c
 	cat warning.c tlmeta.c > ../vm/tlmeta.c
 	cat warning.c hotelparser.c > ../vm/hotelparser.c
-	#cat warning.c jsonparser.c > ../vm/jsonparser.c
+	cat warning.c jsonparser.c > ../vm/jsonparser.c
