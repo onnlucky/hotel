@@ -342,6 +342,18 @@ INTERNAL tlHandle _list_toChar(tlArgs* args) {
     return tlStringFromTake(buf, size);
 }
 
+INTERNAL tlHandle _list_reverse(tlArgs* args) {
+    tlList* list = tlListAs(tlArgsTarget(args));
+
+    int size = tlListSize(list);
+    if (size <= 1) return list;
+    tlList* nlist = tlListNew(size);
+    for (int i = 0; i < size; i++) {
+        tlListSet_(nlist, i, tlListGet(list, size - i - 1));
+    }
+    return nlist;
+}
+
 INTERNAL tlHandle _List_unsafe(tlArgs* args) {
     int size = tl_int_or(tlArgsGet(args, 0), -1);
     if (size < 0) TL_THROW("Expected a size");
@@ -430,6 +442,7 @@ static void list_init() {
         "slice", _list_slice,
         "remove", _list_remove,
         "toChar", _list_toChar,
+        "reverse", _list_reverse,
         "flatten", null,
         "join", null,
         "random", null,

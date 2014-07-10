@@ -7,12 +7,9 @@ test "basic":
     assert isUndefined("hello"[6])
     assert isUndefined("hello"[-6])
     assert "hello".hash
+    assert "hello".hash == ("he" + "llo").hash
     assert "hello" == "hello"
     assert "hello" == "h" +"ello"
-
-test "slice":
-    assert "hello"[2:-2] == "ell"
-    assert "hello"[2:4] == "ell"
 
 test "iterate":
     "hello".each: l, n ->
@@ -53,3 +50,31 @@ test "upper":
 
 test "lower":
     assert "HELLO".lower == "hello"
+
+test "slice":
+    assert "hello"[1:-1] == "hello"
+    assert "hello"[2:-2] == "ell"
+    assert "hello"[2:4] == "ell"
+
+    assert "hello"[1:0] == ""
+    assert "hello"[1:1] == "h"
+    assert "hello"[1:2] == "he"
+    assert "hello"[1:3] == "hel"
+    assert "hello"[1:4] == "hell"
+    assert "hello"[1:5] == "hello"
+    assert "hello"[1:6] == "hello"
+
+    assert "hello"[1:-1] == "hello"
+    assert "hello"[1:-2] == "hell"
+    assert "hello"[1:-3] == "hel"
+    assert "hello"[1:-4] == "he"
+    assert "hello"[1:-5] == "h"
+    assert "hello"[1:-6] == ""
+
+    assert "hello"[0:0] == ""
+    assert "hello"[0:1] == "h"
+    assert "hello"[1:1] == "h"
+    assert "hello"[2:1] == ""
+    assert "hello"[3:1] == ""
+    assert "hello"[10:1] == ""
+
