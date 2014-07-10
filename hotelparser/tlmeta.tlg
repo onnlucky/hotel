@@ -86,6 +86,7 @@ slcomment: "//" (!nl _)*
 
 forbidden = [pos=true,setindent=true,addindent=true,CI=true,indent=true]
 rules = HashMap.new
+rulesub = HashMap.new
 subs = Array.new
 colors = Array.new
 
@@ -134,8 +135,9 @@ to_call = t, name ->
 
 to_sub = t, name, rule, number ->
     number = number or 0
+    s = rulesub[name] = (rulesub[name] or 0) + 1
     name = { rule }: "r_$(rule)"
-           {      }: "$(name)_$(subs.size)"
+           {      }: "$(name)_$(s)"
     { t.type == "and" }:
         terms = t.terms.map(t -> to_call(t, name))
         subs.add { type= "and", act= try(t.act), { name, number, terms }}

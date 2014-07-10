@@ -352,6 +352,19 @@ static tlString* String(tlHandle list) {
     return tlStringFromCopy(buf, n);
 }
 
+/// make an Object from a list of key/value pairs: [{k=key,v=value}]
+static tlObject* Object(tlHandle kvlist) {
+    tlList* from = tlListAs(kvlist);
+    int size = tlListSize(from);
+
+    tlHashMap* map = tlHashMapNew();
+    for (int i = 0; i < size; i++) {
+        tlObject* kv = tlObjectAs(tlListGet(from, i));
+        tlHashMapSet(map, tlObjectGet(kv, tlSYM("k")), tlObjectGet(kv, tlSYM("v")));
+    }
+    return tlHashMapToObject(map);
+}
+
 static int digitFromChar(int c, int radix) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'A' && c <= 'Z') return c - 'A';
@@ -380,6 +393,14 @@ static tlFloat* Float(tlHandle s, tlHandle whole, tlHandle frac, int radix) {
     }
     res *= tl_int(s);
     return tlFLOAT(res);
+}
+
+static tlHandle FloatExp(tlHandle s, tlHandle whole, tlHandle frac, tlHandle exp) {
+    tlFloat* f = Float(s, whole, frac, 10);
+    if (!exp || exp == tlNull) return f;
+
+    double d = tl_double(f);
+    return tlFLOAT(d * pow(10, tl_int(exp)));
 }
 
 /// make a number from: a tlINT(1/-1), tlList(tlINT('0'-'9')), radix

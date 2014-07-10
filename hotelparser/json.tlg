@@ -1,0 +1,49 @@
+parser = parser {
+     end: !_
+      sp: " " | "\t" | "\r" | "\n"
+      ws: sp*
+
+  letter: [$@_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789]
+
+     key: string
+        | ts=letter+  -> String(ts)
+
+  escape: "\\\""      -> tlINT('"')
+        | "\\n"       -> tlINT('\n')
+        | "\\r"       -> tlINT('\r')
+        | "\\t"       -> tlINT('\t')
+        | "\\\\"      -> tlINT('\\')
+        | !"\"" _
+  string: "\"" ts=(!"\"" escape)* "\"" -> String(ts)
+        | "'" ts=(!"'" escape)* "'"    -> String(ts)
+
+    sign: "-"                      -> tlINT(-1)
+        | "+"                      -> tlINT(1)
+        | ""                       -> tlINT(1)
+     exp: [Ee] s=sign w=decn       -> Number(s, w, 10)
+    binn: n=([01]+)+("_"+) !"_"                       -> flatten(n)
+    hexn: n=([0123456789ABCDEFGabcdefg]+)+("_"+) !"_" -> flatten(n)
+    decn: n=([0123456789]+)+("_"+) !"_"               -> flatten(n)
+     num: s=sign w=decn "." f=decn e=exp? -> FloatExp(s, w, f, e)
+        | s=sign        "." f=decn e=exp? -> FloatExp(s, null, f, e)
+        | s=sign w=decn            e=exp? -> FloatExp(s, w, null, e)
+  number: "0x" w=hexn                     -> Number(null, w, 16)
+        | "0b" w=binn                     -> Number(null, w, 2)
+        | num
+
+   value: "null"           -> tlNull
+        | "false"          -> tlFalse
+        | "true"           -> tlTrue
+        | [Nn][Aa][Nn]     -> tlNull
+        | [Ii][Nn][Ff]     -> tlNull
+        | [-+][Ii][Nn][Ff] -> tlNull
+        | num
+        | string
+        | list
+        | object
+
+  object: "{"kv=(.k=key.":".v=value)*(.",")."}" -> Object(kv)
+    list: "["ls=(.value)*(.",")."]"             -> ls
+
+   start: .v=value.end -> v
+}

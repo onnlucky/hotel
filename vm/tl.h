@@ -565,6 +565,11 @@ tlArray* tlArrayNew();
 tlArray* tlArrayAdd(tlArray* array, tlHandle v);
 tlList* tlArrayToList(tlArray* array);
 
+tlHashMap* tlHashMapNew();
+tlHandle tlHashMapGet(tlHashMap* map, tlHandle k);
+tlHandle tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v);
+tlObject* tlHashMapToObject(tlHashMap* map);
+tlMap* tlHashMapToMap(tlHashMap* map);
 
 #endif // _tl_h_
 
