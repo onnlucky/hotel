@@ -1,7 +1,6 @@
 parser = parser {
      end: !_
-      sp: " " | "\t" | "\r" | "\n"
-      ws: sp*
+      ws: (" " | "\t" | "\r" | "\n")*
 
   letter: [$@_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789]
 
@@ -42,8 +41,10 @@ parser = parser {
         | list
         | object
 
-  object: "{"kv=(.k=key.":".v=value)*(.",")."}" -> Object(kv)
-    list: "["ls=(.value)*(.",")."]"             -> ls
+     sep: .","
+        | (" "|"\t")* ("\n"|"\r")
+    list: "["@"list" ls=(.value)*(sep).","?."]" -> ls
+  object: "{"@"object" kv=(.k=key.(":"|"=").v=value)*(sep).","?."}" -> Object(kv)
 
    start: .v=value.end -> v
 }

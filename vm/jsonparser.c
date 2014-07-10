@@ -5,21 +5,24 @@
 #include "tlmeta.c"
 
 static const char* const colors[] = {"","pad",null};
+static State r_wsnl(Parser*, int);
 static State r_list_2_1(Parser*, int);
 static State r_list_3_1(Parser*, int);
+static State r_list_4(Parser*, int);
 static State r_list(Parser*, int);
-static State r_sp(Parser*, int);
 static State r_binn_2_1_1(Parser*, int);
 static State r_binn_2_1(Parser*, int);
 static State r_binn_3_1_1(Parser*, int);
 static State r_binn_3_1(Parser*, int);
 static State r_binn_4(Parser*, int);
 static State r_binn(Parser*, int);
+static State r_object_2_1_1(Parser*, int);
 static State r_object_2_1(Parser*, int);
 static State r_object_3_1(Parser*, int);
+static State r_object_4(Parser*, int);
 static State r_object(Parser*, int);
 static State r_start(Parser*, int);
-static State r_exp(Parser*, int);
+static State r_letter(Parser*, int);
 static State r_escape_1(Parser*, int);
 static State r_escape_2(Parser*, int);
 static State r_escape_3(Parser*, int);
@@ -28,7 +31,7 @@ static State r_escape_5(Parser*, int);
 static State r_escape_6_1(Parser*, int);
 static State r_escape_6(Parser*, int);
 static State r_escape(Parser*, int);
-static State r_letter(Parser*, int);
+static State r_exp(Parser*, int);
 static State r_end_2(Parser*, int);
 static State r_end(Parser*, int);
 static State r_ws_2(Parser*, int);
@@ -59,7 +62,11 @@ static State r_value_4(Parser*, int);
 static State r_value_5(Parser*, int);
 static State r_value_6(Parser*, int);
 static State r_value(Parser*, int);
-static State r_wsnl(Parser*, int);
+static State r_sep_1(Parser*, int);
+static State r_sep_2_1(Parser*, int);
+static State r_sep_2_2(Parser*, int);
+static State r_sep_2(Parser*, int);
+static State r_sep(Parser*, int);
 static State r_decn_2_1_1(Parser*, int);
 static State r_decn_2_1(Parser*, int);
 static State r_decn_3_1_1(Parser*, int);
@@ -78,6 +85,14 @@ static State r_sign_2(Parser*, int);
 static State r_sign_3(Parser*, int);
 static State r_sign(Parser*, int);
 
+static State r_wsnl(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_wsnl", _start);
+ int _pos = _start;
+ State _r = prim_wsnl(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_wsnl", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_wsnl");*/ return _r; }
+ return parser_fail(_p, "r_wsnl", _start);
+}
 static State r_list_2_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_list_2_1", _start);
  int _pos = _start;
@@ -94,15 +109,18 @@ static State r_list_2_1(Parser* _p, int _start) { // and
 static State r_list_3_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_list_3_1", _start);
  int _pos = _start;
- State _r;
- _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_list_3_1", _pos); }
- _pos = _r.pos;
- _r = prim_text(_p, _pos, ",");
- if (!_r.ok) { return parser_fail(_p, "r_list_3_1", _pos); }
- _pos = _r.pos;
- tlHandle _v = _r.value;
- return parser_pass(_p, "r_list_3_1", 0, _start, state_ok(_pos, _v));
+ State _r = r_sep(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_list_3_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_list_3_1");*/ return _r; }
+ return parser_fail(_p, "r_list_3_1", _start);
+}
+static State r_list_4(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_list_4", _start);
+ int _pos = _start;
+ State _r = prim_text(_p, _pos, ",");
+ if (_r.ok) return parser_pass(_p, "r_list_4", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_list_4");*/ return _r; }
+ return parser_fail(_p, "r_list_4", _start);
 }
 static State r_list(Parser* _p, int _start) { // and
  parser_enter(_p, "r_list", _start);
@@ -111,36 +129,26 @@ static State r_list(Parser* _p, int _start) { // and
  _r = prim_text(_p, _pos, "[");
  if (!_r.ok) { return parser_fail(_p, "r_list", _pos); }
  _pos = _r.pos;
+ const char* _anchor = parser_set_anchor(_p, "list");
  _r = meta_star(_p, _pos, r_list_2_1, r_list_3_1);
- if (!_r.ok) { return parser_fail(_p, "r_list", _pos); }
+ if (!_r.ok) { return parser_error(_p, "r_list", _start, _pos); }
  _pos = _r.pos;
  tlHandle ls = _r.value;
  _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_list", _pos); }
+ if (!_r.ok) { return parser_error(_p, "r_list", _start, _pos); }
+ _pos = _r.pos;
+ _r = meta_opt(_p, _pos, r_list_4);
+ if (!_r.ok) { return parser_error(_p, "r_list", _start, _pos); }
+ _pos = _r.pos;
+ _r = r_ws(_p, _pos);
+ if (!_r.ok) { return parser_error(_p, "r_list", _start, _pos); }
  _pos = _r.pos;
  _r = prim_text(_p, _pos, "]");
- if (!_r.ok) { return parser_fail(_p, "r_list", _pos); }
+ if (!_r.ok) { return parser_error(_p, "r_list", _start, _pos); }
  _pos = _r.pos;
  tlHandle _v = ls;
+ _p->anchor = _anchor;
  return parser_pass(_p, "r_list", 0, _start, state_ok(_pos, _v));
-}
-static State r_sp(Parser* _p, int _start) { // or
- parser_enter(_p, "r_sp", _start);
- int _pos = _start;
- State _r;
- _r = prim_text(_p, _pos, " ");
- if (_r.ok) return parser_pass(_p, "r_sp", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_sp");*/ return _r; }
- _r = prim_text(_p, _pos, "\t");
- if (_r.ok) return parser_pass(_p, "r_sp", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_sp");*/ return _r; }
- _r = prim_text(_p, _pos, "\r");
- if (_r.ok) return parser_pass(_p, "r_sp", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_sp");*/ return _r; }
- _r = prim_text(_p, _pos, "\n");
- if (_r.ok) return parser_pass(_p, "r_sp", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_sp");*/ return _r; }
- return parser_fail(_p, "r_sp", _start);
 }
 static State r_binn_2_1_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_binn_2_1_1", _start);
@@ -196,6 +204,18 @@ static State r_binn(Parser* _p, int _start) { // and
  tlHandle _v = flatten(n);
  return parser_pass(_p, "r_binn", 0, _start, state_ok(_pos, _v));
 }
+static State r_object_2_1_1(Parser* _p, int _start) { // or
+ parser_enter(_p, "r_object_2_1_1", _start);
+ int _pos = _start;
+ State _r;
+ _r = prim_text(_p, _pos, ":");
+ if (_r.ok) return parser_pass(_p, "r_object_2_1_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_object_2_1_1");*/ return _r; }
+ _r = prim_text(_p, _pos, "=");
+ if (_r.ok) return parser_pass(_p, "r_object_2_1_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_object_2_1_1");*/ return _r; }
+ return parser_fail(_p, "r_object_2_1_1", _start);
+}
 static State r_object_2_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_object_2_1", _start);
  int _pos = _start;
@@ -210,7 +230,7 @@ static State r_object_2_1(Parser* _p, int _start) { // and
  _r = r_ws(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_object_2_1", _pos); }
  _pos = _r.pos;
- _r = prim_text(_p, _pos, ":");
+ _r = r_object_2_1_1(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_object_2_1", _pos); }
  _pos = _r.pos;
  _r = r_ws(_p, _pos);
@@ -226,15 +246,18 @@ static State r_object_2_1(Parser* _p, int _start) { // and
 static State r_object_3_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_object_3_1", _start);
  int _pos = _start;
- State _r;
- _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_object_3_1", _pos); }
- _pos = _r.pos;
- _r = prim_text(_p, _pos, ",");
- if (!_r.ok) { return parser_fail(_p, "r_object_3_1", _pos); }
- _pos = _r.pos;
- tlHandle _v = _r.value;
- return parser_pass(_p, "r_object_3_1", 0, _start, state_ok(_pos, _v));
+ State _r = r_sep(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_object_3_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_object_3_1");*/ return _r; }
+ return parser_fail(_p, "r_object_3_1", _start);
+}
+static State r_object_4(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_object_4", _start);
+ int _pos = _start;
+ State _r = prim_text(_p, _pos, ",");
+ if (_r.ok) return parser_pass(_p, "r_object_4", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_object_4");*/ return _r; }
+ return parser_fail(_p, "r_object_4", _start);
 }
 static State r_object(Parser* _p, int _start) { // and
  parser_enter(_p, "r_object", _start);
@@ -243,17 +266,25 @@ static State r_object(Parser* _p, int _start) { // and
  _r = prim_text(_p, _pos, "{");
  if (!_r.ok) { return parser_fail(_p, "r_object", _pos); }
  _pos = _r.pos;
+ const char* _anchor = parser_set_anchor(_p, "object");
  _r = meta_star(_p, _pos, r_object_2_1, r_object_3_1);
- if (!_r.ok) { return parser_fail(_p, "r_object", _pos); }
+ if (!_r.ok) { return parser_error(_p, "r_object", _start, _pos); }
  _pos = _r.pos;
  tlHandle kv = _r.value;
  _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_object", _pos); }
+ if (!_r.ok) { return parser_error(_p, "r_object", _start, _pos); }
+ _pos = _r.pos;
+ _r = meta_opt(_p, _pos, r_object_4);
+ if (!_r.ok) { return parser_error(_p, "r_object", _start, _pos); }
+ _pos = _r.pos;
+ _r = r_ws(_p, _pos);
+ if (!_r.ok) { return parser_error(_p, "r_object", _start, _pos); }
  _pos = _r.pos;
  _r = prim_text(_p, _pos, "}");
- if (!_r.ok) { return parser_fail(_p, "r_object", _pos); }
+ if (!_r.ok) { return parser_error(_p, "r_object", _start, _pos); }
  _pos = _r.pos;
  tlHandle _v = Object(kv);
+ _p->anchor = _anchor;
  return parser_pass(_p, "r_object", 0, _start, state_ok(_pos, _v));
 }
 static State r_start(Parser* _p, int _start) { // and
@@ -276,23 +307,13 @@ static State r_start(Parser* _p, int _start) { // and
  tlHandle _v = v;
  return parser_pass(_p, "r_start", 0, _start, state_ok(_pos, _v));
 }
-static State r_exp(Parser* _p, int _start) { // and
- parser_enter(_p, "r_exp", _start);
+static State r_letter(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_letter", _start);
  int _pos = _start;
- State _r;
- _r = prim_char(_p, _pos, "Ee");
- if (!_r.ok) { return parser_fail(_p, "r_exp", _pos); }
- _pos = _r.pos;
- _r = r_sign(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_exp", _pos); }
- _pos = _r.pos;
- tlHandle s = _r.value;
- _r = r_decn(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_exp", _pos); }
- _pos = _r.pos;
- tlHandle w = _r.value;
- tlHandle _v = Number(s, w, 10);
- return parser_pass(_p, "r_exp", 0, _start, state_ok(_pos, _v));
+ State _r = prim_char(_p, _pos, "$@_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+ if (_r.ok) return parser_pass(_p, "r_letter", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_letter");*/ return _r; }
+ return parser_fail(_p, "r_letter", _start);
 }
 static State r_escape_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_escape_1", _start);
@@ -389,13 +410,23 @@ static State r_escape(Parser* _p, int _start) { // or
  if (_p->error_line) { /*print("expect: r_escape");*/ return _r; }
  return parser_fail(_p, "r_escape", _start);
 }
-static State r_letter(Parser* _p, int _start) { // and
- parser_enter(_p, "r_letter", _start);
+static State r_exp(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_exp", _start);
  int _pos = _start;
- State _r = prim_char(_p, _pos, "$@_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
- if (_r.ok) return parser_pass(_p, "r_letter", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_letter");*/ return _r; }
- return parser_fail(_p, "r_letter", _start);
+ State _r;
+ _r = prim_char(_p, _pos, "Ee");
+ if (!_r.ok) { return parser_fail(_p, "r_exp", _pos); }
+ _pos = _r.pos;
+ _r = r_sign(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_exp", _pos); }
+ _pos = _r.pos;
+ tlHandle s = _r.value;
+ _r = r_decn(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_exp", _pos); }
+ _pos = _r.pos;
+ tlHandle w = _r.value;
+ tlHandle _v = Number(s, w, 10);
+ return parser_pass(_p, "r_exp", 0, _start, state_ok(_pos, _v));
 }
 static State r_end_2(Parser* _p, int _start) { // and
  parser_enter(_p, "r_end_2", _start);
@@ -413,10 +444,20 @@ static State r_end(Parser* _p, int _start) { // and
  if (_p->error_line) { /*print("expect: r_end");*/ return _r; }
  return parser_fail(_p, "r_end", _start);
 }
-static State r_ws_2(Parser* _p, int _start) { // and
+static State r_ws_2(Parser* _p, int _start) { // or
  parser_enter(_p, "r_ws_2", _start);
  int _pos = _start;
- State _r = r_sp(_p, _pos);
+ State _r;
+ _r = prim_text(_p, _pos, " ");
+ if (_r.ok) return parser_pass(_p, "r_ws_2", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_ws_2");*/ return _r; }
+ _r = prim_text(_p, _pos, "\t");
+ if (_r.ok) return parser_pass(_p, "r_ws_2", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_ws_2");*/ return _r; }
+ _r = prim_text(_p, _pos, "\r");
+ if (_r.ok) return parser_pass(_p, "r_ws_2", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_ws_2");*/ return _r; }
+ _r = prim_text(_p, _pos, "\n");
  if (_r.ok) return parser_pass(_p, "r_ws_2", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_ws_2");*/ return _r; }
  return parser_fail(_p, "r_ws_2", _start);
@@ -780,13 +821,67 @@ static State r_value(Parser* _p, int _start) { // or
  if (_p->error_line) { /*print("expect: r_value");*/ return _r; }
  return parser_fail(_p, "r_value", _start);
 }
-static State r_wsnl(Parser* _p, int _start) { // and
- parser_enter(_p, "r_wsnl", _start);
+static State r_sep_1(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_sep_1", _start);
  int _pos = _start;
- State _r = prim_wsnl(_p, _pos);
- if (_r.ok) return parser_pass(_p, "r_wsnl", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_wsnl");*/ return _r; }
- return parser_fail(_p, "r_wsnl", _start);
+ State _r;
+ _r = r_ws(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_sep_1", _pos); }
+ _pos = _r.pos;
+ _r = prim_text(_p, _pos, ",");
+ if (!_r.ok) { return parser_fail(_p, "r_sep_1", _pos); }
+ _pos = _r.pos;
+ tlHandle _v = _r.value;
+ return parser_pass(_p, "r_sep_1", 0, _start, state_ok(_pos, _v));
+}
+static State r_sep_2_1(Parser* _p, int _start) { // or
+ parser_enter(_p, "r_sep_2_1", _start);
+ int _pos = _start;
+ State _r;
+ _r = prim_text(_p, _pos, " ");
+ if (_r.ok) return parser_pass(_p, "r_sep_2_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_sep_2_1");*/ return _r; }
+ _r = prim_text(_p, _pos, "\t");
+ if (_r.ok) return parser_pass(_p, "r_sep_2_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_sep_2_1");*/ return _r; }
+ return parser_fail(_p, "r_sep_2_1", _start);
+}
+static State r_sep_2_2(Parser* _p, int _start) { // or
+ parser_enter(_p, "r_sep_2_2", _start);
+ int _pos = _start;
+ State _r;
+ _r = prim_text(_p, _pos, "\n");
+ if (_r.ok) return parser_pass(_p, "r_sep_2_2", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_sep_2_2");*/ return _r; }
+ _r = prim_text(_p, _pos, "\r");
+ if (_r.ok) return parser_pass(_p, "r_sep_2_2", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_sep_2_2");*/ return _r; }
+ return parser_fail(_p, "r_sep_2_2", _start);
+}
+static State r_sep_2(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_sep_2", _start);
+ int _pos = _start;
+ State _r;
+ _r = meta_star(_p, _pos, r_sep_2_1, null);
+ if (!_r.ok) { return parser_fail(_p, "r_sep_2", _pos); }
+ _pos = _r.pos;
+ _r = r_sep_2_2(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_sep_2", _pos); }
+ _pos = _r.pos;
+ tlHandle _v = _r.value;
+ return parser_pass(_p, "r_sep_2", 0, _start, state_ok(_pos, _v));
+}
+static State r_sep(Parser* _p, int _start) { // or
+ parser_enter(_p, "r_sep", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_sep_1(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_sep", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_sep");*/ return _r; }
+ _r = r_sep_2(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_sep", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_sep");*/ return _r; }
+ return parser_fail(_p, "r_sep", _start);
 }
 static State r_decn_2_1_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_decn_2_1_1", _start);
