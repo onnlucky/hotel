@@ -5,7 +5,7 @@ int main(int argv, char** args) {
 
     tlBuffer* buf = tlBufferFromFile(args[1]);
     Parser* p = parser_new(tlBufferData(buf), tlBufferSize(buf));
-    bool r = parser_parse(p);
+    bool r = parser_parse(p, r_start);
     if (!r) {
         print("error: %s at: %d:%d", p->error_msg, p->error_line, p->error_char);
         return 1;

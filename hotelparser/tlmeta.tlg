@@ -2,7 +2,6 @@
 
 /*
   TODO
-remove the weird rule indend thing which leads to body_222_222_222
 add parser known "braces" open/close to expect the matching brace
 process rules for shared prefix, and rewrite rules to branch from there
 process rules until cycle without progress is found, cut and grow recursion from there
@@ -269,5 +268,5 @@ emit_rule = rule ->
     lines.add "}"
 subs.each(r -> emit_rule(r))
 
-io.File(args[2]).write(lines.join("\n"))
+io.File(args[2]).write(ast.before + lines.join("\n") + ast.after)
 

@@ -54,9 +54,9 @@ static void parser_free(Parser* parser) {
     free(parser);
 }
 
-static State r_start(Parser*, int);
-static bool parser_parse(Parser* p) {
-    State s = r_start(p, 0);
+typedef State(*ParserRule)(Parser*, int);
+static bool parser_parse(Parser* p, ParserRule rule) {
+    State s = rule(p, 0);
     if (!s.ok) {
         if (!p->error_msg) p->error_msg = "unknown";
         return false;
@@ -499,21 +499,6 @@ static tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
                 "type", tlSTR("call"), "pos", pos, null);
     }
     return tlObjectSet(call, tlSYM("block"), block);
-}
-
-static tlHandle _parser_parse(tlArgs* args) {
-    tlString* code = tlStringCast(tlArgsGet(args, 0));
-    if (!code) TL_THROW("expected a String");
-    Parser* p = parser_new(tlStringData(code), tlStringSize(code));
-    bool r = parser_parse(p);
-    if (!r) {
-        TL_THROW("parse error: %s at: %d:%d", p->error_msg, p->error_line, p->error_char);
-    }
-    return p->value;
-}
-
-static void parser_init() {
-    tl_register_global("parse", tlNATIVE(_parser_parse, "parse"));
 }
 
 #endif
