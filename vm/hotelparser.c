@@ -1468,7 +1468,7 @@ static State r_op(Parser* _p, int _start) { // or
  _r = prim_text(_p, _pos, "*");
  if (_r.ok) return parser_pass(_p, "r_op", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_op");*/ return _r; }
- _r = prim_text(_p, _pos, "//");
+ _r = prim_text(_p, _pos, "/.");
  if (_r.ok) return parser_pass(_p, "r_op", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_op");*/ return _r; }
  _r = prim_text(_p, _pos, "/");
@@ -3225,7 +3225,7 @@ static State r_mul_162_162_162(Parser* _p, int _start) { // or
  _r = prim_text(_p, _pos, "*");
  if (_r.ok) return parser_pass(_p, "r_mul_162_162_162", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_mul_162_162_162");*/ return _r; }
- _r = prim_text(_p, _pos, "//");
+ _r = prim_text(_p, _pos, "/.");
  if (_r.ok) return parser_pass(_p, "r_mul_162_162_162", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_mul_162_162_162");*/ return _r; }
  _r = prim_text(_p, _pos, "/");

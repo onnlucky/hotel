@@ -152,7 +152,7 @@ mcallarg: v=mcall
    mcall: pos=pos value=value t=mtail                                              -> process_add_block(process_tail(value, t), tlNull, pos)
   mbcall: pos=pos value=value t=mtail block=block?                                 -> process_add_block(process_tail(value, t), block, pos)
 
-      op: "+" | "-" | "*" | "//" | "/" | "%" | "^" | "|" | "&"
+      op: "+" | "-" | "*" | "/." | "/" | "%" | "^" | "|" | "&"
     expr: "!". rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
@@ -162,7 +162,7 @@ mcallarg: v=mcall
  bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=bitwise)?                       -> process_expr(l, rs)
    shift: l=add rs=(..pos=pos op=("<<"|">>").. r=shift)?                         -> process_expr(l, rs)
      add: l=mul rs=(..pos=pos op=("+"|"-").. r=add)?                             -> process_expr(l, rs)
-     mul: l=pow rs=(..pos=pos op=("*"|"//"|"/"|"%").. r=mul)?                    -> process_expr(l, rs)
+     mul: l=pow rs=(..pos=pos op=("*"|"/."|"/"|"%").. r=mul)?                    -> process_expr(l, rs)
      pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
         //| "("..@"a closing ')'" body=body ..")" type=<scope>

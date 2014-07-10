@@ -406,7 +406,7 @@ bpexpr = gexpr
        | "-" { $$ = s_sub; }
        | "*" { $$ = s_mul; }
        | "/" { $$ = s_div; }
-       | "/|" { $$ = s_idiv; }
+       | "/." { $$ = s_idiv; }
        | "%" { $$ = s_mod; }
        | "^" { $$ = s_pow; }
 slicea = expr
@@ -526,7 +526,7 @@ op_add = l:op_mul _ ("+"  __ r:op_mul { l = tlCallFrom(tl_active(s_add), l, r, n
                     )*                { $$ = l; }
 op_mul = l:op_bit _ ("*"  __ r:op_bit { l = tlCallFrom(tl_active(s_mul), l, r, null); }
                     |"/"  __ r:op_bit { l = tlCallFrom(tl_active(s_div), l, r, null); }
-                    |"/|" __ r:op_bit { l = tlCallFrom(tl_active(s_idiv), l, r, null); }
+                    |"/." __ r:op_bit { l = tlCallFrom(tl_active(s_idiv), l, r, null); }
                     |"%"  __ r:op_bit { l = tlCallFrom(tl_active(s_mod), l, r, null); }
                     )*                { $$ = l; }
 op_bit = l:op_sht _ ("&"  __ r:op_sht { l = tlCallFrom(tl_active(s_band), l, r, null); }
