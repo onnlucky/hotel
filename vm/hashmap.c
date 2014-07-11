@@ -169,6 +169,7 @@ typedef struct tlHashMapEachFrame {
     tlFrame frame;
     LHashMapIter* iter;
     tlHandle* block;
+    int at;
 } tlHashMapEachFrame;
 
 static tlHandle resumeHashMapEach(tlFrame* _frame, tlHandle res, tlHandle throw) {
@@ -183,9 +184,10 @@ static tlHandle resumeHashMapEach(tlFrame* _frame, tlHandle res, tlHandle throw)
 again:;
     lhashmapiter_get(frame->iter, &key, &val);
     lhashmapiter_next(frame->iter);
+    frame->at += 1;
     trace("hashmap each: %s %s", tl_str(key), tl_str(val));
     if (!key) return tlNull;
-    res = tlEval(tlCallFrom(frame->block, key, val, null));
+    res = tlEval(tlCallFrom(frame->block, key, val, tlINT(frame->at), null));
     if (!res) return tlTaskPauseAttach(frame);
     goto again;
     return tlNull;

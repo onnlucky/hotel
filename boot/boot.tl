@@ -212,6 +212,7 @@ _split = on ->
         end = this.find(on, start)
         if not end:
             process(this[start:])
+            return
         if end >= start:
             process(this[start:end - 1])
             if limit and res.size >= limit - 1:
