@@ -21,20 +21,22 @@ writeLine = prompt, left, right ->
     curcol = prompt.size + left.size + 1 - width * cursor
 
     // ensure we are at first line
+    buf = Buffer.new
     trail = $last.lines - lines
     up = $last.cursor
-    if up > 0: term.write 27, "[$(up)A"
+    if up > 0: buf.write 27, "[$(up)A"
     // output line
-    term.write 27, "[0G", prompt, left, right, 27, "[0K"
+    buf.write 27, "[0G", prompt, left, right, 27, "[0K"
     // clear trailing lines from previous long entry
     if trail > 0:
-        term.write 27, "[0G"
-        trail.times: term.write 27, "[1B", 27, "[0K"
-        trail.times: term.write 27, "[1A"
+        buf.write 27, "[0G"
+        trail.times: buf.write 27, "[1B", 27, "[0K"
+        trail.times: buf.write 27, "[1A"
     // move cursor back up to cursor position line and col
-    if lines - cursor > 0: term.write 27, "[$(lines - cursor)A"
-    term.write 27, "[$(curcol)G"
+    if lines - cursor > 0: buf.write 27, "[$(lines - cursor)A"
+    buf.write 27, "[$(curcol)G"
     $last = {{cursor,lines}}
+    term.write buf
 
 runcode = code ->
     term.restore
