@@ -14,9 +14,16 @@ into_buf = buf, x ->
             if n > 1: buf.write(",")
             into_buf(buf, v)
         buf.write("]")
-    { isObject(x) or isMap(x) or isHashMap(x) }:
+    { isObject(x) }:
         buf.write("{")
-        bool(isObject(x),Object.toMap(x),x).each: k, v, n ->
+        Object.each(x): k, v, n ->
+            if n > 1: buf.write(",")
+            buf.write("\"", k.escape, "\"", ":")
+            into_buf(buf, v)
+        buf.write("}")
+    { isMap(x) or isHashMap(x) }:
+        buf.write("{")
+        x.each: k, v, n ->
             if n > 1: buf.write(",")
             buf.write("\"", k.escape, "\"", ":")
             into_buf(buf, v)

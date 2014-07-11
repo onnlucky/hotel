@@ -114,6 +114,15 @@ int tlSetAdd_(tlSet* set, tlHandle key) {
     return at;
 }
 
+INTERNAL tlHandle _Set_from(tlArgs* args) {
+    int size = tlArgsSize(args);
+    tlSet* set = tlSetNew(size);
+    for (int i = 0; i < size; i++) {
+        tlSetAdd_(set, tlArgsGet(args, i));
+    }
+    return set;
+}
+
 static tlHandle _set_has(tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     int at = tlSetIndexof(set, tlArgsGet(args, 0));
@@ -150,7 +159,7 @@ static void set_init() {
         null
     );
     tlObject* constructor = tlClassObjectFrom(
-        //"call", _Set_from,
+        "call", _Set_from,
         "_methods", null,
         null
     );
