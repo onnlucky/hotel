@@ -67,7 +67,7 @@ tlHandle tlFLOAT(double d) {
 }
 
 static const char* floattoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "%f", tl_double(v)); return buf;
+    snprintf(buf, size, "%.17g", tl_double(v)); return buf;
 }
 static unsigned int floatHash(tlHandle h) {
     return murmurhash2a((uint8_t*)&tlFloatAs(h)->value, sizeof(double));
@@ -119,7 +119,7 @@ static tlHandle _float_ceil(tlArgs* args) {
 static tlHandle _float_toString(tlArgs* args) {
     double c = tl_double(tlArgsTarget(args));
     char buf[255];
-    int len = snprintf(buf, sizeof(buf), "%f", c);
+    int len = snprintf(buf, sizeof(buf), "%.17g", c);
     return tlStringFromCopy(buf, len);
 }
 
