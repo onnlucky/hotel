@@ -170,7 +170,16 @@ get = url ->
 
     // TODO read text encoding and not assume utf8
     if args.namesmap["stream"]: return body, res
-    if type and type.startsWith("text"): return body.readString, res
+    if type:
+        { type.startsWith("application/json") }: return json.parse(body.readString), res
+        { type.startsWith("application/") and type.find("+json") }: return json.parse(body.readString), res
+        { type.startsWith("text/json") }: return json.parse(body.readString), res
+        { type.startsWith("text/") and type.find("+json") }: return json.parse(body.readString), res
+        { type.startsWith("text/") }: return body.readString, res
+        { type.startsWith("application/javascript") }: return body.readString, res
+        { type.startsWith("application/ecmascript") }: return body.readString, res
+        { type.startsWith("application/") and type.find("xml") }: return body.readString, res
+        { }: null
     return body.read, res
 
 {{ Server, get }}
