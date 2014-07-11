@@ -327,24 +327,24 @@ _install(List._methods, "join", _join)
 _install(Map._methods, "each", (each = (fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
-    this.keys.each: k -> block(k, this[k])
+    this.keys.each: k, n -> block(k, this[k], n)
 )))
 _install(Map._methods, "map", (map = (fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
-    this.keys.map: k -> block(k, this[k])
+    this.keys.map: k, n -> block(k, this[k], n)
 )))
 _object_each = (m, fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
     keys = Object.keys(m)
-    keys.each: k -> block(k, Object.get(m, k))
+    keys.each: k, n -> block(k, Object.get(m, k), n)
 )
 _object_map = (m, fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
     keys = Object.keys(m)
-    keys.map: k -> block(k, Object.get(m, k))
+    keys.map: k, n -> block(k, Object.get(m, k), n)
 )
 _install(Object, "each", _object_each)
 _install(Object, "map", _object_map)
@@ -385,41 +385,6 @@ _install(Error, "class", {
         return ls.join
 })
 
-inspect = x ->
-    toJSON = (x, indent, buf, inlist ->
-        _match(isBool(x)): buf.write(x.toString); return false
-        _match(not x): buf.write("null"); return false
-        _match(isNumber(x)): buf.write(x.toString); return false
-        _match(isString(x)): buf.write("\""); buf.write(x.escape); buf.write("\""); return false
-        _match(isList(x)):
-            if x.size == 0: buf.write("[]"); return false
-            if indent.size > 0: buf.write("\n")
-            x.each: v ->
-                buf.write(indent); buf.write("- ")
-                nl = toJSON(v, indent.cat(" "), buf, true)
-                if not nl: buf.write("\n")
-            return true
-        _match(isObject(x)):
-            keys = Map.keys(x)
-            if keys.size == 0: buf.write("{}"); return false
-            if (not inlist and indent.size > 0): buf.write("\n")
-            indent = bool(inlist, indent.cat(" "), indent)
-            var $first = true
-            keys.each: key =>
-                if not inlist: buf.write(indent)
-                if inlist: if not $first: buf.write(indent)
-                buf.write(key.toString); buf.write(": ")
-                nl = toJSON(Map.get(x, key), indent.cat(" "), buf)
-                if not nl: buf.write("\n")
-                $first = false
-            return true
-        _match(true):
-            buf.write("$x"); return false
-        _nomatch()
-    )
-    buf = io.Buffer.new
-    toJSON(x, "", buf)
-    buf.readString
 
 // TODO should report line number and such of testcase ...
 test = ->

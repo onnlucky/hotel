@@ -40,8 +40,8 @@ static State r_num_1_1(Parser*, int);
 static State r_num_1(Parser*, int);
 static State r_num_2_1(Parser*, int);
 static State r_num_2(Parser*, int);
-static State r_num_3_1(Parser*, int);
 static State r_num_3(Parser*, int);
+static State r_num_4(Parser*, int);
 static State r_num(Parser*, int);
 static State r_key_1_1(Parser*, int);
 static State r_key_1(Parser*, int);
@@ -534,14 +534,6 @@ static State r_num_2(Parser* _p, int _start) { // and
  tlHandle _v = FloatExp(s, null, f, e);
  return parser_pass(_p, "r_num_2", 0, _start, state_ok(_pos, _v));
 }
-static State r_num_3_1(Parser* _p, int _start) { // and
- parser_enter(_p, "r_num_3_1", _start);
- int _pos = _start;
- State _r = r_exp(_p, _pos);
- if (_r.ok) return parser_pass(_p, "r_num_3_1", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_num_3_1");*/ return _r; }
- return parser_fail(_p, "r_num_3_1", _start);
-}
 static State r_num_3(Parser* _p, int _start) { // and
  parser_enter(_p, "r_num_3", _start);
  int _pos = _start;
@@ -554,12 +546,27 @@ static State r_num_3(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_num_3", _pos); }
  _pos = _r.pos;
  tlHandle w = _r.value;
- _r = meta_opt(_p, _pos, r_num_3_1);
+ _r = r_exp(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_num_3", _pos); }
  _pos = _r.pos;
  tlHandle e = _r.value;
  tlHandle _v = FloatExp(s, w, null, e);
  return parser_pass(_p, "r_num_3", 0, _start, state_ok(_pos, _v));
+}
+static State r_num_4(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_num_4", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_sign(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_num_4", _pos); }
+ _pos = _r.pos;
+ tlHandle s = _r.value;
+ _r = r_decn(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_num_4", _pos); }
+ _pos = _r.pos;
+ tlHandle w = _r.value;
+ tlHandle _v = Number(s, w, 10);
+ return parser_pass(_p, "r_num_4", 0, _start, state_ok(_pos, _v));
 }
 static State r_num(Parser* _p, int _start) { // or
  parser_enter(_p, "r_num", _start);
@@ -572,6 +579,9 @@ static State r_num(Parser* _p, int _start) { // or
  if (_r.ok) return parser_pass(_p, "r_num", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_num");*/ return _r; }
  _r = r_num_3(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_num", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_num");*/ return _r; }
+ _r = r_num_4(_p, _pos);
  if (_r.ok) return parser_pass(_p, "r_num", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_num");*/ return _r; }
  return parser_fail(_p, "r_num", _start);

@@ -408,9 +408,6 @@ INTERNAL tlHandle _Buffer_new(tlArgs* args) {
         if (error) TL_THROW("%s", error);
     }
 }
-static tlHandle _isBuffer(tlArgs* args) {
-    return tlBOOL(tlBufferIs(tlArgsGet(args, 0)));
-}
 
 static void buffer_init() {
     _tlBufferKind.klass = tlClassObjectFrom(

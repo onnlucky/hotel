@@ -285,6 +285,7 @@ tlObject* tlObjectNew(tlSet* keys);
 tlObject* tlObjectCopy(tlObject* o);
 // TODO tlObject is String -> Value and not just that, String.intern == true
 tlObject* tlObjectFrom(const char* k1, tlHandle v1, ...);
+tlObject* tlObjectFromMap(tlMap* map);
 tlObject* tlObjectFromStrings(tlString* k1, tlHandle v1, ...);
 tlObject* tlObjectFrom1(tlHandle key, tlHandle v);
 tlObject* tlObjectFromMany(tlHandle vs[], int len /*multiple of 2*/);
@@ -298,6 +299,7 @@ tlObject* tlObjectJoin(tlObject* lhs, tlObject* rhs);
 
 tlMap* tlMapEmpty();
 tlMap* tlMapNew(tlSet* keys);
+tlMap* tlMapFromObject(tlObject* o);
 tlMap* tlMapFromPairs(tlList* ls);
 int tlMapSize(tlMap* map);
 tlHandle tlMapGet(tlMap* map, tlHandle key);

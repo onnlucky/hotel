@@ -58,17 +58,6 @@ void tlObjectDump(tlObject* object) {
     print("----");
 }
 
-tlObject* tlObjectToObject(tlObject* object) {
-    tlObject* nobject = tlObjectNew(object->keys);
-    for (int i = 0; i < tlObjectSize(object); i++) nobject->data[i] = object->data[i];
-    return tlObjectToObject_(nobject);
-}
-tlObject* tlObjectToMap(tlObject* object) {
-    tlObject* nobject = tlObjectNew(object->keys);
-    for (int i = 0; i < tlObjectSize(object); i++) nobject->data[i] = object->data[i];
-    return nobject;
-}
-
 tlHandle tlObjectGet(tlObject* object, tlHandle key) {
     assert(tlObjectIs(object) || tlMapIs(object));
     if (tlStringIs(key)) key = tlSymFromString(key);
@@ -300,6 +289,11 @@ static tlHandle _Object_values(tlArgs* args) {
     if (!object) TL_THROW("Expected an Object");
     return tlObjectValues(object);
 }
+static tlHandle _Object_toMap(tlArgs* args) {
+    tlObject* object = tlObjectCast(tlArgsGet(args, 0));
+    if (!object) TL_THROW("Expected an Object");
+    return tlMapFromObject(object);
+}
 static tlHandle _Object_has(tlArgs* args) {
     trace("");
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
@@ -470,6 +464,7 @@ static void object_init() {
         "set", _Object_set,
         "keys", _Object_keys,
         "values", _Object_values,
+        "toMap", _Object_toMap,
         "inherit", _Object_inherit,
         "each", null,
         "map", null,

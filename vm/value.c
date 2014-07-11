@@ -199,39 +199,27 @@ static tlHandle _int_bytes(tlArgs* args) {
     return tlBinFromCopy(bytes, 4);
 }
 
-static tlHandle _isUndefined(tlArgs* args) {
-    return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0)));
-}
-static tlHandle _isDefined(tlArgs* args) {
-    return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0)));
-}
-static tlHandle _isNull(tlArgs* args) {
-    return tlBOOL(tlNull == tlArgsGet(args, 0));
-}
-static tlHandle _isBool(tlArgs* args) {
-    return tlBOOL(tlBoolIs(tlArgsGet(args, 0)));
-}
-static tlHandle _isFloat(tlArgs* args) {
-    return tlBOOL(tlFloatIs(tlArgsGet(args, 0)));
-}
+static tlHandle _isUndefined(tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
+static tlHandle _isDefined(tlArgs* args) { return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0))); }
+static tlHandle _isNull(tlArgs* args) { return tlBOOL(tlNull == tlArgsGet(args, 0)); }
+static tlHandle _isBool(tlArgs* args) { return tlBOOL(tlBoolIs(tlArgsGet(args, 0))); }
+static tlHandle _isFloat(tlArgs* args) { return tlBOOL(tlFloatIs(tlArgsGet(args, 0))); }
 static tlHandle _isNumber(tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     return tlBOOL(tlIntIs(v) || tlFloatIs(v) || tlNumIs(v));
 }
-static tlHandle _isChar(tlArgs* args) {
-    tlHandle v = tlArgsGet(args, 0);
-    return tlBOOL(tlCharIs(v));
-}
-static tlHandle _isString(tlArgs* args) {
-    return tlBOOL(tlStringIs(tlArgsGet(args, 0)));
-}
-static tlHandle _isList(tlArgs* args) {
-    return tlBOOL(tlListIs(tlArgsGet(args, 0)));
-}
-static tlHandle _isObject(tlArgs* args) {
-    tlHandle v = tlArgsGet(args, 0);
-    return tlBOOL(tlObjectIs(v)||tlObjectIs(v));
-}
+static tlHandle _isChar(tlArgs* args) { return tlBOOL(tlCharIs(tlArgsGet(args, 0))); }
+static tlHandle _isString(tlArgs* args) { return tlBOOL(tlStringIs(tlArgsGet(args, 0))); }
+static tlHandle _isList(tlArgs* args) { return tlBOOL(tlListIs(tlArgsGet(args, 0))); }
+static tlHandle _isObject(tlArgs* args) { return tlBOOL(tlObjectIs(tlArgsGet(args, 0))); }
+
+static tlHandle _isSet(tlArgs* args) { return tlBOOL(tlSetIs(tlArgsGet(args, 0))); }
+static tlHandle _isMap(tlArgs* args) { return tlBOOL(tlMapIs(tlArgsGet(args, 0))); }
+static tlHandle _isBin(tlArgs* args) { return tlBOOL(tlBinIs(tlArgsGet(args, 0))); }
+
+static tlHandle _isArray(tlArgs* args) { return tlBOOL(tlArrayIs(tlArgsGet(args, 0))); }
+static tlHandle _isHashMap(tlArgs* args) { return tlBOOL(tlHashMapIs(tlArgsGet(args, 0))); }
+static tlHandle _isBuffer(tlArgs* args) { return tlBOOL(tlBufferIs(tlArgsGet(args, 0))); }
 
 static const tlNativeCbs __value_natives[] = {
     { "isUndefined", _isUndefined },
@@ -244,6 +232,15 @@ static const tlNativeCbs __value_natives[] = {
     { "isString", _isString },
     { "isList", _isList },
     { "isObject", _isObject },
+
+    { "isSet", _isSet },
+    { "isMap", _isMap },
+    { "isBin", _isBin },
+
+    { "isArray", _isArray },
+    { "isHashMap", _isHashMap },
+    { "isBuffer", _isBuffer },
+
     { 0, 0 }
 };
 
