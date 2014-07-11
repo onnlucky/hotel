@@ -268,8 +268,9 @@ stmssl = t:stm (
 guards = gs:guard { gs = tlListFrom1(gs); } (g:guard { gs = tlListAppend(gs, g); })* { $$ = gs; }
  gexpr = _ &{push_indent(G)} gs:guards l:line &{pop_indent(G)} {
            gs = tlListAppend(gs, call_activate(tlCallFromList(tl_active(s__nomatch), tlListEmpty())));
-           $$ = tl_active(tlCodeFrom(gs, FILE, l));
-           $$ = call_activate(tlCallFromList($$, tlListEmpty()));
+           gs = tlCodeFrom(gs, FILE, l);
+           tlCodeSetIsBlock_(gs, true);
+           $$ = call_activate(tlCallFromList(tl_active(gs), tlListEmpty()));
        }
        | &{!pop_indent(G)}
 
