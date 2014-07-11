@@ -553,6 +553,7 @@ uint8_t tlBufferReadByte(tlBuffer* buf);
 
 int tlBufferWrite(tlBuffer* buf, const char* from, int count);
 char* tlBufferWriteData(tlBuffer* buf, int len);
+int tlBufferWriteByte(tlBuffer* buf, const char byte);
 void tlBufferDidWrite(tlBuffer* buf, int count);
 int tlBufferCanWrite(tlBuffer* buf);
 

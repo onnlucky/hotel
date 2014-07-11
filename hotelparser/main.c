@@ -1,9 +1,11 @@
-#include "hotelparser.c"
+#include "xmlparser.c"
 
 int main(int argv, char** args) {
     tl_init();
 
     tlBuffer* buf = tlBufferFromFile(args[1]);
+    tlBufferWriteByte(buf, 0);
+
     Parser* p = parser_new(tlBufferData(buf), tlBufferSize(buf));
     bool r = parser_parse(p, r_start);
     if (!r) {

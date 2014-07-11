@@ -45,6 +45,8 @@ slcomment: "//" (!nl _)*
         | ".."                            -> { type= "call", target= "wsnl" }
         | "."                             -> { type= "call", target= "ws" }
         | "_"                             -> { type= "prim", target= "any" }
+        | "<" t=name ">"                  -> { type= "token", token=t }
+        | "<>"                            -> { type= "token", token="" }
         | t=text                          -> { type= "prim", target= "text", text= t }
         | t=char                          -> { type= "prim", target= "char", text= t }
         | "pos" !alpha !"_" !":" !"*:"    -> { type= "prim", target= "pos" }
@@ -61,8 +63,7 @@ slcomment: "//" (!nl _)*
         | t=term "+"                      -> { type= "plus", term= t, sep= null }
         | t=term "?"                      -> { type= "opt", term= t }
         | term
-   named: n=name "=<" t=name ">"          -> { type= "name", name= n, term= { type= "token", token= t }}
-        | n=name "=" @"a term"  t=post    -> { type= "name", name= n, term= t }
+   named: n=name "=" @"a term"  t=post    -> { type= "name", name= n, term= t }
         | "@" t=text                      -> { type= "anchor", msg= t }
         | "@"                             -> { type= "anchor", msg= "" }
         | post
