@@ -434,7 +434,7 @@ compile = (code ->
             ).flatten
             {type="map",{data}}
         { term.type == "guards" }:
-            scope = Scope(scope)
+            scope = Scope(scope, true)
             target = {type="global",name="_match"}
             gs = term.guards.map(guard ->
                 args = [lex(scope, try(guard.cond, "true"))]
