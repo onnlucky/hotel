@@ -113,13 +113,14 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
         if (kleft == tlStringKind && kright == tlBinKind) return tlBinKind->cmp(left, right);
         if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->cmp(left, _TEXT_FROM_SYM(right));
         if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->cmp(_TEXT_FROM_SYM(left), right);
+        return null;
         // TODO maybe return undefined because compare cannot be done here?
         // but actually, we need to let the interpreter execute user level code here
-        return tlCOMPARE((intptr_t)kleft - (intptr_t)kright);
+        // return tlCOMPARE((intptr_t)kleft - (intptr_t)kright);
     }
     if (!kleft->cmp) return tlCOMPARE((intptr_t)left - (intptr_t)right);
     tlHandle res = kleft->cmp(left, right);
-    assert(res == tlSmaller || res == tlEqual || res == tlLarger || tlUndefinedIs(res));
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return res;
 }
 
@@ -152,25 +153,44 @@ static tlHandle _neq(tlArgs* args) {
     trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(!tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
+/// compare two values, and always return a ordering, order will be runtime dependend sometimes
+static tlHandle _compare(tlArgs* args) {
+    tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
+    tlHandle cmp = tlHandleCompare(left, right);
+    if (!cmp) return tlCOMPARE(tl_kind(left) - tl_kind(right));
+    return cmp;
+}
 static tlHandle _lt(tlArgs* args) {
-    trace("%s < %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
-    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp == tlSmaller);
+    tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
+    trace("%s < %s", tl_str(left), tl_str(right));
+    tlHandle res = tlHandleCompare(left, right);
+    if (!res) TL_UNDEF("cannot compare %s < %s", tl_str(left),  tl_str(right));
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger);
+    return tlBOOL(res == tlSmaller);
 }
 static tlHandle _lte(tlArgs* args) {
-    trace("%d <= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp != tlLarger);
+    tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
+    trace("%s <= %s", tl_str(left), tl_str(right));
+    tlHandle res = tlHandleCompare(left, right);
+    if (!res) TL_UNDEF("cannot compare %s <= %s", tl_str(left),  tl_str(right));
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger);
+    return tlBOOL(res != tlLarger);
 }
 static tlHandle _gt(tlArgs* args) {
-    trace("%d > %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp == tlLarger);
+    tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
+    trace("%s > %s", tl_str(left), tl_str(right));
+    tlHandle res = tlHandleCompare(left, right);
+    if (!res) TL_UNDEF("cannot compare %s > %s", tl_str(left),  tl_str(right));
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger);
+    return tlBOOL(res == tlLarger);
 }
 static tlHandle _gte(tlArgs* args) {
-    trace("%d >= %d", tl_int(tlArgsGet(args, 0)), tl_int(tlArgsGet(args, 1)));
-    tlHandle cmp = tlHandleCompare(tlArgsGet(args, 0), tlArgsGet(args, 1));
-    return (tlUndefinedIs(cmp))? cmp : tlBOOL(cmp != tlSmaller);
+    tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
+    trace("%s >= %s", tl_str(left), tl_str(right));
+    tlHandle res = tlHandleCompare(left, right);
+    if (!res) TL_UNDEF("cannot compare %s >= %s", tl_str(left),  tl_str(right));
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger);
+    return tlBOOL(res != tlSmaller);
 }
 
 // shift operators
@@ -571,6 +591,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "eq",   _eq },
     { "neq",  _neq },
 
+    { "compare", _compare },
     { "lt",   _lt },
     { "lte",  _lte },
     { "gt",   _gt },

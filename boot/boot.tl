@@ -17,8 +17,7 @@ _install_global("and", _and)
 
 asBool = v -> bool(v, true, false)
 asBoolInv = v -> bool(v, false, true)
-isSmaller = l, r -> return l < r
-
+isSmaller = l, r -> return compare(l, r) == -1
 
 while = &cond ->
     block = args.block; if not block: throw "while expects a block"

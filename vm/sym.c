@@ -200,9 +200,9 @@ static void sym_string_init() {
     s_Map_inherit = tlSYM("_Map_inherit");
 
 
-    s_equal = tlSYM("equal"); tlEqual = s_equal;
-    s_smaller = tlSYM("smaller"); tlSmaller = s_smaller;
-    s_larger = tlSYM("larger"); tlLarger = s_larger;
+    s_equal = tlINT(0); tlEqual = s_equal;
+    s_smaller = tlINT(-1); tlSmaller = s_smaller;
+    s_larger = tlINT(1); tlLarger = s_larger;
 
     string_init();
 

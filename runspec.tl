@@ -56,4 +56,4 @@ percent = ($pass / $total * 100)
 percent = { percent >= 100       }: 100
           { percent.round == 100 }: 99
           {                      }: percent.round
-print "specification: $percent% pass (total: $($total))"
+print "specification: $percent% pass (total: $($total) failed: $($total - $pass))"
