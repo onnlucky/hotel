@@ -25,8 +25,8 @@ test "cannot compare unrelated values":
     assert isUndefined("hello" >= 1)
 
 test "total ordering":
-    assert compare(null, 1) == -1 or compare(null, 1) == -1
-    assert compare("foo", 1) == 1 or compare("foo", 1) == 1
+    assert compare(null, 1) == -1 or compare(1, null) == -1
+    assert compare("foo", 1) == 1 or compare(1, "foo") == 1
     assert compare("foo", "foo") == 0
     assert compare(1, 2) == -1
     assert compare(2, 1) == 1
