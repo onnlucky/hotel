@@ -142,8 +142,16 @@ static tlHandle _set_size(tlArgs* args) {
     return tlINT(tlSetSize(set));
 }
 
+static tlHandle runSet(tlHandle _fn, tlArgs* args) {
+    tlSet* set = tlSetAs(_fn);
+    int at = tlSetIndexof(set, tlArgsGet(args, 0));
+    if (at < 0) return tlFalse;
+    return tlTrue;
+}
+
 static tlKind _tlSetKind = {
     .name = "Set",
+    .run = runSet
 };
 tlKind* tlSetKind = &_tlSetKind;
 
