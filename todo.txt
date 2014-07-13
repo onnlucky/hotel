@@ -1,56 +1,41 @@
 # TODO
 
-remove complexities: always allocate a frame
+tool gcov and assure make test has full coverage
+work on documentation
+add optional types turning into asserts, experiment with compiler discovering types
+null > 1: throw undefined? or return undefined?
+graphics: turn into module, by registering a vm exit function and moving vm to alternative thread
+graphics: don't do the thread/blocking/reentrance dance, instead, have a single task driving native API
 
-in bytecode, we don't need argnames, we can calculate and store that map when we need it, als we can size the args list dynamically, saves space ...
+move to bytecode, remove eval based stuff
+- clean up pointer flags
+- remove tlSYM in favor of interned Strings, with optional pointer flag
+- implement proper operators
+- always allocate a frame so that exceptions and such can always find a frame, clean up all resumes
 
-remove last symbol holdouts
-add closure.invoke or such where all params are given as maps and lists, to use
-add Queue + max depth size or unlimited; MsgQueue and TaskQueue
+bytecode
+- in bytecode, we don't need argnames, we can calculate and store that map when we need it, als we can size the args list dynamically, saves space ...
+- implement classes in parser, compiler
+- run a task for only N random ticks, then switch to make races less deterministic
+- ensure debugger works
+- have a coverage tool
+- do simple optimizations in compiler, like (x + 1) * 2 does not require a body for x + 1
 
-add "if" to parser and do
+guarded expressions: think about a better syntax?
 
-return if true
-return unless true
-if true: return
-unless true: return
+add "if"/"unless" to parser to do
+- return if true
+- return unless true
+- if(true,something,otherwise)
+do we want a true else? or just use guarded expressions?
 
-but nothing more complex then that, we have guarded expressions for those
+add xml like things to language
 
-----
-
-have interpreter run for N ticks per task, where N is 'somewhat' random instead of alway till the end ...
-
-----
-
-# <test>hello world!</test>
-test("hello world!")
-
-# <foo><a1>test</a1><a2 value=true>${1 + 1}</a2></foo>
-foo(a1("test"),a2(value=true,1 + 1))
-
-or somehow more namespaced? and maybe more flat, this will cost in lazyness ...
-
-----
-
-rename tlMap as tlValue and remove tlValueObject ...
-for tlMap and tlSet, require tlSym as keys ... clean up lots of "complexity" there
 add kind->resume for tlFrame and throw using frame.kind.name
-add kind->finalize for finalizers
+add kind->finalize for finalizers and do the automatically
 
 do class._name for error.toString: this.class._name ": " this.msg ...
 on error, if object, call toString on it ...
-
-add objects using:
-  Square = Object { width, height ->
-    methods {
-      area: -> this.width * this.height
-    }
-  }
-
-remove "foo $(...)" interpolation, do "foo" ... instead ...
-
-upgrade httpparser module, add httpresponse
 
 simplify usage of libgc/libatomic_ops, it takes way to long to configure/compile?
 implement a_var based on libatomic_ops ...
@@ -74,7 +59,6 @@ instead of hotel, lets call it arrows? .rr? .arrow? sounds nice
 start preparing a first release:
 * stamp every file with license/author
 * use gcov to remove any unused code or add tests for them (larger parts...)
-* clean up and comment eval.c maybe remove some of it to run.c oid
 
 think about special inherited task local *Env*:
 * for stdin/stdout/stderr
