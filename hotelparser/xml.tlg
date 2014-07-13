@@ -1,0 +1,59 @@
+parser = parser {
+     end: !_
+      sp: " " | "\t" | "\r" | "\n"
+      ws: sp*
+
+    name: ts=(!sp !">" !"/>" _)*      -> String(ts)
+   aname: ts=(!"=" !sp !">" !"/>" _)+ -> String(ts)
+
+  escape: "\\\""      -> tlINT('"')
+        | "\\n"       -> tlINT('\n')
+        | "\\r"       -> tlINT('\r')
+        | "\\t"       -> tlINT('\t')
+        | "\\\\"      -> tlINT('\\')
+        | !"\"" !">" _
+  string: "\"" ts=(!"\"" escape)* "\"" -> String(ts)
+        | "'" ts=(!"'" escape)* "'"    -> String(ts)
+
+    attr: k=aname ."=". v=name
+        | k=aname ."=". v=string
+        | k=aname
+        | (!">" !"/" _)+
+   attrs: (attr)*(.)
+
+    text: ts=(!"<" _)+ -> String(ts)
+   cdata: "<![CDATA[" ts=(!"]]>" _) "]]>"  -> String(ts)
+   close: "<"."/".name=name.attrs=attrs."/"?.">" type=<close>
+    open: "<".name=name.attrs=attrs.type=(">" <open>| "/".">" <selfclose>)
+ comment: "<"."!"."--" (!"--" _)* "--".">" -> tlNull
+ unknown: _ (!"<" !">" _)*                 -> tlNull
+
+// just assuming style and script are not valid xml to support html parsing
+  cstyle: ts=(!"</style" _)* -> String(ts)
+   style: "<".name="style"&(sp|">").attrs=attrs.">" content=cstyle "</style".attrs.">"
+ cscript: ts=(!"</script" _)* -> String(ts)
+  script: "<".name="script"&(sp|">").attrs=attrs.">" content=cscript "</script".attrs.">"
+
+     seq: (.cdata|.comment|.style|.script|.close|.open|text|.unknown)*
+
+   start: .ls=seq.end -> ls
+}
+
+#ifndef NO_VALUE
+static tlHandle _xml_parse(tlArgs* args) {
+    tlString* code = tlStringCast(tlArgsGet(args, 0));
+    if (!code) TL_THROW("expected a String");
+    Parser* p = parser_new(tlStringData(code), tlStringSize(code));
+    bool r = parser_parse(p, r_start);
+    if (!r) {
+        TL_THROW("parse error: %s at: %d:%d", p->error_msg, p->error_line, p->error_char);
+    }
+    return p->value;
+}
+
+void xmlparser_init() {
+    tl_register_global("_xml_parse", tlNATIVE(_xml_parse, "_xml_parse"));
+}
+#endif
+
+

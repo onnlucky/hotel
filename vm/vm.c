@@ -513,6 +513,7 @@ void tl_init() {
 
 void hotelparser_init();
 void jsonparser_init();
+void xmlparser_init();
 
 tlVm* tlVmNew() {
     srandom(time(NULL));
@@ -536,6 +537,7 @@ tlVm* tlVmNew() {
     //storage_init_vm(vm);
     hotelparser_init();
     jsonparser_init();
+    xmlparser_init();
 
     vm->locals = tlObjectFrom("cwd", tl_cwd, null);
     vm->exitcode = -1;

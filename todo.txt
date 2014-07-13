@@ -31,6 +31,8 @@ do we want a true else? or just use guarded expressions?
 
 add xml like things to language
 
+add a WeakMap, add a HashMap based on regular locked hashmap implementation
+
 add kind->resume for tlFrame and throw using frame.kind.name
 add kind->finalize for finalizers and do the automatically
 
