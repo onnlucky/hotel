@@ -728,22 +728,11 @@ static State r_script(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_script", _pos); }
  _pos = _r.pos;
  tlHandle content = _r.value;
- _r = prim_text(_p, _pos, "</script");
+ _r = state_ok(_pos, tlSTR("open"));
  if (!_r.ok) { return parser_fail(_p, "r_script", _pos); }
  _pos = _r.pos;
- _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_script", _pos); }
- _pos = _r.pos;
- _r = r_attrs(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_script", _pos); }
- _pos = _r.pos;
- _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_script", _pos); }
- _pos = _r.pos;
- _r = prim_text(_p, _pos, ">");
- if (!_r.ok) { return parser_fail(_p, "r_script", _pos); }
- _pos = _r.pos;
- tlHandle _v = tlObjectFrom("name", name, "attrs", attrs, "content", content, null);
+ tlHandle type = _r.value;
+ tlHandle _v = tlObjectFrom("name", name, "attrs", attrs, "content", content, "type", type, null);
  return parser_pass(_p, "r_script", 0, _start, state_ok(_pos, _v));
 }
 static State r_attrs_2_1(Parser* _p, int _start) { // and
@@ -1032,22 +1021,11 @@ static State r_style(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_style", _pos); }
  _pos = _r.pos;
  tlHandle content = _r.value;
- _r = prim_text(_p, _pos, "</style");
+ _r = state_ok(_pos, tlSTR("open"));
  if (!_r.ok) { return parser_fail(_p, "r_style", _pos); }
  _pos = _r.pos;
- _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_style", _pos); }
- _pos = _r.pos;
- _r = r_attrs(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_style", _pos); }
- _pos = _r.pos;
- _r = r_ws(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_style", _pos); }
- _pos = _r.pos;
- _r = prim_text(_p, _pos, ">");
- if (!_r.ok) { return parser_fail(_p, "r_style", _pos); }
- _pos = _r.pos;
- tlHandle _v = tlObjectFrom("name", name, "attrs", attrs, "content", content, null);
+ tlHandle type = _r.value;
+ tlHandle _v = tlObjectFrom("name", name, "attrs", attrs, "content", content, "type", type, null);
  return parser_pass(_p, "r_style", 0, _start, state_ok(_pos, _v));
 }
 static State r_wsnl(Parser* _p, int _start) { // and

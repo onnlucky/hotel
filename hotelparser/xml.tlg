@@ -30,9 +30,9 @@ parser = parser {
 
 // just assuming style and script are not valid xml to support html parsing
   cstyle: ts=(!"</style" _)* -> String(ts)
-   style: "<".name="style"&(sp|">").attrs=attrs.">" content=cstyle "</style".attrs.">"
+   style: "<".name="style"&(sp|">").attrs=attrs.">" content=cstyle type=<open>
  cscript: ts=(!"</script" _)* -> String(ts)
-  script: "<".name="script"&(sp|">").attrs=attrs.">" content=cscript "</script".attrs.">"
+  script: "<".name="script"&(sp|">").attrs=attrs.">" content=cscript type=<open>
 
      seq: (.cdata|.comment|.style|.script|.close|.open|text|.unknown)*
 

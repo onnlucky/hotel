@@ -1,18 +1,12 @@
 selfclosing = Set("link","meta")
-nonnesting = Set("p")
+nonnesting = Set("p", "td", "tr", "a")
 
-stream = _xml_parse("<link><p>1<p>2<p/>3<p>4")
-print repr stream
+stream = _xml_parse(io.File("../../Downloads/test.html").readString)
 
-_methods = {
-    add = node -> this._nodes.add(node)
-}
 Node = parent, name ->
-    {
-        {parent,name}
-        _nodes = Array.new
-        class = _methods
-    }
+    node = dom.Node.new(name)
+    parent.add(node)
+    return node
 
 findparent = node, name ->
     if node.name == name: return node
@@ -29,14 +23,15 @@ pprint = node, indent ->
     print "$indent</$(node.name)>"
 
 process = node, cmd ->
+    print "process", repr(cmd)
     { not cmd                 }: node
     { isString(cmd)           }: node.add(cmd); node
     { cmd.type == "open"      }:
-        { selfclosing(cmd.name) }: node.add(Node(node, cmd.name)); node
+        { selfclosing(cmd.name) }: Node(node, cmd.name); node
         { nonnesting(cmd.name)  }: parent = findparent(node, cmd.name)
-                                   { parent }: parent.parent.add(Node(parent.parent, cmd.name))
-                                   {        }: node.add(Node(node, cmd.name))
-        {                       }: node.add(Node(node, cmd.name))
+                                   { parent }: Node(parent.parent, cmd.name)
+                                   {        }: Node(node, cmd.name)
+        {                       }: Node(node, cmd.name)
     { cmd.type == "close"     }:
         { selfclosing(cmd.name) }: node
         {                       }: parent = findparent(node, cmd.name)
@@ -44,17 +39,13 @@ process = node, cmd ->
                                    return node
     { cmd.type == "selfclose" }:
         { nonnesting(cmd.name)  }: parent = findparent(node, cmd.name)
-                                   { parent }: parent.parent.add(Node(parent.parent, cmd.name)); parent.parent
-                                   {        }: node.add(Node(node, cmd.name)); node
-        {                       }: node.add(Node(node, cmd.name)); node
+                                   { parent }: Node(parent.parent, cmd.name); parent.parent
+                                   {        }: Node(node, cmd.name); node
+        {                       }: Node(node, cmd.name); node
 
-root = Node(null, "root")
+root = dom.Node.new("doc")
 node = Var.new root
-stream.each: cmd ->
-    $node = process($node, cmd)
+stream.each: cmd -> $node = process($node, cmd)
 
-
-pprint(root)
-
-print nonnesting("p")
+print(root.toString)
 
