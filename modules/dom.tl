@@ -27,7 +27,7 @@ iter = node, fn ->
     iter2(node, fn)
 
 DomEntry = {
-    remove= ->
+    remove = ->
         assert @parent
         if @parent.firstChild == this: @parent.firstChild = @next
         if @parent.lastChild == this: @parent.lastChild = @prev
@@ -38,7 +38,7 @@ DomEntry = {
         @next = null
         return this
 
-    addBefore= node ->
+    addBefore = node ->
         assert not node.parent
         assert @parent
         node.parent = @parent
@@ -49,7 +49,7 @@ DomEntry = {
         @parent.firstChild = node
         return this
 
-    addAfter= node ->
+    addAfter = node ->
         assert not node.parent
         assert @parent
         node.parent = @parent
@@ -62,30 +62,30 @@ DomEntry = {
 }
 
 DomText = {
-    class= DomEntry
-    toString= -> return @text or ""
-    firstChild= null
-    lastChild= null
-    attrs= null
+    class = DomEntry
+    toString = -> return @text or ""
+    firstChild = null
+    lastChild = null
+    attrs = null
 }
 
 Text = {
-    new= (text ->
+    new = (text ->
         _Mutable_new {
-            parent= null
-            prev= null
-            next= null
+            parent = null
+            prev = null
+            next = null
 
-            text= text or ""
-            class= DomText
+            text = text or ""
+            class = DomText
         }
     )
 }
 
 DomNode = {
-    class= DomEntry
+    class = DomEntry
 
-    _add= node ->
+    _add = node ->
         if not @lastChild:
             node.parent = this
             @firstChild = node
@@ -93,7 +93,7 @@ DomNode = {
             return
         @lastChild.addAfter(node)
 
-    add= node ->
+    add = node ->
         if not node: return this
         if isString(node): this._add(Text.new(node)); return this
         // TODO if node"has"("each"): ...
@@ -101,17 +101,17 @@ DomNode = {
         this._add(node)
         return this
 
-    clear= ->
+    clear = ->
         @firstChild = null
         @lastChild = null
         return this
 
-    attr= key, value ->
+    attr = key, value ->
         if args.size == 1: return @attrs[key]
         @attrs[key] = value
         return this
 
-    toString= mode ->
+    toString = mode ->
         // TODO hotel should provide a StringBuilder or such ... but this works
         sb = Array.new
         if mode != "children":
@@ -136,12 +136,12 @@ DomNode = {
         sb.join
 
     // think Element.textContent
-    text= ->
+    text = ->
         sb = Array.new
         iter(this): n -> if n.class == DomText: sb.add(n.text)
         sb.join
 
-    each= fn ->
+    each = fn ->
         fn = args.block or fn
         if not fn: throw "expect a block or function"
         var $n = @firstChild
@@ -149,23 +149,26 @@ DomNode = {
         while $n: fn($n); $n = $m; $m = $n?next
         return this
 
-    find= sel -> sizzle.find(sel, this)
-    findAll= sel -> sizzle.findAll(sel, this)
+    find = sel -> sizzle.find(sel, this)
+    findAll = sel -> sizzle.findAll(sel, this)
 }
 
 Node = {
-    new= (name, children, attrs ->
-        //assert (not attrs) or HashMap.is(attrs)
+    new = (name, attrs, children ->
+        attrs = { isHashMap(attrs) }: attrs
+                { isObject(attrs)  }: HashMap.new(attrs)
+                { isMap(attrs)     }: HashMap.new(attrs)
+                {                  }: HashMap.new
         n = _Mutable_new {
-            parent= null
-            prev= null
-            next= null
-            firstChild= null
-            lastChild= null
+            parent = null
+            prev = null
+            next = null
+            firstChild = null
+            lastChild = null
 
-            name= (name or "").lower
-            attrs= attrs or HashMap.new
-            class= DomNode
+            name = name or ""
+            attrs = attrs
+            class = DomNode
         }
         if children: n.add(children)
         return n
@@ -174,8 +177,8 @@ Node = {
 
 test "dom nodes":
     n = Node.new("div")
-    p1 = Node.new("p", "1")
-    p2 = Node.new("p", "2")
+    p1 = Node.new("p", null, "1")
+    p2 = Node.new("p", null, "2")
     p3 = Node.new("p").add(Text.new("3"))
     n.add([p1, p2, p3])
     assert n.firstChild.firstChild.text == "1"

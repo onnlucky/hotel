@@ -342,7 +342,7 @@ static State r_attr_1(Parser* _p, int _start) { // and
  _r = r_ws(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_attr_1", _pos); }
  _pos = _r.pos;
- _r = r_name(_p, _pos);
+ _r = r_string(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_attr_1", _pos); }
  _pos = _r.pos;
  tlHandle v = _r.value;
@@ -366,7 +366,7 @@ static State r_attr_2(Parser* _p, int _start) { // and
  _r = r_ws(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_attr_2", _pos); }
  _pos = _r.pos;
- _r = r_string(_p, _pos);
+ _r = r_name(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_attr_2", _pos); }
  _pos = _r.pos;
  tlHandle v = _r.value;

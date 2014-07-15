@@ -15,8 +15,8 @@ parser = parser {
   string: "\"" ts=(!"\"" escape)* "\"" -> String(ts)
         | "'" ts=(!"'" escape)* "'"    -> String(ts)
 
-    attr: k=aname ."=". v=name
-        | k=aname ."=". v=string
+    attr: k=aname ."=". v=string
+        | k=aname ."=". v=name
         | k=aname
         | (!">" !"/" _)+
    attrs: kv=(attr)*(.) -> Object(kv)

@@ -92,9 +92,6 @@ tlmeta: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl
 	TL_MODULE_PATH=./modules ./tl boot-tlmeta.tl tlmeta.tlg tlmeta
 	chmod 755 tlmeta
 
-modules/html.tl: modules/html.tlg tl tlmeta
-	TL_MODULE_PATH=./modules ./tl tlmeta modules/html.tlg modules/html.tl
-
 modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
 	TL_MODULE_PATH=./modules ./tl tlmeta modules/sizzle.tlg modules/sizzle.tl
 
