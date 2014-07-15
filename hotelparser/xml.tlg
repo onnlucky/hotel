@@ -19,7 +19,7 @@ parser = parser {
         | k=aname ."=". v=string
         | k=aname
         | (!">" !"/" _)+
-   attrs: (attr)*(.)
+   attrs: kv=(attr)*(.) -> Object(kv)
 
     text: ts=(!"<" _)+ -> String(ts)
    cdata: "<![CDATA[" ts=(!"]]>" _) "]]>"  -> String(ts)

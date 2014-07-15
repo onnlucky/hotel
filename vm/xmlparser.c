@@ -754,10 +754,13 @@ static State r_attrs_3_1(Parser* _p, int _start) { // and
 static State r_attrs(Parser* _p, int _start) { // and
  parser_enter(_p, "r_attrs", _start);
  int _pos = _start;
- State _r = meta_star(_p, _pos, r_attrs_2_1, r_attrs_3_1);
- if (_r.ok) return parser_pass(_p, "r_attrs", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_attrs");*/ return _r; }
- return parser_fail(_p, "r_attrs", _start);
+ State _r;
+ _r = meta_star(_p, _pos, r_attrs_2_1, r_attrs_3_1);
+ if (!_r.ok) { return parser_fail(_p, "r_attrs", _pos); }
+ _pos = _r.pos;
+ tlHandle kv = _r.value;
+ tlHandle _v = Object(kv);
+ return parser_pass(_p, "r_attrs", 0, _start, state_ok(_pos, _v));
 }
 static State r_text_2_1_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_text_2_1_1", _start);

@@ -364,7 +364,11 @@ static tlObject* Object(tlHandle kvlist) {
     tlHashMap* map = tlHashMapNew();
     for (int i = 0; i < size; i++) {
         tlObject* kv = tlObjectAs(tlListGet(from, i));
-        tlHashMapSet(map, tlObjectGet(kv, tlSYM("k")), tlObjectGet(kv, tlSYM("v")));
+        tlHandle k = tlObjectGet(kv, tlSYM("k"));
+        if (!k) continue;
+        tlHandle v = tlObjectGet(kv, tlSYM("v"));
+        if (!v) v = tlNull;
+        tlHashMapSet(map, k, v);
     }
     return tlHashMapToObject(map);
 }

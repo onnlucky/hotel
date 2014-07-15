@@ -1,5 +1,5 @@
-selfclosing = Set("link","meta")
-nonnesting = Set("p", "td", "tr", "a")
+selfclosing = Set("link","meta","!doctype","!DOCTYPE")
+nonnesting = Set("p", "td", "tr", "a","img","hr")
 
 stream = _xml_parse(io.File("../../Downloads/test.html").readString)
 
@@ -23,7 +23,7 @@ pprint = node, indent ->
     print "$indent</$(node.name)>"
 
 process = node, cmd ->
-    print "process", repr(cmd)
+    //print "process", repr(cmd)
     { not cmd                 }: node
     { isString(cmd)           }: node.add(cmd); node
     { cmd.type == "open"      }:
@@ -35,7 +35,7 @@ process = node, cmd ->
     { cmd.type == "close"     }:
         { selfclosing(cmd.name) }: node
         {                       }: parent = findparent(node, cmd.name)
-                                   if parent: return parent
+                                   if parent: return parent.parent
                                    return node
     { cmd.type == "selfclose" }:
         { nonnesting(cmd.name)  }: parent = findparent(node, cmd.name)
