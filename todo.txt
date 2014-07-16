@@ -7,6 +7,8 @@ null > 1: throw undefined? or return undefined?
 graphics: turn into module, by registering a vm exit function and moving vm to alternative thread
 graphics: don't do the thread/blocking/reentrance dance, instead, have a single task driving native API
 
+streams: implement some form of hold/release like cork/uncork buffer/flush
+
 move to bytecode, remove eval based stuff
 - clean up pointer flags
 - remove tlSYM in favor of interned Strings, with optional pointer flag
