@@ -137,6 +137,30 @@ static tlHandle _set_get(tlArgs* args) {
     return tlMAYBE(tlSetGet(set, at));
 }
 
+static tlHandle _set_find(tlArgs* args) {
+    tlSet* set = tlSetAs(tlArgsTarget(args));
+    int at = tlSetIndexof(set, tlArgsGet(args, 0));
+    if (at < 0) return tlNull;
+    return tlINT(at + 1);
+}
+
+static tlHandle _set_slice(tlArgs* args) {
+    tlSet* set = tlSetAs(tlArgsTarget(args));
+    int first = tl_int_or(tlArgsGet(args, 0), 1);
+    int last = tl_int_or(tlArgsGet(args, 1), -1);
+
+    int offset;
+    int len = sub_offset(first, last, tlSetSize(set), &offset);
+    if (len == 0) return tlSetEmpty();
+
+    tlSet* nset = tlSetNew(len);
+    for (int i = 0; i < len; i++) {
+        nset->data[i] = set->data[offset + i];
+    }
+    tlSetAssert(nset);
+    return nset;
+}
+
 static tlHandle _set_size(tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     return tlINT(tlSetSize(set));
@@ -145,8 +169,8 @@ static tlHandle _set_size(tlArgs* args) {
 static tlHandle runSet(tlHandle _fn, tlArgs* args) {
     tlSet* set = tlSetAs(_fn);
     int at = tlSetIndexof(set, tlArgsGet(args, 0));
-    if (at < 0) return tlFalse;
-    return tlTrue;
+    if (at < 0) return tlNull;
+    return tlINT(at + 1);
 }
 
 static tlKind _tlSetKind = {
@@ -160,7 +184,9 @@ static void set_init() {
     _tlSetKind.klass = tlClassObjectFrom(
         "size", _set_size,
         "has", _set_has,
+        "find", _set_find,
         "get", _set_get,
+        "slice", _set_slice,
         "random", null,
         "each", null,
         "map", null,

@@ -25,3 +25,12 @@ test "iterate":
 test "slice":
     ref = Set(1,2,3,4,5,"hello","world")
     assert ref[1:2].size == 2
+    assert ref[5:5].size == 1
+    assert ref[5:5](ref[5])
+
+test "find":
+    ref = Set(1,2,3,4,5,"hello","world")
+    at = ref.find("hello")
+    assert at == ref("hello")
+    assert at == 1 or at == 2 or at == 6 or at == 7
+
