@@ -345,12 +345,19 @@ INTERNAL tlHandle _buffer_findByte(tlArgs* args) {
     int b = tl_int_or(tlArgsGet(args, 0), -1);
     if (b == -1) TL_THROW("expected a number (0 - 255)");
 
-    int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
+    int from = max(0, tl_int_or(tlArgsGet(args, 1), 1) - 1);
+    if (from < 0) return tlNull;
+
+    int upto = min(tlBufferSize(buf), tl_int_or(tlArgsGet(args, 2), tlBufferSize(buf)));
+    if (from >= upto) return tlNull;
+
+    //int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
+    //print("findbyte: %d, from: %d, len: %d", b, from, canread(buf));
     if (from < 0) return tlNull;
 
     const char* data = readbuf(buf);
     int at = from;
-    int end = canread(buf);
+    int end = min(upto - from, canread(buf));
     for (; at < end; at++) if (data[at] == b) return tlINT(1 + at);
     return tlNull;
 }

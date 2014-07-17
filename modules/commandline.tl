@@ -8,6 +8,8 @@ cursorPosition = term ->
     size = term.readString(len)[3:-2].split(";")
     return Number(size[2]), Number(size[1])
 
+// TODO listen for signal WINCH
+
 term = io.stdin
 if not term.isTTY: return
 term.setRaw

@@ -109,7 +109,8 @@ Stream = {
             this._readSome buf
         find = what, from, upto ->
             loop:
-                r = this.rbuf.find what, from, upto
+                r = { isNumber(what) }: this.rbuf.findByte what, from, upto
+                    {                }: this.rbuf.find what, from, upto
                 if r: return r
                 if upto and this.rbuf.size >= upto: return null
                 if this.file.reader.isClosed: return null
