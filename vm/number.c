@@ -81,7 +81,8 @@ static tlHandle floatCmp(tlHandle left, tlHandle right) {
     if (l > r) return tlLarger;
     if (l < r) return tlSmaller;
     if (l == r) return tlEqual;
-    return tlUndef();
+    // TODO this is almost impossible ... but NaN <> NaN causes this
+    return null;
 }
 
 static tlKind _tlFloatKind = {

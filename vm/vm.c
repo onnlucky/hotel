@@ -120,7 +120,7 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
     }
     if (!kleft->cmp) return tlCOMPARE((intptr_t)left - (intptr_t)right);
     tlHandle res = kleft->cmp(left, right);
-    assert(res == tlSmaller || res == tlEqual || res == tlLarger);
+    assert(res == tlSmaller || res == tlEqual || res == tlLarger || res == null);
     return res;
 }
 
