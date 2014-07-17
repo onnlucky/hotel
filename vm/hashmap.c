@@ -206,6 +206,9 @@ INTERNAL tlHandle _hashmap_each(tlArgs* args) {
 }
 
 INTERNAL tlHandle _hashmap_toMap(tlArgs* args) {
+    return tlHashMapToMap(tlHashMapAs(tlArgsTarget(args)));
+}
+INTERNAL tlHandle _hashmap_toObject(tlArgs* args) {
     return tlHashMapToObject(tlHashMapAs(tlArgsTarget(args)));
 }
 
@@ -219,14 +222,18 @@ void hashmap_init() {
         "has", _hashmap_has,
         "del", _hashmap_del,
         "keys", _hashmap_keys,
-        "each", _hashmap_each,
         "toMap", _hashmap_toMap,
+        "toObject", _hashmap_toObject,
+        "each", _hashmap_each,
+        "map", null,
         null
     );
     hashmapClass = tlClassObjectFrom(
         "new", _HashMap_new,
+        "_methods", null,
         null
     );
+    tlObjectSet_(hashmapClass, s__methods, _tlHashMapKind.klass);
 }
 
 static void hashmap_vm_default(tlVm* vm) {

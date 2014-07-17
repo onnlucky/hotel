@@ -349,6 +349,15 @@ _object_map = (m, fn ->
 _install(Object, "each", _object_each)
 _install(Object, "map", _object_map)
 
+_hashmap_map = (fn ->
+    block = args.block or fn
+    if not block: throw "map expects a block or fn"
+    res = Array.new
+    this.each(k, v, n -> res.add(block(k, v, n)))
+    res.toList
+)
+_install(HashMap._methods, "map", _hashmap_map)
+
 _install(Array._methods, "random", _get_random)
 _install(Array._methods, "each", _each)
 _install(Array._methods, "map", _map)
