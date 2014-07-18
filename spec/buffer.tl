@@ -16,8 +16,25 @@ test "basic":
 test "find":
     buf = Buffer.new("hello world")
     assert buf.find("world") == 7
+    assert buf.find(Bin("world")) == 7
+    assert buf.find(Buffer.new("world")) == 7
+
+    // bytes are 0-255 by forcing int and masking bits
+    assert buf.find('w') == 7
+    assert buf.find(119) == 7
+    assert buf.find(119.0) == 7
+    assert buf.find(119.0 + 256) == 7
+    assert buf.find(119.0 - 256) == 7
+    assert buf.find(119 - 256 - 256 - 256) == 7
+
+test "depricated findByte":
+    buf = Buffer.new("hello world")
     assert buf.findByte('w') == 7
     assert buf.findByte(119) == 7
+
+test "depricated findByte":
+    buf = Buffer.new("1234567890 - 1234567890")
+    assert buf.find('1') == buf.findByte('1')
 
 test "find from and upto":
     buf = Buffer.new("1234567890 - 1234567890")
@@ -26,10 +43,6 @@ test "find from and upto":
     assert buf.find("1", null) == 1
     assert buf.find("1", 11, null) == 14
     assert buf.find("1", 11, 10000) == 14
-
-test "depricate findByte":
-    buf = Buffer.new("1234567890 - 1234567890")
-    assert buf.find('1') == buf.findByte('1')
 
 test "favor from= and upto= keyword args":
     buf = Buffer.new("1234567890 - 1234567890")

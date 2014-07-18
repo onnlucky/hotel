@@ -346,6 +346,9 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     int size = tlBufferSize(buf);
     assert(size == canread(buf));
 
+    tlHandle arg0 = tlArgsGet(args, 0);
+    if (!arg0) TL_THROW("expected a String or Number");
+
     int at = 1;
     tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, at++);
@@ -362,17 +365,15 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     assert(upto >= 0 && upto <= canread(buf));
 
     //bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
-    tlHandle arg0 = tlArgsGet(args, 0);
 
     const char* needle = null;
-    if (tlStringIs(arg0)) needle = tlStringData(arg0);
-    // TODO these two are not safe? nu guarantee of zero byte at end I suppose ... sigh
-    //else if (tlBinIs(arg0)) needle = tlBinData(arg0);
-    //else if (tlBufferIs(arg0)) needle = tlBufferData(arg0); // TODO check for locked buffer?!
+    int needle_len = 0;
+    if (tlStringIs(arg0)) { needle = tlStringData(arg0); needle_len = tlStringSize(arg0); }
+    else if (tlBinIs(arg0)) { needle = tlBinData(arg0); needle_len = tlBinSize(arg0); }
+    else if (tlBufferIs(arg0)) { needle = tlBufferData(arg0); needle_len = tlBufferSize(arg0); } // TODO check for locked buffer?!
     if (needle) {
-        if (size == 0) return tlNull;
         const char* begin = readbuf(buf);
-        char* at = strnstr(begin + from, needle, upto - from);
+        char* at = memmem(begin + from, upto - from, needle, needle_len);
         if (!at) return tlNull;
         return tlINT(1 + at - begin);
     }
