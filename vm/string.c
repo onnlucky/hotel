@@ -302,6 +302,11 @@ INTERNAL tlHandle _string_size(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlINT(tlStringSize(str));
 }
+/// bytes: return the amount of bytes in the #String, bytes >= size due to multibyte characters
+INTERNAL tlHandle _string_bytes(tlArgs* args) {
+    tlString* str = tlStringAs(tlArgsTarget(args));
+    return tlINT(tlStringSize(str));
+}
 /// hash: return the hashcode for this #String
 INTERNAL tlHandle _string_hash(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
@@ -553,6 +558,7 @@ static void string_init() {
         "toString", _string_toString,
         "toSym", _string_toSym,
         "size", _string_size,
+        "bytes", _string_bytes,
         "hash", _string_hash,
         "startsWith", _string_startsWith,
         "endsWith", _string_endsWith,
