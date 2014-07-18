@@ -405,8 +405,10 @@ static tlHandle _box_alpha(tlArgs* args) {
 
 static tlHandle _box_ondraw(tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) {
-        box->ondraw = tlArgsGet(args, 0);
+    tlHandle block = tlArgsBlock(args);
+    if (!block) block = tlArgsGet(args, 0);
+    if (block) {
+        box->ondraw = block;
         box_dirty(box);
     }
     return box->ondraw?box->ondraw : tlNull;
@@ -439,19 +441,25 @@ static tlHandle _text_text(tlArgs* args) {
 
 static tlHandle _window_onkey(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) window->onkey = tlArgsGet(args, 0);
+    tlHandle block = tlArgsBlock(args);
+    if (!block) block = tlArgsGet(args, 0);
+    if (block) window->onkey = block;
     return window->onkey?window->onkey : tlNull;
 }
 
 static tlHandle _window_onmouse(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) window->onmouse = tlArgsGet(args, 0);
+    tlHandle block = tlArgsBlock(args);
+    if (!block) block = tlArgsGet(args, 0);
+    if (block) window->onmouse = block;
     return window->onmouse?window->onmouse : tlNull;
 }
 
 static tlHandle _window_onresize(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
-    if (tlArgsSize(args) > 0) window->onresize = tlArgsGet(args, 0);
+    tlHandle block = tlArgsBlock(args);
+    if (!block) block = tlArgsGet(args, 0);
+    if (block) window->onresize = block;
     return window->onresize?window->onresize : tlNull;
 }
 

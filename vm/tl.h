@@ -433,6 +433,7 @@ void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v);
 
 tlHandle tlArgsTarget(tlArgs* args);
 tlSym tlArgsMsg(tlArgs* args);
+tlHandle tlArgsBlock(tlArgs* args);
 
 tlHandle tlArgsFn(tlArgs* args);
 int tlArgsSize(tlArgs* args);
