@@ -81,7 +81,7 @@ INTERNAL void tlBufferBeforeWrite(tlBuffer* buf, int len) {
 int tlBufferCanWrite(tlBuffer* buf) {
     return canwrite(buf);
 }
-/// get a pointer to the direct data underlying this buffer, guaranteed to have at least #len bytes of space
+// get a pointer to the direct data underlying this buffer, guaranteed to have at least #len bytes of space
 char* tlBufferWriteData(tlBuffer* buf, int len) {
     tlBufferBeforeWrite(buf, len);
     return writebuf(buf);
@@ -224,24 +224,34 @@ tlBuffer* tlBufferFromFile(const char* file) {
     return buf;
 }
 
+/// Buffer: a mutable object containing bytes to which you can write and read from
+/// while reading the buffer temporarily keeps the read bytes until any write operation
+
+/// size: return the current amount of bytes that can be read
 INTERNAL tlHandle _buffer_size(tlArgs* args) {
     return tlINT(canread(tlBufferAs(tlArgsTarget(args))));
 }
+
+/// compact: discard any temporarily bytes already read
 INTERNAL tlHandle _buffer_compact(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferCompact(buf);
     return buf;
 }
+/// clear: reset the buffer, discarding any read and unread bytes
 INTERNAL tlHandle _buffer_clear(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferClear(buf);
     return buf;
 }
+/// rewind: undo the read operations by rewinding the read position back to the bytes already read
 INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferRewind(buf, -1);
     return buf;
 }
+/// read(max): read #max bytes from the buffer returning them as a #Bin (binary list)
+/// if no #max is not given, read all bytes from the buffer
 INTERNAL tlHandle _buffer_read(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -275,6 +285,8 @@ INTERNAL tlHandle _buffer_readString(tlArgs* args) {
     didread(buf, read);
     return tlStringFromTake(into, written);
 }
+
+/// readByte: read a single byte from the buffer, returns a number between 0-255
 INTERNAL tlHandle _buffer_readByte(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     if (canread(buf) == 0) return tlNull;
@@ -307,6 +319,9 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
     return 0;
 }
 
+/// write(bytes...): write all passed in arguments as bytes
+/// bytes can be #String's or #Bin's or other #Buffer's or numbers
+/// Numbers are interpreted as a single byte by masking with `0xFF`.
 INTERNAL tlHandle _buffer_write(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -321,6 +336,10 @@ INTERNAL tlHandle _buffer_write(tlArgs* args) {
     return tlNull;
 }
 
+// TODO this should take same as write()
+/// find(string): find the position of the string passed in, or null if no matching sequence is found
+/// [from] start here instead of beginning
+/// [upto] search no further than this posision
 INTERNAL tlHandle _buffer_find(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -339,6 +358,10 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     if (!at) return tlNull;
     return tlINT(1 + at - begin);
 }
+// TODO merge with above
+/// findByte(byte): find position of the byte in the buffer, or null if buffer does not contain such a byte
+/// [from] start here instead of beginning
+/// [upto] search no further than this posision
 INTERNAL tlHandle _buffer_findByte(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -361,6 +384,8 @@ INTERNAL tlHandle _buffer_findByte(tlArgs* args) {
     for (; at < end; at++) if (data[at] == b) return tlINT(1 + at);
     return tlNull;
 }
+
+/// startsWith(bytes): returns true if buffer starts with this sequence of bytes
 INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -404,6 +429,7 @@ INTERNAL tlHandle _buffer_hexdump(tlArgs* args) {
     return tlNull;
 }
 
+/// new(bytes...): create a new buffer filled with bytes
 INTERNAL tlHandle _Buffer_new(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 

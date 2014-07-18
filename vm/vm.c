@@ -153,7 +153,7 @@ static tlHandle _neq(tlArgs* args) {
     trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(!tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-/// compare two values, and always return a ordering, order will be runtime dependend sometimes
+/// compare: compare two values, and always return a ordering, order will be runtime dependend sometimes
 static tlHandle _compare(tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     tlHandle cmp = tlHandleCompare(left, right);

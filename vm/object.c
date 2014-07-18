@@ -254,7 +254,7 @@ static tlHandle _Object_from(tlArgs* args) {
     TL_THROW("expect a Map, Object, or HashMap");
 }
 
-/// {class=SomeThing},{foo=bar,class=brr} -> {class=SomeThing,foo=bar}
+// {class=SomeThing},{foo=bar,class=brr} -> {class=SomeThing,foo=bar}
 static tlHandle _Object_inherit(tlArgs* args) {
     tlObject* o = tlObjectCast(tlArgsGet(args, 0));
     if (!o) TL_THROW("Expected an Object");
