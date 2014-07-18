@@ -328,7 +328,8 @@ singleassign = n:name    _"="__ e:fn    { $$ = tlListFrom(tl_active(e), n, null)
            tlCodeSetIsBlock_(b, true);
            $$ = b;
        }
-       | as:fargs _"->"_ b:body {
+       | fnnb
+  fnnb = as:fargs _"->"_ b:body {
            tlCodeSetArgs_(tlCodeAs(b), L(as));
            $$ = b;
        }
@@ -491,7 +492,7 @@ pcargs = l:carg1 __","__
                                  { $$ = l; }
        | r:pcarg                 { $$ = r; }
 
- cargs = f:fn                   { $$ = tlListFrom2(tlNull, tl_active(f)); }
+ cargs = f:fnnb                  { $$ = tlListFrom2(s_block, tl_active(f)); }
 #tlListFrom2(tlNull, f); }
        | l:carg
                 (__","__ r:carg { l = tlListCat(L(l), r); }

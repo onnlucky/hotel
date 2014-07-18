@@ -18,7 +18,7 @@ input = text, pos, value -> {
         next= val -> input(this.text, this.pos + 1, val)
         error= val -> throw this.set(val)
     }
-rule = fn -> (a1, a2, a3, a4 -> (in -> fn(in, a1, a2, a3, a4)))
+rule = fn -> fn = args.block or fn; (a1, a2, a3, a4 -> (in -> in = args.block or in; fn(in, a1, a2, a3, a4)))
 
 parse = parser, text ->
     out = (
