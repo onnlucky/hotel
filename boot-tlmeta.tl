@@ -26,7 +26,7 @@ input = text, pos, value -> {
     }
 
 // TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
-rule = fn -> (a1, a2, a3, a4, a5, a6, a7, a8, a9 -> (in -> fn(in, a1, a2, a3, a4, a5, a6, a7, a8, a9)))
+rule = fn -> fn = args.block or fn; (a1, a2, a3, a4, a5, a6 -> (in -> in = args.block or in; fn(in, a1, a2, a3, a4, a5, a6)))
 
 parse = parser, text ->
     out = (
@@ -147,7 +147,7 @@ parseNewline = in ->
 parseStart = in ->
     trace2(in, "start")
     before = pMany(pAnd(
-      pNot(in ->
+      pNot((in ->
         in = parseName(in)
         in = parseWs(in)
         in = pText("=")(in)
@@ -155,7 +155,7 @@ parseStart = in ->
         in = pText("parser")(in)
         in = parseWs(in)
         in = pText("{")(in)
-      ),
+      )),
       parseAny
     ))(in).do: v -> v.toChar
     parser = parseParser(before)
