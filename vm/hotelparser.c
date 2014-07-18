@@ -3039,7 +3039,11 @@ static State r_fnarg(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_fnarg", _pos); }
  _pos = _r.pos;
  tlHandle v = _r.value;
- tlHandle _v = tlObjectFrom("v", v, null);
+ _r = state_ok(_pos, tlSTR("block"));
+ if (!_r.ok) { return parser_fail(_p, "r_fnarg", _pos); }
+ _pos = _r.pos;
+ tlHandle n = _r.value;
+ tlHandle _v = tlObjectFrom("v", v, "n", n, null);
  return parser_pass(_p, "r_fnarg", 0, _start, state_ok(_pos, _v));
 }
 static State r_sp(Parser* _p, int _start) { // or

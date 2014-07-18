@@ -1,4 +1,4 @@
-#include "xmlparser.c"
+#include "hotelparser.c"
 
 int main(int argv, char** args) {
     tl_init();

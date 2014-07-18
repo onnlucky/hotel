@@ -120,7 +120,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
 mcallarg: v=mcall
-   fnarg: v=mfunction
+   fnarg: v=mfunction n=<block>
      arg: n=name ."="!"=".@"a value" v=expr
         | v=expr
   setarg: v=mexpr
