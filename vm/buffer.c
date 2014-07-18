@@ -4,6 +4,8 @@
 #include "trace-off.h"
 
 static int at_offset(tlHandle v, int size);
+static int at_offset_min(tlHandle v, int size);
+static int at_offset_max(tlHandle v, int size);
 
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)
@@ -302,7 +304,7 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
     }
     if (tlBinIs(v)) {
         tlBin* bin = tlBinAs(v);
-        return tlBufferWrite(buf, (const char*)tlBinData(bin), tlBinSize(bin));
+        return tlBufferWrite(buf, tlBinData(bin), tlBinSize(bin));
     }
     if (tlStringIs(v)) {
         tlString* str = tlStringAs(v);
@@ -310,8 +312,8 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
     }
     if (tlBufferIs(v)) {
         tlBuffer* from = tlBufferAs(v);
-        int size = canread(from);
-        tlBufferWrite(buf, readbuf(from), size);
+        int size = tlBufferSize(from);
+        tlBufferWrite(buf, tlBufferData(from), size);
         didread(from, size);
         return size;
     }
@@ -336,28 +338,56 @@ INTERNAL tlHandle _buffer_write(tlArgs* args) {
     return tlNull;
 }
 
-// TODO this should take same as write()
-/// find(string): find the position of the string passed in, or null if no matching sequence is found
+/// find(bytes): find the position of the bytes passed in, or null if no matching sequence is found
 /// [from] start here instead of beginning
 /// [upto] search no further than this posision
 INTERNAL tlHandle _buffer_find(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
+    int size = tlBufferSize(buf);
+    assert(size == canread(buf));
 
-    tlString* str = tlStringCast(tlArgsGet(args, 0));
-    if (!str) TL_THROW("expected a String");
+    int at = 1;
+    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    if (!afrom) afrom = tlArgsGet(args, at++);
+    int from = at_offset_min(afrom, tlBufferSize(buf));
+    if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
 
-    int from = max(0, tl_int_or(tlArgsGet(args, 1), 1) - 1);
-    if (from < 0) return tlNull;
+    tlHandle aupto = tlArgsMapGet(args, tlSYM("upto"));
+    if (!aupto) aupto = tlArgsGet(args, at++);
+    int upto = at_offset_max(aupto, tlBufferSize(buf));
+    if (upto < 0) TL_THROW("upto must be Number, not: %s", tl_str(aupto));
 
-    int upto = min(tlBufferSize(buf), tl_int_or(tlArgsGet(args, 2), tlBufferSize(buf)));
     if (from >= upto) return tlNull;
+    assert(from >= 0 && from <= canread(buf));
+    assert(upto >= 0 && upto <= canread(buf));
 
-    assert(tlBufferSize(buf) == canread(buf));
-    const char* begin = readbuf(buf);
-    char* at = strnstr(begin + from, tlStringData(str), max(upto - from, tlStringSize(str)));
-    if (!at) return tlNull;
-    return tlINT(1 + at - begin);
+    //bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
+    tlHandle arg0 = tlArgsGet(args, 0);
+
+    const char* needle = null;
+    if (tlStringIs(arg0)) needle = tlStringData(arg0);
+    // TODO these two are not safe? nu guarantee of zero byte at end I suppose ... sigh
+    //else if (tlBinIs(arg0)) needle = tlBinData(arg0);
+    //else if (tlBufferIs(arg0)) needle = tlBufferData(arg0); // TODO check for locked buffer?!
+    if (needle) {
+        if (size == 0) return tlNull;
+        const char* begin = readbuf(buf);
+        char* at = strnstr(begin + from, needle, upto - from);
+        if (!at) return tlNull;
+        return tlINT(1 + at - begin);
+    }
+
+    if (tlNumberIs(arg0) || tlCharIs(arg0)) {
+        if (size == 0) return tlNull;
+        int b = tl_int(arg0) & 0xFF;
+        const char* data = readbuf(buf);
+        int at = from;
+        for (; at < upto; at++) if (data[at] == b) return tlINT(1 + at);
+        return tlNull;
+    }
+    TL_THROW("expected a String or Number");
 }
+
 // TODO merge with above
 /// findByte(byte): find position of the byte in the buffer, or null if buffer does not contain such a byte
 /// [from] start here instead of beginning

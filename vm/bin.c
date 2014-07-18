@@ -44,9 +44,9 @@ tlBin* tlBinFromBufferTake(tlBuffer* buf) {
     return tlBinFromTake(s, len);
 }
 
-const uint8_t* tlBinData(tlBin *bin) {
+const char* tlBinData(tlBin *bin) {
     assert(tlBinIs(bin));
-    return (uint8_t*)bin->data;
+    return bin->data;
 }
 
 int tlBinSize(tlBin* bin) {

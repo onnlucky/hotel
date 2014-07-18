@@ -42,10 +42,10 @@ static int at_offset_raw(tlHandle v) {
     return -1;
 }
 
-// returns offset from index based number
+// returns offset from index based number or -1 if not a valid number
 static int at_offset(tlHandle v, int size) {
     trace("before: %s (%d)", tl_str(v), size);
-    if (!v) return 0;
+    if (!v || tlNullIs(v)) return 0;
 
     int at;
     if (tlIntIs(v)) at = tl_int(v);
@@ -57,6 +57,40 @@ static int at_offset(tlHandle v, int size) {
     if (at > size) return -1;
     trace("after: %s (%d)", tl_str(v), size);
     return at - 1;
+}
+
+// like at_offset, but returns 0 if handle is null or tlNull or out of range
+static int at_offset_min(tlHandle v, int size) {
+    trace("before: %s (%d)", tl_str(v), size);
+    if (!v || tlNullIs(v)) return 0;
+
+    int at;
+    if (tlIntIs(v)) at = tl_int(v);
+    else if (tlFloatIs(v)) at = (int)tl_double(v);
+    else return -1;
+
+    if (at < 0) at = size + at + 1;
+    if (at <= 0) return 0;
+    if (at > size) return size;
+    trace("after: %s (%d)", tl_str(v), size);
+    return at - 1;
+}
+
+// like at_offset, but returns size if handle is null or tlNull or out of range
+static int at_offset_max(tlHandle v, int size) {
+    trace("before: %s (%d)", tl_str(v), size);
+    if (!v || tlNullIs(v)) return size;
+
+    int at;
+    if (tlIntIs(v)) at = tl_int(v);
+    else if (tlFloatIs(v)) at = (int)tl_double(v);
+    else return -1;
+
+    if (at < 0) at = size + at + 1;
+    if (at <= 0) return 0;
+    if (at > size) return size;
+    trace("after: %s (%d)", tl_str(v), size);
+    return at;
 }
 
 tlString* tlStringEmpty() { return _tl_emptyString; }
@@ -328,6 +362,7 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
     tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, 1);
     int from = at_offset(afrom, tlStringSize(str));
+    // TODO upto
 
     if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
         if (from < 0) return tlNull;

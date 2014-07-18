@@ -562,7 +562,7 @@ int tlBufferCanWrite(tlBuffer* buf);
 tlBin* tlBinFromBufferTake(tlBuffer* buf);
 tlBin* tlBinFromCopy(const char* data, int len);
 int tlBinSize(tlBin* bin);
-const uint8_t* tlBinData(tlBin* bin);
+const char* tlBinData(tlBin* bin);
 
 tlArray* tlArrayNew();
 tlArray* tlArrayAdd(tlArray* array, tlHandle v);
