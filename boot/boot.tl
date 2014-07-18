@@ -101,7 +101,7 @@ _find = element /*, [Number from=0]*/ ->
         $at += 1
     return
 
-/// List.filter(elements...): remove all elements given
+/// List.filter(elements*): remove all elements given
 /// [block] if given a block, also remove all elements for which `block(e, at)` is true
 /// if called without arguments and without a block, it filters out all falsy values
 /// > [1,2,3,4].filter(3,1) == [2,4]
@@ -239,9 +239,9 @@ _join = sep ->
     return $res
 
 /// String.split(on): return a #List with the #String broken up at every occurance of #on
-/// [keepempty]: option to keep empty results
-/// [strip]: option to strip the results
-/// [limit]: limit how many times to break up the string
+/// [keepempty] option to keep empty results
+/// [strip] strip the results
+/// [limit] limit how many times to break up the string
 /// > "hello world".split == ["hello","world"]
 /// > "a, b, , d, e".split(",",strip=true) == ["a", "b", "d", "e"
 // TODO support regexes as well

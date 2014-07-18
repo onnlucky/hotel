@@ -100,6 +100,7 @@ void tlMapValueIterSet_(tlMap* map, int i, tlHandle v) {
     map->data[i] = v;
 }
 
+/// object Map: an associative array mapping keys to values
 
 // called when map literals contain lookups or expressions to evaluate
 static tlHandle _Map_clone(tlArgs* args) {
@@ -125,22 +126,27 @@ static tlHandle _Map_from(tlArgs* args) {
     TL_THROW("expect a object, map, or HashMap");
 }
 
+/// hash: return the hash value of this #Map
 static tlHandle _map_hash(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlINT(tlMapHash(map));
 }
+/// size: return the size of this #Map
 static tlHandle _map_size(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlINT(tlMapSize(map));
 }
+/// keys: return a #Set containing all keys of this #Map
 static tlHandle _map_keys(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlMapKeys(map);
 }
+/// values: return a #List containing all values of this #Map
 static tlHandle _map_values(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlMapValues(map);
 }
+/// get(key): return the value for #key
 static tlHandle _map_get(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
@@ -148,6 +154,7 @@ static tlHandle _map_get(tlArgs* args) {
     tlHandle res = tlMapGet(map, key);
     return tlMAYBE(res);
 }
+/// set(key, value): return a new #Map with a new mapping from #key to #value
 static tlHandle _map_set(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
@@ -157,6 +164,7 @@ static tlHandle _map_set(tlArgs* args) {
     tlMap* nmap = tlMapSet(map, key, val);
     return nmap;
 }
+/// toObject: return an object where all fields are the keys of this #Map
 static tlHandle _map_toObject(tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlObjectFromMap(map);
@@ -208,6 +216,11 @@ static tlKind _tlMapKind = {
     .toString = maptoString,
 };
 
+/// Map.each([fn]): for every key,value pair in the map call the passed in block or #fn
+/// [block] block to call using `block(key, value, at)`
+
+/// Map.map([fn]): return a list with the results of calling the passed in block or #fn
+/// [block] block to call using `block(key, value, at)`
 static void map_init() {
     _tl_emptyMap = tlMapNew(tlSetEmpty());
     _tlMapKind.klass = tlClassObjectFrom(

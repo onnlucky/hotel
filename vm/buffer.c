@@ -224,7 +224,7 @@ tlBuffer* tlBufferFromFile(const char* file) {
     return buf;
 }
 
-/// Buffer: a mutable object containing bytes to which you can write and read from
+/// object Buffer: a mutable object containing bytes to which you can write and read from
 /// while reading the buffer temporarily keeps the read bytes until any write operation
 
 /// size: return the current amount of bytes that can be read
@@ -319,7 +319,7 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
     return 0;
 }
 
-/// write(bytes...): write all passed in arguments as bytes
+/// write(bytes*): write all passed in arguments as bytes
 /// bytes can be #String's or #Bin's or other #Buffer's or numbers
 /// Numbers are interpreted as a single byte by masking with `0xFF`.
 INTERNAL tlHandle _buffer_write(tlArgs* args) {
@@ -429,7 +429,7 @@ INTERNAL tlHandle _buffer_hexdump(tlArgs* args) {
     return tlNull;
 }
 
-/// new(bytes...): create a new buffer filled with bytes
+/// new(bytes*): create a new buffer filled with bytes
 INTERNAL tlHandle _Buffer_new(tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
