@@ -23,10 +23,10 @@ test "negative from":
     assert [1,1,1,1].find(1, from=-1) == 4
     assert [1,1,1,1].find(1, from=-5) == 1
 test "function":
-    assert not ["hello", "foo", "bar"].find(e -> e == "foo")
+    assert ["hello", "foo", "bar"].find(e -> e == "foo") == 2
 test "block":
     res = ["hello", "foo", "bar"].find: e -> e == "foo"
-    assert not res
+    assert res == 2
 test "function element":
     called = Var.new false
     target = x -> $called = true

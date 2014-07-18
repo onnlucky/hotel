@@ -9,7 +9,7 @@ endtest = ->
     pass = _results.filter(r -> not r.pass).size
     total = _results.size
     _results.each: r ->
-        if not r.pass: print "fail:", r.name, r.msg
+        if not r.pass: print "FAIL:", r.name, r.msg
         if r.pass: print "pass:", r.name
     print "pass: $pass (of $total) for '$title'"
     _results.clear

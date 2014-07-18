@@ -64,35 +64,42 @@ _map = fn ->
         goto(loop(at + 1))
     loop(1)
 
-/// find an element, returns its position or null if not found
+/// find an element, return its position or null if not found
+/// if not given an element but a block, it will return the first element matching block
 /// optinally give a position from where to start searching
 _find = element /*, [Number from=0]*/ ->
     size = this.size
+    if size == 0: return
     at = Var.new args["from"] or 1
     if $at < 0: $at = size + 1 + $at
     if $at < 1: $at = 1
+    if args.size == 0:
+        // passed in a block
+        block = args.block
+        if not block: throw "find expects an element or a block"
+        while $at <= this.size:
+            if block(this[$at]): return $at
+            $at += 1
+        return
+    // passed in an element
     while $at <= this.size:
         if this[$at] == element: return $at
         $at += 1
     return
 
-_removeItem = fn ->
-    block = args.block or fn
-    if not block: throw "remove expects block or fn or value"
-    at = this.find(fn)
-    if at: return this.remove(at)
-    return this
-
-/// List.filter: remove all elements equal to passed in arg, or matching block
-_filter = fn ->
-    block = args.block or fn or asBoolInv
-    arr = Array.new
+/// List.filter: remove all elements passed as arg, also remove all elements for which a passed in block returns true
+/// if called without arguments and without a block, it removes all falsy values
+_filter = ->
     len = this.size
+    if len == 0: return []
+    block = { args.block     }: args.block
+            { args.size == 0 }: asBoolInv
+            {                }: null
+    arr = Array.new
     loop = at =>
         if at > len: return arr.toList
-        e = this.get(at)
-        if e == block or try(block(e, at)): goto(loop(at + 1))
-        arr.add(e)
+        e = this[at]
+        if not args.find(e) and (not block or not block(e)): arr.add(e)
         goto(loop(at + 1))
     loop(1)
 
@@ -313,7 +320,6 @@ _install(List._methods, "each", _each)
 _install(List._methods, "map", _map)
 _install(List._methods, "find", _find)
 _install(List._methods, "filter", _filter)
-_install(List._methods, "removeItem", _removeItem)
 _install(List._methods, "reduce", _reduce)
 _install(List._methods, "min", _min)
 _install(List._methods, "max", _max)

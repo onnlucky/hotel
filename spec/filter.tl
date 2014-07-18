@@ -6,6 +6,7 @@ test "remove matching elements":
 test "remove null":
     assert [1,2,null].filter(null) == [1,2]
     assert [null].filter(null) == []
+    assert [null,false,1].filter == [1]
 
 test "remove match function":
     assert [1,2,3,4,5,6].filter(block=x -> x > 2) == [1,2]
@@ -22,3 +23,6 @@ test "remove functions without calling":
     t = -> true
     assert [t, t, 1].filter(t) == [1]
 
+test "remove multiple":
+    r = [1,2,3,4,5,1,2,6,4].filter(1,2): n -> n > 4
+    r == [3,4]
