@@ -23,13 +23,12 @@ parser = parser {
     binn: n=([01]+)+("_"+) !"_"                       -> flatten(n)
     hexn: n=([0123456789ABCDEFGabcdefg]+)+("_"+) !"_" -> flatten(n)
     decn: n=([0123456789]+)+("_"+) !"_"               -> flatten(n)
-     num: s=sign w=decn "." f=decn e=exp? -> FloatExp(s, w, f, e)
+     num: "0x" w=hexn                     -> Number(null, w, 16)
+        | "0b" w=binn                     -> Number(null, w, 2)
+        | s=sign w=decn "." f=decn e=exp? -> FloatExp(s, w, f, e)
         | s=sign        "." f=decn e=exp? -> FloatExp(s, null, f, e)
         | s=sign w=decn            e=exp  -> FloatExp(s, w, null, e)
         | s=sign w=decn                   -> Number(s, w, 10)
-  number: "0x" w=hexn                     -> Number(null, w, 16)
-        | "0b" w=binn                     -> Number(null, w, 2)
-        | num
 
    value: "null"           -> tlNull
         | "false"          -> tlFalse

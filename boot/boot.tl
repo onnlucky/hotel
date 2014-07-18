@@ -149,18 +149,17 @@ _sum = ->
     return $sum
 
 /// List.min: return the smallest element
-// TODO use compare instead ...
 _min = ->
     if this.size <= 1: return this[1]
     var $min = this[1]
-    this.each: e -> if e < $min: $min = e
+    this.each: e -> if compare(e, $min) == -1: $min = e
     return $min
 
 /// List.max: return the largest element
 _max = ->
     if this.size <= 1: return this[1]
     var $max = this[1]
-    this.each: e -> if e > $max: $max = e
+    this.each: e -> if compare(e, $max) == 1: $max = e
     return $max
 
 /// List.mean: return the sum divided by size (the average)

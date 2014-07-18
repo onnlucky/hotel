@@ -39,3 +39,41 @@ test "sort on mixed array":
     assert res.find(2) + 1 == res.find(3)
     assert res.find("hello") + 1 == res.find("world")
 
+test "max":
+    assert [1,2,3,4].max == 4
+    assert ["hello","world","zzz"].max == "zzz"
+
+test "max on mixed array":
+    res = ["hello", 4, 1, 2, 3, "zzz", "world"].max
+    assert res == "zzz" or res == 4
+
+test "min":
+    assert [1,2,3,4].min == 1
+    assert ["hello","world","zzz"].min == "hello"
+
+test "min on mixed array":
+    res = ["hello", 4, 1, 2, 3, "zzz", "world"].min
+    assert res == "hello" or res == 1
+
+test "number constructor":
+    assert Number(1) == 1
+    assert Number("1") == 1
+    assert Number("001") == 1
+    assert Number("0_1") == 1
+    assert Number("0x1") == 1
+    assert Number("0b1") == 1
+    assert Number("12345678901234567890") == 12345678901234567890
+
+test "number from char returns number only for 0-9":
+    assert Number('1') == 1
+    assert Number("12345"[1]) == 1
+    assert Number(' ') == null
+    assert Number('a') == null
+
+test "number from bad things return null":
+    assert Number("") == null
+    assert Number("a") == null
+    assert Number('a') == null
+    assert Number("1,2,3") == null
+    assert Number([1]) == null
+
