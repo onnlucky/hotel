@@ -292,7 +292,6 @@ INTERNAL tlHandle _string_toString(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return str;
 }
-/// toSym: create a #Symbol from this #String, throws an error if the string cannot be a valid symbol
 INTERNAL tlHandle _string_toSym(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlSymFromString(str);
@@ -314,7 +313,14 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
     return tlINT(tlStringHash(str));
 }
 
-/// find: find the first occurance of arg[1] in #String, returns null if not found
+/// find(s): find #s in #String, returns the position or #null if nothing was found
+/// [from] start searching from this position
+/// [upto] stop searching when reaching this position
+/// [backward] if backward is true, search from the end of the #String
+/// when #s is a #String find will return the first occurance of that string
+/// when #s is a #Number or #Char it will return the first occurance of that letter
+/// > "hello world".find('o') == 5
+/// > "hello world".find("o", backward=true) == 8
 // TODO find bytes, find from, find upto, like buffer ...
 INTERNAL tlHandle _string_find(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));

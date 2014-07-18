@@ -12,20 +12,33 @@ test "basic":
     assert "hello" == "h" +"ello"
 
 test "iterate":
+    called = Var.new false
     "hello".each: l, n ->
+        $called = true
         { n == 1 }: assert l == 'h'
         { n == 2 }: assert l == 'e'
         { n == 3 }: assert l == 'l'
         { n == 4 }: assert l == 'l'
         { n == 5 }: assert l == 'o'
         {        }: assert false
+    assert $called
 
 test "iterate fn":
     "hello".each(l, n -> assert n >= 1 and n <= 5)
 
+test "iterate external function":
+    test = l, n ->
+        assert l == 'x'
+        assert not n
+    "xxx".each(test)
+
 test "map":
     assert "hello".map(l, n -> l) == ['h','e','l','l','o']
     assert "hello".map(l, n -> n) == [1,2,3,4,5]
+
+test "map external function":
+    test = l, n -> n
+    assert "hello".map(test) == [null,null,null,null,null]
 
 test "from various constructors":
     assert String(Bin("hello")) == "hello"
@@ -77,4 +90,8 @@ test "slice":
     assert "hello"[2:1] == ""
     assert "hello"[3:1] == ""
     assert "hello"[10:1] == ""
+
+test "split":
+    assert "hello world".split == ["hello","world"]
+    assert "a, b, , d, e".split(",",strip=true) == ["a","b","d","e"]
 

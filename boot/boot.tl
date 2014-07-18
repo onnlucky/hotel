@@ -41,32 +41,46 @@ try = &test, &otherwise ->
 _get_random = ->
     this.get(1 + random(this.size))
 
+/// List.each([fn]): apply a function to all elements, returns nothing
+/// [block] the block to call, it is passed in the element and the position as `block(e, at)`
+/// if no block is given, #fn will be called, but without the position, `fn(e)`
+/// > [1,2,3].each(e -> print(e)) == null // will print 1, 2 and 3 each on their own line
 _each = fn ->
-    block = args.block or fn
-    if not block: throw "each expects a block or fn"
+    block = args.block
+    if not (block or fn): throw "each expects a block or fn"
+
     len = this.size
     loop = at =>
         if at > len: return
-        block(this.get(at), at)
+        if block: block(this[at], at)
+        if not block: fn(this[at])
         goto(loop(at + 1))
     loop(1)
 
+/// List.map([fn]): apply a function to all elements, return a list of the results
+/// [block] the block to call, it is passed in the element and position as `block(e, at)`
+/// if no block is given, #fn will be called, but without the position, `fn(e)`
+/// > [1,2,3].map(e -> e * 3) == [3,6,9]
 _map = fn ->
-    block = args.block or fn
-    if not block: throw "map expects a block or fn"
+    block = args.block
+    if not (block or fn): throw "map expects a block or fn"
+
     size = this.size
     if size == 0: return []
 
     res = _List_unsafe(size)
     loop = at =>
         if at > size: return res
-        _list_set_(res, at, block(this[at], at))
+        if block: _list_set_(res, at, block(this[at], at))
+        if not block: _list_set_(res, at, fn(this[at]))
         goto(loop(at + 1))
     loop(1)
 
-/// find an element, return its position or null if not found
-/// if not given an element but a block, it will return the first element matching block
-/// optinally give a position from where to start searching
+/// List.find(element): find #element, return its position or #null if not found
+/// [from] start searching from here instead
+/// [block] if not given an element but a block, returns first element for which `block(e, at)` is true
+/// > [1,2,3,4].find(4) == 4
+/// > [1,2,3,4].find(e -> e > 2) == 3
 _find = element /*, [Number from=0]*/ ->
     size = this.size
     if size == 0: return
@@ -78,7 +92,7 @@ _find = element /*, [Number from=0]*/ ->
         block = args.block
         if not block: throw "find expects an element or a block"
         while $at <= this.size:
-            if block(this[$at]): return $at
+            if block(this[$at], $at): return $at
             $at += 1
         return
     // passed in an element
@@ -87,8 +101,12 @@ _find = element /*, [Number from=0]*/ ->
         $at += 1
     return
 
-/// List.filter: remove all elements passed as arg, also remove all elements for which a passed in block returns true
-/// if called without arguments and without a block, it removes all falsy values
+/// List.filter(elements...): remove all elements given
+/// [block] if given a block, also remove all elements for which `block(e, at)` is true
+/// if called without arguments and without a block, it filters out all falsy values
+/// > [1,2,3,4].filter(3,1) == [2,4]
+/// > [1,2,3,4].filter(e -> e % 3 == 0) == [1,2,4]
+/// > ["hello",null].filter == ["hello"]
 _filter = ->
     len = this.size
     if len == 0: return []
@@ -99,10 +117,18 @@ _filter = ->
     loop = at =>
         if at > len: return arr.toList
         e = this[at]
-        if not args.find(e) and (not block or not block(e)): arr.add(e)
+        if not args.find(e) and (not block or not block(e, at)): arr.add(e)
         goto(loop(at + 1))
     loop(1)
 
+/// List.reduce([fn]): reduce a list to a single value using a function
+/// [block] either using the passed in block or #fn
+/// the function is called with two arguments, an intermediate result, and the next element
+/// the result of the call is the next intermediate result
+/// reducing an empty list returns null (nothing)
+/// reducing a list with a single element returns that element
+/// > [1,2,3].reduce(tmp, next -> tmp + next) == 6
+// TODO allow passing in the initial value
 _reduce = fn ->
     block = args.block or fn
     if not block: throw "reduce expects a block or fn"
@@ -116,27 +142,33 @@ _reduce = fn ->
         $i += 1
     return $res
 
+/// List.sum: return the addition of all elements using '+'
 _sum = ->
     var $sum = 0
     this.each: e -> $sum += e
     return $sum
 
+/// List.min: return the smallest element
+// TODO use compare instead ...
 _min = ->
     if this.size <= 1: return this[1]
     var $min = this[1]
     this.each: e -> if e < $min: $min = e
     return $min
 
+/// List.max: return the largest element
 _max = ->
     if this.size <= 1: return this[1]
     var $max = this[1]
     this.each: e -> if e > $max: $max = e
     return $max
 
+/// List.mean: return the sum divided by size (the average)
 _mean = ->
     if this.size == 0: return undefined
     this.sum / this.size
 
+/// List.median: return the middle element
 _median = ->
     if this.size <= 1: return this[1]
     sorted = this.sort
@@ -165,15 +197,17 @@ qsort = list, smallerfn ->
     innerqsort(list, smallerfn, 1, list.size)
     return list.toList
 
-_sort = fn -> qsort(this, fn or args.block or isSmaller)
+/// List.sort: return a sorted list
+/// [block] use passed in block as comparison function, otherwise sort small to large
+_sort = fn -> qsort(this, args.block or fn or isSmaller)
 
-/// given a string, it parses it to a number or returns null
+/// Number: given a string, it parses it to a number or returns null
 /// given a number it returns the number
 /// returns null otherwise
 Number = s ->
     if isNumber(s): return s
     // TODO regex for [0-9_-+]
-    v = try(s.toString.eval)
+    v = try(_json_parse(s.toString))
     if isNumber(v): return v
     return null
 
@@ -181,12 +215,19 @@ Number = s ->
 _flatten2 = ls, arr ->
     ls.each: e ->
         if isList(e): _flatten2(e, arr); return
+        if isArray(e): _flatten2(e, arr); return
         arr.add(e)
+
+/// List.flatten: return a single list where all elements that are lists themselves have been merged
+/// at the moment, flatten will merge all such lists before merging their elements
+/// > [[1,2],3,[4,5]].flatten == [1,2,3,4,5]
 _flatten = ->
     arr = Array.new
     _flatten2(this, arr)
     return arr.toList
 
+/// List.join(sep=""): return a #String separated by #sep
+/// > ["hello", "world"].join(" ") == "hello world"
 _join = sep ->
     if this.size == 0: return ""
     sep = sep or ""
@@ -198,6 +239,14 @@ _join = sep ->
         $i += 1
     return $res
 
+/// String.split(on): return a #List with the #String broken up at every occurance of #on
+/// [keepempty]: option to keep empty results
+/// [strip]: option to strip the results
+/// [limit]: limit how many times to break up the string
+/// > "hello world".split == ["hello","world"]
+/// > "a, b, , d, e".split(",",strip=true) == ["a", "b", "d", "e"
+// TODO support regexes as well
+// TODO add from, add backward
 _split = on ->
     // TODO on should support a regex and default to breaking whitespace
     on = on or " "
@@ -228,6 +277,8 @@ _split = on ->
     loop(1)
     return res.toList
 
+/// Number.times([fn]): call a block or #fn so many times
+/// > 10.times: print "hello" /// will print hello ten times
 _times = fn ->
     if this <= 0: return
     block = args.block or fn
@@ -238,6 +289,8 @@ _times = fn ->
         goto again(at + 1)
     goto again(1)
 
+/// Number.to(to, [fn]): call a block or #fn by counting upto #to
+/// > 10.to(15): print "hello" /// wil print hello 5 times
 _to = to, fn ->
     block = args.block or fn
     if not block: throw "to expects a block or fn"
@@ -267,7 +320,7 @@ _str = o ->
     if isList(o) or isArray(o): return o.flatten(true).toChar
     return "$o"
 
-/// String()
+/// String():
 /// call with numbers, interprets them as letters (unicode points)
 /// call with binaries or buffers, interprets them as utf8 letters
 /// TODO allow configuration on what to do for invalid utf8 and/or invalid unicode points

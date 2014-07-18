@@ -23,6 +23,21 @@ test "slice":
 test "iterate":
     [1,2,3,4,5].each: e, n -> assert e == n
 
+test "iterate fn":
+    [1,2,3,4,5].each(e, n -> assert e == n)
+
+test "iterate external function":
+    called = Var.new false
+    test = e, n ->
+        $called = true
+        assert not n
+        assert e >= 1 and e <= 5
+    [1,2,3,4,5].each(test)
+    assert $called
+
 test "reverse":
     assert [1,2,3,4,5].reverse == [5,4,3,2,1]
+
+test "flatten":
+    assert [[1,2],3,[4,5]].flatten == [1,2,3,4,5]
 

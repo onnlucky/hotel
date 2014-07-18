@@ -448,7 +448,6 @@ static void list_init() {
         "random", null,
         "each", null,
         "find", null,
-        "removeItem", null,
         "filter", null,
         "map", null,
         "reduce", null,
