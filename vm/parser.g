@@ -495,7 +495,7 @@ pcargs = l:carg1 __","__
  cargs = f:fnnb                  { $$ = tlListFrom2(s_block, tl_active(f)); }
 #tlListFrom2(tlNull, f); }
        | l:carg
-                (__","__ r:carg { l = tlListCat(L(l), r); }
+                (eom r:carg { l = tlListCat(L(l), r); }
                 )*              { $$ = l; }
        |                        { $$ = tlListEmpty(); }
 
@@ -625,7 +625,7 @@ slcomment = ("//"|"#") (!nl .)*
       eos = _ (nl | ";" | slcomment nle) __
   eosfull = _ (nl | ";" | "}" | ")" | "]" | slcomment nle | !.) __
  peosfull = _ (nl | ":" | ";" | "}" | ")" | "]" | slcomment nle | !.) __
-      eom = _ (nl | "," | slcomment nle) __
+      eom = _ ("," | (nl | slcomment nle) __ ","?) __
        nl = ("\n" | "\r\n" | "\r") { yyxvar->line += 1; }
       nle = nl | !.
        sp = [ \t]
