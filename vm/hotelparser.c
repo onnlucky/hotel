@@ -275,6 +275,10 @@ static State r_binn(Parser*, int);
 static State r_start_2(Parser*, int);
 static State r_start(Parser*, int);
 static State r_nl(Parser*, int);
+static State r_eov_2_1_1(Parser*, int);
+static State r_eov_2_1(Parser*, int);
+static State r_eov_2_2_1(Parser*, int);
+static State r_eov_2_2(Parser*, int);
 static State r_eov_2(Parser*, int);
 static State r_eov(Parser*, int);
 static State r_endstm_2(Parser*, int);
@@ -1517,7 +1521,7 @@ static State r_arg_1(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_arg_1", _pos); }
  _pos = _r.pos;
  const char* _anchor = parser_set_anchor(_p, "a value");
- _r = r_expr(_p, _pos);
+ _r = r_mexpr(_p, _pos);
  if (!_r.ok) { return parser_error(_p, "r_arg_1", _start, _pos); }
  _pos = _r.pos;
  tlHandle v = _r.value;
@@ -2133,7 +2137,7 @@ static State r_function_2(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_function_2", _pos); }
  _pos = _r.pos;
  tlHandle pos = _r.value;
- _r = r_farg(_p, _pos);
+ _r = r_fargs(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_function_2", _pos); }
  _pos = _r.pos;
  tlHandle as = _r.value;
@@ -4706,21 +4710,16 @@ static State r_args_2_1_1(Parser* _p, int _start) { // and
  parser_enter(_p, "r_args_2_1_1", _start);
  int _pos = _start;
  State _r;
- _r = r_wsnl(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_args_2_1_1", _pos); }
- _pos = _r.pos;
- _r = prim_text(_p, _pos, ",");
+ _r = r_eov(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_args_2_1_1", _pos); }
  _pos = _r.pos;
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_args_2_1_1", _pos); }
  _pos = _r.pos;
- const char* _anchor = parser_set_anchor(_p, "a value");
  _r = r_arg(_p, _pos);
- if (!_r.ok) { return parser_error(_p, "r_args_2_1_1", _start, _pos); }
+ if (!_r.ok) { return parser_fail(_p, "r_args_2_1_1", _pos); }
  _pos = _r.pos;
  tlHandle _v = _r.value;
- _p->anchor = _anchor;
  return parser_pass(_p, "r_args_2_1_1", 0, _start, state_ok(_pos, _v));
 }
 static State r_args_2(Parser* _p, int _start) { // and
@@ -4962,6 +4961,54 @@ static State r_nl(Parser* _p, int _start) { // or
  if (_p->error_line) { /*print("expect: r_nl");*/ return _r; }
  return parser_fail(_p, "r_nl", _start);
 }
+static State r_eov_2_1_1(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_eov_2_1_1", _start);
+ int _pos = _start;
+ State _r = prim_text(_p, _pos, ",");
+ if (_r.ok) return parser_pass(_p, "r_eov_2_1_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_eov_2_1_1");*/ return _r; }
+ return parser_fail(_p, "r_eov_2_1_1", _start);
+}
+static State r_eov_2_1(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_eov_2_1", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_nl(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_eov_2_1", _pos); }
+ _pos = _r.pos;
+ _r = r_wsnl(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_eov_2_1", _pos); }
+ _pos = _r.pos;
+ _r = meta_opt(_p, _pos, r_eov_2_1_1);
+ if (!_r.ok) { return parser_fail(_p, "r_eov_2_1", _pos); }
+ _pos = _r.pos;
+ tlHandle _v = _r.value;
+ return parser_pass(_p, "r_eov_2_1", 0, _start, state_ok(_pos, _v));
+}
+static State r_eov_2_2_1(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_eov_2_2_1", _start);
+ int _pos = _start;
+ State _r = prim_text(_p, _pos, ",");
+ if (_r.ok) return parser_pass(_p, "r_eov_2_2_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_eov_2_2_1");*/ return _r; }
+ return parser_fail(_p, "r_eov_2_2_1", _start);
+}
+static State r_eov_2_2(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_eov_2_2", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_slcomment(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_eov_2_2", _pos); }
+ _pos = _r.pos;
+ _r = r_wsnl(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_eov_2_2", _pos); }
+ _pos = _r.pos;
+ _r = meta_opt(_p, _pos, r_eov_2_2_1);
+ if (!_r.ok) { return parser_fail(_p, "r_eov_2_2", _pos); }
+ _pos = _r.pos;
+ tlHandle _v = _r.value;
+ return parser_pass(_p, "r_eov_2_2", 0, _start, state_ok(_pos, _v));
+}
 static State r_eov_2(Parser* _p, int _start) { // or
  parser_enter(_p, "r_eov_2", _start);
  int _pos = _start;
@@ -4969,10 +5016,10 @@ static State r_eov_2(Parser* _p, int _start) { // or
  _r = prim_text(_p, _pos, ",");
  if (_r.ok) return parser_pass(_p, "r_eov_2", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_eov_2");*/ return _r; }
- _r = r_nl(_p, _pos);
+ _r = r_eov_2_1(_p, _pos);
  if (_r.ok) return parser_pass(_p, "r_eov_2", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_eov_2");*/ return _r; }
- _r = r_slcomment(_p, _pos);
+ _r = r_eov_2_2(_p, _pos);
  if (_r.ok) return parser_pass(_p, "r_eov_2", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_eov_2");*/ return _r; }
  return parser_fail(_p, "r_eov_2", _start);

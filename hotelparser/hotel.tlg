@@ -10,7 +10,7 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
       ws: (sp | comment)*
     wsnl: (sp | nl | comment | slcomment)*
 
-     eov: . ("," | nl | slcomment)
+     eov: . ("," | nl ..","? | slcomment ..","?)
   eoexpr: . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment)
    eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
   eostmb: . (":" | ";" | nl | end | ")" | "}" | "]" | slcomment)
@@ -80,7 +80,7 @@ mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     arrow: "->" | "=>"
     class: pos=pos "{".. as=fargs .."->"..@"a closing '}'" body=body .."}" type=<class>
  function: pos=pos "(".. as=fargs .."->"..@"a closing ')'" body=body ..")" type=<function>
-         | pos=pos as=farg ."->".. body=bodynl                             type=<function>
+         | pos=pos as=fargs ."->".. body=bodynl                            type=<function>
          | pos=pos "->".. body=bodynl                                      type=<function>
 //         | block
 mfunction: pos=pos as=fargs .arrow.. body=bodynl                                type=<function>
@@ -117,11 +117,11 @@ literal*: "true" | "false" | "null" | "undefined"
    margs: e=arg es=(..","..@"a value" arg)* &eostmb                          -> prepend(es, e)
         | e=mcallarg &eostmb                                                 -> tlListFrom1(e)
     args: e=fnarg                                                            -> tlListFrom1(e)
-        | e=arg es=(..","..@"a value" arg)*                                  -> prepend(es, e)
+        | e=arg es=(eov.. arg)*                                              -> prepend(es, e)
         | ""                                                                 -> tlListEmpty()
 mcallarg: v=mcall
    fnarg: v=mfunction n=<block>
-     arg: n=name ."="!"=".@"a value" v=expr
+     arg: n=name ."="!"=".@"a value" v=mexpr
         | v=expr
   setarg: v=mexpr
     garg: v=expr
