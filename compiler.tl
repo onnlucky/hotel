@@ -307,6 +307,7 @@ compile = (code ->
 
     lex = scope, term, name, pos ->
         { term == null              }: "null"
+        { isChar(term)              }: {type="call",target={type="global",name="Char"},args=[term.toNumber]}
         { not try(term.type)        }: term
         { term.type == "string"     }: term
         { term.type == "stringlist" }:
@@ -463,7 +464,6 @@ compile = (code ->
             { term < 0      }: ["data", term]
             { term > 2^25   }: ["data", term]
             {               }: ["int", term]
-        { isChar(term)            }: ["int", term.toNumber] // TODO add "char"
         { term.type == "string"   }: ["data", term.data]
         { term.type == "function" }: ["bind", term.function]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]

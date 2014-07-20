@@ -40,6 +40,11 @@ static tlKind _tlCharKind = {
 };
 tlKind* tlCharKind = &_tlCharKind;
 
+static tlHandle _Char(tlArgs* args) {
+    // TODO take from bin/buffer/string other chars and numbers
+    // TODO verify it is unicode code point
+    return tlCHAR(tl_int(tlArgsGet(args, 0)));
+}
 static tlHandle _char_hash(tlArgs* args) {
     return tlINT(charHash(tlArgsTarget(args)));
 }
@@ -349,5 +354,12 @@ static void number_init() {
         "toChar", _char_toString,
         null
     );
+    tlObject* constructor = tlClassObjectFrom(
+        "call", _Char,
+        "_methods", null,
+        null
+    );
+    tlObjectSet_(constructor, s__methods, _tlCharKind.klass);
+    tl_register_global("Char", constructor);
 }
 
