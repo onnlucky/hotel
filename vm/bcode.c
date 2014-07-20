@@ -987,7 +987,7 @@ static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlBCall
     int depth = 1;
     while (pc < len) {
         uint8_t op = ops[pc++];
-        trace("SEARCHING: %d - %d - %s", depth, pc - 1, op_name(op));
+        trace("SEARCHING: %d - %d - %s(%X)", depth, pc - 1, op_name(op), op);
         if (op == OP_INVOKE) {
             depth--;
             if (!depth) {
@@ -995,7 +995,8 @@ static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlBCall
                 trace("%d", start);
                 return tlBLazyNew(args, locals, start);
             }
-        } else if (op & 0xC0 && op & 0x20) { // OP_CALL mask
+        } else if ((op & 0xE0) == 0xE0) { // OP_CALL mask
+            trace("ADDING DEPTH: %X", op);
             depth++;
         }
     }
