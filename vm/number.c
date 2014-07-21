@@ -51,8 +51,26 @@ static tlHandle _char_hash(tlArgs* args) {
 static tlHandle _char_toString(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[16];
-    int len = snprintf(buf, sizeof(buf), "%c", c);
-    return tlStringFromCopy(buf, len);
+    if (c < 0x7F) {
+        buf[0] = c;
+        buf[1] = 0;
+    } else if (c < 0x7FF) {
+        buf[0] = 0xC0 | (c >> 6);
+        buf[1] = 0x80 | (c & 0x3F);
+        buf[2] = 0;
+    } else if (c < 0xFFFF) {
+        buf[0] = 0xE0 | (c >> 12);
+        buf[1] = 0x80 | ((c >> 6) & 0x3F);
+        buf[2] = 0x80 | (c & 0x3F);
+        buf[3] = 0;
+    } else if (c < 0x1FFFF) {
+        buf[0] = 0xF0 | (c >> 18);
+        buf[1] = 0x80 | ((c >> 12) & 0x3F);
+        buf[2] = 0x80 | ((c >> 6) & 0x3F);
+        buf[3] = 0x80 | (c & 0x3F);
+        buf[4] = 0;
+    }
+    return tlStringFromCopy(buf, 0);
 }
 static tlHandle _char_toNumber(tlArgs* args) {
     return tlINT(tl_int(tlArgsTarget(args)));

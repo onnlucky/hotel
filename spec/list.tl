@@ -41,3 +41,6 @@ test "reverse":
 test "flatten":
     assert [[1,2],3,[4,5]].flatten == [1,2,3,4,5]
 
+test "map":
+    assert [1,2].map(n -> n * 3) == [3,6]
+
