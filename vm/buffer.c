@@ -389,33 +389,6 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
     TL_THROW("expected a String or Number");
 }
 
-// TODO merge with above
-/// findByte(byte): find position of the byte in the buffer, or null if buffer does not contain such a byte
-/// [from] start here instead of beginning
-/// [upto] search no further than this posision
-INTERNAL tlHandle _buffer_findByte(tlArgs* args) {
-    tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
-
-    int b = tl_int_or(tlArgsGet(args, 0), -1);
-    if (b == -1) TL_THROW("expected a number (0 - 255)");
-
-    int from = max(0, tl_int_or(tlArgsGet(args, 1), 1) - 1);
-    if (from < 0) return tlNull;
-
-    int upto = min(tlBufferSize(buf), tl_int_or(tlArgsGet(args, 2), tlBufferSize(buf)));
-    if (from >= upto) return tlNull;
-
-    //int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
-    //print("findbyte: %d, from: %d, len: %d", b, from, canread(buf));
-    if (from < 0) return tlNull;
-
-    const char* data = readbuf(buf);
-    int at = from;
-    int end = min(upto - from, canread(buf));
-    for (; at < end; at++) if (data[at] == b) return tlINT(1 + at);
-    return tlNull;
-}
-
 /// startsWith(bytes): returns true if buffer starts with this sequence of bytes
 INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
@@ -483,7 +456,6 @@ static void buffer_init() {
             "readString", _buffer_readString,
             "readByte", _buffer_readByte,
             "find", _buffer_find,
-            "findByte", _buffer_findByte, // TODO remove
             "write", _buffer_write,
             "startsWith", _buffer_startsWith,
             "dump", _buffer_dump,

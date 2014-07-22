@@ -27,15 +27,6 @@ test "find":
     assert buf.find(119.0 - 256) == 7
     assert buf.find(119 - 256 - 256 - 256) == 7
 
-test "depricated findByte":
-    buf = Buffer.new("hello world")
-    assert buf.findByte('w') == 7
-    assert buf.findByte(119) == 7
-
-test "depricated findByte":
-    buf = Buffer.new("1234567890 - 1234567890")
-    assert buf.find('1') == buf.findByte('1')
-
 test "find from and upto":
     buf = Buffer.new("1234567890 - 1234567890")
     assert buf.find("1", 11) == 14
