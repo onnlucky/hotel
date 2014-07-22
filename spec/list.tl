@@ -44,3 +44,23 @@ test "flatten":
 test "map":
     assert [1,2].map(n -> n * 3) == [3,6]
 
+test "reduce":
+    assert isUndefined([].reduce(tmp, e -> tmp + e))
+    assert [].reduce(initial=0, (tmp, e -> tmp + e)) == 0
+    assert [1].reduce(tmp, e -> tmp + e) == 1
+    assert [1].reduce(initial=0, (tmp, e -> tmp + e)) == 1
+    assert [1,2,3].reduce(tmp, e -> tmp + e) == 6
+    assert [1,2,3].reduce(initial=6, (tmp, e -> tmp + e)) == 12
+    res = [1,2,3].reduce: tmp, e -> tmp + e
+    assert res == 6
+    res = [1,2,3].reduce(initial=6): tmp, e -> tmp + e
+    assert res == 12
+
+    assert isUndefined([].reduce(tmp, e -> 42))
+    assert [1].reduce(tmp, e -> 42) == 1
+    assert [1,2].reduce(tmp, e -> 42) == 42
+
+    assert [].reduce(initial=42, (tmp, e -> tmp)) == 42
+    assert [1].reduce(initial=42, (tmp, e -> tmp)) == 42
+    assert [1,2,3].reduce(initial=42, (tmp, e -> tmp)) == 42
+

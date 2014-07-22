@@ -123,6 +123,7 @@ _filter = ->
 
 /// List.reduce([fn]): reduce a list to a single value using a function
 /// [block] either using the passed in block or #fn
+/// [initial] the initial value, will be the first value if not given
 /// the function is called with two arguments, an intermediate result, and the next element
 /// the result of the call is the next intermediate result
 /// reducing an empty list returns null (nothing)
@@ -132,11 +133,12 @@ _filter = ->
 _reduce = fn ->
     block = args.block or fn
     if not block: throw "reduce expects a block or fn"
-    if this.size == 0: return null
-    if this.size == 1: return this[1]
 
-    var $i = 2
-    var $res = this[1]
+    var $i = 1
+    var $res = null
+    { args["initial"] }: $res = args["initial"]
+    {                 }: $res = this[1]; $i = 2
+
     while $i <= this.size:
         $res = block($res, this.get($i))
         $i += 1
