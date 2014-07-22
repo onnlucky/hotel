@@ -5,10 +5,9 @@
 *.so
 *.dylib
 *.dSYM
-
 boot_tl.h
 parser.c
 tl
-
 test/noboot/*.log
-
+cmodules/*.mod
+hotelparser/*parser.c
