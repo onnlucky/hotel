@@ -13,8 +13,38 @@ tlHandle tlCHAR(int value) {
     return c;
 }
 
+// error char: 0xFFFD
+// max char: 0x10FFFF
+void charToUtf8(int c, char buf[], int* len) {
+    if (c < 0x80) { // 7 bits
+        buf[0] = c;
+        *len = 1;
+    } else if (c < 0x800) { // 11 bits
+        buf[0] = 0xC0 | (c >> 6);
+        buf[1] = 0x80 | (c & 0x3F);
+        *len = 2;
+    } else if (c < 0x10000) { // 16 bits
+        buf[0] = 0xE0 | (c >> 12);
+        buf[1] = 0x80 | ((c >> 6) & 0x3F);
+        buf[2] = 0x80 | (c & 0x3F);
+        *len = 3;
+    } else if (c < 0x200000) { // 21 bits
+        buf[0] = 0xF0 | (c >> 18);
+        buf[1] = 0x80 | ((c >> 12) & 0x3F);
+        buf[2] = 0x80 | ((c >> 6) & 0x3F);
+        buf[3] = 0x80 | (c & 0x3F);
+        *len = 4;
+    } else {
+        // encode the error char
+        charToUtf8(0xFFFD, buf, len);
+    }
+}
+
 static const char* chartoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "%c", (int)tl_int(v)); return buf;
+    int len = 0;
+    charToUtf8(tl_int(v), buf, &len);
+    buf[len] = 0;
+    return buf;
 }
 static unsigned int charHash(tlHandle h) {
     return murmurhash2a((uint8_t*)&tlCharAs(h)->value, sizeof(int));
@@ -50,27 +80,11 @@ static tlHandle _char_hash(tlArgs* args) {
 }
 static tlHandle _char_toString(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
-    char buf[16];
-    if (c < 0x7F) {
-        buf[0] = c;
-        buf[1] = 0;
-    } else if (c < 0x7FF) {
-        buf[0] = 0xC0 | (c >> 6);
-        buf[1] = 0x80 | (c & 0x3F);
-        buf[2] = 0;
-    } else if (c < 0xFFFF) {
-        buf[0] = 0xE0 | (c >> 12);
-        buf[1] = 0x80 | ((c >> 6) & 0x3F);
-        buf[2] = 0x80 | (c & 0x3F);
-        buf[3] = 0;
-    } else if (c < 0x1FFFF) {
-        buf[0] = 0xF0 | (c >> 18);
-        buf[1] = 0x80 | ((c >> 12) & 0x3F);
-        buf[2] = 0x80 | ((c >> 6) & 0x3F);
-        buf[3] = 0x80 | (c & 0x3F);
-        buf[4] = 0;
-    }
-    return tlStringFromCopy(buf, 0);
+    char buf[8];
+    int len = 0;
+    charToUtf8(c, buf, &len);
+    buf[len] = 0;
+    return tlStringFromCopy(buf, len);
 }
 static tlHandle _char_toNumber(tlArgs* args) {
     return tlINT(tl_int(tlArgsTarget(args)));
