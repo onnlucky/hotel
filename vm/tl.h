@@ -198,6 +198,8 @@ double tl_double_or(tlHandle v, double d);
 const char* tl_str(tlHandle v);
 char* tl_repr(tlHandle v);
 
+int at_offset(tlHandle v, int size);
+
 // ** main api for values in runtime **
 
 // Any vararg (...) arguments must end with a null.

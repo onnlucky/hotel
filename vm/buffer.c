@@ -3,7 +3,6 @@
 
 #include "trace-off.h"
 
-static int at_offset(tlHandle v, int size);
 static int at_offset_min(tlHandle v, int size);
 static int at_offset_max(tlHandle v, int size);
 

@@ -42,8 +42,8 @@ static int at_offset_raw(tlHandle v) {
     return -1;
 }
 
-// returns offset from index based number or -1 if not a valid number
-static int at_offset(tlHandle v, int size) {
+// returns offset from index based number or -1 if not a valid number or out of range
+int at_offset(tlHandle v, int size) {
     trace("before: %s (%d)", tl_str(v), size);
     if (!v || tlNullIs(v)) return 0;
 
