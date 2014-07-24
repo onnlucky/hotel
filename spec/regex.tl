@@ -7,9 +7,28 @@ test "basic":
     assert Regex("[^ ]+").match("test more").main == "test"
 
 test "subexpressions":
-    m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
-    m[1] == "2014-01-01"
-    m[2] == "hello world"
+    test = "hello [2014-01-01] world"
+    m = Regex("\\[([^]]+)\\].(.*)").match(test)
+    assert m[1] == "2014-01-01"
+    assert m[2] == "world"
+    b, e = m.group(1)
+    assert b == 8
+    assert e == 17
+    assert test[b:e] == "2014-01-01"
+    assert test[b:e] == m[1]
+
+test "find":
+    r = Regex("hello|world")
+    assert r.find("hello") == 1
+    assert r.find("world") == 1
+    assert not r.find("foobar")
+
+test "find sub":
+    test = "hello [2014-01-01] world"
+    b, e = Regex("\\[([^]]+)\\]").find(test)
+    assert b == 7
+    assert e == 18
+    assert test[b:e] == "[2014-01-01]"
 
 test "sub":
     test = "test [hello] hello foo"

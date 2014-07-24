@@ -22,7 +22,7 @@ tlKind* tlMatchKind = &_tlMatchKind;
 
 /// object Regex: create posix compatible regular expressions to match strings
 
-/// call(string): create a regex
+/// call(pattern): create a regex using #pattern
 /// > Regex("[^ ]+")
 // TODO expose flags
 static tlHandle _Regex_new(tlArgs* args) {
@@ -38,6 +38,26 @@ static tlHandle _Regex_new(tlArgs* args) {
         TL_THROW("Regex: %s", buf);
     }
     return regex;
+}
+
+/// find(input): match a regex against #input and return the begin position and end position of the pattern, or null if not found
+/// > s, e = Regex("[^ ]+").find("test more")
+/// > assert s == 1 and e == 4
+// TODO expose flags
+static tlHandle _regex_find(tlArgs* args) {
+    tlRegex* regex = tlRegexAs(tlArgsTarget(args));
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("require a String");
+
+    int offset = tl_int_or(tlArgsGet(args, 1), 0);
+    if (offset < 0 || offset >= tlStringSize(str)) return tlNull;
+
+    int msize = 1;
+    regmatch_t m[msize];
+    int r = regexec(&regex->compiled, tlStringData(str) + offset, msize, m, offset?REG_NOTBOL:0);
+    if (r == REG_NOMATCH) return tlNull;
+    if (r == REG_ESPACE) TL_THROW("out of memory");
+    return tlResultFrom(tlINT(m[0].rm_so + 1), tlINT(m[0].rm_eo), null);
 }
 
 /// match(string): match a regex against an input returns a #Match object or null if not a match
@@ -96,9 +116,22 @@ static tlHandle _match_get(tlArgs* args) {
     return tlStringFromCopy(tlStringData(match->string) + match->groups[at].rm_so, match->groups[at].rm_eo - match->groups[at].rm_so);
 }
 
+/// group(at): get begin and end of a subexpression
+/// > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
+/// > b, e = m.group(1)
+/// > assert b == 2 and e == 11
+static tlHandle _match_group(tlArgs* args) {
+    tlMatch* match = tlMatchAs(tlArgsTarget(args));
+    int at = at_offset(tlArgsGet(args, 0), match->size);
+    if (at < 0) return tlUndef();
+    at++;
+    return tlResultFrom(tlINT(match->groups[at].rm_so + 1), tlINT(match->groups[at].rm_eo), null);
+}
+
 void regex_init_vm(tlVm* vm) {
     if (!_tlRegexKind.klass) {
         _tlRegexKind.klass = tlClassObjectFrom(
+            "find", _regex_find,
             "match", _regex_match,
             null
         );
@@ -114,6 +147,7 @@ void regex_init_vm(tlVm* vm) {
             "main", _match_main,
             "size", _match_size,
             "get", _match_get,
+            "group", _match_group,
             null
         );
     }
