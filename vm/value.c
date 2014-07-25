@@ -220,6 +220,7 @@ static tlHandle _isBin(tlArgs* args) { return tlBOOL(tlBinIs(tlArgsGet(args, 0))
 static tlHandle _isArray(tlArgs* args) { return tlBOOL(tlArrayIs(tlArgsGet(args, 0))); }
 static tlHandle _isHashMap(tlArgs* args) { return tlBOOL(tlHashMapIs(tlArgsGet(args, 0))); }
 static tlHandle _isBuffer(tlArgs* args) { return tlBOOL(tlBufferIs(tlArgsGet(args, 0))); }
+static tlHandle _isRegex(tlArgs* args);
 
 static const tlNativeCbs __value_natives[] = {
     { "isUndefined", _isUndefined },
@@ -240,6 +241,7 @@ static const tlNativeCbs __value_natives[] = {
     { "isArray", _isArray },
     { "isHashMap", _isHashMap },
     { "isBuffer", _isBuffer },
+    { "isRegex", _isRegex },
 
     { 0, 0 }
 };

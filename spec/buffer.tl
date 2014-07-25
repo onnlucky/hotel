@@ -12,6 +12,8 @@ test "basic":
         assert buf.size == 0
         buf.write("1")
         assert buf.rewind.size == 1
+    test "isBuffer":
+        assert isBuffer(buf)
 
 test "find":
     buf = Buffer.new("hello world")

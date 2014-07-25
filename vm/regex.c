@@ -22,6 +22,11 @@ tlKind* tlMatchKind = &_tlMatchKind;
 
 /// object Regex: create posix compatible regular expressions to match strings
 
+static void free_regex(void* _regex, void* data) {
+    tlRegex* regex = tlRegexAs(_regex);
+    regfree(&regex->compiled);
+}
+
 /// call(pattern): create a regex using #pattern
 /// > Regex("[^ ]+")
 // TODO expose flags
@@ -32,6 +37,9 @@ static tlHandle _Regex_new(tlArgs* args) {
 
     tlRegex* regex = tlAlloc(tlRegexKind, sizeof(tlRegex));
     int r = regcomp(&regex->compiled, tlStringData(str), flags|REG_EXTENDED);
+#ifdef HAVE_BOEHMGC
+    GC_REGISTER_FINALIZER_NO_ORDER(regex, free_regex, null, null, null);
+#endif
     if (r) {
         char buf[1024];
         regerror(r, &regex->compiled, buf, sizeof(buf));
@@ -127,6 +135,8 @@ static tlHandle _match_group(tlArgs* args) {
     at++;
     return tlResultFrom(tlINT(match->groups[at].rm_so + 1), tlINT(match->groups[at].rm_eo), null);
 }
+
+static tlHandle _isRegex(tlArgs* args) { return tlBOOL(tlRegexIs(tlArgsGet(args, 0))); }
 
 void regex_init_vm(tlVm* vm) {
     if (!_tlRegexKind.klass) {

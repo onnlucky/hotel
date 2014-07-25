@@ -6,6 +6,10 @@ test "basic":
 
     assert Regex("[^ ]+").match("test more").main == "test"
 
+test "type":
+    r = Regex("hello|world")
+    assert isRegex(r)
+
 test "subexpressions":
     test = "hello [2014-01-01] world"
     m = Regex("\\[([^]]+)\\].(.*)").match(test)
