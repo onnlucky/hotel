@@ -23,7 +23,7 @@ BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
 LIBGC:=libgc/.libs/objs/libgc.a
 LIBMP:=libmp/libtommath.a
 
-TLG_MODULES=modules/html.tl modules/sizzle.tl
+TLG_MODULES=modules/sizzle.tl
 C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
 all: tl $(TLG_MODULES) $(C_MODULES)
@@ -97,11 +97,12 @@ modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
 
 clean:
 	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
-	rm -f modules/html.tl modules/sizzle.tl
+	rm -f modules/sizzle.tl
 	rm -f tlmeta
 	$(MAKE) -C graphics clean
 	$(MAKE) -C cmodules clean
 distclean: clean
+	rm -f $(LIBMP) libmp/*.o
 	rm -rf greg/ libgc/ libatomic_ops/
 dist-clean: distclean
 

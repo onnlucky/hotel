@@ -4,12 +4,12 @@ set -e
 git submodule init
 git submodule update
 
-CFLAGS="-g -O3"
+CFLAGS="$CFLAGS -g -O3"
 DEBUG="--enable-gc-debug --enable-gc-assertions --enable-debug"
 #NOTHREADS="--disable-threads"
 THREADS="--enable-threads=posix"
 #THREADS+=" --enable-thread-local-alloc --enable-parallel-mark"
-OPS="--disable-dependency-tracking --enable-cplusplus"
+OPS="--disable-dependency-tracking"
 cd libgc
 if ! cd libatomic_ops; then
     cp -r ../libatomic_ops .
