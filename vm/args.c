@@ -7,7 +7,6 @@
 
 #include "trace-off.h"
 
-static tlKind _tlArgsKind;
 tlKind* tlArgsKind;
 
 struct tlArgs {
