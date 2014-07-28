@@ -3,7 +3,7 @@
 #include "trace-off.h"
 
 static tlKind _tlVarKind = { .name = "Var" };
-tlKind* tlVarKind = &_tlVarKind;
+tlKind* tlVarKind;
 
 struct tlVar {
     tlHead head;
@@ -66,6 +66,8 @@ static void var_init() {
     );
     // TODO remove this in favor of Var.new etc ...
     tl_register_natives(__var_natives);
+
+    INIT_KIND(tlVarKind);
 }
 
 static void var_vm_default(tlVm* vm) {

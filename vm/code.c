@@ -3,7 +3,7 @@
 #include "trace-off.h"
 
 static tlKind _tlCodeKind = { .name = "Code" };
-tlKind* tlCodeKind = &_tlCodeKind;
+tlKind* tlCodeKind;
 
 struct tlCode {
     tlHead head;

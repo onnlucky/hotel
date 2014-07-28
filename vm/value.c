@@ -155,10 +155,10 @@ static tlKind _tlIntKind = {
     .cmp = intCmp,
 };
 
-tlKind* tlUndefinedKind = &_tlUndefinedKind;
-tlKind* tlNullKind = &_tlNullKind;
-tlKind* tlBoolKind = &_tlBoolKind;
-tlKind* tlIntKind = &_tlIntKind;
+tlKind* tlUndefinedKind;
+tlKind* tlNullKind;
+tlKind* tlBoolKind;
+tlKind* tlIntKind;
 
 static tlHandle _bool_toString(tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
@@ -273,5 +273,10 @@ static void value_init() {
     );
     tlObjectSet_(intStatic, s__methods, _tlIntKind.klass);
     tl_register_global("Int", intStatic);
+
+    INIT_KIND(tlUndefinedKind);
+    INIT_KIND(tlNullKind);
+    INIT_KIND(tlBoolKind);
+    INIT_KIND(tlIntKind);
 }
 

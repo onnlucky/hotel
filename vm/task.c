@@ -34,7 +34,7 @@ typedef enum {
 } tlTaskState;
 
 static tlKind _tlTaskKind;
-tlKind* tlTaskKind = &_tlTaskKind;
+tlKind* tlTaskKind;
 
 // TODO slim this one down ...
 struct tlTask {
@@ -89,7 +89,7 @@ lqentry* tlTaskGetEntry(tlTask* task) {
 
 TL_REF_TYPE(tlWaitQueue);
 static tlKind _tlWaitQueueKind = { .name = "WaitQueue" };
-tlKind* tlWaitQueueKind = &_tlWaitQueueKind;
+tlKind* tlWaitQueueKind;
 struct tlWaitQueue {
     tlHead head;
     lqueue wait_q;
@@ -745,6 +745,9 @@ static void task_init() {
         "bindToThread", _Task_bindToThread,
         null
     );
+
+    INIT_KIND(tlTaskKind);
+    INIT_KIND(tlWaitQueueKind);
 }
 
 static void task_vm_default(tlVm* vm) {

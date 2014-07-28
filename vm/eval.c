@@ -38,7 +38,7 @@ static tlString* _t_native;
 
 // various internal structures
 static tlKind _tlClosureKind = { .name = "Function" };
-tlKind* tlClosureKind = &_tlClosureKind;
+tlKind* tlClosureKind;
 struct tlClosure {
     tlHead head;
     tlCode* code;
@@ -46,14 +46,14 @@ struct tlClosure {
 };
 
 static tlKind _tlThunkKind = { .name = "Thunk" };
-tlKind* tlThunkKind = &_tlThunkKind;
+tlKind* tlThunkKind;
 struct tlThunk {
     tlHead head;
     tlHandle value;
 };
 
 static tlKind _tlResultKind = { .name = "Result" };
-tlKind* tlResultKind = &_tlResultKind;
+tlKind* tlResultKind;
 struct tlResult {
     tlHead head;
     intptr_t size;
@@ -61,7 +61,7 @@ struct tlResult {
 };
 
 static tlKind _tlCollectKind = { .name = "Collect" };
-tlKind* tlCollectKind = &_tlCollectKind;
+tlKind* tlCollectKind;
 struct tlCollect {
     tlHead head;
     intptr_t size;
@@ -949,6 +949,13 @@ static const tlNativeCbs __eval_natives[] = {
 };
 
 static void eval_init() {
+    INIT_KIND(tlClosureKind);
+    INIT_KIND(tlThunkKind);
+    INIT_KIND(tlResultKind);
+    INIT_KIND(tlCollectKind);
+    INIT_KIND(tlCodeKind);
+    INIT_KIND(tlFrameKind);
+
     _t_unknown = tlSTR("<unknown>");
     _t_anon = tlSTR("<anon>");
     _t_native = tlSTR("<native>");
@@ -956,14 +963,14 @@ static void eval_init() {
     tl_register_natives(__eval_natives);
 
     // TODO call into run for some of these ...
-    _tlCallKind.call = callCall;
-    _tlClosureKind.call = callClosure;
-    _tlClosureKind.run = runClosure;
-    _tlClosureKind.klass = tlClassObjectFrom(
+    tlCallKind->call = callCall;
+    tlClosureKind->call = callClosure;
+    tlClosureKind->run = runClosure;
+    tlClosureKind->klass = tlClassObjectFrom(
         "call", _call,
         null
     );
-    _tlThunkKind.call = callThunk;
-    _tlCodeKind.run = runCode;
+    tlThunkKind->call = callThunk;
+    tlCodeKind->run = runCode;
 }
 

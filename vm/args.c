@@ -8,7 +8,7 @@
 #include "trace-off.h"
 
 static tlKind _tlArgsKind;
-tlKind* tlArgsKind = &_tlArgsKind;
+tlKind* tlArgsKind;
 
 struct tlArgs {
     tlHead head;
@@ -164,14 +164,16 @@ const char* _ArgstoString(tlHandle v, char* buf, int size) {
     return buf;
 }
 
-static tlKind _tlArgsKind = {
-    .name = "Args",
-    .toString = _ArgstoString,
-};
 
 static void args_init() {
+    tlKind _tlArgsKind = {
+        .name = "Args",
+        .toString = _ArgstoString,
+    };
+    INIT_KIND(tlArgsKind);
+
     v_args_empty = tlArgsNew(null, null);
-    _tlArgsKind.klass = tlClassObjectFrom(
+    tlArgsKind->klass = tlClassObjectFrom(
             "this", _args_this,
             "msg", _args_msg,
             "block", _args_block,
@@ -198,7 +200,7 @@ static void args_init() {
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlArgsKind.klass);
+    tlObjectSet_(constructor, s__methods, tlArgsKind->klass);
     tl_register_global("Args", constructor);
 }
 

@@ -132,31 +132,31 @@ struct tlBSendToken {
 };
 
 static tlKind _tlBModuleKind = { .name = "BModule" };
-tlKind* tlBModuleKind = &_tlBModuleKind;
+tlKind* tlBModuleKind;
 
 static tlKind _tlBDebugInfoKind = { .name = "BDebugInfo" };
-tlKind* tlBDebugInfoKind = &_tlBDebugInfoKind;
+tlKind* tlBDebugInfoKind;
 
 static tlKind _tlBCodeKind = { .name = "BCode" };
-tlKind* tlBCodeKind = &_tlBCodeKind;
+tlKind* tlBCodeKind;
 
 static tlKind _tlBCallKind = { .name = "BCall" };
-tlKind* tlBCallKind = &_tlBCallKind;
+tlKind* tlBCallKind;
 
 static tlKind _tlBEnvKind = { .name = "BEnv" };
-tlKind* tlBEnvKind = &_tlBEnvKind;
+tlKind* tlBEnvKind;
 
 static tlKind _tlBClosureKind = { .name = "BClosure" };
-tlKind* tlBClosureKind = &_tlBClosureKind;
+tlKind* tlBClosureKind;
 
 static tlKind _tlBLazyKind = { .name = "BLazy" };
-tlKind* tlBLazyKind = &_tlBLazyKind;
+tlKind* tlBLazyKind;
 
 static tlKind _tlBLazyDataKind = { .name = "BLazyData" };
-tlKind* tlBLazyDataKind = &_tlBLazyDataKind;
+tlKind* tlBLazyDataKind;
 
 static tlKind _tlBSendTokenKind = { .name = "BSendToken" };
-tlKind* tlBSendTokenKind = &_tlBSendTokenKind;
+tlKind* tlBSendTokenKind;
 
 tlBModule* tlBModuleNew(tlString* name) {
     tlBModule* mod = tlAlloc(tlBModuleKind, sizeof(tlBModule));
@@ -1691,5 +1691,15 @@ void bcode_init() {
     _tlBClosureKind.run = runBClosure;
     _tlBLazyKind.run = runBLazy;
     _tlBLazyDataKind.run = runBLazyData;
+
+    INIT_KIND(tlBModuleKind);
+    INIT_KIND(tlBDebugInfoKind);
+    INIT_KIND(tlBCodeKind);
+    INIT_KIND(tlBCallKind);
+    INIT_KIND(tlBEnvKind);
+    INIT_KIND(tlBClosureKind);
+    INIT_KIND(tlBLazyKind);
+    INIT_KIND(tlBLazyDataKind);
+    INIT_KIND(tlBSendTokenKind);
 }
 

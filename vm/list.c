@@ -2,8 +2,7 @@
 
 #include "trace-off.h"
 
-static tlKind _tlListKind;
-tlKind* tlListKind = &_tlListKind;
+tlKind* tlListKind;
 
 struct tlList {
     tlHead head;
@@ -417,18 +416,19 @@ static tlHandle listCmp(tlHandle _left, tlHandle _right) {
     return tlCOMPARE(left->size - right->size);
 }
 
-// TODO eval: { "_list_clone", _list_clone },
-static tlKind _tlListKind = {
-    .name = "List",
-    .size = listSize,
-    .hash = listHash,
-    .equals = listEquals,
-    .cmp = listCmp,
-};
 
 static void list_init() {
+    tlKind _tlListKind = {
+        .name = "List",
+        .size = listSize,
+        .hash = listHash,
+        .equals = listEquals,
+        .cmp = listCmp,
+    };
+    INIT_KIND(tlListKind);
+
     _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
-    _tlListKind.klass = tlClassObjectFrom(
+    tlListKind->klass = tlClassObjectFrom(
         "hash", _list_hash,
         "toList", _list_toList,
         "size", _list_size,
@@ -464,7 +464,7 @@ static void list_init() {
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlListKind.klass);
+    tlObjectSet_(constructor, s__methods, tlListKind->klass);
     tl_register_global("List", constructor);
     tl_register_global("_List_unsafe", tlNativeNew(_List_unsafe, tlSYM("_List_unsafe")));
     tl_register_global("_list_set_", tlNativeNew(_list_set_, tlSYM("_list_set_")));

@@ -20,7 +20,7 @@ static tlKind _tlBufferKind = {
     .name = "Buffer",
     .locked = true,
 };
-tlKind* tlBufferKind = &_tlBufferKind;
+tlKind* tlBufferKind;
 
 #define check(buf) assert(buf->readpos <= buf->writepos && buf->writepos <= buf->size)
 
@@ -446,7 +446,8 @@ INTERNAL tlHandle _Buffer_new(tlArgs* args) {
 }
 
 static void buffer_init() {
-    _tlBufferKind.klass = tlClassObjectFrom(
+    INIT_KIND(tlBufferKind);
+    tlBufferKind->klass = tlClassObjectFrom(
             "size", _buffer_size,
             "compact", _buffer_compact,
             "clear", _buffer_clear,

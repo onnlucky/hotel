@@ -2,8 +2,7 @@
 
 #include "trace-off.h"
 
-static tlKind _tlObjectKind;
-tlKind* tlObjectKind = &_tlObjectKind;
+tlKind* tlObjectKind;
 
 struct tlObject {
     tlHead head;
@@ -439,8 +438,6 @@ static tlHandle objectCmp(tlHandle _left, tlHandle _right) {
     }
     return tlCOMPARE(left->keys->size - right->keys->size);
 }
-
-
 
 static tlKind _tlObjectKind = {
     .name = "Object",

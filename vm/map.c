@@ -7,8 +7,7 @@
 
 #include "trace-off.h"
 
-static tlKind _tlMapKind;
-tlKind* tlMapKind = &_tlMapKind;
+tlKind* tlMapKind;
 
 struct tlMap {
     tlHead head;
@@ -207,23 +206,24 @@ static tlHandle mapCmp(tlHandle _left, tlHandle _right) {
     return tlCOMPARE(left->keys->size - right->keys->size);
 }
 
-static tlKind _tlMapKind = {
-    .name = "Map",
-    .size = mapSize,
-    .hash = mapHash,
-    .equals = mapEquals,
-    .cmp = mapCmp,
-    .toString = maptoString,
-};
-
 /// Map.each([fn]): for every key,value pair in the map call the passed in block or #fn
 /// [block] block to call using `block(key, value, at)`
 
 /// Map.map([fn]): return a list with the results of calling the passed in block or #fn
 /// [block] block to call using `block(key, value, at)`
 static void map_init() {
+    tlKind _tlMapKind = {
+        .name = "Map",
+        .size = mapSize,
+        .hash = mapHash,
+        .equals = mapEquals,
+        .cmp = mapCmp,
+        .toString = maptoString,
+    };
+    INIT_KIND(tlMapKind);
+
     _tl_emptyMap = tlMapNew(tlSetEmpty());
-    _tlMapKind.klass = tlClassObjectFrom(
+    tlMapKind->klass = tlClassObjectFrom(
         "hash", _map_hash,
         "size", _map_size,
         "get", _map_get,
@@ -240,7 +240,7 @@ static void map_init() {
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlMapKind.klass);
+    tlObjectSet_(constructor, s__methods, tlMapKind->klass);
     tl_register_global("Map", constructor);
 }
 

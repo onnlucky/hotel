@@ -68,7 +68,7 @@ static tlKind _tlCharKind = {
     .equals = charEquals,
     .cmp = charCmp,
 };
-tlKind* tlCharKind = &_tlCharKind;
+tlKind* tlCharKind;
 
 static tlHandle _Char(tlArgs* args) {
     // TODO take from bin/buffer/string other chars and numbers
@@ -129,7 +129,7 @@ static tlKind _tlFloatKind = {
     .equals = floatEquals,
     .cmp = floatCmp,
 };
-tlKind* tlFloatKind = &_tlFloatKind;
+tlKind* tlFloatKind;
 
 static tlHandle _float_hash(tlArgs* args) {
     return tlINT(floatHash(tlArgsTarget(args)));
@@ -233,6 +233,11 @@ static tlNum* tlNumPow(tlNum* l, intptr_t r) {
     return tlNumFrom(res);
 }
 
+static tlHandle _num_abs(tlArgs* args) {
+    tlNum* num = tlNumAs(tlArgsTarget(args));
+    return num;
+}
+
 static const char* numtoString(tlHandle v, char* buf, int size) {
     mp_toradix_n(&tlNumAs(v)->value, buf, 10, size); return buf;
 }
@@ -256,7 +261,7 @@ static tlKind _tlNumKind = {
     .equals = numEquals,
     .cmp = numCmp,
 };
-tlKind* tlNumKind = &_tlNumKind;
+tlKind* tlNumKind;
 
 
 // ** various conversions **
@@ -374,10 +379,10 @@ static void number_init() {
         null
     );
 
-    //_tlNumKind.klass = tlClassObjectFrom(
-    //    "toString", _num_toString,
-    //    null
-    //);
+    _tlNumKind.klass = tlClassObjectFrom(
+        "abs", _num_abs,
+        null
+    );
 
     _tlCharKind.klass = tlClassObjectFrom(
         "hash", _char_hash,
@@ -393,5 +398,9 @@ static void number_init() {
     );
     tlObjectSet_(constructor, s__methods, _tlCharKind.klass);
     tl_register_global("Char", constructor);
+
+    INIT_KIND(tlCharKind);
+    INIT_KIND(tlFloatKind);
+    INIT_KIND(tlNumKind);
 }
 

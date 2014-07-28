@@ -212,9 +212,9 @@ static tlKind _tlWriterKind = {
     .name = "Writer",
     .locked = true,
 };
-tlKind* tlFileKind = &_tlFileKind;
-tlKind* tlReaderKind = &_tlReaderKind;
-tlKind* tlWriterKind = &_tlWriterKind;
+tlKind* tlFileKind;
+tlKind* tlReaderKind;
+tlKind* tlWriterKind;
 
 static tlFile* tlFileFromEv(ev_io *ev) {
     return tlFileAs(((char*)ev) - ((unsigned long)&((tlFile*)0)->ev));
@@ -671,7 +671,7 @@ tlKind _tlDirKind = {
     .name = "Dir",
     .locked = true,
 };
-tlKind* tlDirKind = &_tlDirKind;
+tlKind* tlDirKind;
 
 static tlDir* tlDirNew(DIR* p) {
     tlDir* dir = tlAlloc(tlDirKind, sizeof(tlDir));
@@ -812,7 +812,7 @@ tlKind _tlChildKind = {
     .name = "Child",
     .locked = true,
 };
-tlKind* tlChildKind = &_tlChildKind;
+tlKind* tlChildKind;
 
 static tlChild* tlChildFrom(ev_child *ev) {
     return tlChildAs(((char*)ev) - ((unsigned long)&((tlChild*)0)->ev));
@@ -1397,6 +1397,12 @@ void evio_init() {
     // TODO this is here as a "test"
     ev_async_send(&loop_interrupt);
     ev_run(EVRUN_NOWAIT);
+
+    INIT_KIND(tlReaderKind);
+    INIT_KIND(tlWriterKind);
+    INIT_KIND(tlFileKind);
+    INIT_KIND(tlDirKind);
+    INIT_KIND(tlChildKind);
 }
 
 void evio_vm_default(tlVm* vm) {

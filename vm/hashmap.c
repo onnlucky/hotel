@@ -6,7 +6,7 @@
 #include "trace-off.h"
 
 static tlKind _tlHashMapKind = { .name = "HashMap" };
-tlKind* tlHashMapKind = &_tlHashMapKind;
+tlKind* tlHashMapKind;
 
 struct tlHashMap {
     tlHead head;
@@ -234,6 +234,8 @@ void hashmap_init() {
         null
     );
     tlObjectSet_(hashmapClass, s__methods, _tlHashMapKind.klass);
+
+    INIT_KIND(tlHashMapKind);
 }
 
 static void hashmap_vm_default(tlVm* vm) {

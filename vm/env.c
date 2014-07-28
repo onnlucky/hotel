@@ -8,7 +8,7 @@ static const uint8_t TL_FLAG_CAPTURED = 0x01;
 static const uint8_t TL_FLAG_CLOSED   = 0x02;
 
 static tlKind _tlEnvKind = { .name = "Environment" };
-tlKind* tlEnvKind = &_tlEnvKind;
+tlKind* tlEnvKind;
 
 struct tlEnv {
     tlHead head;
@@ -189,6 +189,8 @@ static void env_init() {
         "module", _Env_module,
         null
     );
+
+    INIT_KIND(tlEnvKind);
 }
 static void env_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Env"), envClass);

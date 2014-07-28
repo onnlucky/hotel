@@ -173,15 +173,16 @@ static tlHandle runSet(tlHandle _fn, tlArgs* args) {
     return tlINT(at + 1);
 }
 
+
 static tlKind _tlSetKind = {
     .name = "Set",
     .run = runSet
 };
-tlKind* tlSetKind = &_tlSetKind;
+tlKind* tlSetKind;
 
 static void set_init() {
     _tl_set_empty = tlSetNew(0);
-    _tlSetKind.klass = tlClassObjectFrom(
+    tlSetKind->klass = tlClassObjectFrom(
         "size", _set_size,
         "has", _set_has,
         "find", _set_find,
@@ -197,7 +198,7 @@ static void set_init() {
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlSetKind.klass);
+    tlObjectSet_(constructor, s__methods, tlSetKind->klass);
     tl_register_global("Set", constructor);
 }
 

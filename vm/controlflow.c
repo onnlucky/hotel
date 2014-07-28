@@ -138,7 +138,7 @@ static tlKind _tlReturnKind = {
     .name = "Return",
     .run = ReturnRun,
 };
-tlKind* tlReturnKind = &_tlReturnKind;
+tlKind* tlReturnKind;
 
 INTERNAL tlHandle tlReturnNew(tlArgs* args) {
     tlReturn* ret = tlAlloc(tlReturnKind, sizeof(tlReturn));
@@ -178,7 +178,7 @@ static tlKind _tlGotoKind = {
     .name = "Goto",
     .call = GotoCallFn,
 };
-tlKind* tlGotoKind = &_tlGotoKind;
+tlKind* tlGotoKind;
 
 INTERNAL tlHandle tlGotoNew(tlArgs* args) {
     tlGoto* go = tlAlloc(tlGotoKind, sizeof(tlGoto));
@@ -245,7 +245,7 @@ static tlKind _tlContinuationKind = {
     .name = "Continuation",
     .run = ContinuationRun,
 };
-tlKind* tlContinuationKind = &_tlContinuationKind;
+tlKind* tlContinuationKind;
 
 INTERNAL tlHandle resumeContinuation(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
@@ -299,5 +299,9 @@ static const tlNativeCbs __controlflow_natives[] = {
 
 static void controlflow_init() {
     tl_register_natives(__controlflow_natives);
+
+    INIT_KIND(tlReturnKind);
+    INIT_KIND(tlContinuationKind);
+    INIT_KIND(tlGotoKind);
 }
 

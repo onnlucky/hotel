@@ -113,6 +113,8 @@ static inline _T* _T##As(tlHandle v) { \
 static inline _T* _T##Cast(tlHandle v) { \
     return _T##Is(v)?(_T*)v:null; }
 
+#define INIT_KIND(n) n = malloc(sizeof(tlKind)); memcpy(n, &_##n, sizeof(tlKind));
+
 typedef struct tlString tlString;
 extern tlKind* tlStringKind;
 static inline bool tlStringIs(const tlHandle v) {

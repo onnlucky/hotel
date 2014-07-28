@@ -40,8 +40,7 @@ static LHashMap *globals = 0;
 static tlSym _SYM_FROM_TEXT(tlString* v) { return (tlSym)((intptr_t)v | 2); }
 static tlString* _TEXT_FROM_SYM(tlSym v) { return (tlString*)((intptr_t)v & ~7); }
 
-static tlKind _tlSymKind;
-tlKind* tlSymKind = &_tlSymKind;
+tlKind* tlSymKind;
 
 bool tlActiveIs(tlHandle v) { return !tlIntIs(v) && (((intptr_t)v) & 7) >= 4; }
 tlHandle tl_value(tlHandle a) {
@@ -172,7 +171,6 @@ static tlKind _tlSymKind = {
 };
 
 static void sym_string_init() {
-    trace("");
     symbols  = lhashmap_new(strequals, strhash, strfree);
     globals = lhashmap_new(strequals, strhash, strfree);
 
@@ -206,7 +204,7 @@ static void sym_string_init() {
 
     string_init();
 
-    assert(_tlStringKind.klass);
-    _tlSymKind.klass = _tlStringKind.klass;
+    assert(tlStringKind->klass);
+    tlSymKind->klass = tlStringKind->klass;
 }
 

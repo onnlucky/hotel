@@ -458,14 +458,18 @@ void tl_init() {
     signal(SIGBUS, tlbacktrace_fatal);
     signal(SIGSYS, tlbacktrace_fatal);
 
+    INIT_KIND(tlSymKind);
+    INIT_KIND(tlStringKind);
+    INIT_KIND(tlSetKind);
+    INIT_KIND(tlObjectKind);
+    INIT_KIND(tlNativeKind);
+
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
     assert(!tlSymIs(tlFalse));
     assert(!tlSymIs(tlTrue));
-    //assert(tl_kind(tlTrue) == tlBoolKind);
-    //assert(tl_kind(tlFalse) == tlBoolKind);
-    assert(!tlArgsIs(0));
-    assert(tlArgsAs(0) == 0);
+    assert(tl_kind(tlTrue) == tlBoolKind);
+    assert(tl_kind(tlFalse) == tlBoolKind);
 
     trace("    field size: %zd", sizeof(tlHandle));
     trace(" call overhead: %zd (%zd)", sizeof(tlCall), sizeof(tlCall)/sizeof(tlHandle));
@@ -479,6 +483,7 @@ void tl_init() {
     set_init();
     object_init();
     map_init();
+
 
     value_init();
     number_init();
@@ -505,10 +510,10 @@ void tl_init() {
     time_init();
     serialize_init();
 
-    //openssl_init();
-    //storage_init();
-
     tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
+
+    assert(!tlArgsIs(0));
+    assert(tlArgsAs(0) == 0);
 }
 
 void hotelparser_init();
@@ -643,10 +648,22 @@ static const tlNativeCbs __vm_natives[] = {
     { 0, 0 },
 };
 
+static tlKind _tlVmKind = {
+    .name = "Vm"
+};
+static tlKind _tlWorkerKind = {
+    .name = "Worker"
+};
+tlKind* tlVmKind;
+tlKind* tlWorkerKind;
+
 static void vm_init() {
     tl_register_natives(__vm_natives);
     tlObject* system = tlObjectFrom("version", tlSTR(TL_VERSION), null);
     tl_register_global("system", system);
+
+    INIT_KIND(tlVmKind);
+    INIT_KIND(tlWorkerKind);
 }
 
 tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as) {
@@ -742,15 +759,6 @@ void tlVmInitDefaultEnv(tlVm* vm) {
     tlNative* error = tlNativeNew(_error, tlSYM("error"));
     tlVmGlobalSet(vm, tlNativeName(error), error);
 }
-
-static tlKind _tlVmKind = {
-    .name = "Vm"
-};
-static tlKind _tlWorkerKind = {
-    .name = "Worker"
-};
-tlKind* tlVmKind = &_tlVmKind;
-tlKind* tlWorkerKind = &_tlWorkerKind;
 
 #include <dlfcn.h>
 typedef tlHandle(*tlCModuleLoad)();

@@ -3,9 +3,7 @@
 
 #include "trace-off.h"
 
-static tlKind _tlStringKind;
-tlKind* tlStringKind = &_tlStringKind;
-
+tlKind* tlStringKind;
 static tlString* _tl_emptyString;
 
 // TODO short strings should be "inline" saves finalizer
@@ -586,7 +584,7 @@ INTERNAL tlHandle stringCmp(tlHandle left, tlHandle right) {
     return tlCOMPARE(tlStringCmp(tlStringAs(left), tlStringAs(right)));
 }
 static tlKind _tlStringKind = {
-    .name = "str",
+    .name = "String",
     .toString = stringtoString,
     .hash = stringHash,
     .equals = stringEquals,
@@ -595,7 +593,7 @@ static tlKind _tlStringKind = {
 
 static void string_init() {
     _tl_emptyString = tlSTR("");
-    _tlStringKind.klass = tlClassObjectFrom(
+    tlStringKind->klass = tlClassObjectFrom(
         "toString", _string_toString,
         "toSym", _string_toSym,
         "size", _string_size,
@@ -627,7 +625,7 @@ static void string_init() {
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlStringKind.klass);
+    tlObjectSet_(constructor, s__methods, tlStringKind->klass);
     tl_register_global("String", constructor);
 }
 

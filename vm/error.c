@@ -7,7 +7,7 @@ static tlSym _s_msg;
 static tlSym _s_stack;
 
 static tlKind _tlStackTraceKind;
-tlKind* tlStackTraceKind = &_tlStackTraceKind;
+tlKind* tlStackTraceKind;
 
 TL_REF_TYPE(tlStackTrace);
 
@@ -166,6 +166,8 @@ INTERNAL void error_init() {
     _s_msg = tlSYM("msg"); tlSetAdd_(_errorKeys, _s_msg);
     _s_stack = tlSYM("stack"); tlSetAdd_(_errorKeys, _s_stack);
     tlSetAdd_(_errorKeys, s_class);
+
+    INIT_KIND(tlStackTraceKind);
 }
 
 static void error_vm_default(tlVm* vm) {

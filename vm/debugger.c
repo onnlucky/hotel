@@ -4,7 +4,7 @@
 #include "trace-off.h"
 
 static tlKind _tlDebuggerKind;
-tlKind* tlDebuggerKind = &_tlDebuggerKind;
+tlKind* tlDebuggerKind;
 
 struct tlDebugger {
     tlHead head;
@@ -241,5 +241,7 @@ static void debugger_init() {
     );
     tlObjectSet_(constructor, s__methods, _tlDebuggerKind.klass);
     tl_register_global("Debugger", constructor);
+
+    INIT_KIND(tlDebuggerKind);
 }
 

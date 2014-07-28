@@ -8,8 +8,7 @@ INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn);
 
 static const uint8_t TL_FLAG_HASKEYS  = 0x01;
 
-static tlKind _tlNativeKind;
-tlKind* tlNativeKind = &_tlNativeKind;
+tlKind* tlNativeKind;
 
 struct tlNative {
     tlHead head;
@@ -31,8 +30,7 @@ tlNative* tlNATIVE(tlNativeCb cb, const char* n) {
     return tlNativeNew(cb, tlSYM(n));
 }
 
-static tlKind _tlCallKind;
-tlKind* tlCallKind = &_tlCallKind;
+tlKind* tlCallKind;
 
 struct tlCall {
     tlHead head;
@@ -285,9 +283,10 @@ static tlKind _tlCallKind = {
     .size = callSize,
 };
 static void call_init() {
-    _tlNativeKind.klass = tlClassObjectFrom(
+    tlNativeKind->klass = tlClassObjectFrom(
         "call", _call,
         null
     );
+    INIT_KIND(tlCallKind);
 }
 

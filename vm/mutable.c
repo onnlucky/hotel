@@ -3,7 +3,7 @@
 #include "trace-off.h"
 
 static tlKind _tlMutableKind = { .name = "Mutable", .locked = true };
-tlKind* tlMutableKind = &_tlMutableKind;
+tlKind* tlMutableKind;
 
 struct tlMutable {
     tlLock lock;
@@ -134,5 +134,7 @@ static const tlNativeCbs __mutable_nativecbs[] = {
 static void mutable_init() {
     _tlMutableKind.send = mutableSend;
     tl_register_natives(__mutable_nativecbs);
+
+    INIT_KIND(tlMutableKind);
 }
 

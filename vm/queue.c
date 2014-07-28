@@ -5,19 +5,20 @@
 
 TL_REF_TYPE(tlQueue);
 static tlKind _tlQueueKind = { .name = "Queue" };
-tlKind* tlQueueKind = &_tlQueueKind;
+tlKind* tlQueueKind;
 
 TL_REF_TYPE(tlMsgQueue);
 static tlKind _tlMsgQueueKind = { .name = "MsgQueue" };
-tlKind* tlMsgQueueKind = &_tlMsgQueueKind;
+tlKind* tlMsgQueueKind;
 
 TL_REF_TYPE(tlMsgQueueInput);
 static tlKind _tlMsgQueueInputKind = { .name = "MsgQueueInput" };
-tlKind* tlMsgQueueInputKind = &_tlMsgQueueInputKind;
+tlKind* tlMsgQueueInputKind;
 
 TL_REF_TYPE(tlMessage);
 static tlKind _tlMessageKind = { .name = "Message" };
-tlKind* tlMessageKind = &_tlMessageKind;
+tlKind* tlMessageKind;
+
 
 typedef void(*tlMsgQueueSignalFn)(void);
 
@@ -247,6 +248,7 @@ INTERNAL tlHandle _message_get(tlArgs* args) {
 
 static tlObject* queueClass;
 static tlObject* msgQueueClass;
+
 void queue_init() {
     queueClass = tlClassObjectFrom("new", _Queue_new, null);
     _tlQueueKind.klass = tlClassObjectFrom(
@@ -270,6 +272,11 @@ void queue_init() {
         "get", _message_get,
         null
     );
+
+    INIT_KIND(tlQueueKind);
+    INIT_KIND(tlMsgQueueKind);
+    INIT_KIND(tlMsgQueueInputKind);
+    INIT_KIND(tlMessageKind);
 }
 static void queue_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Queue"), queueClass);

@@ -3,8 +3,7 @@
 
 #include "trace-off.h"
 
-static tlKind _tlBinKind;
-tlKind* tlBinKind = &_tlBinKind;
+tlKind* tlBinKind;
 
 static tlBin* _tl_emptyBin;
 
@@ -184,10 +183,12 @@ static tlKind _tlBinKind = {
 };
 
 static void bin_init() {
+    INIT_KIND(tlBinKind);
+
     char buf[0];
     _tl_emptyBin = tlBinFromCopy(buf, 0);
 
-    _tlBinKind.klass = tlClassObjectFrom(
+    tlBinKind->klass = tlClassObjectFrom(
         "toString", _bin_toString,
         "toHex", _bin_toHex,
         //"toBuffer", _bin_toBuffer,
@@ -206,7 +207,7 @@ static void bin_init() {
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlBinKind.klass);
+    tlObjectSet_(constructor, s__methods, tlBinKind->klass);
     tl_register_global("Bin", constructor);
 }
 

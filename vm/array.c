@@ -4,7 +4,7 @@
 #include "trace-off.h"
 
 static tlKind _tlArrayKind = { .name = "Array", .locked = true };
-tlKind* tlArrayKind = &_tlArrayKind;
+tlKind* tlArrayKind;
 
 struct tlArray {
     tlLock lock;
@@ -286,6 +286,8 @@ static void array_init() {
         null
     );
     tlObjectSet_(arrayClass, s__methods, _tlArrayKind.klass);
+
+    INIT_KIND(tlArrayKind);
 }
 
 static void array_vm_default(tlVm* vm) {
