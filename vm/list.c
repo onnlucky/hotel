@@ -11,7 +11,6 @@ struct tlList {
 };
 
 static tlList* _tl_emptyList;
-
 tlList* tlListEmpty() { return _tl_emptyList; }
 
 #define TL_MAX_LIST_SIZE 1024 * 1024

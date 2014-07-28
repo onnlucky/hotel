@@ -429,6 +429,7 @@ tlHandle tlUndefMsg(tlString* msg);
     return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)
 
 // args
+tlArgs* tlArgsEmpty();
 tlArgs* tlArgsNew(tlList* list, tlObject* o);
 void tlArgsSetTarget_(tlArgs* args, tlHandle target);
 void tlArgsSetFn_(tlArgs* args, tlHandle fn);

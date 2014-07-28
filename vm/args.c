@@ -19,7 +19,8 @@ struct tlArgs {
     tlList* list;
 };
 
-static tlArgs* v_args_empty;
+static tlArgs* _tl_emptyArgs;
+tlArgs* tlArgsEmpty() { return _tl_emptyArgs; }
 
 tlArgs* tlArgsNewNames(int size, tlSet* names) {
     if (!names) names = _tl_set_empty;
@@ -172,7 +173,7 @@ static void args_init() {
     };
     INIT_KIND(tlArgsKind);
 
-    v_args_empty = tlArgsNew(null, null);
+    _tl_emptyArgs = tlArgsNew(null, null);
     tlArgsKind->klass = tlClassObjectFrom(
             "this", _args_this,
             "msg", _args_msg,
