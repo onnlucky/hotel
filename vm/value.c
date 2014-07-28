@@ -179,8 +179,34 @@ static tlHandle _int_toChar(tlArgs* args) {
 }
 static tlHandle _int_toString(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
-    char buf[255];
-    int len = snprintf(buf, sizeof(buf), "%d", c);
+    int base = tl_int_or(tlArgsGet(args, 0), 10);
+    char buf[128];
+    int len;
+    switch (base) {
+        case 2:
+        {
+            int at = 0;
+            bool zero = true;
+            for (int i = 31; i >= 0; i--) {
+                if ((c >> i) & 1) {
+                    zero = false;
+                    buf[at++] = '1';
+                } else {
+                    if (zero) continue;
+                    buf[at++] = '0';
+                }
+                len = at;
+                buf[len] = 0;
+            }
+        }
+        break;
+        case 16:
+        len = snprintf(buf, sizeof(buf), "%x", c);
+        break;
+        default:
+        len = snprintf(buf, sizeof(buf), "%d", c);
+        break;
+    }
     return tlStringFromCopy(buf, len);
 }
 static tlHandle _int_self(tlArgs* args) {

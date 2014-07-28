@@ -237,6 +237,23 @@ static tlHandle _num_abs(tlArgs* args) {
     tlNum* num = tlNumAs(tlArgsTarget(args));
     return num;
 }
+static tlHandle _num_toString(tlArgs* args) {
+    tlNum* num = tlNumAs(tlArgsTarget(args));
+    int base = tl_int_or(tlArgsGet(args, 0), 10);
+    char buf[1024];
+    switch (base) {
+        case 2:
+        mp_toradix_n(&num->value, buf, 2, sizeof(buf));
+        break;
+        case 16:
+        mp_toradix_n(&num->value, buf, 16, sizeof(buf));
+        break;
+        default:
+        mp_toradix_n(&num->value, buf, 10, sizeof(buf));
+        break;
+    }
+    return tlStringFromCopy(buf, 0);
+}
 
 static const char* numtoString(tlHandle v, char* buf, int size) {
     mp_toradix_n(&tlNumAs(v)->value, buf, 10, size); return buf;
@@ -380,6 +397,7 @@ static void number_init() {
     );
 
     _tlNumKind.klass = tlClassObjectFrom(
+        "toString", _num_toString,
         "abs", _num_abs,
         null
     );
