@@ -181,7 +181,7 @@ static tlHandle _int_toString(tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     int base = tl_int_or(tlArgsGet(args, 0), 10);
     char buf[128];
-    int len;
+    int len = 0;
     switch (base) {
         case 2:
         {
@@ -200,12 +200,14 @@ static tlHandle _int_toString(tlArgs* args) {
             }
         }
         break;
+        case 10:
+        len = snprintf(buf, sizeof(buf), "%d", c);
+        break;
         case 16:
         len = snprintf(buf, sizeof(buf), "%x", c);
         break;
         default:
-        len = snprintf(buf, sizeof(buf), "%d", c);
-        break;
+        TL_THROW("base must be 10 (default), 2 or 16");
     }
     return tlStringFromCopy(buf, len);
 }

@@ -245,12 +245,14 @@ static tlHandle _num_toString(tlArgs* args) {
         case 2:
         mp_toradix_n(&num->value, buf, 2, sizeof(buf));
         break;
+        case 10:
+        mp_toradix_n(&num->value, buf, 10, sizeof(buf));
+        break;
         case 16:
         mp_toradix_n(&num->value, buf, 16, sizeof(buf));
         break;
         default:
-        mp_toradix_n(&num->value, buf, 10, sizeof(buf));
-        break;
+        TL_THROW("base must be 10 (default), 2 or 16");
     }
     return tlStringFromCopy(buf, 0);
 }
