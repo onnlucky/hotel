@@ -50,6 +50,7 @@ static void object_to_tm(tlObject* from, struct tm* tm) {
     tm->tm_gmtoff = tl_int(tlObjectGet(from, _s_gmtoff));
 }
 
+/// localtime([timestamp]): returns an object which has fields like hour/min/sec representing the timestamp interpreted as the computers local timezone. If no timestamp is given, it uses current time. Also see unix manual "man 3 ctime".
 static tlHandle _localtime(tlArgs* args) {
     time_t time;
     if (tlArgsSize(args) > 0) {
@@ -64,6 +65,7 @@ static tlHandle _localtime(tlArgs* args) {
     return object_from_tm(&tm);
 }
 
+/// gmtime([timestmap]): like #localtime() but interpreting the timestamp as UTC (GMT).
 static tlHandle _gmtime(tlArgs* args) {
     time_t time;
     if (tlArgsSize(args) > 0) {
@@ -78,6 +80,7 @@ static tlHandle _gmtime(tlArgs* args) {
     return object_from_tm(&tm);
 }
 
+/// time([object]): returns a timestamp (float) from a time object (see #locatime()), if no such object is given, it will return the current time with microsecond precision (as localtime). A timestamp is the number of seconds since 1970. See unix manual "man 2 time".
 static tlHandle _time(tlArgs* args) {
     if (tlArgsSize(args) == 0) {
         struct timeval tv;
@@ -93,17 +96,23 @@ static tlHandle _time(tlArgs* args) {
     return tlFLOAT(mktime(&tm));
 }
 
+/// strptime(format, input): returns a time object (see #localtime()) based on a #format string and an #input. See unix manual "man 3 strptime" for exact format.
+/// returns a time object and the amount of characters consumed from the input, or null on any error.
 static tlHandle _strptime(tlArgs* args) {
     tlString* format = tlStringCast(tlArgsGet(args, 0));
     if (!format) TL_THROW("strptime requires a format string arg[1]");
     tlString* input = tlStringCast(tlArgsGet(args, 1));
     if (!input) TL_THROW("strptime requires a time string as arg[2]");
 
-    struct tm tm;
-    strptime(tlStringData(input), tlStringData(format), &tm);
-    return object_from_tm(&tm);
+    struct tm tm = {};
+    const char* in = tlStringData(input);
+    char* out = strptime(in, tlStringData(format), &tm);
+    if (!out) return tlNull;
+    return tlResultFrom(object_from_tm(&tm), tlINT(out - in), null);
 }
 
+/// strftime(format, [timestamp|object]): returns a time string formatted according to #format. It uses the passed in #timestamp or time #object or the current local time. See unix manual "man 3 strftime" for exact format.
+/// > strftime("%c", 1406703361) == "Wed Jul 30 08:56:01 2014"
 static tlHandle _strftime(tlArgs* args) {
     tlString* format = tlStringCast(tlArgsGet(args, 0));
     if (!format) TL_THROW("strftime requires a format string arg[1]");
