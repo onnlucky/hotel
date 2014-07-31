@@ -129,7 +129,7 @@ lineFromPos = text, pos ->
     loop:
         if $last < 0: return 1
         line = lines[$last]
-        if line.strip.size == 0: $last -= 1; continue
+        if line.trim.size == 0: $last -= 1; continue
         return $last, line.size + 1
 
 _tllookup = oop, name, pos ->

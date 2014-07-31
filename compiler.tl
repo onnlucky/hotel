@@ -617,7 +617,7 @@ SimpleDebugger = debugger ->
         //catch: e -> print "oeps", e.toString
         print "INPUT>"
         at = io.stdin.find("\n")
-        cmd = io.stdin.readString(at).strip
+        cmd = io.stdin.readString(at).trim
         { cmd == "call" }:
             print repr debugger.call
         { cmd == "locals" }:

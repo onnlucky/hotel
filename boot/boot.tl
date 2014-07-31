@@ -242,39 +242,45 @@ _join = sep ->
 
 /// String.split(on): return a #List with the #String broken up at every occurance of #on
 /// [keepempty] option to keep empty results
-/// [strip] strip the results
+/// [trim] trim the results
 /// [limit] limit how many times to break up the string
 /// > "hello world".split == ["hello","world"]
-/// > "a, b, , d, e".split(",",strip=true) == ["a", "b", "d", "e"
-// TODO support regexes as well
+/// > "a, b, , d, e".split(",",trim=true) == ["a", "b", "d", "e"]
 // TODO add from, add backward
+// TODO optimize both find and process, the conditions are static
 _split = on ->
     // TODO on should support a regex and default to breaking whitespace
     on = on or " "
     empty = args["keepempty"]
-    strip = args["strip"]
+    trim = args["trim"]
     limit = args["limit"]
 
     res = Array.new
 
+    find = start ->
+        { isRegex(on) }: b, e = on.find(this, start)
+                         if not b: return
+                         return b, e - b + 1
+        {             }: return this.find(on, start), on.size
+
     process = s ->
-        s = { isString(strip) }: s.strip(strip)
-            { strip           }: s.strip
-            {                 }: s
+        s = { isString(trim) or isRegex(trim) }: s.trim(trim)
+            { trim                            }: s.trim
+            {                                 }: s
         if not empty and s.size == 0: return
         res.add(s)
 
     loop = start ->
-        end = this.find(on, start)
+        end, len = find(start)
         if not end:
             process(this[start:])
             return
         if end >= start:
             process(this[start:end - 1])
             if limit and res.size >= limit - 1:
-                process(this[end + on.size:])
+                process(this[end + len:])
                 return
-            goto loop(end + on.size)
+            goto loop(end + len)
     loop(1)
     return res.toList
 

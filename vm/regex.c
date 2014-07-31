@@ -65,7 +65,7 @@ static tlHandle _regex_find(tlArgs* args) {
     int r = regexec(&regex->compiled, tlStringData(str) + offset, msize, m, offset?REG_NOTBOL:0);
     if (r == REG_NOMATCH) return tlNull;
     if (r == REG_ESPACE) TL_THROW("out of memory");
-    return tlResultFrom(tlINT(m[0].rm_so + 1), tlINT(m[0].rm_eo), null);
+    return tlResultFrom(tlINT(m[0].rm_so + offset + 1), tlINT(m[0].rm_eo + offset), null);
 }
 
 /// match(string): match a regex against an input returns a #Match object or null if not a match

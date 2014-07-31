@@ -17,7 +17,7 @@ normalizename = name ->
     { htmlelement(lower) }: lower
     {                    }: name
 
-normalizews = text -> text.strip.replace("\t"," ").split(" ").join(" ")
+normalizews = text -> text.trim.replace("\t"," ").split(" ").join(" ")
 
 process = node, cmd ->
     if not cmd: return node

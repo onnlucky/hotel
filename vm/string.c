@@ -491,9 +491,9 @@ static bool containsChar(tlString* chars, int c) {
     }
     return false;
 }
-/// strip([chars]): return a #String that has all leading and trailing whitespace removed
+/// trim([chars]): return a #String that has all leading and trailing whitespace removed
 /// when given optional #chars remove those characters instead
-INTERNAL tlHandle _string_strip(tlArgs* args) {
+INTERNAL tlHandle _string_trim(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* chars = tlStringCast(tlArgsGet(args, 0));
 
@@ -608,7 +608,7 @@ static void string_init() {
         "slice", _string_slice,
         "cat", _string_cat,
         "escape", _string_escape,
-        "strip", _string_strip,
+        "trim", _string_trim,
         "reverse", _string_reverse,
         "times", null,
         "each", null,
