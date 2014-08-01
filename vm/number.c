@@ -189,6 +189,19 @@ tlNum* tlNumFrom(mp_int n) {
 #endif
     return num;
 }
+
+// return a int or bignum depending on how many bits the representation needs
+static mp_int MIN_INT_BIGNUM;
+static mp_int MAX_INT_BIGNUM;
+tlHandle tlNumberFrom(mp_int n) {
+    if (mp_cmp(&n, &MIN_INT_BIGNUM) >= 0 && mp_cmp(&n, &MAX_INT_BIGNUM) <= 0) {
+        tlHandle res = tlINT(mp_get_signed(&n));
+        mp_clear(&n);
+        return res;
+    }
+    return tlNumFrom(n);
+}
+
 tlNum* tlNumTo(tlHandle h) {
     assert(tlNumberIs(h));
     if (tlNumIs(h)) return tlNumAs(h);
@@ -204,33 +217,33 @@ double tlNumToDouble(tlNum* num) {
 static tlNum* tlNumAdd(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_add(&l->value, &r->value, &res);
-    return tlNumFrom(res);
+    return tlNumberFrom(res);
 }
 static tlNum* tlNumSub(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_sub(&l->value, &r->value, &res);
-    return tlNumFrom(res);
+    return tlNumberFrom(res);
 }
 static tlNum* tlNumMul(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_mul(&l->value, &r->value, &res);
-    return tlNumFrom(res);
+    return tlNumberFrom(res);
 }
 static tlNum* tlNumDiv(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_int remainder; mp_init(&remainder);
     mp_div(&l->value, &r->value, &res, &remainder);
-    return tlNumFrom(res);
+    return tlNumberFrom(res);
 }
 static tlNum* tlNumMod(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_mod(&l->value, &r->value, &res);
-    return tlNumFrom(res);
+    return tlNumberFrom(res);
 }
 static tlNum* tlNumPow(tlNum* l, intptr_t r) {
     mp_int res; mp_init(&res);
     mp_expt_d(&l->value, r, &res);
-    return tlNumFrom(res);
+    return tlNumberFrom(res);
 }
 
 static tlHandle _num_abs(tlArgs* args) {
@@ -284,19 +297,11 @@ tlKind* tlNumKind;
 
 
 // ** various conversions **
-static mp_int MIN_INT_BIGNUM;
-static mp_int MAX_INT_BIGNUM;
-
 tlHandle tlPARSENUM(const char* s, int radix) {
     mp_int n;
     mp_init(&n);
     mp_read_radix(&n, s, radix);
-    if (mp_cmp(&n, &MIN_INT_BIGNUM) >= 0 && mp_cmp(&n, &MAX_INT_BIGNUM) <= 0) {
-        tlHandle res = tlINT(mp_get_signed(&n));
-        mp_clear(&n);
-        return res;
-    }
-    return tlNumFrom(n);
+    return tlNumberFrom(n);
 }
 
 tlHandle tlNUM(intptr_t l) {

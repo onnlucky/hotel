@@ -231,7 +231,9 @@ static tlHandle _isUndefined(tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsG
 static tlHandle _isDefined(tlArgs* args) { return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0))); }
 static tlHandle _isNull(tlArgs* args) { return tlBOOL(tlNull == tlArgsGet(args, 0)); }
 static tlHandle _isBool(tlArgs* args) { return tlBOOL(tlBoolIs(tlArgsGet(args, 0))); }
+static tlHandle _isInt(tlArgs* args) { return tlBOOL(tlIntIs(tlArgsGet(args, 0))); }
 static tlHandle _isFloat(tlArgs* args) { return tlBOOL(tlFloatIs(tlArgsGet(args, 0))); }
+static tlHandle _isBignum(tlArgs* args) { return tlBOOL(tlNumIs(tlArgsGet(args, 0))); }
 static tlHandle _isNumber(tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     return tlBOOL(tlIntIs(v) || tlFloatIs(v) || tlNumIs(v));
@@ -255,7 +257,9 @@ static const tlNativeCbs __value_natives[] = {
     { "isDefined", _isDefined },
     { "isNull", _isNull },
     { "isBool", _isBool },
+    { "isInt", _isInt },
     { "isFloat", _isFloat },
+    { "isBignum", _isBignum },
     { "isNumber", _isNumber },
     { "isChar", _isChar },
     { "isString", _isString },
