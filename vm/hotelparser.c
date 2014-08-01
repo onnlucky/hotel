@@ -312,6 +312,7 @@ static State r_chr_2(Parser*, int);
 static State r_chr_3(Parser*, int);
 static State r_chr_4(Parser*, int);
 static State r_chr_5(Parser*, int);
+static State r_chr_6(Parser*, int);
 static State r_chr(Parser*, int);
 static State r_paren_1_1(Parser*, int);
 static State r_paren_1(Parser*, int);
@@ -5451,18 +5452,28 @@ static State r_chr_5(Parser* _p, int _start) { // and
  parser_enter(_p, "r_chr_5", _start);
  int _pos = _start;
  State _r;
- _r = prim_text(_p, _pos, "'");
+ _r = prim_text(_p, _pos, "'\\''");
  if (!_r.ok) { return parser_fail(_p, "r_chr_5", _pos); }
  _pos = _r.pos;
+ tlHandle _v = tlCHAR('\'');
+ return parser_pass(_p, "r_chr_5", 0, _start, state_ok(_pos, _v));
+}
+static State r_chr_6(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_chr_6", _start);
+ int _pos = _start;
+ State _r;
+ _r = prim_text(_p, _pos, "'");
+ if (!_r.ok) { return parser_fail(_p, "r_chr_6", _pos); }
+ _pos = _r.pos;
  _r = prim_any(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_chr_5", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "r_chr_6", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
  _r = prim_text(_p, _pos, "'");
- if (!_r.ok) { return parser_fail(_p, "r_chr_5", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "r_chr_6", _pos); }
  _pos = _r.pos;
  tlHandle _v = tlCHAR(tl_int(l));
- return parser_pass(_p, "r_chr_5", 0, _start, state_ok(_pos, _v));
+ return parser_pass(_p, "r_chr_6", 0, _start, state_ok(_pos, _v));
 }
 static State r_chr(Parser* _p, int _start) { // or
  parser_enter(_p, "r_chr", _start);
@@ -5481,6 +5492,9 @@ static State r_chr(Parser* _p, int _start) { // or
  if (_r.ok) return parser_pass(_p, "r_chr", 17, _start, _r);
  if (_p->error_line) { /*print("expect: r_chr");*/ return _r; }
  _r = r_chr_5(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_chr", 17, _start, _r);
+ if (_p->error_line) { /*print("expect: r_chr");*/ return _r; }
+ _r = r_chr_6(_p, _pos);
  if (_r.ok) return parser_pass(_p, "r_chr", 17, _start, _r);
  if (_p->error_line) { /*print("expect: r_chr");*/ return _r; }
  return parser_fail(_p, "r_chr", _start);

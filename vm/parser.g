@@ -595,6 +595,7 @@ number = "0x" < [_0-9A-F]+ >        { $$ = tlPARSENUM(rmu(yytext), 16); }
        | "'\\n'"          { $$ = tlCHAR('\n'); }
        | "'\\t'"          { $$ = tlCHAR('\t'); }
        | "'\\\\'"         { $$ = tlCHAR('\\'); }
+       | "'\\''"          { $$ = tlCHAR('\''); }
        | '\'' < . > '\''  { $$ = tlCHAR(yytext[0]); }
 
   text = '"' '"'          { $$ = tlStringEmpty(); }

@@ -7,7 +7,7 @@ test = n ->
     catch: e ->
         res[n] = res[n] +" fail: "+ e.toString
         print "---- $n: FAIL :( ----"
-        print e.toString.strip
+        print e.toString.trim
         print "---- $n: FAIL :( ----"
         //throw "STOP"
     res[n] = "load"

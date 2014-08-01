@@ -42,6 +42,7 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
         | "'\\n'"       -> tlCHAR('\n')
         | "'\\t'"       -> tlCHAR('\t')
         | "'\\\\'"      -> tlCHAR('\\')
+        | "'\\''"       -> tlCHAR('\'')
         | "'" l=_ "'"   -> tlCHAR(tl_int(l))
 
 // ---- NUMBERS ----
