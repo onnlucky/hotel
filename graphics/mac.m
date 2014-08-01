@@ -116,17 +116,41 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     trace("HAVE A KEY: %d %s", key, input);
     // translate cocoa events into html keycodes (and therefor VK codes like java and .net)
     switch (key) {
-        case 36: key = 13; input = ""; break;
-        case 51: key = 8; input = ""; break;
-        case 53: key = 27; input = ""; break;
-        case 123: key = 37; input = ""; break;
+        case 36: key = 13; input = ""; break; // enter
+        case 51: key = 8; input = ""; break; // backspace
+        case 117: key = 127; input = ""; break; // delete
+        case 53: key = 27; input = ""; break; // esc
+
+        case 123: key = 37; input = ""; break; // cursors
         case 124: key = 39; input = ""; break;
         case 125: key = 40; input = ""; break;
         case 126: key = 38; input = ""; break;
-        // crazy way to convert from 'a'/'A' to 65
+
+        case 115: key = 36; input = ""; break; // begin
+        case 119: key = 35; input = ""; break; // end
+        case 116: key = 33; input = ""; break; // pgup
+        case 121: key = 34; input = ""; break; // pgdown
+
+        // crazy way to convert from 'a'/'A' to 65 and other chars
         default: key = [[[event charactersIgnoringModifiers] uppercaseString] characterAtIndex: 0];
     }
-    windowKeyEvent(window, key, tlStringFromCopy(input, 0));
+    if (input[0]) {
+        switch (key) {
+            case '(': key = 57; break;
+            case ')': key = 48; break;
+            case '{':
+            case '[': key = 219; break;
+            case '}':
+            case ']': key = 221; break;
+            case '\'':
+            case '"': key = 222; break;
+        }
+    }
+    int modifiers = 0;
+    int m = [event modifierFlags];
+    if (m & NSShiftKeyMask) modifiers |= 1;   // shift
+    if (m & NSCommandKeyMask) modifiers |= 2; // ctrl
+    windowKeyEvent(window, key, tlStringFromCopy(input, 0), modifiers);
 }
 - (void)windowWillClose:(NSNotification *)notification {
     closeWindow(window);

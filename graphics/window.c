@@ -7,6 +7,7 @@
 
 static tlSym _s_key;
 static tlSym _s_input;
+static tlSym _s_modifiers;
 static tlObject* _keyEventMap;
 
 struct Box {
@@ -256,13 +257,14 @@ static tlHandle __window_focus(tlArgs* args) {
 }
 static tlHandle _window_focus(tlArgs* args) { tl_on_toolkit_async(__window_focus, args); return tlNull; }
 
-void windowKeyEvent(Window* window, int code, tlString* input) {
+void windowKeyEvent(Window* window, int code, tlString* input, int modifiers) {
     if (!window->onkey) return;
 
     block_toolkit();
     tlObject *res = tlClone(_keyEventMap);
     tlObjectSet_(res, _s_key, tlINT(code));
     tlObjectSet_(res, _s_input, input);
+    tlObjectSet_(res, _s_modifiers, tlINT(modifiers));
     tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onkey, res, null));
     unblock_toolkit();
 }
@@ -533,9 +535,10 @@ void window_init(tlVm* vm) {
     tlVmGlobalSet(vm, tlSYM("Window"), WindowStatic);
 
     // for key events
-    tlSet* keys = tlSetNew(2);
+    tlSet* keys = tlSetNew(3);
     _s_key = tlSYM("key"); tlSetAdd_(keys, _s_key);
     _s_input = tlSYM("input"); tlSetAdd_(keys, _s_input);
+    _s_modifiers = tlSYM("modifiers"); tlSetAdd_(keys, _s_modifiers);
     _keyEventMap = tlObjectNew(keys);
 }
 

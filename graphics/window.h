@@ -53,7 +53,7 @@ void nativeWindowSetTitle(NativeWindow*, tlString* title);
 
 // platform can call the following for callbacks
 void windowMouseEvent(Window* w, double x, double y);
-void windowKeyEvent(Window* w, int code, tlString* input);
+void windowKeyEvent(Window* w, int code, tlString* input, int modifiers);
 void windowResizeEvent(Window* w, int x, int y, int width, int height);
 
 // textbox support
