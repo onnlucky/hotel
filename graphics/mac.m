@@ -144,6 +144,18 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
             case ']': key = 221; break;
             case '\'':
             case '"': key = 222; break;
+            case '!': key = 49; break;
+            case '@': key = 50; break;
+            case '#': key = 51; break;
+            case '$': key = 52; break;
+            case '%': key = 53; break;
+            case '^': key = 54; break;
+            case '&': key = 55; break;
+            case '*': key = 56; break;
+            case '-': key = 45; break;
+            case '_': key = 45; break;
+            case '=': key = 43; break;
+            case '+': key = 43; break;
         }
     }
     int modifiers = 0;
