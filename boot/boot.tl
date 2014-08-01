@@ -240,6 +240,8 @@ _join = sep ->
         $i += 1
     return $res
 
+_addAll = ls -> ls.each(e -> this.add(e))
+
 /// String.split(on): return a #List with the #String broken up at every occurance of #on
 /// [keepempty] option to keep empty results
 /// [trim] trim the results
@@ -423,6 +425,7 @@ _hashmap_map = (fn ->
 )
 _install(HashMap._methods, "map", _hashmap_map)
 
+_install(Array._methods, "addAll", _addAll)
 _install(Array._methods, "random", _get_random)
 _install(Array._methods, "each", _each)
 _install(Array._methods, "map", _map)

@@ -264,6 +264,7 @@ static void array_init() {
         "insert", _array_insert,
         "slice", _array_slice,
         "toChar", _array_toChar,
+        "addAll", null,
         "random", null,
         "each", null,
         "map", null,
