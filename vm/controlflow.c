@@ -287,6 +287,11 @@ INTERNAL tlHandle resumeNewContinuation(tlFrame* frame, tlHandle res, tlHandle t
     return cont;
 }
 
+// temporary? solution to "x, y = y, x" -> "x, y = multi(y, x)"
+INTERNAL tlHandle _multiple_return(tlArgs* args) {
+    return tlResultFromArgs(args);
+}
+
 static const tlNativeCbs __controlflow_natives[] = {
     { "if", _if },
     { "_match", _match },
@@ -294,6 +299,7 @@ static const tlNativeCbs __controlflow_natives[] = {
     { "break", _break },
     { "continue", _continue },
     { "loop",  _loop },
+    { "multi", _multiple_return },
     { 0, 0 },
 };
 

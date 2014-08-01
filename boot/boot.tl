@@ -290,30 +290,28 @@ _times = fn ->
     if this <= 0: return
     block = args.block or fn
     if not block: throw "times expects a block or fn"
-    again = at ->
-        block(at)
-        if at >= this: return
-        goto again(at + 1)
-    goto again(1)
+
+    at = Var.new 0
+    loop:
+        if $at >= this: return
+        $at += 1
+        block($at)
 
 /// Number.to(to, [fn]): call a block or #fn by counting upto #to
 /// > 10.to(15): print "hello" /// wil print hello 5 times
 _to = to, fn ->
+    if not isNumber(to): throw "to expects a number"
     block = args.block or fn
     if not block: throw "to expects a block or fn"
-    to = to or 1
-    if this <= to:
-        again = at ->
-            block(at)
-            if at >= to: return
-            goto again(at + 1)
-        goto again(this)
 
-    again = at ->
-        block(at)
-        if at <= to: return
-        goto again(at - 1)
-    goto again(this)
+    from, to = { this <= to }: multi(this - 1, to)
+               {            }: multi(to - 1, this)
+
+    at = Var.new from
+    loop:
+        if $at >= to: return
+        $at += 1
+        block($at)
 
 _install(Int._methods, "times", _times)
 _install(Int._methods, "to", _to)

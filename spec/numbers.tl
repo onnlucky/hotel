@@ -26,3 +26,27 @@ test "float stays float":
     assert isFloat(big / 2)
     assert isFloat(10.0 * 256)
     assert isFloat(2.0^64)
+
+test "times":
+    res = Array.new
+    10.times: n ->
+        if n == 8: break
+        if n == 3: continue
+        res.add(n)
+    assert res.size == 6
+    assert res[1] == 1
+    assert res[6] == 7
+
+test "upto":
+    res = Array.new
+    10.to(50): n ->
+        r = { n % 3 == 0 and n % 5 == 0 }: "fizz buzz"
+            { n % 3 == 0                }: "fizz"
+            { n % 5 == 0                }: "buzz"
+            {                           }: continue
+        res.add(r)
+    assert res[1] == "buzz" // 10
+    assert res[2] == "fizz" // 12
+    assert res[3] == "fizz buzz" // 15
+    assert res[-1] == "buzz" // 50
+    assert res.size < 20
