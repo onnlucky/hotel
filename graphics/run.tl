@@ -64,10 +64,17 @@ Editor = readonly -> _Mutable_new {
         assert this._x > 0
         assert this._y > 0
         assert not s.find("\n")
-        this.ensureLeftRight
 
-        this._left += s
-        this._x += s.size
+        { this._sx }:
+            this.replaceselection(s)
+            this._x += s.size
+            this.ensureLeftRight
+        {          }:
+            this.ensureLeftRight
+            this._left += s
+            this._x += s.size
+
+        null // TODO needed due to syntax "bug", two truth tables, but recognized as one ...
 
         // post processing ...
         { s == "("                             }: this._right = ")"+ this._right
@@ -80,6 +87,8 @@ Editor = readonly -> _Mutable_new {
     )
 
     newline = (->
+        if this._sx: this.replaceselection("")
+
         this.ensureLeftRight
         this._lines[this._y] = this._left
         this._y += 1
@@ -124,21 +133,38 @@ Editor = readonly -> _Mutable_new {
         this._right = this._right[2:]
     )
 
+    // SELECTION
+    selection = ->
+        if not this._sx: return null
+        by, ey = { this._sy < this._y }: multi(this._sy, this._y)
+                 {                    }: multi(this._y, this._sy)
+        bx, ex = { this._sx < this._x }: multi(this._sx, this._x)
+                 {                    }: multi(this._x, this._sx)
+        return bx, by, ex, ey
+
+    // TODO this is incorrect ... but almost
     setselection = select ->
         { select and this._sx }: null
         { select              }: this._sx = this._x; this._sy = this._y
         {                     }: this._sx = null
 
+    selectall = ->
+        this.clearLeftRight
+        this._x = 1
+        this._y = 1
+        this._sx = this._lines[-1].size
+        this._sy = this._lines.size
+
     replaceselection = text ->
         this.clearLeftRight
-        l = min(this._sy, this._y)
-        line = this._lines[l]
-        b, e = { this._sx > this._x }: multi(this._x, this._sx)
-               {                    }: multi(this._sx, this._x)
-        print b, e, line[b:e]
-        this._lines[l] = line[:b - 1] + text + line[e + 1:]
+        bx, by, ex, ey = this.selection
+        if not bx: return
+        bline = this._lines[by]
+        eline = this._lines[ey]
+        (ey - by).times: this._lines.remove(by)
+        this._lines[by] = bline[:bx - 1] + text + eline[ex + 1:]
         this._sx = null; this._sy = null
-        this._x = b; this._y = l
+        this._x = bx; this._y = by
 
     // MOVING
     moveleft = select ->
@@ -205,8 +231,13 @@ Editor = readonly -> _Mutable_new {
 
         if this._sx:
             g.color(0.7,0.83,1)
-            width = (this._x - this._sx) * FWIDTH
-            g.rectangle(this._sx * FWIDTH - FWIDTH, this._sy * FHEIGHT - FHEIGHT, width, FHEIGHT)
+            bx, by, ex, ey = this.selection
+            { by == ey }:
+                g.rectangle(bx * FWIDTH - FWIDTH, by * FHEIGHT - FHEIGHT, (ex - bx + 1) * FWIDTH, FHEIGHT)
+            {          }:
+                g.rectangle(bx * FWIDTH - FWIDTH, by * FHEIGHT - FHEIGHT, 1000, FHEIGHT)
+                g.rectangle(0, by * FHEIGHT, 1000, (ey - by - 1) * FHEIGHT)
+                g.rectangle(0, ey * FHEIGHT - FHEIGHT, ex * FWIDTH, FHEIGHT)
             g.fill
         if this.cursor:
             g.color(0.5,0.5,0.5)
@@ -249,6 +280,8 @@ w.onkey(event ->
     c = event.key
     shift = event.modifiers & 1 == 1
     ctrl = event.modifiers & 2 == 2
+    { ctrl and c == 'Q' }: w.close
+    { ctrl and c == 'A' }: editor.selectall
     { c ==  27 }: runcode(editor.text)
     { c ==  13 }: editor.newline
     { c ==   8 }: editor.deleteleft
@@ -262,7 +295,7 @@ w.onkey(event ->
     { c ==  33 }: editor.movepageup(shift)
     { c ==  34 }: editor.movepagedown(shift)
     { event.input.size == 1 }: editor.input(event.input)
-    {          }: print "UNKNOWN KEY:", repr(event)
+    {          }: print "unhandled key"
     b.redraw
 )
 
