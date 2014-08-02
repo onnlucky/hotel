@@ -21,6 +21,7 @@ Editor = readonly -> _Mutable_new {
     cursor = not readonly
 
     _lines = Array.new([""])
+    _paste = ""
     _offset = 0
     _x = 1
     _y = 1
@@ -57,6 +58,17 @@ Editor = readonly -> _Mutable_new {
         if this._left: return this._left + this._right
         this._lines[this._y] or ""
     )
+
+    onmouse = mx, my ->
+        x = max(mx /. FWIDTH + 1, 1)
+        y = max(my /. FHEIGHT + 1, 1)
+        print "MOUSE:", x, y, mx, my
+        if y > this._lines.size:
+            this._x = this._lines[-1].size + 1
+            this._y = this._lines.size
+            return
+        this._y = y
+        this._x = min(x, this._lines[y].size + 1)
 
     // EDITING
     // TODO allow input to take "\n" and make lines from that
@@ -146,14 +158,7 @@ Editor = readonly -> _Mutable_new {
     setselection = select ->
         { select and this._sx }: null
         { select              }: this._sx = this._x; this._sy = this._y
-        {                     }: this._sx = null
-
-    selectall = ->
-        this.clearLeftRight
-        this._x = 1
-        this._y = 1
-        this._sx = this._lines[-1].size
-        this._sy = this._lines.size
+        {                     }: this._sx = null; this.sy = null
 
     replaceselection = text ->
         this.clearLeftRight
@@ -165,6 +170,40 @@ Editor = readonly -> _Mutable_new {
         this._lines[by] = bline[:bx - 1] + text + eline[ex + 1:]
         this._sx = null; this._sy = null
         this._x = bx; this._y = by
+
+   selectionText = ->
+        this.clearLeftRight
+        bx, by, ex, ey = this.selection
+        if not bx: return
+        if by == ey: return this._lines[by][bx:ex]
+        res = Array.new
+        res.add(this._lines[by][bx:])
+        (ey - by).times: n -> res.add(this._lines[ey + n])
+        res.add(this._lines[ey][:ex])
+        return res.join("\n")
+
+    selectall = ->
+        this.clearLeftRight
+        this._x = 1
+        this._y = 1
+        this._sx = max(this._lines[-1].size, 1)
+        this._sy = max(this._lines.size, 1)
+
+   cut = ->
+       if not this._sx: return
+       this._paste = this.selectionText
+       this.replaceselection("")
+
+    copy = ->
+       if not this._sx: return
+       this._paste = this.selectionText
+
+    paste = ->
+        if this._sx: replaceselection(this._paste)
+        this.input(this._paste)
+
+    // TODO implement undo of sorts ...
+    undo = -> null
 
     // MOVING
     moveleft = select ->
@@ -282,9 +321,14 @@ w.onkey(event ->
     ctrl = event.modifiers & 2 == 2
     { ctrl and c == 'Q' }: w.close
     { ctrl and c == 'A' }: editor.selectall
+    { ctrl and c == 'X' }: editor.cut
+    { ctrl and c == 'C' }: editor.copy
+    { ctrl and c == 'V' }: editor.paste
+    { ctrl and c == 'Z' }: editor.undo
     { c ==  27 }: runcode(editor.text)
     { c ==  13 }: editor.newline
     { c ==   8 }: editor.deleteleft
+    { c ==   9 }: editor.input("  ")
     { c == 127 }: editor.deleteright
     { c ==  37 }: editor.moveleft(shift)
     { c ==  39 }: editor.moveright(shift)
@@ -299,8 +343,9 @@ w.onkey(event ->
     b.redraw
 )
 
-w.onmouse(x, y ->
-    print x, y
+w.onmouse(x, y, button, modifiers ->
+    editor.onmouse(x - 10, y - 10)
+    b.redraw
 )
 
 b.ondraw(g ->
@@ -324,5 +369,5 @@ b.ondraw(g ->
     g.restore
 )
 
-editor.setText("print \"hello world!\"")
+editor.setText("print \"hello world!\"\nprint 42\n")
 
