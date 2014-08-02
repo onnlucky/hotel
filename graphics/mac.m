@@ -205,7 +205,7 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
 -(void)mouseDown:(NSEvent*)event {
     //NSLog(@"mouseDown: %@", event);
     NSPoint loc = [event locationInWindow];
-    windowMouseEvent(window, loc.x, loc.y);
+    windowMouseEvent(window, loc.x, self.bounds.size.height - loc.y);
 }
 @end
 
