@@ -1,11 +1,6 @@
-_msg = Array.new
-env = (
-    print = -> _msg.addAll(args.join(" ").split("\n",keepempty=true)); null
-    _env = Env.current
-    Var.new(Env.new(_env))
-)
+_env = Env.current
 
-w = Window.new 400, 400
+w = Window.new 400, 800
 w.title "tl scratchpad"
 b = Box.new 0, 0, w.width, w.height
 w.add(b)
@@ -16,11 +11,11 @@ FHEIGHT = 17
 FWIDTH = 8
 FSIZE = 14
 
-Editor = readonly -> _Mutable_new {
+Editor = text, readonly -> _Mutable_new {
     error = false
     cursor = not readonly
 
-    _lines = Array.new([""])
+    _lines = Array.new((text or "").split("\n",keepempty=true))
     _paste = ""
     _offset = 0
     _x = 1
@@ -59,28 +54,24 @@ Editor = readonly -> _Mutable_new {
         this._lines[this._y] or ""
     )
 
-    onmouse = mx, my ->
-        x = max(mx /. FWIDTH + 1, 1)
-        y = max(my /. FHEIGHT + 1, 1)
-        print "MOUSE:", x, y, mx, my
-        if y > this._lines.size:
-            this._x = this._lines[-1].size + 1
-            this._y = this._lines.size
-            return
-        this._y = y
-        this._x = min(x, this._lines[y].size + 1)
-
     // EDITING
     // TODO allow input to take "\n" and make lines from that
     input = (s ->
         assert this._x > 0
         assert this._y > 0
-        assert not s.find("\n")
 
         { this._sx }:
             this.replaceselection(s)
             this._x += s.size
+            return
+        { s.find("\n") }:
             this.ensureLeftRight
+            s = (this._left + s + this._right).split("\n", keepempty=true)
+            this._left = null
+            this._right = null
+            this._lines.remove(this._y)
+            s.each: l, n -> this._lines.insert(this._y + n - 1, l)
+            return
         {          }:
             this.ensureLeftRight
             this._left += s
@@ -167,7 +158,12 @@ Editor = readonly -> _Mutable_new {
         bline = this._lines[by]
         eline = this._lines[ey]
         (ey - by).times: this._lines.remove(by)
-        this._lines[by] = bline[:bx - 1] + text + eline[ex + 1:]
+        { text.find("\n") }:
+            s = (bline[:bx - 1] + text + eline[ex + 1:]).split("\n", keepempty=true)
+            this._lines.remove(by)
+            s.each: l, n -> this._lines.insert(by + n - 1, l)
+        {                 }:
+            this._lines[by] = bline[:bx - 1] + text + eline[ex + 1:]
         this._sx = null; this._sy = null
         this._x = bx; this._y = by
 
@@ -246,14 +242,19 @@ Editor = readonly -> _Mutable_new {
 
     // QUERYING
     size = (->
+        this.clearLeftRight
         width = this._lines.map(l, n ->
             { n == this._y and this._left }: this._left.size + this._right.size
             {                             }: l.size
         ).max
-        return width * FWIDTH, this._lines.size * FHEIGHT
+        height = this._lines.size
+        height = { readonly and height > 1 and this._lines[-1] == "" }: height - 1
+                 {                                                   }: height
+        return width * FWIDTH, height * FHEIGHT
     )
 
     setText = text ->
+        this.clearLeftRight
         this._lines = Array.new(text.split("\n",keepempty=true))
         this._y = 1
         this._x = 1
@@ -268,7 +269,7 @@ Editor = readonly -> _Mutable_new {
     render = (g ->
         g.setFont("menlo", FSIZE)
 
-        if this._sx:
+        if this.cursor and this._sx:
             g.color(0.7,0.83,1)
             bx, by, ex, ey = this.selection
             { by == ey }:
@@ -287,6 +288,7 @@ Editor = readonly -> _Mutable_new {
             g.fill
 
         g.color(0,0,0)
+        if readonly: g.color(0.4,0.4,0.4)
         this._lines.size.times: r ->
             line = { this._y == r and this._left }: this._left + this._right
                    {                             }: this._lines[r]
@@ -295,79 +297,202 @@ Editor = readonly -> _Mutable_new {
                 g.moveTo(c * FWIDTH - FWIDTH, r * FHEIGHT - 3)
                 g.fillText(line[c:c])
     )
+
+    onmouse = mx, my ->
+        x = max(mx /. FWIDTH + 1, 1)
+        y = max(my /. FHEIGHT + 1, 1)
+        if y > this._lines.size:
+            this._x = this._lines[-1].size + 1
+            this._y = this._lines.size
+            return
+        this._y = y
+        this._x = min(x, this._lines[y].size + 1)
+
+    onkey = event ->
+        c = event.key
+        shift = event.modifiers & 1 == 1
+        ctrl = event.modifiers & 2 == 2
+        { ctrl and c == 'A' }: this.selectall
+        { ctrl and c == 'X' }: this.cut
+        { ctrl and c == 'C' }: this.copy
+        { ctrl and c == 'V' }: this.paste
+        { ctrl and c == 'Z' }: this.undo
+        { c ==  13 }: this.newline
+        { c ==   8 }: this.deleteleft
+        { c ==   9 }: this.input("  ")
+        { c == 127 }: this.deleteright
+        { c ==  37 }: this.moveleft(shift)
+        { c ==  39 }: this.moveright(shift)
+        { c ==  38 }: this.moveup(shift)
+        { c ==  40 }: this.movedown(shift)
+        { c ==  36 }: this.movelinestart(shift)
+        { c ==  35 }: this.movelineend(shift)
+        { c ==  33 }: this.movepageup(shift)
+        { c ==  34 }: this.movepagedown(shift)
+        { event.input.size == 1 }: this.input(event.input)
+        {          }: print "unknown key", repr(event)
 }
 
-editor = Editor()
-output = Editor(true)
+Snippet = content -> _Mutable_new {
+    inputenv = null
+    changed = true
+    code = null
+    env = Var.new
+    editor = Editor(content)
+    output = Editor(readonly=true)
+    x = 0, y = 0
+    width = 0, height = 0
+}
 
-runcode = code ->
-    _msg.clear
+snippets = Array.new
+current = Var.new 1
+focus = Var.new true
+snippets.add(Snippet("print \"hello\""))
+
+running = Var.new null
+internal_print = ->
+    if not $running: return print("ERROR:", args.join(" "))
+    $running.output.input(args.join(" "))
+    $running.output.newline
+    return
+_env = Env.new(_env.set("print", internal_print))
+
+runsnippet = snippet, n ->
+    env = { n == 1 }: _env
+          {        }: runsnippet(snippets[n - 1], n - 1)
+    insame = env == snippet.inputenv
+    snippet.inputenv = env
+    if insame and not snippet.changed: return snippet.env.get
+    snippet.changed = false
+    code = snippet.editor.text
+    if insame and snippet.code == code: return snippet.env.get
+    snippet.code = code
+
+    snippet.output.clear
+    snippet.env.set env
+    if not env: return
+
     catch: e ->
-        output.error = true
-        output.setText("error: $(e.toString)") //"
-    res = eval(env, code)
+        $running = null
+        snippet.output.input("error: $(e.toString)") //"
+        snippet.output.error = true
+        return
+    $running = snippet
+    res = eval(snippet.env, code)
+    $running = null
     if res:
         r = repr(res)
-        { r == "null"   }: _msg.add(res)
-        {               }: _msg.add("$r")
-    output.error = false
-    output.setText(_msg.join("\n"))
+        { r == "null"   }: snippet.output.input(res)
+        {               }: snippet.output.input("$r")
+    snippet.output.error = false
+    //print "EVAL:", snippet.output.text
+    return snippet.env.get
+
+runcode = ->
+    runsnippet(snippets[$current], $current)
 
 w.onkey(event ->
     catch: e -> print e.toString
     print repr event
     c = event.key
-    shift = event.modifiers & 1 == 1
     ctrl = event.modifiers & 2 == 2
-    { ctrl and c == 'Q' }: w.close
-    { ctrl and c == 'A' }: editor.selectall
-    { ctrl and c == 'X' }: editor.cut
-    { ctrl and c == 'C' }: editor.copy
-    { ctrl and c == 'V' }: editor.paste
-    { ctrl and c == 'Z' }: editor.undo
-    { c ==  27 }: runcode(editor.text)
-    { c ==  13 }: editor.newline
-    { c ==   8 }: editor.deleteleft
-    { c ==   9 }: editor.input("  ")
-    { c == 127 }: editor.deleteright
-    { c ==  37 }: editor.moveleft(shift)
-    { c ==  39 }: editor.moveright(shift)
-    { c ==  38 }: editor.moveup(shift)
-    { c ==  40 }: editor.movedown(shift)
-    { c ==  36 }: editor.movelinestart(shift)
-    { c ==  35 }: editor.movelineend(shift)
-    { c ==  33 }: editor.movepageup(shift)
-    { c ==  34 }: editor.movepagedown(shift)
-    { event.input.size == 1 }: editor.input(event.input)
-    {          }: print "unhandled key"
+    { ctrl and c == 'Q'  }: w.close
+    { ctrl and c == 'R'  }:
+        runcode()
+        if $focus: snippets[$current].changed = true
+    { c == 27            }: $focus = false
+    { $focus             }: snippets[$current].editor.onkey(event)
+    { c == 38            }: $current = max($current - 1, 1)
+    { c == 40            }: $current = min($current + 1, snippets.size + 1)
+    { c == 13 or c == 32 }:
+        if $current > snippets.size: snippets.add(Snippet())
+        snippets[$current].editor._x = 1
+        snippets[$current].editor._y = 1
+        $focus = true
+        snippets[$current].changed = true
+    { event.input.size == 1 }:
+        if $current > snippets.size: snippets.add(Snippet())
+        snippets[$current].editor._x = 1
+        snippets[$current].editor._y = 1
+        $focus = true
+        snippets[$current].changed = true
+        snippets[$current].editor.onkey(event)
+    {                    }: null
     b.redraw
+    // debug
+    /*
+    print "----", b.width, b.height
+    snippets.each: snippet, n ->
+        print n, "snippet", snippet.y, snippet.height, snippet.editor.text.split("\n")[1]
+    */
 )
 
 w.onmouse(x, y, button, modifiers ->
-    editor.onmouse(x - 10, y - 10)
-    b.redraw
+    catch: e -> print e.toString
+    snippets.each: snippet, n ->
+        if snippet.y - 5 <= y and y <= snippet.y + snippet.height + 5:
+            $focus = true
+            snippet.changed = true
+            $current = n
+            snippet.editor.onmouse(x - snippet.x, y - snippet.y)
+            b.redraw
+            return
+    last = snippets[-1]
+    if y >= last.y + last.height + 5:
+        if last.editor.text.trim.size == 0:
+            $focus = true
+            last.changed = true
+            $current = snippets.size
+            last.editor.onmouse(x - last.x, y - last.y)
+            b.redraw
+            return
+        snippets.add(Snippet())
+        $focus = true
+        $current = snippets.size
+        b.redraw
 )
 
 b.ondraw(g ->
     catch: e -> print e.toString
-    width, height = editor.size
-    g.save
-    g.translate(10, 10)
-    g.rectangle(0, 0, width, height)
-    g.color 1,1,1
-    g.fill
-    editor.render(g)
-    g.restore
+    y = Var.new 10
+    snippets.each: snippet, n ->
+        width, height = snippet.editor.size
+        height = max(height, FHEIGHT)
+        width = max(width, FWIDTH)
+        snippet.x = 10
+        snippet.y = $y
+        snippet.width = width
+        snippet.height = height
+        g.save
+        g.translate(snippet.x, snippet.y)
+        snippet.editor.cursor = false
+        if n == $current:
+            g.rectangle(0, 0, width, height)
+            g.color 1,1,1
+            g.fill
+            if $focus: snippet.editor.cursor = true
+        snippet.editor.render(g)
+        g.restore
+        $y += height + 5
 
-    g.translate(10, 10 + 10 + height)
-    width, height = output.size
-    { output.error }: g.color 1,0.8,0.8
-    {              }: g.color 1,1,1
-    g.rectangle(0, 0, width, height)
-    g.fill
-    output.render(g)
-    g.restore
+        width, height = snippet.output.size
+        g.save
+        g.translate(10, $y)
+        if snippet.output.error:
+            g.color 1,0.9,0.9
+            g.rectangle(0, 0, width, height)
+            g.fill
+        snippet.output.render(g)
+        g.restore
+        $y += height + 10
+
+    if $current > snippets.size:
+        g.color 1,1,1
+        g.rectangle(10, $y, FWIDTH, FHEIGHT)
+        g.fill
+
+    g.color(1,0,0)
+    g.rectangle(300, 300, 50, 50)
+    g.stroke
 )
-
-editor.setText("print \"hello world!\"\nprint 42\n")
 
