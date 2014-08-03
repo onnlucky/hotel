@@ -27,7 +27,6 @@ struct Box {
     float alpha;
 
     tlHandle ondraw;
-    tlHandle onkey;
 };
 
 struct Text {
@@ -269,19 +268,28 @@ void windowKeyEvent(Window* window, int code, tlString* input, int modifiers) {
     unblock_toolkit();
 }
 
-void windowMouseEvent(Window* window, double x, double y) {
+void windowMouseEvent(Window* window, double x, double y, int buttons, int count, int modifiers) {
     if (!window->onmouse) return;
 
     block_toolkit();
-    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), null));
+    tlBlockingTaskEval(window->rendertask,
+            tlCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), tlINT(count), null));
     unblock_toolkit();
 }
+void windowMouseMoveEvent(Window* window, double x, double y, int buttons, int modifiers) {
+    if (!window->onmousemove) return;
 
+    block_toolkit();
+    tlBlockingTaskEval(window->rendertask,
+            tlCallFrom(window->onmousemove, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), null));
+    unblock_toolkit();
+}
 void windowResizeEvent(Window* window, int x, int y, int width, int height) {
     if (!window->onresize) return;
 
     block_toolkit();
-    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
+    tlBlockingTaskEval(window->rendertask,
+            tlCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
     unblock_toolkit();
 }
 
@@ -410,7 +418,7 @@ static tlHandle _box_ondraw(tlArgs* args) {
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
     if (block) {
-        box->ondraw = block;
+        box->ondraw = tl_bool(block)? block : null;
         box_dirty(box);
     }
     return box->ondraw?box->ondraw : tlNull;
@@ -445,7 +453,7 @@ static tlHandle _window_onkey(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
-    if (block) window->onkey = block;
+    if (block) window->onkey = tl_bool(block)? block : null;
     return window->onkey?window->onkey : tlNull;
 }
 
@@ -453,15 +461,23 @@ static tlHandle _window_onmouse(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
-    if (block) window->onmouse = block;
+    if (block) window->onmouse = tl_bool(block)? block : null;
     return window->onmouse?window->onmouse : tlNull;
+}
+
+static tlHandle _window_onmousemove(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    tlHandle block = tlArgsBlock(args);
+    if (!block) block = tlArgsGet(args, 0);
+    if (block) window->onmousemove = tl_bool(block)? block : null;
+    return window->onmousemove?window->onmousemove : tlNull;
 }
 
 static tlHandle _window_onresize(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
-    if (block) window->onresize = block;
+    if (block) window->onresize = tl_bool(block)? block : null;
     return window->onresize?window->onresize : tlNull;
 }
 
@@ -505,6 +521,7 @@ void window_init(tlVm* vm) {
 
         "onkey", _window_onkey,
         "onmouse", _window_onmouse,
+        "onmousemove", _window_onmousemove,
         "onresize", _window_onresize,
 
         "title", _window_title,

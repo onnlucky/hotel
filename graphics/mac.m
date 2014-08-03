@@ -182,7 +182,10 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
 @end
 
 @implementation NView
--(BOOL)isFlipped { return YES; }
+- (BOOL)isFlipped { return YES; }
+- (BOOL)acceptsFirstResponder { return YES; }
+- (BOOL)becomeFirstResponder { return YES; }
+
 - (void)drawRect: (NSRect)rect {
     [super drawRect:rect];
     if (!window) return;
@@ -202,10 +205,48 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     cairo_destroy(cairo);
     cairo_surface_destroy(surface);
 }
--(void)mouseDown:(NSEvent*)event {
+static int buttons = 0;
+- (void)rightMouseDown:(NSEvent*)event { [self mouseDown:event]; }
+- (void)otherMouseDown:(NSEvent*)event { [self mouseDown:event]; }
+- (void)mouseDown:(NSEvent*)event {
     //NSLog(@"mouseDown: %@", event);
     NSPoint loc = [event locationInWindow];
-    windowMouseEvent(window, loc.x, self.bounds.size.height - loc.y);
+    switch ([event type]) {
+        case NSLeftMouseDown:  buttons |= 1; break;
+        case NSRightMouseDown: buttons |= 2; break;
+        case NSOtherMouseDown: buttons |= 4; break;
+    }
+    int count = [event clickCount];
+    int modifiers = 0;
+    int m = [event modifierFlags];
+    if (m & NSShiftKeyMask) modifiers |= 1;   // shift
+    if (m & NSCommandKeyMask) modifiers |= 2; // ctrl
+    windowMouseEvent(window, loc.x, self.bounds.size.height - loc.y, buttons, count, modifiers);
+}
+- (void)rightMouseUp:(NSEvent*)event { [self mouseUp:event]; }
+- (void)otherMouseUp:(NSEvent*)event { [self mouseUp:event]; }
+- (void)mouseUp:(NSEvent*)event {
+    //NSLog(@"mouseUp: %@", event);
+    switch ([event type]) {
+        case NSLeftMouseUp:  buttons &= ~1; break;
+        case NSRightMouseUp: buttons &= ~2; break;
+        case NSOtherMouseUp: buttons &= ~4; break;
+    }
+    /*
+    NSPoint loc = [event locationInWindow];
+    int count = [event clickCount];
+    int modifiers = 0;
+    int m = [event modifierFlags];
+    if (m & NSShiftKeyMask) modifiers |= 1;   // shift
+    if (m & NSCommandKeyMask) modifiers |= 2; // ctrl
+    windowMouseEvent(window, loc.x, self.bounds.size.height - loc.y, buttons, modifiers, count);
+    */
+}
+- (void)rightMouseDragged:(NSEvent*)event { [self mouseDragged:event]; }
+- (void)otherMouseDragged:(NSEvent*)event { [self mouseDragged:event]; }
+- (void)mouseDragged:(NSEvent*)event {
+    NSPoint loc = [event locationInWindow];
+    windowMouseMoveEvent(window, loc.x, self.bounds.size.height - loc.y, buttons, 0);
 }
 @end
 

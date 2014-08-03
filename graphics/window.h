@@ -26,6 +26,7 @@ struct Window {
 
     tlHandle onkey;
     tlHandle onmouse;
+    tlHandle onmousemove;
     tlHandle onresize;
 };
 
@@ -52,7 +53,8 @@ tlString* nativeWindowTitle(NativeWindow*);
 void nativeWindowSetTitle(NativeWindow*, tlString* title);
 
 // platform can call the following for callbacks
-void windowMouseEvent(Window* w, double x, double y);
+void windowMouseEvent(Window* w, double x, double y, int buttons, int count, int modifiers);
+void windowMouseMoveEvent(Window* w, double x, double y, int buttons, int modifiers);
 void windowKeyEvent(Window* w, int code, tlString* input, int modifiers);
 void windowResizeEvent(Window* w, int x, int y, int width, int height);
 
