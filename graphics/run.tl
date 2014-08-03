@@ -1,4 +1,6 @@
 _env = Env.current
+FONT = "menlo"
+FONT = "Courier New"
 
 w = Window.new 400, 800
 w.title "tl scratchpad"
@@ -288,7 +290,7 @@ Editor = text, readonly -> _Mutable_new {
     clear = -> this.setText("")
 
     render = (g ->
-        g.setFont("menlo", FSIZE)
+        g.setFont(FONT, FSIZE)
 
         if this.cursor and this._sx:
             g.color(0.7,0.83,1)
@@ -495,6 +497,9 @@ w.onmouse(x, y, buttons, clicks ->
 
 b.ondraw(g ->
     catch: e -> print e.toString
+    g.color(0.95,0.95,0.95)
+    g.rectangle(0, 0, b.width, b.height)
+    g.fill
     y = Var.new 10
     snippets.each: snippet, n ->
         width, height = snippet.editor.size
