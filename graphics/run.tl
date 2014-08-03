@@ -14,6 +14,8 @@ FSIZE = 14
 Editor = text, readonly -> _Mutable_new {
     error = false
     cursor = not readonly
+    x = 0
+    y = 0
 
     _lines = Array.new((text or "").split("\n",keepempty=true))
     _paste = ""
@@ -67,10 +69,12 @@ Editor = text, readonly -> _Mutable_new {
         { s.find("\n") }:
             this.ensureLeftRight
             s = (this._left + s + this._right).split("\n", keepempty=true)
-            this._left = null
-            this._right = null
             this._lines.remove(this._y)
             s.each: l, n -> this._lines.insert(this._y + n - 1, l)
+            this._y = this._y + s.size - 1
+            this._x = s[-1].size - this._right.size + 1
+            this._left = null
+            this._right = null
             return
         {          }:
             this.ensureLeftRight
@@ -90,7 +94,7 @@ Editor = text, readonly -> _Mutable_new {
     )
 
     newline = (->
-        if this._sx: this.replaceselection("")
+        if this._sx: this.replaceselection(""); return
 
         this.ensureLeftRight
         this._lines[this._y] = this._left
@@ -158,26 +162,43 @@ Editor = text, readonly -> _Mutable_new {
         bline = this._lines[by]
         eline = this._lines[ey]
         (ey - by).times: this._lines.remove(by)
+        this._sx = null; this._sy = null
         { text.find("\n") }:
             s = (bline[:bx - 1] + text + eline[ex + 1:]).split("\n", keepempty=true)
             this._lines.remove(by)
             s.each: l, n -> this._lines.insert(by + n - 1, l)
+            this._y = by + s.size - 1
+            this._x = this._lines[this._y].size - eline[ex + 1:].size + 1
         {                 }:
             this._lines[by] = bline[:bx - 1] + text + eline[ex + 1:]
-        this._sx = null; this._sy = null
-        this._x = bx; this._y = by
+            this._y = by
+            this._x = bx + text.size
 
    selectionText = ->
         this.clearLeftRight
         bx, by, ex, ey = this.selection
         if not bx: return
         if by == ey: return this._lines[by][bx:ex]
+
         res = Array.new
         res.add(this._lines[by][bx:])
-        (ey - by).times: n -> res.add(this._lines[ey + n])
+        (ey - by - 1).times: n -> res.add(this._lines[by + n])
         res.add(this._lines[ey][:ex])
         return res.join("\n")
 
+    selectword = ->
+        this.clearLeftRight
+        this._sy = this._y
+        line = this._lines[this._y]
+        bx = line.find(' ', from=this._x, backward=true) or 0
+        ex = line.find(' ', from=this._x) or line.size + 1
+        this._x = bx + 1
+        this._sx = ex - 1
+    selectline = ->
+        this.clearLeftRight
+        this._sy = this._y
+        this._x = 1
+        this._sx = this._lines[this._y].size
     selectall = ->
         this.clearLeftRight
         this._x = 1
@@ -195,7 +216,7 @@ Editor = text, readonly -> _Mutable_new {
        this._paste = this.selectionText
 
     paste = ->
-        if this._sx: replaceselection(this._paste)
+        if this._sx: this.replaceselection(this._paste); return
         this.input(this._paste)
 
     // TODO implement undo of sorts ...
@@ -298,7 +319,11 @@ Editor = text, readonly -> _Mutable_new {
                 g.fillText(line[c:c])
     )
 
-    onmouse = mx, my ->
+    onmouse = mx, my, buttons, clicks ->
+        if buttons == 0: return w.onmousemove(null)
+        //print "onmouse:", mx, my, buttons, clicks
+        this._sx = null
+        this._sy = null
         x = max(mx /. FWIDTH + 1, 1)
         y = max(my /. FHEIGHT + 1, 1)
         if y > this._lines.size:
@@ -307,6 +332,22 @@ Editor = text, readonly -> _Mutable_new {
             return
         this._y = y
         this._x = min(x, this._lines[y].size + 1)
+
+        if clicks == 2: this.selectword
+        if clicks == 3: this.selectline
+
+        w.onmousemove(mx, my, buttons ->
+            //print "onmousemove:", mx, my, buttons
+            x = max((mx - this.x) /. FWIDTH + 1, 1)
+            y = max((my - this.y) /. FHEIGHT + 1, 1)
+            if y > this._lines.size:
+                this._sx = this._lines[-1].size + 1
+                this._sy = this._lines.size
+                return
+            this._sy = y
+            this._sx = min(x, this._lines[y].size + 1)
+            b.redraw
+        )
 
     onkey = event ->
         c = event.key
@@ -347,7 +388,7 @@ Snippet = content -> _Mutable_new {
 snippets = Array.new
 current = Var.new 1
 focus = Var.new true
-snippets.add(Snippet("print \"hello\""))
+snippets.add(Snippet("print \"hello world!\""))
 
 running = Var.new null
 internal_print = ->
@@ -393,7 +434,7 @@ runcode = ->
 
 w.onkey(event ->
     catch: e -> print e.toString
-    print repr event
+    //print "onkey:", repr(event)
     c = event.key
     ctrl = event.modifiers & 2 == 2
     { ctrl and c == 'Q'  }: w.close
@@ -427,14 +468,14 @@ w.onkey(event ->
     */
 )
 
-w.onmouse(x, y, button, modifiers ->
+w.onmouse(x, y, buttons, clicks ->
     catch: e -> print e.toString
     snippets.each: snippet, n ->
         if snippet.y - 5 <= y and y <= snippet.y + snippet.height + 5:
             $focus = true
             snippet.changed = true
             $current = n
-            snippet.editor.onmouse(x - snippet.x, y - snippet.y)
+            snippet.editor.onmouse(x - snippet.x, y - snippet.y, buttons, clicks)
             b.redraw
             return
     last = snippets[-1]
@@ -443,7 +484,7 @@ w.onmouse(x, y, button, modifiers ->
             $focus = true
             last.changed = true
             $current = snippets.size
-            last.editor.onmouse(x - last.x, y - last.y)
+            last.editor.onmouse(x - last.x, y - last.y, buttons, clicks)
             b.redraw
             return
         snippets.add(Snippet())
@@ -466,6 +507,8 @@ b.ondraw(g ->
         g.save
         g.translate(snippet.x, snippet.y)
         snippet.editor.cursor = false
+        snippet.editor.x = 10
+        snippet.editor.y = $y
         if n == $current:
             g.rectangle(0, 0, width, height)
             g.color 1,1,1
@@ -490,9 +533,6 @@ b.ondraw(g ->
         g.color 1,1,1
         g.rectangle(10, $y, FWIDTH, FHEIGHT)
         g.fill
-
-    g.color(1,0,0)
-    g.rectangle(300, 300, 50, 50)
-    g.stroke
 )
+null
 
