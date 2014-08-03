@@ -49,10 +49,54 @@ static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer
         case GDK_KEY_Down: key = 40; break;
     }
     if (key >= 'a' && key <= 'z') key = key & ~0x20;
-
+    if (input[0]) {
+        switch (key) {
+            case '(': key = 57; break;
+            case ')': key = 48; break;
+            case '{':
+            case '[': key = 219; break;
+            case '}':
+            case ']': key = 221; break;
+            case '\'':
+            case '"': key = 222; break;
+            case '!': key = 49; break;
+            case '@': key = 50; break;
+            case '#': key = 51; break;
+            case '$': key = 52; break;
+            case '%': key = 53; break;
+            case '^': key = 54; break;
+            case '&': key = 55; break;
+            case '*': key = 56; break;
+            case '-': key = 45; break;
+            case '_': key = 45; break;
+            case '=': key = 43; break;
+            case '+': key = 43; break;
+        }
+    }
     if (key < 0 || key > 4000) return FALSE;
-    windowKeyEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), key, tlStringFromCopy(input, 0));
+
+    int modifiers = 0;
+    if ((event->state & GDK_SHIFT_MASK) == GDK_SHIFT_MASK) modifiers |= 1;
+    if ((event->state & GDK_CONTROL_MASK) == GDK_CONTROL_MASK) modifiers |= 2;
+    windowKeyEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), key, tlStringFromCopy(input, 0), modifiers);
     return FALSE;
+}
+static gboolean button_press_window(GtkWidget *widget, GdkEventButton *event) {
+    int count = 1;
+    if (event->type == GDK_2BUTTON_PRESS) count = 2;
+    if (event->type == GDK_3BUTTON_PRESS) count = 3;
+    windowMouseEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), event->x, event->y, event->button, count, 0);
+    return TRUE;
+}
+static gboolean motion_notify_window(GtkWidget *widget, GdkEventButton *event) {
+    int buttons = 0;
+    if (event->state & GDK_BUTTON1_MASK) buttons |= 1;
+    if (event->state & GDK_BUTTON2_MASK) buttons |= 2;
+    if (event->state & GDK_BUTTON3_MASK) buttons |= 4;
+    if (event->state & GDK_BUTTON4_MASK) buttons |= 8;
+    if (!buttons) return TRUE;
+    windowMouseMoveEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), event->x, event->y, event->button, 0);
+    return TRUE;
 }
 
 NativeWindow* nativeWindowNew(Window* window) {
@@ -60,11 +104,14 @@ NativeWindow* nativeWindowNew(Window* window) {
 
     g_signal_connect(w, "draw", G_CALLBACK(draw_window), NULL);
     g_signal_connect(w, "destroy", G_CALLBACK(destroy_window), NULL);
+    g_signal_connect(w, "button_press_event", G_CALLBACK(button_press_window), NULL);
+    g_signal_connect(w, "motion_notify_event", G_CALLBACK(motion_notify_window), NULL);
     g_signal_connect(w, "key_press_event", G_CALLBACK(key_press_window), NULL);
     g_signal_connect(w, "key_release_event", G_CALLBACK(key_release_window), NULL);
     g_signal_connect(w, "configure-event", G_CALLBACK(configure_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
+    gtk_widget_add_events(GTK_WIDGET(w), GDK_POINTER_MOTION_MASK);
     gtk_window_resize(GTK_WINDOW(w), window->width, window->height);
     gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_CENTER);
     gtk_window_present(GTK_WINDOW(w));
@@ -142,10 +189,6 @@ void nativeTextBoxPosition(NativeTextBox* textbox, int x, int y, int with, int h
 tlString* nativeTextBoxGetText(NativeTextBox* textbox) {
     return tlStringEmpty();
 }
-
-// platform can call the following for callbacks
-void windowPointerEvent(Window* w);
-void windowKeyEvent(Window* w, int code, tlString* input);
 
 gboolean run_on_main(gpointer _onmain) {
     tlRunOnMain* onmain = (tlRunOnMain*)_onmain;
