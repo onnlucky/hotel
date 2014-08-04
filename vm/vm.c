@@ -659,7 +659,16 @@ tlKind* tlWorkerKind;
 
 static void vm_init() {
     tl_register_natives(__vm_natives);
-    tlObject* system = tlObjectFrom("version", tlSTR(TL_VERSION), null);
+    tlObject* system = tlObjectFrom(
+            "version", tlSTR(TL_VERSION),
+            "platform", tlSTR(PLATFORM),
+            "cpu", tlSTR(CPU),
+#ifdef M32
+            "wordsize", tlINT(32),
+#else
+            "wordsize", tlINT(64),
+#endif
+            null);
     tl_register_global("system", system);
 
     INIT_KIND(tlVmKind);
