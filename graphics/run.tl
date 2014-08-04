@@ -1,9 +1,9 @@
 _env = Env.current
-FONT = "menlo"
-FONT = "Courier New"
+FONT = { system.platform == "macosx" }: "menlo"
+       {                             }: "courier new"
 
 w = Window.new 400, 800
-w.title "tl scratchpad"
+w.title "tl scratchpad - $(repr(system))"
 b = Box.new 0, 0, w.width, w.height
 w.add(b)
 w.onresize(width, height -> b.width(width); b.height(height))
@@ -210,16 +210,16 @@ Editor = text, readonly -> _Mutable_new {
 
    cut = ->
        if not this._sx: return
-       this._paste = this.selectionText
+       w.clipboardSet(this.selectionText)
        this.replaceselection("")
 
     copy = ->
        if not this._sx: return
-       this._paste = this.selectionText
+       w.clipboardSet(this.selectionText)
 
     paste = ->
         if this._sx: this.replaceselection(this._paste); return
-        this.input(this._paste)
+        this.input(w.clipboardGet())
 
     // TODO implement undo of sorts ...
     undo = -> null
@@ -517,8 +517,12 @@ b.ondraw(g ->
         if n == $current:
             g.rectangle(0, 0, width, height)
             g.color 1,1,1
-            g.fill
             if $focus: snippet.editor.cursor = true
+            (
+                catch: e -> g.color 1,0.95,0.95
+                parse(snippet.editor.text)
+            )
+            g.fill
         snippet.editor.render(g)
         g.restore
         $y += height + 5
