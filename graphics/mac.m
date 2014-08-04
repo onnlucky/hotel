@@ -295,6 +295,22 @@ tlString* nativeTextBoxGetText(NativeTextBox* _text) {
     return [view text];
 }
 
+tlString* nativeClipboardGet() {
+    NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
+    NSArray *classes = [[NSArray alloc] initWithObjects:[NSString class], nil];
+    NSDictionary *options = [NSDictionary dictionary];
+    NSArray *copiedItems = [pasteboard readObjectsForClasses:classes options:options];
+    if (copiedItems == nil || [copiedItems count] == 0) return tlStringEmpty();
+    NSString* str = [copiedItems objectAtIndex: 0];
+    return tlStringFromCopy([str UTF8String], 0);
+}
+
+void nativeClipboardSet(tlString* str) {
+    NSPasteboard *pasteBoard = [NSPasteboard generalPasteboard];
+    [pasteBoard declareTypes:[NSArray arrayWithObjects:NSStringPboardType, nil] owner:nil];
+    [pasteBoard setString:[NSString stringWithUTF8String:tlStringData(str)] forType:NSStringPboardType];
+}
+
 // **** connect to app.h ****
 
 @interface Signal : NSObject

@@ -164,6 +164,16 @@ static tlHandle _window_fullscreen(tlArgs* args) {
     return tlArgsGet(args, 0);
 }
 
+static tlHandle _window_clipboardGet(tlArgs* args) {
+    return nativeClipboardGet();
+}
+static tlHandle _window_clipboardSet(tlArgs* args) {
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expect a String");
+    nativeClipboardSet(str);
+    return tlNull;
+}
+
 static tlHandle _window_add(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     Box* box = BoxCast(tlArgsGet(args, 0));
@@ -529,6 +539,9 @@ void window_init(tlVm* vm) {
         "visible", _window_visible,
         "close", _window_close,
         "fullscreen", _window_fullscreen,
+
+        "clipboardGet", _window_clipboardGet,
+        "clipboardSet", _window_clipboardSet,
 
         "isClosed", _window_isClosed,
         null

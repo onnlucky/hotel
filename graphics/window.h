@@ -34,6 +34,10 @@ void renderWindow(Window* window, cairo_t* cairo);
 void closeWindow(Window* window);
 
 // platform needs to implement this
+
+void nativeClipboardSet(tlString*);
+tlString* nativeClipboardGet();
+
 NativeWindow* nativeWindowNew(Window* w);
 
 void nativeWindowClose(NativeWindow*);
