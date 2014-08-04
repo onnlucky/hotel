@@ -382,6 +382,16 @@ INTERNAL tlHandle _string_find(tlArgs* args) {
     if (!find) TL_THROW("expected a String, Char or Number");
     if (from < 0) return tlNull;
 
+    if (backward) {
+        const char* data = tlStringData(str);
+        const char* needle = tlStringData(find);
+        int len = tlStringSize(find);
+        for (int at = from; at >= 0; at--) {
+            if (!strncmp(data + at, needle, len)) return tlINT(at + 1);
+        }
+        return tlNull;
+    }
+
     const char* p = strstr(tlStringData(str) + from, tlStringData(find));
     if (!p) return tlNull;
     return tlINT(1 + p - tlStringData(str));

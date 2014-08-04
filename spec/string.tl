@@ -99,3 +99,23 @@ test "split":
 test "split regex":
     assert "foobar".split(Regex("[aeiou]+")) == ["f","b","r"]
 
+test "find":
+    assert "12345a789a12345".find('a') == 6
+    assert "12345a789a12345".find("a") == 6
+    assert "12345a789a12345".find("a7") == 6
+    assert "12345a789a12345".find("a1") == 10
+
+test "find from":
+    assert "12345a789a12345".find('a', from=6) == 6
+    assert "12345a789a12345".find('a', from=7) == 10
+    assert "12345a789a12345".find("a", from=6) == 6
+    assert "12345a789a12345".find("a", from=7) == 10
+    assert "12345a789a12345".find("a7", from=7) == null
+
+test "find backward":
+    assert "12345a789a12345".find('a', backward=true) == 10
+    assert "12345a789a12345".find("a", backward=true) == 10
+
+test "find backward from":
+    assert "12345a789a12345".find('a', from=9, backward=true) == 6
+    assert "12345a789a12345".find("a", from=9, backward=true) == 6
