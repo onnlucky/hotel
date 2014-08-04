@@ -119,3 +119,12 @@ test "find backward":
 test "find backward from":
     assert "12345a789a12345".find('a', from=9, backward=true) == 6
     assert "12345a789a12345".find("a", from=9, backward=true) == 6
+    assert "12345a789a12345".find('a', from=10, backward=true) == 10
+    assert "12345a789a12345".find("a", from=10, backward=true) == 10
+    assert "12345a789a12345".find("a7", from=10, backward=true) == 6
+
+test "find backward upto":
+    assert "12345a789a12345".find('a', from=9, upto=7, backward=true) == null
+    assert "12345a789a12345".find("a", from=9, upto=7, backward=true) == null
+    assert "12345a789a12345".find('a', from=9, upto=6, backward=true) == 6
+    assert "12345a789a12345".find("a", from=9, upto=6, backward=true) == 6

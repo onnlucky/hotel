@@ -345,6 +345,41 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
     return tlINT(tlStringHash(str));
 }
 
+INTERNAL tlHandle _string_find_backward(tlArgs* args) {
+    tlString* str = tlStringAs(tlArgsTarget(args));
+
+    int at = 1;
+    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    if (!afrom) afrom = tlArgsGet(args, at++);
+    int from = at_offset_max(afrom, tlStringSize(str));
+    if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
+
+    tlHandle aupto = tlArgsMapGet(args, tlSYM("upto"));
+    if (!aupto) aupto = tlArgsGet(args, at++);
+    int upto = at_offset_min(aupto, tlStringSize(str));
+    if (upto < 0) TL_THROW("upto must be Number, not: %s", tl_str(aupto));
+
+    if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
+        uint8_t b = (int)tl_double(tlArgsGet(args, 0));
+        const char* data = tlStringData(str);
+        for (int at = from - 1; at >= upto; at--) {
+            if (data[at] == b) return tlINT(at + 1);
+        }
+        return tlNull;
+    }
+
+    tlString* find = tlStringCast(tlArgsGet(args, 0));
+    if (!find) TL_THROW("expected a String, Char or Number");
+
+    const char* data = tlStringData(str);
+    const char* needle = tlStringData(find);
+    int len = tlStringSize(find);
+    for (int at = from - 1; at >= upto; at--) {
+        if (!strncmp(data + at, needle, len)) return tlINT(at + 1);
+    }
+    return tlNull;
+}
+
 /// find(s): find #s in #String, returns the position or #null if nothing was found
 /// [from] start searching from this position
 /// [upto] stop searching when reaching this position
@@ -353,46 +388,35 @@ INTERNAL tlHandle _string_hash(tlArgs* args) {
 /// when #s is a #Number or #Char it will return the first occurance of that letter
 /// > "hello world".find('o') == 5
 /// > "hello world".find("o", backward=true) == 8
-// TODO find bytes, find from, find upto, like buffer ...
 INTERNAL tlHandle _string_find(tlArgs* args) {
+    if (tl_bool(tlArgsMapGet(args, tlSYM("backward")))) return _string_find_backward(args);
+
     tlString* str = tlStringAs(tlArgsTarget(args));
-    bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
+
+    int at = 1;
     tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
-    if (!afrom) afrom = tlArgsGet(args, 1);
-    int from = at_offset(afrom, tlStringSize(str));
-    // TODO upto
+    if (!afrom) afrom = tlArgsGet(args, at++);
+    int from = at_offset_min(afrom, tlStringSize(str));
+    if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
+
+    tlHandle aupto = tlArgsMapGet(args, tlSYM("upto"));
+    if (!aupto) aupto = tlArgsGet(args, at++);
+    int upto = at_offset_max(aupto, tlStringSize(str));
+    if (upto < 0) TL_THROW("upto must be Number, not: %s", tl_str(aupto));
 
     if (tlNumberIs(tlArgsGet(args, 0)) || tlCharIs(tlArgsGet(args, 0))) {
-        if (from < 0) return tlNull;
         uint8_t b = (int)tl_double(tlArgsGet(args, 0));
-
         const char* data = tlStringData(str);
-        if (backward) {
-            for (int at = from; at >= 0; at--) {
-                if (data[at] == b) return tlINT(at + 1);
-            }
-        } else {
-            for (int at = from; at < tlStringSize(str); at++) {
-                if (data[at] == b) return tlINT(at + 1);
-            }
+        for (int at = from; at <= upto; at++) {
+            if (data[at] == b) return tlINT(at + 1);
         }
         return tlNull;
     }
+
     tlString* find = tlStringCast(tlArgsGet(args, 0));
     if (!find) TL_THROW("expected a String, Char or Number");
-    if (from < 0) return tlNull;
 
-    if (backward) {
-        const char* data = tlStringData(str);
-        const char* needle = tlStringData(find);
-        int len = tlStringSize(find);
-        for (int at = from; at >= 0; at--) {
-            if (!strncmp(data + at, needle, len)) return tlINT(at + 1);
-        }
-        return tlNull;
-    }
-
-    const char* p = strstr(tlStringData(str) + from, tlStringData(find));
+    const char* p = strnstr(tlStringData(str) + from, tlStringData(find), upto - from);
     if (!p) return tlNull;
     return tlINT(1 + p - tlStringData(str));
 }
