@@ -168,6 +168,7 @@ INTERNAL tlHandle _array_set(tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
     int at = at_offset_raw(tlArgsGet(args, 0));
+    if (at < 0) at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     if (at < 0) TL_THROW("index must be >= 1");
     return tlArraySet(array, at, tlArgsGet(args, 1));
 }
@@ -204,6 +205,7 @@ INTERNAL tlHandle _array_insert(tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
     int at = at_offset_raw(tlArgsGet(args, 0));
+    if (at < 0) at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     if (at < 0) TL_THROW("index must be >= 1");
     return tlArrayInsert(array, at, tlArgsGet(args, 1));
 }
