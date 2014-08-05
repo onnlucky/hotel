@@ -181,6 +181,21 @@ void nativeWindowSetTitle(NativeWindow* w, tlString* title) {
     gtk_window_set_title(GTK_WINDOW(w), tlStringData(title));
 }
 
+tlString* nativeClipboardGet() {
+    return tlStringEmpty();
+    /*
+    causes immediate deadlock due to key handler blocking hotel thread
+    char* utf8 = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+    if (!utf8) return tlStringEmpty();
+    return tlStringFromTake(utf8, 0);
+    */
+}
+
+void nativeClipboardSet(tlString* str) {
+    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), tlStringData(str), tlStringSize(str));
+}
+
+
 NativeTextBox* nativeTextBoxNew(NativeWindow* window, int x, int y, int width, int height) {
     return null;
 }
