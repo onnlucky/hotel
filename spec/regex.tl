@@ -55,3 +55,39 @@ test "utf8":
 
     r = Regex(",("+ euro +"*),")
     assert r.match(test)[1] == euro
+
+test "match from":
+    m = Regex("[a-z]+").match("  foo bar  ")
+    assert m.main == "foo"
+    m = Regex("[a-z]+").match("  foo bar  ", from=2)
+    assert m.main == "foo"
+    m = Regex("[a-z]+").match("  foo bar  ", from=3)
+    assert m.main == "foo"
+    m = Regex("[a-z]+").match("  foo bar  ", from=4)
+    assert m.main == "oo"
+    m = Regex("[a-z]+").match("  foo bar  ", from=5)
+    assert m.main == "o"
+    m = Regex("[a-z]+").match("  foo bar  ", from=6)
+    assert m.main == "bar"
+    m = Regex("[a-z]+").match("  foo bar  ", from=-6)
+    assert m.main == "bar"
+    m = Regex("[a-z]+").match("  foo bar  ", from=-100)
+    assert m.main == "foo"
+
+test "find from":
+    b, e = Regex("[a-z]+").find("  foo bar  ")
+    assert b == 3 and e == 5
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=2)
+    assert b == 3 and e == 5
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=3)
+    assert b == 3 and e == 5
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=4)
+    assert b == 4 and e == 5
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=5)
+    assert b == 5 and e == 5
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=6)
+    assert b == 7 and e == 9
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=-6)
+    assert b == 7 and e == 9
+    b, e = Regex("[a-z]+").find("  foo bar  ", from=-100)
+    assert b == 3 and e == 5

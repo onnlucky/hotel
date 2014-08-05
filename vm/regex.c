@@ -57,15 +57,18 @@ static tlHandle _regex_find(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("require a String");
 
-    int offset = tl_int_or(tlArgsGet(args, 1), 0);
-    if (offset < 0 || offset >= tlStringSize(str)) return tlNull;
+    int at = 1;
+    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    if (!afrom) afrom = tlArgsGet(args, at++);
+    int from = at_offset_min(afrom, tlStringSize(str));
+    if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
 
     int msize = 1;
     regmatch_t m[msize];
-    int r = regexec(&regex->compiled, tlStringData(str) + offset, msize, m, offset?REG_NOTBOL:0);
+    int r = regexec(&regex->compiled, tlStringData(str) + from, msize, m, from?REG_NOTBOL:0);
     if (r == REG_NOMATCH) return tlNull;
     if (r == REG_ESPACE) TL_THROW("out of memory");
-    return tlResultFrom(tlINT(m[0].rm_so + offset + 1), tlINT(m[0].rm_eo + offset), null);
+    return tlResultFrom(tlINT(m[0].rm_so + from + 1), tlINT(m[0].rm_eo + from), null);
 }
 
 /// match(string): match a regex against an input returns a #Match object or null if not a match
@@ -76,12 +79,15 @@ static tlHandle _regex_match(tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("require a String");
 
-    int offset = tl_int_or(tlArgsGet(args, 1), 0);
-    if (offset < 0 || offset >= tlStringSize(str)) return tlNull;
+    int at = 1;
+    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    if (!afrom) afrom = tlArgsGet(args, at++);
+    int from = at_offset_min(afrom, tlStringSize(str));
+    if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
 
     int msize = 256;
     regmatch_t m[msize];
-    int r = regexec(&regex->compiled, tlStringData(str) + offset, msize, m, offset?REG_NOTBOL:0);
+    int r = regexec(&regex->compiled, tlStringData(str) + from, msize, m, from?REG_NOTBOL:0);
     if (r == REG_NOMATCH) return tlNull;
     if (r == REG_ESPACE) TL_THROW("out of memory");
 
@@ -94,6 +100,8 @@ static tlHandle _regex_match(tlArgs* args) {
     match->size = size - 1;
     for (int i = 0; i < size; i++) {
         match->groups[i] = m[i];
+        match->groups[i].rm_so += from;
+        match->groups[i].rm_eo += from;
     }
     return match;
 }

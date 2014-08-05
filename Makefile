@@ -128,10 +128,12 @@ install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES)
 	cp -r cmodules/*.mod $(MODDIR)/
 	cp tlmeta $(BINDIR)/
 	cp tlmeta-base.tl $(MODDIR)/
+	$(MAKE) -C graphics install
 uninstall:
 	rm -rf $(BINDIR)/tl
 	rm -rf $(LIBDIR)/libtl.a
 	rm -rf $(MODDIR)
+	$(MAKE) -C graphics uninstall
 
 .PHONY: run test clean distclean install uninstall
 
