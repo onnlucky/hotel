@@ -316,9 +316,20 @@ static tlHandle _rectangle(tlArgs* args) {
     return g;
 };
 
+void charToUtf8(int c, char buf[], int* len);
 static tlHandle _textPath(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsGet(args, 0));
-    const char* utf8 = (str)?tlStringData(str):"";
+    tlHandle in = tlArgsGet(args, 0);
+    const char* utf8;
+    if (tlStringIs(in)) {
+        utf8 = tlStringData(tlStringAs(in));
+    } else if (tlNumberIs(in) || tlCharIs(in)) {
+        int len;
+        char buf[8];
+        charToUtf8(tl_int(in), buf, &len);
+        utf8 = buf;
+    } else {
+        TL_THROW("fillText requires a String or Char");
+    }
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_path(g->cairo, utf8);
     return g;
@@ -361,16 +372,36 @@ static tlHandle _setFont(tlArgs* args) {
     return g;
 }
 static tlHandle _fillText(tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsGet(args, 0));
-    const char* utf8 = (str)?tlStringData(str):"";
+    tlHandle in = tlArgsGet(args, 0);
+    const char* utf8;
+    if (tlStringIs(in)) {
+        utf8 = tlStringData(tlStringAs(in));
+    } else if (tlNumberIs(in) || tlCharIs(in)) {
+        int len;
+        char buf[8];
+        charToUtf8(tl_int(in), buf, &len);
+        utf8 = buf;
+    } else {
+        TL_THROW("fillText requires a String or Char");
+    }
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_show_text(g->cairo, utf8);
     return g;
 }
 static tlHandle _measureText(tlArgs* args) {
     cairo_text_extents_t extents;
-    tlString* str = tlStringCast(tlArgsGet(args, 0));
-    const char* utf8 = (str)?tlStringData(str):"";
+    tlHandle in = tlArgsGet(args, 0);
+    const char* utf8;
+    if (tlStringIs(in)) {
+        utf8 = tlStringData(tlStringAs(in));
+    } else if (tlNumberIs(in) || tlCharIs(in)) {
+        int len;
+        char buf[8];
+        charToUtf8(tl_int(in), buf, &len);
+        utf8 = buf;
+    } else {
+        TL_THROW("measureText requires a String or Char");
+    }
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_extents(g->cairo, utf8,  &extents);
     return tlResultFrom(tlINT(max(extents.width,extents.x_advance)), tlINT(max(extents.height,extents.y_advance)), null);

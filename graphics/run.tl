@@ -318,7 +318,7 @@ Editor = text, readonly -> _Mutable_new {
             if not line: break
             line.size.times: c ->
                 g.moveTo(c * FWIDTH - FWIDTH, r * FHEIGHT - 3)
-                g.fillText(line[c:c])
+                g.fillText(line[c])
     )
 
     onmouse = mx, my, buttons, clicks ->
