@@ -326,6 +326,7 @@ static tlHandle _textPath(tlArgs* args) {
         int len;
         char buf[8];
         charToUtf8(tl_int(in), buf, &len);
+        buf[len] = 0;
         utf8 = buf;
     } else {
         TL_THROW("fillText requires a String or Char");
@@ -380,6 +381,7 @@ static tlHandle _fillText(tlArgs* args) {
         int len;
         char buf[8];
         charToUtf8(tl_int(in), buf, &len);
+        buf[len] = 0;
         utf8 = buf;
     } else {
         TL_THROW("fillText requires a String or Char");
@@ -398,6 +400,7 @@ static tlHandle _measureText(tlArgs* args) {
         int len;
         char buf[8];
         charToUtf8(tl_int(in), buf, &len);
+        buf[len] = 0;
         utf8 = buf;
     } else {
         TL_THROW("measureText requires a String or Char");
