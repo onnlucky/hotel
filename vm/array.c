@@ -216,6 +216,40 @@ INTERNAL tlHandle _array_remove(tlArgs* args) {
     if (at < 0) TL_THROW("index must be >= 1");
     return tlMAYBE(tlArrayRemove(array, at));
 }
+INTERNAL tlHandle _array_splice(tlArgs* args) {
+    tlArray* array = tlArrayAs(tlArgsTarget(args));
+    int from = at_offset_min(tlArgsGet(args, 0), tlArraySize(array));
+    if (from < 0) TL_THROW("require an index from");
+    int to = at_offset_max(tlArgsGet(args, 1), tlArraySize(array));
+    if (to < 0) TL_THROW("require an index to");
+
+    // swap if needed
+    if (from > to) { int tmp = to; to = from; from = tmp; }
+
+    for (int i = 0; i < to - from; i++) {
+        tlArrayRemove(array, from);
+    }
+
+    int at = from - 1;
+    for (int i = 2; i < tlArgsSize(args); i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (tlListIs(v)) {
+            tlList* other = tlListAs(v);
+            for (int j = 0; j < tlListSize(other); j++) {
+                tlArrayInsert(array, ++at, tlListGet(other, j));
+            }
+        } else if (tlArrayIs(v)) {
+            tlArray* other = tlArrayAs(v);
+            for (int j = 0; j < tlArraySize(other); j++) {
+                tlArrayInsert(array, ++at, tlArrayGet(other, j));
+            }
+        } else {
+            TL_THROW("expected an Array or List");
+        }
+    }
+    return array;
+}
+
 /// slice(left, right): return a new list, from the range between left and right
 INTERNAL tlHandle _array_slice(tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
@@ -265,6 +299,7 @@ static void array_init() {
         "remove", _array_remove,
         "insert", _array_insert,
         "slice", _array_slice,
+        "splice", _array_splice,
         "toChar", _array_toChar,
         "addAll", null,
         "random", null,

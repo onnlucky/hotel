@@ -33,14 +33,15 @@ test "splice":
     res = Array.new([1,2,3,4,5])
     //res[2:3] = ["hello","world"]
     res.splice(2,4,["hello","world"])
+    print repr res.toList
     assert res[1] == 1
     assert res[2] == "hello"
     assert res[3] == "world"
     assert res[4] == 5
 
     res = Array.new([1,2,3,4,5])
-    //res[2:3] = "hello"
-    res.splice(2,4,"hello")
+    //res[2:3] = ["hello"]
+    res.splice(2,4,["hello"])
     assert res[1] == 1
     assert res[2] == "hello"
     assert res[3] == 5
