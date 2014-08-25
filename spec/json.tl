@@ -44,7 +44,7 @@ test "circular":
     assert a["self"]
     assert not a["foobar"]
 
-    // TODO circular using mutables ... fails by never returning
-    //assert json.toString(a).size < 100
-    throw "circular data cannot be serialized"
+    catch: e -> null
+    json.toString(a) // throws
+    assert false
 
