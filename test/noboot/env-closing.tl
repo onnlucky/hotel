@@ -1,3 +1,4 @@
+if = cond, &tb, &fb -> bool(cond, bool(args.block,args.block,tb), fb)()
 (->)          // captures env, but not close it
 out "close\n" // close the env, but not create new one
 again = c ->

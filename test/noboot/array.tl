@@ -1,3 +1,4 @@
+if = cond, &tb, &fb -> bool(cond, bool(args.block,args.block,tb), fb)()
 max = 10000
 
 ls = Array.new

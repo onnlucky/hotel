@@ -12,20 +12,10 @@
 
 #include "trace-off.h"
 
-// if (no else)
-INTERNAL tlHandle _if(tlArgs* args) {
-    tlHandle block = tlArgsBlock(args);
-    if (!block) TL_THROW("if expects a block");
-    tlHandle cond = tlArgsGet(args, 0);
-    if (!cond) return tlNull;
-
-    if (!tl_bool(cond)) return tlNull;
-    return tlEval(tlCallFrom(block, null));
-}
-
 INTERNAL tlHandle _break(tlArgs* args) {
     return tlTaskThrow(s_break);
 }
+
 INTERNAL tlHandle _continue(tlArgs* args) {
     return tlTaskThrow(s_continue);
 }
@@ -293,7 +283,6 @@ INTERNAL tlHandle _multiple_return(tlArgs* args) {
 }
 
 static const tlNativeCbs __controlflow_natives[] = {
-    { "if", _if },
     { "_match", _match },
     { "_nomatch", _nomatch },
     { "break", _break },
