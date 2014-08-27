@@ -42,6 +42,7 @@ static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer
     switch (key) {
         case GDK_KEY_Escape: key = 27; break;
         case GDK_KEY_BackSpace: key = 8; break;
+        case GDK_KEY_Delete: key = 127; break;
         case GDK_KEY_Return: key = 13; break;
         case GDK_KEY_Left: key = 37; break;
         case GDK_KEY_Up: key = 38; break;
