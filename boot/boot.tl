@@ -51,13 +51,12 @@ _each = fn ->
     block = args.block
     if not (block or fn): throw "each expects a block or fn"
 
-    len = this.size
-    loop = at =>
-        if at > len: return
-        if block: block(this[at], at)
-        if not block: fn(this[at])
-        goto(loop(at + 1))
-    loop(1)
+    size = this.size
+    at = Var.new 0
+    while $at < size:
+        $at += 1
+        if block: block(this[$at], $at)
+        if not block: fn(this[$at])
 
 /// List.map([fn]): apply a function to all elements, return a list of the results
 /// [block] the block to call, it is passed in the element and position as `block(e, at)`

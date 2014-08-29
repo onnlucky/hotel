@@ -35,6 +35,22 @@ test "iterate external function":
     [1,2,3,4,5].each(test)
     assert $called
 
+test "break":
+    count = Var.new 0
+    [1,2,3,4,5].each(e ->
+        $count += e
+        if e == 3: break
+    )
+    assert $count == 6
+
+test "continue":
+    count = Var.new 0
+    [1,2,3,4,5].each(e ->
+        if e > 3: continue
+        $count += e
+    )
+    assert $count == 6
+
 test "reverse":
     assert [1,2,3,4,5].reverse == [5,4,3,2,1]
 
