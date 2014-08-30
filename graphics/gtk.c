@@ -82,14 +82,14 @@ static gboolean key_press_window(GtkWidget* widget, GdkEventKey* event, gpointer
     windowKeyEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), key, tlStringFromCopy(input, 0), modifiers);
     return FALSE;
 }
-static gboolean button_press_window(GtkWidget *widget, GdkEventButton *event) {
+static gboolean button_press_window(GtkWidget* widget, GdkEventButton* event) {
     int count = 1;
     if (event->type == GDK_2BUTTON_PRESS) count = 2;
     if (event->type == GDK_3BUTTON_PRESS) count = 3;
     windowMouseEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), event->x, event->y, event->button, count, 0);
     return TRUE;
 }
-static gboolean motion_notify_window(GtkWidget *widget, GdkEventButton *event) {
+static gboolean motion_notify_window(GtkWidget* widget, GdkEventButton* event) {
     int buttons = 0;
     if (event->state & GDK_BUTTON1_MASK) buttons |= 1;
     if (event->state & GDK_BUTTON2_MASK) buttons |= 2;
@@ -97,6 +97,20 @@ static gboolean motion_notify_window(GtkWidget *widget, GdkEventButton *event) {
     if (event->state & GDK_BUTTON4_MASK) buttons |= 8;
     if (!buttons) return TRUE;
     windowMouseMoveEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), event->x, event->y, event->button, 0);
+    return TRUE;
+}
+static gboolean scroll_notify_window(GtkWidget* widget, GdkEventScroll* event) {
+    double dx = event->delta_x;
+    double dy = event->delta_y;
+    switch (event->direction) {
+        case GDK_SCROLL_UP: if (dy == 0) dy = -5; break;
+        case GDK_SCROLL_DOWN: if (dy == 0) dy = 5; break;
+        case GDK_SCROLL_LEFT: if (dx == 0) dx = -5; break;
+        case GDK_SCROLL_RIGHT: if (dx == 0) dx = 5; break;
+        default: break;
+    }
+    //print("scroll: dx: %f, dy: %f", dx, dy);
+    windowMouseScrollEvent(WindowAs(g_object_get_data(G_OBJECT(widget), "tl")), dx, dy);
     return TRUE;
 }
 
@@ -107,12 +121,13 @@ NativeWindow* nativeWindowNew(Window* window) {
     g_signal_connect(w, "destroy", G_CALLBACK(destroy_window), NULL);
     g_signal_connect(w, "button_press_event", G_CALLBACK(button_press_window), NULL);
     g_signal_connect(w, "motion_notify_event", G_CALLBACK(motion_notify_window), NULL);
+    g_signal_connect(w, "scroll_event", G_CALLBACK(scroll_notify_window), NULL);
     g_signal_connect(w, "key_press_event", G_CALLBACK(key_press_window), NULL);
     g_signal_connect(w, "key_release_event", G_CALLBACK(key_release_window), NULL);
     g_signal_connect(w, "configure-event", G_CALLBACK(configure_window), NULL);
     g_object_set_data(G_OBJECT(w), "tl", window);
 
-    gtk_widget_add_events(GTK_WIDGET(w), GDK_POINTER_MOTION_MASK);
+    gtk_widget_add_events(GTK_WIDGET(w), GDK_POINTER_MOTION_MASK|GDK_SCROLL_MASK);
     gtk_window_resize(GTK_WINDOW(w), window->width, window->height);
     gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_CENTER);
     gtk_window_present(GTK_WINDOW(w));
