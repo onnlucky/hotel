@@ -294,6 +294,14 @@ void windowMouseMoveEvent(Window* window, double x, double y, int buttons, int m
             tlCallFrom(window->onmousemove, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), null));
     unblock_toolkit();
 }
+void windowMouseScrollEvent(Window* window, double deltaX, double deltaY) {
+    if (!window->onmousescroll) return;
+
+    block_toolkit();
+    tlBlockingTaskEval(window->rendertask,
+            tlCallFrom(window->onmousescroll, tlFLOAT(deltaX), tlFLOAT(deltaY), null));
+    unblock_toolkit();
+}
 void windowResizeEvent(Window* window, int x, int y, int width, int height) {
     if (!window->onresize) return;
 
@@ -483,6 +491,14 @@ static tlHandle _window_onmousemove(tlArgs* args) {
     return window->onmousemove?window->onmousemove : tlNull;
 }
 
+static tlHandle _window_onmousescroll(tlArgs* args) {
+    Window* window = WindowAs(tlArgsTarget(args));
+    tlHandle block = tlArgsBlock(args);
+    if (!block) block = tlArgsGet(args, 0);
+    if (block) window->onmousescroll = tl_bool(block)? block : null;
+    return window->onmousescroll?window->onmousescroll : tlNull;
+}
+
 static tlHandle _window_onresize(tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
@@ -532,6 +548,7 @@ void window_init(tlVm* vm) {
         "onkey", _window_onkey,
         "onmouse", _window_onmouse,
         "onmousemove", _window_onmousemove,
+        "onmousescroll", _window_onmousescroll,
         "onresize", _window_onresize,
 
         "title", _window_title,

@@ -248,6 +248,10 @@ static int buttons = 0;
     NSPoint loc = [event locationInWindow];
     windowMouseMoveEvent(window, loc.x, self.bounds.size.height - loc.y, buttons, 0);
 }
+
+- (void)scrollWheel:(NSEvent*)event {
+    windowMouseScrollEvent(window, [event deltaX], [event deltaY]);
+}
 @end
 
 @implementation NTextView
