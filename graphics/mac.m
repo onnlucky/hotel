@@ -250,7 +250,7 @@ static int buttons = 0;
 }
 
 - (void)scrollWheel:(NSEvent*)event {
-    windowMouseScrollEvent(window, [event deltaX], [event deltaY]);
+    windowMouseScrollEvent(window, [event deltaX], [event deltaY] * -1);
 }
 @end
 
