@@ -18,7 +18,6 @@ App = window, box -> _Mutable_new {
         {                         }: this._focus
     setFocus = view ->
         this._focus = view
-        print "focus:", this._focus, view, this.focus
     setView = view ->
         this.view = view
         view.parent = this
@@ -38,7 +37,9 @@ Widget = text -> _Mutable_new {
     focus = -> try(this.app._focus) == this
     setFocus = -> this.app.setFocus(this)
 
+    size = g, width -> null
     draw = g ->
+        g.setFont("Arial", 16)
         g.color(0.9,0.9,0.9)
         if this.focus: g.color(1,0.8,0.8)
         g.rectangle(2, 2, this.width - 4, this.height - 4)
@@ -51,7 +52,6 @@ Widget = text -> _Mutable_new {
         print "onkey:", repr(event)
     onmouse = event, x, y ->
         this.setFocus()
-        print "onmouse:", repr(event)
         { event.buttons == 1 }:
             this.width += 10
             this.height += 10
@@ -62,23 +62,71 @@ Widget = text -> _Mutable_new {
             this.parent.dirty
 }
 
-Vertical = -> _Mutable_new {
+Text = text -> _Mutable_new {
     parent = null
+    x = 0
+    y = 0
+    width = 0
+    height = 0
+    lines = Array.new
+
     app = -> this.parent.app
 
-    dirty = ->
-        if not this._width: return
-        this._width = null
-        if this.parent: this.parent.dirty
-    width = ->
-        if not this._width: this.size()
-        this._width
-    height = ->
-        if not this._width: this.size()
-        this._height
+    size = g, width ->
+        if this.width == width: return
+        this.width = width
+        this.lines.clear
+
+        g.setFont("Arial", 16)
+        _, height = g.measureText("fg")
+        words = text.split(" ")
+        sizes = words.map(w -> g.measureText(w + " "))
+
+        size = Var.new 0
+        text = Var.new ""
+        sizes.each: s, n ->
+            if $size + s > width:
+                this.lines.add($text)
+                $text = ""
+                $size = 0
+            $text = "$($text)$(words[n]) "
+            $size += s
+        if $text.size > 0: this.lines.add($text)
+        this.width = width
+        this.height = this.lines.size * height
 
     draw = g ->
-        if not this._width: this.size()
+        g.setFont("Arial", 16)
+        _, height = g.measureText("fg")
+        g.color(0,0,0)
+        x = Var.new height
+        this.lines.each: l ->
+            g.moveTo(0, $x)
+            g.fillText(l)
+            $x += height
+
+    onmouse = -> null
+}
+
+Vertical = -> _Mutable_new {
+    parent = null
+    children = Array.new
+    _dirty = true
+    x = 0
+    y = 0
+    width = 0
+    height = 0
+
+    xscroll = 0
+    yscroll = 0
+
+    app = -> this.parent.app
+    dirty = ->
+        if this._dirty: return
+        this._dirty = true
+        if this.parent: this.parent.dirty
+
+    draw = g ->
         ymin = this.yscroll
         ymax = this.yscroll + this.parent.height
         xmin = this.xscroll
@@ -97,20 +145,16 @@ Vertical = -> _Mutable_new {
         c.parent = this
         this.children.add(c)
 
-    children = Array.new
-    _width = null
-    _height = 0
-    xscroll = 0
-    yscroll = 0
-
-    size = ->
-        this._width = 0
-        this._height = 0
+    size = g, width ->
+        this._dirty = false
+        this.width = 0
+        this.height = 0
         this.children.each: c ->
+            c.size(g, width)
             c.x = 0
-            c.y = this._height
-            this._height += c.height
-            this._width = max(this._width, c.width)
+            c.y = this.height
+            this.height += c.height
+            this.width = max(this.width, c.width)
 
     onmouse = event, x, y ->
         this.children.each: c ->
@@ -123,10 +167,9 @@ Vertical = -> _Mutable_new {
             return c.onmouse(event, cx, cy)
 
     onmousescroll = dx, dy ->
-        if not this._width: this.size()
-        this.yscroll = clamp(this.yscroll + dy * 4, 0, this._height - this.parent.height)
-        this.xscroll = clamp(this.xscroll + dx * 4, 0, this._width - this.parent.width)
+        this.yscroll = clamp(this.yscroll + dy * 4, 0, this.height - this.parent.height)
+        this.xscroll = clamp(this.xscroll + dx * 4, 0, this.width - this.parent.width)
         this.dirty
 }
 
-{{ App, Widget, Vertical }}
+{{ App, Text, Widget, Vertical }}
