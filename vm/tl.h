@@ -307,6 +307,7 @@ tlMap* tlMapFromObject(tlObject* o);
 tlMap* tlMapFromPairs(tlList* ls);
 int tlMapSize(tlMap* map);
 tlHandle tlMapGet(tlMap* map, tlHandle key);
+tlHandle tlMapKeyIter(tlMap* map, int i);
 tlHandle tlMapValueIter(tlMap* map, int i);
 void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
 

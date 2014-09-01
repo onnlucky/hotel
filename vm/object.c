@@ -331,6 +331,37 @@ static tlHandle _Object_set(tlArgs* args) {
     return tlObjectToObject_(tlObjectSet(object, tlSymFromString(key), val));
 }
 
+static tlHandle _Object_merge(tlArgs* args) {
+    tlHashMap* res = tlHashMapNew();
+    for (int i = 0;; i++) {
+        tlHandle arg = tlArgsGet(args, i);
+        if (!arg) break;
+        tlObject* o = tlObjectCast(arg);
+        if (o) {
+            for (int j = 0;; j++) {
+                tlHandle k = tlObjectKeyIter(o, j);
+                if (!k) break;
+                tlHandle v = tlObjectValueIter(o, j);
+                tlHashMapSet(res, k, v);
+            }
+            continue;
+        }
+        tlMap* map = tlMapCast(arg);
+        if (map) {
+            for (int j = 0;; j++) {
+                tlHandle k = tlMapKeyIter(map, j);
+                if (!k) break;
+                tlHandle v = tlMapValueIter(map, j);
+                tlHashMapSet(res, k, v);
+            }
+            continue;
+        }
+        //tlHashMap* hash = tlHashMapCast(arg);
+        TL_THROW("Expected a Object or Map as arg[%d]", i);
+    }
+    return tlHashMapToObject(res);
+}
+
 static size_t objectSize(tlHandle v) {
     return sizeof(tlObject) + sizeof(tlHandle) * tlObjectAs(v)->keys->size;
 }
@@ -462,6 +493,7 @@ static void object_init() {
         "keys", _Object_keys,
         "values", _Object_values,
         "toMap", _Object_toMap,
+        "merge", _Object_merge,
         "inherit", _Object_inherit,
         "each", null,
         "map", null,
