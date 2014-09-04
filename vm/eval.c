@@ -922,6 +922,23 @@ INTERNAL tlHandle _install_global(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL tlHandle _closure_file(tlArgs* args) {
+    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
+    return tlVALUE_OR_NULL(closure->code->file);
+}
+INTERNAL tlHandle _closure_name(tlArgs* args) {
+    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
+    return closure->code->name;
+}
+INTERNAL tlHandle _closure_line(tlArgs* args) {
+    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
+    return closure->code->line;
+}
+INTERNAL tlHandle _closure_args(tlArgs* args) {
+    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
+    return tlVALUE_OR_NULL(closure->code->argnames);
+}
+
 static const tlNativeCbs __eval_natives[] = {
     { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
@@ -968,6 +985,10 @@ static void eval_init() {
     tlClosureKind->run = runClosure;
     tlClosureKind->klass = tlClassObjectFrom(
         "call", _call,
+        "file", _closure_file,
+        "name", _closure_name,
+        "line", _closure_line,
+        "args", _closure_args,
         null
     );
     tlThunkKind->call = callThunk;

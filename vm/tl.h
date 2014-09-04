@@ -178,6 +178,7 @@ bool tlCallableIs(tlHandle v);
 // to and from primitive values
 tlHandle tlUndef();
 static inline tlUndefined* tlMAYBE(tlHandle v) { return (v)? v : tlUndef(); }
+static inline tlHandle tlVALUE_OR_NULL(tlHandle v) { return (v)? v : tlNull; }
 tlHandle tlBOOL(unsigned c);
 tlHandle tlINT(intptr_t i);
 tlHandle tlFLOAT(double d);
