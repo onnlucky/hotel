@@ -212,6 +212,13 @@ static tlHandle _color(tlArgs* args) {
     double g = tl_double_or(tlArgsGet(args, 1), 0);
     double b = tl_double_or(tlArgsGet(args, 2), 0);
     double a = tl_double_or(tlArgsGet(args, 3), 1.0);
+    if (tlListIs(tlArgsGet(args, 0))) {
+        tlList* list = tlListAs(tlArgsGet(args, 0));
+        r = tl_double_or(tlListGet(list, 0), 0);
+        g = tl_double_or(tlListGet(list, 1), 0);
+        b = tl_double_or(tlListGet(list, 2), 0);
+        a = tl_double_or(tlListGet(list, 3), 1.0);
+    }
     Graphics* gr = GraphicsAs(tlArgsTarget(args));
     cairo_set_source_rgba(gr->cairo, r, g, b, a);
     return gr;
@@ -362,16 +369,24 @@ static tlHandle _scale(tlArgs* args) {
 static tlHandle _setFont(tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     int size = tl_double_or(tlArgsGet(args, 1), 16);
-
-    // TODO set these two also from args
-    cairo_font_slant_t slant = CAIRO_FONT_SLANT_NORMAL;
-    cairo_font_weight_t weight = CAIRO_FONT_WEIGHT_NORMAL;
+    bool italic = tl_bool(tlArgsGet(args, 2));
+    cairo_font_slant_t slant = italic? CAIRO_FONT_SLANT_ITALIC : CAIRO_FONT_SLANT_NORMAL;
+    bool bold = tl_bool(tlArgsGet(args, 3));
+    cairo_font_weight_t weight = bold? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL;
 
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_font_size(g->cairo, size);
     cairo_select_font_face(g->cairo, tlStringData(name), slant, weight);
     return g;
 }
+
+static tlHandle _fontSize(tlArgs* args) {
+    cairo_font_extents_t extents;
+    Graphics* g = GraphicsAs(tlArgsTarget(args));
+    cairo_font_extents(g->cairo, &extents);
+    return tlResultFrom(tlFLOAT(extents.height), tlFLOAT(extents.ascent), tlFLOAT(extents.descent), null);
+}
+
 static tlHandle _fillText(tlArgs* args) {
     tlHandle in = tlArgsGet(args, 0);
     const char* utf8;
@@ -390,6 +405,7 @@ static tlHandle _fillText(tlArgs* args) {
     cairo_show_text(g->cairo, utf8);
     return g;
 }
+
 static tlHandle _measureText(tlArgs* args) {
     cairo_text_extents_t extents;
     tlHandle in = tlArgsGet(args, 0);
@@ -407,7 +423,7 @@ static tlHandle _measureText(tlArgs* args) {
     }
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_text_extents(g->cairo, utf8,  &extents);
-    return tlResultFrom(tlINT(max(extents.width,extents.x_advance)), tlINT(max(extents.height,extents.y_advance)), null);
+    return tlResultFrom(tlFLOAT(max(extents.width,extents.x_advance)), tlFLOAT(max(extents.height,extents.y_advance)), null);
 }
 
 // ** images **
@@ -512,6 +528,7 @@ void graphics_init(tlVm* vm) {
         "rotate", _rotate,
 
         "setFont", _setFont,
+        "fontSize", _fontSize,
         "fillText", _fillText,
         "measureText", _measureText,
 
