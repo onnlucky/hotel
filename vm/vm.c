@@ -139,7 +139,7 @@ static tlHandle _bool(tlArgs* args) {
     tlHandle c = tlArgsGet(args, 0);
     trace("bool(%s)", tl_bool(c)?"true":"false");
     tlHandle res = tlArgsGet(args, tl_bool(c)?1:2);
-    return res;
+    return tlVALUE_OR_NULL(res);
 }
 static tlHandle _not(tlArgs* args) {
     trace("!%s", tl_str(tlArgsGet(args, 0)));
