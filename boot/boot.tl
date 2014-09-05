@@ -137,8 +137,8 @@ _reduce = fn ->
 
     var $i = 1
     var $res = null
-    { args["initial"] }: $res = args["initial"]
-    {                 }: $res = this[1]; $i = 2
+    { args.has("initial") }: $res = args["initial"]
+    {                     }: $res = this[1]; $i = 2
 
     while $i <= this.size:
         $res = block($res, this.get($i))

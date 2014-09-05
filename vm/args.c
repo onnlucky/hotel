@@ -110,9 +110,20 @@ static tlHandle _args_last(tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     return tlMAYBE(tlArgsGet(as, tlArgsSize(args) - 1));
 }
+static tlHandle _args_has(tlArgs* args) {
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
+    tlHandle v = tlArgsGet(args, 0);
+    if (!v || tlIntIs(v) || tlFloatIs(v)) {
+        int at = at_offset(tlArgsGet(args, 0), tlArgsSize(as));
+        return tlBOOL(tlArgsGet(as, at) != 0);
+    }
+    if (tlSymIs(v)) {
+        return tlBOOL(tlArgsMapGet(as, tlSymAs(v)) != 0);
+    }
+    TL_THROW("Expected an index or name");
+}
 static tlHandle _args_get(tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
-
     tlHandle v = tlArgsGet(args, 0);
     if (!v || tlIntIs(v) || tlFloatIs(v)) {
         int at = at_offset(tlArgsGet(args, 0), tlArgsSize(as));
@@ -183,6 +194,7 @@ static void args_init() {
 
             //"hash", _args_hash,
             "size", _args_size,
+            "has", _args_has,
             "get", _args_get,
             "first", _args_first,
             "last", _args_last,
