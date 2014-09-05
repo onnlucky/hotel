@@ -136,36 +136,39 @@ editor = {
 
 writeLine prompt, $left, $right
 
-inbuf = Buffer.new
-var $running = true
-while $running:
-    term.readInto inbuf
-    while inbuf.size > 0:
-        c = inbuf.readByte
-        editor.debug "in: $(c)"
-        { c == 4   }: $running = false
-        { c == 3   }: $running = false
-        { c == 13  }: editor.newline
-        { c == 127 }: editor.deleteleft
-        { c == 27  }: // esc
-            c2 = inbuf.readByte // [
-            c3 = inbuf.readByte // A for up, etc
-            editor.debug "esc: $(c) $(c2) $(c3)"
-            if not c2: editor.special c
-            if c2 == 91:
-                if c3 == 68: editor.moveleft
-                if c3 == 67: editor.moveright
-                if c3 == 65: editor.moveup
-                if c3 == 66: editor.movedown
-                if c3 == 70: editor.movelineend
-                if c3 == 72: editor.movelinestart
-                // these end with a ~ (always, or maybe they take params?)
-                if c3 == 51: inbuf.readByte; editor.deleteright
-                if c3 == 53: inbuf.readByte; editor.movepageup
-                if c3 == 54: inbuf.readByte; editor.movepagedown
-        { c > 31 and c < 127 }: editor.input(c.toChar)
-        {                    }: editor.special(c)
+commandline = _env ->
+    if _env: $env = _env
 
-term.restore
-term.write "\n"
+    inbuf = Buffer.new
+    var $running = true
+    while $running:
+        term.readInto inbuf
+        while inbuf.size > 0:
+            c = inbuf.readByte
+            editor.debug "in: $(c)"
+            { c == 4   }: $running = false
+            { c == 3   }: $running = false
+            { c == 13  }: editor.newline
+            { c == 127 }: editor.deleteleft
+            { c == 27  }: // esc
+                c2 = inbuf.readByte // [
+                c3 = inbuf.readByte // A for up, etc
+                editor.debug "esc: $(c) $(c2) $(c3)"
+                if not c2: editor.special c
+                if c2 == 91:
+                    if c3 == 68: editor.moveleft
+                    if c3 == 67: editor.moveright
+                    if c3 == 65: editor.moveup
+                    if c3 == 66: editor.movedown
+                    if c3 == 70: editor.movelineend
+                    if c3 == 72: editor.movelinestart
+                    // these end with a ~ (always, or maybe they take params?)
+                    if c3 == 51: inbuf.readByte; editor.deleteright
+                    if c3 == 53: inbuf.readByte; editor.movepageup
+                    if c3 == 54: inbuf.readByte; editor.movepagedown
+            { c > 31 and c < 127 }: editor.input(c.toChar)
+            {                    }: editor.special(c)
+
+    term.restore
+    term.write "\n"
 
