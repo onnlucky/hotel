@@ -235,17 +235,71 @@ tlBSendToken* tlBSendTokenNew(tlSym method) {
     return token;
 }
 
+// TODO speed this up by using an index of sorts
+static int findNamedArg(tlBCode* code, tlHandle name) {
+    if (!name || name == tlNull) return -1;
+    for (int i = 0; i < tlListSize(code->argspec); i++) {
+        tlHandle spec = tlListGet(code->argspec, i);
+        if (!spec || spec == tlNull) continue;
+        if (tlHandleEquals(name, tlListGet(tlListAs(spec), 0))) return i; // 0=name 1=default 2=lazy
+    }
+    return -1;
+}
+
+static bool isNameInCall(tlBCode* code, const tlBCall* call, int arg) {
+    tlHandle spec = tlListGet(code->argspec, arg);
+    if (!spec || spec == tlNull) return false;
+    tlHandle name =  tlListGet(tlListAs(spec), 0);
+    if (!name || name == tlNull) return false;
+    for (int i = 0; i < tlListSize(call->names); i++) {
+        if (tlHandleEquals(name, tlListGet(call->names, i))) return true;
+    }
+    return false;
+}
+
 bool tlBCallIsLazy(const tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size) return false;
     if (tlBClosureIs(call->fn)) {
-        // TODO this ignores FCALLN names
+        tlBCode* code = tlBClosureAs(call->fn)->code;
+        // TODO add mark when any arg can be lazy
+        //if (!code->hasLazy) return false;
+
+        if (call->names) {
+            tlHandle name = tlListGet(call->names, arg);
+            if (name && name != tlNull) {
+                arg = findNamedArg(code, name);
+                trace("named arg is numer: %d", arg);
+                if (arg == -1) return false;
+            } else {
+                // first figure out the which unnamed argument we are
+                int unnamed = 0;
+                for (int a = 0; a < arg; a++) {
+                    if (tlListGet(call->names, a) == tlNull) unnamed++;
+                }
+                trace("unnamed arg: %d", unnamed);
+                // then figure out which arg that maps to
+                for (arg = 0;; arg++) {
+                    if (!isNameInCall(code, call, arg)) {
+                        if (unnamed == 0) break;
+                        unnamed -= 1;
+                    }
+                }
+                trace("unnamed arg is numer: %d", arg);
+            }
+        }
+
         tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
         if (!spec || spec == tlNull) return false;
         return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
     }
+
     // for old style interpreter compatibility
-    // TODO this ignores FCALLN names
+    // WARNING this ignores FCALLN names except block
+    if (call->names) {
+        tlHandle name = tlListGet(call->names, arg);
+        if (tlHandleEquals(name, s_block)) return false;
+    }
     if (tlClosureIs(call->fn)) {
         tlCode* code = tlClosureAs(call->fn)->code;
         tlList* names = code->argnames;
