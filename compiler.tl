@@ -523,9 +523,9 @@ compile = (code ->
             print repr(term)
             throw "unknown term $(term.type)"
 
-    emittop = fn ->
+    emittop = fn, name ->
         code = fn.body.map(term -> emit(term)).flatten
-        {{code},name=try(fn.name,""),locals=fn.locals,args=fn.args}
+        {{code},name=try(fn.name, name or ""),locals=fn.locals,args=fn.args}
 
     parseemit = text ->
         ast = parse(text)
@@ -536,7 +536,7 @@ compile = (code ->
         functions.each: fn, n -> if fn.open: close(n)
         //functions.each: fn, n -> print "fn $n:", repr(fn)
         //print "fn 0:", repr(ast)
-        functions.each: fn, n -> functions[n] = emittop(fn.function)
+        functions.each: fn, n -> functions[n] = emittop(fn.function, fn.name)
         main = emittop(ast)
         return main, functions
 

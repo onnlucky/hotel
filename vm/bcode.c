@@ -1685,7 +1685,10 @@ tlBCall* bcallFromArgs(tlArgs* args) {
 
 INTERNAL tlHandle _bclosure_call(tlArgs* args) {
     trace("bclosure.call");
-    tlBCall* call = bcallFromArgs(args);
+    tlList* list = tlListCast(tlArgsGet(args, 0));
+    tlObject* map = tlObjectCast(tlArgsGet(args, 1));
+    tlArgs* nargs = tlArgsNew(list, map);
+    tlBCall* call = bcallFromArgs(nargs);
     call->target = null; // TODO unless this was passed in? e.g. method.call(this=target, 10, 10)
     call->fn = tlArgsTarget(args);
     assert(tlBClosureIs(call->fn));
@@ -1697,6 +1700,19 @@ INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
     call->fn = _fn;
     assert(tlBClosureIs(call->fn));
     return beval(tlTaskCurrent(), null, call, 0, null);
+}
+INTERNAL tlHandle _bclosure_file(tlArgs* args) {
+    return tlNull;
+}
+INTERNAL tlHandle _bclosure_name(tlArgs* args) {
+    tlBClosure* fn = tlBClosureAs(tlArgsTarget(args));
+    return tlVALUE_OR_NULL(tlBCodeName(fn->code));
+}
+INTERNAL tlHandle _bclosure_line(tlArgs* args) {
+    return tlNull;
+}
+INTERNAL tlHandle _bclosure_args(tlArgs* args) {
+    return tlNull;
 }
 
 INTERNAL tlHandle _blazy_call(tlArgs* args) {
@@ -1739,12 +1755,19 @@ static const tlNativeCbs __bcode_natives[] = {
 
 void bcode_init() {
     tl_register_natives(__bcode_natives);
-    _tlBClosureKind.klass = tlClassObjectFrom("call", _bclosure_call, null);
     _tlBLazyKind.klass = tlClassObjectFrom("call", _blazy_call, null);
     _tlBLazyDataKind.klass = tlClassObjectFrom("call", _blazydata_call, null);
-    _tlBClosureKind.run = runBClosure;
     _tlBLazyKind.run = runBLazy;
     _tlBLazyDataKind.run = runBLazyData;
+
+    _tlBClosureKind.run = runBClosure;
+    _tlBClosureKind.klass = tlClassObjectFrom(
+        "call", _bclosure_call,
+        "file", _bclosure_file,
+        "name", _bclosure_name,
+        "line", _bclosure_line,
+        "args", _bclosure_args,
+    null);
 
     INIT_KIND(tlBModuleKind);
     INIT_KIND(tlBDebugInfoKind);
