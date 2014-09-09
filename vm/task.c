@@ -54,6 +54,8 @@ struct tlTask {
     tlTaskState state; // state it is currently in
     bool read;
     void* data;
+    long limit; // bytecode can limit amount of invokes
+    long runquota; // bytecode can yields after x amount of invokes
 };
 
 void tlTaskSetCurrentFrame(tlTask* task, tlFrame* frame) {
@@ -314,6 +316,7 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
     task->locals = locals;
+    task->runquota = 1234;
     trace("new %s", tl_str(task));
 #ifdef HAVE_BOEHMGC
     GC_REGISTER_FINALIZER_NO_ORDER(task, tlTaskFinalize, null, null, null);
@@ -549,7 +552,7 @@ INTERNAL tlHandle tlTaskDone(tlTask* task, tlHandle res) {
 INTERNAL tlHandle _Task_new_none(tlArgs* args) {
     tlTask* current = tlTaskCurrent();
     tlTask* task = tlTaskNew(tlTaskGetVm(current), current->locals);
-    task->state = TL_STATE_DONE;
+    task->limit = tl_int_or(tlArgsGet(args, 0), -1) + 1; // 0 means disabled, 1 means at limit, so off by one ...
     return task;
 }
 INTERNAL tlHandle _Task_new(tlArgs* args) {

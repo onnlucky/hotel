@@ -638,7 +638,7 @@ load = bytes, out ->
         bytes = bytes
         links = -> _module_links(m)
         link = ls -> _module_link(m, ls)
-        run = as -> _module_run(m, as)
+        run = as, task -> _module_run(m, as, task)
         debug = as ->
             debugger = Debugger.new
             task = Task.new
@@ -647,4 +647,6 @@ load = bytes, out ->
             return SimpleDebugger(debugger)
     }
 
-{{ compile, load }}
+_parse = code -> parse(code)
+
+{ parse=_parse, { compile, load }}

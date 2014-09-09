@@ -993,7 +993,33 @@ tlArgs* argsFromBCall(tlBCall* call) {
     return args;
 }
 
+INTERNAL tlHandle afterYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    return tlInvoke(tlTaskCurrent(), tlBCallAs(res));
+}
+
+INTERNAL tlHandle resumeYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    assert(tlBCallIs(res));
+    tlTask* task = tlTaskCurrent();
+    tlTaskWaitFor(null);
+    frame->resumecb = afterYieldQuota;
+    task->runquota = 1234;
+    tlTaskReady(task);
+    return tlTaskNotRunning;
+}
+
 tlHandle tlInvoke(tlTask* task, tlBCall* call) {
+    if (task->runquota <= 0) {
+        return tlTaskPauseResuming(resumeYieldQuota, call);
+    }
+
+    task->runquota -= 1;
+    if (task->limit) {
+        if (task->limit == 1) TL_THROW("Out of quota");
+        task->limit -= 1;
+    }
+
     tlHandle fn = tlBCallGetFn(call);
     trace(" %s invoke %s.%s", tl_str(call), tl_str(call->target), tl_str(fn));
     if (call->target && tl_kind(call->target)->locked) {
@@ -1497,9 +1523,9 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
         return beval(tlTaskCurrent(), null, call, 0, null);
     }
 
+    if (!task->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
     task->value = call;
     task->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
-    assert(tlTaskIsDone(task));
     task->state = TL_STATE_INIT;
     tlTaskStart(task);
     return tlNull;
