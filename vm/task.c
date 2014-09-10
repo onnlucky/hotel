@@ -549,23 +549,37 @@ INTERNAL tlHandle tlTaskDone(tlTask* task, tlHandle res) {
     return tlTaskNotRunning;
 }
 
+// called by ! operator
+INTERNAL tlHandle _Task_new(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    assert(task->worker && task->worker->vm);
+
+    tlHandle v = tlArgsMapGet(args, s_block);
+    if (!v) v = tlArgsGet(args, 0);
+    if (tlCallableIs(v)) v = tlCallFrom(v, null);
+
+    tlTask* ntask = tlTaskNew(tlTaskGetVm(task), task->locals);
+    tlTaskEval(ntask, v);
+    tlTaskStart(ntask);
+    return ntask;
+}
 INTERNAL tlHandle _Task_new_none(tlArgs* args) {
     tlTask* current = tlTaskCurrent();
     tlTask* task = tlTaskNew(tlTaskGetVm(current), current->locals);
     task->limit = tl_int_or(tlArgsGet(args, 0), -1) + 1; // 0 means disabled, 1 means at limit, so off by one ...
     return task;
 }
-INTERNAL tlHandle _Task_new(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    assert(task->worker && task->worker->vm);
+INTERNAL tlHandle _task_run(tlArgs* args) {
+    tlTask* task = tlTaskAs(tlArgsTarget(args));
+    if (task->state != TL_STATE_INIT) TL_THROW("cannot reuse tasks");
 
-    tlHandle v = tlArgsGet(args, 0);
-    tlTask* ntask = tlTaskNew(tlTaskGetVm(task), task->locals);
-
+    tlHandle v = tlArgsMapGet(args, s_block);
+    if (!v) v = tlArgsGet(args, 0);
     if (tlCallableIs(v)) v = tlCallFrom(v, null);
-    tlTaskEval(ntask, v);
-    tlTaskStart(ntask);
-    return ntask;
+
+    tlTaskEval(task, v);
+    tlTaskStart(task);
+    return task;
 }
 INTERNAL tlHandle _Task_current(tlArgs* args) {
     return tlTaskCurrent();
@@ -734,6 +748,7 @@ static tlObject* taskClass;
 static void task_init() {
     tl_register_natives(__task_natives);
     _tlTaskKind.klass = tlClassObjectFrom(
+        "run", _task_run,
         "isDone", _task_isDone,
         "wait", _task_wait,
         "value", _task_wait,
