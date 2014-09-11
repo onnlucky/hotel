@@ -505,7 +505,33 @@ INTERNAL tlHandle runClosure(tlHandle _fn, tlArgs* args) {
     return evalCode(args, fn);
 }
 
+INTERNAL tlHandle evalArgs(tlArgs* args);
+INTERNAL tlHandle afterYieldEvalQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    return evalArgs(tlArgsAs(res));
+}
+INTERNAL tlHandle resumeYieldEvalQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    assert(tlArgsIs(res));
+    tlTask* task = tlTaskCurrent();
+    tlTaskWaitFor(null);
+    frame->resumecb = afterYieldEvalQuota;
+    task->runquota = 1234;
+    tlTaskReady(task);
+    return tlTaskNotRunning;
+}
+
 INTERNAL tlHandle evalArgs(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    if (task->runquota <= 0) {
+        return tlTaskPauseResuming(resumeYieldEvalQuota, args);
+    }
+    task->runquota -= 1;
+    if (task->limit) {
+        if (task->limit == 1) TL_THROW("Out of quota");
+        task->limit -= 1;
+    }
+
     tlHandle fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     tlKind* kind = tl_kind(fn);
