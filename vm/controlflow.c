@@ -52,13 +52,38 @@ typedef struct LoopFrame {
     tlHandle block;
 } LoopFrame;
 
+INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw);
+INTERNAL tlHandle resumeYieldLoopQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (!res) return null;
+    assert(tlNullIs(res));
+    tlTask* task = tlTaskCurrent();
+    tlTaskWaitFor(null);
+    frame->resumecb = null;
+    task->runquota = 1234;
+    tlTaskReady(task);
+    return tlTaskNotRunning;
+}
+
 INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (throw && throw == s_break) return tlNull;
     if (throw && throw != s_continue) return null;
     if (!throw && !res) return null;
 
+    tlTask* task = tlTaskCurrent();
     LoopFrame* frame = (LoopFrame*)_frame;
 again:;
+    // loop bodies can be without invokes, so make loop also accounts quota
+    if (task->runquota <= 0) {
+        tlHandle ret = tlTaskPauseResuming(resumeYieldLoopQuota, tlNull);
+        tlTaskPauseAttach(frame);
+        return ret;
+    }
+    task->runquota -= 1;
+    if (task->limit) {
+        if (task->limit == 1) TL_THROW("Out of quota");
+        task->limit -= 1;
+    }
+
     res = tlEval(tlCallFrom(frame->block, null));
     if (!res) return tlTaskPauseAttach(frame);
     goto again;
