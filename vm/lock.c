@@ -42,8 +42,8 @@ INTERNAL tlHandle lockEnqueue(tlLock* lock, tlFrame* frame) {
 
     // make the task wait and enqueue it
     task->stack = frame;
-    tlHandle deadlock = tlTaskWaitFor(lock);
-    if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
+    tlArray* deadlock = tlTaskWaitFor(lock);
+    if (deadlock) return tlDeadlockErrorThrow(deadlock);
     lqueue_put(&lock->wait_q, &task->entry);
 
     // try to own the lock, incase another worker released it inbetween ...

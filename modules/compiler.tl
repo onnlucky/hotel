@@ -291,17 +291,17 @@ compile = (code ->
     lextop = scope, term ->
         { term.type == "function" }:
             scope = Scope(scope)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             {type="function",{args,body},locals=scope.locals.toList}
         { term.type == "block" }:
             scope = Scope(scope, true)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             {type="block",{args,body},locals=scope.locals.toList}
         { term.type == "scope" }:
             scope = Scope(scope)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             {type="scope",{args,body},locals=scope.locals.toList}
 
@@ -326,9 +326,9 @@ compile = (code ->
             {type="function",{function}}
         { term.type == "class" }:
             outerscope = scope
-            local = scope.add("")
+            local = scope.add("", pos)
             scope = ClassScope(scope)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name); argspec(arg))
+            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             class = body.filter(stm -> try(stm.type == "assign" and stm.value.type == "function")).map(stm, i -> {n=stm.to.name,v=stm.value})
             constructor = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function"))
@@ -342,11 +342,11 @@ compile = (code ->
         { term.type == "assign" }:
             { term.to.type == "local" }:
                 value = lex(scope, term.value, term.to.name, term.to.pos)
-                local, id = scope.add(term.to.name)
+                local, id = scope.add(term.to.name, term.to.pos)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
-                local, id = scope.add(term.to.name)
+                local, id = scope.add(term.to.name, term.to.pos)
                 value = lex(scope, term.value)
                 value = {type="method",target={type="global",name="Var"},method="new",args=[value]}
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
@@ -359,8 +359,8 @@ compile = (code ->
             // TODO perhaps function defined this way must stay open?
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
-                { to.type == "local" }: scope.add(to.name)
-                {                    }: scope.add("") // anonymous locals for Var.new and var.set
+                { to.type == "local" }: scope.add(to.name, to.pos)
+                {                    }: scope.add("", to.pos) // anonymous locals for Var.new and var.set
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]

@@ -406,16 +406,30 @@ INTERNAL tlTask* taskForLocked(tlHandle on) {
     fatal("not implemented yet: %s", tl_str(on));
     return null;
 }
-INTERNAL tlHandle checkDeadlock(tlTask* task, tlHandle on) {
+INTERNAL bool checkDeadlock(tlTask* task, tlHandle on) {
     tlTask* other = taskForLocked(on);
-    if (other == task) { trace("DEADLOCK: %s", tl_str(other)); return task; }
-    if (!other) return null;
-    if (other->state != TL_STATE_WAIT) return null;
-    if (other->waitFor == on) return null; // if a task waits on an object or such ...
+    if (other == task) { trace("DEADLOCK: %s", tl_str(other)); return true; }
+    if (!other) return false;
+    if (other->state != TL_STATE_WAIT) return false;
+    if (other->waitFor == on) return false; // if a task waits on an object or such ...
     return checkDeadlock(task, other->waitFor);
 }
+INTERNAL tlArray* deadlocked(tlTask* task, tlHandle on) {
+    tlArray* array = tlArrayNew();
+    tlArrayAdd(array, task);
+    while (true) {
+        tlTask* other = taskForLocked(on);
+        if (other == task) break;
+        assert(other);
+        assert(other->state == TL_STATE_WAIT);
+        assert(other->waitFor != on);
+        tlArrayAdd(array, other);
+        on = other->waitFor;
+    }
+    return array;
+}
 
-tlHandle tlTaskWaitFor(tlHandle on) {
+tlArray* tlTaskWaitFor(tlHandle on) {
     tlTask* task = tlTaskCurrent();
     trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
@@ -424,10 +438,9 @@ tlHandle tlTaskWaitFor(tlHandle on) {
     task->state = TL_STATE_WAIT;
     task->waitFor = on;
 
-    tlHandle deadlock;
-    if ((deadlock = checkDeadlock(task, on))) {
+    if (checkDeadlock(task, on)) {
         task->state = TL_STATE_RUN;
-        return deadlock;
+        return deadlocked(task, on);
     }
 
     if (!tlWorkerIsBound(task->worker)) task->worker = vm->waiter;
@@ -587,7 +600,7 @@ INTERNAL tlHandle _Task_current(tlArgs* args) {
 INTERNAL tlHandle resumeStacktrace(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     int skip = tl_int_or(tlArgsGet(res, 0), 0);
-    return tlStackTraceNew(frame->caller, skip);
+    return tlStackTraceNew(null, frame->caller, skip);
 }
 INTERNAL tlHandle _Task_stacktrace(tlArgs* args) {
     return tlTaskPauseResuming(resumeStacktrace, args);
@@ -625,6 +638,11 @@ INTERNAL tlHandle _task_isDone(tlArgs* args) {
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
 
+INTERNAL tlHandle _task_toString(tlArgs* args) {
+    tlTask* other = tlTaskAs(tlArgsTarget(args));
+    return tlStringFromCopy(tl_str(other), 0);
+}
+
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
 INTERNAL tlHandle _task_wait(tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
@@ -640,8 +658,8 @@ INTERNAL tlHandle _task_wait(tlArgs* args) {
     }
 
     trace("!! parking");
-    tlHandle deadlock = tlTaskWaitFor(other);
-    if (deadlock) TL_THROW("deadlock on: %s", tl_str(deadlock));
+    tlArray* deadlock = tlTaskWaitFor(other);
+    if (deadlock) return tlDeadlockErrorThrow(deadlock);
 
     tlHandle already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), null));
     if (already_waiting) {
@@ -752,6 +770,7 @@ static void task_init() {
         "isDone", _task_isDone,
         "wait", _task_wait,
         "value", _task_wait,
+        "toString", _task_toString,
         null
     );
     taskClass = tlClassObjectFrom(

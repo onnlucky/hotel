@@ -3,8 +3,10 @@
 #include "trace-off.h"
 
 static tlSet* _errorKeys;
+static tlSet* _deadlockKeys;
 static tlSym _s_msg;
 static tlSym _s_stack;
+static tlSym _s_stacks;
 
 static tlKind _tlStackTraceKind;
 tlKind* tlStackTraceKind;
@@ -25,11 +27,14 @@ struct tlUndefined {
     tlStackTrace* trace;
 };
 
+static tlFrame* tlTaskCurrentFrame(tlTask* task);
+
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
-INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
+INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     if (skip < 0) skip = 0;
-    trace("stack: %p, skip: %d", stack, skip);
-    tlTask* task = tlTaskCurrent();
+    if (!task) task = tlTaskCurrent();
+    if (!stack) stack = tlTaskCurrentFrame(task);
+    trace("stack: %p, skip: %d, task: %s", stack, skip, tl_str(task));
     assert(task);
 
     tlFrame* start = null;
@@ -51,6 +56,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     tlStackTrace* trace = tlAlloc(tlStackTraceKind, sizeof(tlStackTrace) + sizeof(tlHandle) * size * 3);
     trace->size = size;
     trace->task = task;
+    assert(trace->task);
     int at = 0;
     for (tlFrame* frame = start; frame; frame = frame->caller) {
         //if (!tlCodeFrameIs(frame)) continue;
@@ -71,6 +77,10 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlFrame* stack, int skip) {
     return trace;
 }
 
+INTERNAL tlHandle _stackTrace_size(tlArgs* args) {
+    tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
+    return tlINT(trace->size);
+}
 INTERNAL tlHandle _stackTrace_get(tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), trace->size);
@@ -82,6 +92,10 @@ INTERNAL tlHandle _stackTrace_get(tlArgs* args) {
     assert(trace->entries[at + 1]);
     assert(trace->entries[at + 2]);
     return tlResultFrom(trace->entries[at], trace->entries[at + 1], trace->entries[at + 2], null);
+}
+INTERNAL tlHandle _stackTrace_task(tlArgs* args) {
+    tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
+    return trace->task;
 }
 
 INTERNAL tlHandle resumeThrow(tlFrame* frame, tlHandle res, tlHandle throw) {
@@ -107,7 +121,7 @@ tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
 INTERNAL tlHandle resumeUndefined(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     trace("returning an Undefined: %s", tl_str(res));
-    return tlUndefinedNew(tlStringCast(res), tlStackTraceNew(null, 1));
+    return tlUndefinedNew(tlStringCast(res), tlStackTraceNew(null, null, 1));
 }
 tlHandle tlUndef() {
     return tlTaskPauseResuming(resumeUndefined, tlNull);
@@ -121,7 +135,8 @@ tlHandle tlUndefMsg(tlString* msg) {
 
 // TODO put in full stack?
 const char* stackTracetoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "<StackTrace: %p>", v); return buf;
+    tlStackTrace* trace = tlStackTraceAs(v);
+    snprintf(buf, size, "<StackTrace: %s:%s %s>", tl_str(trace->entries[0]), tl_str(trace->entries[2]), tl_str(trace->entries[1])); return buf;
 }
 static tlKind _tlStackTraceKind = {
     .name = "StackTrace",
@@ -136,11 +151,14 @@ static const tlNativeCbs __error_natives[] = {
 static tlObject* errorClass;
 static tlObject* undefinedErrorClass;
 static tlObject* argumentErrorClass;
+static tlObject* deadlockErrorClass;
 
 INTERNAL void error_init() {
     tl_register_natives(__error_natives);
     _tlStackTraceKind.klass = tlClassObjectFrom(
+        "size", _stackTrace_size,
         "get", _stackTrace_get,
+        "task", _stackTrace_task,
         null
     );
     errorClass = tlClassObjectFrom(
@@ -158,14 +176,23 @@ INTERNAL void error_init() {
         "class", null,
         null
     );
+    deadlockErrorClass = tlClassObjectFrom(
+        "class", null,
+        null
+    );
     tlObjectSet_(undefinedErrorClass, s_class, errorClass);
     tlObjectSet_(argumentErrorClass, s_class, errorClass);
 
-    // for rusage syscall
     _errorKeys = tlSetNew(3);
     _s_msg = tlSYM("msg"); tlSetAdd_(_errorKeys, _s_msg);
     _s_stack = tlSYM("stack"); tlSetAdd_(_errorKeys, _s_stack);
     tlSetAdd_(_errorKeys, s_class);
+
+    _deadlockKeys = tlSetNew(4);
+    tlSetAdd_(_deadlockKeys, _s_msg);
+    tlSetAdd_(_deadlockKeys, _s_stack);
+    tlSetAdd_(_deadlockKeys, s_class);
+    _s_stacks = tlSYM("stacks"); tlSetAdd_(_deadlockKeys, _s_stacks);
 
     INIT_KIND(tlStackTraceKind);
 }
@@ -174,6 +201,7 @@ static void error_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Error"), errorClass);
    tlVmGlobalSet(vm, tlSYM("UndefinedError"), undefinedErrorClass);
    tlVmGlobalSet(vm, tlSYM("ArgumentError"), argumentErrorClass);
+   tlVmGlobalSet(vm, tlSYM("DeadlockError"), deadlockErrorClass);
 }
 
 tlHandle tlErrorThrow(tlHandle msg) {
@@ -197,10 +225,21 @@ tlHandle tlArgumentErrorThrow(tlHandle msg) {
     tlObjectToObject_(err);
     return tlTaskThrow(err);
 }
+tlHandle tlDeadlockErrorThrow(tlArray* tasks) {
+    tlList* stacks = tlListNew(tlArraySize(tasks));
+    for (int i = 0; i < tlArraySize(tasks); i++) {
+        tlListSet_(stacks, i, tlStackTraceNew(tlArrayGet(tasks, i), null, 0));
+    }
+    tlObject* err = tlObjectNew(_deadlockKeys);
+    tlObjectSet_(err, _s_msg, tlSTR("deadlock"));
+    tlObjectSet_(err, _s_stacks, stacks);
+    tlObjectSet_(err, s_class, deadlockErrorClass);
+    return tlTaskThrow(err);
+}
 void tlErrorAttachStack(tlHandle _err, tlFrame* frame) {
     tlObject* err = tlObjectCast(_err);
     if (!err || err->keys != _errorKeys) return;
     assert(tlObjectGetSym(err, _s_stack) == null);
-    tlObjectSet_(err, _s_stack, tlStackTraceNew(frame, 0));
+    tlObjectSet_(err, _s_stack, tlStackTraceNew(null, frame, 0));
 }
 

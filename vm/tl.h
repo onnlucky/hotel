@@ -398,8 +398,8 @@ tlHandle tlTaskPause(void* frame);
 tlHandle tlTaskPauseAttach(void* frame);
 tlHandle tlTaskPauseResuming(tlResumeCb resume, tlHandle res);
 
-// mark task as waiting
-tlHandle tlTaskWaitFor(tlHandle on);
+// mark task as waiting; returns an array of tasks incase of deadlock
+tlArray* tlTaskWaitFor(tlHandle on);
 
 // mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady();
@@ -573,6 +573,8 @@ int tlBinSize(tlBin* bin);
 const char* tlBinData(tlBin* bin);
 
 tlArray* tlArrayNew();
+int tlArraySize(tlArray* array);
+tlHandle tlArrayGet(tlArray* array, int at);
 tlArray* tlArrayAdd(tlArray* array, tlHandle v);
 tlList* tlArrayToList(tlArray* array);
 

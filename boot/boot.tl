@@ -454,12 +454,28 @@ _install(Error, "class", {
     toString = ->
         ls = Array.new
         ls.add "Error: ", this.msg, "\n"
+        ls.add("stack: ", this.stack.task, "\n")
         x = Var.new 1
         loop:
             file, fn, line = this.stack.get($x)
             if not file: break
             ls.add "  at ", file, ":", line, " ", fn, "\n"
             $x += 1
+        return ls.join
+})
+_install(DeadlockError, "class", {
+    throw = -> throw this
+    toString = ->
+        ls = Array.new
+        ls.add "Error: ", this.msg, "\n"
+        this.stacks.each: stack, n ->
+            ls.add("stack: ", n, " ", stack.task, "\n")
+            x = Var.new 1
+            loop:
+                file, fn, line = stack.get($x)
+                if not file: break
+                ls.add "  at ", file, ":", line, " ", fn, "\n"
+                $x += 1
         return ls.join
 })
 
