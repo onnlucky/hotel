@@ -643,6 +643,15 @@ INTERNAL tlHandle _task_toString(tlArgs* args) {
     return tlStringFromCopy(tl_str(other), 0);
 }
 
+// TODO this is not thread save, the task might be running and changing limit cannot be done this way
+INTERNAL tlHandle _task_abort(tlArgs* args) {
+    tlTask* other = tlTaskAs(tlArgsTarget(args));
+    if (!other) TL_THROW("expected a Task");
+    trace("task.abort: %s", tl_str(other));
+    other->limit = 1; // set limit
+    return other;
+}
+
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
 INTERNAL tlHandle _task_wait(tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
@@ -768,6 +777,7 @@ static void task_init() {
     _tlTaskKind.klass = tlClassObjectFrom(
         "run", _task_run,
         "isDone", _task_isDone,
+        "abort", _task_abort,
         "wait", _task_wait,
         "value", _task_wait,
         "toString", _task_toString,
