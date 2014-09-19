@@ -620,6 +620,11 @@ INTERNAL tlHandle _Task_bindToThread(tlArgs* args) {
     return tlTaskPauseResuming(resumeBindToThread, tlNull);
 }
 
+bool tlLockIsOwner(tlLock* lock, tlTask* task);
+INTERNAL tlHandle _Task_holdsLock(tlArgs* args) {
+    return tlBOOL(tlLockIsOwner(tlArgsGet(args, 0), tlTaskCurrent()));
+}
+
 INTERNAL tlHandle resumeYield(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlTaskWaitFor(null);
     frame->resumecb = null;
@@ -789,6 +794,7 @@ static void task_init() {
         "locals", _Task_locals,
         "stacktrace", _Task_stacktrace,
         "yield", _Task_yield,
+        "holdsLock", _Task_holdsLock,
         "bindToThread", _Task_bindToThread,
         null
     );
