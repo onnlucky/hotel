@@ -253,8 +253,8 @@ _addAll = ls -> ls.each(e -> this.add(e))
 // TODO optimize both find and process, the conditions are static
 _split = on ->
     // TODO on should support a regex and default to breaking whitespace
-    on = on or " "
-    empty = args["keepempty"]
+    on = on or " " // TODO Regex("\\s+")
+    empty = bool(args.has("keepempty"),  args["keepempty"], true)
     trim = args["trim"]
     limit = args["limit"]
 

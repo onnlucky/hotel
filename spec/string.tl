@@ -93,11 +93,15 @@ test "slice":
 
 test "split":
     assert "hello world".split == ["hello","world"]
-    assert "a, b, , d, e".split(",",trim=true) == ["a","b","d","e"]
+    assert "a, b, , d, e".split(",",trim=true) == ["a","b","","d","e"]
+    assert "a, b, , d, e".split(",",trim=true,keepempty=false) == ["a","b","d","e"]
     assert ", b, , d, ".split(",",trim=true,keepempty=true) == ["","b","","d",""]
 
 test "split regex":
     assert "foobar".split(Regex("[aeiou]+")) == ["f","b","r"]
+
+test "split empty":
+    assert "".split("\n") == [""]
 
 test "find":
     assert "12345a789a12345".find('a') == 6

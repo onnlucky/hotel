@@ -1,5 +1,6 @@
 # TODO
 
+undefined collect stack traces, while it doesn't work as advertised ... either enhance or dumb down
 tool gcov and assure make test has full coverage
 work on documentation
 add optional types turning into asserts, experiment with compiler discovering types
