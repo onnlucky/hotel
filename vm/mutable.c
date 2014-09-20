@@ -23,6 +23,18 @@ INTERNAL tlHandle _Mutable_new(tlArgs* args) {
     obj->map = map;
     return obj;
 }
+INTERNAL tlHandle _Mutable_new_shareLock(tlArgs* args) {
+    tlHandle* share = tlArgsGet(args, 0);
+    assert(tlLockIs(share));
+
+    tlObject* map = (tlObject*)tlObjectCast(tlArgsGet(args, 1));
+    if (!map) map = tlObjectEmpty();
+    tlMutable* obj = tlMutableNew();
+    fatal("cannot do this yet");
+    //obj->lock = tlLockAs(share);
+    obj->map = map;
+    return obj;
+}
 INTERNAL tlHandle mutableSend(tlArgs* args) {
     tlMutable* obj = tlMutableAs(tlArgsTarget(args));
     tlTask* task = tlTaskCurrent();
@@ -125,6 +137,7 @@ INTERNAL tlHandle _this_send(tlArgs* args) {
 
 static const tlNativeCbs __mutable_nativecbs[] = {
     { "_Mutable_new", _Mutable_new },
+    { "_Mutable_new_shareLock", _Mutable_new_shareLock },
     { "_this_send", _this_send },
     { "_this_get", _this_get },
     { "_this_set", _this_set },

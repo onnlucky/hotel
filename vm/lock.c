@@ -4,6 +4,18 @@
 
 #include "trace-off.h"
 
+TL_REF_TYPE(tlHeavyLock);
+
+struct tlHeavyLock {
+    intptr_t kind;
+    tlTask* owner;
+    lqueue wait_q;
+};
+
+tlHeavyLock* tlHeavyLockNew(tlTask* owner) {
+    return null;
+}
+
 bool tlLockIs(tlHandle v) {
     return tl_kind(v)->locked;
 }
@@ -52,6 +64,55 @@ INTERNAL tlHandle lockEnqueue(tlLock* lock, tlFrame* frame) {
         lockScheduleNext(lock);
     }
     return tlTaskNotRunning;
+}
+
+INTERNAL tlHandle resumeLockEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
+    trace("%s", tl_str(res));
+    if (!res) return null;
+    frame->resumecb = null;//resumeReceive;
+    return lockEnqueue(tlLockAs(tlArgsAs(res)->target), frame);
+}
+
+INTERNAL tlHandle tlLockTake(tlTask* task, tlLock* lock, tlResumeCb resume, tlHandle res) {
+    // if we are the owner of a light weight lock, no action is required
+    if (lock->owner == task) return res;
+
+    // check if there is a heavy weight lock already and if we are owner, no action required
+    tlHeavyLock* hlock = tlHeavyLockCast(lock->owner);
+    if (hlock) {
+        if (hlock->owner == task) return res;
+        goto heavy;
+    }
+
+upgrade:;
+    tlHandle other = null;
+
+    // try to aquire a light weight lock by swapping our task for the null pointer
+    if (!lock->owner) {
+        other = A_PTR_NB(a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null));
+        if (!other) return res;
+    }
+    assert(other); // cannot be null
+
+    // if another task has aquired the light weight lock, upgrade the lock
+    if (tlTaskIs(other)) {
+        tlHeavyLock* hlock = tlHeavyLockNew(tlTaskAs(other));
+        a_swap_if(A_VAR(lock->owner), A_VAL_NB(hlock), A_VAL_NB(other));
+        goto upgrade; // always restart: we won, another upgrade won, light weight lock was released
+    }
+
+    // a heavy weight lock
+    assert(tlHeavyLockIs(other));
+    hlock = tlHeavyLockAs(other);
+
+heavy:;
+    assert(hlock->owner != task); // we cannot be the owner
+
+    // try to become the owner, notice owner is never null unless wait queue is empty
+    if (a_swap_if(A_VAR(hlock->owner), A_VAL_NB(task), null) == null) return res;
+
+    // failed to own lock; pause current task, and enqueue it
+    return tlTaskPauseResuming(resume, res);
 }
 
 typedef struct ReleaseFrame {
