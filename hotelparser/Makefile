@@ -1,3 +1,5 @@
+all: main
+
 xmlparser.c: tlmeta.tl xml.tlg
 	tl tlmeta.tl xml.tlg xmlparser.c
 

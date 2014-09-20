@@ -295,10 +295,11 @@ bool tlBCallIsLazy(const tlBCall* call, int arg) {
     }
 
     // for old style interpreter compatibility
-    // WARNING this ignores FCALLN names except block
+    // WARNING this ignores FCALLN names except block and else
     if (call->names) {
         tlHandle name = tlListGet(call->names, arg);
         if (tlHandleEquals(name, s_block)) return false;
+        if (tlHandleEquals(name, s_else)) return false;
     }
     if (tlClosureIs(call->fn)) {
         tlCode* code = tlClosureAs(call->fn)->code;

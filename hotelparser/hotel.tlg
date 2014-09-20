@@ -7,15 +7,17 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
   comment*: "(#" (!"#)" (comment|_))* ("#)"|end)
           | "/*" (!"*/" (comment|_))* ("*/"|end)
 
+   postif*: ("if"|"unless") !letter
+
       ws: (sp | comment)*
     wsnl: (sp | nl | comment | slcomment)*
 
      eov: . ("," | nl ..","? | slcomment ..","?)
-  eoexpr: . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment)
-   eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment)
-  eostmb: . (":" | ";" | nl | end | ")" | "}" | "]" | slcomment)
- endexpr: @"end of expression" . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment)
-  endstm: @"end of expression" . (";" | nl | end | ")" | "}" | "]" | slcomment)
+  eoexpr: . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment | postif)
+   eostm: . (";" | nl | end | ")" | "}" | "]" | slcomment | postif)
+  eostmb: . (":" | ";" | nl | end | ")" | "}" | "]" | slcomment | postif)
+ endexpr: @"end of expression" . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment | postif)
+  endstm: @"end of expression" . (";" | nl | end | ")" | "}" | "]" | slcomment | postif)
 
   letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
    first: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
@@ -100,16 +102,17 @@ mfunction: pos=pos as=fargs .arrow.. body=bodynl                                
 
 // ---- EXPRESSIONS ----
 
+reserved: "else" !letter
 literal*: "true" | "false" | "null" | "undefined"
   opname: ("not"|"and"|"or"|"xor") !letter
-    ref*: pos=pos !opname name=name type=<ref>
- varref*: pos=pos "$" name=name type=<varref>
+    ref*: pos=pos !opname !reserved name=name type=<ref>
+ varref*: pos=pos "$" !opname !reserved name=name type=<varref>
    value: function
         | class
         | object
         | map
         | list
-        | "("..@"a closing ')'" body=body ..")" type=<scope>
+        | "(".. body=body ..")" type=<scope>
         | num | chr | text
         | literal
         | varref
@@ -178,17 +181,30 @@ mcallarg: v=mcall
    glist: setindent g=guard gs=(.. indent guard)*           -> prepend(gs, g)
   guards: guards=glist type=<guards>
 
-  intro*: name
- newvar*: "var" sp."$" name
-  tovar*: "$" name
+// TODO keep track of indent
+  ifexpr: &("if" !letter) e=mcall &eostm                                   -> e
+        | pos=pos "if". c=expr . b=block &eostm els=elifexpr               -> process_if(c, b, els, pos)
+        | e=mexpr2 pos=pos."if". c=expr &eostm                             -> process_postif(c, e, pos)
+        | e=mexpr2 pos=pos."unless". c=expr &eostm                         -> process_unless(c, e, pos)
+// TODO elif must become a block, because else becomes a blocks ...
+elifexpr: .."else". pos=pos "if". c=expr . b=block &eostm els=elifexpr     -> process_if(c, b, els, pos)
+        | elsepxr
+ elsepxr: .."else". b=block &eostm                                         -> b
+        | !(.."else" !letter)
 
-selfref*: pos=pos !opname name=("return"|"goto"|"break"|"continue") type=<ref>
+  intro*: !reserved name
+ newvar*: "var" sp."$" !opname !reserved name
+  tovar*: "$" !opname !reserved name
+
+selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !letter type=<ref>
   assign: pos=pos name=newvar type=<newvar>
         | pos=pos name=tovar type=<var>
         | pos=pos name=intro type=<local>
    mexpr: guards
+        | ifexpr
         | e=mfunction &eoexpr                                                -> e
-        | pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos))
+        | mexpr2
+  mexpr2: pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos))
         | "!". body=stms &eostm type=<async>
         | p=pos "assert" " ". !met !"(" !":" b=pos args=margs e=pos &eostm           -> process_assert(args, tlNull, p, b, e, _p)
         | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail -> process_assert(args, t, p, b, e, _p)

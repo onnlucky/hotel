@@ -440,6 +440,27 @@ static tlHandle process_assert(tlHandle args, tlHandle tail, tlHandle pos, tlHan
     return process_tail(value, tail);
 }
 
+static tlHandle process_if(tlHandle cond, tlHandle block, tlHandle els, tlHandle pos) {
+    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("if"), "pos", pos, null);
+    tlList* args = tlListFrom1(tlObjectFrom("v", cond, null));
+    if (els && els != tlNull) {
+        args = tlListAppend(args, tlObjectFrom("n", tlSTR("else"), "v", els, null));
+    }
+    return tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "block", block, null);
+}
+static tlHandle process_postif(tlHandle cond, tlHandle expr, tlHandle pos) {
+    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("if"), "pos", pos, null);
+    tlList* args = tlListFrom2(tlObjectFrom("v", cond, null), tlObjectFrom("v", expr, null));
+    return tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "pos", pos, null);
+}
+static tlHandle process_unless(tlHandle cond, tlHandle expr, tlHandle pos) {
+    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("if"), "pos", pos, null);
+    tlHandle not_target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("not"), "pos", pos, null);
+    cond = tlObjectFrom("target", not_target, "args", tlListFrom1(tlObjectFrom("v", cond, null)), "type", tlSTR("call"), null);
+    tlList* args = tlListFrom2(tlObjectFrom("v", cond, null), tlObjectFrom("v", expr, null));
+    return tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "pos", pos, null);
+}
+
 static tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", args,
             "type", tlSTR("call"), "pos", pos, null);
@@ -500,5 +521,6 @@ static tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     }
     return tlObjectSet(call, tlSYM("block"), block);
 }
+
 
 #endif

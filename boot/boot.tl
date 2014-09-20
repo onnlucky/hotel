@@ -5,7 +5,7 @@
 
 catch: e -> print "boot exception: $(e.toString)"
 
-if = cond, &t, &f -> bool(cond,bool(args.block,args.block,t),f)()
+if = cond, &t, &f -> bool(cond,bool(args["block"],args["block"],t),bool(args["else"],args["else"],f))()
 
 _or = left, &right ->
     if not left: return right()
