@@ -230,10 +230,10 @@ compile = (code ->
                     return {type="envarg",up=level,at=ref.at,id=ref.id}
                 if not level: return {type="local",at=ref.at,id=ref.id}
                 return {type="env",up=level,at=ref.at,id=ref.id}
-            if name == "args": // TODO only if function ...
+            if name == "args" and not this.block:
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
-            if name == "this": // TODO only if function ...
+            if name == "this" and not this.block:
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
             if parent:
@@ -300,7 +300,7 @@ compile = (code ->
             body = term.body.map(stm -> lex(scope, stm))
             {type="block",{args,body},locals=scope.locals.toList}
         { term.type == "scope" }:
-            scope = Scope(scope)
+            scope = Scope(scope, true)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             {type="scope",{args,body},locals=scope.locals.toList}
@@ -507,8 +507,11 @@ compile = (code ->
         { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
         { term.type == "global" }: ["global", term.name]
+        // TODO these don't work that well, cannot be system calls
         { term.type == "args"   }: ["system", "args"]
+        { term.type == "envargs"}: ["envargs", term.up - 1]
         { term.type == "this"   }: ["system", "this"]
+        { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "object" }:
             elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
             ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
