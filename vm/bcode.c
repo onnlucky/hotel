@@ -163,6 +163,16 @@ tlBModule* tlBModuleNew(tlString* name) {
     mod->name = name;
     return mod;
 }
+tlBModule* tlBModuleCopy(tlBModule* mod) {
+    fatal("does not work as advertised: body is fixed to the old module");
+    tlBModule* nmod = tlAlloc(tlBModuleKind, sizeof(tlBModule));
+    nmod->name = mod->name;
+    nmod->data = mod->data;
+    nmod->links = mod->links;
+    nmod->linked = mod->linked;
+    nmod->body = mod->body;
+    return nmod;
+}
 tlBDebugInfo* tlBDebugInfoNew() {
     tlBDebugInfo* info = tlAlloc(tlBDebugInfoKind, sizeof(tlBDebugInfo));
     return info;
@@ -1347,6 +1357,7 @@ again:;
             at = pcreadsize(ops, &pc);
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
+            if (v == tlUnknown) TL_THROW("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
             break;
         case OP_ENV: {
             depth = pcreadsize(ops, &pc);
@@ -1484,15 +1495,18 @@ tlHandle beval_module(tlTask* task, tlBModule* mod) {
 INTERNAL tlHandle _Module_new(tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     tlString* name = tlStringCast(tlArgsGet(args, 1));
-    tlHandle* out = tlArgsGet(args, 2);
+
     tlBModule* mod = tlBModuleNew(name);
     const char* error = null;
     deserialize(buf, mod, &error);
     if (error) TL_THROW("invalid bytecode: %s", error);
-    tlEnv* current = tlVmGlobalEnv(tlVmCurrent());
-    if (out) current = tlEnvSet(current, tlSYM("out"), out);
-    tlBModuleLink(mod, current, &error);
+
+    mod->linked = tlListNew(tlListSize(mod->links));
+    for (int i = 0; i < tlListSize(mod->linked); i++) tlListSet_(mod->linked, i, tlUnknown);
+
+    tlBCodeVerify(mod->body, &error);
     if (error) TL_THROW("invalid bytecode: %s", error);
+
     return mod;
 }
 
@@ -1544,13 +1558,7 @@ INTERNAL tlHandle _module_link(tlArgs* args) {
     if (!links) TL_THROW("expect a list as arg[2]");
     if (tlListSize(links) != tlListSize(mod->links)) TL_THROW("arg[2].size != module.links.size");
 
-    mod->linked = tlListNew(tlListSize(mod->links));
-    for (int i = 0; i < tlListSize(mod->links); i++) {
-        tlHandle v = tlListGet(links, i);
-        trace("linking: %s as %s", tl_str(tlListGet(mod->links, i)), tl_str(v));
-        tlListSet_(mod->linked, i, v);
-    }
-
+    mod->linked = links;
     return mod;
 }
 
@@ -1782,6 +1790,8 @@ static const tlNativeCbs __bcode_natives[] = {
 
 void bcode_init() {
     tl_register_natives(__bcode_natives);
+    // TODO move this to Module.unknown
+    tl_register_global("unknown", tlUnknown);
     _tlBLazyKind.klass = tlClassObjectFrom("call", _blazy_call, null);
     _tlBLazyDataKind.klass = tlClassObjectFrom("call", _blazydata_call, null);
     _tlBLazyKind.run = runBLazy;

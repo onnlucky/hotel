@@ -15,14 +15,14 @@ test = n ->
     res[n] = "compile"
     bytes = compiler.compile(code)
     res[n] = "load"
-    mod = compiler.load(bytes, out)
+    mod = compiler.load(bytes, n)
     links = mod.links.map(link ->
         if link == "out": return out
-        _env.get(link) or Env.module(link)
+        _env.get(link) or try(Env.module(link), compiler.unknown)
     )
-    mod.link(links)
+    nmod = mod.link(links)
     res[n] = "run"
-    r = mod.run
+    r = nmod.run
     if r: out(r, "\n")
     res[n] = "compare"
     print "---- $n: output ----:"

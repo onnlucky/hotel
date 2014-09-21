@@ -635,12 +635,9 @@ SimpleDebugger = debugger ->
             debugger.continue
             break
 
-load = bytes, out ->
-    m = _Module_new(Buffer.new(bytes), "", out)
-    {
-        bytes = bytes
+Module = m -> {
         links = -> _module_links(m)
-        link = ls -> _module_link(m, ls)
+        link = ls -> Module(_module_link(m, ls))
         run = as, task -> _module_run(m, as, task)
         debug = as ->
             debugger = Debugger.new
@@ -649,7 +646,8 @@ load = bytes, out ->
             _module_run(m, as, task)
             return SimpleDebugger(debugger)
     }
+load = bytes, name -> Module(_Module_new(Buffer.new(bytes), name or ""))
 
 _parse = code -> parse(code)
 
-{ parse=_parse, { compile, load }}
+{ parse=_parse, { compile, load, unknown }}

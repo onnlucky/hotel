@@ -49,6 +49,7 @@ static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
 static const tlHandle tlNull =      (tlHead*)TL_NULL;
 static const tlHandle tlFalse =     (tlHead*)TL_FALSE;
 static const tlHandle tlTrue =      (tlHead*)TL_TRUE;
+static const tlHandle tlUnknown =   (tlHead*)((5 << 3)|2);
 
 static const tlHandle tlTaskNotRunning = (tlHead*)((10 << 3)|2);
 static const tlHandle tlTaskJumping    = (tlHead*)((11 << 3)|2);

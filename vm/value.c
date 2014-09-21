@@ -102,6 +102,10 @@ const char* tl_str(tlHandle v) {
         snprintf(_str_buf, _BUF_SIZE, "<%s@%p>", kind->name, v);
         return _str_buf;
     }
+    if (v == tlUnknown) {
+        snprintf(_str_buf, _BUF_SIZE, "<unknown>");
+        return _str_buf;
+    }
     snprintf(_str_buf, _BUF_SIZE, "<!! %p !!>", v);
     return _str_buf;
 }
