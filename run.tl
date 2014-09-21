@@ -1,5 +1,3 @@
-_env = Env.current
-
 res = HashMap.new
 test = n ->
     output = Array.new
@@ -20,9 +18,9 @@ test = n ->
         if link == "out": return out
         _env.get(link) or try(Env.module(link), compiler.unknown)
     )
-    nmod = mod.link(links)
+    mod = mod.link(links)
     res[n] = "run"
-    r = nmod.run
+    r = mod.run
     if r: out(r, "\n")
     res[n] = "compare"
     print "---- $n: output ----:"

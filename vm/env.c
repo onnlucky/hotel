@@ -110,6 +110,13 @@ static tlHandle _env_size(tlArgs* args) {
     tlEnv* env = tlEnvAs(tlArgsTarget(args));
     return tlINT(tlObjectSize(env->map));
 }
+static tlHandle _env_has(tlArgs* args) {
+    tlEnv* env = tlEnvAs(tlArgsTarget(args));
+    tlHandle key = tlArgsGet(args, 0);
+    if (tlStringIs(key)) key = tlSymFromString(key);
+    if (!tlSymIs(key)) TL_THROW("expect a symbol");
+    return tlBOOL(tlEnvGet(env, tlSymAs(key)) != null);
+}
 static tlHandle _env_get(tlArgs* args) {
     tlEnv* env = tlEnvAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
@@ -189,6 +196,7 @@ static tlObject* envClass;
 static void env_init() {
     _tlEnvKind.klass = tlClassObjectFrom(
         "size", _env_size,
+        "has", _env_has,
         "get", _env_get,
         "set", _env_set,
         null

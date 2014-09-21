@@ -604,6 +604,7 @@ compile = (code ->
 
     main, functions = parseemit(code)
     buf = compilemain(main, functions)
+    if args["buffer"]: return buf
     return buf.read
 )
 
@@ -646,8 +647,20 @@ Module = m -> {
             _module_run(m, as, task)
             return SimpleDebugger(debugger)
     }
-load = bytes, name -> Module(_Module_new(Buffer.new(bytes), name or ""))
+
+load = bytes, name, env ->
+    bytes = { isBin(bytes)    }: Buffer.new(bytes)
+            { isBuffer(bytes) }: bytes
+            {                 }: compile(bytes, buffer=true)
+    m = _Module_new(Buffer.new(bytes), name or "")
+    m = { isObject(env) }: links = _module_links(m).map(name -> x = bool(Object.has(name), Object.get(name), unknown))
+                           _module_link(m, links)
+        { env           }: links = _module_links(m).map(name -> x = bool(env.has(name), env.get(name), unknown))
+                           _module_link(m, links)
+        {               }: m
+    Module(m)
 
 _parse = code -> parse(code)
 
 { parse=_parse, { compile, load, unknown }}
+
