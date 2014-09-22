@@ -263,7 +263,6 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
     assert(thrown);
     assert(tlTaskCurrent() == task);
     assert(task->state == TL_STATE_RUN);
-    assert(task->stack);
 
     //print_backtrace(task->stack);
 

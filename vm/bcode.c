@@ -714,10 +714,10 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
 tlHandle deserialize(tlBuffer* buf, tlBModule* mod, const char** error) {
     trace("parsing: %d", tlBufferSize(buf));
 
-    if (tlBufferReadByte(buf) != 't') return null;
-    if (tlBufferReadByte(buf) != 'l') return null;
-    if (tlBufferReadByte(buf) != '0') return null;
-    if (tlBufferReadByte(buf) != '1') return null;
+    if (tlBufferReadByte(buf) != 't') FAIL("not a module");
+    if (tlBufferReadByte(buf) != 'l') FAIL("not a module");
+    if (tlBufferReadByte(buf) != '0') FAIL("not a module");
+    if (tlBufferReadByte(buf) != '1') FAIL("not a module");
 
     int size = 0;
     tlHandle direct = readref(buf, null, &size);
