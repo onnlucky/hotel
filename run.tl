@@ -13,7 +13,7 @@ test = n ->
     res[n] = "compile"
     bytes = compiler.compile(code)
     res[n] = "load"
-    mod = compiler.load(bytes, n)
+    mod = compiler.load(bytes, name=n)
     links = mod.links.map(link ->
         if link == "out": return out
         _env.get(link) or try(Env.module(link), compiler.unknown)

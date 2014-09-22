@@ -1500,6 +1500,7 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
     const char* error = null;
     deserialize(buf, mod, &error);
     if (error) TL_THROW("invalid bytecode: %s", error);
+    assert(mod->body);
 
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->linked); i++) tlListSet_(mod->linked, i, tlUnknown);
@@ -1512,6 +1513,7 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
 
 INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    if (!mod) TL_THROW("run requires a module");
     tlList* as = tlListCast(tlArgsGet(args, 1));
     if (!as) as = tlListEmpty();
     tlTask* task = tlTaskCast(tlArgsGet(args, 2));

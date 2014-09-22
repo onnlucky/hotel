@@ -256,6 +256,12 @@ static tlHandle _isHashMap(tlArgs* args) { return tlBOOL(tlHashMapIs(tlArgsGet(a
 static tlHandle _isBuffer(tlArgs* args) { return tlBOOL(tlBufferIs(tlArgsGet(args, 0))); }
 static tlHandle _isRegex(tlArgs* args);
 
+static bool tlBClosureIs(tlHandle h);
+static tlHandle _isFunction(tlArgs* args) {
+    tlHandle fn = tlArgsGet(args, 0);
+    return tlBOOL(tlClosureIs(fn) || tlBClosureIs(fn));
+}
+
 static const tlNativeCbs __value_natives[] = {
     { "isUndefined", _isUndefined },
     { "isDefined", _isDefined },
@@ -269,6 +275,7 @@ static const tlNativeCbs __value_natives[] = {
     { "isString", _isString },
     { "isList", _isList },
     { "isObject", _isObject },
+    { "isFunction", _isFunction },
 
     { "isSet", _isSet },
     { "isMap", _isMap },

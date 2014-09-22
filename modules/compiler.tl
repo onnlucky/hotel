@@ -648,16 +648,25 @@ Module = m -> {
             return SimpleDebugger(debugger)
     }
 
-load = bytes, name, env ->
+name_from = envs, name ->
+    envs.each: env =>
+        { isString(env)   }: Error("cannot link using a String: '$env'").throw
+        { isObject(env)   }: x = Object.get(env, name); if isDefined(x): return x
+        { isFunction(env) }: x = env(name); if isDefined(x): return x
+        { env             }: x = env[name]; if isDefined(x): return x
+    return unknown
+
+load = bytes ->
     bytes = { isBin(bytes)    }: Buffer.new(bytes)
             { isBuffer(bytes) }: bytes
             {                 }: compile(bytes, buffer=true)
-    m = _Module_new(Buffer.new(bytes), name or "")
-    m = { isObject(env) }: links = _module_links(m).map(name -> x = bool(Object.has(name), Object.get(name), unknown))
-                           _module_link(m, links)
-        { env           }: links = _module_links(m).map(name -> x = bool(env.has(name), env.get(name), unknown))
+    m = _Module_new(bytes, args["name"] or "")
+
+    envs = args[2:]
+    m = { envs.size > 0 }: links = _module_links(m).map(name -> name_from(envs, name))
                            _module_link(m, links)
         {               }: m
+
     Module(m)
 
 _parse = code -> parse(code)
