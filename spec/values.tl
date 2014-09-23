@@ -42,6 +42,8 @@ test "sort on mixed array":
 test "max":
     assert [1,2,3,4].max == 4
     assert ["hello","world","zzz"].max == "zzz"
+    assert [].max(42) == 42
+    assert not isDefined([].max)
 
 test "max on mixed array":
     res = ["hello", 4, 1, 2, 3, "zzz", "world"].max

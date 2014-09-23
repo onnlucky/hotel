@@ -152,27 +152,30 @@ _sum = ->
     return $sum
 
 /// List.min: return the smallest element
-_min = ->
-    if this.size <= 1: return this[1]
+_min = default ->
+    if this.size == 0: return args[1]
+    if this.size == 1: return this[1]
     var $min = this[1]
     this.each: e -> if compare(e, $min) == -1: $min = e
     return $min
 
 /// List.max: return the largest element
-_max = ->
-    if this.size <= 1: return this[1]
+_max = default ->
+    if this.size == 0: return args[1]
+    if this.size == 1: return this[1]
     var $max = this[1]
     this.each: e -> if compare(e, $max) == 1: $max = e
     return $max
 
 /// List.mean: return the sum divided by size (the average)
-_mean = ->
-    if this.size == 0: return undefined
+_mean = default ->
+    if this.size == 0: return args[1]
     this.sum / this.size
 
 /// List.median: return the middle element
-_median = ->
-    if this.size <= 1: return this[1]
+_median = default ->
+    if this.size == 0: return args[1]
+    if this.size == 1: return this[1]
     sorted = this.sort
     half = this.size / 2
     if half.floor == half: return sorted[half]
