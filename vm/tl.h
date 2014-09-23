@@ -24,20 +24,20 @@ typedef struct tlHead {
 } tlHead;
 
 // small int, 31 or 63 bits, lowest bit is always 1
-static const tlHandle tlZero = (tlHead*)((0 << 1)|1);
-static const tlHandle tlOne =  (tlHead*)((1 << 1)|1);
-static const tlHandle tlTwo =  (tlHead*)((2 << 1)|1);
-#define TL_MAX_INT32 ((int32_t)0x3FFFFFFF)
+static const tlHandle tlZero = (tlHead*)((0 << 2)|1);
+static const tlHandle tlOne =  (tlHead*)((1 << 2)|1);
+static const tlHandle tlTwo =  (tlHead*)((2 << 2)|1);
+#define TL_MAX_INT32 ((int32_t)0x1FFFFFFF)
 #define TL_MIN_INT32 ((int32_t)0xBFFFFFFF)
 #ifdef M32
-static const tlHandle tlIntMax = (tlHead*)(0x7FFFFFFF);
-static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFF);
-#define TL_MAX_INT ((int32_t)0x3FFFFFFF)
+static const tlHandle tlIntMax = (tlHead*)(0x7FFFFFFD);
+static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFD);
+#define TL_MAX_INT ((int32_t)0x1FFFFFFF)
 #define TL_MIN_INT ((int32_t)0xBFFFFFFF)
 #else
-static const tlHandle tlIntMax = (tlHead*)(0x7FFFFFFFFFFFFFFF);
-static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFF);
-#define TL_MAX_INT ((int64_t)0x3FFFFFFFFFFFFFFF)
+static const tlHandle tlIntMax = (tlHead*)(0x7FFFFFFFFFFFFFFD);
+static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFD);
+#define TL_MAX_INT ((int64_t)0x1FFFFFFFFFFFFFFF)
 #define TL_MIN_INT ((int64_t)0xBFFFFFFFFFFFFFFF)
 #endif
 

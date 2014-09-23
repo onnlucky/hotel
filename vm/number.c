@@ -348,6 +348,12 @@ static void number_init() {
     mp_set_signed(&MIN_INT_BIGNUM, TL_MIN_INT);
     mp_set_signed(&MAX_INT_BIGNUM, TL_MAX_INT);
 
+    assert(tlINT(TL_MAX_INT) == tlIntMax);
+    assert(tlINT(TL_MIN_INT) == tlIntMin);
+    assert(tlINT(0) == tlZero);
+    assert(tlINT(1) == tlOne);
+    assert(tlINT(2) == tlTwo);
+
     mp_int ZERO; mp_init(&ZERO); mp_set(&ZERO, 0);
     assert(mp_cmp(&MIN_INT_BIGNUM, &ZERO) == -1);
     mp_clear(&ZERO);
