@@ -14,6 +14,7 @@ static tlSym _s_yday;
 static tlSym _s_isdst;
 static tlSym _s_zone;
 static tlSym _s_gmtoff;
+static tlSym _s_timestamp;
 
 static tlObject* _timeMap;
 
@@ -108,6 +109,10 @@ static tlHandle _strptime(tlArgs* args) {
     const char* in = tlStringData(input);
     char* out = strptime(in, tlStringData(format), &tm);
     if (!out) return tlNull;
+
+    if (tl_bool(tlArgsMapGet(args, _s_timestamp))) {
+        return tlResultFrom(tlFLOAT(mktime(&tm)), tlINT(out - in), null);
+    }
     return tlResultFrom(object_from_tm(&tm), tlINT(out - in), null);
 }
 
@@ -142,6 +147,8 @@ static tlHandle _strftime(tlArgs* args) {
 }
 
 static void time_init() {
+    _s_timestamp = tlSYM("timestamp");
+
     tlSet* keys = tlSetNew(11);
     _s_sec = tlSYM("sec"); tlSetAdd_(keys, _s_sec);
     _s_min = tlSYM("min"); tlSetAdd_(keys, _s_min);
