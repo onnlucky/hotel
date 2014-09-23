@@ -429,7 +429,13 @@ static tlHandle _measureText(tlArgs* args) {
 // ** images **
 static tlHandle _image(tlArgs* args) {
     Image* img = ImageCast(tlArgsGet(args, 0));
-    if (!img) TL_THROW("require an image");
+    if (!img) {
+        Graphics* g = GraphicsCast(tlArgsGet(args, 0));
+        if (!g) TL_THROW("require an image or graphic");
+        if (!g->img) TL_THROW("require a graphics with image surface");
+        cairo_surface_flush(cairo_get_target(g->cairo));
+        img = g->img;
+    }
 
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     if (!imageSurface(img)) return g;
@@ -455,6 +461,26 @@ static tlHandle _image(tlArgs* args) {
     cairo_restore(g->cairo);
     CAIRO_STATUS(g->cairo);
     return g;
+}
+
+static tlHandle _Graphics_new(tlArgs* args) {
+    int width = tl_int_or(tlArgsGet(args, 0), 250);
+    int height = tl_int_or(tlArgsGet(args, 1), width);
+
+    Image* image = ImageNew(width, height);
+    return imageGetGraphics(image);
+}
+
+static tlHandle _graphics_width(tlArgs* args) {
+    Graphics* g = GraphicsAs(tlArgsTarget(args));
+    if (!g->img) return tlNull;
+    return tlINT(imageWidth(g->img));
+}
+
+static tlHandle _graphics_height(tlArgs* args) {
+    Graphics* g = GraphicsAs(tlArgsTarget(args));
+    if (!g->img) return tlNull;
+    return tlINT(imageHeight(g->img));
 }
 
 void graphics_init(tlVm* vm) {
@@ -493,6 +519,9 @@ void graphics_init(tlVm* vm) {
     s_hsl_luminosity = tlSYM("hsl_luminosity");
 
     _GraphicsKind.klass = tlClassObjectFrom(
+        "width", _graphics_width,
+        "height", _graphics_height,
+
         "save", _save,
         "restore", _restore,
 
@@ -538,6 +567,7 @@ void graphics_init(tlVm* vm) {
     );
 
     tlObject* GraphicsStatic = tlClassObjectFrom(
+        "new", _Graphics_new,
         "winding", s_winding,
         "even_odd", s_even_odd,
 
