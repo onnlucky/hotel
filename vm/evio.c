@@ -1162,15 +1162,21 @@ static tlHandle _io_init(tlArgs* args) {
 }
 
 static tlHandle _io_haswaiting(tlArgs* args) {
+    tlMsgQueue* queue = tlMsgQueueCast(tlArgsGet(args, 0));
+    if (!queue) TL_THROW("require the queue from init");
     tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     assert(vm->waitevent >= 0);
     trace("tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
     if (vm->waitevent > 0) return tlTrue;
-    // TODO should not be "> 1" but "> runloops"
-    // TODO is this thread safe? I think so ...
+
     // if the runloops are the only tasks, no other task can be spawned
+    // TODO should not be "> 1" but "> runloops"
     if (a_get(&vm->runnable) > 1) return tlTrue;
+
+    // unless there are waiters in the msg queue, order here is important, inverse of queue.c
+    if (!tlMsgQueueIsEmpty(queue)) return tlTrue;
+    trace("no waiting tasks");
     return tlFalse;
 }
 

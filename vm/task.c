@@ -430,9 +430,9 @@ INTERNAL tlArray* deadlocked(tlTask* task, tlHandle on) {
 
 tlArray* tlTaskWaitFor(tlHandle on) {
     tlTask* task = tlTaskCurrent();
-    trace("%s.value: %s", tl_str(task), tl_str(task->value));
     assert(tlTaskIs(task));
     assert(task->state == TL_STATE_RUN);
+    trace("%s.value: %s", tl_str(task), tl_str(task->value));
     tlVm* vm = tlTaskGetVm(task);
     task->state = TL_STATE_WAIT;
     task->waitFor = on;
@@ -445,6 +445,20 @@ tlArray* tlTaskWaitFor(tlHandle on) {
     if (!tlWorkerIsBound(task->worker)) task->worker = vm->waiter;
     a_dec(&vm->runnable);
     return null;
+}
+
+void tlTaskWaitNothing1(tlTask* task) {
+    assert(tlTaskIs(task));
+    assert(task->state == TL_STATE_RUN);
+    trace("%s.value: %s", tl_str(task), tl_str(task->value));
+    tlVm* vm = tlTaskGetVm(task);
+    task->state = TL_STATE_WAIT;
+    task->waitFor = null;
+    if (!tlWorkerIsBound(task->worker)) task->worker = vm->waiter;
+}
+void tlTaskWaitNothing2(tlTask* task) {
+    tlVm* vm = tlTaskGetVm(task);
+    a_dec(&vm->runnable);
 }
 
 void tlTaskReady(tlTask* task) {

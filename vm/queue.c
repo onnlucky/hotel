@@ -136,6 +136,9 @@ tlMsgQueue* tlMsgQueueNew() {
     queue->input->queue = queue;
     return queue;
 }
+bool tlMsgQueueIsEmpty(tlMsgQueue* queue) {
+    return lqueue_peek(&queue->msg_q) == null;
+}
 
 INTERNAL void queueSignal(tlMsgQueue* queue) {
     if (queue->signalcb) queue->signalcb();
@@ -175,9 +178,10 @@ INTERNAL tlHandle resumeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
     task->value = msg;
     task->stack = tlFrameSetResume(frame, resumeReply);
 
-    tlTaskWaitFor(null);
+    tlTaskWaitNothing1(task);
     lqueue_put(&queue->msg_q, &task->entry);
     queueSignal(queue);
+    tlTaskWaitNothing2(task);
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle queueInputReceive(tlArgs* args) {
@@ -194,13 +198,14 @@ INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (sender) return sender->value;
 
     tlTask* task = tlTaskCurrent();
-    tlTaskWaitFor(null);
+    tlTaskWaitNothing1(task);
     lqueue_put(&queue->wait_q, &task->entry);
+    tlTaskWaitNothing2(task);
     return tlTaskNotRunning;
 }
 INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
-    trace("queue.get: %s", tl_str(task));
+    trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
     trace("SENDER: %s", tl_str(sender));
@@ -209,7 +214,7 @@ INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
 }
 INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
-    trace("queue.get: %s", tl_str(task));
+    trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
     trace("SENDER: %s", tl_str(sender));

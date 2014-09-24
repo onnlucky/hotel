@@ -21,7 +21,7 @@ ioloop = ->
                     msg[3], msg[4], msg[5], msg[6],
                     msg[7], msg[8]
                 ))
-        if not _io_haswaiting(): break
+        if not _io_haswaiting(_io_queue): break
         _io_run()
 
 // reader/writer utils
