@@ -4,7 +4,7 @@
 //
 // Notice the queue->head and entry->next pointers are authorative.
 // The queue->tail pointer is just a cache and may point to random entries;
-// this implies the use something like a gc.
+// this implies the use of something like a gc.
 //
 //
 // Notice it might appear there is an ABA problem, but there is not. If a
@@ -15,7 +15,7 @@
 // However, if this second thread is stalled for a long time too, unable to put
 // its two sized entry in the queue. And our first thread inserts yet another
 // entry. Now this second entry might appear in the queue before the first.
-// This is a breach of the fifo contract.
+// This is a breach of the fifo contract. So this is a mostly fifo queue.
 //
 // A possible solution is to hold on to the previous element too, and disalow
 // longer sized chains. But then tail should point to second to last element.
@@ -23,9 +23,6 @@
 // Never re-using entries is another way.
 // Another solution is to use a thread local variable that verifies:
 // if (tls_last_entry->next == owner(q) && tls_last_entry != tail) goto retry;
-//
-// All solutions have problems for a scenario that occurs with astronomical
-// small change.
 //
 // TODO investigate using the queue as a special node to remove some spacial
 // cases of empty list
@@ -37,31 +34,31 @@
 #include "atomic_ops.h"
 #include "lqueue.h"
 
-static int lqueue_cas(void *addr, const void *nval, const void *oval) {
+static int lqueue_cas(void* addr, const void* nval, const void* oval) {
     return AO_compare_and_swap(addr, (AO_t)oval, (AO_t)nval);
 }
 
 
 // ** implementation **
 
-lqentry * lqentry_init(lqentry *i) { i->next = 0; return i; }
-lqueue * lqueue_init(lqueue *q) { q->head = 0; q->tail = 0; return q; }
+lqentry* lqentry_init(lqentry* i) { i->next = 0; return i; }
+lqueue* lqueue_init(lqueue* q) { q->head = 0; q->tail = 0; return q; }
 
-lqentry * lqentry_new() { return lqentry_init(malloc(sizeof(lqentry))); }
-lqueue * lqueue_new() { return lqueue_init(malloc(sizeof(lqueue))); }
+lqentry* lqentry_new() { return lqentry_init(malloc(sizeof(lqentry))); }
+lqueue* lqueue_new() { return lqueue_init(malloc(sizeof(lqueue))); }
 
 // TODO add volatile
-static lqentry * load(lqentry *i) { return i; }
-static lqentry * owner(lqueue *q) { return (lqentry *)q; }
+static lqentry* load(lqentry* i) { return i; }
+static lqentry* owner(lqueue* q) { return (lqentry* )q; }
 
-void lqueue_put(lqueue *q, lqentry *e) {
+void lqueue_put(lqueue* q, lqentry* e) {
     assert(q); assert(e); assert(e->next == 0);
 
     // make this node owned by the queue
     e->next = owner(q);
     while (1) {
     retry:;
-        lqentry *h = load(q->head);
+        lqentry* h = load(q->head);
         if (h == 0) {                  // if the queue is empty
             if (lqueue_cas(&q->head, e, 0)) { // try to update the head
                 q->tail = e;           // update the tail hint
@@ -70,7 +67,7 @@ void lqueue_put(lqueue *q, lqentry *e) {
             continue;                  // failed to update head; retry
         }
 
-        lqentry *t = load(q->tail);
+        lqentry* t = load(q->tail);
         if (t == 0) t = h;                  // if tail hint is obviously stale (and wrong)
 
         while (t->next != owner(q)) {       // try to get to the real tail
@@ -86,13 +83,13 @@ void lqueue_put(lqueue *q, lqentry *e) {
     }
 }
 
-lqentry * lqueue_get(lqueue *q) {
+lqentry* lqueue_get(lqueue* q) {
     while (1) {
-        lqentry *h = load(q->head);
+        lqentry* h = load(q->head);
         if (h == 0) return 0;
 
         // there are actually items in the queue
-        lqentry *n = h->next;
+        lqentry* n = h->next;
         if (lqueue_cas(&h->next, 0, n)) {           // take ownership of head node
             if (n == owner(q)) {             // if it is a single element queue
                 assert(lqueue_cas(&q->head, 0, h)); // update head to zero; we have ownership so it must succeed
@@ -103,5 +100,9 @@ lqentry * lqueue_get(lqueue *q) {
             return h;
         }
     }
+}
+
+lqentry* lqueue_peek(lqueue* q) {
+    return load(q->head);
 }
 
