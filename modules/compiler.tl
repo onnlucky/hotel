@@ -120,20 +120,25 @@ writeCode = mod, c ->
             buf.write 0b1100_0000 + 7
             buf.write mod.global(c.code[($pc += 1)])
         { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
-            buf.write 0b1100_0000 + 12
+            buf.write 0b1100_0000 + 16
             buf.write mod.code(c.code[($pc += 1)])
         { op == "true"   }: buf.write 0b1100_0000 + 0
         { op == "false"  }: buf.write 0b1100_0000 + 1
         { op == "null"   }: buf.write 0b1100_0000 + 2
         { op == "undef"  }: buf.write 0b1100_0000 + 3
         { op == "int"    }: buf.write 0b1100_0000 + 4; buf.write encodeInt c.code[($pc += 1)]
-        { op == "env"    }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "envarg" }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "local"  }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
-        { op == "arg"    }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]
-        { op == "store"  }: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
-        { op == "rstore" }: buf.write 0b1100_0000 + 14; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "invoke" }: buf.write 0b1100_0000 + 15
+        { op == "envarg" }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
+        { op == "env"    }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
+        { op == "arg"    }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
+        { op == "local"  }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]
+        { op == "args"   }: buf.write 0b1100_0000 + 12
+        { op == "envargs"}: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
+        { op == "this"   }: buf.write 0b1100_0000 + 14
+        { op == "envthis"}: buf.write 0b1100_0000 + 15; buf.write encodeInt c.code[($pc += 1)]
+
+        { op == "store"  }: buf.write 0b1100_0000 + 17; buf.write encodeInt c.code[($pc += 1)]
+        { op == "rstore" }: buf.write 0b1100_0000 + 18; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
+        { op == "invoke" }: buf.write 0b1100_0000 + 19
         { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
         { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
         { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
@@ -507,10 +512,9 @@ compile = (code ->
         { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
         { term.type == "global" }: ["global", term.name]
-        // TODO these don't work that well, cannot be system calls
-        { term.type == "args"   }: ["system", "args"]
+        { term.type == "args"   }: ["args"]
         { term.type == "envargs"}: ["envargs", term.up - 1]
-        { term.type == "this"   }: ["system", "this"]
+        { term.type == "this"   }: ["this"]
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "object" }:
             elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))

@@ -13,10 +13,14 @@ const char* op_name(uint8_t op) {
         case OP_SYSTEM: return "SYSTEM";
         case OP_MODULE: return "MODULE";
         case OP_GLOBAL: return "GLOBAL";
-        case OP_ENV: return "ENV";
         case OP_ENVARG: return "ENVARG";
-        case OP_LOCAL: return "LOCAL";
+        case OP_ENV: return "ENV";
         case OP_ARG: return "ARG";
+        case OP_LOCAL: return "LOCAL";
+        case OP_ARGS: return "ARGS";
+        case OP_ENVARGS: return "ENVARGS";
+        case OP_THIS: return "THIS";
+        case OP_ENVTHIS: return "ENVTHIS";
         case OP_BIND: return "BIND";
         case OP_STORE: return "STORE";
         case OP_RSTORE: return "RESULT";
@@ -780,7 +784,9 @@ static void disasm(tlBCode* bcode) {
         uint8_t op = ops[pc++];
         switch (op) {
             case OP_END: goto exit;
-            case OP_TRUE: case OP_FALSE: case OP_NULL: case OP_UNDEF: case OP_INVOKE:
+            case OP_TRUE: case OP_FALSE: case OP_NULL: case OP_UNDEF:
+            case OP_ARGS: case OP_THIS:
+            case OP_INVOKE:
                 print(" % 3d 0x%X %s", opc, op, op_name(op));
                 break;
             case OP_INT: case OP_LOCAL: case OP_ARG:
@@ -884,6 +890,8 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_FALSE: break;
             case OP_NULL: break;
             case OP_UNDEF: break;
+            case OP_ARGS: break;
+            case OP_THIS: break;
             case OP_INT: dreadsize(&code); break;
             case OP_SYSTEM: dreadsize(&code); break;
             case OP_MODULE: dreadref(&code, data); break;
@@ -902,6 +910,13 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 // TODO check if parent locals actually support these
                 assert(parent >= 0);
                 assert(at >= 0);
+                if (parent > 200) FAIL("parent out of range");
+                break;
+            case OP_ENVARGS:
+            case OP_ENVTHIS:
+                parent = dreadsize(&code);
+                // TODO check if parent locals actually support these
+                assert(parent >= 0);
                 if (parent > 200) FAIL("parent out of range");
                 break;
             case OP_LOCAL:
@@ -1329,23 +1344,6 @@ again:;
         case OP_SYSTEM:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
-            // TODO this doesn't take care of blocks vs function vs methods
-            if (tlStringEquals(v, tlSTR("args"))) {
-                trace("syscall args: %s", tl_str(args));
-                v = argsFromBCall(args);
-                break;
-            }
-            if (tlStringEquals(v, tlSTR("this"))) {
-                v = args->target;
-                tlBEnv* env = lazylocals;
-                trace("syscall this: %s (%s)", tl_str(args), tl_str(v));
-                while (!v && env) {
-                    env = env->parent;
-                    if (env) v = env->args->target;
-                }
-                if (!v) v = tlNull;
-                break;
-            }
             fatal("syscall: %s", tl_str(v));
             break;
         case OP_MODULE:
@@ -1359,6 +1357,15 @@ again:;
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
             if (v == tlUnknown) TL_THROW("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
             break;
+        case OP_ENVARG: {
+            depth = pcreadsize(ops, &pc);
+            at = pcreadsize(ops, &pc);
+            assert(depth >= 0 && at >= 0);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            v = tlBEnvArgGet(parent, at);
+            trace("envarg[%d][%d] -> %s", depth, at, tl_str(v));
+            break;
+        }
         case OP_ENV: {
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
@@ -1367,15 +1374,6 @@ again:;
             assert(parent);
             v = tlBEnvGet(parent, at);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
-            break;
-        }
-        case OP_ENVARG: {
-            depth = pcreadsize(ops, &pc);
-            at = pcreadsize(ops, &pc);
-            assert(depth >= 0 && at >= 0);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
-            v = tlBEnvArgGet(parent, at);
-            trace("envarg[%d][%d] -> %s", depth, at, tl_str(v));
             break;
         }
         case OP_ARG:
@@ -1387,9 +1385,40 @@ again:;
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
             v = (*locals)[at];
-            if (!v) v = tlNull; // TODO tlUndefined
+            if (!v) v = tlNull; // TODO tlUndefined or throw?
             trace("local %d -> %s", at, tl_str(v));
             break;
+        case OP_ARGS:
+            v = argsFromBCall(args);
+            trace("args: %s", tl_str(v));
+            break;
+        case OP_ENVARGS: {
+            depth = pcreadsize(ops, &pc);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            v = argsFromBCall(parent->args);
+            trace("envargs[%d] -> %s", depth, tl_str(v));
+            break;
+        }
+        case OP_THIS: {
+            // TODO is this needed, compiler can figure out the exact this
+            v = args->target;
+            tlBEnv* env = lazylocals;
+            trace("this: %s (%s)", tl_str(args), tl_str(v));
+            while (!v && env) {
+                env = env->parent;
+                if (env) v = env->args->target;
+            }
+            if (!v) v = tlNull;
+            break;
+        }
+        case OP_ENVTHIS: {
+            depth = pcreadsize(ops, &pc);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            v = parent->args->target;
+            if (!v) v = tlNull;
+            trace("envthis[%d] -> %s", depth, tl_str(v));
+            break;
+        }
         case OP_BIND:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
@@ -1791,6 +1820,7 @@ static const tlNativeCbs __bcode_natives[] = {
 };
 
 void bcode_init() {
+    assert(OP_INVOKE < OP_MCALL);
     tl_register_natives(__bcode_natives);
     // TODO move this to Module.unknown
     tl_register_global("unknown", tlUnknown);
