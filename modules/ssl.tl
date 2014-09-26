@@ -1,7 +1,7 @@
 // a stream interface writing through openssl, onto a lower level stream, like a socket
 
 Stream = {
-    new= stream -> { stream= stream, ssl= SSL.new, class= this.class }
+    new= stream -> { stream= stream, ssl= openssl.newCodec, class= this.class }
     class= {
         read= (into ->
             if into: return this._read2(into)

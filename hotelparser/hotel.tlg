@@ -162,6 +162,7 @@ mcallarg: v=mcall
     expr: "!". pos=pos rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
+// TODO oeps, must be r=add)* now left to right order is wrong way around ...
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
      not: pos=pos type="not".. rhs=not | compare
  compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=compare)? -> process_expr(l, rs)

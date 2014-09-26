@@ -8,43 +8,43 @@ HttpConnection = conn ->
         status = 200
         contentType = "text/plain"
         setContentType = (type ->
-            if @_didhead: throw "Already send headers"
-            @contentType = type
+            if this._didhead: throw "Already send headers"
+            this.contentType = type
         )
         req = (->
             // read and parse until headers are complete
-            if @_req: return @_req
+            if this._req: return this._req
             loop:
-                if @_in.size > 2048: print @_in.readString; conn.close; throw "REQUEST TOO LONG"
-                if @_in.find("\r\n\r\n"): break
-                if @_in.find("\n\n"): break
-                len = conn.readInto @_in
+                if this._in.size > 2048: print this._in.readString; conn.close; throw "REQUEST TOO LONG"
+                if this._in.find("\r\n\r\n"): break
+                if this._in.find("\n\n"): break
+                len = conn.readInto this._in
                 if len == 0: throw "IO ERROR"
-            @_req = httpparser.request(@_in.readString)
+            this._req = httpparser.request(this._in.readString)
         )
-        end = -> @_didend = true; @flush(true); conn.close
+        end = -> this._didend = true; this.flush(true); conn.close
         error = (->
-            @status = 500
-            @_didend = true
-            @_body.clear; @_body.write("500 internal error")
-            @flush(true); conn.close
+            this.status = 500
+            this._didend = true
+            this._body.clear; this._body.write("500 internal error")
+            this.flush(true); conn.close
         )
         write = (text ->
-            if @_didend: throw "Already Ended Response"
-            @_body.write text
+            if this._didend: throw "Already Ended Response"
+            this._body.write text
         )
         flush = (ending ->
-            if not @_didhead: @_sendheaders(ending)
-            while @_body.size > 0:
-                len = conn.write @_body
+            if not this._didhead: this._sendheaders(ending)
+            while this._body.size > 0:
+                len = conn.write this._body
                 //if len == 0: throw "IO ERROR"
         )
         _sendheaders = (ending ->
-            @_didhead = true
+            this._didhead = true
             headers = io.Buffer.new()
-            headers.write "HTTP/1.0 $(@status) Ok\r\n"
-            if @contentType: headers.write "Content-Type: $(@contentType)\r\n"
-            if ending: headers.write "Content-Length: $(@_body.size)\r\n"
+            headers.write "HTTP/1.0 $(this.status) Ok\r\n"
+            if this.contentType: headers.write "Content-Type: $(this.contentType)\r\n"
+            if ending: headers.write "Content-Length: $(this._body.size)\r\n"
             headers.write "\r\n"
             while headers.size > 0:
                 len = conn.write headers
@@ -153,7 +153,7 @@ get = url ->
         Error("No headers received").throw
 
     // TODO take back the stream after body is done ...
-    header = conn.readString(at - 1 + 4)
+    header = conn.readString(at + 4 - 1)
     res = httpparser.response(header)
     length = res.headers["Content-Length"]
     transfer = res.headers["Transfer-Encoding"]
