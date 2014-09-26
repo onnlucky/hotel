@@ -60,7 +60,7 @@ io.Path(tests).each: n ->
     test(tests + n)
 
 test("boot/boot.tl")
-/**/
+*/
 
 res.keys.sort.each: k -> print k, res[k]
 

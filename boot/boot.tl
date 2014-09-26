@@ -3,6 +3,8 @@
 # 2. run the requests file(s) or start a repl
 # 3. drop into the io runloop, exiting when no tasks are left
 
+BYTECODE=false
+
 catch: e -> print "boot exception: $(e.toString)"
 
 if = cond, &t, &f -> bool(cond,bool(args["block"],args["block"],t),bool(args["else"],args["else"],f))()
@@ -522,10 +524,10 @@ _install(String._methods, "eval", _eval)
 
 
 // resolve
-resolve = name, path ->
-    //print("RESOLVING: $name ($path)")
+resolve1 = name, path ->
     res = _modules[name]
     if isDefined res: return res
+    //print("RESOLVING: $name ($path)")
     catch: e => return null, "Unable to read module '$name': $(e.msg)"
     file = fileFromModulePath("$name.tl", path)
     if file:
@@ -541,17 +543,47 @@ resolve = name, path ->
         return _modules.set(name, res)
     return null, "Unable to read module '$name': no module found"
 
-// unresolved names will call this, for auto module loading
+resolve2 = name, path ->
+    res = _modules[name]
+    if isDefined res: return res
+    //print("RESOLVING 2: $name ($path)")
+    catch: e => return null, "Unable to read module '$name': $(e.msg)"
+    file = fileFromModulePath("$name.tl", path)
+    if file:
+        catch: e => return null, "Unable to compile module '$name': $(e.toString)"
+        mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
+        catch: e => return null, "Unable to run module '$name': $(e.msg)"
+        res = mod.run()
+        return _modules.set(name, res)
+    file = fileFromModulePath("$name.mod", path)
+    if file:
+        catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
+        res = dlopen(file)
+        return _modules.set(name, res)
+    return null, "Unable to read module '$name': no module found"
+
 // NOT A MISTAKE ... crazy, sorry ...
 // TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
 // TODO besides, need to have a dedicated task for this, to prevent races
-_resolve: name, path ->
-    res, fail = resolve(name, path)
+resolve = name, path ->
+    if BYTECODE and name != "compiler" and name != "io":
+        res, fail = resolve2(name, path)
+        if res: return res
+        print "Warning: using fallback:", fail
+    res, fail = resolve1(name, path)
+    if res: return res
     if fail: throw Error(fail)
-    res
+
+// unresolved names will call this, for auto module loading
+_resolve: name, path -> resolve(name, path)
 
 // default module path
 (_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
+
+basename = file ->
+    at = file.find("/", backward=true)
+    if not at: return "."
+    return file[:at]
 
 // run a repl, or every argument as a file
 runmain = as ->
@@ -561,6 +593,9 @@ runmain = as ->
     if as[1] == "snippets": return snippets.run
 
     file = as[1]
+    path = basename(file)
+    if BYTECODE:
+        return compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path))).run(as[2:])
     return _parse(_stringFromFile(file), file)(_env, as[2:])
 
 main = !runmain(args)
