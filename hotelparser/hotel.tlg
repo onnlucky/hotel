@@ -159,7 +159,7 @@ mcallarg: v=mcall
   mbcall: pos=pos value=value t=mtail block=block?                                 -> process_add_block(process_tail(value, t), block, pos)
 
       op: "+" | "-" | "*" | "/." | "/" | "%" | "^" | "|" | "&"
-    expr: "!". rhs=logical &eoexpr type=<async>
+    expr: "!". pos=pos rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
@@ -207,7 +207,8 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
         | e=mfunction &eoexpr                                                -> e
         | mexpr2
   mexpr2: pos=pos value=selfref &eostm                                       -> process_tail(value, process_call(tlListEmpty(), tlNull, pos))
-        | "!". body=stms &eostm type=<async>
+        | "!"."("..@"a closing ')'" pos=pos body=body ..")" type=<async>
+        | "!". pos=pos body=stms &eostm type=<async>
         | p=pos "assert" " ". !met !"(" !":" b=pos args=margs e=pos &eostm           -> process_assert(args, tlNull, p, b, e, _p)
         | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail -> process_assert(args, t, p, b, e, _p)
         | e=mbcall &eostm                                                            -> e
