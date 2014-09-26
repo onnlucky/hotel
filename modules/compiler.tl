@@ -302,17 +302,17 @@ compile = (code ->
             scope = Scope(scope)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
-            {type="function",{args,body},locals=scope.locals.toList}
+            {type="function",{args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "block" }:
             scope = Scope(scope, true)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
-            {type="block",{args,body},locals=scope.locals.toList}
+            {type="block",{args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "scope" }:
             scope = Scope(scope, true)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
-            {type="scope",{args,body},locals=scope.locals.toList}
+            {type="scope",{args,body},locals=scope.locals.toList,pos=term.pos}
 
     lex = scope, term, name, pos ->
         { term == null              }: "null"
@@ -407,7 +407,7 @@ compile = (code ->
         { term.type == "async" }:
             body = { try(term.body) }: term.body
                    {                }: [term.rhs]
-            function = lextop(scope, {type="scope",{body}})
+            function = lextop(scope, {type="scope",{body},pos=term.pos})
             _, fn = functions.add {name="",open=false,function=function}
             {type="async",body={type="function",function=fn}}
         { term.type == "not" }:
@@ -449,12 +449,12 @@ compile = (code ->
             gs = term.guards.map(guard ->
                 args = [lex(scope, try(guard.cond, "true"))]
                 names =[null]
-                function = lextop(scope,{type="block", body=guard.body})
+                function = lextop(scope,{type="block", body=guard.body, pos=guard.pos})
                 _, fn = functions.add {name="",open=false,function=function}
                 block = {type="function",function=fn}
                 {type="call",{target,args,names,block}}
             )
-            function = {body=gs + [{type="call",target={type="global",name="_nomatch"},args=[]}],locals=[],args=[]}
+            function = {body=gs + [{type="call",target={type="global",name="_nomatch"},args=[]}],locals=[],args=[], pos=term.pos}
             _, fn = functions.add {name="", open=false, function=function}
             target = {type="function",function=fn}
             {type="call",{target},args=[],names=[],block=null}
@@ -537,7 +537,7 @@ compile = (code ->
 
     emittop = fn, name ->
         code = fn.body.map(term -> emit(term)).flatten
-        {{code},name=try(fn.name, name or ""),locals=fn.locals,args=fn.args}
+        {{code},name=try(fn.name, name or ""),locals=fn.locals,args=fn.args,pos=fn.pos}
 
     parseemit = text ->
         ast = parse(text)
@@ -549,8 +549,18 @@ compile = (code ->
         //functions.each: fn, n -> print "fn $n:", repr(fn)
         //print "fn 0:", repr(ast)
         functions.each: fn, n -> functions[n] = emittop(fn.function, fn.name)
-        main = emittop(ast)
+        main = emittop(ast, "<main>")
         return main, functions
+
+    lineFromPos = pos ->
+        if pos < 0: return 0;
+        assert pos <= code.size
+        at = Var.new 0
+        lines = Var.new 1
+        while $at <= pos:
+            if code[$at] == '\n': $lines += 1
+            $at += 1
+        $lines
 
     builder_new = functions -> {
         functions = functions
@@ -582,14 +592,14 @@ compile = (code ->
             this.globalsIndex[v] = encodeInt(at - 1)
         function = name, code, locals, argspecs, debuginfo ->
             code = code.add("end")
-            //print "code:", name, repr(code)
+            print "code:", name, debuginfo.line, repr(code)[:20]
             bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
             _, at = this.datas.add bin
             //print "function", at, name
             this.functions[name] = encodeInt(at - 1)
         code = v ->
             fn = functions[v]
-            return this.function(fn.name, fn.code, fn.locals, fn.args, {text="",offset=0,pos=[]})
+            return this.function(fn.name, fn.code, fn.locals, fn.args, {line=lineFromPos(fn.pos),text="",offset=0,pos=[]})
         create = ->
             buf = Buffer.new
             buf.write "tl01"
@@ -608,7 +618,7 @@ compile = (code ->
         pos = try(main.pos, [])
 
         builder = builder_new(functions)
-        builder.function(name, main.code, locals, argspec, {text=text,offset=0,pos=pos})
+        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]})
         builder.create
 
     main, functions = parseemit(code)

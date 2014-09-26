@@ -65,6 +65,7 @@ struct tlBModule {
 struct tlBDebugInfo {
     tlHead head;
     tlString* name;
+    tlInt line;
     tlInt offset;
     tlString* text;
     tlList* pos;
@@ -606,11 +607,13 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     tlBDebugInfo* info = tlBDebugInfoNew();
     info->name = tlStringAs(name);
     if (tlObjectIs(debuginfo)) {
+        info->line = tlIntAs(tlObjectGet(debuginfo, tlSYM("line")));
         info->offset = tlIntAs(tlObjectGet(debuginfo, tlSYM("offset")));
         info->text = tlStringAs(tlObjectGet(debuginfo, tlSYM("text")));
         info->pos = tlListAs(tlObjectGet(debuginfo, tlSYM("pos")));
     } else {
-        info->offset = tlINT(0);
+        info->line = tlZero;
+        info->offset = tlZero;
         info->text = tlStringEmpty();
         info->pos = tlListEmpty();
     }
@@ -971,7 +974,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
     }
 exit:;
      if (depth != 0) FAIL("call without invoke");
-     trace("verified; locals: %d%s, calldepth: %d, %s", locals, maxdepth, tl_str(bcode));
+     trace("verified; locals: %d, calldepth: %d, %s", locals, maxdepth, tl_str(bcode));
      bcode->locals = locals;
      bcode->calldepth = maxdepth;
      return tlNull;
@@ -1475,7 +1478,7 @@ resume:;
         tlSym msg = tlSymFromString(call->fn);
         tlHandle method = bmethodResolve(call->target, msg);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
-        if (!method && !safe) TL_THROW("undefined");
+        if (!method && !safe) TL_THROW("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
         if (!method) {
             fatal("cannot do safe methods yet");
             // go down in call, until call->args != 0
@@ -1485,6 +1488,26 @@ resume:;
         call->fn = method;
     }
     goto again;
+}
+
+// get stack frame info from a single beval frame
+void tlBFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlInt* line) {
+    tlBFrame* frame = tlBFrameAs(_frame);
+
+    tlBCall* args = frame->args;
+    assert(args);
+    tlBClosure* closure = tlBClosureAs(args->fn);
+    tlBCode* code = closure->code;
+    tlBModule* mod = code->mod;
+
+    *file = mod->name;
+    tlBDebugInfo* info = code->debuginfo;
+    assert(info);
+
+    *function = info->name;
+    *line = info->line;
+    if (!(*file)) *file = _t_unknown;
+    if (!(*function)) *function = _t_anon;
 }
 
 INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {

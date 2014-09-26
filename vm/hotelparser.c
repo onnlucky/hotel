@@ -201,8 +201,9 @@ static State r_escape_2(Parser*, int);
 static State r_escape_3(Parser*, int);
 static State r_escape_4(Parser*, int);
 static State r_escape_5(Parser*, int);
-static State r_escape_6_1(Parser*, int);
 static State r_escape_6(Parser*, int);
+static State r_escape_7_1(Parser*, int);
+static State r_escape_7(Parser*, int);
 static State r_escape(Parser*, int);
 static State r_stm_1_1(Parser*, int);
 static State r_stm_1_2(Parser*, int);
@@ -1154,6 +1155,10 @@ static State r_embed_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_embed_1", _pos); }
  _pos = _r.pos;
+ _r = prim_pos(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_embed_1", _pos); }
+ _pos = _r.pos;
+ tlHandle pos = _r.value;
  _r = r_body(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_embed_1", _pos); }
  _pos = _r.pos;
@@ -1168,7 +1173,7 @@ static State r_embed_1(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_embed_1", _pos); }
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("body", body, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "body", body, "type", type, null);
  return parser_pass(_p, "r_embed_1", 0, _start, state_ok(_pos, _v));
 }
 static State r_embed_2(Parser* _p, int _start) { // and
@@ -2781,6 +2786,10 @@ static State r_guards(Parser* _p, int _start) { // and
  parser_enter(_p, "r_guards", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_guards", _pos); }
+ _pos = _r.pos;
+ tlHandle pos = _r.value;
  _r = r_glist(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_guards", _pos); }
  _pos = _r.pos;
@@ -2789,7 +2798,7 @@ static State r_guards(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_guards", _pos); }
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("guards", guards, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "guards", guards, "type", type, null);
  return parser_pass(_p, "r_guards", 0, _start, state_ok(_pos, _v));
 }
 static State r_hashbang_2_1_1(Parser* _p, int _start) { // and
@@ -3780,32 +3789,42 @@ static State r_escape_5(Parser* _p, int _start) { // and
  parser_enter(_p, "r_escape_5", _start);
  int _pos = _start;
  State _r;
- _r = prim_text(_p, _pos, "\\\\");
+ _r = prim_text(_p, _pos, "\\$");
  if (!_r.ok) { return parser_fail(_p, "r_escape_5", _pos); }
  _pos = _r.pos;
- tlHandle _v = tlINT('\\');
+ tlHandle _v = tlINT('$');
  return parser_pass(_p, "r_escape_5", 0, _start, state_ok(_pos, _v));
-}
-static State r_escape_6_1(Parser* _p, int _start) { // and
- parser_enter(_p, "r_escape_6_1", _start);
- int _pos = _start;
- State _r = prim_text(_p, _pos, "\"");
- if (_r.ok) return parser_pass(_p, "r_escape_6_1", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_escape_6_1");*/ return _r; }
- return parser_fail(_p, "r_escape_6_1", _start);
 }
 static State r_escape_6(Parser* _p, int _start) { // and
  parser_enter(_p, "r_escape_6", _start);
  int _pos = _start;
  State _r;
- _r = meta_not(_p, _pos, r_escape_6_1);
+ _r = prim_text(_p, _pos, "\\\\");
  if (!_r.ok) { return parser_fail(_p, "r_escape_6", _pos); }
+ _pos = _r.pos;
+ tlHandle _v = tlINT('\\');
+ return parser_pass(_p, "r_escape_6", 0, _start, state_ok(_pos, _v));
+}
+static State r_escape_7_1(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_escape_7_1", _start);
+ int _pos = _start;
+ State _r = prim_text(_p, _pos, "\"");
+ if (_r.ok) return parser_pass(_p, "r_escape_7_1", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_escape_7_1");*/ return _r; }
+ return parser_fail(_p, "r_escape_7_1", _start);
+}
+static State r_escape_7(Parser* _p, int _start) { // and
+ parser_enter(_p, "r_escape_7", _start);
+ int _pos = _start;
+ State _r;
+ _r = meta_not(_p, _pos, r_escape_7_1);
+ if (!_r.ok) { return parser_fail(_p, "r_escape_7", _pos); }
  _pos = _r.pos;
  _r = prim_any(_p, _pos);
- if (!_r.ok) { return parser_fail(_p, "r_escape_6", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "r_escape_7", _pos); }
  _pos = _r.pos;
  tlHandle _v = _r.value;
- return parser_pass(_p, "r_escape_6", 0, _start, state_ok(_pos, _v));
+ return parser_pass(_p, "r_escape_7", 0, _start, state_ok(_pos, _v));
 }
 static State r_escape(Parser* _p, int _start) { // or
  parser_enter(_p, "r_escape", _start);
@@ -3827,6 +3846,9 @@ static State r_escape(Parser* _p, int _start) { // or
  if (_r.ok) return parser_pass(_p, "r_escape", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_escape");*/ return _r; }
  _r = r_escape_6(_p, _pos);
+ if (_r.ok) return parser_pass(_p, "r_escape", 0, _start, _r);
+ if (_p->error_line) { /*print("expect: r_escape");*/ return _r; }
+ _r = r_escape_7(_p, _pos);
  if (_r.ok) return parser_pass(_p, "r_escape", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_escape");*/ return _r; }
  return parser_fail(_p, "r_escape", _start);
@@ -4433,6 +4455,10 @@ static State r_value_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_value_1", _pos); }
  _pos = _r.pos;
+ _r = prim_pos(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_value_1", _pos); }
+ _pos = _r.pos;
+ tlHandle pos = _r.value;
  _r = r_body(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_value_1", _pos); }
  _pos = _r.pos;
@@ -4447,7 +4473,7 @@ static State r_value_1(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_value_1", _pos); }
  _pos = _r.pos;
  tlHandle type = _r.value;
- tlHandle _v = tlObjectFrom("body", body, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "body", body, "type", type, null);
  return parser_pass(_p, "r_value_1", 0, _start, state_ok(_pos, _v));
 }
 static State r_value(Parser* _p, int _start) { // or
@@ -5219,11 +5245,15 @@ static State r_guard_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_guard_1", _pos); }
  _pos = _r.pos;
+ _r = prim_pos(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_guard_1", _pos); }
+ _pos = _r.pos;
+ tlHandle pos = _r.value;
  _r = r_bodynl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_guard_1", _pos); }
  _pos = _r.pos;
  tlHandle body = _r.value;
- tlHandle _v = tlObjectFrom("cond", cond, "body", body, null);
+ tlHandle _v = tlObjectFrom("cond", cond, "pos", pos, "body", body, null);
  return parser_pass(_p, "r_guard_1", 0, _start, state_ok(_pos, _v));
 }
 static State r_guard_2(Parser* _p, int _start) { // and
@@ -5248,11 +5278,15 @@ static State r_guard_2(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_guard_2", _pos); }
  _pos = _r.pos;
+ _r = prim_pos(_p, _pos);
+ if (!_r.ok) { return parser_fail(_p, "r_guard_2", _pos); }
+ _pos = _r.pos;
+ tlHandle pos = _r.value;
  _r = r_bodynl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_guard_2", _pos); }
  _pos = _r.pos;
  tlHandle body = _r.value;
- tlHandle _v = tlObjectFrom("body", body, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "body", body, null);
  return parser_pass(_p, "r_guard_2", 0, _start, state_ok(_pos, _v));
 }
 static State r_guard(Parser* _p, int _start) { // or

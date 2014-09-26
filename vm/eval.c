@@ -186,6 +186,7 @@ static tlEnv* tlCodeFrameGetEnv(tlFrame* frame) {
     return ((tlCodeFrame*)frame)->env;
 }
 
+void tlBFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
 INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line) {
     assert(file); assert(function); assert(line);
     if (tlCodeFrameIs(frame)) {
@@ -196,6 +197,8 @@ INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** functio
         if (!(*file)) *file = _t_unknown;
         if (!(*function)) *function = _t_anon;
         if (!(*line)) *line = tlZero;
+    } else if (tlBFrameIs(frame)) {
+        tlBFrameGetInfo(frame, file, function, line);
     } else {
         *file = tlStringEmpty();
         *function = _t_native;

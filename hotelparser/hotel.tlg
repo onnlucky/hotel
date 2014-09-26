@@ -29,11 +29,13 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
         | "\\n"       -> tlINT('\n')
         | "\\r"       -> tlINT('\r')
         | "\\t"       -> tlINT('\t')
+// TODO remove this, $$ is the proper escape
+        | "\\$"       -> tlINT('$')
         | "\\\\"      -> tlINT('\\')
         | !"\"" _
    stext: ts=(!"$" escape)+                      -> String(ts)
    embed: "$$"
-        | "$(".. body=body ..")" type=<scope>
+        | "$(".. pos=pos body=body ..")" type=<scope>
         | "$" e=ref                              -> e
    text2: "\"\""                                 -> tlStringEmpty()
         | "\"" t=stext "\""                      -> t
@@ -112,7 +114,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | object
         | map
         | list
-        | "(".. body=body ..")" type=<scope>
+        | "(".. pos=pos body=body ..")" type=<scope>
         | num | chr | text
         | literal
         | varref
@@ -169,17 +171,17 @@ mcallarg: v=mcall
      mul: l=pow rs=(..pos=pos op=("*"|"/."|"/"|"%").. r=mul)?                    -> process_expr(l, rs)
      pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
    paren: &"(" function
-        //| "("..@"a closing ')'" body=body ..")" type=<scope>
+        //| "("..@"a closing ')'" pos=pos body=body ..")" type=<scope>
         | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail  -> process_assert(args, t, p, b, e, _p)
         | call
 
 // ---- STATEMENTS ----
 
 // we do not allow { object }: because {{ key }} -> { key=key }
-   guard: "{".. !"{" cond=expr .."}".":".. body=bodynl
-        | "{"..                  "}".":".. body=bodynl
+   guard: "{".. !"{" cond=expr .."}".":".. pos=pos body=bodynl
+        | "{"..                  "}".":".. pos=pos body=bodynl
    glist: setindent g=guard gs=(.. indent guard)*           -> prepend(gs, g)
-  guards: guards=glist type=<guards>
+  guards: pos=pos guards=glist type=<guards>
 
 // TODO keep track of indent
   ifexpr: &("if" !letter) e=mcall &eostm                                   -> e
