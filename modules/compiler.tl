@@ -552,12 +552,14 @@ compile = (code ->
         main = emittop(ast, "<main>")
         return main, functions
 
+    // cache the position to line information for a little bit
+    at = Var.new 0
+    lines = Var.new 1
     lineFromPos = pos ->
         if pos < 0: return 0;
         assert pos <= code.size
-        at = Var.new 0
-        lines = Var.new 1
-        while $at <= pos:
+        if pos < $at: $at = 0; $lines = 1
+        while $at < pos:
             if code[$at] == '\n': $lines += 1
             $at += 1
         $lines
@@ -592,7 +594,7 @@ compile = (code ->
             this.globalsIndex[v] = encodeInt(at - 1)
         function = name, code, locals, argspecs, debuginfo ->
             code = code.add("end")
-            print "code:", name, debuginfo.line, repr(code)[:20]
+            //print "code:", name, debuginfo.line, repr(code)[:20]
             bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
             _, at = this.datas.add bin
             //print "function", at, name
@@ -677,6 +679,7 @@ name_from = envs, name ->
     return unknown
 
 load = bytes ->
+    now = time()
     bytes = { isBin(bytes)    }: Buffer.new(bytes)
             { isBuffer(bytes) }: bytes
             {                 }: compile(bytes, buffer=true)
@@ -687,6 +690,7 @@ load = bytes ->
                            _module_link(m, links)
         {               }: m
 
+    print "loaded", args["name"], "took", (time() - now).round, "seconds"
     Module(m)
 
 _parse = code -> parse(code)

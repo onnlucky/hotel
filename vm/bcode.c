@@ -736,7 +736,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod, const char** error) {
         return direct;
     }
     trace("tl01 - %d", size);
-    if (size > 1000) FAIL("too many values");
+    if (size > 10000) FAIL("too many values");
 
     tlHandle v = null;
     tlList* data = tlListNew(size);
