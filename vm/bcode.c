@@ -1540,30 +1540,17 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
     return mod;
 }
 
+tlBCall* bcallFromArgs(tlArgs* args);
 INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
-    tlList* as = tlListCast(tlArgsGet(args, 1));
-    if (!as) as = tlListEmpty();
-    tlTask* task = tlTaskCast(tlArgsGet(args, 2));
+    tlTask* task = tlTaskCast(tlArgsGet(args, 1));
 
-    int kw = 0;
-    for (int i = 0; i < tlListSize(as); i++) {
-        assert(tlListIs(tlListGet(as, i)));
-        if (tlListSize(tlListGet(as, i)) == 2) {
-            assert(tlStringIs(tlListGet(tlListGet(as, i), 1)));
-            kw++;
-        }
-    }
-
+    tlList* list = tlListCast(tlArgsGet(args, 2));
+    tlObject* map = tlObjectCast(tlArgsGet(args, 3));
+    tlBCall* call = bcallFromArgs(tlArgsNew(list, map));
     tlBClosure* fn = tlBClosureNew(mod->body, null);
-    tlBCall* call = tlBCallNew(tlListSize(as));
-    call->names = kw? tlListNew(tlListSize(as)) : null;
     call->fn = fn;
-    for (int i = 0; i < tlListSize(as); i++) {
-        call->args[i] = tlListGet(tlListGet(as, i), 0);
-        if (kw) tlListSet_(call->names, i, tlListGet(tlListGet(as, i), 1));
-    }
 
     if (!task) {
         return beval(tlTaskCurrent(), null, call, 0, null);

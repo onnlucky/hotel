@@ -643,12 +643,13 @@ SimpleDebugger = debugger ->
 Module = m -> {
         links = -> _module_links(m)
         link = ls -> Module(_module_link(m, ls))
-        run = as, task -> _module_run(m, as, task)
-        debug = as ->
+        run = as, am, task ->
+            _module_run(m, task, as, am)
+        debug = as, am ->
             debugger = Debugger.new
             task = Task.new
             debugger.attach(task)
-            _module_run(m, as, task)
+            _module_run(m, task, as, am)
             return SimpleDebugger(debugger)
     }
 
