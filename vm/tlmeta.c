@@ -474,7 +474,7 @@ static tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
 static tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle ttype = tlNull;
     if (strcmp("::", tlStringData(type)) == 0) ttype = tlSYM("classmethod");
-    else if (strcmp("?", tlStringData(type)) == 0) ttype = tlSYM("savemethod");
+    else if (strcmp("?", tlStringData(type)) == 0) ttype = tlSYM("safemethod");
     else if (strcmp("!", tlStringData(type)) == 0) ttype = tlSYM("asyncmethod");
     else ttype = tlSYM("method");
 

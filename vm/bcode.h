@@ -13,6 +13,7 @@ enum {
     // 0b1110_0000
     OP_MCALL  = 0xE0, OP_FCALL, OP_BCALL,                       // building calls
     OP_MCALLN = 0xF0, OP_FCALLN, OP_BCALLN,                     // building calls with named arguments
+    OP_MCALLS = 0xE8, OP_MCALLNS = 0xF8,                        // safe method calls foo?bar
 
     OP_LAST
 };

@@ -139,12 +139,16 @@ writeCode = mod, c ->
         { op == "store"  }: buf.write 0b1100_0000 + 17; buf.write encodeInt c.code[($pc += 1)]
         { op == "rstore" }: buf.write 0b1100_0000 + 18; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
         { op == "invoke" }: buf.write 0b1100_0000 + 19
+
         { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
+        { op == "mcalls" }: buf.write 0b1110_1000 + 0; buf.write encodeInt c.code[($pc += 1)]
         { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
         { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
         { op == "mcalln" }: buf.write 0b1111_0000 + 0; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
+        { op == "mcallns"}: buf.write 0b1111_1000 + 0; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
         { op == "fcalln" }: buf.write 0b1111_0000 + 1; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
         { op == "bcalln" }: buf.write 0b1111_0000 + 2; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
+
         {                }: throw "unknown op: $op $(repr(op))"
 
     if buf.size < 32: return Bin(0b1010_0000 | buf.size, buf.read)
@@ -394,12 +398,12 @@ compile = (code ->
                 s = lex(scope, {type="list",data=target.scope})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
             {type="call",{target,args,names,block}}
-        { term.type == "method" }:
+        { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
             names = try(term.args, []).map: stm -> try(stm.n)
             args = try(term.args, []).map: stm -> lex(scope, stm.v)
             block = try(lex(scope, term.block))
-            {type="method",method=term.method,{target,args,names,block}}
+            {type=term.type,method=term.method,{target,args,names,block}}
         { term.type == "async" }:
             body = { try(term.body) }: term.body
                    {                }: [term.rhs]
@@ -487,16 +491,17 @@ compile = (code ->
             if try(term.names.filter.size > 0):
                 return ["fcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
             ["fcall", args.size] + target + args + ["invoke"]
-        { term.type == "method" }:
+        { term.type == "method" or term.type == "safemethod" }:
             target = emit(term.target)
             args = try(term.args,[]).map(arg -> emit(arg))
+            s = bool(term.type == "safemethod", "s", "")
             if try(term.block):
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["mcalln", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
             if try(term.names.filter.size > 0):
-                return ["mcalln", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
-            ["mcall", args.size] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
+            ["mcall$s", args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "async" }:
             body = emit(term.body)
             ["fcall", 1, "global", "_Task_new", body, "invoke"]

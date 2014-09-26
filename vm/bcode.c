@@ -31,6 +31,8 @@ const char* op_name(uint8_t op) {
         case OP_MCALLN: return "MCALLN";
         case OP_FCALLN: return "FCALLN";
         case OP_BCALLN: return "BCALLN";
+        case OP_MCALLS: return "MCALLS";
+        case OP_MCALLNS: return "MCALLNS";
     }
     return "<error>";
 }
@@ -790,11 +792,11 @@ static void disasm(tlBCode* bcode) {
                 print(" % 3d 0x%X %s", opc, op, op_name(op));
                 break;
             case OP_INT: case OP_LOCAL: case OP_ARG:
-            case OP_MCALL: case OP_FCALL: case OP_BCALL:
+            case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
                 break;
-            case OP_MCALLN: case OP_FCALLN: case OP_BCALLN:
+            case OP_MCALLN: case OP_FCALLN: case OP_BCALLN: case OP_MCALLNS:
                 r = pcreadsize(ops, &pc);
                 o = pcreadref(ops, &pc, data);
                 print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_str(o));
@@ -950,12 +952,14 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_MCALL:
             case OP_FCALL:
             case OP_BCALL:
+            case OP_MCALLS:
                 dreadsize(&code);
                 depth++;
                 break;
             case OP_MCALLN:
             case OP_FCALLN:
             case OP_BCALLN:
+            case OP_MCALLNS:
                 dreadsize(&code);
                 v = dreadref(&code, data);
                 depth++;
@@ -1250,6 +1254,8 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     frame->frame.caller = tlTaskCurrentFrame(task); // not entirely correct ...
     tlTaskSetCurrentFrame(task, (tlFrame*)frame);
 
+    bool safe = false; // for object?method, shouldn't be here ...
+
 again:;
     if (debugger && frame->pc != pc) {
         task->value = v;
@@ -1303,7 +1309,9 @@ again:;
             trace("set names: %s", tl_str(call->names));
         }
         // for non methods, skip target
-        if (op & 0x0F) tlBCallAdd_(call, null, arg++);
+        if (op & 0x03) tlBCallAdd_(call, null, arg++);
+        safe = op & 0x08;
+        trace("%s %s", op_name(op), safe?"safe":"unsafe");
         goto again;
     }
 
@@ -1467,7 +1475,12 @@ resume:;
         tlSym msg = tlSymFromString(call->fn);
         tlHandle method = bmethodResolve(call->target, msg);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
-        if (!method) TL_THROW("undefined");
+        if (!method && !safe) TL_THROW("undefined");
+        if (!method) {
+            fatal("cannot do safe methods yet");
+            // go down in call, until call->args != 0
+            // skip forward in bytecode until so many invokes are skipped
+        }
         call->msg = msg;
         call->fn = method;
     }
