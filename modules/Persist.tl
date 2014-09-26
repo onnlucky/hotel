@@ -69,7 +69,7 @@ new = name ->
         List= {
             new= (from ->
                 list = list_new()
-                if from: from.each: e -> object.add(e)
+                if from: from.each: e -> list.add(e)
                 return list
             )
             get= (name ->

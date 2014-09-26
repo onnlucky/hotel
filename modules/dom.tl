@@ -28,42 +28,42 @@ iter = node, fn ->
 
 DomEntry = {
     remove = ->
-        assert @parent
-        if @parent.firstChild == this: @parent.firstChild = @next
-        if @parent.lastChild == this: @parent.lastChild = @prev
-        @parent = null
-        if @prev: @prev.next = @next
-        if @next: @next.prev = @prev
-        @prev = null
-        @next = null
+        assert this.parent
+        if this.parent.firstChild == this: this.parent.firstChild = this.next
+        if this.parent.lastChild == this: this.parent.lastChild = this.prev
+        this.parent = null
+        if this.prev: this.prev.next = this.next
+        if this.next: this.next.prev = this.prev
+        this.prev = null
+        this.next = null
         return this
 
     addBefore = node ->
         assert not node.parent
-        assert @parent
-        node.parent = @parent
-        old = @prev
-        @prev = node
+        assert this.parent
+        node.parent = this.parent
+        old = this.prev
+        this.prev = node
         node.prev = old; node.next = this
         if old: old.next = node; return this
-        @parent.firstChild = node
+        this.parent.firstChild = node
         return this
 
     addAfter = node ->
         assert not node.parent
-        assert @parent
-        node.parent = @parent
-        old = @next
-        @next = node
+        assert this.parent
+        node.parent = this.parent
+        old = this.next
+        this.next = node
         node.prev = this; node.next = old
         if old: old.prev = node; return this
-        @parent.lastChild = node
+        this.parent.lastChild = node
         return this
 }
 
 DomText = {
     class = DomEntry
-    toString = -> return @text or ""
+    toString = -> return this.text or ""
     firstChild = null
     lastChild = null
     attrs = null
@@ -86,12 +86,12 @@ DomNode = {
     class = DomEntry
 
     _add = node ->
-        if not @lastChild:
+        if not this.lastChild:
             node.parent = this
-            @firstChild = node
-            @lastChild = node
+            this.firstChild = node
+            this.lastChild = node
             return
-        @lastChild.addAfter(node)
+        this.lastChild.addAfter(node)
 
     add = node ->
         if not node: return this
@@ -102,36 +102,36 @@ DomNode = {
         return this
 
     clear = ->
-        @firstChild = null
-        @lastChild = null
+        this.firstChild = null
+        this.lastChild = null
         return this
 
     attr = key, value ->
-        if args.size == 1: return @attrs[key]
-        @attrs[key] = value
+        if args.size == 1: return this.attrs[key]
+        this.attrs[key] = value
         return this
 
     toString = mode ->
         // TODO hotel should provide a StringBuilder or such ... but this works
         sb = Array.new
         if mode != "children":
-            sb.add("<$(@name)")
-            @attrs.each: k, v -> sb.add(" $k=\"$v\"")
-            if ((not @firstChild) and isSelfClosing(@name)):
+            sb.add("<$(this.name)")
+            this.attrs.each: k, v -> sb.add(" $k=\"$v\"")
+            if ((not this.firstChild) and isSelfClosing(this.name)):
                 sb.add("/>")
-                if isBlock(@name): sb.add("\n")
+                if isBlock(this.name): sb.add("\n")
                 return sb.join
             sb.add(">")
-            if isContainer(@name): sb.add("\n")
+            if isContainer(this.name): sb.add("\n")
 
-        var $n = @firstChild
+        var $n = this.firstChild
         while $n:
             sb.add($n)
             $n = $n.next
 
         if mode != "children":
-            sb.add("</$(@name)>")
-            if isBlock(@name): sb.add("\n")
+            sb.add("</$(this.name)>")
+            if isBlock(this.name): sb.add("\n")
 
         sb.join
 
@@ -144,7 +144,7 @@ DomNode = {
     each = fn ->
         fn = args.block or fn
         if not fn: throw "expect a block or function"
-        var $n = @firstChild
+        var $n = this.firstChild
         var $m = $n?next
         while $n: fn($n); $n = $m; $m = $n?next
         return this
