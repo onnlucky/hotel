@@ -760,7 +760,7 @@ INTERNAL tlHandle resumeCatch(tlFrame* _frame, tlHandle res, tlHandle throw) {
 INTERNAL tlHandle _bcatch(tlArgs* args);
 bool tlBFrameIs(tlHandle);
 INTERNAL tlHandle _catch(tlArgs* args) {
-    if (tlBFrameIs(tlTaskCurrentFrame(tlTaskCurrent()))) return _bcatch(args);
+    //if (tlBFrameIs(tlTaskCurrentFrame(tlTaskCurrent()))) return _bcatch(args);
     return tlTaskPauseResuming(resumeCatch, args);
 }
 

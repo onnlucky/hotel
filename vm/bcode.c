@@ -1347,6 +1347,7 @@ again:;
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
                 if (calltop >= 0) (*calls)[calltop].at = arg; // mark as current
                 if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
+                trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
                 return tlTaskPauseAttach(frame);
             }
             pc = frame->pc;
@@ -1520,7 +1521,7 @@ INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
 INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
-        trace("invoke closure as exception handler: %s(%s)", tl_str(handler), tl_str(throw));
+        trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
         tlBCall* call = tlBCallNew(1);
         call->fn = tlBClosureAs(handler);
         tlBCallAdd_(call, throw, 2);
@@ -1528,18 +1529,18 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
     }
     if (tlCallableIs(handler)) {
         // operate with old style hotel
-        trace("invoke callable as exception handler: %s(%s)", tl_str(handler), tl_str(throw));
+        trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
         tlCall* call = tlCallNew(1, null);
         tlCallSetFn_(call, handler);
         tlCallSet_(call, 0, throw);
         return tlEval(call);
     }
-    trace("returing handler value as handled: %s", tl_str(handler));
+    trace("returing handler value as handled: %s %s", tl_str(frame), tl_str(handler));
     return handler;
 }
 
 INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    trace("running resuming from a frame: %s", tl_str(res));
+    trace("running resuming from a frame: %s %s", tl_str(_frame), tl_str(res));
     tlBFrame* frame = tlBFrameAs(_frame);
     if (throw) {
         if (frame->handler) return handleBFrameThrow(frame, throw);
@@ -1727,6 +1728,7 @@ INTERNAL tlHandle __goto(tlArgs* args) {
 }
 
 INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
+    trace("installing exception handler: %s %s", tl_str(_frame), tl_str(handler));
     tlBFrameAs(_frame)->handler = handler;
 }
 INTERNAL tlHandle _bcatch(tlArgs* args) {
@@ -1734,6 +1736,7 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     tlHandle handler = tlArgsBlock(args);
     if (!handler) handler = tlArgsGet(args, 0);
     if (!handler) handler = tlNull;
+    trace("installing exception handler: %s %s", tl_str(frame), tl_str(handler));
     frame->handler = handler;
     return tlNull;
 }
