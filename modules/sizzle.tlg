@@ -1,14 +1,14 @@
 parseSel = parser {
     name: ts=(!" " !"#" !"." !"[" !"]" !"=" _)+ -> ts.toChar
 
-     any: "*"                       -> { match= "any" }
+    anys: "*"                       -> { match= "any" }
     attr: "[".n=name."]"            -> { match= "hasattr", name= n }
         | "[".n=name."=".v=name."]" -> { match= "attr", name= n, val= v }
       id: "#" n=name                -> { match= "id", name= n }
    class: "." n=name                -> { match= "class", name= n }
     node: n=name                    -> { match= "node", name= n }
 
-    match: any | attr | id | class | node
+    match: anys | attr | id | class | node
     start: rs=(. match+)* . !_      -> rs
 }
 
