@@ -421,6 +421,9 @@ tlHandle tlUndefMsg(tlString* msg);
 #define TL_THROW(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     return tlErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
+#define TL_THROW_NORETURN(f, x...) do {\
+    char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
+    tlErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
 #define TL_ILLARG(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     return tlArgumentErrorThrow(tlStringFromCopy(_s, 0)); } while (0)

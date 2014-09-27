@@ -1368,11 +1368,11 @@ again:;
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
             if (v == tlUnknown) {
+                TL_THROW_NORETURN("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
                 // TODO remove this duplication
                 ensure_frame(&calls, &locals, &frame, &lazylocals, args);
                 if (calltop >= 0) (*calls)[calltop].at = arg; // mark as current
                 if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
-                TL_THROW_SET("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
                 trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
                 return tlTaskPauseAttach(frame);
             }
@@ -1488,11 +1488,11 @@ resume:;
         tlHandle method = bmethodResolve(call->target, msg);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
         if (!method && !safe) {
+            TL_THROW_NORETURN("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
             // TODO remove this duplication
             ensure_frame(&calls, &locals, &frame, &lazylocals, args);
             if (calltop >= 0) (*calls)[calltop].at = arg; // mark as current
             if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
-            TL_THROW_SET("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
             trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
             return tlTaskPauseAttach(frame);
         }
