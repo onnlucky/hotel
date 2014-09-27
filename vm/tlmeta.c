@@ -507,9 +507,16 @@ static tlHandle process_slice(tlHandle from, tlHandle to, tlHandle tail, tlHandl
 }
 
 static tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
-    if (rhs == tlNull) return lhs;
-    return tlObjectFrom("op", tlObjectGet(rhs, tlSYM("op")), "lhs", lhs, "rhs", tlObjectGet(rhs, tlSYM("r")),
-            "type", tlSYM("op"), "pos", tlObjectGet(rhs, tlSYM("pos")), null);
+    tlList* list = tlListAs(rhs);
+    for (int i = 0; i < tlListSize(list); i++) {
+        tlObject* rhs = tlObjectAs(tlListGet(list, i));
+        lhs = tlObjectFrom("type", tlSYM("op"), "lhs", lhs,
+            "rhs", tlObjectGet(rhs, tlSYM("r")),
+            "op", tlObjectGet(rhs, tlSYM("op")),
+            "pos", tlObjectGet(rhs, tlSYM("pos")),
+            null);
+    }
+    return lhs;
 }
 
 static tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {

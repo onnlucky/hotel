@@ -1008,7 +1008,7 @@ static State r_shift_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_shift_2_1", _pos); }
  _pos = _r.pos;
- _r = r_shift(_p, _pos);
+ _r = r_add(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_shift_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -1023,7 +1023,7 @@ static State r_shift(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_shift", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_shift_2_1);
+ _r = meta_star(_p, _pos, r_shift_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_shift", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;
@@ -1408,7 +1408,7 @@ static State r_compare_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_compare_2_1", _pos); }
  _pos = _r.pos;
- _r = r_compare(_p, _pos);
+ _r = r_bitwise(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_compare_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -1423,7 +1423,7 @@ static State r_compare(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_compare", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_compare_2_1);
+ _r = meta_star(_p, _pos, r_compare_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_compare", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;
@@ -2693,7 +2693,7 @@ static State r_bitwise_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_bitwise_2_1", _pos); }
  _pos = _r.pos;
- _r = r_bitwise(_p, _pos);
+ _r = r_shift(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_bitwise_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -2708,7 +2708,7 @@ static State r_bitwise(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_bitwise", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_bitwise_2_1);
+ _r = meta_star(_p, _pos, r_bitwise_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_bitwise", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;
@@ -3035,7 +3035,7 @@ static State r_pow_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_pow_2_1", _pos); }
  _pos = _r.pos;
- _r = r_pow(_p, _pos);
+ _r = r_paren(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_pow_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -3050,7 +3050,7 @@ static State r_pow(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_pow", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_pow_2_1);
+ _r = meta_star(_p, _pos, r_pow_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_pow", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;
@@ -3680,7 +3680,7 @@ static State r_mul_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_mul_2_1", _pos); }
  _pos = _r.pos;
- _r = r_mul(_p, _pos);
+ _r = r_pow(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_mul_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -3695,7 +3695,7 @@ static State r_mul(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_mul", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_mul_2_1);
+ _r = meta_star(_p, _pos, r_mul_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_mul", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;
@@ -3735,7 +3735,7 @@ static State r_logical_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_logical_2_1", _pos); }
  _pos = _r.pos;
- _r = r_logical(_p, _pos);
+ _r = r_not(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_logical_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -3750,7 +3750,7 @@ static State r_logical(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_logical", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_logical_2_1);
+ _r = meta_star(_p, _pos, r_logical_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_logical", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;
@@ -5774,7 +5774,7 @@ static State r_add_2_1(Parser* _p, int _start) { // and
  _r = r_wsnl(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_add_2_1", _pos); }
  _pos = _r.pos;
- _r = r_add(_p, _pos);
+ _r = r_mul(_p, _pos);
  if (!_r.ok) { return parser_fail(_p, "r_add_2_1", _pos); }
  _pos = _r.pos;
  tlHandle r = _r.value;
@@ -5789,7 +5789,7 @@ static State r_add(Parser* _p, int _start) { // and
  if (!_r.ok) { return parser_fail(_p, "r_add", _pos); }
  _pos = _r.pos;
  tlHandle l = _r.value;
- _r = meta_opt(_p, _pos, r_add_2_1);
+ _r = meta_star(_p, _pos, r_add_2_1, null);
  if (!_r.ok) { return parser_fail(_p, "r_add", _pos); }
  _pos = _r.pos;
  tlHandle rs = _r.value;

@@ -162,15 +162,14 @@ mcallarg: v=mcall
     expr: "!". pos=pos rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
-// TODO oeps, must be r=add)* now left to right order is wrong way around ...
- logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=logical)?                -> process_expr(l, rs)
+ logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=not)*                    -> process_expr(l, rs)
      not: pos=pos type="not".. rhs=not | compare
- compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=compare)? -> process_expr(l, rs)
- bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=bitwise)?                       -> process_expr(l, rs)
-   shift: l=add rs=(..pos=pos op=("<<"|">>").. r=shift)?                         -> process_expr(l, rs)
-     add: l=mul rs=(..pos=pos op=("+"|"-").. r=add)?                             -> process_expr(l, rs)
-     mul: l=pow rs=(..pos=pos op=("*"|"/."|"/"|"%").. r=mul)?                    -> process_expr(l, rs)
-     pow: l=paren rs=(..pos=pos op=("^").. r=pow)?                               -> process_expr(l, rs)
+ compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=bitwise)* -> process_expr(l, rs)
+ bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=shift)*                         -> process_expr(l, rs)
+   shift: l=add rs=(..pos=pos op=("<<"|">>").. r=add)*                           -> process_expr(l, rs)
+     add: l=mul rs=(..pos=pos op=("+"|"-").. r=mul)*                             -> process_expr(l, rs)
+     mul: l=pow rs=(..pos=pos op=("*"|"/."|"/"|"%").. r=pow)*                    -> process_expr(l, rs)
+     pow: l=paren rs=(..pos=pos op=("^").. r=paren)*                             -> process_expr(l, rs)
    paren: &"(" function
         //| "("..@"a closing ')'" pos=pos body=body ..")" type=<scope>
         | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail  -> process_assert(args, t, p, b, e, _p)
