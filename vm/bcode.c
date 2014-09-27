@@ -1367,7 +1367,15 @@ again:;
             at = pcreadsize(ops, &pc);
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
-            if (v == tlUnknown) TL_THROW("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
+            if (v == tlUnknown) {
+                // TODO remove this duplication
+                ensure_frame(&calls, &locals, &frame, &lazylocals, args);
+                if (calltop >= 0) (*calls)[calltop].at = arg; // mark as current
+                if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
+                TL_THROW_SET("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
+                trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
+                return tlTaskPauseAttach(frame);
+            }
             break;
         case OP_ENVARG: {
             depth = pcreadsize(ops, &pc);
@@ -1479,7 +1487,15 @@ resume:;
         tlSym msg = tlSymFromString(call->fn);
         tlHandle method = bmethodResolve(call->target, msg);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
-        if (!method && !safe) TL_THROW("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
+        if (!method && !safe) {
+            // TODO remove this duplication
+            ensure_frame(&calls, &locals, &frame, &lazylocals, args);
+            if (calltop >= 0) (*calls)[calltop].at = arg; // mark as current
+            if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
+            TL_THROW_SET("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
+            trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
+            return tlTaskPauseAttach(frame);
+        }
         if (!method) {
             fatal("cannot do safe methods yet");
             // go down in call, until call->args != 0
