@@ -1,3 +1,4 @@
+_env = Env.current
 res = HashMap.new
 test = n ->
     output = Array.new
