@@ -39,6 +39,7 @@ pass = Var.new 0
 total = Var.new 0
 runtest = file ->
     starttest(file[:-4])
+    catch: e -> print "ERROR RUNNING SPEC: $file", e.toString
     io.File("spec/$file").readString.eval(env)
     p, t = endtest()
     $pass += p

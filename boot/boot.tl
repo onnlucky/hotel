@@ -515,13 +515,13 @@ fileFromModulePath = name, path ->
 // used for resolve, and somewhat public, *cough*
 _modules = HashMap.new
 
+basename = file ->
+    at = file.find("/", backward=true)
+    if not at: return "."
+    return file[:at]
+
 // this captured env is the root of all defined things
 _env = Env.current
-
-_eval = /*Env*/ env -> _parse(this)(env or _env)
-/// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
-_install(String._methods, "eval", _eval)
-
 
 // resolve
 resolve1 = name, path ->
@@ -551,6 +551,7 @@ resolve2 = name, path ->
     file = fileFromModulePath("$name.tl", path)
     if file:
         catch: e => return null, "Unable to compile module '$name': $(e.toString)"
+        path = basename(file)
         mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
         catch: e => return null, "Unable to run module '$name': $(e.msg)"
         res = mod.run()
@@ -574,16 +575,21 @@ resolve = name, path ->
     if res: return res
     if fail: throw Error(fail)
 
+
+_eval = /*Env*/ env ->
+    _parse(this)(env or _env)
+_beval = /*Env*/ env ->
+    { env }: compiler.load(this, env).run()
+    {     }: compiler.load(this, _env, (name -> resolve(name, null))).run()
+
+/// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
+_install(String._methods, "eval", bool(BYTECODE, _beval, _eval))
+
 // unresolved names will call this, for auto module loading
 _resolve: name, path -> resolve(name, path)
 
 // default module path
 (_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
-
-basename = file ->
-    at = file.find("/", backward=true)
-    if not at: return "."
-    return file[:at]
 
 // run a repl, or every argument as a file
 runmain = as ->
