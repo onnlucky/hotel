@@ -111,7 +111,7 @@ struct tlBClosure {
     tlBEnv* env;
 };
 
-typedef struct CallEntry { int at; tlBCall* call; } CallEntry;
+typedef struct CallEntry { bool safe; int at; tlBCall* call; } CallEntry;
 struct tlBFrame {
     tlFrame frame;
     tlBCall* args;
@@ -1119,6 +1119,28 @@ static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlBCall
     return null;
 }
 
+static void skip_safe_invokes(const uint8_t* ops, const int len, int* ppc, int skip) {
+    int pc = *ppc;
+    int depth = skip;
+    while (pc < len) {
+        uint8_t op = ops[pc++];
+        trace("SEARCHING: %d - %d - %s(%X)", depth, pc - 1, op_name(op), op);
+        if (op == OP_INVOKE) {
+            depth--;
+            if (!depth) {
+                *ppc = pc;
+                trace("SKIPPED TO: %d", pc);
+                return;
+            }
+        } else if ((op & 0xE0) == 0xE0) { // OP_CALL mask
+            trace("ADDING DEPTH: %X", op);
+            depth++;
+        }
+    }
+    fatal("bytecode invalid");
+    return;
+}
+
 // TODO this is not really needed, compiler or verifier can tell if a real locals needs to be realized
 static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlBCall* args, tlBClosure* fn) {
     if (*locals) {
@@ -1224,13 +1246,15 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
             goto again;
         }
 
+        // this is 3 or 4 and so there *must* be a call
         // find current call, we mark non current call by setting sign bit
         assert(bcode->calldepth > 0); // cannot be zero, or we would never suspend
-        for (calltop = 0; (*calls)[calltop].at < 0; calltop++);
+        for (calltop = bcode->calldepth - 1; (*calls)[calltop].call == null; calltop--)
+        assert(calltop >= 0);
         call = (*calls)[calltop].call;
         arg = (*calls)[calltop].at;
-        assert(calltop >= 0 && calltop < bcode->calldepth);
-        assert(call || calltop == 0);
+        assert(call);
+        assert(arg >= 0);
 
         trace("resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
@@ -1242,12 +1266,18 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
         locals = &lazylocals->data;
         trace("lazy eval; %s locals: %d call: %d/%d",
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
+        for (int i = 0; i < bcode->calldepth; i++) {
+            (*calls)[i].safe = 0;
+            (*calls)[i].at = 0;
+            (*calls)[i].call = null;
+        }
     } else { // 1
         calls = &_calls;
         locals = &_locals;
         trace("new eval; %s locals: %d call: %d/%d",
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
         for (int i = 0; i < bcode->calldepth; i++) {
+            (*calls)[i].safe = 0;
             (*calls)[i].at = 0;
             (*calls)[i].call = null;
         }
@@ -1258,8 +1288,6 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     ensure_frame(&calls, &locals, &frame, &lazylocals, args);
     frame->frame.caller = tlTaskCurrentFrame(task); // not entirely correct ...
     tlTaskSetCurrentFrame(task, (tlFrame*)frame);
-
-    bool safe = false; // for object?method, shouldn't be here ...
 
 again:;
     if (debugger && frame->pc != pc) {
@@ -1298,14 +1326,17 @@ again:;
         // create a new call
         if (calltop >= 0) {
             assert((*calls)[calltop].call == call);
-            (*calls)[calltop].at = -(arg + 1); // store current arg, marked as not current
+            (*calls)[calltop].at = arg;
             trace("push call: %d: %d %s", calltop, arg, tl_str(call));
         }
         arg = 0;
         call = tlBCallNew(size);
         calltop++;
         assert(calltop >= 0 && calltop < bcode->calldepth);
-        (*calls)[calltop] = (CallEntry){ .at = 0, .call = call };
+        assert((*calls)[calltop].call == null);
+        (*calls)[calltop].at = 0;
+        (*calls)[calltop].call = call;
+        (*calls)[calltop].safe = false;
 
         // load names if it is a named call
         if (op & 0x10) {
@@ -1315,8 +1346,10 @@ again:;
         }
         // for non methods, skip target
         if (op & 0x03) tlBCallAdd_(call, null, arg++);
-        safe = op & 0x08;
-        trace("%s %s", op_name(op), safe?"safe":"unsafe");
+        if (op & 0x08) {
+            trace("safe method call");
+            (*calls)[calltop].safe = true;
+        }
         goto again;
     }
 
@@ -1336,13 +1369,14 @@ again:;
             if (calltop >= 0) {
                 call = (*calls)[calltop].call;
                 arg = (*calls)[calltop].at;
-                arg = (*calls)[calltop].at = -arg - 1; // mark as current again
+                assert(call);
+                assert(arg >= 0);
                 trace("pop call: %d: %d %s", calltop, arg, tl_str(call));
             } else {
                 call = null;
                 arg = 0;
             }
-            trace("invoke: %s", tl_str(invoke));
+            trace("invoke: %s %s", tl_str(invoke), tl_str(invoke->fn));
             frame->pc = pc;
             v = tlInvoke(task, invoke);
             if (!v) { // task paused instead of actually doing work, suspend and return
@@ -1494,6 +1528,7 @@ resume:;
         tlSym msg = tlSymFromString(call->fn);
         tlHandle method = bmethodResolve(call->target, msg);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
+        bool safe = (*calls)[calltop].safe;
         if (!method && !safe) {
             TL_THROW_NORETURN("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
             // TODO remove this duplication
@@ -1504,9 +1539,36 @@ resume:;
             return tlTaskPauseAttach(frame);
         }
         if (!method) {
-            fatal("cannot do safe methods yet");
-            // go down in call, until call->args != 0
+            assert(safe); // object?method but method does not exist
+            int skip = 1;
+            (*calls)[calltop].call = null;
+            calltop -= 1;
+            while (calltop >= 0) {
+                if ((*calls)[calltop].at > 0) break;
+                // skip any calls we are the target off
+                (*calls)[calltop].call = null;
+                skip += 1;
+                calltop -= 1;
+            }
             // skip forward in bytecode until so many invokes are skipped
+            trace("skipping: %d, top: %d, pc: %d", skip, calltop, pc);
+            //disasm(bcode);
+            skip_safe_invokes(ops, bcode->size, &pc, skip);
+            trace("skipped: %d, top: %d, pc: %d", skip, calltop, pc);
+
+            v = tlNull;
+            if (calltop >= 0) {
+                arg = (*calls)[calltop].at;
+                call = (*calls)[calltop].call;
+                trace("popped callstack: %s %d %s", tl_str(call), arg, tl_str(call->fn));
+                assert(call->fn);
+                assert(arg > 0);
+                tlBCallAdd_(call, tlNull, arg++);
+            } else {
+                arg = 0;
+                call = null;
+            }
+            goto again;
         }
         call->msg = msg;
         call->fn = method;
