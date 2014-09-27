@@ -2,6 +2,8 @@
 #define HAVE_DEBUG 1
 #include "trace-off.h"
 
+static tlNative* g_goto_native;
+
 const char* op_name(uint8_t op) {
     switch (op) {
         case OP_END: return "END";
@@ -1480,6 +1482,11 @@ resume:;
 
     // set the data to the call
     trace("load: %s[%d] = %s", tl_str(call), arg, tl_str(v));
+    if (arg == 3 && call->fn == g_goto_native) {
+        // goto is still fake, but at least this gives us same behavior, namely return all values, not first
+        tlBCallAdd_(call, v, arg++);
+        goto again;
+    }
     tlBCallAdd_(call, tlFirst(v), arg++);
 
     // resolve method at object ...
@@ -1857,13 +1864,15 @@ static const tlNativeCbs __bcode_natives[] = {
     { "__map", __map },
     { "__object", __object },
     { "return", __return },
-    { "goto", __goto },
     { 0, 0 }
 };
 
 void bcode_init() {
     assert(OP_INVOKE < OP_MCALL);
     tl_register_natives(__bcode_natives);
+    g_goto_native = tlNativeNew(__goto, tlSYM("goto"));
+    tl_register_global("goto", g_goto_native);
+
     // TODO move this to Module.unknown
     tl_register_global("unknown", tlUnknown);
     _tlBLazyKind.klass = tlClassObjectFrom("call", _blazy_call, null);
