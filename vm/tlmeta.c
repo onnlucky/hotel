@@ -38,7 +38,11 @@ typedef struct Parser {
     const char* error_msg;
 } Parser;
 
+static void init();
 static Parser* parser_new(const char* input, int len) {
+#ifndef NO_VALUE
+    init();
+#endif
     Parser* parser = calloc(1, sizeof(Parser));
     if (!len) len = (int)strlen(input);
     parser->len = len;
@@ -325,6 +329,65 @@ static State meta_ahead(Parser* p, int start, Rule r) {
 
 #ifndef NO_VALUE
 
+static tlSym g_s_ref;
+static tlSym g_s_target;
+static tlSym g_s_call;
+static tlSym g_s_block;
+static tlSym g_s_op;
+static tlSym g_s_pos;
+
+static tlSym g_s_string;
+static tlSym g_s_assert;
+static tlSym g_s_if;
+static tlSym g_s_else;
+static tlSym g_s_not;
+
+static tlSym g_s_k;
+static tlSym g_s_v;
+static tlSym g_s_n;
+static tlSym g_s_r;
+
+static tlSym g_s_get;
+static tlSym g_s_slice;
+static tlSym g_s_set;
+static tlSym g_s__set;
+
+static tlSym g_s_method;
+static tlSym g_s_classmethod;
+static tlSym g_s_asyncmethod;
+static tlSym g_s_safemethod;
+
+static void init() {
+    if (g_s_string) return;
+    g_s_ref = tlSYM("ref");
+    g_s_target = tlSYM("target");
+    g_s_call = tlSYM("call");
+    g_s_block = tlSYM("block");
+    g_s_op = tlSYM("op");
+    g_s_pos = tlSYM("pos");
+
+    g_s_string = tlSYM("string");
+    g_s_assert = tlSYM("assert");
+    g_s_if = tlSYM("if");
+    g_s_else = tlSYM("else");
+    g_s_not = tlSYM("not");
+
+    g_s_k = tlSYM("k");
+    g_s_v = tlSYM("v");
+    g_s_n = tlSYM("n");
+    g_s_r = tlSYM("r");
+
+    g_s_get = tlSYM("get");
+    g_s_slice = tlSYM("slice");
+    g_s_set = tlSYM("set");
+    g_s__set = tlSYM("_set");
+
+    g_s_method = tlSYM("method");
+    g_s_classmethod = tlSYM("classmethod");
+    g_s_asyncmethod = tlSYM("asyncmethod");
+    g_s_safemethod = tlSYM("safemethod");
+}
+
 // ** tools **
 
 /// add an element to the front of a tlList
@@ -364,9 +427,9 @@ static tlObject* Object(tlHandle kvlist) {
     tlHashMap* map = tlHashMapNew();
     for (int i = 0; i < size; i++) {
         tlObject* kv = tlObjectAs(tlListGet(from, i));
-        tlHandle k = tlObjectGet(kv, tlSYM("k"));
+        tlHandle k = tlObjectGet(kv, g_s_k);
         if (!k) continue;
-        tlHandle v = tlObjectGet(kv, tlSYM("v"));
+        tlHandle v = tlObjectGet(kv, g_s_v);
         if (!v) v = tlNull;
         tlHashMapSet(map, k, v);
     }
@@ -429,54 +492,54 @@ static tlHandle Number(tlHandle s, tlHandle whole, int radix) {
 
 static tlHandle process_tail(tlHandle value, tlHandle tail) {
     if (tail == tlNull) return value;
-    tlHandle target = tlObjectGet(tail, tlSYM("target"));
-    return tlObjectSet(tail, tlSYM("target"), process_tail(value, target));
+    tlHandle target = tlObjectGet(tail, g_s_target);
+    return tlObjectSet(tail, g_s_target, process_tail(value, target));
 }
 
 static tlHandle process_assert(tlHandle args, tlHandle tail, tlHandle pos, tlHandle begin, tlHandle end, Parser* parser) {
     int b = tl_int(begin);
     int e = tl_int(end);
     tlString* data = tlStringFromCopy(parser->input + b, e - b);
-    tlHandle text = tlObjectFrom("n", tlSTR("string"), "v", tlObjectFrom("type", tlSTR("string"), "data", data, null), null);
+    tlHandle text = tlObjectFrom("n", g_s_string, "v", tlObjectFrom("type", g_s_string, "data", data, null), null);
     args = tlListAppend(tlListAs(args), text);
-    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("assert"), "pos", pos, null);
-    tlHandle value = tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "pos", begin, "endpos", end, null);
+    tlHandle target = tlObjectFrom("type", g_s_ref, "name", g_s_assert, "pos", pos, null);
+    tlHandle value = tlObjectFrom("target", target, "args", args, "type", g_s_call, "pos", begin, "endpos", end, null);
     return process_tail(value, tail);
 }
 
 static tlHandle process_if(tlHandle cond, tlHandle block, tlHandle els, tlHandle pos) {
-    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("if"), "pos", pos, null);
+    tlHandle target = tlObjectFrom("type", g_s_ref, "name", g_s_if, "pos", pos, null);
     tlList* args = tlListFrom1(tlObjectFrom("v", cond, null));
     if (els && els != tlNull) {
-        args = tlListAppend(args, tlObjectFrom("n", tlSTR("else"), "v", els, null));
+        args = tlListAppend(args, tlObjectFrom("n", g_s_else, "v", els, null));
     }
-    return tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "block", block, null);
+    return tlObjectFrom("target", target, "args", args, "type", g_s_call, "block", block, null);
 }
 static tlHandle process_postif(tlHandle cond, tlHandle expr, tlHandle pos) {
-    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("if"), "pos", pos, null);
+    tlHandle target = tlObjectFrom("type", g_s_ref, "name", g_s_if, "pos", pos, null);
     tlList* args = tlListFrom2(tlObjectFrom("v", cond, null), tlObjectFrom("v", expr, null));
-    return tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "pos", pos, null);
+    return tlObjectFrom("target", target, "args", args, "type", g_s_call, "pos", pos, null);
 }
 static tlHandle process_unless(tlHandle cond, tlHandle expr, tlHandle pos) {
-    tlHandle target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("if"), "pos", pos, null);
-    tlHandle not_target = tlObjectFrom("type", tlSTR("ref"), "name", tlSTR("not"), "pos", pos, null);
-    cond = tlObjectFrom("target", not_target, "args", tlListFrom1(tlObjectFrom("v", cond, null)), "type", tlSTR("call"), null);
+    tlHandle target = tlObjectFrom("type", g_s_ref, "name", g_s_if, "pos", pos, null);
+    tlHandle not_target = tlObjectFrom("type", g_s_ref, "name", g_s_not, "pos", pos, null);
+    cond = tlObjectFrom("target", not_target, "args", tlListFrom1(tlObjectFrom("v", cond, null)), "type", g_s_call, null);
     tlList* args = tlListFrom2(tlObjectFrom("v", cond, null), tlObjectFrom("v", expr, null));
-    return tlObjectFrom("target", target, "args", args, "type", tlSTR("call"), "pos", pos, null);
+    return tlObjectFrom("target", target, "args", args, "type", g_s_call, "pos", pos, null);
 }
 
 static tlHandle process_call(tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle value = tlObjectFrom("target", tlNull, "args", args,
-            "type", tlSTR("call"), "pos", pos, null);
+            "type", g_s_call, "pos", pos, null);
     return process_tail(value, tail);
 }
 
 static tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tlHandle tail, tlHandle pos) {
     tlHandle ttype = tlNull;
-    if (strcmp("::", tlStringData(type)) == 0) ttype = tlSYM("classmethod");
-    else if (strcmp("?", tlStringData(type)) == 0) ttype = tlSYM("safemethod");
-    else if (strcmp("!", tlStringData(type)) == 0) ttype = tlSYM("asyncmethod");
-    else ttype = tlSYM("method");
+    if (strcmp("::", tlStringData(type)) == 0) ttype = g_s_classmethod;
+    else if (strcmp("?", tlStringData(type)) == 0) ttype = g_s_safemethod;
+    else if (strcmp("!", tlStringData(type)) == 0) ttype = g_s_asyncmethod;
+    else ttype = g_s_method;
 
     tlHandle value = tlObjectFrom("target", tlNull, "args", args, "method", method,
             "type", ttype, "pos", pos, null);
@@ -484,25 +547,25 @@ static tlHandle process_method(tlHandle type, tlHandle method, tlHandle args, tl
 }
 
 static tlHandle process_set_field(tlHandle field, tlHandle value, tlHandle pos) {
-    tlHandle f = tlObjectFrom("v", tlObjectFrom("type", tlSTR("string"), "data", field, null), null);
-    return tlObjectFrom("target", tlNull, "args", tlListFrom2(f, value), "method", tlSYM("_set"),
-            "type", tlSYM("method"), "pos", pos, null);
+    tlHandle f = tlObjectFrom("v", tlObjectFrom("type", g_s_string, "data", field, null), null);
+    return tlObjectFrom("target", tlNull, "args", tlListFrom2(f, value), "method", g_s__set,
+            "type", g_s_method, "pos", pos, null);
 }
 
 static tlHandle process_get(tlHandle key, tlHandle tail, tlHandle pos) {
-    tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom1(key), "method", tlSYM("get"),
-            "type", tlSYM("method"), "pos", pos, null);
+    tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom1(key), "method", g_s_get,
+            "type", g_s_method, "pos", pos, null);
     return process_tail(value, tail);
 }
 
 static tlHandle process_set(tlHandle key, tlHandle value, tlHandle pos) {
-    return tlObjectFrom("target", tlNull, "args", tlListFrom2(key, value), "method", tlSYM("set"),
-            "type", tlSYM("method"), "pos", pos, null);
+    return tlObjectFrom("target", tlNull, "args", tlListFrom2(key, value), "method", g_s_set,
+            "type", g_s_method, "pos", pos, null);
 }
 
 static tlHandle process_slice(tlHandle from, tlHandle to, tlHandle tail, tlHandle pos) {
-    tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom2(from, to), "method", tlSYM("slice"),
-            "type", tlSYM("method"), "pos", pos, null);
+    tlHandle value = tlObjectFrom("target", tlNull, "args", tlListFrom2(from, to), "method", g_s_slice,
+            "type", g_s_method, "pos", pos, null);
     return process_tail(value, tail);
 }
 
@@ -510,10 +573,10 @@ static tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
     tlList* list = tlListAs(rhs);
     for (int i = 0; i < tlListSize(list); i++) {
         tlObject* rhs = tlObjectAs(tlListGet(list, i));
-        lhs = tlObjectFrom("type", tlSYM("op"), "lhs", lhs,
-            "rhs", tlObjectGet(rhs, tlSYM("r")),
-            "op", tlObjectGet(rhs, tlSYM("op")),
-            "pos", tlObjectGet(rhs, tlSYM("pos")),
+        lhs = tlObjectFrom("type", g_s_op, "lhs", lhs,
+            "rhs", tlObjectGet(rhs, g_s_r),
+            "op", tlObjectGet(rhs, g_s_op),
+            "pos", tlObjectGet(rhs, g_s_pos),
             null);
     }
     return lhs;
@@ -521,16 +584,16 @@ static tlHandle process_expr(tlHandle lhs, tlHandle rhs) {
 
 static tlHandle process_mcall(tlHandle ref, tlHandle arg, tlHandle pos) {
     return tlObjectFrom("target", ref, "args", tlListFrom1(arg),
-            "type", tlSTR("call"), "pos", pos, null);
+            "type", g_s_call, "pos", pos, null);
 }
 
 static tlHandle process_add_block(tlHandle call, tlHandle block, tlHandle pos) {
     if (block == tlNull) return call;
-    if (!tlObjectIs(call) || !tlObjectGet(call, tlSYM("target"))) {
+    if (!tlObjectIs(call) || !tlObjectGet(call, g_s_target)) {
         call = tlObjectFrom("target", call, "args", tlListEmpty(),
-                "type", tlSTR("call"), "pos", pos, null);
+                "type", g_s_call, "pos", pos, null);
     }
-    return tlObjectSet(call, tlSYM("block"), block);
+    return tlObjectSet(call, g_s_block, block);
 }
 
 

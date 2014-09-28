@@ -1,5 +1,8 @@
 # TODO
 
+add something for 'collection["key", otherwise]' but will be part of get interface then
+think about shared locks, so whole slew of items share single lock, especially helpful for Mutable objects
+
 undefined collect stack traces, while it doesn't work as advertised ... either enhance or dumb down
 tool gcov and assure make test has full coverage
 work on documentation
@@ -19,7 +22,6 @@ move to bytecode, remove eval based stuff
 bytecode
 - in bytecode, we don't need argnames, we can calculate and store that map when we need it, als we can size the args list dynamically, saves space ...
 - implement classes in parser, compiler
-- run a task for only N random ticks, then switch to make races less deterministic
 - ensure debugger works
 - have a coverage tool
 - do simple optimizations in compiler, like (x + 1) * 2 does not require a body for x + 1
