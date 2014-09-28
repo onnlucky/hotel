@@ -19,15 +19,20 @@ _and = left, &right ->
     return left
 _install_global("and", _and)
 
-asBool = v -> bool(v, true, false)
-asBoolInv = v -> bool(v, false, true)
-isSmaller = l, r -> return compare(l, r) == -1
-
 while = &cond ->
     block = args.block; if not block: throw "while expects a block"
     loop:
         if not cond(): break
         block()
+
+try = &test, &otherwise ->
+    catch: return otherwise()
+    if args.block: return args.block.call
+    test()
+
+asBool = v -> bool(v, true, false)
+asBoolInv = v -> bool(v, false, true)
+isSmaller = l, r -> return compare(l, r) == -1
 
 min = l, r ->
     if l <= r: return l
@@ -36,11 +41,6 @@ min = l, r ->
 max = l, r ->
     if l >= r: return l
     return r
-
-try = &test, &otherwise ->
-    catch: return otherwise()
-    if args.block: return args.block.call
-    test()
 
 _get_random = ->
     this.get(1 + random(this.size))
