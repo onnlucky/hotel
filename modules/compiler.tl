@@ -556,7 +556,7 @@ compile = (code ->
     at = Var.new 0
     lines = Var.new 1
     lineFromPos = pos ->
-        if pos < 0: return 0;
+        if pos < 0: return 0
         assert pos <= code.size
         if pos < $at: $at = 0; $lines = 1
         while $at < pos:
