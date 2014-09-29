@@ -1,5 +1,5 @@
 // various config
-#define TL_VERSION "0.1.0"
+#define TL_VERSION "0.2.0"
 
 // if set use pthread library and run multi threaded (otherwise it doesn't work)
 #define HAVE_THREADS
