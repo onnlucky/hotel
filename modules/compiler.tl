@@ -167,8 +167,8 @@ opname = op ->
     { op == "<" }: return "lt"
     { op == "<=" }: return "lte"
 
-    { op == "|" }: return "band"
-    { op == "&" }: return "bor"
+    { op == "|" }: return "bor"
+    { op == "&" }: return "band"
     { op == "<<" }: return "lsh"
     { op == ">>" }: return "rsh"
 
