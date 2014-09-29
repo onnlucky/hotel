@@ -60,7 +60,7 @@ INTERNAL tlHandle lockEnqueue(tlLock* lock, tlFrame* frame) {
 
     // try to own the lock, incase another worker released it inbetween ...
     // notice the task we put in is a place holder, and if we succeed, it might be any task
-    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) == null) {
+    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) == 0) {
         lockScheduleNext(lock);
     }
     return tlTaskNotRunning;
@@ -89,7 +89,7 @@ upgrade:;
 
     // try to aquire a light weight lock by swapping our task for the null pointer
     if (!lock->owner) {
-        other = A_PTR_NB(a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null));
+        other = A_PTR_NB(a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0));
         if (!other) return res;
     }
     assert(other); // cannot be null
@@ -109,7 +109,7 @@ heavy:;
     assert(hlock->owner != task); // we cannot be the owner
 
     // try to become the owner, notice owner is never null unless wait queue is empty
-    if (a_swap_if(A_VAR(hlock->owner), A_VAL_NB(task), null) == null) return res;
+    if (a_swap_if(A_VAR(hlock->owner), A_VAL_NB(task), 0) == 0) return res;
 
     // failed to own lock; pause current task, and enqueue it
     return tlTaskPauseResuming(resume, res);
@@ -152,7 +152,7 @@ tlHandle evalSendLocked(tlArgs* args) {
     if (tlLockIsOwner(lock, task)) return evalSend(args);
 
     // if the lock is taken and there are tasks in the queue, there is never a point that owner == null
-    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
+    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
         // failed to own lock; pause current task, and enqueue it
         return tlTaskPauseResuming(resumeReceiveEnqueue, args);
     }
@@ -198,7 +198,7 @@ tlHandle tlLockAndInvoke(tlBCall* call) {
     if (tlLockIsOwner(lock, task)) return tlInvoke(task, call);
 
     // if the lock is taken and there are tasks in the queue, there is never a point that owner == null
-    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
+    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
         // failed to own lock; pause current task, and enqueue it
         return tlTaskPauseResuming(resumeInvokeEnqueue, call);
     }
@@ -252,7 +252,7 @@ tlHandle tlLockAquireResuming(tlLock* lock, tlResumeCb resumecb, tlHandle res) {
 
     if (tlLockIsOwner(lock, task)) return resumecb(null, res, null);
 
-    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
+    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
         // failed to own lock; pause current task, and enqueue it
         AquireFrame* frame = tlFrameAlloc(resumeAquire, sizeof(AquireFrame));
         frame->lock = lock;
@@ -306,7 +306,7 @@ INTERNAL tlHandle resumeWithLock(tlFrame* _frame, tlHandle _res, tlHandle _throw
         if (tlLockIsOwner(lock, task)) continue;
         trace("locking: %s", tl_str(lock));
 
-        if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), null) != null) {
+        if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
             // failed to own lock; pause current task, and enqueue it
             return tlTaskPause(frame);
         }

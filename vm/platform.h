@@ -71,7 +71,7 @@
 #define false 0
 #endif
 #ifndef null
-#define null ((intptr_t)0)
+#define null NULL
 #endif
 
 #define UNUSED(x) (x = x)

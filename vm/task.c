@@ -518,7 +518,7 @@ void tlTaskCopyValue(tlTask* task, tlTask* other) {
 INTERNAL void signalWaiters(tlTask* task) {
     assert(tlTaskIsDone(task));
     while (true) {
-        tlHandle waiting = A_PTR(a_swap(A_VAR(task->waiting), null));
+        tlHandle waiting = A_PTR(a_swap(A_VAR(task->waiting), 0));
         if (!waiting) return;
         if (tlTaskIs(waiting)) {
             tlTaskCopyValue(tlTaskAs(waiting), task);
@@ -688,7 +688,7 @@ INTERNAL tlHandle _task_wait(tlArgs* args) {
     tlArray* deadlock = tlTaskWaitFor(other);
     if (deadlock) return tlDeadlockErrorThrow(deadlock);
 
-    tlHandle already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), null));
+    tlHandle already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), 0));
     if (already_waiting) {
         tlWaitQueue* queue = tlWaitQueueCast(already_waiting);
         if (queue) {
