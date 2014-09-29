@@ -1616,7 +1616,7 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
     if (tlCallableIs(handler)) {
         // operate with old style hotel
         trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlCall* call = tlCallNew(1, null);
+        tlCall* call = tlCallNew(1, false);
         tlCallSetFn_(call, handler);
         tlCallSet_(call, 0, throw);
         return tlEval(call);

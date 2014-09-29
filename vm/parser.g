@@ -84,7 +84,7 @@ tlHandle object_activate(tlObject* o) {
         if (tlActiveIs(v) || tlCallIs(v)) argc++;
     }
     if (!argc) return o;
-    tlCall* call = tlCallNew(argc + 1, null);
+    tlCall* call = tlCallNew(argc + 1, false);
     tlCallSetFn_(call, tl_active(s_Object_clone));
     tlCallSet_(call, 0, o);
     argc = 1;
@@ -107,7 +107,7 @@ tlHandle map_activate(tlMap* map) {
         if (tlActiveIs(v) || tlCallIs(v)) argc++;
     }
     if (!argc) return map;
-    tlCall* call = tlCallNew(argc + 1, null);
+    tlCall* call = tlCallNew(argc + 1, false);
     tlCallSetFn_(call, tl_active(s_Map_clone));
     tlCallSet_(call, 0, map);
     argc = 1;
@@ -129,7 +129,7 @@ tlHandle list_activate(tlList* list) {
         if (tlActiveIs(v) || tlCallIs(v)) argc++;
     }
     if (!argc) return list;
-    tlCall* call = tlCallNew(argc + 1, null);
+    tlCall* call = tlCallNew(argc + 1, false);
     tlCallSetFn_(call, tl_active(s_List_clone));
     tlCallSet_(call, 0, list);
     argc = 1;

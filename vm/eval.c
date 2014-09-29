@@ -445,7 +445,7 @@ INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
         tlClosure* handler = frame->handler;
         if (!handler) return null;
 
-        tlCall* call = tlCallNew(1, null);
+        tlCall* call = tlCallNew(1, false);
         tlCallSetFn_(call, handler);
         tlCallSet_(call, 0, throw);
         // doing it this way means this codeblock is over ... we might let the handler decide that
