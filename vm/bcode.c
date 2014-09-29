@@ -3,6 +3,7 @@
 #include "trace-off.h"
 
 static tlNative* g_goto_native;
+static tlString* g_this;
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -391,7 +392,7 @@ tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
     tlList* argspec = tlListAs(tlListGet(code->argspec, at));
     tlString* name = tlStringCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
-    if (tlStringEquals(name, tlSTR("this"))) {
+    if (tlStringEquals(name, g_this)) {
         return tlBCallTarget(call);
     }
     if (call->names) {
@@ -1934,6 +1935,9 @@ void bcode_init() {
     tl_register_natives(__bcode_natives);
     g_goto_native = tlNativeNew(__goto, tlSYM("goto"));
     tl_register_global("goto", g_goto_native);
+
+    // TODO make sure these are symbols all the way
+    g_this = tlSTR("this");
 
     // TODO move this to Module.unknown
     tl_register_global("unknown", tlUnknown);
