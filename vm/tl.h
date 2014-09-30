@@ -174,6 +174,8 @@ TL_REF_TYPE(tlWorker);
 TL_REF_TYPE(tlTask);
 TL_REF_TYPE(tlDebugger);
 
+TL_REF_TYPE(tlBModule);
+
 bool tlCallableIs(tlHandle v);
 
 // to and from primitive values
@@ -587,6 +589,13 @@ tlHandle tlHashMapGet(tlHashMap* map, tlHandle k);
 tlHandle tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v);
 tlObject* tlHashMapToObject(tlHashMap* map);
 tlMap* tlHashMapToMap(tlHashMap* map);
+
+// ** running code **
+
+tlBModule* tlBModuleFromBuffer(tlBuffer* buf, tlString* name, const char** error);
+tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error);
+tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args);
+void tlVmRun(tlVm* vm, tlTask* task);
 
 #endif // _tl_h_
 

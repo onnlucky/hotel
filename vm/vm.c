@@ -714,6 +714,14 @@ tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as) {
     return task;
 }
 
+void tlVmRun(tlVm* vm, tlTask* task) {
+    tlWorker* worker = tlWorkerNew(vm);
+    vm->main = task;
+    vm->running = true;
+
+    tlWorkerRun(worker);
+}
+
 static tlHandle _print(tlArgs* args) {
     tlString* sep = tlSTR(" ");
     tlHandle v = tlArgsMapGet(args, tlSYM("sep"));

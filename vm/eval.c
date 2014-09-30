@@ -36,6 +36,8 @@ static tlString* _t_unknown;
 static tlString* _t_anon;
 static tlString* _t_native;
 
+tlBModule* g_boot_module;
+
 // various internal structures
 static tlKind _tlClosureKind = { .name = "Function" };
 tlKind* tlClosureKind;
@@ -942,6 +944,7 @@ INTERNAL tlHandle _install(tlArgs* args) {
     return tlNull;
 }
 
+INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value);
 INTERNAL tlHandle _install_global(tlArgs* args) {
     trace("install global: %s %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
     tlString* key = tlStringCast(tlArgsGet(args, 0));
@@ -949,6 +952,11 @@ INTERNAL tlHandle _install_global(tlArgs* args) {
     tlHandle val = tlArgsGet(args, 1);
     if (!val) TL_THROW("expected a Value");
     tl_register_global(tlStringData(key), val);
+
+    if (g_boot_module) {
+        module_overwrite_(g_boot_module, key, val);
+    }
+
     return tlNull;
 }
 

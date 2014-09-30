@@ -40,7 +40,6 @@ const char* op_name(uint8_t op) {
     return "<error>";
 }
 
-TL_REF_TYPE(tlBModule);
 TL_REF_TYPE(tlBDebugInfo);
 TL_REF_TYPE(tlBCode);
 TL_REF_TYPE(tlBEnv);
@@ -983,10 +982,9 @@ exit:;
      return tlNull;
 }
 
-#include "trace-off.h"
+#include "trace-on.h"
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     trace("linking: %p", mod);
-    assert(!mod->linked);
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->links); i++) {
         tlHandle name = tlListGet(mod->links, i);
@@ -1644,26 +1642,46 @@ tlHandle beval_module(tlTask* task, tlBModule* mod) {
     return beval(task, null, call, 0, null);
 }
 
-INTERNAL tlHandle _Module_new(tlArgs* args) {
-    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
-    tlString* name = tlStringCast(tlArgsGet(args, 1));
-
+tlBModule* tlBModuleFromBuffer(tlBuffer* buf, tlString* name, const char** error) {
     tlBModule* mod = tlBModuleNew(name);
-    const char* error = null;
-    deserialize(buf, mod, &error);
-    if (error) TL_THROW("invalid bytecode: %s", error);
+    deserialize(buf, mod, error);
+    if (*error) return null;
     assert(mod->body);
 
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->linked); i++) tlListSet_(mod->linked, i, tlUnknown);
 
-    tlBCodeVerify(mod->body, &error);
-    if (error) TL_THROW("invalid bytecode: %s", error);
+    tlBCodeVerify(mod->body, error);
+    if (*error) return null;
 
     return mod;
 }
 
 tlBCall* bcallFromArgs(tlArgs* args);
+tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args) {
+    tlBCall* call = bcallFromArgs(args);
+    tlBClosure* fn = tlBClosureNew(mod->body, null);
+    call->fn = fn;
+
+    tlTask* task = tlTaskNew(vm, vm->locals);
+    assert(task->state == TL_STATE_INIT);
+
+    task->value = call;
+    task->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
+    tlTaskStart(task);
+    return task;
+}
+
+INTERNAL tlHandle _Module_new(tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    tlString* name = tlStringCast(tlArgsGet(args, 1));
+
+    const char* error = null;
+    tlBModule* mod = tlBModuleFromBuffer(buf, name, &error);
+    if (error) TL_THROW("invalid bytecode: %s", error);
+    return mod;
+}
+
 INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
@@ -1701,6 +1719,17 @@ INTERNAL tlHandle _module_link(tlArgs* args) {
 
     mod->linked = links;
     return mod;
+}
+
+INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
+    tlList* links = mod->links;
+    for (int i = 0; i < tlListSize(links); i++) {
+        if (tlStringEquals(key, tlListGet(links, i))) {
+            print("OVERWRITING: %d %s %s", i, tl_str(key), tl_str(value));
+            tlListSet_(mod->linked, i, value);
+            return;
+        }
+    }
 }
 
 INTERNAL tlHandle __list(tlArgs* args) {

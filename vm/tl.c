@@ -1,6 +1,8 @@
 #include "tl.h"
 #include "debug.h"
 
+extern tlBModule* g_boot_module;
+
 int main(int argc, char** argv) {
     tl_init();
 
@@ -24,12 +26,24 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
+
     if (boot) {
-        tlTask* task = tlVmEvalFile(vm, tlSTR(boot), args);
+        tlBuffer* buf = tlBufferFromFile(boot);
+        const char* error = null;
+        tlBModule* mod = tlBModuleFromBuffer(buf, tlSTR(boot), &error);
+        if (error) fatal("error booting: %s", error);
+        g_boot_module = mod;
+
+        tlBModuleLink(mod, tlVmGlobalEnv(vm), &error);
+        if (error) fatal("error linking boot: %s", error);
+
+        tlTask* task = tlBModuleCreateTask(vm, mod, args);
+        tlVmRun(vm, task);
         tlHandle h = tlTaskGetValue(task);
         if (tl_bool(h)) printf("%s\n", tl_str(h));
     } else {
-        tlVmEvalBoot(vm, args);
+        fatal("oeps");
+        //tlVmEvalBoot(vm, args);
     }
 
     int exitcode = tlVmExitCode(vm);

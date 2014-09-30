@@ -1,0 +1,5 @@
+#!/usr/bin/env tl
+code = io.File(args[1]).readString
+bytes = compiler.compile(code, args[1])
+io.File(args[1] + "b").write(bytes)
+print(args[1] + "b", "written:", bytes.size, "bytes")

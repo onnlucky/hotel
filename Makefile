@@ -29,8 +29,8 @@ C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 all: tl $(TLG_MODULES) $(C_MODULES)
 
 run: tl
-	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
-	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --noboot run.tl
+	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
+	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --noboot run.tlb
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
 test-noboot: tl
