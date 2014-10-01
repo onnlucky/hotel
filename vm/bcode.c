@@ -213,8 +213,12 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     return fn;
 }
 
+INTERNAL tlHandle stopBCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
+    return res;
+}
+
 bool tlBFrameIs(tlHandle v) {
-    return tlFrameIs(v) && tlFrameAs(v)->resumecb == resumeBFrame;
+    return tlFrameIs(v) && (tlFrameAs(v)->resumecb == resumeBFrame || tlFrameAs(v)->resumecb == stopBCode);
 }
 tlBFrame* tlBFrameAs(tlHandle v) {
     assert(tlBFrameIs(v));

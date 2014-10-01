@@ -257,6 +257,8 @@ INTERNAL void tlTaskRun(tlTask* task) {
     //trace("WAIT: %p %p", task, task->stack);
 }
 
+INTERNAL tlHandle stopBCode(tlFrame* _frame, tlHandle res, tlHandle throw);
+
 // when a task is in an error state it will throw it until somebody handles it
 INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
     trace("");
@@ -288,6 +290,9 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
                 // code frames need te be found by return/goto etc ...
                 frame->resumecb = stopCode;
                 assert(tlCodeFrameIs(frame));
+            } else if (tlBFrameIs(frame)) {
+                frame->resumecb = stopBCode;
+                assert(tlBFrameIs(frame));
             } else {
                 frame = frame->caller;
             }
