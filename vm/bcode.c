@@ -1467,13 +1467,20 @@ again:;
                 env = env->parent;
                 if (env) v = env->args->target;
             }
+            assert(v);
             if (!v) v = tlNull;
             break;
         }
         case OP_ENVTHIS: {
             depth = pcreadsize(ops, &pc);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
-            v = parent->args->target;
+            tlBEnv* env = tlBEnvGetParentAt(closure->env, depth);
+            v = env->args->target;
+            trace("this: %s (%s)", tl_str(args), tl_str(v));
+            while (!v && env) {
+                env = env->parent;
+                if (env) v = env->args->target;
+            }
+            assert(v);
             if (!v) v = tlNull;
             trace("envthis[%d] -> %s", depth, tl_str(v));
             break;
