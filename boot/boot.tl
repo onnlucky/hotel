@@ -79,7 +79,7 @@ _map = fn ->
         goto(loop(at + 1))
     loop(1)
 
-/// List.find(element): find #element, return its position or #null if not found
+/// List.find(element): find #element, return its position and itself, or #null if not found
 /// [from] start searching from here instead
 /// [block] if not given an element but a block, returns first element for which `block(e, at)` is true
 /// > [1,2,3,4].find(4) == 4
@@ -95,12 +95,12 @@ _find = element /*, [Number from=0]*/ ->
         block = args.block
         if not block: throw "find expects an element or a block"
         while $at <= this.size:
-            if block(this[$at], $at): return $at
+            if block(this[$at], $at): return $at, this[$at]
             $at += 1
         return
     // passed in an element
     while $at <= this.size:
-        if this[$at] == element: return $at
+        if this[$at] == element: return $at, this[$at]
         $at += 1
     return
 
