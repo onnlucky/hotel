@@ -186,6 +186,7 @@ compile = (code ->
     ids = Array.new
 
     Scope = parent, block -> {{parent},
+        parentVisible = try(parent.locals.size, 0)
         block = block or false
         names = HashMap.new
         locals = Array.new
