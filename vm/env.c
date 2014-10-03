@@ -41,6 +41,9 @@ tlEnv* tlEnvCopy(tlEnv* env) {
     nenv->map = env->map;
     return nenv;
 }
+tlObject* tlEnvGetMap(tlEnv* env) {
+    return env->map;
+}
 
 tlEnv* tlEnvSetArgs(tlEnv* env, tlArgs* args) {
     if (!tlflag_isset(env, TL_FLAG_CLOSED)) {

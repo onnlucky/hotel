@@ -477,6 +477,7 @@ tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...);
 
 // ** environment (scope) **
 tlEnv* tlEnvNew(tlEnv* parent);
+tlObject* tlEnvGetMap(tlEnv* env);
 tlHandle tlEnvGet(tlEnv* env, tlSym key);
 tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v);
 

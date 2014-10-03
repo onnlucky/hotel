@@ -1652,6 +1652,26 @@ INTERNAL tlHandle _env_current(tlArgs* args) {
         env = env->parent;
     }
 
+    tlObject* oop = tlEnvGetMap(tlVmGlobalEnv(tlVmCurrent()));
+    for (int i = 0;; i++) {
+        tlHandle key;
+        tlHandle value;
+        if (!tlObjectKeyValueIter(oop, i, &key, &value)) break;
+        if (tlHashMapGet(res, key)) continue;
+        tlHashMapSet(res, key, value);
+    }
+
+    LHashMapIter* iter = lhashmapiter_new(globals);
+    for (int i = 0;; i++) {
+        tlHandle key = null;
+        tlHandle value = null;
+        lhashmapiter_get(iter, &key, &value);
+        if (!key) break;
+        key = tlSYM(key);
+        if (!tlHashMapGet(res, key)) tlHashMapSet(res, key, value);
+        lhashmapiter_next(iter);
+    }
+
     return res;
 }
 
@@ -1779,6 +1799,10 @@ INTERNAL tlHandle _module_link(tlArgs* args) {
 
     mod->linked = links;
     return mod;
+}
+
+INTERNAL tlHandle _unknown(tlArgs* args) {
+    return tlUnknown;
 }
 
 INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
@@ -2012,6 +2036,7 @@ static const tlNativeCbs __bcode_natives[] = {
     { "_module_run", _module_run },
     { "_module_links", _module_links },
     { "_module_link", _module_link },
+    { "_unknown", _unknown },
     { "__list", __list },
     { "__map", __map },
     { "__object", __object },
@@ -2030,8 +2055,6 @@ void bcode_init() {
     // TODO make sure these are symbols all the way
     g_this = tlSTR("this");
 
-    // TODO move this to Module.unknown
-    tl_register_global("unknown", tlUnknown);
     _tlBLazyKind.klass = tlClassObjectFrom("call", _blazy_call, null);
     _tlBLazyDataKind.klass = tlClassObjectFrom("call", _blazydata_call, null);
     _tlBLazyKind.run = runBLazy;

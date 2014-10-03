@@ -122,6 +122,13 @@ tlHandle tlObjectKeyIter(const tlObject* object, int i) {
     if (i >= tlObjectSize(object)) return null;
     return object->keys->data[i];
 }
+bool tlObjectKeyValueIter(const tlObject* object, int i, tlHandle* keyp, tlHandle* valuep) {
+    assert(i >= 0);
+    if (i >= tlObjectSize(object)) return false;
+    *keyp = object->keys->data[i];
+    *valuep = object->data[i];
+    return true;
+}
 
 void tlObjectValueIterSet_(tlObject* object, int i, tlHandle v) {
     assert(i >= 0 && i < tlObjectSize(object));

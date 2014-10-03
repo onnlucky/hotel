@@ -676,7 +676,7 @@ name_from = envs, name ->
         { isObject(env)   }: x = Object.get(env, name); if isDefined(x): return x
         { isFunction(env) }: x = env(name); if isDefined(x): return x
         { env             }: x = env[name]; if isDefined(x): return x
-    return unknown
+    return _unknown()
 
 load = bytes ->
     now = time()
@@ -695,5 +695,5 @@ load = bytes ->
 
 _parse = code -> parse(code)
 
-{ parse=_parse, { compile, load, unknown }}
+{ parse=_parse, { compile, load }, unknown = (-> _unknown())}
 
