@@ -6,7 +6,7 @@
 catch: e -> print "boot exception: $(e.toString)"
 
 // TODO use args["block", else=t]
-if = cond, &t, &f -> bool(cond,bool(args["block"],args["block"],t),bool(args["else"],args["else"],f))()
+if = cond, &t, &f -> bool(cond, args.get("block", t), args.get("else", f))()
 
 _or = left, &right ->
     if not left: return right()
@@ -608,7 +608,7 @@ _install(String._methods, "eval", _eval)
 print "HELLO WORLD!"
 //_env.each: k, v -> print k, v
 
-"print 42".eval
+"x = 42\nprint x".eval
 
 /*
 

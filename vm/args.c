@@ -127,10 +127,14 @@ static tlHandle _args_get(tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     if (!v || tlIntIs(v) || tlFloatIs(v)) {
         int at = at_offset(tlArgsGet(args, 0), tlArgsSize(as));
-        return tlMAYBE(tlArgsGet(as, at));
+        tlHandle res = tlArgsGet(as, at);
+        if (res) return res;
+        return tlMAYBE(tlArgsGet(args, 1));
     }
     if (tlSymIs(v)) {
-        return tlMAYBE(tlArgsMapGet(as, tlSymAs(v)));
+        tlHandle res = tlArgsMapGet(as, tlSymAs(v));
+        if (res) return res;
+        return tlMAYBE(tlArgsGet(args, 1));
     }
     TL_THROW("Expected an index or name");
 }
