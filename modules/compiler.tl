@@ -629,29 +629,29 @@ compile = (code ->
     return buf.read
 )
 
-print_pos = debugger ->
+print_pos = debugger, stream ->
     pos, text = debugger.pos
     if not pos: return
     begin = (text.find('\n', pos, backward=true) or -1) + 1
     end = (text.find('\n', pos) or text.size + 1) - 1
-    print text
-    print " ".times(pos - 1) + "^"
+    stream.write(text, "\n")
+    stream.write(" ".times(pos - 1) + "^\n")
 
-SimpleDebugger = debugger ->
+SimpleDebugger = debugger, stream ->
     loop:
         //catch: e -> print "oeps", e.toString
-        print "INPUT>"
-        at = io.stdin.find("\n")
-        cmd = io.stdin.readString(at).trim
+        stream.write("INPUT>\n")
+        at = stream.find("\n")
+        cmd = stream.readString(at).trim
         { cmd == "call" }:
-            print repr debugger.call
+            stream.write(repr(debugger.call), "\n")
         { cmd == "locals" }:
-            print repr debugger.locals
+            stream.write(repr(debugger.locals), "\n")
         { cmd == "list" or cmd == "pos" }:
-            print_pos(debugger)
+            stream.write(print_pos(debugger, stream), "\n")
         { cmd == "step" or cmd == "" }:
             debugger.step
-            print_pos(debugger)
+            print_pos(debugger, stream)
         { cmd == "stop" }:
             debugger.detach debugger.current
             debugger.continue
@@ -662,12 +662,12 @@ Module = m -> {
         link = ls -> Module(_module_link(m, ls))
         run = as, am, task ->
             _module_run(m, task, as, am)
-        debug = as, am ->
+        debug = stream, as, am ->
             debugger = Debugger.new
             task = Task.new
             debugger.attach(task)
             _module_run(m, task, as, am)
-            return SimpleDebugger(debugger)
+            return SimpleDebugger(debugger, stream)
     }
 
 name_from = envs, name ->

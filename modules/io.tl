@@ -193,7 +193,7 @@ File = {
             if args.namesmap["truncate"]: $mode += _File_TRUNC
             if args.namesmap["create"]: $mode += _File_CREAT
             if not args.namesmap["readonly"]: $mode += _File_RDWR
-            if args.namesmap["readonly"]: $mode += _File_RONLY
+            if args.namesmap["readonly"]: $mode += _File_RDONLY
             Stream.new(_File_open(this.name, $mode))
         )
     }

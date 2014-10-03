@@ -537,13 +537,43 @@ fileFromModulePath = name, path ->
         if _Path_stat(file).ino != 0: return file
     return null
 
+compiler = (
+    file = fileFromModulePath("compiler.tlb")
+    if not file: Error("No compiler.tlb found").throw
+    bcode = _bufferFromFile(file)
+    mod = _Module_new(bcode, file[:-2])
+    links = _module_links(mod)
+    linked = links.map(name -> _env[name])
+    linked.each: value, n -> print n, links[n], value
+    compiler = _module_run(_module_link(mod, linked))
+
+    print("reloading compiler")
+    test = compiler.compile(_stringFromFile("modules/compiler.tl"))
+    print test.size, test
+    print("reloading io")
+    test = compiler.compile(_stringFromFile("modules/io.tl"))
+    print test.size, test
+
+    compiler
+)
+
 resolve2 = name, path ->
     res = _modules[name]
     if isDefined res: return res
     print("RESOLVING 2: $name ($path)")
     catch: e => return null, "Unable to read module '$name': $(e.msg)"
+    file = fileFromModulePath("$name.tlb", path)
+    if file:
+        print("binary module", file)
+        catch: e => return null, "Unable to load module '$name': $(e.toString)"
+        path = dirname(file)
+        mod = compiler.load(_bufferFromFile(file), name=file[:-2], _env, (name -> resolve(name, path)))
+        catch: e => return null, "Unable to run module '$name': $(e.msg)"
+        res = mod.run()
+        return _modules.set(name, res)
     file = fileFromModulePath("$name.tl", path)
     if file:
+        print("module", file)
         catch: e => return null, "Unable to compile module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
@@ -552,6 +582,7 @@ resolve2 = name, path ->
         return _modules.set(name, res)
     file = fileFromModulePath("$name.mod", path)
     if file:
+        print("native module", file)
         catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
         res = dlopen(file)
         return _modules.set(name, res)
@@ -562,6 +593,9 @@ resolve = name, path ->
     if res: return res
     if fail: throw Error(fail)
 
+io = resolve("io")
+_env["io"] = io
+
 _eval = env/*env*/ ->
     { env }: compiler.load(this, env).run()
     {     }: compiler.load(this, _env, (name -> resolve(name, null))).run()
@@ -570,7 +604,7 @@ _eval = env/*env*/ ->
 _install(String._methods, "eval", _eval)
 
 print "HELLO WORLD!"
-_env.each: k, v -> print k, v
+//_env.each: k, v -> print k, v
 
 /*
 // run a repl, or every argument as a file
