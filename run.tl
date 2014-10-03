@@ -220,10 +220,11 @@ Number = s ->
 
 // TODO only flatten one level, unless asked?
 _flatten2 = ls, arr ->
-    ls.each: e ->
+    ls.each(e ->
         if isList(e): _flatten2(e, arr); return
         if isArray(e): _flatten2(e, arr); return
         arr.add(e)
+    )
 
 /// List.flatten: return a single list where all elements that are lists themselves have been merged
 /// at the moment, flatten will merge all such lists before merging their elements
@@ -484,6 +485,8 @@ _install(DeadlockError, "class", {
         return ls.join
 })
 
+assert [1,[2,[]],"hello",[]].flatten == [1,2,"hello"]
+
 dirname = file ->
     at = file.find("/", backward=true)
     if not at: return "."
@@ -544,16 +547,12 @@ compiler = (
     mod = _Module_new(bcode, file[:-2])
     links = _module_links(mod)
     linked = links.map(name -> _env[name])
-    linked.each: value, n -> print n, links[n], value
+    //linked.each: value, n -> print n, links[n], value
     compiler = _module_run(_module_link(mod, linked))
 
     print("reloading compiler")
     test = compiler.compile(_stringFromFile("modules/compiler.tl"))
     print test.size, test
-    print("reloading io")
-    test = compiler.compile(_stringFromFile("modules/io.tl"))
-    print test.size, test
-
     compiler
 )
 
@@ -606,19 +605,18 @@ _install(String._methods, "eval", _eval)
 print "HELLO WORLD!"
 //_env.each: k, v -> print k, v
 
-/*
 // run a repl, or every argument as a file
 runmain = as ->
     catch: e -> print e.toString; _set_exitcode(1)
 
-    if as.size == 0: return commandline()
-    if as[1] == "snippets": return snippets.run
+    if as.size == 0: resolve("commandline")()
+    //if as[1] == "snippets": return snippets.run
 
     file = as[1]
     path = dirname(file)
     return compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path))).run(as[2:])
 
-main = !runmain(args)
+main = !runmain([])
 
 // this will only return when there are no more tasks to run
 io.ioloop

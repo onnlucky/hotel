@@ -614,10 +614,15 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     tlBDebugInfo* info = tlBDebugInfoNew();
     info->name = tlStringAs(name);
     if (tlObjectIs(debuginfo)) {
-        info->line = tlIntAs(tlObjectGet(debuginfo, tlSYM("line")));
-        info->offset = tlIntAs(tlObjectGet(debuginfo, tlSYM("offset")));
-        info->text = tlStringAs(tlObjectGet(debuginfo, tlSYM("text")));
-        info->pos = tlListAs(tlObjectGet(debuginfo, tlSYM("pos")));
+        trace("debuginfo: %s", tl_repr(debuginfo));
+        info->line = tlIntCast(tlObjectGet(debuginfo, tlSYM("line")));
+        info->offset = tlIntCast(tlObjectGet(debuginfo, tlSYM("offset")));
+        info->text = tlStringCast(tlObjectGet(debuginfo, tlSYM("text")));
+        info->pos = tlListCast(tlObjectGet(debuginfo, tlSYM("pos")));
+        if (!info->line) info->line = tlZero;
+        if (!info->offset) info->offset = tlZero;
+        if (!info->text) info->text = tlStringEmpty();
+        if (!info->pos) info->pos = tlListEmpty();
     } else {
         info->line = tlZero;
         info->offset = tlZero;
