@@ -551,10 +551,14 @@ compiler = (
     compiler = _module_run(_module_link(mod, linked))
 
     print("reloading compiler")
+    text = _stringFromFile("modules/compiler.tl")
     start = time()
-    bcode = compiler.compile(_stringFromFile("modules/compiler.tl"))
+    ast = compiler.parse(text)
+    print("parsed:", time() - start)
+    bcode = compiler.compile(text, ast)
+    print("compiled:", time() - start)
     compiler = _module_run(_module_link(_Module_new(Buffer.new(bcode), file[:-2]), linked))
-    print("done", (time() - start))
+    print("linked and run", time() - start)
     compiler
 )
 
