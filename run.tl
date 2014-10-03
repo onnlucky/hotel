@@ -551,8 +551,10 @@ compiler = (
     compiler = _module_run(_module_link(mod, linked))
 
     print("reloading compiler")
-    test = compiler.compile(_stringFromFile("modules/compiler.tl"))
-    print test.size, test
+    start = time()
+    bcode = compiler.compile(_stringFromFile("modules/compiler.tl"))
+    compiler = _module_run(_module_link(_Module_new(Buffer.new(bcode), file[:-2]), linked))
+    print("done", (time() - start))
     compiler
 )
 
@@ -592,18 +594,23 @@ resolve = name, path ->
     if res: return res
     if fail: throw Error(fail)
 
+compile = resolve("compiler")
 io = resolve("io")
 _env["io"] = io
 
 _eval = env/*env*/ ->
-    { env }: compiler.load(this, env).run()
-    {     }: compiler.load(this, _env, (name -> resolve(name, null))).run()
+    { env }: compiler.load(this, name="<eval>", env).run()
+    {     }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).run()
 
 /// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
 _install(String._methods, "eval", _eval)
 
 print "HELLO WORLD!"
 //_env.each: k, v -> print k, v
+
+"print 42".eval
+
+/*
 
 // run a repl, or every argument as a file
 runmain = as ->

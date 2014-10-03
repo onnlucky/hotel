@@ -1,5 +1,6 @@
 #!/usr/bin/env tl
+start = time()
 code = io.File(args[1]).readString
-bytes = compiler.compile(code, args[1])
+bytes = compiler.compile(code, name=args[1])
 io.File(args[1] + "b").write(bytes)
-print(args[1] + "b", "written:", bytes.size, "bytes")
+print(args[1] + "b", "written:", bytes.size, "bytes", "time:", (time() - start))

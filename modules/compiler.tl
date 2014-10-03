@@ -180,7 +180,7 @@ opname = op ->
     { op == "%" }: return "mod"
     { op == "^" }: return "pow"
 
-compile = (code ->
+compile = (text, ast ->
     globals = HashMap.new
     functions = Array.new
     ids = Array.new
@@ -540,8 +540,9 @@ compile = (code ->
         code = fn.body.map(term -> emit(term)).flatten
         {{code},name=try(fn.name, name or ""),locals=fn.locals,args=fn.args,pos=fn.pos}
 
-    parseemit = text ->
-        ast = parse(text)
+    parseemit = text, ast ->
+        ast = { ast }: ast
+              {     }: parse(text)
         ast = lextop(Scope(null), ast)
         // TODO wait until stable? as closing functions might produce new functions ...
         functions.each: fn, n -> if fn.open: close(n)
@@ -558,10 +559,10 @@ compile = (code ->
     lines = Var.new 1
     lineFromPos = pos ->
         if pos < 0: return 0
-        assert pos <= code.size
+        assert pos <= text.size
         if pos < $at: $at = 0; $lines = 1
         while $at < pos:
-            if code[$at] == '\n': $lines += 1
+            if text[$at] == '\n': $lines += 1
             $at += 1
         $lines
 
@@ -624,7 +625,7 @@ compile = (code ->
         builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]})
         builder.create
 
-    main, functions = parseemit(code)
+    main, functions = parseemit(text, ast)
     buf = compilemain(main, functions)
     if args["buffer"]: return buf
     return buf.read
@@ -680,10 +681,14 @@ name_from = envs, name ->
     return _unknown()
 
 load = bytes ->
-    now = time()
+    start = time()
     bytes = { isBin(bytes)    }: Buffer.new(bytes)
             { isBuffer(bytes) }: bytes
-            {                 }: compile(bytes, buffer=true)
+            {                 }: ast = parse(bytes)
+                                 print "parse", args["name"], (time() - start)
+                                 buf = compile(bytes, ast, buffer=true)
+                                 print "compiled", args["name"], (time() - start)
+                                 buf
     m = _Module_new(bytes, args["name"] or "")
 
     envs = args[2:]
@@ -691,10 +696,10 @@ load = bytes ->
                            _module_link(m, links)
         {               }: m
 
-    print "loaded", args["name"], "took", (time() - now).round, "seconds"
+    print "loaded", args["name"], "took", (time() - start).round, "seconds"
     Module(m)
 
-_parse = code -> parse(code)
+_parse = text -> parse(text)
 
 { parse=_parse, { compile, load }, unknown = (-> _unknown())}
 
