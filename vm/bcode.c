@@ -54,14 +54,15 @@ INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw);
 tlDebugger* tlDebuggerFor(tlTask* task);
 bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame);
 
-// against better judgement, modules are linked by mutating, or copying if already linked
+// against better judgement, modules are linked by mutating
 struct tlBModule {
     tlHead head;
     tlString* name; // name of this module, usually filename
     tlList* data;   // list of constants
     tlList* links;  // names of all global things referenced
-    tlList* linked; // when linked, resolved values for all globals
     tlBCode* body;  // starting point; will reference linked and data
+    tlList* linked; // when linked, resolved values for all globals
+    // TODO add tlMap* globals as the visible env at load time
 };
 
 struct tlBDebugInfo {
@@ -838,6 +839,7 @@ static void disasm(tlBCode* bcode) {
                 break;
             default: print("OEPS: %d 0x%X %s", opc, op, op_name(op));
         }
+        for (int i = opc + 1; i < pc; i++) print(" % 3d 0x%02X", i, ops[i]);
     }
 exit:;
     print("</code>");
@@ -986,7 +988,7 @@ exit:;
      return tlNull;
 }
 
-#include "trace-on.h"
+#include "trace-off.h"
 tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     trace("linking: %p", mod);
     mod->linked = tlListNew(tlListSize(mod->links));
@@ -1389,6 +1391,7 @@ again:;
                 trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
                 return tlTaskPauseAttach(frame);
             }
+            tlTaskSetCurrentFrame(task, (tlFrame*)frame);
             pc = frame->pc;
             break;
         }
@@ -1604,6 +1607,52 @@ void tlBFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlIn
     *line = info->line;
     if (!(*file)) *file = _t_unknown;
     if (!(*function)) *function = _t_anon;
+}
+
+INTERNAL tlHandle _env_locals(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    tlBFrame* frame = tlBFrameAs(task->stack);
+    tlBCode* code = tlBClosureAs(frame->args->fn)->code;
+    tlHashMap* res = tlHashMapNew();
+
+    const uint8_t* ops = code->code;
+    int pc = 0;
+    while (pc < frame->pc) {
+        uint8_t op = ops[pc++];
+        if (op == OP_STORE) {
+            trace("OP: %s", op_name(op));
+            int at = pcreadsize(ops, &pc);
+            assert(at >= 0 && at < code->locals);
+            tlHandle name = tlListGet(code->localnames, at);
+            tlHandle v = frame->locals->data[at];
+            print("store %s(%d) = %s", tl_str(name), at, tl_str(v));
+            tlHashMapSet(res, name, v);
+        } else {
+            trace("OP: %s", op_name(op));
+        }
+    }
+    return res;
+}
+
+// TODO every env needs an indication of where its was "closed" compared to its parent
+INTERNAL tlHandle _env_current(tlArgs* args) {
+    tlTask* task = tlTaskCurrent();
+    tlBFrame* frame = tlBFrameAs(task->stack);
+    tlHashMap* res = tlHashMapNew();
+
+    tlBEnv* env = frame->locals;
+    while (env) {
+        for (int i = tlListSize(env->names) - 1; i >= 0; i--) {
+            tlHandle name = tlListGet(env->names, i);
+            tlHandle v = env->data[i];
+            if (!v) continue;
+            if (tlHashMapGet(res, name)) continue;
+            tlHashMapSet(res, name, v);
+        }
+        env = env->parent;
+    }
+
+    return res;
 }
 
 INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
@@ -1967,6 +2016,8 @@ static const tlNativeCbs __bcode_natives[] = {
     { "__map", __map },
     { "__object", __object },
     { "return", __return },
+    { "_env_locals", _env_locals },
+    { "_env_current", _env_current },
     { 0, 0 }
 };
 
