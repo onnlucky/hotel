@@ -811,11 +811,15 @@ INTERNAL tlHandle _send(tlArgs* args) {
 
     trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
 
-    tlArgs* nargs = tlArgsNew(null, null);
+    tlArgs* nargs = tlArgsNewSize(args->size - 2, args->nsize);
     nargs->target = target;
     nargs->msg = msg;
-    nargs->list = tlListSub(args->list, 2, tlListSize(args->list) - 2);
-    nargs->map = args->map;
+    for (int i = 2; i < args->size + args->nsize; i++) {
+        nargs->args[i - 2] = args->args[i];
+    }
+    if (args->nsize) {
+        nargs->names = tlListSub(args->names, 2, args->size + args->nsize - 2);
+    }
 
     tlKind* kind = tl_kind(target);
     assert(kind);

@@ -126,12 +126,15 @@ INTERNAL tlHandle _this_send(tlArgs* args) {
     if (!tlCallableIs(field)) return field;
 
 
-    tlArgs* nargs = tlArgsNew(null, null);
+    tlArgs* nargs = tlArgsNewSize(args->size, args->nsize);
     nargs->target = obj;
     nargs->msg = msg;
-    nargs->list = tlListSub(args->list, 2, tlListSize(args->list) - 2);
-    nargs->map = args->map;
-
+    for (int i = 2; i < args->size + args->nsize; i++) {
+        nargs->args[i - 2] = args->args[i];
+    }
+    if (nargs->names) {
+        nargs->names = tlListSub(args->names, 2, args->size + args->nsize - 2);
+    }
     return tlEvalArgsFn(nargs, field);
 }
 
