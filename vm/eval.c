@@ -875,18 +875,6 @@ static tlHandle _stringFromFile(tlArgs* args) {
     return tlStringFromTake(tlBufferTakeData(buf), 0);
 }
 
-static tlHandle _parse(tlArgs* args) {
-    tlString* code = tlStringCast(tlArgsGet(args, 0));
-    if (!code) TL_THROW("expected a String");
-    tlString* name = tlStringCast(tlArgsGet(args, 1));
-    if (!name) name = tlStringEmpty();
-
-    tlCode* body = tlCodeAs(tlParse(code, name));
-    trace("parsed: %s", tl_str(body));
-    if (!body) return null;
-    return body;
-}
-
 static tlHandle runCode(tlHandle _fn, tlArgs* args) {
     tlCode* body = tlCodeCast(_fn);
     if (!body) TL_THROW("expected Code");
@@ -901,6 +889,9 @@ static tlHandle runCode(tlHandle _fn, tlArgs* args) {
 
 // TODO setting worker->evalArgs doesn't work, instead build own tlCodeFrame, that works ...
 static tlHandle _eval(tlArgs* args) {
+    fatal("needs to work using bcode; string.eval works ...");
+    return tlNull;
+    /*
     tlTask* task = tlTaskCurrent();
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
@@ -929,6 +920,7 @@ static tlHandle _eval(tlArgs* args) {
     assert(task->worker->evalEnv);
     tlVarSet(var, task->worker->evalEnv);
     return res;
+    */
 }
 
 INTERNAL tlHandle _install(tlArgs* args) {
@@ -980,7 +972,6 @@ INTERNAL tlHandle _closure_args(tlArgs* args) {
 static const tlNativeCbs __eval_natives[] = {
     { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
-    { "_parse", _parse },
     { "_eval", _eval },
     { "_with_lock", _with_lock },
 

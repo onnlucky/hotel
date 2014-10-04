@@ -675,45 +675,6 @@ static void vm_init() {
     INIT_KIND(tlWorkerKind);
 }
 
-tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as) {
-    tlBuffer* buf = tlBufferFromFile(tlStringData(file));
-    if (!buf) fatal("cannot read file: %s", tl_str(file));
-
-    tlBufferWriteByte(buf, 0);
-    tlString* code = tlStringFromTake(tlBufferTakeData(buf), 0);
-    return tlVmEvalCode(vm, code, file, as);
-}
-
-tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as) {
-    return tlVmEvalCode(vm, tl_boot_code, tlSTR("<boot>"), as);
-}
-
-tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as) {
-    tlWorker* worker = tlWorkerNew(vm);
-    tlTask* task = tlTaskNew(vm, vm->locals);
-    vm->main = task;
-    vm->running = true;
-
-    // TODO if no success, task should have exception
-    task->worker = worker;
-    tl_task_current = task;
-    tlCode* body = tlCodeCast(tlParse(code, file));
-    if (!body) return task;
-    trace("PARSED");
-
-    tlClosure* fn = tlClosureNew(body, vm->globals);
-    tlTaskEvalArgsFn(as, fn);
-    tlTaskStart(task);
-
-    task->worker = vm->waiter;
-    tl_task_current = null;
-
-    trace("RUNNING");
-    tlWorkerRun(worker);
-    trace("DONE");
-    return task;
-}
-
 void tlVmRun(tlVm* vm, tlTask* task) {
     tlWorker* worker = tlWorkerNew(vm);
     vm->main = task;

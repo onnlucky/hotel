@@ -54,12 +54,6 @@ boot_tl.h: boot/boot.tl
 greg/greg:
 	cd greg && make
 
-parser.c: vm/parser.g greg/greg
-	greg/greg -o parser.c vm/parser.g
-
-parser.o: parser.c vm/tl.h config.h $(LIBGC)
-	$(CC) $(subst -Wall,,$(CFLAGS)) -c parser.c -o parser.o
-
 hotelparser.o: vm/tl.h config.h vm/hotelparser.c vm/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c vm/hotelparser.c -o hotelparser.o
 
@@ -72,9 +66,9 @@ xmlparser.o: vm/tl.h config.h vm/xmlparser.c vm/tlmeta.c
 ev.o: ev/*.c ev/*.h config.h $(LIBGC)
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
-libtl.a: $(LIBGC) $(LIBMP) parser.o ev.o vm.o hotelparser.o jsonparser.o xmlparser.o
+libtl.a: $(LIBGC) $(LIBMP) ev.o vm.o hotelparser.o jsonparser.o xmlparser.o
 	rm -f libtl.a
-	ar -q libtl.a parser.o ev.o vm.o hotelparser.o jsonparser.o xmlparser.o
+	ar -q libtl.a ev.o vm.o hotelparser.o jsonparser.o xmlparser.o
 	ar -q libtl.a libmp/*.o
 ifneq ($(BOEHM),)
 	ar -q libtl.a libgc/.libs/objs/*.o
@@ -99,7 +93,7 @@ modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
 	TL_MODULE_PATH=./modules ./tl tlmeta modules/sizzle.tlg modules/sizzle.tl
 
 clean:
-	rm -rf tl parser.c *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
+	rm -rf tl *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
 	rm -f modules/sizzle.tl
 	rm -f tlmeta
 	$(MAKE) -C graphics clean

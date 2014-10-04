@@ -336,10 +336,6 @@ void tlVmDecExternal(tlVm* vm);
 // get the current task
 //tlTask* tlTaskCurrent();
 
-
-// parsing
-tlHandle tlParse(tlString* str, tlString* file);
-
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlHandle v);
 tlTask* tlVmEvalCall(tlVm* vm, tlHandle fn, ...);
