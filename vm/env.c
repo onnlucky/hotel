@@ -165,7 +165,7 @@ static tlHandle _Env_module(tlArgs* args) {
 
     tlVm* vm = tlTaskGetVm(tlTaskCurrent());
     if (vm->resolve) {
-        return tlEval(tlCallFrom(vm->resolve, name, path, null));
+        return tlEval(tlBCallFrom(vm->resolve, name, path, null));
     }
     return tlUndef();
 }

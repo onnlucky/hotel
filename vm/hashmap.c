@@ -187,7 +187,7 @@ again:;
     frame->at += 1;
     trace("hashmap each: %s %s", tl_str(key), tl_str(val));
     if (!key) return tlNull;
-    res = tlEval(tlCallFrom(frame->block, key, val, tlINT(frame->at), null));
+    res = tlEval(tlBCallFrom(frame->block, key, val, tlINT(frame->at), null));
     if (!res) return tlTaskPauseAttach(frame);
     goto again;
     return tlNull;

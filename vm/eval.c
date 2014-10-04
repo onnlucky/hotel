@@ -21,7 +21,7 @@
 //
 // so we go from tlCall -> tlArgs -> running -> tlCollect
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 // implemented in controlflow.c
 INTERNAL tlHandle tlReturnNew(tlArgs* args);
@@ -303,7 +303,7 @@ INTERNAL tlHandle lookup(tlEnv* env, tlSym name) {
         // use a tlLazy or what?
         assert(tlWorkerCurrent());
         assert(tlWorkerCurrent()->codeframe);
-        return tlEval(tlCallFrom(vm->resolve, name, tlWorkerCurrent()->codeframe->code->path, null));
+        return tlEval(tlBCallFrom(vm->resolve, name, tlWorkerCurrent()->codeframe->code->path, null));
     }
     TL_THROW("undefined '%s'", tl_str(name));
 }
@@ -442,6 +442,8 @@ INTERNAL tlHandle stopCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
 }
 INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle res);
 INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
+    return tlNull;
+    /*
     tlCodeFrame* frame = (tlCodeFrame*)_frame;
     if (throw) {
         tlClosure* handler = frame->handler;
@@ -457,6 +459,7 @@ INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
     // if frames become copy-on-write, here is the place to check it and clone instead of use
     // but today, every frame is private to a task, and continuations are not allowed to jumped to if off-stack
     return evalCode2(frame, res);
+    */
 }
 
 INTERNAL tlHandle evalCode(tlArgs* args, tlClosure* fn) {
@@ -714,11 +717,6 @@ tlString* tltoString(tlHandle v) {
     // TODO actually invoke toString ...
     return tlStringFromCopy(tl_str(v), 0);
 }
-tlHandle tlEval(tlHandle v) {
-    trace("%s", tl_str(v));
-    if (tlCallIs(v)) return applyCall(tlCallAs(v));
-    return v;
-}
 tlHandle tlEvalArgsFn(tlArgs* args, tlHandle fn) {
     trace("%s %s", tl_str(fn), tl_str(args));
     assert(tlCallableIs(fn));
@@ -876,15 +874,8 @@ static tlHandle _stringFromFile(tlArgs* args) {
 }
 
 static tlHandle runCode(tlHandle _fn, tlArgs* args) {
-    tlCode* body = tlCodeCast(_fn);
-    if (!body) TL_THROW("expected Code");
-    tlEnv* env = tlEnvCast(tlArgsGet(args, 0));
-    if (!env) TL_THROW("expected an Env");
-    tlList* as = tlListCast(tlArgsGet(args, 1));
-    if (!as) as = tlListEmpty();
-
-    tlClosure* fn = tlClosureNew(body, env);
-    return tlEval(tlCallFromListNormal(fn, as));
+    fatal("removed");
+    return tlNull;
 }
 
 // TODO setting worker->evalArgs doesn't work, instead build own tlCodeFrame, that works ...

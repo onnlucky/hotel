@@ -587,7 +587,7 @@ INTERNAL tlHandle _Task_new(tlArgs* args) {
 
     tlHandle v = tlArgsMapGet(args, s_block);
     if (!v) v = tlArgsGet(args, 0);
-    if (tlCallableIs(v)) v = tlCallFrom(v, null);
+    if (tlCallableIs(v)) v = tlBCallFrom(v, null);
 
     tlTask* ntask = tlTaskNew(tlTaskGetVm(task), task->locals);
     tlTaskEval(ntask, v);
@@ -606,7 +606,7 @@ INTERNAL tlHandle _task_run(tlArgs* args) {
 
     tlHandle v = tlArgsMapGet(args, s_block);
     if (!v) v = tlArgsGet(args, 0);
-    if (tlCallableIs(v)) v = tlCallFrom(v, null);
+    if (tlCallableIs(v)) v = tlBCallFrom(v, null);
 
     tlTaskEval(task, v);
     tlTaskStart(task);

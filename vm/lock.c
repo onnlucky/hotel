@@ -312,7 +312,7 @@ INTERNAL tlHandle resumeWithLock(tlFrame* _frame, tlHandle _res, tlHandle _throw
         }
     }
     frame->frame.resumecb = resumeWithUnlock;
-    tlHandle res = tlEval(tlCallFrom(tlArgsBlock(args), null));
+    tlHandle res = tlEval(tlBCallFrom(tlArgsBlock(args), null));
     if (!res) return tlTaskPauseAttach(frame);
     return resumeWithUnlock((tlFrame*)frame, res, null);
 }

@@ -728,7 +728,7 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) return tlNull;
-    res = tlEval(tlCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
+    res = tlEval(tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
     if (!res) return tlTaskPauseAttach(frame);
     goto again;
     return tlNull;

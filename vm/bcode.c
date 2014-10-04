@@ -88,16 +88,6 @@ struct tlBCode {
     const uint8_t* code;
 };
 
-struct tlBCall {
-    tlHead head;
-    int size;
-    tlHandle target;
-    tlHandle msg;
-    tlHandle fn;
-    tlList* names;
-    tlHandle args[];
-};
-
 struct tlBEnv {
     tlHead head;
     tlBEnv* parent;
@@ -150,9 +140,6 @@ tlKind* tlBDebugInfoKind;
 static tlKind _tlBCodeKind = { .name = "BCode" };
 tlKind* tlBCodeKind;
 
-static tlKind _tlBCallKind = { .name = "BCall" };
-tlKind* tlBCallKind;
-
 static tlKind _tlBEnvKind = { .name = "BEnv" };
 tlKind* tlBEnvKind;
 
@@ -191,11 +178,6 @@ tlBCode* tlBCodeNew(tlBModule* mod) {
     tlBCode* code = tlAlloc(tlBCodeKind, sizeof(tlBCode));
     code->mod = mod;
     return code;
-}
-tlBCall* tlBCallNew(int size) {
-    tlBCall* call = tlAlloc(tlBCallKind, sizeof(tlBCall) + sizeof(tlHandle) * size);
-    call->size = size;
-    return call;
 }
 tlBEnv* tlBEnvNew(tlList* names, tlBEnv* parent) {
     tlBEnv* env = tlAlloc(tlBEnvKind, sizeof(tlBEnv) + sizeof(tlHandle) * tlListSize(names));
@@ -281,62 +263,43 @@ static bool isNameInCall(tlBCode* code, const tlBCall* call, int arg) {
     return false;
 }
 
+// TODO this is dog slow ...
 bool tlBCallIsLazy(const tlBCall* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size) return false;
-    if (tlBClosureIs(call->fn)) {
-        tlBCode* code = tlBClosureAs(call->fn)->code;
-        // TODO add mark when any arg can be lazy
-        //if (!code->hasLazy) return false;
+    if (!tlBClosureIs(call->fn)) return false;
 
-        if (call->names) {
-            tlHandle name = tlListGet(call->names, arg);
-            if (name && name != tlNull) {
-                arg = findNamedArg(code, name);
-                trace("named arg is numer: %d", arg);
-                if (arg == -1) return false;
-            } else {
-                // first figure out the which unnamed argument we are
-                int unnamed = 0;
-                for (int a = 0; a < arg; a++) {
-                    if (tlListGet(call->names, a) == tlNull) unnamed++;
-                }
-                trace("unnamed arg: %d", unnamed);
-                // then figure out which arg that maps to
-                for (arg = 0;; arg++) {
-                    if (!isNameInCall(code, call, arg)) {
-                        if (unnamed == 0) break;
-                        unnamed -= 1;
-                    }
-                }
-                trace("unnamed arg is numer: %d", arg);
-            }
-        }
+    tlBCode* code = tlBClosureAs(call->fn)->code;
+    // TODO add mark when any arg can be lazy
+    //if (!code->hasLazy) return false;
 
-        tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
-        if (!spec || spec == tlNull) return false;
-        return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
-    }
-
-    // for old style interpreter compatibility
-    // WARNING this ignores FCALLN names except block and else
     if (call->names) {
         tlHandle name = tlListGet(call->names, arg);
-        if (tlHandleEquals(name, s_block)) return false;
-        if (tlHandleEquals(name, s_else)) return false;
+        if (name && name != tlNull) {
+            arg = findNamedArg(code, name);
+            trace("named arg is numer: %d", arg);
+            if (arg == -1) return false;
+        } else {
+            // first figure out the which unnamed argument we are
+            int unnamed = 0;
+            for (int a = 0; a < arg; a++) {
+                if (tlListGet(call->names, a) == tlNull) unnamed++;
+            }
+            trace("unnamed arg: %d", unnamed);
+            // then figure out which arg that maps to
+            for (arg = 0;; arg++) {
+                if (!isNameInCall(code, call, arg)) {
+                    if (unnamed == 0) break;
+                    unnamed -= 1;
+                }
+            }
+            trace("unnamed arg is numer: %d", arg);
+        }
     }
-    if (tlClosureIs(call->fn)) {
-        tlCode* code = tlClosureAs(call->fn)->code;
-        tlList* names = code->argnames;
-        tlObject* defaults = code->argdefaults;
-        if (!defaults) return false;
-        tlSym name = tlListGet(names, arg);
-        if (!name) return false;
-        tlHandle d = tlObjectGetSym(defaults, name);
-        if (tlThunkIs(d) || d == tlThunkNull) return true;
-        return false;
-    }
-    return false;
+
+    tlHandle spec = tlListGet(tlBClosureAs(call->fn)->code->argspec, arg);
+    if (!spec || spec == tlNull) return false;
+    return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
 }
 
 void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
@@ -359,18 +322,9 @@ void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
     assert(!call->args[arg]);
     call->args[arg] = o;
 }
+
 void tlBCallSetNames_(tlBCall* call, tlList* names) {
     call->names = names;
-}
-tlHandle tlBCallGet(tlBCall* call, int at) {
-    if (at < 0 || at >= call->size) return null;
-    return call->args[at];
-}
-tlHandle tlBCallTarget(tlBCall* call) {
-    return call->target;
-}
-tlHandle tlBCallGetFn(tlBCall* call) {
-    return call->fn;
 }
 
 int tlBCallNameIndex(tlBCall* call, tlString* name) {
@@ -1065,7 +1019,7 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         task->limit -= 1;
     }
 
-    tlHandle fn = tlBCallGetFn(call);
+    tlHandle fn = tlBCallFn(call);
     trace(" %s invoke %s.%s", tl_str(call), tl_str(call->target), tl_str(fn));
     if (call->target && tl_kind(call->target)->locked) {
         if (!tlLockIsOwner(tlLockAs(call->target), task)) return tlLockAndInvoke(call);
@@ -1102,6 +1056,12 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
         if (kind->run) return kind->run(fn, args);
     }
     TL_THROW("'%s' not callable", tl_str(fn));
+}
+
+tlHandle tlEval(tlHandle v) {
+    trace("%s", tl_str(v));
+    if (tlBCallIs(v)) return tlInvoke(tlTaskCurrent(), tlBCallAs(v));
+    return v;
 }
 
 static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlBCall* args, tlBEnv* locals) {
@@ -1699,9 +1659,9 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
     if (tlCallableIs(handler)) {
         // operate with old style hotel
         trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlCall* call = tlCallNew(1, false);
-        tlCallSetFn_(call, handler);
-        tlCallSet_(call, 0, throw);
+        tlBCall* call = tlBCallNew(1);
+        tlBCallSetFn_(call, handler);
+        tlBCallSet_(call, 0, throw);
         return tlEval(call);
     }
     trace("returing handler value as handled: %s %s", tl_str(frame), tl_str(handler));

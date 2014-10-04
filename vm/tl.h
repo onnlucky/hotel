@@ -146,9 +146,9 @@ TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlObject);
 TL_REF_TYPE(tlMap);
 
-TL_REF_TYPE(tlCall);
+TL_REF_TYPE(tlCall);  // TODO remove perm
+TL_REF_TYPE(tlBCall); // TODO meld into args
 TL_REF_TYPE(tlArgs);
-TL_REF_TYPE(tlBCall); // TODO can just be tlArgs
 TL_REF_TYPE(tlResult);
 
 TL_REF_TYPE(tlEnv);
@@ -452,7 +452,7 @@ tlHandle tlArgsMapGet(tlArgs* args, tlSym name);
 
 // calls
 
-tlCall* tlCallFrom(tlHandle h, ...);
+tlBCall* tlBCallFrom(tlHandle h, ...);
 
 // results, from a result or a value, get the first result or the value itself
 tlHandle tlFirst(tlHandle v);

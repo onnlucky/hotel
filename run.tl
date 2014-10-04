@@ -540,6 +540,15 @@ fileFromModulePath = name, path ->
         if _Path_stat(file).ino != 0: return file
     return null
 
+assert [3000, 19, 10, 99, "b", "c", "a"].sort[1] == 10
+(
+    catch: e -> print "catching ok"
+    null - 1
+    assert false
+)
+print "OK!"
+//return
+
 compiler = (
     file = fileFromModulePath("compiler.tlb")
     if not file: Error("No compiler.tlb found").throw
