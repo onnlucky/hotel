@@ -27,15 +27,17 @@ TLG_MODULES=modules/sizzle.tl
 C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
 all: tl $(C_MODULES) $(TLG_MODULES)
-run.tlb: run.tl tlcompiler modules/compiler.tl
-	TL_MODULE_PATH=./modules ./tlcompiler run.tl
 
-run: tl run.tlb
-	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
-	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --noboot run.tlb hello.tl
+boot/boot.tlb: boot/boot.tl tlcompiler modules/compiler.tl
+	TL_MODULE_PATH=./modules ./tlcompiler boot/boot.tl
+modules/compiler.tlb: tlcompiler modules/compiler.tl
+	TL_MODULE_PATH=./modules ./tlcompiler modules/compiler.tl
+
+run: tl boot/boot.tlb modules/compiler.tlb
+	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
-test-noboot: tl
+test-noboot: tl boot/boot.tlb modules/compiler.tlb
 	cd test/noboot/ && ./run.sh
 test: test-noboot $(TLG_MODULES) $(C_MODULES)
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl runspec.tl
@@ -46,9 +48,6 @@ $(LIBGC):
 
 $(LIBMP):
 	cd libmp && make
-
-boot_tl.h: boot/boot.tl
-	cd boot && xxd -i boot.tl ../boot_tl.h
 
 greg/greg:
 	cd greg && make
@@ -74,7 +73,7 @@ ifneq ($(BOEHM),)
 endif
 	ar -s libtl.a
 
-vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* boot_tl.h $(LIBGC) $(LIBMP)
+vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* $(LIBGC) $(LIBMP)
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
@@ -92,7 +91,7 @@ modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
 	TL_MODULE_PATH=./modules ./tl tlmeta modules/sizzle.tlg modules/sizzle.tl
 
 clean:
-	rm -rf tl *.o *.a *.so *.dylib tl.dSYM boot_tl.h test/noboot/*.log
+	rm -rf tl *.o *.a *.so *.dylib tl.dSYM test/noboot/*.log
 	rm -f modules/sizzle.tl
 	rm -f tlmeta
 	$(MAKE) -C graphics clean

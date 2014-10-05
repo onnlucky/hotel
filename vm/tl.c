@@ -9,8 +9,8 @@ int main(int argc, char** argv) {
     const char* boot = null;
     tlArgs* args = null;
 
-    if (argc >= 2 && !strcmp(argv[1], "--noboot")) {
-        if (argc < 3) fatal("no file to run");
+    if (argc >= 2 && !strcmp(argv[1], "--boot")) {
+        if (argc < 3) fatal("no boot file");
         boot = argv[2];
 
         args = tlArgsNewNew(argc - 3);
@@ -26,25 +26,29 @@ int main(int argc, char** argv) {
 
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
-
+    tlBuffer* buf = null;
     if (boot) {
-        tlBuffer* buf = tlBufferFromFile(boot);
-        const char* error = null;
-        tlBModule* mod = tlBModuleFromBuffer(buf, tlSTR(boot), &error);
-        if (error) fatal("error booting: %s", error);
-        g_boot_module = mod;
-
-        tlBModuleLink(mod, tlVmGlobalEnv(vm), &error);
-        if (error) fatal("error linking boot: %s", error);
-
-        tlTask* task = tlBModuleCreateTask(vm, mod, args);
-        tlVmRun(vm, task);
-        tlHandle h = tlTaskGetValue(task);
-        if (tl_bool(h)) printf("%s\n", tl_str(h));
+        buf = tlBufferFromFile(boot);
     } else {
-        fatal("oeps");
-        //tlVmEvalBoot(vm, args);
+        boot = "boot.tlb";
+        buf = tlBufferFromFile("boot/boot.tlb");
+        if (!buf) buf = tlBufferFromFile("../boot/boot.tlb");
+        if (!buf) buf = tlBufferFromFile("/usr/shared/tl/boot.tlb");
     }
+    if (!buf) fatal("unable to load: %s", boot);
+
+    const char* error = null;
+    tlBModule* mod = tlBModuleFromBuffer(buf, tlSTR(boot), &error);
+    if (error) fatal("error booting: %s", error);
+    g_boot_module = mod;
+
+    tlBModuleLink(mod, tlVmGlobalEnv(vm), &error);
+    if (error) fatal("error linking boot: %s", error);
+
+    tlTask* task = tlBModuleCreateTask(vm, mod, args);
+    tlVmRun(vm, task);
+    tlHandle h = tlTaskGetValue(task);
+    if (tl_bool(h)) printf("%s\n", tl_str(h));
 
     int exitcode = tlVmExitCode(vm);
     tlVmDelete(vm);

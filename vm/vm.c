@@ -2,7 +2,6 @@
 
 #include "tl.h"
 #include "platform.h"
-#include "boot_tl.h"
 
 #include "llib/lhashmap.c"
 #include "llib/lqueue.c"
@@ -54,8 +53,6 @@
 #include "trace-off.h"
 
 tlHandle _dlopen(tlArgs* args);
-
-tlString* tl_boot_code;
 
 // return a hash
 unsigned tlHandleHash(tlHandle v) {
@@ -509,8 +506,6 @@ void tl_init() {
     evio_init();
     time_init();
     serialize_init();
-
-    tl_boot_code = tlStringFromStatic((const char*)boot_tl, boot_tl_len);
 
     assert(!tlArgsIs(0));
     assert(tlArgsAs(0) == 0);

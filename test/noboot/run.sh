@@ -6,7 +6,8 @@ FAIL=0
 for i in *.tl; do
     REF=${i/.tl/.ref}
     LOG=${i/.tl/.log}
-    ../../tl --noboot $i 2>/dev/null | diff $REF - >$LOG
+    ../../tlcompiler $i
+    ../../tl --boot ${i}b 2>/dev/null | diff $REF - >$LOG
 
     if (( $? == 0 )); then
         PASS=$((PASS+1))

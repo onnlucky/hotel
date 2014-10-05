@@ -3,11 +3,10 @@
 # 2. run the requests file(s) or start a repl
 # 3. drop into the io runloop, exiting when no tasks are left
 
-BYTECODE=false
-
 catch: e -> print "boot exception: $(e.toString)"
 
-if = cond, &t, &f -> bool(cond,bool(args["block"],args["block"],t),bool(args["else"],args["else"],f))()
+// TODO use args["block", else=t]
+if = cond, &t, &f -> bool(cond, args.get("block", t), args.get("else", f))()
 
 _or = left, &right ->
     if not left: return right()
@@ -25,6 +24,7 @@ while = &cond ->
         if not cond(): break
         block()
 
+// TODO otherwise syntax is useful in object?(else=42)test
 try = &test, &otherwise ->
     catch: return otherwise()
     if args.block: return args.block.call
@@ -42,8 +42,27 @@ max = l, r ->
     if l >= r: return l
     return r
 
-_get_random = ->
-    this.get(1 + random(this.size))
+print "boot 1"
+_test = if true: "boot"
+print "test"
+assert _test
+
+_test = ->
+    assert args[1] == 42
+    assert args["name"] == "hello"
+    assert args[:][1] == 42
+    assert args.names.name == "hello"
+_test(name="hello", 42)
+print "boot 2"
+_test(42, name="hello")
+print "boot 3"
+_test(name="hello", 42)
+print "boot 4"
+_test(foo="bar", 42, name="hello")
+print "boot 5"
+
+/// List.random(): return a random element from the list
+_get_random = -> this.get(1 + random(this.size))
 
 /// List.each([fn]): apply a function to all elements, returns nothing
 /// [block] the block to call, it is passed in the element and the position as `block(e, at)`
@@ -220,10 +239,11 @@ Number = s ->
 
 // TODO only flatten one level, unless asked?
 _flatten2 = ls, arr ->
-    ls.each: e ->
+    ls.each(e ->
         if isList(e): _flatten2(e, arr); return
         if isArray(e): _flatten2(e, arr); return
         arr.add(e)
+    )
 
 /// List.flatten: return a single list where all elements that are lists themselves have been merged
 /// at the moment, flatten will merge all such lists before merging their elements
@@ -484,8 +504,36 @@ _install(DeadlockError, "class", {
         return ls.join
 })
 
+assert [1,[2,[]],"hello",[]].flatten == [1,2,"hello"]
 
-// TODO should report line number and such of testcase ...
+dirname = file ->
+    at = file.find("/", backward=true)
+    if not at: return "."
+    if at == 1: return "/"
+    slash = Var.new(at - 1)
+    while file[$slash] == '/': $slash -= 1
+    return file[:$slash]
+
+assert dirname("hello.html") == "."
+assert dirname("/hello.html") == "/"
+assert dirname("./hello.html") == "."
+assert dirname("../hello.html") == ".."
+assert dirname("../foo/test/hello.html") == "../foo/test"
+assert dirname("//foo/..//../test///hello.html") == "//foo/..//../test"
+
+filename = file ->
+    at = file.find("/", backward=true)
+    if not at: return file
+    return file[at + 1:]
+
+assert filename("hello.html") == "hello.html"
+assert filename("/hello.html") == "hello.html"
+assert filename("./hello.html") == "hello.html"
+assert filename("../foo/test/hello.html") == "hello.html"
+
+sleep = s -> io.wait s
+wait  = s -> io.wait s
+
 test = ->
     catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
     args.block.call
@@ -494,13 +542,14 @@ test "split":
     sp = "hello world".split
     assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
 
-sleep = s -> io.wait s
-wait  = s -> io.wait s
-
+// TODO should be immutable
 _module_paths = Array.new
 
-// add a path to the global module path
-addModulePath = path -> _module_paths.add(path)
+// default module path
+(_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
+
+// TODO should be keyed on start env?
+_modules = HashMap.new
 
 // resolve the first file from a certain module path
 fileFromModulePath = name, path ->
@@ -512,97 +561,105 @@ fileFromModulePath = name, path ->
         if _Path_stat(file).ino != 0: return file
     return null
 
-// used for resolve, and somewhat public, *cough*
-_modules = HashMap.new
+// TODO Env.current
+_env = _env_current()
 
-basename = file ->
-    at = file.find("/", backward=true)
-    if not at: return "."
-    return file[:at]
+// TODO when this works, move capturing the env up
+//_env["fileFromModulePath"] = fileFromModulePath;
 
-// this captured env is the root of all defined things
-_env = Env.current
+assert [3000, 19, 10, 99, "b", "c", "a"].sort[1] == 10
+(
+    catch: e -> print "catching ok"
+    null - 1
+    assert false
+)
+print "OK!"
+//return
 
-// resolve
-resolve1 = name, path ->
-    res = _modules[name]
-    if isDefined res: return res
-    //print("RESOLVING: $name ($path)")
-    catch: e => return null, "Unable to read module '$name': $(e.msg)"
-    file = fileFromModulePath("$name.tl", path)
-    if file:
-        catch: e => return null, "Unable to parse module '$name': $(e.msg)"
-        mod = _parse(_stringFromFile(file), file)
-        catch: e => return null, "Unable to run module '$name': $(e.msg)"
-        res = mod(_env)
-        return _modules.set(name, res)
-    file = fileFromModulePath("$name.mod", path)
-    if file:
-        catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
-        res = dlopen(file)
-        return _modules.set(name, res)
-    return null, "Unable to read module '$name': no module found"
+compiler = (
+    file = fileFromModulePath("compiler.tlb")
+    if not file: Error("No compiler.tlb found").throw
+    bcode = _bufferFromFile(file)
+    mod = _Module_new(bcode, file[:-2])
+    links = _module_links(mod)
+    linked = links.map(name -> _env[name])
+    //linked.each: value, n -> print n, links[n], value
+    compiler = _module_run(_module_link(mod, linked))
+
+/*
+    print("reloading compiler")
+    text = _stringFromFile("modules/compiler.tl")
+    start = time()
+    ast = compiler.parse(text)
+    print("parsed:", time() - start)
+    bcode = compiler.compile(text, ast)
+    print("compiled:", time() - start)
+    compiler = _module_run(_module_link(_Module_new(Buffer.new(bcode), file[:-2]), linked))
+    print("linked and run", time() - start)
+    compiler
+*/
+)
 
 resolve2 = name, path ->
     res = _modules[name]
     if isDefined res: return res
-    //print("RESOLVING 2: $name ($path)")
+    print("RESOLVING 2: $name ($path)")
     catch: e => return null, "Unable to read module '$name': $(e.msg)"
+    file = fileFromModulePath("$name.tlb", path)
+    if file:
+        print("binary module", file)
+        catch: e => return null, "Unable to load module '$name': $(e.toString)"
+        path = dirname(file)
+        mod = compiler.load(_bufferFromFile(file), name=file[:-2], _env, (name -> resolve(name, path)))
+        catch: e => return null, "Unable to run module '$name': $(e.msg)"
+        res = mod.run()
+        return _modules.set(name, res)
     file = fileFromModulePath("$name.tl", path)
     if file:
+        print("module", file)
         catch: e => return null, "Unable to compile module '$name': $(e.toString)"
-        path = basename(file)
+        path = dirname(file)
         mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
         catch: e => return null, "Unable to run module '$name': $(e.msg)"
         res = mod.run()
         return _modules.set(name, res)
     file = fileFromModulePath("$name.mod", path)
     if file:
+        print("native module", file)
         catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
         res = dlopen(file)
         return _modules.set(name, res)
     return null, "Unable to read module '$name': no module found"
 
-// NOT A MISTAKE ... crazy, sorry ...
-// TODO maybe not such a good idea, and needs Task.env.path, and caller.file ...
-// TODO besides, need to have a dedicated task for this, to prevent races
 resolve = name, path ->
-    if BYTECODE and name != "compiler" and name != "io":
-        res, fail = resolve2(name, path)
-        if res: return res
-        print "Warning: using fallback:", fail
-    res, fail = resolve1(name, path)
+    res, fail = resolve2(name, path)
     if res: return res
     if fail: throw Error(fail)
 
+compile = resolve("compiler")
+io = resolve("io")
+_env["io"] = io
 
-_eval = /*Env*/ env ->
-    _parse(this)(env or _env)
-_beval = /*Env*/ env ->
-    { env }: compiler.load(this, env).run()
-    {     }: compiler.load(this, _env, (name -> resolve(name, null))).run()
+_eval = env/*env*/ ->
+    { env }: compiler.load(this, name="<eval>", env).run()
+    {     }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).run()
 
 /// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
-_install(String._methods, "eval", bool(BYTECODE, _beval, _eval))
+_install(String._methods, "eval", _eval)
 
-// unresolved names will call this, for auto module loading
-_resolve: name, path -> resolve(name, path)
-
-// default module path
-(_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
+test "eval":
+    "x = 42\nreturn x".eval == 42
 
 // run a repl, or every argument as a file
 runmain = as ->
     catch: e -> print e.toString; _set_exitcode(1)
 
-    if as.size == 0: return commandline()
-    if as[1] == "snippets": return snippets.run
+    if as.size == 0: resolve("commandline")()
+    //if as[1] == "snippets": return snippets.run
 
     file = as[1]
-    path = basename(file)
-    if BYTECODE:
-        return compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path))).run(as[2:])
-    return _parse(_stringFromFile(file), file)(_env, as[2:])
+    path = dirname(file)
+    return compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path))).run(as[2:])
 
 main = !runmain(args)
 
