@@ -178,7 +178,7 @@ INTERNAL tlHandle _debugger_call(tlArgs* args) {
     tlBClosure* closure = tlBClosureAs(frame->args->fn);
     tlBCode* code = closure->code;
 
-    tlBCall* call = null;
+    tlArgs* call = null;
     for (int i = 0; i < code->calldepth; i++) {
         if (!frame->calls[i].call) break;
         call = frame->calls[i].call;

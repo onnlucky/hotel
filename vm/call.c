@@ -62,7 +62,7 @@ struct tlBCall {
     tlHandle args[];
 };
 
-void dumpBCall(tlBCall* call) {
+void dumpBCall(tlArgs* call) {
     tlList* names = call->names;
     print("call: %d (%d %d)", call->size, call->size, call->nsize);
     print("%s", tl_str(call->fn));
@@ -73,29 +73,29 @@ void dumpBCall(tlBCall* call) {
     }
 }
 
-tlBCall* tlBCallNew(int size) {
-    tlBCall* call = tlAlloc(tlBCallKind, sizeof(tlBCall) + sizeof(tlHandle) * size);
+tlArgs* tlBCallNew(int size) {
+    tlArgs* call = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
     call->size = size;
     return call;
 }
-int tlBCallSize(tlBCall* call) {
+int tlBCallSize(tlArgs* call) {
     return call->size;
 }
 
-tlHandle tlBCallTarget(tlBCall* call) { return call->target; }
-tlHandle tlBCallMsg(tlBCall* call) { return call->msg; }
-tlHandle tlBCallFn(tlBCall* call) { return call->fn; }
+tlHandle tlBCallTarget(tlArgs* call) { return call->target; }
+tlHandle tlBCallMsg(tlArgs* call) { return call->msg; }
+tlHandle tlBCallFn(tlArgs* call) { return call->fn; }
 
-tlHandle tlBCallGet(tlBCall* call, int at) {
+tlHandle tlBCallGet(tlArgs* call, int at) {
     if (at < 0 || at >= call->size) return null;
     return call->args[at];
 }
 
-void tlBCallSetTarget_(tlBCall* call, tlHandle target) { call->target = target; }
-void tlBCallSetMsg_(tlBCall* call, tlHandle msg) { call->msg = msg; }
-void tlBCallSetFn_(tlBCall* call, tlHandle fn) { call->fn = fn; }
+void tlBCallSetTarget_(tlArgs* call, tlHandle target) { call->target = target; }
+void tlBCallSetMsg_(tlArgs* call, tlHandle msg) { call->msg = msg; }
+void tlBCallSetFn_(tlArgs* call, tlHandle fn) { call->fn = fn; }
 
-void tlBCallSet_(tlBCall* call, int at, tlHandle v) {
+void tlBCallSet_(tlArgs* call, int at, tlHandle v) {
     assert(at >= 0 && at < call->size);
     call->args[at] = v;
 }
@@ -115,15 +115,15 @@ tlCall* tlCallValueIterSet_(tlCall* call, int i, tlHandle v) {
 }
 
 // TODO this should be FromList ... below FromPairs ...
-tlBCall* tlBCallFromListNormal(tlHandle fn, tlList* list) {
+tlArgs* tlBCallFromListNormal(tlHandle fn, tlList* list) {
     int size = tlListSize(list);
-    tlBCall* call = tlBCallNew(size);
+    tlArgs* call = tlBCallNew(size);
     call->fn = fn;
     for (int i = 0; i < size; i++) tlBCallSet_(call, i, tlListGet(list, i));
     return call;
 }
 
-tlBCall* tlBCallFrom(tlHandle fn, ...) {
+tlArgs* tlBCallFrom(tlHandle fn, ...) {
     va_list ap;
     int size = 0;
 
@@ -132,7 +132,7 @@ tlBCall* tlBCallFrom(tlHandle fn, ...) {
     va_end(ap);
     size--;
 
-    tlBCall* call = tlBCallNew(size);
+    tlArgs* call = tlBCallNew(size);
 
     va_start(ap, fn);
     tlBCallSetFn_(call, fn);
@@ -192,7 +192,7 @@ bool tlCallNamesContains(tlCall* call, tlSym name) {
     return tlSetIndexof(nameset, name) >= 0;
 }
 
-tlBCall* tlCallFromList(tlHandle fn, tlList* args) {
+tlArgs* tlCallFromList(tlHandle fn, tlList* args) {
     int size = tlListSize(args);
     int namecount = 0;
 
@@ -216,7 +216,7 @@ tlBCall* tlCallFromList(tlHandle fn, tlList* args) {
         }
     }
 
-    tlBCall* call = tlBCallNew(size/2);
+    tlArgs* call = tlBCallNew(size/2);
     tlBCallSetFn_(call, fn);
     for (int i = 1; i < size; i += 2) {
         tlBCallSet_(call, i / 2, tlListGet(args, i));
@@ -232,7 +232,7 @@ tlBCall* tlCallFromList(tlHandle fn, tlList* args) {
 }
 
 // TODO share code here ... almost same as above
-tlBCall* tlCallSendFromList(tlHandle fn, tlHandle oop, tlHandle msg, tlList* args) {
+tlArgs* tlCallSendFromList(tlHandle fn, tlHandle oop, tlHandle msg, tlList* args) {
     assert(fn);
     assert(tlSymIs(msg));
     int size = tlListSize(args);
@@ -258,7 +258,7 @@ tlBCall* tlCallSendFromList(tlHandle fn, tlHandle oop, tlHandle msg, tlList* arg
         }
     }
 
-    tlBCall* call = tlBCallNew(size/2);
+    tlArgs* call = tlBCallNew(size/2);
     tlBCallSetFn_(call, fn);
     tlBCallSetTarget_(call, oop);
     tlBCallSetMsg_(call, msg);
@@ -329,7 +329,7 @@ static size_t callSize(tlHandle v) {
 }
 
 static size_t bcallSize(tlHandle v) {
-    return sizeof(tlBCall) + sizeof(tlHandle) * tlBCallAs(v)->size;
+    return sizeof(tlArgs) + sizeof(tlHandle) * tlArgsAs(v)->size;
 }
 
 static tlKind _tlNativeKind = {
@@ -356,6 +356,6 @@ static void call_init() {
     );
     INIT_KIND(tlCallKind);
 
-    assert(sizeof(tlArgs) == sizeof(tlBCall));
+    assert(sizeof(tlArgs) == sizeof(tlArgs));
 }
 

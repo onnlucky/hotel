@@ -174,9 +174,9 @@ INTERNAL tlHandle lockEvalSend(tlLock* lock, tlArgs* args) {
 }
 
 // ** lock a native object to send it a message from bytecode **
-tlHandle tlInvoke(tlTask* task, tlBCall* call);
-tlHandle tlBCallTarget(tlBCall* call);
-INTERNAL tlHandle lockedInvoke(tlLock* lock, tlBCall* call);
+tlHandle tlInvoke(tlTask* task, tlArgs* call);
+tlHandle tlBCallTarget(tlArgs* call);
+INTERNAL tlHandle lockedInvoke(tlLock* lock, tlArgs* call);
 
 INTERNAL tlHandle resumeInvoke(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("%s", tl_str(res));
@@ -189,7 +189,7 @@ INTERNAL tlHandle resumeInvokeEnqueue(tlFrame* frame, tlHandle res, tlHandle thr
     frame->resumecb = resumeInvoke;
     return lockEnqueue(tlLockAs(tlBCallTarget(res)), frame);
 }
-tlHandle tlLockAndInvoke(tlBCall* call) {
+tlHandle tlLockAndInvoke(tlArgs* call) {
     tlTask* task = tlTaskCurrent();
     tlLock* lock = tlLockAs(tlBCallTarget(call));
     trace("%s", tl_str(lock));
@@ -204,7 +204,7 @@ tlHandle tlLockAndInvoke(tlBCall* call) {
     }
     return lockedInvoke(lock, call);
 }
-INTERNAL tlHandle lockedInvoke(tlLock* lock, tlBCall* call) {
+INTERNAL tlHandle lockedInvoke(tlLock* lock, tlArgs* call) {
     tlTask* task = tlTaskCurrent();
     trace("%s", tl_str(lock));
     assert(lock->owner == task);

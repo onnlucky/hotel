@@ -91,7 +91,7 @@ struct tlBCode {
 struct tlBEnv {
     tlHead head;
     tlBEnv* parent;
-    tlBCall* args;
+    tlArgs* args;
     tlList* names;
     tlHandle data[];
 };
@@ -102,10 +102,10 @@ struct tlBClosure {
     tlBEnv* env;
 };
 
-typedef struct CallEntry { bool safe; int at; tlBCall* call; } CallEntry;
+typedef struct CallEntry { bool safe; int at; tlArgs* call; } CallEntry;
 struct tlBFrame {
     tlFrame frame;
-    tlBCall* args;
+    tlArgs* args;
 
     // mutable! but only by addition ...
     tlBEnv* locals;
@@ -118,7 +118,7 @@ struct tlBFrame {
 
 struct tlBLazy {
     tlHead head;
-    tlBCall* args;
+    tlArgs* args;
     tlBEnv* locals;
     int pc; // where the actuall call is located in the code
 };
@@ -212,14 +212,14 @@ tlBFrame* tlBFrameCast(tlHandle v) {
     return (tlBFrame*)v;
 }
 
-tlBFrame* tlBFrameNew(tlBCall* args) {
+tlBFrame* tlBFrameNew(tlArgs* args) {
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
     tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(CallEntry) * calldepth);
     frame->pc = -1;
     frame->args = args;
     return frame;
 }
-tlBLazy* tlBLazyNew(tlBCall* args, tlBEnv* locals, int pc) {
+tlBLazy* tlBLazyNew(tlArgs* args, tlBEnv* locals, int pc) {
     assert(args);
     assert(pc > 0);
     tlBLazy* lazy = tlAlloc(tlBLazyKind, sizeof(tlBLazy));
@@ -252,7 +252,7 @@ static int findNamedArg(tlBCode* code, tlHandle name) {
     return -1;
 }
 
-static bool isNameInCall(tlBCode* code, const tlBCall* call, int arg) {
+static bool isNameInCall(tlBCode* code, const tlArgs* call, int arg) {
     tlHandle spec = tlListGet(code->argspec, arg);
     if (!spec || spec == tlNull) return false;
     tlHandle name =  tlListGet(tlListAs(spec), 0);
@@ -264,7 +264,7 @@ static bool isNameInCall(tlBCode* code, const tlBCall* call, int arg) {
 }
 
 // TODO this is dog slow ...
-bool tlBCallIsLazy(const tlBCall* call, int arg) {
+bool tlBCallIsLazy(const tlArgs* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
     if (arg < 0 || !call || arg >= call->size) return false;
     if (!tlBClosureIs(call->fn)) return false;
@@ -302,7 +302,7 @@ bool tlBCallIsLazy(const tlBCall* call, int arg) {
     return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
 }
 
-void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
+void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
     assert(arg >= 0);
     if (arg == 0) {
         trace("%s.target <- %s", tl_str(call), tl_str(o));
@@ -323,7 +323,7 @@ void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
     call->args[arg] = o;
 }
 
-void tlBCallSetNames_(tlBCall* call, tlList* names) {
+void tlBCallSetNames_(tlArgs* call, tlList* names) {
     assert(call->size == tlListSize(names));
     call->names = names;
     for (int i = 0; i < tlListSize(names); i++) {
@@ -338,7 +338,7 @@ void tlBCallSetNames_(tlBCall* call, tlList* names) {
     assert(call->size >= call->nsize);
 }
 
-int tlBCallNameIndex(tlBCall* call, tlString* name) {
+int tlBCallNameIndex(tlArgs* call, tlString* name) {
     for (int i = 0; i < call->size; i++) {
         tlHandle v = tlListGet(call->names, i);
         if (tlStringIs(v) && tlStringEquals(tlStringAs(v), name)) return i;
@@ -346,7 +346,7 @@ int tlBCallNameIndex(tlBCall* call, tlString* name) {
     return -1;
 }
 
-int tlBCallGetUnnamedIndex(tlBCall* call, int skipped) {
+int tlBCallGetUnnamedIndex(tlArgs* call, int skipped) {
     trace("get unnamed: %d", skipped);
     int i = 0;
     for (; i < call->size; i++) {
@@ -357,7 +357,7 @@ int tlBCallGetUnnamedIndex(tlBCall* call, int skipped) {
     return i;
 }
 
-tlHandle tlBCallGetExtra(tlBCall* call, int at, tlBCode* code) {
+tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlList* argspec = tlListAs(tlListGet(code->argspec, at));
     tlString* name = tlStringCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
@@ -400,7 +400,7 @@ tlObject* tlBEnvLocalObject(tlFrame* frame) {
         map = tlObjectSet(map, tlSymAs(name), env->data[i]);
     }
 
-    tlBCall* args = env->args;
+    tlArgs* args = env->args;
     tlList* argspec = tlBClosureAs(args->fn)->code->argspec;
     for (int i = 0; i < tlListSize(argspec); i++) {
         tlHandle name = tlListGet(tlListGet(argspec, i), 0);
@@ -974,42 +974,24 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     return mod;
 }
 
-tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* locals);
+tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* locals);
 
-tlArgs* argsFromBCall(tlBCall* call) {
-    tlBCall* ncall = tlClone(call);
-    set_kind(ncall, tlArgsKind);
-    /*
-    print("---");
-    dumpBCall(call);
-    print("=== >");
-    dumpArgs(tlArgsAs(ncall));
-    print("^^^");
-    */
-    return tlArgsAs(ncall);
+tlArgs* argsFromBCall(tlArgs* call) {
+    return call;
 }
 
-tlBCall* bcallFromArgs(tlArgs* args) {
-    tlArgs* nargs = tlClone(args);
-    set_kind(nargs, tlBCallKind);
-    /*
-    print("---");
-    dumpArgs(args);
-    print("=== >");
-    dumpBCall(tlBCallAs(nargs));
-    print("^^^");
-    */
-    return tlBCallAs(nargs);
+tlArgs* bcallFromArgs(tlArgs* args) {
+    return args;
 }
 
 INTERNAL tlHandle afterYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
-    return tlInvoke(tlTaskCurrent(), tlBCallAs(res));
+    return tlInvoke(tlTaskCurrent(), tlArgsAs(res));
 }
 
 INTERNAL tlHandle resumeYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
-    assert(tlBCallIs(res));
+    assert(tlArgsIs(res));
     tlTask* task = tlTaskCurrent();
     tlTaskWaitFor(null);
     frame->resumecb = afterYieldQuota;
@@ -1018,7 +1000,7 @@ INTERNAL tlHandle resumeYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw)
     return tlTaskNotRunning;
 }
 
-tlHandle tlInvoke(tlTask* task, tlBCall* call) {
+tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     if (task->runquota <= 0) {
         return tlTaskPauseResuming(resumeYieldQuota, call);
     }
@@ -1070,11 +1052,11 @@ tlHandle tlInvoke(tlTask* task, tlBCall* call) {
 
 tlHandle tlEval(tlHandle v) {
     trace("%s", tl_str(v));
-    if (tlBCallIs(v)) return tlInvoke(tlTaskCurrent(), tlBCallAs(v));
+    if (tlArgsIs(v)) return tlInvoke(tlTaskCurrent(), tlArgsAs(v));
     return v;
 }
 
-static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlBCall* args, tlBEnv* locals) {
+static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlArgs* args, tlBEnv* locals) {
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
@@ -1122,7 +1104,7 @@ static void skip_safe_invokes(const uint8_t* ops, const int len, int* ppc, int s
 }
 
 // TODO this is not really needed, compiler or verifier can tell if a real locals needs to be realized
-static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlBCall* args, tlBClosure* fn) {
+static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlArgs* args, tlBClosure* fn) {
     if (*locals) {
         assert(&(*locals)->data == *data);
         return;
@@ -1137,7 +1119,7 @@ static void ensure_locals(tlHandle (**data)[], tlBEnv** locals, tlBCall* args, t
 }
 
 // ensure both frame and locals exist or are created and switch the calls and locals backing stores
-static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** frame, tlBEnv** locals, tlBCall* args) {
+static void ensure_frame(CallEntry (**calls)[], tlHandle (**data)[], tlBFrame** frame, tlBEnv** locals, tlArgs* args) {
     if (*frame) {
         assert(*locals);
         assert(&(*locals)->data == *data);
@@ -1163,7 +1145,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method) {
     return null;
 }
 
-tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* lazylocals) {
+tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
     trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
     assert(task);
     if (!args) {
@@ -1188,7 +1170,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
     if (!(frame || lazylocals)) for (int i = 0; i < bcode->locals; i++) _locals[i] = 0;
 
     int calltop = -1; // current call index in the call stack
-    tlBCall* call = null; // current call, if any
+    tlArgs* call = null; // current call, if any
     int arg = 0; // current argument to a call
     bool lazy = false; // if current call[arg] is lazy
 
@@ -1342,7 +1324,7 @@ again:;
             assert(call);
             assert(!lazy);
             assert(arg - 2 == call->size); // must be done with args here
-            tlBCall* invoke = call;
+            tlArgs* invoke = call;
             (*calls)[calltop].at = 0;
             (*calls)[calltop].call = null;
             calltop--;
@@ -1568,7 +1550,7 @@ resume:;
 void tlBFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlInt* line) {
     tlBFrame* frame = tlBFrameAs(_frame);
 
-    tlBCall* args = frame->args;
+    tlArgs* args = frame->args;
     assert(args);
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* code = closure->code;
@@ -1653,7 +1635,7 @@ INTERNAL tlHandle _env_current(tlArgs* args) {
 INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resume a call");
     if (throw) return null;
-    tlBCall* call = tlBCallAs(res);
+    tlArgs* call = tlArgsAs(res);
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
@@ -1661,7 +1643,7 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
         trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlBCall* call = tlBCallNew(1);
+        tlArgs* call = tlBCallNew(1);
         call->fn = tlBClosureAs(handler);
         tlBCallAdd_(call, throw, 2);
         return beval(tlTaskCurrent(), null, call, 0, null);
@@ -1669,7 +1651,7 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
     if (tlCallableIs(handler)) {
         // operate with old style hotel
         trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlBCall* call = tlBCallNew(1);
+        tlArgs* call = tlBCallNew(1);
         tlBCallSetFn_(call, handler);
         tlBCallSet_(call, 0, throw);
         return tlEval(call);
@@ -1692,7 +1674,7 @@ INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
 
 tlHandle beval_module(tlTask* task, tlBModule* mod) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
-    tlBCall* call = tlBCallNew(0);
+    tlArgs* call = tlBCallNew(0);
     call->fn = fn;
     return beval(task, null, call, 0, null);
 }
@@ -1712,9 +1694,9 @@ tlBModule* tlBModuleFromBuffer(tlBuffer* buf, tlString* name, const char** error
     return mod;
 }
 
-tlBCall* bcallFromArgs(tlArgs* args);
+tlArgs* bcallFromArgs(tlArgs* args);
 tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args) {
-    tlBCall* call = bcallFromArgs(args);
+    tlArgs* call = bcallFromArgs(args);
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     call->fn = fn;
 
@@ -1744,7 +1726,7 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
 
     tlList* list = tlListCast(tlArgsGet(args, 2));
     tlObject* map = tlObjectCast(tlArgsGet(args, 3));
-    tlBCall* call = bcallFromArgs(tlArgsNewFromListMap(list, map));
+    tlArgs* call = bcallFromArgs(tlArgsNewFromListMap(list, map));
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     call->fn = fn;
 
@@ -1831,7 +1813,7 @@ INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw)
 
     tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
     assert(scopeframe->locals);
-    tlBCall* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
+    tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
     tlFrame* frame = (tlFrame*)scopeframe;
     while (frame) {
@@ -1873,7 +1855,7 @@ INTERNAL tlHandle resume_bgoto(tlFrame* _frame, tlHandle _res, tlHandle throw) {
 
     tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
     assert(scopeframe->locals);
-    tlBCall* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
+    tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
     tlFrame* frame = (tlFrame*)scopeframe;
     while (frame) {
@@ -1920,7 +1902,7 @@ INTERNAL tlHandle _bclosure_call(tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlObject* map = tlObjectCast(tlArgsGet(args, 1));
     tlArgs* nargs = tlArgsNewFromListMap(list, map);
-    tlBCall* call = bcallFromArgs(nargs);
+    tlArgs* call = bcallFromArgs(nargs);
     call->target = null; // TODO unless this was passed in? e.g. method.call(this=target, 10, 10)
     call->fn = tlArgsTarget(args);
     assert(tlBClosureIs(call->fn));
@@ -1928,7 +1910,7 @@ INTERNAL tlHandle _bclosure_call(tlArgs* args) {
 }
 INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
     trace("bclosure.run");
-    tlBCall* call = bcallFromArgs(args);
+    tlArgs* call = bcallFromArgs(args);
     call->fn = _fn;
     assert(tlBClosureIs(call->fn));
     return beval(tlTaskCurrent(), null, call, 0, null);
@@ -1950,7 +1932,7 @@ INTERNAL tlHandle _bclosure_args(tlArgs* args) {
 INTERNAL tlHandle _blazy_call(tlArgs* args) {
     trace("blazy.call");
     tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
-    tlBCall* call = bcallFromArgs(args);
+    tlArgs* call = bcallFromArgs(args);
     call->target = null;
     call->fn = lazy;
     return beval(tlTaskCurrent(), null, lazy->args, lazy->pc, lazy->locals);
@@ -1958,7 +1940,7 @@ INTERNAL tlHandle _blazy_call(tlArgs* args) {
 INTERNAL tlHandle runBLazy(tlHandle fn, tlArgs* args) {
     trace("blazy.run");
     tlBLazy* lazy = tlBLazyAs(fn);
-    tlBCall* call = bcallFromArgs(args);
+    tlArgs* call = bcallFromArgs(args);
     call->fn = lazy;
     return beval(tlTaskCurrent(), null, lazy->args, lazy->pc, lazy->locals);
 }
