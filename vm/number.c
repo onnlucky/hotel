@@ -280,7 +280,20 @@ static bool numEquals(tlHandle left, tlHandle right) {
     return mp_cmp(&tlNumAs(left)->value, &tlNumAs(right)->value) == MP_EQ;
 }
 static tlHandle numCmp(tlHandle left, tlHandle right) {
-    int cmp = mp_cmp(&tlNumAs(left)->value, &tlNumAs(right)->value);
+    int cmp;
+    if (!tlNumIs(left)) {
+        mp_int nleft; mp_init(&nleft);
+        if (tlFloatIs(left)) mp_set_double(&nleft, tl_double(left));
+        else mp_set_signed(&nleft, tl_int(left));
+        cmp = mp_cmp(&nleft, &tlNumAs(right)->value);
+    } else if (!tlNumIs(right)) {
+        mp_int nright; mp_init(&nright);
+        if (tlFloatIs(right)) mp_set_double(&nright, tl_double(right));
+        else mp_set_signed(&nright, tl_int(right));
+        cmp = mp_cmp(&tlNumAs(left)->value, &nright);
+    } else {
+        cmp = mp_cmp(&tlNumAs(left)->value, &tlNumAs(right)->value);
+    }
     if (cmp < 0) return tlSmaller;
     if (cmp > 0) return tlLarger;
     return tlEqual;

@@ -69,7 +69,12 @@ encodeNumber = n ->
     if n < 1 <<  15: return Bin(0b1100_0000 | 1,                   n >> 7, n << 1 | bool(pos,0,1))
     if n < 1 <<  23: return Bin(0b1100_0000 | 2,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
     if n < 1 <<  31: return Bin(0b1100_0000 | 3, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
-    assert false
+
+    if n < 1 <<  39: return Bin(0b1100_0000 | 4,                            n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  47: return Bin(0b1100_0000 | 5,                   n >> 39, n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  55: return Bin(0b1100_0000 | 6,          n >> 47, n >> 39, n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    if n < 1 <<  63: return Bin(0b1100_0000 | 7, n >> 55, n >> 47, n >> 39, n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
+    assert false, "need bignum support in bytecode for this"
 
 encodeString = s ->
     assert isString s
@@ -472,7 +477,7 @@ compile = (text, ast ->
         { isNumber(term) }:
             { isFloat(term) }: ["data", term]
             { term < 0      }: ["data", term]
-            { term > 2^25   }: ["data", term]
+            { term >= 2^25  }: ["data", term]
             {               }: ["int", term]
         { term.type == "string"   }: ["data", term.data]
         { term.type == "function" }: ["bind", term.function]

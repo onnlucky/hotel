@@ -104,6 +104,14 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
         if (kleft == tlFloatKind && kright == tlCharKind) return tlFloatKind->cmp(left, right);
         if (kleft == tlCharKind && kright == tlIntKind) return tlFloatKind->cmp(left, right);
         if (kleft == tlIntKind && kright == tlCharKind) return tlFloatKind->cmp(left, right);
+
+        if (kleft == tlIntKind && kright == tlNumKind) return tlNumKind->cmp(left, right);
+        if (kleft == tlNumKind && kright == tlIntKind) return tlNumKind->cmp(left, right);
+        if (kleft == tlCharKind && kright == tlNumKind) return tlNumKind->cmp(left, right);
+        if (kleft == tlNumKind && kright == tlCharKind) return tlNumKind->cmp(left, right);
+        if (kleft == tlFloatKind && kright == tlNumKind) return tlNumKind->cmp(left, right);
+        if (kleft == tlNumKind && kright == tlFloatKind) return tlNumKind->cmp(left, right);
+
         if (kleft == tlSymKind && kright == tlStringKind) return tlSymKind->cmp(left, right);
         if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->cmp(left, right);
         if (kleft == tlBinKind && kright == tlStringKind) return tlBinKind->cmp(left, right);
