@@ -120,7 +120,7 @@ emitOr = r, buf, ind ->
     if r.terms.size == 1: return emit(r.terms[1], buf, ind)
 
     buf.write("$ind  _in, _v = pOr(_in, _nr, _name\n")
-    r.terms.each: r =>
+    r.terms.each: r ->
         buf.write("$ind    ,(_in, _nr ->\n")
         emit r, buf, ind.cat("    ")
         buf.write("$ind     )\n")

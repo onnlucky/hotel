@@ -673,7 +673,7 @@ Module = m -> {
     }
 
 name_from = envs, name ->
-    envs.each: env =>
+    envs.each: env ->
         { isString(env)   }: Error("cannot link using a String: '$env'").throw
         { isObject(env)   }: x = Object.get(env, name); if isDefined(x): return x
         { isFunction(env) }: x = env(name); if isDefined(x): return x

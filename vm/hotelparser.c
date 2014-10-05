@@ -3187,14 +3187,10 @@ static State r_wsnl(Parser* _p, int _start) { // and
  if (_p->error_line) { /*print("expect: r_wsnl");*/ return _r; }
  return parser_fail(_p, "r_wsnl", _start);
 }
-static State r_arrow(Parser* _p, int _start) { // or
+static State r_arrow(Parser* _p, int _start) { // and
  parser_enter(_p, "r_arrow", _start);
  int _pos = _start;
- State _r;
- _r = prim_text(_p, _pos, "->");
- if (_r.ok) return parser_pass(_p, "r_arrow", 0, _start, _r);
- if (_p->error_line) { /*print("expect: r_arrow");*/ return _r; }
- _r = prim_text(_p, _pos, "=>");
+ State _r = prim_text(_p, _pos, "->");
  if (_r.ok) return parser_pass(_p, "r_arrow", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_arrow");*/ return _r; }
  return parser_fail(_p, "r_arrow", _start);

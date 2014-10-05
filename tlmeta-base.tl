@@ -49,7 +49,7 @@ pChar = in, nr, text ->
 pNot = in, nr, parser ->
     trace2(in, "pNot")
     in = (
-        catch: e =>
+        catch: e ->
             if try(e.t) != "p": throw e
             if try(e.noreturn): throw e
             return in, null
@@ -64,7 +64,7 @@ pAhead = in, nr, parser ->
 
 pOpt = in, nr, parser ->
     trace2(in, "pOpt")
-    catch: e =>
+    catch: e ->
         if try(e.t) != "p": throw e
         if try(e.noreturn): throw e
         return in, null
@@ -72,7 +72,7 @@ pOpt = in, nr, parser ->
 
 _pmany = in, parser, res ->
     trace2(in, "_pmany: $(res.size)")
-    catch: e =>
+    catch: e ->
         if try(e.t) != "p": throw e
         if try(e.noreturn): throw e
         trace2(in, " << pStar|pPlus")
@@ -97,7 +97,7 @@ pOr = in, nr, name ->
         if not parser: break
         trace2(in, "pOr: $name: $($i)")
         $i += 1
-        catch: e =>
+        catch: e ->
             if try(e.t) != "p": throw e
             if try(e.noreturn): throw e
         in, v = parser(in)

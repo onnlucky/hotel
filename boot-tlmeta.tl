@@ -30,7 +30,7 @@ rule = fn -> fn = args.block or fn; (a1, a2, a3, a4, a5, a6 -> (in -> in = args.
 
 parse = parser, text ->
     out = (
-        catch: e =>
+        catch: e ->
             if e?class == Input: throw "syntax error: ".cat(e.value)
             throw e
         parser(input(text, 1, null))
@@ -41,7 +41,7 @@ parse = parser, text ->
 pNot = rule(in, parser ->
     trace(in, "pNot")
     out = (
-        catch: e =>
+        catch: e ->
             if e?class == Input: trace(in, "pNot: OK: $(e)"); return in
             throw e
         parser(in)
@@ -51,7 +51,7 @@ pNot = rule(in, parser ->
 )
 pOptional = rule(in, parser ->
     trace(in, "pOptional")
-    catch: e =>
+    catch: e ->
         if e?class == Input: trace(in, "ERROR: $e"); return in.set(null)
         throw e
     in = parser(in)
@@ -74,7 +74,7 @@ pOr = rule(in ->
         if not parser: break
         trace(in, "pOr: $($i)")
         $i += 1
-        catch: e =>
+        catch: e ->
             trace(in, "ERROR: $e")
             if e?class != Input: throw e
         return parser(in)
@@ -83,7 +83,7 @@ pOr = rule(in ->
 )
 _pmany = in, parser, res ->
     trace(in, "_pmany")
-    catch: e =>
+    catch: e ->
         if e?class == Input: trace(in, "ERROR: $e"); return in.set(res)
         throw e
     in = parser(in)
@@ -261,7 +261,7 @@ parseTerm = in ->
     a1 = in ->
         in = pText("(")(in)
         trace2(in, ">> paren >> PAREN >> PAREN >>")
-        catch: e => print "!! !! SYNTAX ERROR::", e, ":: !! !!"
+        catch: e -> print "!! !! SYNTAX ERROR::", e, ":: !! !!"
         in = parseWs(in)
         t=parseOr(in)
         in = parseWs(t)
@@ -353,7 +353,7 @@ emitOr = r, buf, ind ->
     if r.terms.size == 1: return emit(r.terms[1], buf, ind)
 
     buf.write("$ind  _in, _v = pOr(_in, _nr, _name\n")
-    r.terms.each: r =>
+    r.terms.each: r ->
         buf.write("$ind    ,(_in, _nr ->\n")
         emit r, buf, ind.cat("    ")
         buf.write("$ind     )\n")
@@ -386,7 +386,7 @@ buf.write("\n// --- tlmeta-base.tl ---\n")
 buf.write(io.File("tlmeta-base.tl").readString)
 buf.write("\n// --- parser ---\n")
 var $hasstart = false
-ast.rules.each: r =>
+ast.rules.each: r ->
     if r.name == "start": $hasstart = true
     emitRule r, buf
 start = (if $hasstart: "start") or ast.rules[1].name

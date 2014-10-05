@@ -64,7 +64,7 @@ Server = {
                 if not client: return
                 conn = HttpConnection(client)
                 !(
-                    catch: e => print e, e?msg; conn.error
+                    catch: e -> print e, e?msg; conn.error
                     block(conn); conn.end
                 )
                 Task.yield

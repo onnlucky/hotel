@@ -29,8 +29,8 @@ walk = node, match, result ->
             if not result: return node
             result.add node
         if match.size > 1:
-            node.each: n => r = walk(n, match[2:], result); if r: return r
-    node.each: n => r = walk(n, match, result); if r: return r
+            node.each: n -> r = walk(n, match[2:], result); if r: return r
+    node.each: n -> r = walk(n, match, result); if r: return r
     return
 
 query = node, match ->

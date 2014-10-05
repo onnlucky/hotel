@@ -91,7 +91,7 @@ _map = fn ->
     if size == 0: return []
 
     res = _List_unsafe(size)
-    loop = at =>
+    loop = at ->
         if at > size: return res
         if block: _list_set_(res, at, block(this[at], at))
         if not block: _list_set_(res, at, fn(this[at]))
@@ -536,7 +536,7 @@ sleep = s -> io.wait s
 wait  = s -> io.wait s
 
 test = ->
-    catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
+    catch: e -> print "TEST FAILED:", args.slice.join(" "); print e.toString
     args.block.call
 
 test "split":
@@ -557,7 +557,7 @@ fileFromModulePath = name, path ->
     if path:
         file = "$path/$name"
         if _Path_stat(file).ino != 0: return file
-    _module_paths.each: p =>
+    _module_paths.each: p ->
         file = "$p/$name"
         if _Path_stat(file).ino != 0: return file
     return null
@@ -604,29 +604,29 @@ resolve2 = name, path ->
     res = _modules[name]
     if isDefined res: return res
     //print("RESOLVING 2: $name ($path)")
-    catch: e => return null, "Unable to read module '$name': $(e.msg)"
+    catch: e -> return null, "Unable to read module '$name': $(e.msg)"
     file = fileFromModulePath("$name.tlb", path)
     if file:
         print("binary module", file)
-        catch: e => return null, "Unable to load module '$name': $(e.toString)"
+        catch: e -> return null, "Unable to load module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_bufferFromFile(file), name=file[:-2], _env, (name -> resolve(name, path)))
-        catch: e => return null, "Unable to run module '$name': $(e.msg)"
+        catch: e -> return null, "Unable to run module '$name': $(e.msg)"
         res = mod.run()
         return _modules.set(name, res)
     file = fileFromModulePath("$name.tl", path)
     if file:
         print("module", file)
-        catch: e => return null, "Unable to compile module '$name': $(e.toString)"
+        catch: e -> return null, "Unable to compile module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
-        catch: e => return null, "Unable to run module '$name': $(e.msg)"
+        catch: e -> return null, "Unable to run module '$name': $(e.msg)"
         res = mod.run()
         return _modules.set(name, res)
     file = fileFromModulePath("$name.mod", path)
     if file:
         print("native module", file)
-        catch: e => return null, "Unable to load compiled module '$name': $(e.msg)"
+        catch: e -> return null, "Unable to load compiled module '$name': $(e.msg)"
         res = dlopen(file)
         return _modules.set(name, res)
     return null, "Unable to read module '$name': no module found"
