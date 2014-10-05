@@ -195,6 +195,8 @@ static tlHandle _Env_path(tlArgs* args) {
     return tlWorkerCurrent()->codeframe->code->path;
 }
 
+INTERNAL tlHandle _env_current(tlArgs* args);
+
 static tlObject* envClass;
 static void env_init() {
     _tlEnvKind.klass = tlClassObjectFrom(
@@ -206,7 +208,7 @@ static void env_init() {
     );
     envClass = tlClassObjectFrom(
         "new", _Env_new,
-        "current", _Env_current,
+        "current", _env_current,
         "localObject", _Env_localObject,
         "path", _Env_path,
         "module", _Env_module,

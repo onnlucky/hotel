@@ -640,8 +640,9 @@ compile = resolve("compiler")
 io = resolve("io")
 _env["io"] = io
 
+// TODO allow safe eval by not resolving modules and limited default env ...
 _eval = env/*env*/ ->
-    { env }: compiler.load(this, name="<eval>", env).run()
+    { env }: compiler.load(this, name="<eval>", env, _env, (name -> resolve(name, null))).run()
     {     }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).run()
 
 /// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
