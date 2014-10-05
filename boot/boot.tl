@@ -568,7 +568,7 @@ _env = _env_current()
 // TODO when this works, move capturing the env up
 //_env["fileFromModulePath"] = fileFromModulePath;
 
-assert [3000, 19, 10, 99, "b", "c", "a"].sort[1] == 10
+assert [3000, 19, 10, 99].sort[1] == 10
 x = (
     catch: e -> "got it"
     null - 1
