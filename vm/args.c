@@ -31,46 +31,56 @@ void dumpArgs(tlArgs* call) {
 static tlArgs* _tl_emptyArgs;
 tlArgs* tlArgsEmpty() { return _tl_emptyArgs; }
 
+tlArgs* tlArgsNewNew(int size) {
+    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
+    args->size = size;
+    return args;
+}
+
 tlArgs* tlArgsNewNames(int size, tlSet* names) {
-    warning("shouldn't use this");
+    fatal("shouldn't use this");
     int nsize = tlSetSize(names);
-    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * (size + nsize));
+    size += nsize;
+    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
     args->size = size;
     args->nsize = nsize;
-    //if (!names) names = _tl_set_empty;
-    //args->list = tlListNew(size - tlSetSize(names));
-    //args->map = tlObjectNew(names);
     return args;
 }
 
 tlArgs* tlArgsNewSize(int size, int nsize) {
-    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * (size + nsize));
+    fatal("shouldn't use this");
+    size += nsize;
+    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
     args->size = size;
     args->nsize = nsize;
     return args;
 }
 
 tlArgs* tlArgsNew(tlList* list, tlObject* map) {
-    //warning("shouldn't use this");
-    if (!list) list = _tl_emptyList;
+    fatal("shouldn't use this");
+    return null;
+}
+
+tlArgs* tlArgsNewFromListMap(tlList* list, tlObject* map) {
+    if (!list) list = tlListEmpty();
     if (!map) map = tlObjectEmpty();
-    int size = tlListSize(list);
+    int lsize = tlListSize(list);
     int nsize = tlObjectSize(map);
-    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * (size + nsize));
-    args->size = size;
+    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * (lsize + nsize));
+    args->size = lsize + nsize;
     args->nsize = nsize;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < lsize; i++) {
         args->args[i] = tlListGet(list, i);
     }
     if (nsize > 0) {
-        args->names = tlListNew(size + nsize);
-        for (int i = 0; i < size; i++) tlListSet_(args->names, i, tlNull);
+        args->names = tlListNew(lsize + nsize);
+        for (int i = 0; i < lsize; i++) tlListSet_(args->names, i, tlNull);
         for (int i = 0; i < nsize; i++) {
             tlHandle name;
             tlHandle value;
             tlObjectKeyValueIter(map, i, &name, &value);
-            tlListSet_(args->names, size + i, name);
-            args->args[size +i] = value;
+            tlListSet_(args->names, lsize + i, name);
+            args->args[lsize + i] = value;
         }
     }
     return args;
@@ -82,7 +92,7 @@ tlHandle tlArgsFn(tlArgs* args) { assert(tlArgsIs(args)); return args->fn; }
 
 int tlArgsSize(tlArgs* args) {
     assert(tlArgsIs(args));
-    return args->size;
+    return args->size - args->nsize;
 }
 int tlArgsMapSize(tlArgs* args) {
     assert(tlArgsIs(args));
@@ -91,14 +101,14 @@ int tlArgsMapSize(tlArgs* args) {
 tlList* tlArgsList(tlArgs* args) {
     warning("shouldn't use this");
     assert(tlArgsIs(args));
-    tlList* list = tlListNew(args->size);
+    tlList* list = tlListNew(args->size - args->nsize);
     int named = 0;
-    for (int i = 0; i < args->size + args->nsize; i++) {
+    for (int i = 0; i < args->size; i++) {
         tlHandle name = args->names? tlListGet(args->names, i) : tlNull;
         if (name != tlNull) { named++; continue; }
         tlListSet_(list, i - named, args->args[i]);
     }
-    assert(tlListGet(list, args->size - 1));
+    assert(tlListGet(list, args->size - args->nsize - 1));
     return list;
 }
 tlObject* tlArgsObject(tlArgs* args) {
@@ -107,18 +117,20 @@ tlObject* tlArgsObject(tlArgs* args) {
     if (!args->names) return tlObjectEmpty();
 
     tlSet* set = tlSetNew(args->nsize);
-    for (int i = 0; i < args->size + args->nsize; i++) {
+    for (int i = 0; i < args->size; i++) {
         tlHandle name = tlListGet(args->names, i);
         if (name == tlNull) continue;
         tlSetAdd_(set, name);
     }
 
     tlObject* object = tlObjectNew(set);
-    for (int i = 0; i < args->size + args->nsize; i++) {
+    for (int i = 0; i < args->size; i++) {
         tlHandle name = tlListGet(args->names, i);
         if (name == tlNull) continue;
         tlObjectSet_(object, name, args->args[i]);
     }
+    assert(tlObjectSize(object) == args->nsize);
+    print("args.Object: %s", tl_repr(object));
     return object;
 }
 tlMap* tlArgsMap(tlArgs* args) {
@@ -126,21 +138,21 @@ tlMap* tlArgsMap(tlArgs* args) {
     return tlMapFromObject_(tlArgsObject(args));
 }
 tlHandle tlArgsGet(const tlArgs* args, int at) {
-    if (at < 0 || at >= args->size) return null;
+    if (at < 0 || at >= args->size - args->nsize) return null;
     if (!args->names) return args->args[at];
 
     int target = -1;
-    for (int i = 0; i < args->size + args->nsize; i++) {
+    for (int i = 0; i < args->size; i++) {
         if (tlListGet(args->names, i) == tlNull) target++;
         if (target == at) return args->args[i];
     }
-    fatal("no way");
+    fatal("precondition failed");
     return null;
 }
 tlHandle tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
     if (!args->names) return null;
-    for (int i = 0; i < args->size + args->nsize; i++) {
+    for (int i = 0; i < args->size; i++) {
         if (tlListGet(args->names, i) == name) return args->args[i];
     }
     return null;
@@ -172,8 +184,7 @@ void tlArgsSet_(tlArgs* args, int at, tlHandle v) {
 }
 void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v) {
     assert(tlArgsIs(args));
-    fatal("not implemented");
-    //tlObjectSet_(args->map, name, v);
+    fatal("should not use this");
 }
 static tlHandle _args_size(tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
@@ -258,7 +269,7 @@ const char* _ArgstoString(tlHandle v, char* buf, int size) {
 }
 
 static size_t argsSize(tlHandle v) {
-    return sizeof(tlArgs) + sizeof(tlHandle) * (tlArgsAs(v)->size + tlArgsAs(v)->nsize);
+    return sizeof(tlArgs) + sizeof(tlHandle) * tlArgsAs(v)->size;
 }
 
 static void args_init() {
@@ -269,7 +280,7 @@ static void args_init() {
     };
     INIT_KIND(tlArgsKind);
 
-    _tl_emptyArgs = tlArgsNew(null, null);
+    _tl_emptyArgs = tlArgsNewNew(0);
     tlArgsKind->klass = tlClassObjectFrom(
             "this", _args_this,
             "msg", _args_msg,

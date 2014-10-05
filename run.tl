@@ -50,6 +50,7 @@ assert _test
 _test = ->
     assert args[1] == 42
     assert args["name"] == "hello"
+    assert args[:][1] == 42
     assert args.names.name == "hello"
 _test(name="hello", 42)
 print "boot 2"

@@ -979,7 +979,6 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv*
 tlArgs* argsFromBCall(tlBCall* call) {
     tlBCall* ncall = tlClone(call);
     set_kind(ncall, tlArgsKind);
-    ncall->size = call->size - call->nsize;
     /*
     print("---");
     dumpBCall(call);
@@ -993,7 +992,6 @@ tlArgs* argsFromBCall(tlBCall* call) {
 tlBCall* bcallFromArgs(tlArgs* args) {
     tlArgs* nargs = tlClone(args);
     set_kind(nargs, tlBCallKind);
-    nargs->size = args->size + args->nsize;
     /*
     print("---");
     dumpArgs(args);
@@ -1746,7 +1744,7 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
 
     tlList* list = tlListCast(tlArgsGet(args, 2));
     tlObject* map = tlObjectCast(tlArgsGet(args, 3));
-    tlBCall* call = bcallFromArgs(tlArgsNew(list, map));
+    tlBCall* call = bcallFromArgs(tlArgsNewFromListMap(list, map));
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     call->fn = fn;
 
@@ -1921,7 +1919,7 @@ INTERNAL tlHandle _bclosure_call(tlArgs* args) {
     trace("bclosure.call");
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlObject* map = tlObjectCast(tlArgsGet(args, 1));
-    tlArgs* nargs = tlArgsNew(list, map);
+    tlArgs* nargs = tlArgsNewFromListMap(list, map);
     tlBCall* call = bcallFromArgs(nargs);
     call->target = null; // TODO unless this was passed in? e.g. method.call(this=target, 10, 10)
     call->fn = tlArgsTarget(args);

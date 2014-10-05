@@ -43,10 +43,12 @@ struct tlCall {
 };
 
 int tlCallSize(tlCall* call) {
-    return call->size;
+    fatal("to be removed");
+    return 0;
 }
 tlHandle tlCallGetFn(tlCall* call) {
-    return call->fn;
+    fatal("to be removed");
+    return null;
 }
 
 struct tlBCall {
@@ -99,17 +101,16 @@ void tlBCallSet_(tlBCall* call, int at, tlHandle v) {
 }
 
 tlHandle tlCallGet(tlCall* call, int at) {
-    if (at < 0 || at >= call->size) return null;
-    return call->data[at];
+    fatal("to be removed");
+    return null;
 }
 tlHandle tlCallValueIter(tlCall* call, int i) {
-    if (i == 0) return call->fn;
-    return tlCallGet(call, i - 1);
+    fatal("to be removed");
+    return null;
 }
 
 tlCall* tlCallValueIterSet_(tlCall* call, int i, tlHandle v) {
-    if (i == 0) { call->fn = v; return call; }
-    call->data[i - 1] = v;
+    fatal("to be removed");
     return call;
 }
 
@@ -144,6 +145,7 @@ tlBCall* tlBCallFrom(tlHandle fn, ...) {
 }
 
 tlCall* tlCallCopy(tlCall* o) {
+    fatal("to be removed");
     trace("%s", tl_str(o));
     tlCall* call = tlClone(o);
     trace("%s", tl_str(call));
@@ -154,6 +156,7 @@ tlCall* tlCallCopy(tlCall* o) {
 }
 
 tlCall* tlCallCopySetFn(tlCall* o, tlHandle fn) {
+    fatal("to be removed");
     trace("%s %s", tl_str(o), tl_str(fn));
     tlCall* call = tlCallCopy(o);
     call->fn = fn;
@@ -161,6 +164,7 @@ tlCall* tlCallCopySetFn(tlCall* o, tlHandle fn) {
 }
 
 tlHandle tlCallGetName(tlCall* call, int at) {
+    fatal("to be removed");
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     tlList* names = call->data[call->size - 2];
     tlHandle name = tlListGet(names, at);
@@ -169,17 +173,20 @@ tlHandle tlCallGetName(tlCall* call, int at) {
 }
 
 tlSet* tlCallNames(tlCall* call) {
+    fatal("to be removed");
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return null;
     return call->data[call->size - 1];
 }
 
 int tlCallNamesSize(tlCall* call) {
+    fatal("to be removed");
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return 0;
     tlSet* nameset = call->data[call->size - 1];
     return tlSetSize(nameset);
 }
 
 bool tlCallNamesContains(tlCall* call, tlSym name) {
+    fatal("to be removed");
     if (!tlflag_isset(call, TL_FLAG_HASKEYS)) return false;
     tlSet* nameset = call->data[call->size - 1];
     return tlSetIndexof(nameset, name) >= 0;

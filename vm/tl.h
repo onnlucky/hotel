@@ -434,11 +434,17 @@ tlHandle tlUndefMsg(tlString* msg);
 
 // args
 tlArgs* tlArgsEmpty();
-tlArgs* tlArgsNew(tlList* list, tlObject* o);
+tlArgs* tlArgsNewNew(int size);
+tlArgs* tlArgsNewFromListMap(tlList* list, tlObject* map);
+void tlArgsSet_(tlArgs* args, int at, tlHandle v);
+void tlArgsSetNames_(tlArgs* args, tlList* names);
+
 void tlArgsSetTarget_(tlArgs* args, tlHandle target);
 void tlArgsSetFn_(tlArgs* args, tlHandle fn);
-void tlArgsSet_(tlArgs* args, int at, tlHandle v);
-void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v);
+void tlArgsSetMsg_(tlArgs* args, tlHandle msg);
+
+tlArgs* tlArgsNew(tlList* list, tlObject* o); // TODO depricated
+void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v); // TODO depricated
 
 tlHandle tlArgsTarget(tlArgs* args);
 tlSym tlArgsMsg(tlArgs* args);
