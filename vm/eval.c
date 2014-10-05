@@ -748,11 +748,13 @@ INTERNAL tlHandle resumeCatch(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlArgs* args = tlArgsAs(res);
     tlHandle handler = tlArgsBlock(args);
+    //assert(handler);
     trace("%p.handler = %s", _frame->caller, tl_str(handler));
     if (tlBFrameIs(_frame->caller)) {
         install_bcatch(_frame->caller, handler);
         return tlNull;
     }
+    fatal("no longer in use");
     tlCodeFrame* frame = tlCodeFrameAs(_frame->caller);
     frame->handler = handler;
     return tlNull;

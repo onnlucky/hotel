@@ -17,6 +17,17 @@ struct tlArgs {
     tlHandle args[];
 };
 
+void dumpArgs(tlArgs* call) {
+    tlList* names = call->names;
+    print("args: %d (%d %d)", call->size + call->nsize, call->size, call->nsize);
+    print("%s", tl_str(call->fn));
+    print("%s", tl_str(call->target));
+    print("%s", tl_str(call->msg));
+    for (int i = 0; i < call->size + call->nsize; i++) {
+        print("%d %s %s", i, tl_str(call->args[i]), tl_str(names? tlListGet(names, i) : tlNull));
+    }
+}
+
 static tlArgs* _tl_emptyArgs;
 tlArgs* tlArgsEmpty() { return _tl_emptyArgs; }
 
@@ -81,18 +92,33 @@ tlList* tlArgsList(tlArgs* args) {
     warning("shouldn't use this");
     assert(tlArgsIs(args));
     tlList* list = tlListNew(args->size);
-    for (int i = 0; i < args->size; i++) tlListSet_(list, i, args->args[i]);
+    int named = 0;
+    for (int i = 0; i < args->size + args->nsize; i++) {
+        tlHandle name = args->names? tlListGet(args->names, i) : tlNull;
+        if (name != tlNull) { named++; continue; }
+        tlListSet_(list, i - named, args->args[i]);
+    }
+    assert(tlListGet(list, args->size - 1));
     return list;
 }
 tlObject* tlArgsObject(tlArgs* args) {
     warning("shouldn't use this");
     assert(tlArgsIs(args));
-    int offset = args->size;
+    if (!args->names) return tlObjectEmpty();
+
     tlSet* set = tlSetNew(args->nsize);
-    for (int i = 0; i < args->nsize; i++) tlSetAdd_(set, tlListGet(args->names, offset + i));
+    for (int i = 0; i < args->size + args->nsize; i++) {
+        tlHandle name = tlListGet(args->names, i);
+        if (name == tlNull) continue;
+        tlSetAdd_(set, name);
+    }
 
     tlObject* object = tlObjectNew(set);
-    for (int i = 0; i < args->nsize; i++) tlObjectSet_(object, tlListGet(args->names, offset + i), args->args[offset + i]);
+    for (int i = 0; i < args->size + args->nsize; i++) {
+        tlHandle name = tlListGet(args->names, i);
+        if (name == tlNull) continue;
+        tlObjectSet_(object, name, args->args[i]);
+    }
     return object;
 }
 tlMap* tlArgsMap(tlArgs* args) {
@@ -101,13 +127,21 @@ tlMap* tlArgsMap(tlArgs* args) {
 }
 tlHandle tlArgsGet(const tlArgs* args, int at) {
     if (at < 0 || at >= args->size) return null;
-    return args->args[at];
+    if (!args->names) return args->args[at];
+
+    int target = -1;
+    for (int i = 0; i < args->size + args->nsize; i++) {
+        if (tlListGet(args->names, i) == tlNull) target++;
+        if (target == at) return args->args[i];
+    }
+    fatal("no way");
+    return null;
 }
 tlHandle tlArgsMapGet(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
-    int offset = args->size;
-    for (int i = 0; i < args->nsize; i++) {
-        if (tlListGet(args->names, offset + i) == name) return args->args[offset + i];
+    if (!args->names) return null;
+    for (int i = 0; i < args->size + args->nsize; i++) {
+        if (tlListGet(args->names, i) == name) return args->args[i];
     }
     return null;
 }
@@ -223,11 +257,15 @@ const char* _ArgstoString(tlHandle v, char* buf, int size) {
     return buf;
 }
 
+static size_t argsSize(tlHandle v) {
+    return sizeof(tlArgs) + sizeof(tlHandle) * (tlArgsAs(v)->size + tlArgsAs(v)->nsize);
+}
 
 static void args_init() {
     tlKind _tlArgsKind = {
         .name = "Args",
         .toString = _ArgstoString,
+        .size = argsSize,
     };
     INIT_KIND(tlArgsKind);
 

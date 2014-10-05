@@ -114,6 +114,15 @@ void tlListSet_(tlList* list, int at, tlHandle v) {
     list->data[at] = v;
 }
 
+void tlListSet__(tlList* list, int at, tlHandle v) {
+    assert(tlListIs(list));
+    trace("%d <- %s", at, tl_str(v));
+
+    assert(at >= 0 && at < tlListSize(list));
+
+    list->data[at] = v;
+}
+
 tlList* tlListAppend(tlList* list, tlHandle v) {
     assert(tlListIs(list));
 

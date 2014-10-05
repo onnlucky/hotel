@@ -52,12 +52,24 @@ tlHandle tlCallGetFn(tlCall* call) {
 struct tlBCall {
     tlHead head;
     int size;
+    int nsize;
     tlHandle target;
     tlHandle msg;
     tlHandle fn;
     tlList* names;
     tlHandle args[];
 };
+
+void dumpBCall(tlBCall* call) {
+    tlList* names = call->names;
+    print("call: %d (%d %d)", call->size, call->size, call->nsize);
+    print("%s", tl_str(call->fn));
+    print("%s", tl_str(call->target));
+    print("%s", tl_str(call->msg));
+    for (int i = 0; i < call->size; i++) {
+        print("%d %s %s", i, tl_str(call->args[i]), tl_str(names? tlListGet(names, i) : tlNull));
+    }
+}
 
 tlBCall* tlBCallNew(int size) {
     tlBCall* call = tlAlloc(tlBCallKind, sizeof(tlBCall) + sizeof(tlHandle) * size);
@@ -309,6 +321,10 @@ static size_t callSize(tlHandle v) {
     return sizeof(tlCall) + sizeof(tlHandle) * tlCallAs(v)->size;
 }
 
+static size_t bcallSize(tlHandle v) {
+    return sizeof(tlBCall) + sizeof(tlHandle) * tlBCallAs(v)->size;
+}
+
 static tlKind _tlNativeKind = {
     .name = "Native",
     .toString = nativetoString,
@@ -320,7 +336,10 @@ static tlKind _tlCallKind = {
     .size = callSize,
 };
 
-static tlKind _tlBCallKind = { .name = "BCall" };
+static tlKind _tlBCallKind = {
+    .name = "BCall",
+    .size = bcallSize,
+};
 tlKind* tlBCallKind;
 
 static void call_init() {
@@ -329,5 +348,7 @@ static void call_init() {
         null
     );
     INIT_KIND(tlCallKind);
+
+    assert(sizeof(tlArgs) == sizeof(tlBCall));
 }
 

@@ -42,6 +42,24 @@ max = l, r ->
     if l >= r: return l
     return r
 
+print "boot 1"
+_test = if true: "boot"
+print "test"
+assert _test
+
+_test = ->
+    assert args[1] == 42
+    assert args["name"] == "hello"
+    assert args.names.name == "hello"
+_test(name="hello", 42)
+print "boot 2"
+_test(42, name="hello")
+print "boot 3"
+_test(name="hello", 42)
+print "boot 4"
+_test(foo="bar", 42, name="hello")
+print "boot 5"
+
 /// List.random(): return a random element from the list
 _get_random = -> this.get(1 + random(this.size))
 

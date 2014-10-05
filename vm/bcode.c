@@ -324,7 +324,18 @@ void tlBCallAdd_(tlBCall* call, tlHandle o, int arg) {
 }
 
 void tlBCallSetNames_(tlBCall* call, tlList* names) {
+    assert(call->size == tlListSize(names));
     call->names = names;
+    for (int i = 0; i < tlListSize(names); i++) {
+        tlHandle name = tlListGet(names, i);
+        assert(name);
+        if (name != tlNull) call->nsize += 1;
+        if (tlStringIs(name)) {
+            name = tlSymFromString(name);
+            tlListSet__(names, i, name);
+        }
+    }
+    assert(call->size >= call->nsize);
 }
 
 int tlBCallNameIndex(tlBCall* call, tlString* name) {
@@ -966,30 +977,31 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
 tlHandle beval(tlTask* task, tlBFrame* frame, tlBCall* args, int lazypc, tlBEnv* locals);
 
 tlArgs* argsFromBCall(tlBCall* call) {
-    tlObject* map = tlObjectEmpty();
-    if (call->names) {
-        for (int i = 0; i < call->size; i++) {
-            tlHandle name = tlListGet(call->names, i);
-            if (name && name != tlNull) {
-                trace("ARGS: %s = %s", tl_str(name), tl_str(call->args[i]));
-                map = tlObjectSet(map, tlSymAs(name), call->args[i]);
-            }
-        }
-    }
+    tlBCall* ncall = tlClone(call);
+    set_kind(ncall, tlArgsKind);
+    ncall->size = call->size - call->nsize;
+    /*
+    print("---");
+    dumpBCall(call);
+    print("=== >");
+    dumpArgs(tlArgsAs(ncall));
+    print("^^^");
+    */
+    return tlArgsAs(ncall);
+}
 
-    tlArgs* args = tlArgsNew(tlListNew(call->size - tlObjectSize(map)), map);
-    tlArgsSetTarget_(args, call->target);
-    tlArgsSetFn_(args, call->fn);
-    tlArgsSetMsg_(args, call->msg);
-    for (int i = 0, j = 0; i < call->size; i++) {
-        if (call->names) {
-            tlHandle name = tlListGet(call->names, i);
-            if (name && name != tlNull) continue;
-        }
-        trace("ARGS: %d = %s", j, tl_str(call->args[i]));
-        tlArgsSet_(args, j++, call->args[i]);
-    }
-    return args;
+tlBCall* bcallFromArgs(tlArgs* args) {
+    tlArgs* nargs = tlClone(args);
+    set_kind(nargs, tlBCallKind);
+    nargs->size = args->size + args->nsize;
+    /*
+    print("---");
+    dumpArgs(args);
+    print("=== >");
+    dumpBCall(tlBCallAs(nargs));
+    print("^^^");
+    */
+    return tlBCallAs(nargs);
 }
 
 INTERNAL tlHandle afterYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
@@ -1903,40 +1915,6 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     trace("installing exception handler: %s %s", tl_str(frame), tl_str(handler));
     frame->handler = handler;
     return tlNull;
-}
-
-tlBCall* bcallFromArgs(tlArgs* args) {
-    if (tlArgsMapSize(args) == 0) {
-        tlBCall* call = tlBCallNew(tlArgsSize(args));
-        call->target = tlArgsTarget(args);
-        call->fn = tlArgsFn(args);
-        for (int i = 0; i < tlArgsSize(args); i++) {
-            call->args[i] = tlArgsGet(args, i);
-            trace("BCALL[%d] = %s", i, tl_str(call->args[i]));
-        }
-        return call;
-    }
-
-    tlBCall* call = tlBCallNew(tlArgsSize(args) + tlArgsMapSize(args));
-    tlList* names = tlListNew(tlArgsSize(args) + tlArgsMapSize(args));
-    call->names = names;
-    call->target = tlArgsTarget(args);
-    call->fn = tlArgsFn(args);
-    call->msg = tlArgsMsg(args);
-    int i = 0;
-    for (; i < tlArgsSize(args); i++) {
-        call->args[i] = tlArgsGet(args, i);
-        tlListSet_(names, i, tlNull);
-        trace("BCALL[%d] = %s", i, tl_str(call->args[i]));
-    }
-
-    tlObject* kargs = tlArgsObject(args);
-    for (int j = 0; j < tlObjectSize(kargs); j++) {
-        call->args[i + j] = tlObjectValueIter(kargs, j);
-        tlListSet_(names, i + j, tlStringFromSym(tlObjectKeyIter(kargs, j)));
-        trace("BCALL[%d](%s) = %s", i + j, tl_str(tlListGet(names, i + j)), tl_str(call->args[i + j]));
-    }
-    return call;
 }
 
 INTERNAL tlHandle _bclosure_call(tlArgs* args) {
