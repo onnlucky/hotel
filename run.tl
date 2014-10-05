@@ -534,11 +534,16 @@ assert filename("../foo/test/hello.html") == "hello.html"
 sleep = s -> io.wait s
 wait  = s -> io.wait s
 
+test = ->
+    catch: e => print "TEST FAILED:", args.slice.join(" "); print e.toString
+    args.block.call
+
 // TODO Env.current
 _env = _env_current()
 
-sp = "hello world".split
-assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
+test "split":
+    sp = "hello world".split
+    assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
 
 // TODO should be immutable
 _module_paths = Array.new
@@ -642,8 +647,6 @@ print "HELLO WORLD!"
 
 "x = 42\nprint x".eval
 
-/*
-
 // run a repl, or every argument as a file
 runmain = as ->
     catch: e -> print e.toString; _set_exitcode(1)
@@ -655,7 +658,7 @@ runmain = as ->
     path = dirname(file)
     return compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path))).run(as[2:])
 
-main = !runmain([])
+main = !runmain(args)
 
 // this will only return when there are no more tasks to run
 io.ioloop

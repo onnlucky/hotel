@@ -26,14 +26,13 @@ LIBMP:=libmp/libtommath.a
 TLG_MODULES=modules/sizzle.tl
 C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
-all: tl $(TLG_MODULES) $(C_MODULES)
-
+all: tl $(C_MODULES) $(TLG_MODULES)
 run.tlb: run.tl tlcompiler modules/compiler.tl
 	TL_MODULE_PATH=./modules ./tlcompiler run.tl
 
 run: tl run.tlb
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
-	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --noboot run.tlb
+	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --noboot run.tlb hello.tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
 test-noboot: tl
