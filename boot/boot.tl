@@ -42,9 +42,8 @@ max = l, r ->
     if l >= r: return l
     return r
 
-print "boot 1"
+//print "boot 1"
 _test = if true: "boot"
-print "test"
 assert _test
 
 _test = ->
@@ -52,14 +51,15 @@ _test = ->
     assert args["name"] == "hello"
     assert args[:][1] == 42
     assert args.names.name == "hello"
+
 _test(name="hello", 42)
-print "boot 2"
+//print "boot 2"
 _test(42, name="hello")
-print "boot 3"
+//print "boot 3"
 _test(name="hello", 42)
-print "boot 4"
+//print "boot 4"
 _test(foo="bar", 42, name="hello")
-print "boot 5"
+//print "boot 5"
 
 /// List.random(): return a random element from the list
 _get_random = -> this.get(1 + random(this.size))
@@ -136,10 +136,11 @@ _filter = ->
             { args.size == 0 }: asBoolInv
             {                }: null
     arr = Array.new
-    loop = at =>
+    _args = args
+    loop = at ->
         if at > len: return arr.toList
         e = this[at]
-        if not args.find(e) and (not block or not block(e, at)): arr.add(e)
+        if not _args.find(e) and (not block or not block(e, at)): arr.add(e)
         goto(loop(at + 1))
     loop(1)
 
@@ -568,13 +569,12 @@ _env = _env_current()
 //_env["fileFromModulePath"] = fileFromModulePath;
 
 assert [3000, 19, 10, 99, "b", "c", "a"].sort[1] == 10
-(
-    catch: e -> print "catching ok"
+x = (
+    catch: e -> "got it"
     null - 1
     assert false
 )
-print "OK!"
-//return
+assert x == "got it"
 
 compiler = (
     file = fileFromModulePath("compiler.tlb")
@@ -603,7 +603,7 @@ compiler = (
 resolve2 = name, path ->
     res = _modules[name]
     if isDefined res: return res
-    print("RESOLVING 2: $name ($path)")
+    //print("RESOLVING 2: $name ($path)")
     catch: e => return null, "Unable to read module '$name': $(e.msg)"
     file = fileFromModulePath("$name.tlb", path)
     if file:

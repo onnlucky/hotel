@@ -1766,7 +1766,7 @@ INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
     tlList* links = mod->links;
     for (int i = 0; i < tlListSize(links); i++) {
         if (tlStringEquals(key, tlListGet(links, i))) {
-            print("OVERWRITING: %d %s %s", i, tl_str(key), tl_str(value));
+            //print("OVERWRITING: %d %s %s", i, tl_str(key), tl_str(value));
             tlListSet_(mod->linked, i, value);
             return;
         }

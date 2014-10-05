@@ -99,7 +99,6 @@ int tlArgsMapSize(tlArgs* args) {
     return args->nsize;
 }
 tlList* tlArgsList(tlArgs* args) {
-    warning("shouldn't use this");
     assert(tlArgsIs(args));
     tlList* list = tlListNew(args->size - args->nsize);
     int named = 0;
@@ -112,7 +111,6 @@ tlList* tlArgsList(tlArgs* args) {
     return list;
 }
 tlObject* tlArgsObject(tlArgs* args) {
-    warning("shouldn't use this");
     assert(tlArgsIs(args));
     if (!args->names) return tlObjectEmpty();
 
@@ -130,7 +128,6 @@ tlObject* tlArgsObject(tlArgs* args) {
         tlObjectSet_(object, name, args->args[i]);
     }
     assert(tlObjectSize(object) == args->nsize);
-    print("args.Object: %s", tl_repr(object));
     return object;
 }
 tlMap* tlArgsMap(tlArgs* args) {
