@@ -1995,7 +1995,6 @@ void bcode_init() {
     INIT_KIND(tlBModuleKind);
     INIT_KIND(tlBDebugInfoKind);
     INIT_KIND(tlBCodeKind);
-    INIT_KIND(tlBCallKind);
     INIT_KIND(tlBEnvKind);
     INIT_KIND(tlBClosureKind);
     INIT_KIND(tlBLazyKind);

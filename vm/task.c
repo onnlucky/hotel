@@ -12,7 +12,6 @@
 #include "trace-off.h"
 
 INTERNAL tlHandle tlresult_get(tlHandle v, int at);
-INTERNAL tlArgs* evalCall(tlCall* call);
 INTERNAL void print_backtrace(tlFrame*);
 
 tlResult* tlresult_new(tlArgs* args);

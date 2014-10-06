@@ -146,7 +146,6 @@ TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlObject);
 TL_REF_TYPE(tlMap);
 
-TL_REF_TYPE(tlCall);  // TODO remove perm
 TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlResult);
 
@@ -508,7 +507,7 @@ typedef unsigned int(*tlHashFn)(tlHandle from);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
 typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
 typedef size_t(*tlByteSizeFn)(tlHandle from);
-typedef tlHandle(*tlCallFn)(tlCall* args);
+typedef tlHandle(*tlCallFn)(tlArgs* args);
 typedef tlHandle(*tlRunFn)(tlHandle fn, tlArgs* args);
 typedef tlHandle(*tlSendFn)(tlArgs* args);
 

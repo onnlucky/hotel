@@ -23,11 +23,6 @@
 
 #include "trace-on.h"
 
-// implemented in controlflow.c
-INTERNAL tlHandle tlReturnNew(tlArgs* args);
-INTERNAL tlHandle tlGotoNew(tlArgs* args);
-INTERNAL tlHandle resumeNewContinuation(tlFrame* frame, tlHandle res, tlHandle throw);
-
 // var.c
 tlHandle tlVarSet(tlVar*, tlHandle);
 tlHandle tlVarGet(tlVar*);
@@ -75,20 +70,17 @@ typedef struct ActivateCallFrame {
     tlFrame frame;
     intptr_t count;
     tlEnv* env;
-    tlCall* call;
 } ActivateCallFrame;
 
 // when call->fn is a call itself
 typedef struct CallFnFrame {
     tlFrame frame;
     intptr_t count;
-    tlCall* call;
 } CallFnFrame;
 
 typedef struct CallFrame {
     tlFrame frame;
     intptr_t count;
-    tlCall* call;
     tlArgs* args;
 } CallFrame;
 
@@ -227,72 +219,15 @@ INTERNAL void print_backtrace(tlFrame* frame) {
     }
 }
 
-INTERNAL tlHandle applyCall(tlCall* call);
-
-
 INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env);
-INTERNAL tlHandle run_activate_call(ActivateCallFrame* pause, tlCall* call, tlEnv* env, tlHandle _res);
 
 INTERNAL tlHandle resumeActivateCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    ActivateCallFrame* frame = (ActivateCallFrame*)_frame;
-    return run_activate_call(frame, frame->call, frame->env, res);
-}
-
-// TODO fix this?
-INTERNAL tlHandle run_activate_call(ActivateCallFrame* frame, tlCall* call, tlEnv* env, tlHandle _res) {
-    int i = 0;
-    if (frame) i = frame->count;
-    else call = tlCallCopy(call);
-    trace("%p >> call: %d - %d", frame, i, tlCallSize(call));
-
-    if (i < 0) {
-        i = -i - 1;
-        tlHandle v = tlFirst(_res);
-        trace2("%p call: %d = %s", frame, i, tl_str(v));
-        assert(v);
-        call = tlCallValueIterSet_(call, i, v);
-        i++;
-    }
-    for (;; i++) {
-        tlHandle v = tlCallValueIter(call, i);
-        if (!v) break;
-        if (tlActiveIs(v)) {
-            v = run_activate(tl_value(v), env);
-            if (!v) {
-                if (!frame) {
-                    frame = tlFrameAlloc(resumeActivateCall, sizeof(ActivateCallFrame));
-                    frame->env = env;
-                }
-                frame->count = -1 - i;
-                frame->call = call;
-                return tlTaskPauseAttach(frame);
-            }
-            call = tlCallValueIterSet_(call, i, v);
-        }
-        trace2("%p call: %d = %s", frame, i, tl_str(v));
-    }
-    trace2("%p << call: %d", frame, tlCallSize(call));
-    return call;
+    return null;
 }
 
 // lookups potentially need to run hotel code, so we can pause from here
 INTERNAL tlHandle lookup(tlEnv* env, tlSym name) {
     assert(tlSymIs_(name));
-    if (name == s_return) {
-        tlHandle fn = tlReturnNew(tlEnvGetArgs(env));
-        trace("%s -> %s", tl_str(name), tl_str(fn));
-        return fn;
-    }
-    if (name == s_goto) {
-        tlHandle fn = tlGotoNew(tlEnvGetArgs(env));
-        trace("%s -> %s", tl_str(name), tl_str(fn));
-        return fn;
-    }
-    if (name == s_continuation) {
-        trace("pausing for continuation");
-        return tlTaskPauseResuming(resumeNewContinuation, tlNull);
-    }
     tlHandle v = tlEnvGet(env, name);
     trace("%s -> %s", tl_str(name), tl_str(v));
     if (v) return v;
@@ -318,123 +253,17 @@ INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env) {
         env = tlEnvCapture(env); // half closes the environment
         return tlClosureNew(tlCodeAs(v), env);
     }
-    if (tlCallIs(v)) {
-        return run_activate_call(null, tlCallAs(v), env, null);
-    }
     assert(false);
     return null;
 }
 
 // when call->fn is a call itself
 INTERNAL tlHandle resumeCallFn(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    CallFnFrame* frame = (CallFnFrame*)_frame;
-    return applyCall(tlCallCopySetFn(frame->call, res));
-}
-INTERNAL tlArgs* evalCallFn(tlCall* call, tlCall* fn) {
-    trace(">> %p", fn);
-    tlHandle res = applyCall(fn);
-    if (!res) {
-        CallFnFrame* frame = tlFrameAlloc(resumeCallFn, sizeof(CallFnFrame));
-        frame->call = call;
-        return tlTaskPauseAttach(frame);
-    }
-    trace("<< %p", res);
-    return applyCall(tlCallCopySetFn(call, res));
-}
-
-// we eval every internal call, and result in an tlArgs in the end
-INTERNAL tlArgs* evalCall2(CallFrame* frame, tlHandle _res) {
-    trace2("%p", frame);
-
-    // setup needed data
-    tlCall* call = frame->call;
-    int argc = tlCallSize(call);
-
-    tlList* names = null;
-    tlObject* defaults = null;
-
-    tlHandle fn = tlCallGetFn(call);
-    if (tlClosureIs(fn)) {
-        tlCode* code = tlClosureAs(fn)->code;
-        names = code->argnames;
-        defaults = code->argdefaults;
-    }
-
-    tlArgs* args = frame->args;
-    if (!args) {
-        args = tlArgsNewNames(argc, tlCallNames(call));
-        tlArgsSetFn_(args, fn);
-    }
-
-    // check where we left off last time
-    int at = frame->count       &     0xFFFF;
-    int named = (frame->count   &   0xFF0000) >> 16;
-    int skipped = (frame->count & 0x7F000000) >> 24;
-    //print("AT: %d, NAMED: %d, SKIPPED: %d", at, named, skipped);
-
-    if (frame->count & 0x80000000) {
-        tlHandle v = tlFirst(_res);
-        tlSym name = tlCallGetName(call, at);
-        if (name) {
-            trace("(frame) ARGS: %s = %s", tl_str(name), tl_str(v));
-            tlArgsMapSet_(args, name, v);
-            named++;
-        } else {
-            trace("(frame) ARGS: %d = %s", at - named, tl_str(v));
-            tlArgsSet_(args, at - named, v);
-        }
-        at++;
-    }
-
-    // evaluate each argument
-    for (; at < argc; at++) {
-        tlHandle v = tlCallGet(call, at);
-        tlSym name = tlCallGetName(call, at);
-        tlHandle d = tlNull;
-        if (name) {
-            if (defaults) d = tlObjectGetSym(defaults, name);
-        } else {
-            while (true) {
-                if (!names) break;
-                tlSym fnname = tlListGet(names, at - named + skipped);
-                if (!fnname) break;
-                if (!tlCallNamesContains(call, fnname)) {
-                    if (defaults) d = tlObjectGetSym(defaults, fnname);
-                    break;
-                }
-                skipped++;
-            }
-        }
-
-        if (tlThunkIs(d) || d == tlThunkNull) {
-            v = tlThunkNew(v);
-        } else if (tlCallIs(v)) {
-            v = applyCall(v);
-            if (!v) {
-                assert(at < 0xFFFF && named < 0xFF && skipped < 0x7F);
-                frame->count = 0x80000000 | skipped << 24 | named << 16 | at;
-                frame->args = args;
-                return tlTaskPauseAttach(frame);
-            }
-        }
-        v = tlFirst(v);
-        if (name) {
-            trace("ARGS: %s = %s", tl_str(name), tl_str(v));
-            tlArgsMapSet_(args, name, v);
-            named++;
-        } else {
-            trace("ARGS: %d = %s", at - named, tl_str(v));
-            tlArgsSet_(args, at - named, v);
-        }
-    }
-    trace("ARGS DONE");
-    return args;
+    return null;
 }
 
 INTERNAL tlHandle resumeCall(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    return evalCall2((CallFrame*)frame, res);
+    return null;
 }
 
 INTERNAL tlHandle stopCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
@@ -484,8 +313,6 @@ INTERNAL tlHandle evalCode(tlArgs* args, tlClosure* fn) {
                 v = tlObjectGetSym(defaults, name);
                 if (tlThunkIs(v) || v == tlThunkNull) {
                     v = tlThunkNew(tlNull);
-                } else if (tlCallIs(v)) {
-                    fatal("not implemented yet: defaults with call and too few args");
                 }
             }
             if (!v) v = tlNull;
@@ -563,14 +390,6 @@ INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle _res) {
     bool is_eval = task->worker->evalArgs == env->args;
 
     // lookup and others can pause/resume the task, in those cases _res is a tlCall
-    if (tlCallIs(_res)) {
-        trace("%p resume with call: %p", frame, task->value);
-        _res = applyCall(tlCallAs(_res));
-        if (!_res) {
-            if (is_eval) task->worker->evalEnv = env;
-            return tlTaskPauseAttach(frame);
-        }
-    }
 
     // set value from any pause/resume
     task->value = _res;
@@ -592,16 +411,7 @@ INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle _res) {
                 return tlTaskPauseAttach(frame);
             }
 
-            if (tlCallIs(v)) {
-                trace("%p op: active call: %p", frame, task->value);
-                v = applyCall(tlCallAs(v));
-                if (!v) {
-                    if (is_eval) task->worker->evalEnv = env;
-                    return tlTaskPauseAttach(frame);
-                }
-            }
             assert(!tlFrameIs(v));
-            assert(!tlCallIs(v));
             task->value = v;
             trace2("%p op: active resolved: %s", frame, tl_str(task->value));
             continue;
@@ -643,71 +453,12 @@ INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle _res) {
 INTERNAL tlHandle run_thunk(tlThunk* thunk) {
     tlHandle v = thunk->value;
     trace("%p -> %s", thunk, tl_str(v));
-    if (tlCallIs(v)) {
-        return tlEval(tlCallAs(v));
-    }
     return v;
-}
-
-INTERNAL tlArgs* evalCall(tlCall* call) {
-    trace("%p", call);
-    CallFrame* frame = tlFrameAlloc(resumeCall, sizeof(CallFrame));
-    frame->call = call;
-    return evalCall2(frame, null);
 }
 
 INTERNAL tlHandle resumeEvalCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     return evalArgs(tlArgsAs(res));
-}
-
-INTERNAL tlHandle callCall(tlCall* call) {
-    trace("%s", tl_str(call));
-    return evalCallFn(call, tlCallAs(tlCallGetFn(call)));
-}
-INTERNAL tlHandle callClosure(tlCall* call) {
-    trace("%s", tl_str(call));
-    tlArgs* args = evalCall(call);
-    if (args) return evalArgs(args);
-
-    tlFrame* frame = tlFrameAlloc(resumeEvalCall, sizeof(tlFrame));
-    return tlTaskPauseAttach(frame);
-}
-INTERNAL tlHandle callThunk(tlCall* call) {
-    if (tlCallSize(call) > 0) {
-        fatal("broken");
-        //tlArgs* args = evalCall(call);
-    }
-    return run_thunk(tlThunkAs(tlCallGetFn(call)));
-}
-
-INTERNAL tlHandle applyCall(tlCall* call) {
-    assert(call);
-    trace("apply >> %p(%d) <<", call, tlCallSize(call));
-
-#ifdef HAVE_ASSERT
-    for (int i = 0;; i++) {
-        tlHandle v = tlCallValueIter(call, i);
-        if (!v) { assert(i >= tlCallSize(call)); break; }
-        assert(!tlActiveIs(v));
-    };
-#endif
-
-    tlHandle fn = tlCallGetFn(call);
-    trace("%p: fn=%s", call, tl_str(fn));
-    assert(fn);
-
-    tlKind* kind = tl_kind(fn);
-    if (kind->call) return kind->call(call);
-
-    tlArgs* args = evalCall(call);
-    if (args) {
-        trace("args: %s, fn: %s", tl_str(args), tl_str(fn));
-        assert(tlArgsIs(args));
-        return evalArgs(args);
-    }
-    tlFrame* frame = tlFrameAlloc(resumeEvalCall, sizeof(tlFrame));
-    return tlTaskPauseAttach(frame);
 }
 
 // Various high level eval stuff, will piggyback on the task given
@@ -1006,8 +757,6 @@ static void eval_init() {
     tl_register_natives(__eval_natives);
 
     // TODO call into run for some of these ...
-    tlCallKind->call = callCall;
-    tlClosureKind->call = callClosure;
     tlClosureKind->run = runClosure;
     tlClosureKind->klass = tlClassObjectFrom(
         "call", _call,
@@ -1017,7 +766,6 @@ static void eval_init() {
         "args", _closure_args,
         null
     );
-    tlThunkKind->call = callThunk;
     tlCodeKind->run = runCode;
 }
 

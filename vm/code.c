@@ -99,31 +99,3 @@ void tlCodeSetArgNameDefaults_(tlCode* code, tlList* name_defaults) {
     }
 }
 
-void debugcall(int depth, tlCall* call) {
-    fprintf(stderr, "%zd, (", call->size);
-    for (int i = 0; i < call->size; i++) {
-        tlHandle a = tlCallValueIter(call, i);
-        if (i > 0) fprintf(stderr, ", ");
-        fprintf(stderr, "%s", tl_str(a));
-    }
-    fprintf(stderr, ")\n");
-}
-
-void debugcode(tlCode* code) {
-    print("size: %zd", code->size);
-    print("name: %s", tl_str(code->name));
-    print("argnames: %p", code->argnames);
-    print("argdefaults: %p", code->argdefaults);
-    for (int i = 0; i < code->size; i++) {
-        tlHandle op = code->ops[i];
-        print("%3d: %s%s", i, tlActiveIs(op)?"!":"", tl_str(op));
-        if (tlActiveIs(op)) {
-            op = tl_value(op);
-            if (tlCallIs(op)) {
-                debugcall(0, tlCallAs(op));
-            }
-        }
-    }
-    //fatal("DONE");
-}
-
