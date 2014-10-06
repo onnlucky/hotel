@@ -16,6 +16,16 @@ struct tlBin {
 
 tlBin* tlBinEmpty() { return _tl_emptyBin; }
 
+tlBin* tlBinNew(int len) {
+    assert(len >= 0);
+    tlBin* bin = tlAlloc(tlBinKind, sizeof(tlBin));
+    char* data = malloc_atomic(len + 1);
+    memset(data, 0, len + 1);
+    bin->len = len;
+    bin->data = data;
+    return bin;
+}
+
 tlBin* tlBinFromCopy(const char* s, int len) {
     trace("%s", s);
     assert(len >= 0);
@@ -55,6 +65,12 @@ int tlBinSize(tlBin* bin) {
 int tlBinGet(tlBin* bin, int at) {
      if (at < 0 || at >= tlBinSize(bin)) return -1;
      return bin->data[at] & 0xFF;
+}
+
+void tlBinSet_(tlBin* bin, int at, char byte) {
+    assert(at >= 0 && at < bin->len);
+    assert(bin->data[at] == 0);
+    ((char*)bin->data)[at] = byte;
 }
 
 tlBin* tlBinFrom2(tlHandle b1, tlHandle b2) {

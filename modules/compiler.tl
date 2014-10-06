@@ -15,7 +15,7 @@
 // number  1100 0... bytes*size      -> 1-8 byte signed int
 // number  1100 1000 bytes*4         -> 4 byte float
 // number  1100 1001 bytes*8         -> 8 byte float
-// number  1100 1... bytes*size      -> (4,8,12,16,20,24,28,32) bytes bignum encoded number
+// number  1100 1... bytes*size      -> (12,16,20,24,28,32,36,40) bytes bignum encoded number, not used?
 
 // string  1110 0000 size byte*size  -> string, utf8 encoded
 // list    1110 0001 size [ref]*size
@@ -62,9 +62,9 @@ encodeInt = i ->
 encodeFloat = f ->
     Bin(0b1100_1001) + f.bytes
 
-encodeNumber = n ->
-    pos = n >= 0
-    n = n.abs
+encodeNumber = num ->
+    pos = num >= 0
+    n = num.abs
     if n < 1 <<   7: return Bin(0b1100_0000 | 0,                           n << 1 | bool(pos,0,1))
     if n < 1 <<  15: return Bin(0b1100_0000 | 1,                   n >> 7, n << 1 | bool(pos,0,1))
     if n < 1 <<  23: return Bin(0b1100_0000 | 2,          n >> 15, n >> 7, n << 1 | bool(pos,0,1))
@@ -74,7 +74,9 @@ encodeNumber = n ->
     if n < 1 <<  47: return Bin(0b1100_0000 | 5,                   n >> 39, n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
     if n < 1 <<  55: return Bin(0b1100_0000 | 6,          n >> 47, n >> 39, n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
     if n < 1 <<  63: return Bin(0b1100_0000 | 7, n >> 55, n >> 47, n >> 39, n >> 31, n >> 23, n >> 15, n >> 7, n << 1 | bool(pos,0,1))
-    assert false, "need bignum support in bytecode for this"
+
+    bytes = num.bytes
+    return Bin(0b1110_0110, encodeInt(bytes.size), bytes)
 
 encodeString = s ->
     assert isString s

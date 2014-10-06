@@ -93,7 +93,7 @@ static tlHandle parsekey(tlBuffer* buf) {
 }
 static tlHandle parse(tlBuffer* buf) {
     char c;
-    do { c = tlBufferPeekByte(buf); } while (c && c <= 32);
+    do { c = tlBufferPeekByte(buf, 0); } while (c && c <= 32);
     trace("probing: %c", c);
     switch (c) {
         case '{': {

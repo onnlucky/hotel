@@ -270,6 +270,84 @@ static tlHandle _num_toString(tlArgs* args) {
     return tlStringFromCopy(buf, 0);
 }
 
+static tlHandle _num_bytes(tlArgs* args) {
+    tlNum* num = tlNumAs(tlArgsTarget(args));
+
+    // count how many bytes
+    mp_int t;
+    mp_digit d;
+    mp_init_copy(&t, &num->value);
+
+    int bytes = 1; // first bit is sign
+    mp_div_d(&t, (mp_digit)128, &t, &d);
+
+    while (mp_iszero(&t) == MP_NO) {
+        bytes += 1;
+        mp_div_d(&t, (mp_digit)256, &t, &d);
+    }
+    mp_clear(&t);
+
+    // now output them into a tlBin
+    tlBin* bin = tlBinNew(bytes);
+
+    mp_init_copy(&t, &num->value);
+    mp_div_d(&t, 128, &t, &d);
+    assert(d <= 127);
+    tlBinSet_(bin, 0, d | t.sign << 7);
+
+    bytes = 0;
+    while (mp_iszero(&t) == MP_NO) {
+        bytes += 1;
+        mp_div_d(&t, 256, &t, &d);
+        tlBinSet_(bin, bytes, d);
+    }
+
+    mp_clear(&t);
+    return bin;
+}
+
+tlNum* tlNumFromBin(tlBin* bin) {
+    mp_int t;
+    mp_init(&t);
+    mp_set(&t, 0);
+
+    for (int i = tlBinSize(bin) - 1; i >= 1; i--) {
+        mp_mul_2d(&t, 8, &t);
+        mp_add_d(&t, (mp_digit)tlBinGet(bin, i), &t);
+    }
+    mp_mul_2d(&t, 7, &t);
+    mp_add_d(&t, (mp_digit)(tlBinGet(bin, 0) & 0x7F), &t);
+    t.sign = (tlBinGet(bin, 0) & 0x80) == 0x80? MP_NEG : MP_ZPOS;
+
+    return tlNumFrom(t);
+}
+
+tlNum* tlNumFromBuffer(tlBuffer* buf, int len) {
+    assert(tlBufferSize(buf) >= len);
+    mp_int t;
+    mp_init(&t);
+    mp_set(&t, 0);
+
+    for (int i = len - 1; i >= 1; i--) {
+        mp_mul_2d(&t, 8, &t);
+        mp_add_d(&t, (mp_digit)tlBufferPeekByte(buf, i), &t);
+    }
+
+    int last = tlBufferPeekByte(buf, 0);
+    mp_mul_2d(&t, 7, &t);
+    mp_add_d(&t, (mp_digit)(last & 0x7F), &t);
+    t.sign = (last & 0x80) == 0x80? MP_NEG : MP_ZPOS;
+
+    tlBufferReadSkip(buf, len);
+    return tlNumFrom(t);
+}
+
+static tlHandle _Num_fromBytes(tlArgs* args) {
+    tlBin* bin = tlBinCast(tlArgsGet(args, 0));
+    if (!bin) TL_THROW("expected a Bin as args[1]");
+    return tlNumFromBin(bin);
+}
+
 static const char* numtoString(tlHandle v, char* buf, int size) {
     mp_toradix_n(&tlNumAs(v)->value, buf, 10, size); return buf;
 }
@@ -425,8 +503,16 @@ static void number_init() {
     _tlNumKind.klass = tlClassObjectFrom(
         "toString", _num_toString,
         "abs", _num_abs,
+        "bytes", _num_bytes,
         null
     );
+    tlObject* nconstructor = tlClassObjectFrom(
+        "fromBytes", _Num_fromBytes,
+        "_methods", null,
+        null
+    );
+    tlObjectSet_(nconstructor, s__methods, _tlNumKind.klass);
+    tl_register_global("Num", nconstructor);
 
     _tlCharKind.klass = tlClassObjectFrom(
         "hash", _char_hash,
@@ -435,16 +521,16 @@ static void number_init() {
         "toChar", _char_toString,
         null
     );
-    tlObject* constructor = tlClassObjectFrom(
+    tlObject* cconstructor = tlClassObjectFrom(
         "call", _Char,
         "_methods", null,
         null
     );
-    tlObjectSet_(constructor, s__methods, _tlCharKind.klass);
-    tl_register_global("Char", constructor);
+    tlObjectSet_(cconstructor, s__methods, _tlCharKind.klass);
+    tl_register_global("Char", cconstructor);
 
-    INIT_KIND(tlCharKind);
     INIT_KIND(tlFloatKind);
     INIT_KIND(tlNumKind);
+    INIT_KIND(tlCharKind);
 }
 

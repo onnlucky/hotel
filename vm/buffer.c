@@ -167,10 +167,10 @@ void tlBufferSkipByte(tlBuffer* buf) {
     if (canread(buf) == 0) return;
     buf->readpos += 1;
 }
-uint8_t tlBufferPeekByte(tlBuffer* buf) {
+uint8_t tlBufferPeekByte(tlBuffer* buf, int at) {
     assert(tlBufferIs(buf));
-    if (canread(buf) == 0) return 0;
-    uint8_t r = *((uint8_t*)(buf->data + buf->readpos));
+    if (canread(buf) <= at) return 0;
+    uint8_t r = *((uint8_t*)(buf->data + buf->readpos + at));
     return r;
 }
 uint8_t tlBufferReadByte(tlBuffer* buf) {

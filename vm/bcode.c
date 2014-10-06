@@ -609,6 +609,16 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     return bcode;
 }
 
+tlNum* tlNumFromBuffer(tlBuffer* buf, int size);
+tlNum* readBignum(tlBuffer* buf, int size, const char** error) {
+    trace("bignum: %d", size);
+    if (tlBufferSize(buf) < size) FAIL("not enough data");
+    int oldsize = tlBufferSize(buf);
+    tlNum* res = tlNumFromBuffer(buf, size);
+    assert(tlBufferSize(buf) + size == oldsize);
+    return res;
+}
+
 tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1, const char** error) {
     int size = readsize(buf);
     assert(size > 0);
@@ -626,9 +636,7 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1,
         case 0xE5: // bytecode
             trace("bytecode %d", size);
             return readbytecode(buf, data, mod, size, error);
-        case 0xE6: // bignum
-            trace("bignum %d", size);
-            FAIL("unimplemented: bignum");
+        case 0xE6: return readBignum(buf, size, error);
         default:
             FAIL("not a sized value");
     }

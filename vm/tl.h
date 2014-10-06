@@ -574,10 +574,13 @@ int tlBufferWriteByte(tlBuffer* buf, const char byte);
 void tlBufferDidWrite(tlBuffer* buf, int count);
 int tlBufferCanWrite(tlBuffer* buf);
 
+tlBin* tlBinNew(int len);
 tlBin* tlBinFromBufferTake(tlBuffer* buf);
 tlBin* tlBinFromCopy(const char* data, int len);
 int tlBinSize(tlBin* bin);
 const char* tlBinData(tlBin* bin);
+int tlBinGet(tlBin* bin, int at);
+void tlBinSet_(tlBin* bin, int at, char byte);
 
 tlArray* tlArrayNew();
 int tlArraySize(tlArray* array);
