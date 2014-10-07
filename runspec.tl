@@ -24,19 +24,19 @@ test = title ->
     (
         catch: e ->
             msg = try(e.toString, try(e.msg), e)
-            _results.add {pass=false,{name,msg}}
+            _results.add({pass=false,{name,msg}})
         size = _results.size
         args.block.call
         if _results.size == size: // no sub tests were done, assuming this was the test
-            _results.add {pass=true,{name}}
+            _results.add({pass=true, {name}})
     )
     $_test = old
     if not old: endtest()
 
 env = Env.current
 
-pass = Var.new 0
-total = Var.new 0
+var $pass = 0
+var $total = 0
 runtest = file ->
     starttest(file[:-4])
     catch: e -> print "ERROR RUNNING SPEC: $file", e.toString

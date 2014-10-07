@@ -6,7 +6,7 @@ FAIL=0
 for i in *.tl; do
     REF=${i/.tl/.ref}
     LOG=${i/.tl/.log}
-    ../../tlcompiler $i
+    TL_MODULE_PATH=../../modules ../../tl ../../tlcompiler $i
     ../../tl --boot ${i}b 2>/dev/null | diff $REF - >$LOG
 
     if (( $? == 0 )); then

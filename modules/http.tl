@@ -18,7 +18,7 @@ HttpConnection = conn ->
                 if this._in.size > 2048: print this._in.readString; conn.close; throw "REQUEST TOO LONG"
                 if this._in.find("\r\n\r\n"): break
                 if this._in.find("\n\n"): break
-                len = conn.readInto this._in
+                len = conn.readInto(this._in)
                 if len == 0: throw "IO ERROR"
             this._req = httpparser.request(this._in.readString)
         )
@@ -31,23 +31,23 @@ HttpConnection = conn ->
         )
         write = (text ->
             if this._didend: throw "Already Ended Response"
-            this._body.write text
+            this._body.write(text)
         )
         flush = (ending ->
             if not this._didhead: this._sendheaders(ending)
             while this._body.size > 0:
-                len = conn.write this._body
+                len = conn.write(this._body)
                 //if len == 0: throw "IO ERROR"
         )
         _sendheaders = (ending ->
             this._didhead = true
-            headers = io.Buffer.new()
-            headers.write "HTTP/1.0 $(this.status) Ok\r\n"
-            if this.contentType: headers.write "Content-Type: $(this.contentType)\r\n"
-            if ending: headers.write "Content-Length: $(this._body.size)\r\n"
-            headers.write "\r\n"
+            headers = io.Buffer.new
+            headers.write("HTTP/1.0 $(this.status) Ok\r\n")
+            if this.contentType: headers.write("Content-Type: $(this.contentType)\r\n")
+            if ending: headers.write("Content-Length: $(this._body.size)\r\n")
+            headers.write("\r\n")
             while headers.size > 0:
-                len = conn.write headers
+                len = conn.write(headers)
                 //if len == 0: throw "IO ERROR"
         )
     }
@@ -77,16 +77,16 @@ SizedStream = stream, size ->
     {
         read = len ->
             if $toread == 0: return null
-            if not len: return stream.read $toread
+            if not len: return stream.read($toread)
             len = min($toread, len)
             $toread -= len
-            return stream.read len
+            return stream.read(len)
         readString = len ->
             if $toread == 0: return null
-            if not len: return stream.readString $toread
+            if not len: return stream.readString($toread)
             len = min($toread, len)
             $toread -= len
-            return stream.readString len
+            return stream.readString(len)
         readByte = -> this.read(1)[1]
         close = ->
             this.read
@@ -103,7 +103,7 @@ readchunklen = stream, len ->
 readchunk = stream, into ->
     len = readchunklen(stream, 0)
     if len == 0: return null
-    res = into.write stream.read len
+    res = into.write(stream.read(len))
     assert stream.read(2) == "\r\n"
     return res
 
@@ -117,10 +117,10 @@ ChuckedStream = stream ->
     {
         read = len ->
             readsomechunks(stream, buf, len)
-            buf.read len
+            buf.read(len)
         readString = len ->
             readsomechunks(stream, buf, len)
-            buf.readString len
+            buf.readString(len)
         readByte = -> this.read(1)[1]
         close = -> stream.close
     }
@@ -141,10 +141,10 @@ openstream = url ->
 get = url ->
     url = httpparser.url(url)
     conn = openstream(url)
-    conn.write "GET "+ url.request +" HTTP/1.0\r\n"
-    conn.write "Host: "+ url.host +"\r\n"
-    conn.write "User-Agent: Mozilla/5.0\r\n"
-    conn.write "\r\n"
+    conn.write("GET "+ url.request +" HTTP/1.0\r\n")
+    conn.write("Host: "+ url.host +"\r\n")
+    conn.write("User-Agent: Mozilla/5.0\r\n")
+    conn.write("\r\n")
 
     // TODO now we can just parse without "finding" first ...
     at = conn.find("\r\n\r\n", 0, 8000)

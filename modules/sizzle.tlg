@@ -16,18 +16,18 @@ walk = node, match, result ->
     if not node: return
     if not node.attrs: return
 
-    m = Var.new true
+    var $m = true
     match[1].each: s ->
         _match(s.match == "node" and s.name == node.name): 1
         _match(s.match == "class" and s.name == node.attrs["class"]): 1
         _match(s.match == "id" and s.name == node.attrs["id"]): 1
         _match(s.match == "hasattr" and node.attrs.has(s.name)): 1
         _match(s.match == "attr" and node.attrs[s.name] == s.val): 1
-        _match(true): m.set false
+        _match(true): m.set(false)
     if m.get:
         if match.size == 1:
             if not result: return node
-            result.add node
+            result.add(node)
         if match.size > 1:
             node.each: n -> r = walk(n, match[2:], result); if r: return r
     node.each: n -> r = walk(n, match, result); if r: return r

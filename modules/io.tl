@@ -27,25 +27,25 @@ ioloop = ->
 // reader/writer utils
 readSome = reader, buf ->
     loop:
-        len = reader.read buf
+        len = reader.read(buf)
         if len: return len
-        _io.waitread reader
+        _io.waitread(reader)
 
 readFull = reader, buf ->
-    total = Var.new 0
+    total = Var.new(0)
     loop:
-        len = reader.read buf
+        len = reader.read(buf)
         if len == 0: return $total
         if len: $total += len; continue
-        _io.waitread reader
+        _io.waitread(reader)
 
 writeFull = writer, buf ->
-    total = Var.new 0
+    total = Var.new(0)
     loop:
         if buf.size == 0: return
-        len = writer.write buf
+        len = writer.write(buf)
         if len == 0: return buf.size
-        if not len: _io.waitwrite writer
+        if not len: _io.waitwrite(writer)
 
 /// A Stream is a lot like a buffer, but we read and write from some source
 Stream = {
@@ -68,7 +68,7 @@ Stream = {
                 _with_lock(writer, val):
                     return writeFull(writer, val)
             _with_lock(writer, this.wbuf):
-                this.wbuf.write val
+                this.wbuf.write(val)
                 return writeFull(writer, this.wbuf)
 
         readClosed = ->
@@ -81,7 +81,7 @@ Stream = {
         readString = len ->
             if len:
                 while this.rbuf.size < len: this._readSome
-                return this.rbuf.readString len
+                return this.rbuf.readString(len)
             this._readFull
             return this.rbuf.readString
         /// blocks and reads until a newline character '\n' is seen, returns a String including the newline
@@ -99,17 +99,17 @@ Stream = {
             if len:
                 assert len >= 0 and len <= 1000_000_000
                 while this.rbuf.size < len: this._readSome
-                return this.rbuf.read len
+                return this.rbuf.read(len)
             this._readFull
             return this.rbuf.read
         readInto = buf ->
             assert isBuffer buf
             if this.rbuf.size > 0:
-                return buf.write this.rbuf
-            this._readSome buf
+                return buf.write(this.rbuf)
+            this._readSome(buf)
         find = what, from, upto ->
             loop:
-                r = this.rbuf.find what, from, upto
+                r = this.rbuf.find(what, from, upto)
                 if r: return r
                 if upto and this.rbuf.size >= upto: return null
                 if this.file.reader.isClosed: return null
@@ -117,14 +117,14 @@ Stream = {
 
         /// write many of Buffer, String, Binary, or byte (any number); skipping nulls
         write = ->
-            args.each: v -> this._writeOne v
+            args.each: v -> this._writeOne(v)
         writeclose = ->
             if this.file.isClosed: return
             writer = this.file.writer
             _with_lock(writer): writer.close
         close = ->
             if this.file.isClosed: return
-            _io.close this.file
+            _io.close(this.file)
     }
 }
 
@@ -139,11 +139,11 @@ Server = {
                     conn = reader.accept()
                     if conn: return Stream.new(conn)
                     if reader.isClosed: return
-                    _io.waitread reader
+                    _io.waitread(reader)
         )
         close = (->
             if this.file.isClosed: return
-            _io.close this.file
+            _io.close(this.file)
         )
         serve = (->
             block = args.block; if not block: throw "serve expects a block"
@@ -173,7 +173,7 @@ File = {
 
         readString = ->
             buf = Buffer.new
-            this.read buf
+            this.read(buf)
             return buf.readString
 
         write = (val ->
@@ -182,14 +182,14 @@ File = {
                 _with_lock(writer, val):
                     return writeFull(writer, val)
             buf = Buffer.new
-            { isBin(val) }: buf.write val
-            {            }: buf.write val.toString
+            { isBin(val) }: buf.write(val)
+            {            }: buf.write(val.toString)
             _with_lock(writer, buf):
                 return writeFull(writer, buf)
         )
 
         open = (->
-            mode = Var.new 0
+            mode = Var.new(0)
             if args.namesmap["truncate"]: $mode += _File_TRUNC
             if args.namesmap["create"]: $mode += _File_CREAT
             if not args.namesmap["readonly"]: $mode += _File_RDWR
@@ -248,7 +248,7 @@ UdpSocket = {
                 _with_lock(reader, buf):
                     buf, ip, port = _Socket_recvfrom(this.file, buf)
                     if buf: return buf, ip, port
-                    _io.waitread reader
+                    _io.waitread(reader)
         )
     }
 }
@@ -290,7 +290,7 @@ shell = cmd ->
     arglist = ["sh", "-c", cmd.toString].cat(args[2:].map(a -> a.toString))
     _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
 
-wait = s -> _io.wait s
+wait = s -> _io.wait(s)
 
 Terminal = {
     new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new }

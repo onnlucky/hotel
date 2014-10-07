@@ -5,8 +5,8 @@ Variable = v ->
     !(
         loop = v ->
             msg = queue.get
-            if msg.name == "get": msg.reply v; goto loop v
-            if msg.name == "set": msg.reply msg[1]; goto loop msg[1]
+            if msg.name == "get": msg.reply(v); goto loop v
+            if msg.name == "set": msg.reply(msg[1]); goto loop msg[1]
             out("ERROR: unknown message: ", msg.name, "\n")
             msg.reply
             goto loop v

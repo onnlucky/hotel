@@ -17,9 +17,9 @@ Stream = {
             _with_lock(ssl, into):
                 loop:
                     len = ssl.read(into)
-                    if ssl.wbuf.size > 0: this.stream.write ssl.wbuf
+                    if ssl.wbuf.size > 0: this.stream.write(ssl.wbuf)
                     if len > 0: return into
-                    res = this.stream.read ssl.rbuf
+                    res = this.stream.read(ssl.rbuf)
                     if not res: return null
         )
         write= (from ->
@@ -32,9 +32,9 @@ Stream = {
             _with_lock(ssl, from):
                 loop:
                     mustread = ssl.write(from)
-                    this.stream.write ssl.wbuf
+                    this.stream.write(ssl.wbuf)
                     if mustread:
-                        res = this.stream.read ssl.rbuf
+                        res = this.stream.read(ssl.rbuf)
                         if not res: return 1 // TODO figure out how much was written ...
                         continue
                     if from.size == 0 and ssl.wbuf.size == 0: return

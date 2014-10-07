@@ -73,7 +73,7 @@ _each = fn ->
     if not (block or fn): throw "each expects a block or fn"
 
     size = this.size
-    at = Var.new 0
+    var $at = 0
     while $at < size:
         $at += 1
         if block: block(this[$at], $at)
@@ -106,7 +106,7 @@ _map = fn ->
 _find = element /*, [Number from=0]*/ ->
     size = this.size
     if size == 0: return
-    at = Var.new args["from"] or 1
+    var $at = args["from"] or 1
     if $at < 0: $at = size + 1 + $at
     if $at < 1: $at = 1
     if args.size == 0:
@@ -206,8 +206,8 @@ _median = default ->
 innerqsort = list, smallerfn, b, e ->
     if e - b < 1: return
     pivot = list[b]
-    at = Var.new b + 1
-    end = Var.new e
+    var $at = b + 1
+    var $end = e
     while $at <= $end:
         check = list[$at]
         { smallerfn(check, pivot) }: list[$at - 1] = check; $at += 1
@@ -320,7 +320,7 @@ _times = fn ->
     block = args.block or fn
     if not block: throw "times expects a block or fn"
 
-    at = Var.new 0
+    var $at = 0
     loop:
         if $at >= this: return
         $at += 1
@@ -336,7 +336,7 @@ _to = to, fn ->
     from, to = { this <= to }: multi(this - 1, to)
                {            }: multi(to - 1, this)
 
-    at = Var.new from
+    var $at = from
     loop:
         if $at >= to: return
         $at += 1
@@ -479,13 +479,13 @@ _install(Error, "class", {
     throw = -> throw this
     toString = ->
         ls = Array.new
-        ls.add "Error: ", this.msg, "\n"
+        ls.add("Error: ", this.msg, "\n")
         ls.add("stack: ", this.stack.task, "\n")
-        x = Var.new 1
+        var $x = 1
         loop:
             file, fn, line = this.stack.get($x)
             if not file: break
-            ls.add "  at ", file, ":", line, " ", fn, "\n"
+            ls.add("  at ", file, ":", line, " ", fn, "\n")
             $x += 1
         return ls.join
 })
@@ -493,14 +493,14 @@ _install(DeadlockError, "class", {
     throw = -> throw this
     toString = ->
         ls = Array.new
-        ls.add "Error: ", this.msg, "\n"
+        ls.add("Error: ", this.msg, "\n")
         this.stacks.each: stack, n ->
             ls.add("stack: ", n, " ", stack.task, "\n")
-            x = Var.new 1
+            var $x = 1
             loop:
                 file, fn, line = stack.get($x)
                 if not file: break
-                ls.add "  at ", file, ":", line, " ", fn, "\n"
+                ls.add("  at ", file, ":", line, " ", fn, "\n")
                 $x += 1
         return ls.join
 })
@@ -511,7 +511,7 @@ dirname = file ->
     at = file.find("/", backward=true)
     if not at: return "."
     if at == 1: return "/"
-    slash = Var.new(at - 1)
+    var $slash = at - 1
     while file[$slash] == '/': $slash -= 1
     return file[:$slash]
 
@@ -532,8 +532,8 @@ assert filename("/hello.html") == "hello.html"
 assert filename("./hello.html") == "hello.html"
 assert filename("../foo/test/hello.html") == "hello.html"
 
-sleep = s -> io.wait s
-wait  = s -> io.wait s
+sleep = s -> io.wait(s)
+wait  = s -> io.wait(s)
 
 test = ->
     catch: e -> print "TEST FAILED:", args.slice.join(" "); print e.toString

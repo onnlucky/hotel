@@ -28,7 +28,7 @@ test "block":
     res = ["hello", "foo", "bar"].find: e -> e == "foo"
     assert res == 2
 test "function element":
-    called = Var.new false
+    var $called = false
     target = x -> $called = true
     assert ["hello", "foo", target].find(target) == 3
     assert not $called

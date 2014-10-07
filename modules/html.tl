@@ -45,7 +45,7 @@ process = node, cmd ->
 parse = s ->
     stream = _xml_parse(s)
     root = dom.Node.new("doc")
-    node = Var.new root
+    var $node = root
     stream.each: cmd -> $node = process($node, cmd)
     return root
 

@@ -85,76 +85,76 @@ encodeString = s ->
 
 encodeList = l ->
     if l.size < 32:
-        buf = Buffer.new 0b0010_0000 | l.size
-        l.each: e -> buf.write e
+        buf = Buffer.new(0b0010_0000 | l.size)
+        l.each: e -> buf.write(e)
         return buf.read
-    buf = Buffer.new 0b1110_0001, encodeInt(l.size)
-    l.each: e -> buf.write e
+    buf = Buffer.new(0b1110_0001, encodeInt(l.size))
+    l.each: e -> buf.write(e)
     return buf.read
 
 encodeMap = m ->
     size = m.size >> 1
     assert size * 2 == m.size
     if size < 32:
-        buf = Buffer.new 0b0110_0000 | size
-        m.each: e -> buf.write e
+        buf = Buffer.new(0b0110_0000 | size)
+        m.each: e -> buf.write(e)
         return buf.read
-    buf = Buffer.new 0b1110_0011, encodeInt(size)
-    m.each: e -> buf.write e
+    buf = Buffer.new(0b1110_0011, encodeInt(size))
+    m.each: e -> buf.write(e)
     return buf.read
 
 writeCode = mod, c ->
     buf = Buffer.new
 
-    buf.write mod.data(c.name)
-    buf.write mod.data(c.argspecs)
-    buf.write mod.data(c.locals)
-    buf.write mod.data(c.debuginfo)
+    buf.write(mod.data(c.name))
+    buf.write(mod.data(c.argspecs))
+    buf.write(mod.data(c.locals))
+    buf.write(mod.data(c.debuginfo))
 
     var $pc = 0
     loop:
         op = c.code[($pc += 1)]
         { op == "end"    }: // end
-            buf.write 0
+            buf.write(0)
             break
         { op == "system" }: // system call, references a string
-            buf.write 0b1100_0000 + 5
-            buf.write mod.data(c.code[($pc += 1)])
+            buf.write(0b1100_0000 + 5)
+            buf.write(mod.data(c.code[($pc += 1)]))
         { op == "data"   }: // a reference module data
-            buf.write 0b1100_0000 + 6
-            buf.write mod.data(c.code[($pc += 1)], true)
+            buf.write(0b1100_0000 + 6)
+            buf.write(mod.data(c.code[($pc += 1)], true))
         { op == "global" }: // a reference to the linked list (a string)
-            buf.write 0b1100_0000 + 7
-            buf.write mod.global(c.code[($pc += 1)])
+            buf.write(0b1100_0000 + 7)
+            buf.write(mod.global(c.code[($pc += 1)]))
         { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
-            buf.write 0b1100_0000 + 16
-            buf.write mod.code(c.code[($pc += 1)])
-        { op == "true"   }: buf.write 0b1100_0000 + 0
-        { op == "false"  }: buf.write 0b1100_0000 + 1
-        { op == "null"   }: buf.write 0b1100_0000 + 2
-        { op == "undef"  }: buf.write 0b1100_0000 + 3
-        { op == "int"    }: buf.write 0b1100_0000 + 4; buf.write encodeInt c.code[($pc += 1)]
-        { op == "envarg" }: buf.write 0b1100_0000 + 8; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "env"    }: buf.write 0b1100_0000 + 9; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "arg"    }: buf.write 0b1100_0000 + 10; buf.write encodeInt c.code[($pc += 1)]
-        { op == "local"  }: buf.write 0b1100_0000 + 11; buf.write encodeInt c.code[($pc += 1)]
-        { op == "args"   }: buf.write 0b1100_0000 + 12
-        { op == "envargs"}: buf.write 0b1100_0000 + 13; buf.write encodeInt c.code[($pc += 1)]
-        { op == "this"   }: buf.write 0b1100_0000 + 14
-        { op == "envthis"}: buf.write 0b1100_0000 + 15; buf.write encodeInt c.code[($pc += 1)]
+            buf.write(0b1100_0000 + 16)
+            buf.write(mod.code(c.code[($pc += 1)]))
+        { op == "true"   }: buf.write(0b1100_0000 + 0)
+        { op == "false"  }: buf.write(0b1100_0000 + 1)
+        { op == "null"   }: buf.write(0b1100_0000 + 2)
+        { op == "undef"  }: buf.write(0b1100_0000 + 3)
+        { op == "int"    }: buf.write(0b1100_0000 + 4); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "envarg" }: buf.write(0b1100_0000 + 8); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "env"    }: buf.write(0b1100_0000 + 9); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "arg"    }: buf.write(0b1100_0000 + 10); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "local"  }: buf.write(0b1100_0000 + 11); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "args"   }: buf.write(0b1100_0000 + 12)
+        { op == "envargs"}: buf.write(0b1100_0000 + 13); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "this"   }: buf.write(0b1100_0000 + 14)
+        { op == "envthis"}: buf.write(0b1100_0000 + 15); buf.write(encodeInt(c.code[($pc += 1)]))
 
-        { op == "store"  }: buf.write 0b1100_0000 + 17; buf.write encodeInt c.code[($pc += 1)]
-        { op == "rstore" }: buf.write 0b1100_0000 + 18; buf.write encodeInt c.code[($pc += 1)]; buf.write encodeInt c.code[($pc += 1)]
-        { op == "invoke" }: buf.write 0b1100_0000 + 19
+        { op == "store"  }: buf.write(0b1100_0000 + 17); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "rstore" }: buf.write(0b1100_0000 + 18); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "invoke" }: buf.write(0b1100_0000 + 19)
 
-        { op == "mcall"  }: buf.write 0b1110_0000 + 0; buf.write encodeInt c.code[($pc += 1)]
-        { op == "mcalls" }: buf.write 0b1110_1000 + 0; buf.write encodeInt c.code[($pc += 1)]
-        { op == "fcall"  }: buf.write 0b1110_0000 + 1; buf.write encodeInt c.code[($pc += 1)]
-        { op == "bcall"  }: buf.write 0b1110_0000 + 2; buf.write encodeInt c.code[($pc += 1)]
-        { op == "mcalln" }: buf.write 0b1111_0000 + 0; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
-        { op == "mcallns"}: buf.write 0b1111_1000 + 0; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
-        { op == "fcalln" }: buf.write 0b1111_0000 + 1; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
-        { op == "bcalln" }: buf.write 0b1111_0000 + 2; buf.write encodeInt c.code[($pc += 1)]; buf.write mod.data(c.code[($pc += 1)].ns)
+        { op == "mcall"  }: buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "bcall"  }: buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "mcalln" }: buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "mcallns"}: buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "fcalln" }: buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "bcalln" }: buf.write(0b1111_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
 
         {                }: throw "unknown op: $op $(repr(op))"
 
@@ -200,7 +200,7 @@ compile = (text, ast ->
         args = Array.new
         // TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
         addOpen = function, name, pos ->
-            _, fn = functions.add {name=name or "",open=function,scope=this}
+            _, fn = functions.add({name=name or "",open=function,scope=this})
             if name:
                 _, id = ids.add({{name},at=Array.new([pos])})
                 _, at = this.locals.add(name)
@@ -254,8 +254,8 @@ compile = (text, ast ->
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
             if parent:
-                if not level: return parent.ref name, 1
-                return parent.ref name, level + 1
+                if not level: return parent.ref(name, 1)
+                return parent.ref(name, level + 1)
             globals[name] = true
             return {type="global",{name}}
     }
@@ -265,7 +265,7 @@ compile = (text, ast ->
         locals = Array.new
         methods = Array.new
         addOpen = function, name ->
-            _, method = functions.add {name=name or "",open=function,scope=this}
+            _, method = functions.add({name=name or "",open=function,scope=this})
             if name:
                 // TODO perhaps change type="function" to type="method"
                 ref = this.names[name]
@@ -290,8 +290,8 @@ compile = (text, ast ->
             if name == "args":
                 if not level: return {type="args"}
                 return {type="thisargs",up=level}
-            if not level: return parent.ref name, 0
-            parent.ref name, level + 1
+            if not level: return parent.ref(name, 0)
+            parent.ref(name, level + 1)
     }
 
     close = n ->
@@ -334,8 +334,8 @@ compile = (text, ast ->
             )
             {type="call",target={type="global",name="_String_cat"},args=data}
         { term.type == "scope" }:
-            function = lextop scope, term
-            _, fn = functions.add {name="",open=false,function=function}
+            function = lextop(scope, term)
+            _, fn = functions.add({name="",open=false,function=function})
             {type="call",target={type="function",function=fn}}
         { term.type == "function" or term.type == "block" }:
             function = scope.addOpen(term, name, pos)
@@ -416,7 +416,7 @@ compile = (text, ast ->
             body = { try(term.body) }: term.body
                    {                }: [term.rhs]
             function = lextop(scope, {type="scope",{body},pos=term.pos})
-            _, fn = functions.add {name="",open=false,function=function}
+            _, fn = functions.add({name="",open=false,function=function})
             {type="async",body={type="function",function=fn}}
         { term.type == "not" }:
             rhs = lex(scope, term.rhs)
@@ -458,12 +458,12 @@ compile = (text, ast ->
                 args = [lex(scope, try(guard.cond, "true"))]
                 names =[null]
                 function = lextop(scope,{type="block", body=guard.body, pos=guard.pos})
-                _, fn = functions.add {name="",open=false,function=function}
+                _, fn = functions.add({name="",open=false,function=function})
                 block = {type="function",function=fn}
                 {type="call",{target,args,names,block}}
             )
             function = {body=gs + [{type="call",target={type="global",name="_nomatch"},args=[]}],locals=[],args=[], pos=term.pos}
-            _, fn = functions.add {name="", open=false, function=function}
+            _, fn = functions.add({name="", open=false, function=function})
             target = {type="function",function=fn}
             {type="call",{target},args=[],names=[],block=null}
         { }:
@@ -562,8 +562,8 @@ compile = (text, ast ->
         return main, functions
 
     // cache the position to line information for a little bit
-    at = Var.new 0
-    lines = Var.new 1
+    at = Var.new(0)
+    lines = Var.new(1)
     lineFromPos = pos ->
         if pos < 0: return 0
         assert pos <= text.size
@@ -586,26 +586,26 @@ compile = (text, ast ->
                 if ref: return ref
             ref = this.dataIndex[v]
             if ref: return ref
-            bin = { isList(v)   }: encodeList v.map(v -> this.data v)
-                  { isObject(v) }: encodeMap Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten
-                  { isString(v) }: encodeString v
-                  { isFloat(v)  }: encodeFloat v
-                  { isNumber(v) }: encodeNumber v
-            _, at = this.datas.add bin
+            bin = { isList(v)   }: encodeList(v.map(v -> this.data(v)))
+                  { isObject(v) }: encodeMap(Object.map(v, (k, v -> [this.data(k), this.data(v)])).flatten)
+                  { isString(v) }: encodeString(v)
+                  { isFloat(v)  }: encodeFloat(v)
+                  { isNumber(v) }: encodeNumber(v)
+            _, at = this.datas.add(bin)
             //print "data", at, repr(v)
             this.dataIndex[v] = encodeInt(at - 1)
         global = v ->
             assert isString(v)
             ref = this.globalsIndex[v]
             if ref: return ref
-            ref = this.data v
-            _, at = this.globals.add ref
+            ref = this.data(v)
+            _, at = this.globals.add(ref)
             this.globalsIndex[v] = encodeInt(at - 1)
         function = name, code, locals, argspecs, debuginfo ->
             code = code.add("end")
             //print "code:", name, debuginfo.line, repr(code)[:20]
-            bin = writeCode this, {{name, locals, argspecs, code, debuginfo}}
-            _, at = this.datas.add bin
+            bin = writeCode(this, {{name, locals, argspecs, code, debuginfo}})
+            _, at = this.datas.add(bin)
             //print "function", at, name
             this.functions[name] = encodeInt(at - 1)
         code = v ->
@@ -613,11 +613,11 @@ compile = (text, ast ->
             return this.function(fn.name, fn.code, fn.locals, fn.args, {line=lineFromPos(fn.pos),text="",offset=0,pos=[]})
         create = ->
             buf = Buffer.new
-            buf.write "tl01"
-            buf.write encodeInt this.datas.size + 1
-            this.datas[:-2].each: v -> buf.write v
-            buf.write encodeList this.globals
-            buf.write this.datas[-1]
+            buf.write("tl01")
+            buf.write(encodeInt(this.datas.size + 1))
+            this.datas[:-2].each: v -> buf.write(v)
+            buf.write(encodeList(this.globals))
+            buf.write(this.datas[-1])
             return buf
     }
 
@@ -662,7 +662,7 @@ SimpleDebugger = debugger, stream ->
             debugger.step
             print_pos(debugger, stream)
         { cmd == "stop" }:
-            debugger.detach debugger.current
+            debugger.detach(debugger.current)
             debugger.continue
             break
 

@@ -27,7 +27,7 @@ test "iterate fn":
     [1,2,3,4,5].each(e, n -> assert e == n)
 
 test "iterate external function":
-    called = Var.new false
+    var $called = false
     test = e, n ->
         $called = true
         assert not n
@@ -36,7 +36,7 @@ test "iterate external function":
     assert $called
 
 test "break":
-    count = Var.new 0
+    var $count = 0
     [1,2,3,4,5].each(e ->
         $count += e
         if e == 3: break
@@ -44,7 +44,7 @@ test "break":
     assert $count == 6
 
 test "continue":
-    count = Var.new 0
+    var $count = 0
     [1,2,3,4,5].each(e ->
         if e > 3: continue
         $count += e

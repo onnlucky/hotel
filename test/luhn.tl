@@ -2,7 +2,7 @@
 luhn = digits ->
     normalized = digits.map(l -> Number(l)).filter.reverse
 
-    sum = Var.new 0
+    var $sum = 0
     normalized.each: e, n ->
         { n % 2 == 0 }: $sum += (e * 2) /. 10 + (e * 2) % 10
         {            }: $sum += e

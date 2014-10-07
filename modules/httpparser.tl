@@ -165,7 +165,7 @@ parseHeader = in ->
 
 createmap = ls ->
     map = HashMap.new
-    ls.each: e -> map.set e.key, e.value
+    ls.each: e -> map[e.key] = e.value
     return map
 
 parseHttpRequest = in ->

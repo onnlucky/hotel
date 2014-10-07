@@ -33,6 +33,7 @@ int main(int argc, char** argv) {
         boot = "boot.tlb";
         buf = tlBufferFromFile("boot/boot.tlb");
         if (!buf) buf = tlBufferFromFile("../boot/boot.tlb");
+        if (!buf) buf = tlBufferFromFile("../../boot/boot.tlb");
         if (!buf) buf = tlBufferFromFile("/usr/shared/tl/boot.tlb");
     }
     if (!buf) fatal("unable to load: %s", boot);

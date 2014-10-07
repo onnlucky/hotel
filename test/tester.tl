@@ -1,7 +1,7 @@
 #!/usr/bin/env tl
 
-fail = Var.new 0
-pass = Var.new 0
+var $fail = 0
+var $pass = 0
 
 io.Dir(".").each: file ->
     if not file.endsWith(".tl"): continue

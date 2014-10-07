@@ -12,7 +12,7 @@ test "basic":
     assert "hello" == "h" +"ello"
 
 test "iterate":
-    called = Var.new false
+    var $called = false
     "hello".each: l, n ->
         $called = true
         { n == 1 }: assert l == 'h'
