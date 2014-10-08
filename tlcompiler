@@ -5,11 +5,12 @@ bytes = compiler.compile(code, name=args[1])
 io.File(args[1] + "b").write(bytes)
 print(args[1] + "b", "written:", bytes.size, "bytes", "time:", (time() - start))
 
-start = time()
-name = args[1][:-4].replace("/", "_").replace(".", "_")
-str = bytes.map(b, n -> "0x" + b.toString(16)).join(",")
-str = "const char $(name)[] = { $str };\n"
-str = str + "const int $(name)_len = $(bytes.size);\n"
-io.File(args[1] + "b.h").write(str)
-print(args[1] + "b.h", "written:", str.size, "bytes", "time:", (time() - start))
+if args[2] == "-c":
+    start = time()
+    name = args[1][:-4].replace("/", "_").replace(".", "_")
+    str = bytes.map(b, n -> "0x" + b.toString(16)).join(",")
+    str = "const char $(name)[] = { $str };\n"
+    str = str + "const int $(name)_len = $(bytes.size);\n"
+    io.File(args[1] + "b.h").write(str)
+    print(args[1] + "b.h", "written:", str.size, "bytes", "time:", (time() - start))
 

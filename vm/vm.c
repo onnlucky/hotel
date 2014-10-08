@@ -2,6 +2,8 @@
 
 #include "tl.h"
 #include "platform.h"
+#include "boot/boot.tlb.h"
+#include "boot/compiler.tlb.h"
 
 #include "llib/lhashmap.c"
 #include "llib/lqueue.c"
@@ -592,6 +594,22 @@ tlEnv* tlVmGlobalEnv(tlVm* vm) {
     return vm->globals;
 }
 
+tlBuffer* tlVmGetBoot() {
+    tlBuffer* buf = tlBufferNew();
+    tlBufferWrite(buf, boot_boot, boot_boot_len);
+    return buf;
+}
+
+tlBuffer* tlVmGetCompiler() {
+    tlBuffer* buf = tlBufferNew();
+    tlBufferWrite(buf, modules_compiler, modules_compiler_len);
+    return buf;
+}
+
+static tlHandle _vm_get_compiler() {
+    return tlVmGetCompiler();
+}
+
 static const tlNativeCbs __vm_natives[] = {
     { "_undefined", _undefined },
     { "out",  _out },
@@ -644,6 +662,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "_urldecode", _urldecode },
 
     { "_Buffer_new", _Buffer_new },
+    { "_vm_get_compiler", _vm_get_compiler },
 
     { "_set_exitcode", _set_exitcode },
     { "dlopen", _dlopen },

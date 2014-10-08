@@ -562,12 +562,6 @@ fileFromModulePath = name, path ->
         if _Path_stat(file).ino != 0: return file
     return null
 
-// TODO Env.current
-_env = _env_current()
-
-// TODO when this works, move capturing the env up
-//_env["fileFromModulePath"] = fileFromModulePath;
-
 assert [3000, 19, 10, 99].sort[1] == 10
 x = (
     catch: e -> "got it"
@@ -577,28 +571,20 @@ x = (
 assert x == "got it"
 
 compiler = (
-    file = fileFromModulePath("compiler.tlb")
-    if not file: Error("No compiler.tlb found").throw
-    bcode = _bufferFromFile(file)
-    mod = _Module_new(bcode, file[:-2])
+    bcode = _vm_get_compiler()
+    mod = _Module_new(bcode, "<compiler>")
     links = _module_links(mod)
-    linked = links.map(name -> _env[name])
-    //linked.each: value, n -> print n, links[n], value
+    env = _env_current()
+    linked = links.map(name -> env[name])
     compiler = _module_run(_module_link(mod, linked))
-
-/*
-    print("reloading compiler")
-    text = _stringFromFile("modules/compiler.tl")
-    start = time()
-    ast = compiler.parse(text)
-    print("parsed:", time() - start)
-    bcode = compiler.compile(text, ast)
-    print("compiled:", time() - start)
-    compiler = _module_run(_module_link(_Module_new(Buffer.new(bcode), file[:-2]), linked))
-    print("linked and run", time() - start)
-    compiler
-*/
 )
+
+// TODO Env.current
+_env = _env_current()
+
+// TODO when this works, move capturing the env up
+//_env["fileFromModulePath"] = fileFromModulePath;
+//_env["compiler"] = compiler
 
 resolve2 = name, path ->
     res = _modules[name]
@@ -636,9 +622,8 @@ resolve = name, path ->
     if res: return res
     if fail: throw Error(fail)
 
-compile = resolve("compiler")
+
 io = resolve("io")
-_env["io"] = io
 
 // TODO allow safe eval by not resolving modules and limited default env ...
 _eval = env/*env*/ ->

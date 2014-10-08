@@ -155,6 +155,7 @@ TL_REF_TYPE(tlFrame);
 TL_REF_TYPE(tlNative);
 TL_REF_TYPE(tlCode);
 
+TL_REF_TYPE(tlBuffer);
 TL_REF_TYPE(tlHashMap);
 TL_REF_TYPE(tlArray);
 
@@ -319,6 +320,8 @@ void tl_init();
 
 tlVm* tlVmNew();
 tlVm* tlVmCurrent();
+tlBuffer* tlVmGetBoot();
+tlBuffer* tlVmGetCompiler();
 void tlVmInitDefaultEnv(tlVm* vm);
 void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v);
 void tlVmDelete(tlVm* vm);
@@ -556,7 +559,6 @@ union _tl_0 { tlHead _tl_1; tlLock _tl_2; tlFrame _tl_3; };
 
 // ** buffer **
 
-TL_REF_TYPE(tlBuffer);
 tlBuffer* tlBufferNew();
 tlBuffer* tlBufferFromFile(const char* file);
 

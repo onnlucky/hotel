@@ -30,11 +30,9 @@ int main(int argc, char** argv) {
     if (boot) {
         buf = tlBufferFromFile(boot);
     } else {
-        boot = "boot.tlb";
-        buf = tlBufferFromFile("boot/boot.tlb");
-        if (!buf) buf = tlBufferFromFile("../boot/boot.tlb");
-        if (!buf) buf = tlBufferFromFile("../../boot/boot.tlb");
-        if (!buf) buf = tlBufferFromFile("/usr/shared/tl/boot.tlb");
+        boot = "<boot>";
+        buf = tlVmGetBoot();
+        assert(buf);
     }
     if (!buf) fatal("unable to load: %s", boot);
 
