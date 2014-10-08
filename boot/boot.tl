@@ -563,20 +563,15 @@ fileFromModulePath = name, path ->
     return null
 
 assert [3000, 19, 10, 99].sort[1] == 10
-x = (
-    catch: e -> "got it"
-    null - 1
-    assert false
-)
-assert x == "got it"
 
 compiler = (
+    _env = _env_current()
     bcode = _vm_get_compiler()
-    mod = _Module_new(bcode, "<compiler>")
-    links = _module_links(mod)
-    env = _env_current()
-    linked = links.map(name -> env[name])
-    compiler = _module_run(_module_link(mod, linked))
+    // TODO somehow this name leaks into the global env below ... that must not be!
+    _mod = _Module_new(bcode, "<compiler>")
+    links = _module_links(_mod)
+    linked = links.map(name -> _env[name])
+    compiler = _module_run(_module_link(_mod, linked))
 )
 
 // TODO Env.current
@@ -585,6 +580,13 @@ _env = _env_current()
 // TODO when this works, move capturing the env up
 //_env["fileFromModulePath"] = fileFromModulePath;
 //_env["compiler"] = compiler
+
+_x = (
+    catch: e -> "got it"
+    null - 1
+    assert false
+)
+assert _x == "got it"
 
 resolve2 = name, path ->
     res = _modules[name]
