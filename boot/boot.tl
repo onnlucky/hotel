@@ -595,7 +595,7 @@ resolve2 = name, path ->
     catch: e -> return null, "Unable to read module '$name': $(e.msg)"
     file = fileFromModulePath("$name.tlb", path)
     if file:
-        print("binary module", file)
+        //print("loading binary module", file)
         catch: e -> return null, "Unable to load module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_bufferFromFile(file), name=file[:-2], _env, (name -> resolve(name, path)))
@@ -604,7 +604,7 @@ resolve2 = name, path ->
         return _modules.set(name, res)
     file = fileFromModulePath("$name.tl", path)
     if file:
-        print("module", file)
+        //print("loading module", file)
         catch: e -> return null, "Unable to compile module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
@@ -613,7 +613,7 @@ resolve2 = name, path ->
         return _modules.set(name, res)
     file = fileFromModulePath("$name.mod", path)
     if file:
-        print("native module", file)
+        //print("loading native module", file)
         catch: e -> return null, "Unable to load compiled module '$name': $(e.msg)"
         res = dlopen(file)
         return _modules.set(name, res)

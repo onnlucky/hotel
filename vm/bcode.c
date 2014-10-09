@@ -1727,6 +1727,17 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
     return mod;
 }
 
+INTERNAL tlHandle _disasm(tlArgs* args) {
+    tlBFrame* frame = tlBFrameAs(tlTaskCurrentFrame(tlTaskCurrent()));
+    tlBModule* mod = tlBClosureAs(frame->args->fn)->code->mod;
+    for (int i = 0;; i++) {
+        tlHandle data = tlListGet(mod->data, i);
+        if (!data) break;
+        if (tlBCodeIs(data)) disasm(tlBCodeAs(data));
+    }
+    return tlNull;
+}
+
 INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
@@ -1974,6 +1985,7 @@ static const tlNativeCbs __bcode_natives[] = {
     { "return", __return },
     { "_env_locals", _env_locals },
     { "_env_current", _env_current },
+    { "_disasm", _disasm },
     { 0, 0 }
 };
 
