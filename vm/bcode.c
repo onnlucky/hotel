@@ -3,6 +3,7 @@
 #include "trace-off.h"
 
 static tlNative* g_goto_native;
+static tlNative* g_identity;
 static tlString* g_this;
 
 const char* op_name(uint8_t op) {
@@ -1118,6 +1119,7 @@ static int skip_safe_invokes(const uint8_t* ops, const int len, int pc, int skip
 static int skip_ccall(const uint8_t* ops, const int len, int pc) {
     while (pc < len) {
         uint8_t op = ops[pc++];
+        trace("SEARCHING: %d - %s(%X)", pc - 1, op_name(op), op);
         if (op == OP_INVOKE) return pc;
     }
     fatal("bytecode invalid");
@@ -1144,13 +1146,17 @@ static int skip_pcall(const uint8_t* ops, const int len, int pc) {
     return 0;
 }
 static int skip_pcalls(const uint8_t* ops, const int len, int pc) {
+    trace("SKIPPING PCALLS FROM: %d", pc);
     while (pc < len) {
         uint8_t op = ops[pc++];
-        if (op != OP_PCALL) return pc;
+        if (op != OP_PCALL) {
+            trace("SKIP TO HERE: %d", pc - 1);
+            return pc - 1;
+        }
         pc = skip_pcall(ops, len, pc);
         op = ops[pc++];
         assert(op == OP_CCALL);
-        skip_ccall(ops, len, pc);
+        pc = skip_ccall(ops, len, pc);
     }
     fatal("bytecode invalid");
     return 0;
@@ -1314,7 +1320,7 @@ again:;
             trace("set names: %s", tl_str(call->names));
         }
         // for non methods, skip target
-        if (op & 0x03) tlBCallAdd_(call, null, arg++);
+        if (op & 0x07) tlBCallAdd_(call, null, arg++);
         if (op & 0x08) {
             trace("safe method call");
             frame->calls[calltop].safe = true;
@@ -1361,11 +1367,13 @@ again:;
             pc = frame->pc;
             break;
         }
-        case OP_SYSTEM:
+        case OP_SYSTEM: {
             at = pcreadsize(ops, &pc);
-            v = tlListGet(data, at);
-            fatal("syscall: %s", tl_str(v));
+            v = g_identity;
+            //tlHandle n = tlListGet(data, at);
+            //fatal("syscall: %s", tl_str(h));
             break;
+        }
         case OP_MODULE:
             at = pcreadsize(ops, &pc);
             v = tlListGet(data, at);
@@ -1588,7 +1596,7 @@ INTERNAL tlHandle _env_locals(tlArgs* args) {
             assert(at >= 0 && at < code->locals);
             tlHandle name = tlListGet(code->localnames, at);
             tlHandle v = frame->locals->data[at];
-            print("store %s(%d) = %s", tl_str(name), at, tl_str(v));
+            trace("store %s(%d) = %s", tl_str(name), at, tl_str(v));
             tlHashMapSet(res, name, v);
         } else {
             trace("OP: %s", op_name(op));
@@ -1900,6 +1908,11 @@ INTERNAL tlHandle __goto(tlArgs* args) {
     return tlTaskPauseResuming(resume_bgoto, args);
 }
 
+INTERNAL tlHandle _identity(tlArgs* args) {
+    tlHandle v = tlArgsGet(args, 0);
+    return v? v: tlNull;
+}
+
 INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
     trace("installing exception handler: %s %s", tl_str(_frame), tl_str(handler));
     tlBFrameAs(_frame)->handler = handler;
@@ -1992,6 +2005,8 @@ void bcode_init() {
     tl_register_natives(__bcode_natives);
     g_goto_native = tlNativeNew(__goto, tlSYM("goto"));
     tl_register_global("goto", g_goto_native);
+    g_identity = tlNativeNew(_identity, tlSYM("identity"));
+    tl_register_global("identity", g_identity);
 
     // TODO make sure these are symbols all the way
     g_this = tlSTR("this");

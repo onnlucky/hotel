@@ -151,6 +151,8 @@ writeCode = mod, c ->
         { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "bcall"  }: buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "pcall"  }: buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "ccall"  }: buf.write(0b1110_0000 + 4); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "mcalln" }: buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "mcallns"}: buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "fcalln" }: buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
@@ -452,20 +454,16 @@ compile = (text, ast ->
             ).flatten
             {type="map",{data}}
         { term.type == "guards" }:
-            scope = Scope(scope, true)
-            target = {type="global",name="_match"}
             gs = term.guards.map(guard ->
-                args = [lex(scope, try(guard.cond, "true"))]
-                names =[null]
+                cond = lex(scope, try(guard.cond, "true"))
                 function = lextop(scope,{type="block", body=guard.body, pos=guard.pos})
                 _, fn = functions.add({name="",open=false,function=function})
                 block = {type="function",function=fn}
-                {type="call",{target,args,names,block}}
+                {{cond, block}}
             )
-            function = {body=gs + [{type="call",target={type="global",name="_nomatch"},args=[]}],locals=[],args=[], pos=term.pos}
-            _, fn = functions.add({name="", open=false, function=function})
-            target = {type="function",function=fn}
-            {type="call",{target},args=[],names=[],block=null}
+            // TODO throw error if no match
+            //last = {cond=lex(scope, "true"),block={type="call",target={type="system",name="nomatch"}}};
+            {type="guards",guards=gs}
         { }:
             print "ERROR"
             print repr(term)
@@ -520,6 +518,10 @@ compile = (text, ast ->
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
             ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
+        { term.type == "guards" }:
+            term.guards.map(term ->
+                ["pcall", 1, "system", "cond", emit(term.cond), "invoke", "ccall", 0, emit(term.block), "invoke"]
+            ).flatten
         { term.type == "local"  }: ["local", term.at - 1]
         { term.type == "arg"    }: ["arg", term.at - 1]
         { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
@@ -541,7 +543,7 @@ compile = (text, ast ->
         { }:
             print "ERROR"
             print repr(term)
-            throw "unknown term $(term.type)"
+            throw "unknown term $(try(term.type)), $(repr term)"
 
     emittop = fn, name ->
         code = fn.body.map(term -> emit(term)).flatten
