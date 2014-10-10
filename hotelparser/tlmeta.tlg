@@ -191,6 +191,8 @@ lines.add ""
 
 emit_rule = rule ->
     lines.add "static State $(rule.name)(Parser* _p, int _start) { // $(rule.type)"
+    if rule.name == "r_expr":
+        lines.add "State _c = expr_cache(_p, _start); if (_c.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _c);"
     lines.add " parser_enter(_p, \"$(rule.name)\", _start);"
     lines.add " int _pos = _start;"
     { can_optimize_and(rule) }:
@@ -203,7 +205,10 @@ emit_rule = rule ->
         lines.add " State _r;"
         rule.terms.each: term ->
             lines.add " _r = "+ emit(term)
-            lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
+            if rule.name == "r_expr":
+                lines.add " if (_r.ok) return parser_pass_cache(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
+            if rule.name != "r_expr":
+                lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", $(rule.number), _start, _r);"
             lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
     { rule.type == "and" }:

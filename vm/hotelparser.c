@@ -440,14 +440,15 @@ static State r_expr_2(Parser* _p, int _start) { // and
  return parser_pass(_p, "r_expr_2", 0, _start, state_ok(_pos, _v));
 }
 static State r_expr(Parser* _p, int _start) { // or
+State _c = expr_cache(_p, _start); if (_c.ok) return parser_pass(_p, "r_expr", 0, _start, _c);
  parser_enter(_p, "r_expr", _start);
  int _pos = _start;
  State _r;
  _r = r_expr_1(_p, _pos);
- if (_r.ok) return parser_pass(_p, "r_expr", 0, _start, _r);
+ if (_r.ok) return parser_pass_cache(_p, "r_expr", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_expr");*/ return _r; }
  _r = r_expr_2(_p, _pos);
- if (_r.ok) return parser_pass(_p, "r_expr", 0, _start, _r);
+ if (_r.ok) return parser_pass_cache(_p, "r_expr", 0, _start, _r);
  if (_p->error_line) { /*print("expect: r_expr");*/ return _r; }
  return parser_fail(_p, "r_expr", _start);
 }

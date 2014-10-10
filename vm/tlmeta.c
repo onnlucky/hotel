@@ -12,6 +12,11 @@ typedef struct State {
 #endif
 } State;
 
+typedef struct CacheState {
+    int start;
+    State state;
+} CacheState;
+
 typedef struct Parser {
     int len;
     const char* input;
@@ -22,6 +27,10 @@ typedef struct Parser {
     bool in_peek;
     const char* last_rule;
     const char* last_consume;
+
+    int cache_at;
+    int cache_len;
+    CacheState* cache;
 
     uint8_t* out;
 #ifndef NO_VALUE
@@ -169,6 +178,38 @@ static State parser_pass(Parser* p, const char* name, uint8_t number, int start,
         p->upto = state.pos;
     }
     return state;
+}
+
+static State parser_pass_cache(Parser* p, const char* name, uint8_t number, int start, State state) {
+    if (p->cache_len <= p->cache_at) {
+        if (p->cache_len == 0) p->cache_len = 1024; else p->cache_len *= 2;
+        p->cache = realloc(p->cache, p->cache_len * sizeof(CacheState));
+    }
+    p->cache[p->cache_at].start = start;
+    p->cache[p->cache_at].state = state;
+    p->cache_at++;
+
+    //print("<< pass: %s %d -- %s", name, state.pos, tl_repr(state.value));
+    //print("<< pass: %s(%d) %d - %d", name, number, start, state.pos);
+    if (number) {
+        for (int i = p->upto; i < start; i++) p->out[i] = 0;
+        for (int i = start; i < state.pos; i++) {
+            if (!p->out[i] || i >= p->upto) p->out[i] = number;
+        }
+        p->upto = state.pos;
+    }
+    return state;
+}
+
+static State expr_cache(Parser* p, int pos) {
+    for (int i = p->cache_at - 1; i >= 0; i--) {
+        if (p->cache[i].start == pos) {
+            //print("CACHE HIT: %d(%d), %d - %d", i, p->cache_at, pos, p->cache[i].state.pos);
+            return p->cache[i].state;
+        }
+    }
+    //print("CACHE MISS: %d", pos);
+    return state_fail(pos);
 }
 
 static State prim_pos(Parser* p, int pos) {
