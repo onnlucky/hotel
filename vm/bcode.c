@@ -31,6 +31,8 @@ const char* op_name(uint8_t op) {
         case OP_MCALL: return "MCALL";
         case OP_FCALL: return "FCALL";
         case OP_BCALL: return "BCALL";
+        case OP_PCALL: return "PCALL";
+        case OP_CCALL: return "CCALL";
         case OP_MCALLN: return "MCALLN";
         case OP_FCALLN: return "FCALLN";
         case OP_BCALLN: return "BCALLN";
@@ -102,7 +104,7 @@ struct tlBClosure {
     tlBEnv* env;
 };
 
-typedef struct CallEntry { bool safe; int at; tlArgs* call; } CallEntry;
+typedef struct CallEntry { bool safe; bool ccall; int at; tlArgs* call; } CallEntry;
 struct tlBFrame {
     tlFrame frame;
     tlArgs* args;
@@ -781,6 +783,7 @@ static void disasm(tlBCode* bcode) {
                 break;
             case OP_INT: case OP_LOCAL: case OP_ARG:
             case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
+            case OP_PCALL: case OP_CCALL:
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
                 break;
@@ -941,6 +944,8 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_MCALL:
             case OP_FCALL:
             case OP_BCALL:
+            case OP_PCALL:
+            case OP_CCALL:
             case OP_MCALLS:
                 dreadsize(&code);
                 depth++;
@@ -1089,8 +1094,7 @@ static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlArgs*
     return null;
 }
 
-static void skip_safe_invokes(const uint8_t* ops, const int len, int* ppc, int skip) {
-    int pc = *ppc;
+static int skip_safe_invokes(const uint8_t* ops, const int len, int pc, int skip) {
     int depth = skip;
     while (pc < len) {
         uint8_t op = ops[pc++];
@@ -1098,9 +1102,8 @@ static void skip_safe_invokes(const uint8_t* ops, const int len, int* ppc, int s
         if (op == OP_INVOKE) {
             depth--;
             if (!depth) {
-                *ppc = pc;
                 trace("SKIPPED TO: %d", pc);
-                return;
+                return pc;
             }
         } else if ((op & 0xE0) == 0xE0) { // OP_CALL mask
             trace("ADDING DEPTH: %X", op);
@@ -1108,7 +1111,49 @@ static void skip_safe_invokes(const uint8_t* ops, const int len, int* ppc, int s
         }
     }
     fatal("bytecode invalid");
-    return;
+    return 0;
+}
+
+// OP_CCALL always looks like this: CCALL, 0, BIND, index, INVOKE
+static int skip_ccall(const uint8_t* ops, const int len, int pc) {
+    while (pc < len) {
+        uint8_t op = ops[pc++];
+        if (op == OP_INVOKE) return pc;
+    }
+    fatal("bytecode invalid");
+    return 0;
+}
+
+static int skip_pcall(const uint8_t* ops, const int len, int pc) {
+    int depth = 1;
+    while (pc < len) {
+        uint8_t op = ops[pc++];
+        trace("SEARCHING: %d - %d - %s(%X)", depth, pc - 1, op_name(op), op);
+        if (op == OP_INVOKE) {
+            depth--;
+            if (!depth) {
+                trace("SKIPPED TO: %d", pc);
+                return pc;
+            }
+        } else if ((op & 0xE0) == 0xE0) { // OP_CALL mask
+            trace("ADDING DEPTH: %X", op);
+            depth++;
+        }
+    }
+    fatal("bytecode invalid");
+    return 0;
+}
+static int skip_pcalls(const uint8_t* ops, const int len, int pc) {
+    while (pc < len) {
+        uint8_t op = ops[pc++];
+        if (op != OP_PCALL) return pc;
+        pc = skip_pcall(ops, len, pc);
+        op = ops[pc++];
+        assert(op == OP_CCALL);
+        skip_ccall(ops, len, pc);
+    }
+    fatal("bytecode invalid");
+    return 0;
 }
 
 static tlHandle bmethodResolve(tlHandle target, tlSym method) {
@@ -1232,6 +1277,13 @@ again:;
         int size = pcreadsize(ops, &pc);
         trace("%d call op: 0x%X %s - %d", pc, op, op_name(op), size);
 
+        if (op == OP_CCALL) {
+            if (!tl_bool(v)) {
+                pc = skip_ccall(ops, bcode->size, pc); // predicate is false, skip this clause
+                goto again;
+            }
+        }
+
         if (lazy) {
             trace("lazy call");
             v = create_lazy(ops, bcode->size, &pc, args, frame->locals);
@@ -1253,6 +1305,7 @@ again:;
         frame->calls[calltop].at = 0;
         frame->calls[calltop].call = call;
         frame->calls[calltop].safe = false;
+        frame->calls[calltop].ccall = op == OP_CCALL;
 
         // load names if it is a named call
         if (op & 0x10) {
@@ -1281,6 +1334,9 @@ again:;
             tlArgs* invoke = call;
             frame->calls[calltop].at = 0;
             frame->calls[calltop].call = null;
+            if (frame->calls[calltop].ccall) {
+                pc = skip_pcalls(ops, bcode->size, pc); // about to execute a true clause, skip any others
+            }
             calltop--;
             if (calltop >= 0) {
                 call = frame->calls[calltop].call;
@@ -1473,7 +1529,7 @@ resume:;
             // skip forward in bytecode until so many invokes are skipped
             trace("skipping: %d, top: %d, pc: %d", skip, calltop, pc);
             //disasm(bcode);
-            skip_safe_invokes(ops, bcode->size, &pc, skip);
+            pc = skip_safe_invokes(ops, bcode->size, pc, skip);
             trace("skipped: %d, top: %d, pc: %d", skip, calltop, pc);
 
             v = tlNull;
