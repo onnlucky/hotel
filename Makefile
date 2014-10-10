@@ -74,7 +74,7 @@ ifneq ($(BOEHM),)
 endif
 	ar -s libtl.a
 
-vm.o: vm/*.c vm/*.h llib/lqueue.* llib/lhashmap.* $(LIBGC) $(LIBMP) boot/boot.tlb.h boot/compiler.tlb.h
+vm.o: vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBGC) $(LIBMP) boot/boot.tlb.h boot/compiler.tlb.h
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c
