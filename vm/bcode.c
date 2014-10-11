@@ -29,10 +29,10 @@ const char* op_name(uint8_t op) {
         case OP_STORE: return "STORE";
         case OP_RSTORE: return "RESULT";
         case OP_INVOKE: return "INVOKE";
+        case OP_CERR: return "CERR";
         case OP_MCALL: return "MCALL";
         case OP_FCALL: return "FCALL";
         case OP_BCALL: return "BCALL";
-        case OP_PCALL: return "PCALL";
         case OP_CCALL: return "CCALL";
         case OP_MCALLN: return "MCALLN";
         case OP_FCALLN: return "FCALLN";
@@ -780,11 +780,12 @@ static void disasm(tlBCode* bcode) {
             case OP_TRUE: case OP_FALSE: case OP_NULL: case OP_UNDEF:
             case OP_ARGS: case OP_THIS:
             case OP_INVOKE:
+            case OP_CERR:
                 print(" % 3d 0x%X %s", opc, op, op_name(op));
                 break;
             case OP_INT: case OP_LOCAL: case OP_ARG:
             case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
-            case OP_PCALL: case OP_CCALL:
+            case OP_CCALL:
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
                 break;
@@ -942,10 +943,10 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 if (depth > maxdepth) maxdepth = depth;
                 depth--;
                 break;
+            case OP_CERR: break;
             case OP_MCALL:
             case OP_FCALL:
             case OP_BCALL:
-            case OP_PCALL:
             case OP_CCALL:
             case OP_MCALLS:
                 dreadsize(&code);
@@ -1126,37 +1127,12 @@ static int skip_ccall(const uint8_t* ops, const int len, int pc) {
     return 0;
 }
 
-static int skip_pcall(const uint8_t* ops, const int len, int pc) {
-    int depth = 1;
-    while (pc < len) {
-        uint8_t op = ops[pc++];
-        trace("SEARCHING: %d - %d - %s(%X)", depth, pc - 1, op_name(op), op);
-        if (op == OP_INVOKE) {
-            depth--;
-            if (!depth) {
-                trace("SKIPPED TO: %d", pc);
-                return pc;
-            }
-        } else if ((op & 0xE0) == 0xE0) { // OP_CALL mask
-            trace("ADDING DEPTH: %X", op);
-            depth++;
-        }
-    }
-    fatal("bytecode invalid");
-    return 0;
-}
+// we don't allow nesting OP_CCALL and OP_CERR, so just skip one past
 static int skip_pcalls(const uint8_t* ops, const int len, int pc) {
-    trace("SKIPPING PCALLS FROM: %d", pc);
     while (pc < len) {
         uint8_t op = ops[pc++];
-        if (op != OP_PCALL) {
-            trace("SKIP TO HERE: %d", pc - 1);
-            return pc - 1;
-        }
-        pc = skip_pcall(ops, len, pc);
-        op = ops[pc++];
-        assert(op == OP_CCALL);
-        pc = skip_ccall(ops, len, pc);
+        trace("SEARCHING: %d - %s(%X)", pc - 1, op_name(op), op);
+        if (op == OP_CERR) return pc;
     }
     fatal("bytecode invalid");
     return 0;
@@ -1367,11 +1343,18 @@ again:;
             pc = frame->pc;
             break;
         }
+        case OP_CERR: {
+            TL_THROW_NORETURN("no branch taken");
+            // TODO remove this duplication
+            if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
+            if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
+            trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
+            return tlTaskPauseAttach(frame);
+        }
         case OP_SYSTEM: {
             at = pcreadsize(ops, &pc);
-            v = g_identity;
-            //tlHandle n = tlListGet(data, at);
-            //fatal("syscall: %s", tl_str(h));
+            tlHandle n = tlListGet(data, at);
+            fatal("syscall: %s", tl_str(n));
             break;
         }
         case OP_MODULE:

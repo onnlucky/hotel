@@ -146,13 +146,13 @@ writeCode = mod, c ->
         { op == "store"  }: buf.write(0b1100_0000 + 17); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "rstore" }: buf.write(0b1100_0000 + 18); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "invoke" }: buf.write(0b1100_0000 + 19)
+        { op == "cerr"   }: buf.write(0b1100_0000 + 20)
 
         { op == "mcall"  }: buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "bcall"  }: buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "pcall"  }: buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "ccall"  }: buf.write(0b1110_0000 + 4); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "ccall"  }: buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "mcalln" }: buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "mcallns"}: buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "fcalln" }: buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
@@ -520,8 +520,8 @@ compile = (text, ast ->
             ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
         { term.type == "guards" }:
             term.guards.map(term ->
-                ["pcall", 1, "system", "cond", emit(term.cond), "invoke", "ccall", 0, emit(term.block), "invoke"]
-            ).flatten
+                [emit(term.cond), "ccall", 0, emit(term.block), "invoke"]
+            ).flatten + ["cerr"]
         { term.type == "local"  }: ["local", term.at - 1]
         { term.type == "arg"    }: ["arg", term.at - 1]
         { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
