@@ -438,15 +438,25 @@ compile = (text, ast ->
             rhs = lex(scope, term.value)
             value = {type="op",op=term.op,{lhs,rhs}}
             {type="method",target=ref,method="set",args=[value]}
-        { term.type == "object" }:
-            data = try(term.data, []).map(entry ->
-                { try(entry.n) }: {n=entry.n,v=lex(scope, entry.v)}
-                {              }: entry.names.map(term -> {n=term.name,v=lex(scope, term)})
-            ).flatten
-            {type="object",{data}}
         { term.type == "list" }:
             data = try(term.data, []).map(term -> lex(scope, term))
             {type="list",{data}}
+        { term.type == "object" }:
+            map = HashMap.new
+            fill = Array.new
+            try(term.data, []).each: entry ->
+                { try(entry.n) }:
+                    map[entry.n] = null
+                    fill.add([entry.n,lex(scope, entry.v)])
+                {              }:
+                    entry.names.each(term ->
+                        map[term.name] = null
+                        fill.add([term.name, lex(scope, term)])
+                    )
+            //if fill.size == 0: return {type="data", data=map.toObject}, true
+            res = {type="object", {fill}, map=map.toMap}
+            assert res.map
+            res
         { term.type == "map" }:
             data = try(term.data, []).map(entry ->
                 { try(entry.n) }: {n=entry.n,v=lex(scope, entry.v)}
@@ -480,6 +490,7 @@ compile = (text, ast ->
             { term >= 2^25  }: ["data", term]
             {               }: ["int", term]
         { term.type == "string"   }: ["data", term.data]
+        { term.type == "data"     }: ["data", term.data]
         { term.type == "function" }: ["bind", term.function]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
         { term.type == "multiassign" }:
@@ -532,8 +543,8 @@ compile = (text, ast ->
         { term.type == "this"   }: ["this"]
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "object" }:
-            elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
-            ["fcall", elements.size * 2, "global", "__object"] + elements + ["invoke"]
+            fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
+            ["fcall", 1 + fill.size * 2, "global", "__object", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
             ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
@@ -593,6 +604,7 @@ compile = (text, ast ->
                   { isString(v) }: encodeString(v)
                   { isFloat(v)  }: encodeFloat(v)
                   { isNumber(v) }: encodeNumber(v)
+                  {             }: Error("don't know how to encode: $(repr(v))").throw
             _, at = this.datas.add(bin)
             //print "data", at, repr(v)
             this.dataIndex[v] = encodeInt(at - 1)

@@ -1794,12 +1794,13 @@ INTERNAL tlHandle __list(tlArgs* args) {
 }
 
 INTERNAL tlHandle __object(tlArgs* args) {
-    // TODO make faster ;)
-    tlObject* o = tlObjectEmpty();
-    for (int i = 0; i < tlArgsSize(args); i += 2) {
-        o = tlObjectSet(o, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+    tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
+    //print(">> __object %s %d", tl_repr(object), tlArgsSize(args) / 2);
+    for (int i = 1; i < tlArgsSize(args); i += 2) {
+        tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
-    return o;
+    //print("<< %s", tl_repr(object));
+    return object;
 }
 
 INTERNAL tlHandle __map(tlArgs* args) {

@@ -63,6 +63,7 @@ tlHandle tlObjectGet(tlObject* object, tlHandle key) {
     int at = tlSetIndexof(object->keys, key);
     if (at < 0) return null;
     assert(at < tlObjectSize(object));
+    trace("keys get: %s = %s", tl_str(key), tl_str(object->data[at]));
     return object->data[at];
 }
 tlObject* tlObjectSet(tlObject* object, tlHandle key, tlHandle v) {
@@ -108,7 +109,8 @@ void tlObjectSet_(tlObject* object, tlHandle key, tlHandle v) {
     if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(object->keys, key);
     assert(at >= 0 && at < tlObjectSize(object));
-    trace("keys set_: %s = %s", tl_str(key), tl_str(object->data[at]));
+    trace("keys set_: %d at:%s = %s", at, tl_str(key), tl_str(v));
+    //assert(object->data[at] == tlNull || !object->data[at]);
     object->data[at] = v;
 }
 
@@ -222,7 +224,7 @@ tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...) {
     va_end(ap);
 
     tlObject* object = tlObjectNew(keys);
-    tlObjectSet_(object, tlSYM(n1), tlNATIVE(fn1, n1));
+    if (fn1) tlObjectSet_(object, tlSYM(n1), tlNATIVE(fn1, n1));
     va_start(ap, fn1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
