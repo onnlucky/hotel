@@ -524,13 +524,17 @@ static int readsize(tlBuffer* buf) {
     return decoderef2(buf, tlBufferReadByte(buf));
 }
 
-tlString* readString(tlBuffer* buf, int size, const char** error) {
+tlString* readString(tlBuffer* buf, int size, const char** error, tlBModule* mod) {
     trace("string: %d", size);
     if (tlBufferSize(buf) < size) FAIL("not enough data");
     char *data = malloc_atomic(size + 1);
     tlBufferRead(buf, data, size);
     data[size] = 0;
-    return tlStringFromTake(data, size);
+    if (mod) {
+        return tlStringFromSym(tlSymFromTake(data, size));
+    } else {
+        return tlStringFromTake(data, size);
+    }
 }
 
 tlList* readList(tlBuffer* buf, int size, tlList* data, const char** error) {
@@ -627,7 +631,7 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1,
     assert(size > 0);
     if (size > 100000) FAIL("value too large");
     switch (b1) {
-        case 0xE0: return readString(buf, size, error);
+        case 0xE0: return readString(buf, size, error, mod);
         case 0xE1: return readList(buf, size, data, error);
         case 0xE2: // set
             trace("set %d", size);
@@ -654,7 +658,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
     uint8_t size = b1 & 0x1F;
 
     switch (type) {
-        case 0x00: return readString(buf, size, error);
+        case 0x00: return readString(buf, size, error, mod);
         case 0x20: return readList(buf, size, data, error);
         case 0x40: // short set
             trace("set %d", size);
