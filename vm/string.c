@@ -340,6 +340,15 @@ INTERNAL tlHandle _string_toSym(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlSymFromString(str);
 }
+INTERNAL tlHandle _string_isInterned(tlArgs* args) {
+    tlString* str = tlStringAs(tlArgsTarget(args));
+    return tlBOOL(str->interned);
+}
+INTERNAL tlHandle _string_intern(tlArgs* args) {
+    tlString* str = tlStringAs(tlArgsTarget(args));
+    if (str->len > 512) TL_THROW("can only intern strings < 512 bytes");
+    return tlStringIntern(str);
+}
 /// size: return the amount of characters in the #String
 INTERNAL tlHandle _string_size(tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
@@ -642,6 +651,8 @@ static void string_init() {
     tlStringKind->klass = tlClassObjectFrom(
         "toString", _string_toString,
         "toSym", _string_toSym,
+        "intern", _string_intern,
+        "isInterned", _string_isInterned,
         "size", _string_size,
         "bytes", _string_bytes,
         "hash", _string_hash,
