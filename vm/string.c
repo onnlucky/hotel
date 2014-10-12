@@ -9,6 +9,7 @@ static tlString* _tl_emptyString;
 // TODO short strings should be "inline" saves finalizer
 struct tlString {
     tlHead head;
+    bool interned; // true if this is the tlString in the interned_string hashmap
     unsigned int hash;
     unsigned int len;
     const char* data;
@@ -131,6 +132,11 @@ int tlStringSize(tlString* str) {
     return str->len;
 }
 
+bool tlStringIsInterned(tlString* str) {
+    assert(tlStringIs(str));
+    return str->interned;
+}
+
 #define mmix(h,k) { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; }
 static unsigned int murmurhash2a(const void * key, int len) {
     const unsigned int seed = 33;
@@ -249,6 +255,12 @@ bool tlStringEquals(tlString* left, tlString* right) {
 }
 int tlStringCmp(tlString* left, tlString* right) {
     return strcmp(left->data, right->data);
+}
+
+tlString* tlStringIntern(tlString* str) {
+    if (str->interned) return str;
+    //assert(str->len < 512);
+    return tlStringFromSym(tlSymFromString(str));
 }
 
 tlString* tlStringSub(tlString* from, int offset, int len) {

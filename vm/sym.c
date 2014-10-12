@@ -64,7 +64,9 @@ tlHandle tlACTIVE(tlHandle v) {
 
 tlString* tlStringFromSym(tlSym sym) {
     assert(tlSymIs_(sym));
-    return _TEXT_FROM_SYM(sym);
+    tlString* str = _TEXT_FROM_SYM(sym);
+    assert(str->interned);
+    return str;
 }
 const char* tlSymData(tlSym sym) {
     return tlStringData(tlStringFromSym(sym));
@@ -114,6 +116,7 @@ tlSym tlSymFromString(tlString* str) {
     tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tlStringData(str), sym, 0);
 
     if (cur) return cur;
+    str->interned = true;
     return sym;
 }
 

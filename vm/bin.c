@@ -9,6 +9,7 @@ static tlBin* _tl_emptyBin;
 
 struct tlBin {
     tlHead head;
+    bool interned; // same as string; TODO remove, but for binEquals
     unsigned int hash;
     unsigned int len;
     const char* data;
