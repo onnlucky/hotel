@@ -3,8 +3,8 @@ var $env = Env.new(_env)
 
 // get current cursor position
 cursorPosition = term ->
-    term.write 27, "[6n"
-    len = term.find "R"
+    term.write(27, "[6n")
+    len = term.find("R")
     size = term.readString(len)[3:-2].split(";")
     return Number(size[2]), Number(size[1])
 
@@ -14,7 +14,7 @@ term = io.stdin
 if not term.isTTY: return
 term.setRaw
 
-last = Var.new {cursor=0,lines=0}
+var $last = {cursor=0,lines=0}
 writeLine = prompt, left, right ->
     width, height = term.measure
     len = prompt.size + left.size + right.size
@@ -26,19 +26,19 @@ writeLine = prompt, left, right ->
     buf = Buffer.new
     trail = $last.lines - lines
     up = $last.cursor
-    if up > 0: buf.write 27, "[$(up)A"
+    if up > 0: buf.write(27, "[$(up)A")
     // output line
-    buf.write 27, "[0G", prompt, left, right, 27, "[0K"
+    buf.write(27, "[0G", prompt, left, right, 27, "[0K")
     // clear trailing lines from previous long entry
     if trail > 0:
-        buf.write 27, "[0G"
-        trail.times: buf.write 27, "[1B", 27, "[0K"
-        trail.times: buf.write 27, "[1A"
+        buf.write(27, "[0G")
+        trail.times: buf.write(27, "[1B", 27, "[0K")
+        trail.times: buf.write(27, "[1A")
     // move cursor back up to cursor position line and col
-    if lines - cursor > 0: buf.write 27, "[$(lines - cursor)A"
-    buf.write 27, "[$(curcol)G"
+    if lines - cursor > 0: buf.write(27, "[$(lines - cursor)A")
+    buf.write(27, "[$(curcol)G")
     $last = {{cursor,lines}}
-    term.write buf
+    term.write(buf)
 
 runcode = code ->
     term.restore
@@ -51,7 +51,7 @@ runcode = code ->
             { r == "null"   }: print res
             {               }: print r
     )
-    term.write " " // seems needed to flush print's and such
+    term.write(" ") // seems needed to flush print's and such
     term.setRaw
 
 //width, height = term.measure
@@ -68,14 +68,14 @@ readSharedHistory = ->
 addHistory = line ->
     readSharedHistory()
     newer.clear
-    older.add line
+    older.add(line)
     history = older.toList[-100:]
     content = history.join("\n") + "\n"
     io.File(HIST).write(content)
 
 prompt = "> "
-left = Var.new ""
-right = Var.new ""
+var $left = ""
+var $right = ""
 editor = {
     setLine = line ->
         $left = line
@@ -84,11 +84,11 @@ editor = {
     moveup = ->
         if newer.size == 0: readSharedHistory()
         if older.size == 0: return
-        newer.add $left + $right
+        newer.add($left + $right)
         this.setLine(older.remove(-1), $left.size)
     movedown = ->
         if newer.size == 0: return
-        older.add $left + $right
+        older.add($left + $right)
         this.setLine(newer.remove(-1), $left.size)
     movepageup = -> null
     movepagedown = -> null
@@ -142,10 +142,10 @@ commandline = _env ->
     inbuf = Buffer.new
     var $running = true
     while $running:
-        term.readInto inbuf
+        term.readInto(inbuf)
         while inbuf.size > 0:
             c = inbuf.readByte
-            editor.debug "in: $(c)"
+            editor.debug("in: $(c)")
             { c == 4   }: $running = false
             { c == 3   }: $running = false
             { c == 13  }: editor.newline
@@ -153,8 +153,8 @@ commandline = _env ->
             { c == 27  }: // esc
                 c2 = inbuf.readByte // [
                 c3 = inbuf.readByte // A for up, etc
-                editor.debug "esc: $(c) $(c2) $(c3)"
-                if not c2: editor.special c
+                editor.debug("esc: $(c) $(c2) $(c3)")
+                if not c2: editor.special(c)
                 if c2 == 91:
                     if c3 == 68: editor.moveleft
                     if c3 == 67: editor.moveright
@@ -170,5 +170,5 @@ commandline = _env ->
             {                    }: editor.special(c)
 
     term.restore
-    term.write "\n"
+    term.write("\n")
 
