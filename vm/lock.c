@@ -4,6 +4,7 @@
 
 #include "trace-off.h"
 
+tlKind* tlHeavyLockKind;
 TL_REF_TYPE(tlHeavyLock);
 
 struct tlHeavyLock {
