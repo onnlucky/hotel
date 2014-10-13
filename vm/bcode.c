@@ -1786,20 +1786,20 @@ INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
 }
 
 INTERNAL tlHandle __list(tlArgs* args) {
-    tlList* list = tlListEmpty();
+    tlList* list = tlListNew(tlArgsSize(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
-        list = tlListAppend(list, tlArgsGet(args, i));
+        tlListSet_(list, i, tlArgsGet(args, i));
     }
+    trace("%s", tl_repr(list));
     return list;
 }
 
 INTERNAL tlHandle __object(tlArgs* args) {
     tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
-    //print(">> __object %s %d", tl_repr(object), tlArgsSize(args) / 2);
     for (int i = 1; i < tlArgsSize(args); i += 2) {
         tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
-    //print("<< %s", tl_repr(object));
+    trace("%s", tl_repr(object));
     return object;
 }
 
