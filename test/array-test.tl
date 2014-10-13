@@ -9,7 +9,7 @@ while ls.size > 0: ls.pop
 var $x = 10
 while $x > 0:
     $x -= 1
-    ls.insert(random(1000), "hello oeps")
+    ls.insert(1 + random(1000), "hello oeps")
 
 ls.insert(1000, "auch")
 ls.insert(500, "hello")
