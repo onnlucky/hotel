@@ -441,7 +441,7 @@ compile = (text, ast ->
         { term.type == "list" }:
             data = try(term.data, []).map(term -> lex(scope, term))
             {type="list",{data}}
-        { term.type == "object" }:
+        { term.type == "object" or term.type == "map" }:
             map = HashMap.new
             fill = Array.new
             try(term.data, []).each: entry ->
@@ -454,15 +454,7 @@ compile = (text, ast ->
                         fill.add([term.name, lex(scope, term)])
                     )
             //if fill.size == 0: return {type="data", data=map.toObject}, true
-            res = {type="object", {fill}, map=map.toMap}
-            assert res.map
-            res
-        { term.type == "map" }:
-            data = try(term.data, []).map(entry ->
-                { try(entry.n) }: {n=entry.n,v=lex(scope, entry.v)}
-                {              }: entry.names.map(term -> {n=term.name,v=lex(scope, term)})
-            ).flatten
-            {type="map",{data}}
+            {type=term.type, {fill}, map=map.toMap}
         { term.type == "guards" }:
             gs = term.guards.map(guard ->
                 cond = lex(scope, try(guard.cond, "true"))
@@ -542,15 +534,15 @@ compile = (text, ast ->
         { term.type == "envargs"}: ["envargs", term.up - 1]
         { term.type == "this"   }: ["this"]
         { term.type == "envthis"}: ["envthis", term.up - 1]
-        { term.type == "object" }:
-            fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", 1 + fill.size * 2, "global", "__object", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
             ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
+        { term.type == "object" }:
+            fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
+            ["fcall", 1 + fill.size * 2, "global", "__object", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "map" }:
-            elements = term.data.map(entry -> ["data", entry.n] + emit(entry.v))
-            ["fcall", elements.size * 2, "global", "__map"] + elements + ["invoke"]
+            fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
+            ["fcall", 1 + fill.size * 2, "global", "__map", "data", term.map.toObject] + fill + ["invoke"]
         { }:
             print "ERROR"
             print repr(term)

@@ -1804,12 +1804,12 @@ INTERNAL tlHandle __object(tlArgs* args) {
 }
 
 INTERNAL tlHandle __map(tlArgs* args) {
-    // TODO make faster ;)
-    tlMap* map = tlMapEmpty();
-    for (int i = 0; i < tlArgsSize(args); i += 2) {
-        map = tlMapSet(map, tlArgsGet(args, i), tlArgsGet(args, i + 1));
+    tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
+    for (int i = 1; i < tlArgsSize(args); i += 2) {
+        tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
     }
-    return map;
+    trace("%s", tl_repr(object));
+    return tlMapFromObject_(object);
 }
 
 INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw) {

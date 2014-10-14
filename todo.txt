@@ -2,6 +2,7 @@
 
 add something for 'collection["key", otherwise]' but will be part of get interface then
 think about shared locks, so whole slew of items share single lock, especially helpful for Mutable objects
+think about {call:42} meaning something different from {foo:42} and perhaps remove that "meaning" by only making call special if "object" with a "class"
 
 undefined collect stack traces, while it doesn't work as advertised ... either enhance or dumb down
 tool gcov and assure make test has full coverage
