@@ -31,7 +31,6 @@
 #include "task.c"
 #include "lock.c"
 #include "mutable.c"
-#include "code.c"
 #include "env.c"
 #include "eval.c"
 

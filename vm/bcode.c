@@ -1036,14 +1036,13 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         if (!tlLockIsOwner(tlLockAs(call->target), task)) return tlLockAndInvoke(call);
     }
 
-    if (tlBSendTokenIs(fn) || tlNativeIs(fn) || tlClosureIs(fn)) {
+    if (tlBSendTokenIs(fn) || tlNativeIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
             assert(tlArgsMsg(args) == tlBSendTokenAs(fn)->method);
             return tl_kind(call->target)->send(args);
         }
-        if (tlNativeIs(fn)) return tlNativeKind->run(tlNativeAs(fn), args);
-        return runClosure(tlClosureAs(fn), args);
+        return tlNativeKind->run(tlNativeAs(fn), args);
     }
     if (tlBClosureIs(fn)) {
         return beval(task, null, call, 0, null);

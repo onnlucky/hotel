@@ -191,8 +191,8 @@ static tlHandle _Env_localObject(tlArgs* args) {
     return tlTaskPauseResuming(resumeEnvLocalObject, tlNull);
 }
 static tlHandle _Env_path(tlArgs* args) {
-    assert(tlWorkerCurrent()->codeframe);
-    return tlWorkerCurrent()->codeframe->code->path;
+    fatal("unsupported");
+    return tlNull;
 }
 
 INTERNAL tlHandle _env_current(tlArgs* args);

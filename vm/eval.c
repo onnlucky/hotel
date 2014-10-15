@@ -183,15 +183,7 @@ static tlEnv* tlCodeFrameGetEnv(tlFrame* frame) {
 void tlBFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
 INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line) {
     assert(file); assert(function); assert(line);
-    if (tlCodeFrameIs(frame)) {
-        tlCode* code = tlCodeFrameAs(frame)->code;
-        *file = code->file;
-        *function = (code->name)?tlStringFromSym(code->name):null;
-        *line = code->line;
-        if (!(*file)) *file = _t_unknown;
-        if (!(*function)) *function = _t_anon;
-        if (!(*line)) *line = tlZero;
-    } else if (tlBFrameIs(frame)) {
+    if (tlBFrameIs(frame)) {
         tlBFrameGetInfo(frame, file, function, line);
     } else {
         *file = tlStringEmpty();
@@ -202,16 +194,8 @@ INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** functio
 
 INTERNAL void print_backtrace(tlFrame* frame) {
     while (frame) {
-        if (tlCodeFrameIs(frame)) {
-            tlCode* code = tlCodeFrameAs(frame)->code;
-            if (code->name) {
-                tlString* n = tlStringFromSym(code->name);
-                print("%p  %s (%s:%s)", frame, tl_str(n), tl_str(code->file), tl_str(code->line));
-            } else if (code->file) {
-                print("%p  <anon> (%s:%s)", frame, tl_str(code->file), tl_str(code->line));
-            } else {
-                print("%p  <anon>", frame);
-            }
+        if (tlBFrameIs(frame)) {
+            print("%p  frame", frame);
         } else {
             print("%p  <native>", frame);
         }
@@ -222,38 +206,6 @@ INTERNAL void print_backtrace(tlFrame* frame) {
 INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env);
 
 INTERNAL tlHandle resumeActivateCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    return null;
-}
-
-// lookups potentially need to run hotel code, so we can pause from here
-INTERNAL tlHandle lookup(tlEnv* env, tlSym name) {
-    assert(tlSymIs_(name));
-    tlHandle v = tlEnvGet(env, name);
-    trace("%s -> %s", tl_str(name), tl_str(v));
-    if (v) return v;
-
-    tlVm* vm = tlTaskGetVm(tlTaskCurrent());
-    if (vm->resolve) {
-        // TODO ideally, we would load things only once, and without races etc ...
-        // use a tlLazy or what?
-        assert(tlWorkerCurrent());
-        assert(tlWorkerCurrent()->codeframe);
-        return tlEval(tlBCallFrom(vm->resolve, name, tlWorkerCurrent()->codeframe->code->path, null));
-    }
-    TL_THROW("undefined '%s'", tl_str(name));
-}
-
-INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env) {
-    trace("%s", tl_str(v));
-    if (tlSymIs_(v)) {
-        tlEnvCloseCaptures(env);
-        return lookup(env, v);
-    }
-    if (tlCodeIs(v)) {
-        env = tlEnvCapture(env); // half closes the environment
-        return tlClosureNew(tlCodeAs(v), env);
-    }
-    assert(false);
     return null;
 }
 
@@ -272,72 +224,6 @@ INTERNAL tlHandle stopCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
 INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle res);
 INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
     return tlNull;
-    /*
-    tlCodeFrame* frame = (tlCodeFrame*)_frame;
-    if (throw) {
-        tlClosure* handler = frame->handler;
-        if (!handler) return null;
-
-        tlCall* call = tlCallNew(1, false);
-        tlCallSetFn_(call, handler);
-        tlCallSet_(call, 0, throw);
-        // doing it this way means this codeblock is over ... we might let the handler decide that
-        return tlEval(call);
-    }
-    if (!res) return null;
-    // if frames become copy-on-write, here is the place to check it and clone instead of use
-    // but today, every frame is private to a task, and continuations are not allowed to jumped to if off-stack
-    return evalCode2(frame, res);
-    */
-}
-
-INTERNAL tlHandle evalCode(tlArgs* args, tlClosure* fn) {
-    trace("");
-    tlCodeFrame* frame = tlFrameAlloc(resumeCode, sizeof(tlCodeFrame));
-    frame->env = tlEnvCopy(fn->env);
-    frame->code = fn->code;
-
-    tlList* names = fn->code->argnames;
-    tlObject* defaults = fn->code->argdefaults;
-
-    if (names) {
-        int first = 0;
-        int size = tlListSize(names);
-        for (int i = 0; i < size; i++) {
-            tlSym name = tlSymAs(tlListGet(names, i));
-            tlHandle v = tlArgsMapGet(args, name);
-            if (!v) {
-                v = tlArgsGet(args, first); first++;
-            }
-            if (!v && defaults) {
-                v = tlObjectGetSym(defaults, name);
-                if (tlThunkIs(v) || v == tlThunkNull) {
-                    v = tlThunkNew(tlNull);
-                }
-            }
-            if (!v) v = tlNull;
-            trace("%p set arg: %s = %s", frame, tl_str(name), tl_str(v));
-            frame->env = tlEnvSet(frame->env, name, v);
-        }
-    }
-    frame->env = tlEnvSetArgs(frame->env, args);
-    // TODO remove this ...
-    if (!tlCodeIsBlock(fn->code)) {
-        frame->env = tlEnvSet(frame->env, s_args, args);
-    }
-    // TODO only do this if the closure is a method
-    // the *only* dynamically scoped name
-    tlHandle oop = tlArgsMapGet(args, s_this);
-    if (!oop) oop = tlArgsTarget(args);
-    if (oop) frame->env = tlEnvSet(frame->env, s_this, oop);
-
-    trace("mapped all args...");
-    return evalCode2(frame, tlNull);
-}
-
-INTERNAL tlHandle runClosure(tlHandle _fn, tlArgs* args) {
-    tlClosure* fn = tlClosureAs(_fn);
-    return evalCode(args, fn);
 }
 
 INTERNAL tlHandle evalArgs(tlArgs* args);
@@ -373,81 +259,6 @@ INTERNAL tlHandle evalArgs(tlArgs* args) {
     if (kind->run) return kind->run(fn, args);
     TL_THROW("'%s' not callable", tl_str(fn));
     return null;
-}
-
-// this is the main part of eval: running the "list" of "bytecode"
-INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle _res) {
-    tlTask* task = tlTaskCurrent();
-    task->worker->codeframe = frame;
-    int pc = frame->pc;
-
-    tlCode* code = frame->code;
-    tlEnv* env = frame->env;
-    trace("%p -- %d [%d]", frame, pc, code->size);
-
-    // TODO this is broken and weird, how about eval constructs the tlCodeFrame itself ...
-    // for _eval, it needs to "fish" up the env again, if is_eval we write it to worker
-    bool is_eval = task->worker->evalArgs == env->args;
-
-    // lookup and others can pause/resume the task, in those cases _res is a tlCall
-
-    // set value from any pause/resume
-    task->value = _res;
-
-    for (;pc < code->size; pc++) {
-        tlHandle op = code->ops[pc];
-        trace("%p pc=%d, op=%s", frame, pc, tl_str(op));
-
-        // a value marked as active
-        if (tlActiveIs(op)) {
-            trace2("%p op: active -- %s", frame, tl_str(tl_value(op)));
-
-            frame->env = env;
-            frame->pc = pc + 1;
-
-            tlHandle v = run_activate(tl_value(op), env);
-            if (!v) {
-                if (is_eval) task->worker->evalEnv = env;
-                return tlTaskPauseAttach(frame);
-            }
-
-            assert(!tlFrameIs(v));
-            task->value = v;
-            trace2("%p op: active resolved: %s", frame, tl_str(task->value));
-            continue;
-        }
-
-        // just a symbol means setting the current value under this name in env
-        if (tlSymIs_(op)) {
-            tlHandle v = tlFirst(task->value);
-            trace2("%p op: sym -- %s = %s", frame, tl_str(op), tl_str(v));
-            if (!tlClosureIs(v)) tlEnvCloseCaptures(env);
-            env = tlEnvSet(env, tlSymAs(op), v);
-            // this is good enough: every lookup will also close the environment
-            // and the only way we got a closure is by lookup or binding ...
-            continue;
-        }
-
-        // a "collect" object means processing a multi return value
-        if (tlCollectIs(op)) {
-            tlCollect* names = tlCollectAs(op);
-            trace2("%p op: collect -- %d -- %s", frame, names->size, tl_str(task->value));
-            for (int i = 0; i < names->size; i++) {
-                tlSym name = tlSymAs(names->data[i]);
-                tlHandle v = tlResultGet(task->value, i);
-                trace2("%p op: collect: %s = %s", frame, tl_str(name), tl_str(v));
-                env = tlEnvSet(env, name, v);
-            }
-            continue;
-        }
-
-        // anything else means just data, and load
-        trace2("%p op: data: %s", frame, tl_str(op));
-        task->value = op;
-    }
-    trace("done ...");
-    if (is_eval) task->worker->evalEnv = env;
-    return task->value;
 }
 
 INTERNAL tlHandle run_thunk(tlThunk* thunk) {
@@ -700,23 +511,6 @@ INTERNAL tlHandle _install_global(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _closure_file(tlArgs* args) {
-    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
-    return tlVALUE_OR_NULL(closure->code->file);
-}
-INTERNAL tlHandle _closure_name(tlArgs* args) {
-    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
-    return closure->code->name;
-}
-INTERNAL tlHandle _closure_line(tlArgs* args) {
-    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
-    return closure->code->line;
-}
-INTERNAL tlHandle _closure_args(tlArgs* args) {
-    tlClosure* closure = tlClosureAs(tlArgsTarget(args));
-    return tlVALUE_OR_NULL(closure->code->argnames);
-}
-
 static const tlNativeCbs __eval_natives[] = {
     { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
@@ -747,7 +541,6 @@ static void eval_init() {
     INIT_KIND(tlThunkKind);
     INIT_KIND(tlResultKind);
     INIT_KIND(tlCollectKind);
-    INIT_KIND(tlCodeKind);
     INIT_KIND(tlFrameKind);
 
     _t_unknown = tlSTR("<unknown>");
@@ -755,17 +548,5 @@ static void eval_init() {
     _t_native = tlSTR("<native>");
 
     tl_register_natives(__eval_natives);
-
-    // TODO call into run for some of these ...
-    tlClosureKind->run = runClosure;
-    tlClosureKind->klass = tlClassObjectFrom(
-        "call", _call,
-        "file", _closure_file,
-        "name", _closure_name,
-        "line", _closure_line,
-        "args", _closure_args,
-        null
-    );
-    tlCodeKind->run = runCode;
 }
 
