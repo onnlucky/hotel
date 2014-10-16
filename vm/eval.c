@@ -33,22 +33,6 @@ static tlString* _t_native;
 
 tlBModule* g_boot_module;
 
-// various internal structures
-static tlKind _tlClosureKind = { .name = "Function" };
-tlKind* tlClosureKind;
-struct tlClosure {
-    tlHead head;
-    tlCode* code;
-    tlEnv* env;
-};
-
-static tlKind _tlThunkKind = { .name = "Thunk" };
-tlKind* tlThunkKind;
-struct tlThunk {
-    tlHead head;
-    tlHandle value;
-};
-
 static tlKind _tlResultKind = { .name = "Result" };
 tlKind* tlResultKind;
 struct tlResult {
@@ -57,49 +41,6 @@ struct tlResult {
     tlHandle data[];
 };
 
-static tlKind _tlCollectKind = { .name = "Collect" };
-tlKind* tlCollectKind;
-struct tlCollect {
-    tlHead head;
-    intptr_t size;
-    tlHandle data[];
-};
-
-// various types of frames, just for convenience ...
-typedef struct ActivateCallFrame {
-    tlFrame frame;
-    intptr_t count;
-    tlEnv* env;
-} ActivateCallFrame;
-
-// when call->fn is a call itself
-typedef struct CallFnFrame {
-    tlFrame frame;
-    intptr_t count;
-} CallFnFrame;
-
-typedef struct CallFrame {
-    tlFrame frame;
-    intptr_t count;
-    tlArgs* args;
-} CallFrame;
-
-tlClosure* tlClosureNew(tlCode* code, tlEnv* env) {
-    tlClosure* fn = tlAlloc(tlClosureKind, sizeof(tlClosure));
-    fn->code = code;
-    fn->env = tlEnvNew(env);
-    return fn;
-}
-tlThunk* tlThunkNew(tlHandle v) {
-    tlThunk* thunk = tlAlloc(tlThunkKind, sizeof(tlThunk));
-    thunk->value = v;
-    return thunk;
-}
-tlCollect* tlCollectFromList_(tlList* list) {
-    assert((list->head.kind & 0x7) == 0);
-    list->head.kind = (intptr_t)tlCollectKind;
-    return tlCollectAs(list);
-}
 tlResult* tlResultFromArgs(tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * size);
@@ -109,6 +50,7 @@ tlResult* tlResultFromArgs(tlArgs* args) {
     }
     return res;
 }
+
 tlResult* tlResultFromArgsPrepend(tlHandle first, tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size + 1));
@@ -119,6 +61,7 @@ tlResult* tlResultFromArgsPrepend(tlHandle first, tlArgs* args) {
     }
     return res;
 }
+
 tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size - 1));
@@ -128,6 +71,7 @@ tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     }
     return res;
 }
+
 tlResult* tlResultFrom(tlHandle v1, ...) {
     va_list ap;
     int size = 0;
@@ -148,10 +92,12 @@ tlResult* tlResultFrom(tlHandle v1, ...) {
     trace("RESULTS: %d", size);
     return res;
 }
+
 void tlResultSet_(tlResult* res, int at, tlHandle v) {
     assert(at >= 0 && at < res->size);
     res->data[at] = v;
 }
+
 tlHandle tlResultGet(tlHandle v, int at) {
     assert(at >= 0);
     if (!tlResultIs(v)) {
@@ -162,6 +108,7 @@ tlHandle tlResultGet(tlHandle v, int at) {
     if (at < result->size) return result->data[at];
     return tlNull;
 }
+
 // return the first value from a list of results, or just the value passed in
 tlHandle tlFirst(tlHandle v) {
     if (!v) return v;
@@ -169,15 +116,6 @@ tlHandle tlFirst(tlHandle v) {
     tlResult* result = tlResultAs(v);
     if (0 < result->size) return result->data[0];
     return tlNull;
-}
-
-static tlCodeFrame* tlCodeFrameAs(tlFrame* frame) {
-    assert(tlCodeFrameIs(frame));
-    return (tlCodeFrame*)frame;
-}
-static tlEnv* tlCodeFrameGetEnv(tlFrame* frame) {
-    assert(tlCodeFrameIs(frame));
-    return ((tlCodeFrame*)frame)->env;
 }
 
 void tlBFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
@@ -261,17 +199,6 @@ INTERNAL tlHandle evalArgs(tlArgs* args) {
     return null;
 }
 
-INTERNAL tlHandle run_thunk(tlThunk* thunk) {
-    tlHandle v = thunk->value;
-    trace("%p -> %s", thunk, tl_str(v));
-    return v;
-}
-
-INTERNAL tlHandle resumeEvalCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    return evalArgs(tlArgsAs(res));
-}
-
 // Various high level eval stuff, will piggyback on the task given
 tlString* tltoString(tlHandle v) {
     if (tlSymIs(v)) return tlStringAs(v);
@@ -292,17 +219,7 @@ tlHandle tlEvalArgsTarget(tlArgs* args, tlHandle target, tlHandle fn) {
     return evalArgs(args);
 }
 
-
-// print a generic backtrace
-INTERNAL tlHandle resumeBacktrace(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    print_backtrace(frame->caller);
-    return tlNull;
-}
-INTERNAL tlHandle _backtrace(tlArgs* args) {
-    return tlTaskPauseResuming(resumeBacktrace, tlNull);
-}
-
+INTERNAL tlHandle _bcatch(tlArgs* args);
 INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
 
 // install a catch handler (bit primitive like this)
@@ -317,11 +234,8 @@ INTERNAL tlHandle resumeCatch(tlFrame* _frame, tlHandle res, tlHandle throw) {
         return tlNull;
     }
     fatal("no longer in use");
-    tlCodeFrame* frame = tlCodeFrameAs(_frame->caller);
-    frame->handler = handler;
     return tlNull;
 }
-INTERNAL tlHandle _bcatch(tlArgs* args);
 bool tlBFrameIs(tlHandle);
 INTERNAL tlHandle _catch(tlArgs* args) {
     //if (tlBFrameIs(tlTaskCurrentFrame(tlTaskCurrent()))) return _bcatch(args);
@@ -517,7 +431,6 @@ static const tlNativeCbs __eval_natives[] = {
     { "_eval", _eval },
     { "_with_lock", _with_lock },
 
-    { "_backtrace", _backtrace },
     { "_resolve", _resolve },
 
     { "_send", _send },
@@ -537,10 +450,7 @@ static const tlNativeCbs __eval_natives[] = {
 };
 
 static void eval_init() {
-    INIT_KIND(tlClosureKind);
-    INIT_KIND(tlThunkKind);
     INIT_KIND(tlResultKind);
-    INIT_KIND(tlCollectKind);
     INIT_KIND(tlFrameKind);
 
     _t_unknown = tlSTR("<unknown>");

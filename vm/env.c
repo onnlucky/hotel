@@ -144,13 +144,8 @@ static tlHandle _Env_new(tlArgs* args) {
 }
 
 static bool tlCodeFrameIs(tlFrame*);
-static tlEnv* tlCodeFrameGetEnv(tlFrame*);
 static tlHandle resumeEnvCurrent(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
-    while (frame) {
-        if (tlCodeFrameIs(frame)) return tlCodeFrameGetEnv(frame);
-        frame = frame->caller;
-    }
     return tlNull;
 }
 static tlHandle _Env_current(tlArgs* args) {
@@ -175,10 +170,6 @@ tlObject* tlBEnvLocalObject(tlFrame*);
 static tlHandle resumeEnvLocalObject(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     while (frame) {
-        if (tlCodeFrameIs(frame)) {
-            tlEnv* env = tlCodeFrameGetEnv(frame);
-            return tlObjectToObject_(env->map);
-        }
         if (tlBFrameIs(frame)) {
             return tlBEnvLocalObject(frame);
         }

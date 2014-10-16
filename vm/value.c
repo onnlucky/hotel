@@ -259,7 +259,7 @@ static tlHandle _isRegex(tlArgs* args);
 static bool tlBClosureIs(tlHandle h);
 static tlHandle _isFunction(tlArgs* args) {
     tlHandle fn = tlArgsGet(args, 0);
-    return tlBOOL(tlClosureIs(fn) || tlBClosureIs(fn));
+    return tlBOOL(tlBClosureIs(fn));
 }
 
 static const tlNativeCbs __value_natives[] = {

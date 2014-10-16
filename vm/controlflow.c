@@ -100,49 +100,6 @@ INTERNAL tlHandle _loop(tlArgs* args) {
     return tlTaskPause(frame);
 }
 
-// return, goto, continuation, these are different
-
-// on a reified the stack look for first lexical scoped function, if any
-// we look for "args" because these stay the same after copy-on-write of env and frames
-INTERNAL tlFrame* lexicalFunctionFrame(tlFrame* frame, tlArgs* targetargs) {
-    tlFrame* lastblock = null;
-    trace("%p", frame);
-    while (frame) {
-        if (tlCodeFrameIs(frame)) {
-            tlCodeFrame* cframe = tlCodeFrameAs(frame);
-            if (cframe->env->args == targetargs) {
-                if (!tlCodeIsBlock(cframe->code)) {
-                    trace("found caller function: %p.caller: %p", frame, frame->caller);
-                    return frame;
-                }
-                trace("found caller block: %p.caller: %p", frame, frame->caller);
-                lastblock = frame;
-                break;
-            }
-        }
-        frame = frame->caller;
-    }
-    while (frame) {
-        if (tlCodeFrameIs(frame)) {
-            tlCodeFrame* cframe = tlCodeFrameAs(frame);
-            trace("cframe: %p.args: %p == %p", cframe, cframe->env->args, targetargs);
-            if (cframe->env->args == targetargs) {
-                if (!tlCodeIsBlock(cframe->code)) {
-                    trace("found enclosing function: %p.caller: %p", frame, frame->caller);
-                    return frame;
-                } else {
-                    trace("found enclosing block: %p.caller: %p", frame, frame->caller);
-                    lastblock = frame;
-                    targetargs = tlEnvGetArgs(cframe->env->parent);
-                }
-            }
-        }
-        frame = frame->caller;
-    }
-    trace("caller function out of stack; lastblock: %p", lastblock);
-    return lastblock;
-}
-
 // temporary? solution to "x, y = y, x" -> "x, y = multi(y, x)"
 INTERNAL tlHandle _multiple_return(tlArgs* args) {
     return tlResultFromArgs(args);
