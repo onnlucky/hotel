@@ -40,7 +40,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
 
     tlFrame* start = null;
     for (tlFrame* frame = stack; frame; frame = frame->caller) {
-        if (tlCodeFrameIs(frame) || tlBFrameIs(frame)) {
+        if (tlBFrameIs(frame)) {
             if (skip--) continue;
             start = frame;
             break;

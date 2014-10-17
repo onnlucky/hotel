@@ -285,11 +285,7 @@ INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
         // returning null, but by tlTaskPause, means the throw has been handled too
         if (task->stack) {
             // fixup the stack by remove the current frame
-            if (tlCodeFrameIs(frame)) {
-                // code frames need te be found by return/goto etc ...
-                frame->resumecb = stopCode;
-                assert(tlCodeFrameIs(frame));
-            } else if (tlBFrameIs(frame)) {
+            if (tlBFrameIs(frame)) {
                 frame->resumecb = stopBCode;
                 assert(tlBFrameIs(frame));
             } else {
@@ -337,27 +333,6 @@ void tlTaskEval(tlTask* task, tlHandle v) {
 
     task->stack = tlFrameAlloc(resumeTaskEval, sizeof(tlFrame));
     task->value = v;
-}
-
-typedef struct TaskEvalArgsFnFrame {
-    tlFrame frame;
-    tlHandle fn;
-    tlArgs* as;
-} TaskEvalArgsFnFrame;
-
-INTERNAL tlHandle resumeTaskEvalArgsFn(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    TaskEvalArgsFnFrame* frame = (TaskEvalArgsFnFrame*)_frame;
-    return tlEvalArgsFn(frame->as, frame->fn);
-}
-void tlTaskEvalArgsFn(tlArgs* as, tlHandle fn) {
-    tlTask* task = tlTaskCurrent();
-    trace("on %s eval %s args: %s", tl_str(task), tl_str(fn), tl_str(as));
-
-    TaskEvalArgsFnFrame* frame = tlFrameAlloc(resumeTaskEvalArgsFn, sizeof(TaskEvalArgsFnFrame));
-    frame->fn = fn;
-    frame->as = as;
-    task->stack = (tlFrame*)frame;
 }
 
 INTERNAL tlHandle resumeTaskThrow(tlFrame* frame, tlHandle res, tlHandle throw) {

@@ -1,25 +1,4 @@
 // author: Onne Gorter, license: MIT (see license.txt)
-// the main evaluator/interpreter for hotel
-//
-// Code blocks only do a few things:
-// 1. bind functions to the current environment
-// 2. lookup names in the current environment
-// 3. call functions (or methods or operators)
-// 4. collect the results and write them to the environment (or other places)
-// 5. return their last result
-//
-// Execution happens in "frames", a structure that know how to resume execution, and knows its
-// caller frame. While executing, frames are created only when they are needed. Almost all aspects
-// of execution can be "paused", at which point a frame is required.
-//
-// In general, calling functions happens in four steps:
-// 1. A call is "activated", all references are resolved against the current env
-// 2. The function to call is identified (or evaluated if needed)
-// 3. The arguments are evaluated, unless some/all are specified as lazy
-// 4. The functions is invoked
-// (5. the results are collected or the exception is thrown)
-//
-// so we go from tlCall -> tlArgs -> running -> tlCollect
 
 #include "trace-on.h"
 
@@ -130,67 +109,7 @@ INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** functio
     }
 }
 
-INTERNAL void print_backtrace(tlFrame* frame) {
-    while (frame) {
-        if (tlBFrameIs(frame)) {
-            print("%p  frame", frame);
-        } else {
-            print("%p  <native>", frame);
-        }
-        frame = frame->caller;
-    }
-}
-
-INTERNAL tlHandle run_activate(tlHandle v, tlEnv* env);
-
-INTERNAL tlHandle resumeActivateCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    return null;
-}
-
-// when call->fn is a call itself
-INTERNAL tlHandle resumeCallFn(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    return null;
-}
-
-INTERNAL tlHandle resumeCall(tlFrame* frame, tlHandle res, tlHandle throw) {
-    return null;
-}
-
-INTERNAL tlHandle stopCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    return res;
-}
-INTERNAL tlHandle evalCode2(tlCodeFrame* frame, tlHandle res);
-INTERNAL tlHandle resumeCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    return tlNull;
-}
-
-INTERNAL tlHandle evalArgs(tlArgs* args);
-INTERNAL tlHandle afterYieldEvalQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    return evalArgs(tlArgsAs(res));
-}
-INTERNAL tlHandle resumeYieldEvalQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    assert(tlArgsIs(res));
-    tlTask* task = tlTaskCurrent();
-    tlTaskWaitFor(null);
-    frame->resumecb = afterYieldEvalQuota;
-    task->runquota = 1234;
-    tlTaskReady(task);
-    return tlTaskNotRunning;
-}
-
 INTERNAL tlHandle evalArgs(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    if (task->runquota <= 0) {
-        return tlTaskPauseResuming(resumeYieldEvalQuota, args);
-    }
-    task->runquota -= 1;
-    if (task->limit) {
-        if (task->limit == 1) TL_THROW("Out of quota");
-        task->limit -= 1;
-    }
-
     tlHandle fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     tlKind* kind = tl_kind(fn);
@@ -262,55 +181,6 @@ bool tlCallableIs(tlHandle v) {
     return false;
 }
 
-// send messages
-INTERNAL tlHandle evalMapSend(tlObject* map, tlSym msg, tlArgs* args, tlHandle target) {
-    tlHandle field = tlObjectGet(map, msg);
-    trace(".%s -> %s()", tl_str(msg), tl_str(field));
-    if (!field) TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
-    if (!tlCallableIs(field)) return field;
-    args->fn = field;
-    return evalArgs(args);
-}
-
-INTERNAL tlHandle evalSend(tlArgs* args) {
-    tlHandle target = tlArgsTarget(args);
-    tlSym msg = tlArgsMsg(args);
-    trace("%s.%s", tl_str(target), tl_str(msg));
-    tlKind* kind = tl_kind(target);
-    if (kind->send) return kind->send(args);
-    if (kind->klass) return evalMapSend(kind->klass, msg, args, target);
-    TL_THROW("%s.%s is undefined", tl_str(target), tl_str(msg));
-}
-
-INTERNAL tlHandle _send(tlArgs* args) {
-    tlHandle target = tlArgsGet(args, 0);
-    tlHandle msg = tlArgsGet(args, 1);
-    if (!target || !msg) TL_THROW("internal error: bad _send");
-
-    trace("%s.%s(%d)", tl_str(target), tl_str(msg), tlArgsSize(args) - 2);
-
-    tlArgs* nargs = tlArgsNewSize(args->size - 2, args->nsize);
-    nargs->target = target;
-    nargs->msg = msg;
-    for (int i = 2; i < args->size + args->nsize; i++) {
-        nargs->args[i - 2] = args->args[i];
-    }
-    if (args->nsize) {
-        nargs->names = tlListSub(args->names, 2, args->size + args->nsize - 2);
-    }
-
-    tlKind* kind = tl_kind(target);
-    assert(kind);
-    if (kind->locked) return evalSendLocked(nargs);
-    return evalSend(nargs);
-}
-INTERNAL tlHandle _try_send(tlArgs* args) {
-    // TODO instead, use parser to parse x?y.z as -> (_tmp = x; if x: x.y.z) not (_tmp = x; if x: x.y).z
-    tlHandle target = tlArgsGet(args, 0);
-    if (!tl_bool(target)) return target;
-    return _send(args);
-}
-
 // implement fn.call ... pretty generic
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
 INTERNAL tlHandle _call(tlArgs* args) {
@@ -318,7 +188,8 @@ INTERNAL tlHandle _call(tlArgs* args) {
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlObject* map = tlObjectCast(tlArgsGet(args, 1));
     tlArgs* nargs = tlArgsNew(list, map);
-    return tlEvalArgsFn(nargs, fn);
+    fatal("%p, %p", nargs, fn);
+    return tlNull; //tlEvalArgsFn(nargs, fn);
 }
 
 // eval
@@ -432,9 +303,6 @@ static const tlNativeCbs __eval_natives[] = {
     { "_with_lock", _with_lock },
 
     { "_resolve", _resolve },
-
-    { "_send", _send },
-    { "_try_send", _try_send },
 
     { "_String_cat", _String_cat },
     { "_List_clone", _List_clone },

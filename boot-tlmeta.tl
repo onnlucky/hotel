@@ -306,22 +306,21 @@ ast = parse(parseStart, text)
 
 // ** emitting a new parser **
 emit = r, buf, ind ->
-    _match(r.type == "Or"): goto emitOr r, buf, ind
-    _match(r.type == "And"): goto emitAnd r, buf, ind
-    _match(r.type == "Sub"): goto emitSub r, buf, ind
-    _match(r.type == "Not"): goto emitNot r, buf, ind
-    _match(r.type == "Opt"): goto emitOpt r, buf, ind
-    _match(r.type == "Star"): goto emitStar r, buf, ind
-    _match(r.type == "Plus"): goto emitPlus r, buf, ind
+    { r.type == "Or"  }: goto emitOr r, buf, ind
+    { r.type == "And" }: goto emitAnd r, buf, ind
+    { r.type == "Sub" }: goto emitSub r, buf, ind
+    { r.type == "Not" }: goto emitNot r, buf, ind
+    { r.type == "Opt" }: goto emitOpt r, buf, ind
+    { r.type == "Star"}: goto emitStar r, buf, ind
+    { r.type == "Plus"}: goto emitPlus r, buf, ind
 
-    _match(r.type == "NoReturn"): buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
-    _match(r.type == "Call"): buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
-    _match(r.type == "Bind"): emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
-    _match(r.type == "Text"): buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
-    _match(r.type == "Ws"): buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
-    _match(r.type == "Any"): buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
-    _match(true): throw "InternalError emit unknown: $(r.type)"
-    _nomatch
+    { r.type == "NoReturn"}: buf.write("$ind  _nr = \"$(r.msg.escape)\"\n")
+    { r.type == "Call"    }: buf.write("$ind  _in, _v = rule_$(r.rule)(_in, _nr)\n")
+    { r.type == "Bind"    }: emit(r.term, buf, ind); buf.write("$(ind)  $(r.name) = _v; pAct(_in, _v)\n")
+    { r.type == "Text"    }: buf.write("$ind  _in, _v = pText(_in, _nr, \"$(r.text.escape)\")\n")
+    { r.type == "Ws"      }: buf.write("$ind  _in, _v = rule_ws(_in, _nr)\n")
+    { r.type == "Any"     }: buf.write("$ind  _in, _v = rule_any(_in, _nr)\n")
+    { true                }: throw "InternalError emit unknown: $(r.type)"
 
 emitNot = r, buf, ind ->
     buf.write("$ind  _in, _v = pNot(_in, _nr, (_in, _nr ->\n")

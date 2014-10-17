@@ -143,7 +143,6 @@ static tlHandle _Env_new(tlArgs* args) {
     return tlEnvNew(parent);
 }
 
-static bool tlCodeFrameIs(tlFrame*);
 static tlHandle resumeEnvCurrent(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     return tlNull;

@@ -20,32 +20,6 @@ INTERNAL tlHandle _continue(tlArgs* args) {
     return tlTaskThrow(s_continue);
 }
 
-// match (produced by compiler, if cond is true, execute block and exit parent body)
-INTERNAL tlHandle resumeMatch(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    frame = frame->caller; // our parent codeblock; we wish to unwind that one too ...
-    assert(tlCodeFrameIs(frame) || tlBFrameIs(frame));
-    // save to use set stack, because no user frames are unwound
-    return tlTaskSetStack(frame->caller, res);
-}
-INTERNAL tlHandle _match(tlArgs* args) {
-    tlHandle block = tlArgsBlock(args);
-    if (!block) TL_THROW("match expectes a block");
-    tlHandle cond = tlArgsGet(args, 0);
-    if (!cond) return tlNull;
-
-    if (!tl_bool(cond)) return tlNull;
-    tlHandle res = tlEval(tlBCallFrom(block, null));
-    if (!res) {
-        tlFrame* frame = tlFrameAlloc(resumeMatch, sizeof(tlFrame));
-        return tlTaskPauseAttach(frame);
-    }
-    return tlTaskPauseResuming(resumeMatch, res);
-}
-INTERNAL tlHandle _nomatch(tlArgs* args) {
-    TL_THROW("no branch taken");
-}
-
 // loop
 typedef struct LoopFrame {
     tlFrame frame;
@@ -106,8 +80,6 @@ INTERNAL tlHandle _multiple_return(tlArgs* args) {
 }
 
 static const tlNativeCbs __controlflow_natives[] = {
-    { "_match", _match },
-    { "_nomatch", _nomatch },
     { "break", _break },
     { "continue", _continue },
     { "loop",  _loop },
