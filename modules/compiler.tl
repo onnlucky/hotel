@@ -271,7 +271,6 @@ compile = (text, ast ->
         methods = Array.new
         open = Var.new(true) // methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
         addOpen = function, name, pos ->
-            print "METHOD:", name
             _, method = functions.add({name=name or "",open=function,scope=this})
             if name:
                 // TODO perhaps change type="function" to type="method"
@@ -280,7 +279,6 @@ compile = (text, ast ->
                 this.names[name] = {arg=false,{at,id,method}}
             return method
         add = name, pos ->
-            print "FIELD:", name
             if this.methods[-1] == name: // TODO not entirely correct ...
                 ref = this.names[name]
                 return ref.at, ref.id
@@ -314,7 +312,7 @@ compile = (text, ast ->
                 assert false // TODO what to do here? should reference our (incomplete!) local here
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
-            if not level: return parent.ref(name, 0)
+            if not level: return parent.ref(name, 1)
             parent.ref(name, level + 1)
     }
 
@@ -366,11 +364,16 @@ compile = (text, ast ->
             if not name: close(function)
             {type="function",{function}}
         { term.type == "class" }:
-            print repr(term)
             outerscope = scope
             scope = ClassScope(scope)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
-            body = term.body.map(stm -> lex(scope, stm))
+            var $extend = null
+            body = term.body.map(stm ->
+                if try(stm.type == "call" and stm.target.name == "extend"):
+                    $extend = {type="method",target=stm.args[1].v,method="methods"}
+                    return null
+                lex(scope, stm)
+            ).filter
             scope.open.set(false)
             m = HashMap.new
             methods = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
@@ -378,16 +381,20 @@ compile = (text, ast ->
             constructor = body.filter(stm -> try(stm.type == "assign" and stm.value.type == "function"))
             fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
             class = [name=name, call=null, methods=null]
+            /*
             print "---- class: $class ----"
             print "constructor", repr(constructor)
             print "fields", repr(fields)
             print "methods", repr(methods)
-            print "class", repr(class)
+            print "class", repr(class), "extends", $extend
             print "---- class: $class ----"
             print repr(functions[1])
+            */
             constructor = {type="function",{args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
             _, fn = functions.add({name="",open=false,function=constructor})
-            {type="class", class={type="object", fill=[["call", {type="function",function=fn}]], map=class}, methods={type="object", fill=methods, map=m.toMap}}
+            c = { $extend }: {type="object", fill=[["call", {type="function",function=fn}],["class",lex(scope.parent,$extend)]], map=(class["class"]=null)}
+                {         }: {type="object", fill=[["call", {type="function",function=fn}]], map=class}
+            {type="class", class=c, methods={type="object", fill=methods, map=m.toMap}}
         { term.type == "assign" }:
             { term.to.type == "local" }:
                 value = lex(scope, term.value, term.to.name, term.to.pos)
@@ -575,7 +582,6 @@ compile = (text, ast ->
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
             ["fcall", 1 + fill.size * 2, "global", "__map", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "class" }:
-            print repr(term)
             ["fcall", 2, "global", "_bless", emit(term.methods), emit(term.class), "invoke"]
         { }:
             print "ERROR"

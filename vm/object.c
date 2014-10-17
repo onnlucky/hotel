@@ -486,8 +486,8 @@ static tlHandle _bless(tlArgs* args) {
     if (!methods) TL_THROW("expected an object as arg[1]");
     tlHandle klass = tlArgsGet(args, 1);
     if (!klass) TL_THROW("expected a object as arg[2]");
-    print("methods: %s", tl_repr(methods));
-    print("class: %s", tl_repr(klass));
+    trace("methods: %s", tl_repr(methods));
+    trace("class: %s", tl_repr(klass));
     tlObjectSet_(methods, s_class, klass);
     tlObjectSet_(klass, s_methods, methods);
     return klass;
