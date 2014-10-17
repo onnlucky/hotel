@@ -156,7 +156,8 @@ tlHandle _from_repr(tlArgs* args) {
     return res;
 }
 
-static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print) {
+static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print, int depth) {
+    if (depth > 20) return false; // TODO instead, detect cycles
     tlKind* kind = tl_kind(h);
 
     if (askey && kind == tlSymKind) {
@@ -180,7 +181,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print) {
             tlHandle v = tlListGet(list, i);
             if (!v) break;
             if (i != 0) tlBufferWrite(buf, ",", 1);
-            pprint(buf, v, false, print);
+            pprint(buf, v, false, print, depth + 1);
         }
         tlBufferWrite(buf, "]", 1);
         return false;
@@ -194,9 +195,9 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print) {
             tlHandle v = tlObjectValueIter(map, i);
             if (!v) break;
             tlHandle k = tlSetGet(tlObjectKeys(map), i);
-            if (pprint(buf, k, true, print)) {
+            if (pprint(buf, k, true, print, depth + 1)) {
                 tlBufferWrite(buf, "=", 1);
-                pprint(buf, v, false, print);
+                pprint(buf, v, false, print, depth + 1);
                 tlBufferWrite(buf, ",", 1);
                 written = true;
             }
@@ -254,7 +255,7 @@ tlHandle _to_repr(tlArgs* args) {
     if (!h) h = tlNull;
 
     tlBuffer* buf = tlBufferNew();
-    pprint(buf, h, false, false);
+    pprint(buf, h, false, false, 0);
     return buf;
 }
 
@@ -262,7 +263,7 @@ tlHandle _repr(tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     if (!h) h = tlNull;
     tlBuffer* buf = tlBufferNew();
-    pprint(buf, h, false, true);
+    pprint(buf, h, false, true, 0);
     tlBufferWrite(buf, "\0", 1);
     return tlStringFromTake(tlBufferTakeData(buf), tlBufferSize(buf) - 1);
 }
@@ -275,7 +276,7 @@ tlHandle _str(tlArgs* args) {
 
 char* tl_repr(tlHandle h) {
     tlBuffer* buf = tlBufferNew();
-    pprint(buf, h, false, true);
+    pprint(buf, h, false, true, 0);
     tlBufferWrite(buf, "\0", 1);
     return tlBufferTakeData(buf);
 }
