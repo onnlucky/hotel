@@ -567,16 +567,26 @@ compile = (text, ast ->
         return main, functions
 
     // cache the position to line information for a little bit
-    at = Var.new(0)
-    lines = Var.new(1)
+    lines = (
+        var $at = 0
+        lines = Array.new
+        loop:
+            $at = text.find('\n', $at + 1)
+            if not $at:
+                lines.add(text.size)
+                break
+            if $at: lines.add($at)
+        lines
+    )
+
     lineFromPos = pos ->
-        if pos < 0: return 0
-        assert pos <= text.size
-        if pos < $at: $at = 0; $lines = 1
-        while $at < pos:
-            if text[$at] == '\n': $lines += 1
-            $at += 1
-        $lines
+        var $min = 1
+        var $max = lines.size
+        while $min < $max:
+            mid = ($min + $max) /. 2
+            { lines[mid] < pos }: $min = mid + 1
+            {                  }: $max = mid
+        return $min
 
     builder_new = functions -> {
         functions = functions
