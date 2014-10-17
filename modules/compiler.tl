@@ -263,35 +263,57 @@ compile = (text, ast ->
     }
 
     ClassScope = parent -> {{parent},
+        parentVisible = try(parent.locals.size, 0)
+        block = false
         names = HashMap.new
         locals = Array.new
+        args = Array.new
         methods = Array.new
-        addOpen = function, name ->
+        open = Var.new(true) // methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
+        addOpen = function, name, pos ->
+            print "METHOD:", name
             _, method = functions.add({name=name or "",open=function,scope=this})
             if name:
                 // TODO perhaps change type="function" to type="method"
-                ref = this.names[name]
-                assert ref and ref.at == this.locals.size
-                this.locals.remove(ref.at)
-                this.names[name] = {arg=false,id=ref.id,{method}}
+                _, id = ids.add({{name},at=Array.new([pos])})
+                _, at = this.methods.add(name)
+                this.names[name] = {arg=false,{at,id,method}}
             return method
         add = name, pos ->
+            print "FIELD:", name
+            if this.methods[-1] == name: // TODO not entirely correct ...
+                ref = this.names[name]
+                return ref.at, ref.id
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.locals.add(name)
             this.names[name] = {arg=false,{at,id}}
             return at, id
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
-            this.names[name] = {arg=true,{id}}
+            _, at = this.args.add(name)
+            this.names[name] = {arg=true,{at,id}}
             return id
         ref = name, level ->
+            if not this.open.get:
+                assert level
+                assert name != "this"
+                assert name != "args"
+                if this.names[name]: return {type="field",name=name,up=level}
+                return parent.ref(name, level)
             ref = this.names[name]
             if ref:
+                if ref.arg:
+                    if not level: return {type="arg",at=ref.at,id=ref.id}
+                    return {type="envarg",up=level,at=ref.at,id=ref.id}
                 if not level: return {type="local",at=ref.at,id=ref.id}
-                return {type="field",name=name}
-            if name == "args":
+                return {type="env",up=level,at=ref.at,id=ref.id}
+            if name == "args" and not this.block:
                 if not level: return {type="args"}
-                return {type="thisargs",up=level}
+                return {type="envargs",up=level}
+            if name == "this":
+                assert false // TODO what to do here? should reference our (incomplete!) local here
+                if not level: return {type="this"}
+                return {type="envthis",up=level}
             if not level: return parent.ref(name, 0)
             parent.ref(name, level + 1)
     }
@@ -344,20 +366,28 @@ compile = (text, ast ->
             if not name: close(function)
             {type="function",{function}}
         { term.type == "class" }:
+            print repr(term)
             outerscope = scope
-            local = scope.add("", pos)
             scope = ClassScope(scope)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
-            class = body.filter(stm -> try(stm.type == "assign" and stm.value.type == "function")).map(stm, i -> {n=stm.to.name,v=stm.value})
-            constructor = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function"))
-            fields = scope.locals.map(name -> {n=name,v=scope.ref(name)})
+            scope.open.set(false)
+            m = HashMap.new
+            methods = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
+            m["class"] = null
+            constructor = body.filter(stm -> try(stm.type == "assign" and stm.value.type == "function"))
+            fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
+            class = [name=name, call=null, methods=null]
             print "---- class: $class ----"
-            print repr class
-            print repr constructor
-            print repr fields
+            print "constructor", repr(constructor)
+            print "fields", repr(fields)
+            print "methods", repr(methods)
+            print "class", repr(class)
             print "---- class: $class ----"
-            {type="class",{class,constructor,fields,name,local}}
+            print repr(functions[1])
+            constructor = {type="function",{args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
+            _, fn = functions.add({name="",open=false,function=constructor})
+            {type="class", class={type="object", fill=[["call", {type="function",function=fn}]], map=class}, methods={type="object", fill=methods, map=m.toMap}}
         { term.type == "assign" }:
             { term.to.type == "local" }:
                 value = lex(scope, term.value, term.to.name, term.to.pos)
@@ -463,8 +493,6 @@ compile = (text, ast ->
                 block = {type="function",function=fn}
                 {{cond, block}}
             )
-            // TODO throw error if no match
-            //last = {cond=lex(scope, "true"),block={type="call",target={type="system",name="nomatch"}}};
             {type="guards",guards=gs}
         { }:
             print "ERROR"
@@ -484,12 +512,15 @@ compile = (text, ast ->
         { term.type == "string"   }: ["data", term.data]
         { term.type == "data"     }: ["data", term.data]
         { term.type == "function" }: ["bind", term.function]
+        { term.type == "system"   }: ["system", term.name]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
             ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
+        { term.type == "field" }:
+            ["mcall", 0, "this", "data", term.name, "invoke"]
         { term.type == "call" }:
             target = emit(term.target)
             args = try(term.args,[]).map(arg -> emit(arg))
@@ -543,6 +574,9 @@ compile = (text, ast ->
         { term.type == "map" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
             ["fcall", 1 + fill.size * 2, "global", "__map", "data", term.map.toObject] + fill + ["invoke"]
+        { term.type == "class" }:
+            print repr(term)
+            ["fcall", 2, "global", "_bless", emit(term.methods), emit(term.class), "invoke"]
         { }:
             print "ERROR"
             print repr(term)

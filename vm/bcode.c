@@ -414,6 +414,11 @@ tlObject* tlBEnvLocalObject(tlFrame* frame) {
         map = tlObjectSet(map, tlSymAs(name), v);
     }
 
+    if (tlArgsTarget(args)) {
+        tlHandle methods = tlObjectGetSym(tlArgsTarget(args), s_methods);
+        if (methods) map = tlObjectSet(map, s_class, methods);
+    }
+
     assert(map != tlObjectEmpty());
     map = tlObjectToObject_(map);
     assert(tlObjectIs(map));
@@ -1356,8 +1361,11 @@ again:;
         }
         case OP_SYSTEM: {
             at = pcreadsize(ops, &pc);
-            tlHandle n = tlListGet(data, at);
-            fatal("syscall: %s", tl_str(n));
+            //tlHandle n = tlListGet(data, at);
+            //if (n == s_createobject) {
+            v = tlBEnvLocalObject((tlFrame*)frame);
+            //}
+            //fatal("syscall: %s", tl_str(n));
             break;
         }
         case OP_MODULE:

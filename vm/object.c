@@ -3,6 +3,7 @@
 #include "trace-off.h"
 
 tlKind* tlObjectKind;
+static tlSym s_methods;
 
 struct tlObject {
     tlHead head;
@@ -108,8 +109,9 @@ void tlObjectSet_(tlObject* object, tlHandle key, tlHandle v) {
     assert(tlObjectIs(object) || tlMapIs(object));
     if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(object->keys, key);
+    //print("%s", tl_repr(object));
+    //print("keys set_: %d at:%s = %s", at, tl_str(key), tl_str(v));
     assert(at >= 0 && at < tlObjectSize(object));
-    trace("keys set_: %d at:%s = %s", at, tl_str(key), tl_str(v));
     //assert(object->data[at] == tlNull || !object->data[at]);
     object->data[at] = v;
 }
@@ -479,6 +481,18 @@ static tlHandle objectCmp(tlHandle _left, tlHandle _right) {
     return tlCOMPARE(left->keys->size - right->keys->size);
 }
 
+static tlHandle _bless(tlArgs* args) {
+    tlObject* methods = tlObjectCast(tlArgsGet(args, 0));
+    if (!methods) TL_THROW("expected an object as arg[1]");
+    tlHandle klass = tlArgsGet(args, 1);
+    if (!klass) TL_THROW("expected a object as arg[2]");
+    print("methods: %s", tl_repr(methods));
+    print("class: %s", tl_repr(klass));
+    tlObjectSet_(methods, s_class, klass);
+    tlObjectSet_(klass, s_methods, methods);
+    return klass;
+}
+
 static tlKind _tlObjectKind = {
     .name = "Object",
     .size = objectSize,
@@ -491,6 +505,7 @@ static tlKind _tlObjectKind = {
 };
 
 static void object_init() {
+    s_methods = tlSYM("methods");
     _tl_emptyObject = tlObjectNew(tlSetEmpty());
     tlObject* constructor = tlClassObjectFrom(
         "call", _Object_from,

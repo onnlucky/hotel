@@ -657,6 +657,8 @@ static const tlNativeCbs __vm_natives[] = {
     { "cosh", _cosh },
     { "tanh", _tanh },
 
+    { "_bless", _bless },
+
     { "_int_parse", _int_parse },
     { "_urldecode", _urldecode },
 
