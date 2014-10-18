@@ -649,6 +649,7 @@ static tlKind _tlStringKind = {
 static void string_init() {
     _tl_emptyString = tlSTR("");
     tlStringKind->klass = tlClassObjectFrom(
+        "class", null,
         "toString", _string_toString,
         "toSym", _string_toSym,
         "intern", _string_intern,
@@ -677,11 +678,14 @@ static void string_init() {
         null
     );
     tlObject* constructor = tlClassObjectFrom(
+        "class", null,
         "call", null,
         "cat", _String_cat,
         "_methods", null,
         null
     );
+    tlObjectSet_(constructor, s_class, tlObjectFrom("name", tlSYM("String"), null));
+    tlObjectSet_(tlStringKind->klass, s_class, constructor);
     tlObjectSet_(constructor, s__methods, tlStringKind->klass);
     tl_register_global("String", constructor);
 }
