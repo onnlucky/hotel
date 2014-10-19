@@ -122,7 +122,7 @@ tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
 INTERNAL tlHandle resumeUndefined(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     trace("returning an Undefined: %s", tl_str(res));
-    return tlUndefinedNew(tlStringCast(res), tlStackTraceNew(null, null, 1));
+    return tlUndefinedNew(tlStringCast(res), null/*tlStackTraceNew(null, null, 1)*/);
 }
 tlHandle tlUndef() {
     return tlTaskPauseResuming(resumeUndefined, tlNull);
