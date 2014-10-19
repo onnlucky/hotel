@@ -754,9 +754,6 @@ void tlVmInitDefaultEnv(tlVm* vm) {
     tlNative* assert = tlNativeNew(_assert, tlSYM("assert"));
     tlVmGlobalSet(vm, tlNativeName(assert), assert);
 
-    tlNative* eval = tlNativeNew(_eval, tlSYM("eval"));
-    tlVmGlobalSet(vm, tlNativeName(eval), eval);
-
     tlNative* error = tlNativeNew(_error, tlSYM("error"));
     tlVmGlobalSet(vm, tlNativeName(error), error);
 }

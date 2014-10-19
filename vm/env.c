@@ -147,21 +147,10 @@ static tlHandle resumeEnvCurrent(tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("");
     return tlNull;
 }
+
 static tlHandle _Env_current(tlArgs* args) {
     trace("");
     return tlTaskPauseResuming(resumeEnvCurrent, tlNull);
-}
-static tlHandle _Env_module(tlArgs* args) {
-    tlString* name = tlStringCast(tlArgsGet(args, 0));
-    if (!name) TL_THROW("require a name");
-    tlString* path = tlStringCast(tlArgsGet(args, 1));
-    if (!path) path = tlSTR(".");
-
-    tlVm* vm = tlTaskGetVm(tlTaskCurrent());
-    if (vm->resolve) {
-        return tlEval(tlBCallFrom(vm->resolve, name, path, null));
-    }
-    return tlUndef();
 }
 
 bool tlBFrameIs(tlHandle);
@@ -201,7 +190,6 @@ static void env_init() {
         "current", _env_current,
         "localObject", _Env_localObject,
         "path", _Env_path,
-        "module", _Env_module,
         null
     );
 

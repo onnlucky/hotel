@@ -39,7 +39,6 @@ struct tlVm {
 
     tlEnv* globals;
     tlObject* locals; // default task locals
-    tlHandle resolve;
 
     // to wake up select
     tlVmSignalFn signalcb;
