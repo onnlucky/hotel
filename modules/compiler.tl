@@ -208,14 +208,20 @@ compile = (text, ast ->
                 _, at = this.locals.add(name)
                 this.names[name] = {arg=false,{at,id,fn}}
             return fn
-        add = name, pos ->
+        add = name, pos, type ->
+            type = type or "local"
             if this.locals[-1] == name and try(this.names[name].fn):
                 ref = this.names[name]
                 return ref.at, ref.id
-            _, id = ids.add({{name},at=Array.new([pos])})
+            _, id = ids.add({{name},at=Array.new([pos]),type=type})
             _, at = this.locals.add(name)
             this.names[name] = {arg=false,{at,id}}
             return at, id
+        close = ->
+            this.names.each(name, ref ->
+                if try(functions[ref.fn].open):
+                    close(ref.fn)
+            )
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.args.add(name)
@@ -241,7 +247,7 @@ compile = (text, ast ->
             if name == "break": return this.gbreak(0, [])
             if name == "continue": return this.gcontinue(0, [])
             ref = this.names[name]
-            if try(ref.fn):
+            if try(ref.fn) and not args["peek"]:
                 if functions[ref.fn].open: close(ref.fn)
             if ref:
                 if ref.arg:
@@ -286,6 +292,13 @@ compile = (text, ast ->
             _, at = this.locals.add(name)
             this.names[name] = {arg=false,{at,id}}
             return at, id
+        close = ->
+            // TODO inherit ;()
+            this.names.each(name, ref ->
+                if try(functions[ref.fn].open):
+                    close(ref.fn)
+            )
+            this.open.set(false)
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.args.add(name)
@@ -332,16 +345,19 @@ compile = (text, ast ->
             scope = Scope(scope)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
+            scope.close
             {type="function",{args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "block" }:
             scope = Scope(scope, true)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
+            scope.close
             {type="block",{args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "scope" }:
             scope = Scope(scope, true)
             args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
+            scope.close
             {type="scope",{args,body},locals=scope.locals.toList,pos=term.pos}
 
     lex = scope, term, name, pos ->
@@ -374,7 +390,7 @@ compile = (text, ast ->
                     return null
                 lex(scope, stm)
             ).filter
-            scope.open.set(false)
+            scope.close
             m = HashMap.new
             methods = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
             m["class"] = null
@@ -402,7 +418,7 @@ compile = (text, ast ->
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
-                local, id = scope.add(term.to.name, term.to.pos)
+                local, id = scope.add(term.to.name, term.to.pos, type="var")
                 value = lex(scope, term.value)
                 value = {type="method",target={type="global",name="Var"},method="new",args=[value]}
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
