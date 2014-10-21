@@ -4,8 +4,6 @@
 
 INTERNAL tlHandle _call(tlArgs* args);
 
-static const uint8_t TL_FLAG_HASKEYS  = 0x01;
-
 tlKind* tlNativeKind;
 
 struct tlNative {
