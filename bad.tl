@@ -1,11 +1,14 @@
-fn = (
-    fn = -> x = 10
-)
+_disasm()
+Box = { x ->
+    var $y = x
+    add = n -> y = y + n
+}
 
-var $x = 42
-x = 100
-print x, $x
-x = 100
-fn()
-print x, $x
-
+b = Box(10)
+b.add(1)
+b.add(3)
+b2 = Box(10)
+b2.add(10)
+b2.add(30)
+print b.y.get
+print b2.y.get

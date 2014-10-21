@@ -1,5 +1,5 @@
-//comp.load(io.File("bad.tl").readString, _env_current()).run
-
+comp.load(io.File("bad.tl").readString, _env_current()).run
+/*
 Point = { x, y ->
     toString = -> "Point{$x,$y}"
     moveTo = dx, dy -> Object.set(this, "x", x + dx, "y", y + dy)
