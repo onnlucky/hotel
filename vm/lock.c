@@ -56,7 +56,7 @@ INTERNAL tlHandle lockEnqueue(tlLock* lock, tlFrame* frame) {
     // make the task wait and enqueue it
     task->stack = frame;
     tlArray* deadlock = tlTaskWaitFor(lock);
-    if (deadlock) return tlDeadlockErrorThrow(deadlock);
+    if (deadlock) return tlDeadlockErrorThrow(task, deadlock);
     lqueue_put(&lock->wait_q, &task->entry);
 
     // try to own the lock, incase another worker released it inbetween ...
@@ -74,6 +74,8 @@ INTERNAL tlHandle resumeLockEnqueue(tlFrame* frame, tlHandle res, tlHandle throw
     return lockEnqueue(tlLockAs(tlArgsAs(res)->target), frame);
 }
 
+static tlHandle tlTaskPauseResuming(tlResumeCb resume, tlHandle res) { return null; }
+static tlHandle tlTaskPauseAttach(void* frame) { return null; }
 INTERNAL tlHandle tlLockTake(tlTask* task, tlLock* lock, tlResumeCb resume, tlHandle res) {
     // if we are the owner of a light weight lock, no action is required
     if (lock->owner == task) return res;
@@ -173,6 +175,7 @@ INTERNAL tlHandle lockedInvoke(tlLock* lock, tlArgs* call) {
     return res;
 }
 
+/*
 // ** acquire and release from native **
 
 INTERNAL tlHandle lockAquire(tlLock* lock, tlResumeCb resumecb, tlHandle _res);
@@ -227,6 +230,7 @@ INTERNAL tlHandle lockAquire(tlLock* lock, tlResumeCb resumecb, tlHandle _res) {
     lockScheduleNext(lock);
     return res;
 }
+*/
 
 // ** with **
 // TODO should we lift this into language?
@@ -249,6 +253,7 @@ INTERNAL tlHandle resumeWithUnlock(tlFrame* _frame, tlHandle res, tlHandle throw
     }
     return res;
 }
+
 INTERNAL tlHandle resumeWithLock(tlFrame* _frame, tlHandle _res, tlHandle _throw) {
     tlTask* task = tlTaskCurrent();
     if (!_res) fatal("cannot handle this ... must unlock ...");
@@ -261,25 +266,30 @@ INTERNAL tlHandle resumeWithLock(tlFrame* _frame, tlHandle _res, tlHandle _throw
         trace("locking: %s", tl_str(lock));
 
         if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
+            // TODO this requires full deadlock detection stuff!
             // failed to own lock; pause current task, and enqueue it
-            return tlTaskPause(frame);
+            return null;
         }
     }
+
     frame->frame.resumecb = resumeWithUnlock;
     tlHandle res = tlEval(tlBCallFrom(tlArgsBlock(args), null));
-    if (!res) return tlTaskPauseAttach(frame);
+    if (!res) return null;
     return resumeWithUnlock((tlFrame*)frame, res, null);
 }
+
 INTERNAL tlHandle _with_lock(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
     trace("");
     tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("with expects a block");
+
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlLock* lock = tlLockCast(tlArgsGet(args, i));
         if (!lock) TL_THROW("expect lock values");
         if (tlLockIsOwner(lock, task)) TL_THROW("lock already owned");
     }
+
     WithFrame* frame = tlFrameAlloc(resumeWithLock, sizeof(WithFrame));
     frame->args = args;
     return resumeWithLock((tlFrame*)frame, tlNull, null);

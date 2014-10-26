@@ -103,7 +103,7 @@ INTERNAL tlHandle _throw(tlArgs* args) {
     tlHandle res = tlArgsGet(args, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
-    return tlTaskRunThrow(tlTaskCurrent(), res);
+    return tlTaskThrow(tlTaskCurrent(), res);
 }
 
 tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
@@ -113,19 +113,14 @@ tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
     return undef;
 }
 
-INTERNAL tlHandle resumeUndefined(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    trace("returning an Undefined: %s", tl_str(res));
-    return tlUndefinedNew(tlStringCast(res), null/*tlStackTraceNew(null, null, 1)*/);
-}
 tlHandle tlUndef() {
-    return tlTaskPauseResuming(resumeUndefined, tlNull);
+    return tlUndefinedNew(null, null/*tlStackTraceNew(null, null, 1)*/);
 }
 INTERNAL tlHandle _undefined(tlArgs* args) {
-    return tlTaskPauseResuming(resumeUndefined, tlNull);
+    return tlUndefinedNew(null, null/*tlStackTraceNew(null, null, 1)*/);
 }
 tlHandle tlUndefMsg(tlString* msg) {
-    return tlTaskPauseResuming(resumeUndefined, msg);
+    return tlUndefinedNew(msg, null/*tlStackTraceNew(null, null, 1)*/);
 }
 
 // TODO put in full stack?
@@ -199,28 +194,28 @@ static void error_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("DeadlockError"), deadlockErrorClass);
 }
 
-tlHandle tlErrorThrow(tlHandle msg) {
+tlHandle tlErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, errorClass);
     tlObjectToObject_(err);
-    return tlTaskThrow(err);
+    return tlTaskThrow(task, err);
 }
-tlHandle tlUndefinedErrorThrow(tlHandle msg) {
+tlHandle tlUndefinedErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, undefinedErrorClass);
     tlObjectToObject_(err);
-    return tlTaskThrow(err);
+    return tlTaskThrow(task, err);
 }
-tlHandle tlArgumentErrorThrow(tlHandle msg) {
+tlHandle tlArgumentErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, argumentErrorClass);
     tlObjectToObject_(err);
-    return tlTaskThrow(err);
+    return tlTaskThrow(task, err);
 }
-tlHandle tlDeadlockErrorThrow(tlArray* tasks) {
+tlHandle tlDeadlockErrorThrow(tlTask* task, tlArray* tasks) {
     tlList* stacks = tlListNew(tlArraySize(tasks));
     for (int i = 0; i < tlArraySize(tasks); i++) {
         tlListSet_(stacks, i, tlStackTraceNew(tlArrayGet(tasks, i), null, 0));
@@ -229,7 +224,7 @@ tlHandle tlDeadlockErrorThrow(tlArray* tasks) {
     tlObjectSet_(err, _s_msg, tlSTR("deadlock"));
     tlObjectSet_(err, _s_stacks, stacks);
     tlObjectSet_(err, s_class, deadlockErrorClass);
-    return tlTaskThrow(err);
+    return tlTaskThrow(task, err);
 }
 void tlErrorAttachStack(tlHandle _err, tlFrame* frame) {
     tlObject* err = tlObjectCast(_err);

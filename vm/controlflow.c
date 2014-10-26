@@ -13,11 +13,11 @@
 #include "trace-off.h"
 
 INTERNAL tlHandle _break(tlArgs* args) {
-    return tlTaskThrow(s_break);
+    return tlTaskThrow(tlTaskCurrent(), s_break);
 }
 
 INTERNAL tlHandle _continue(tlArgs* args) {
-    return tlTaskThrow(s_continue);
+    return tlTaskThrow(tlTaskCurrent(), s_continue);
 }
 
 // loop
@@ -25,18 +25,6 @@ typedef struct LoopFrame {
     tlFrame frame;
     tlHandle block;
 } LoopFrame;
-
-INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw);
-INTERNAL tlHandle resumeYieldLoopQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    assert(tlNullIs(res));
-    tlTask* task = tlTaskCurrent();
-    tlTaskWaitFor(null);
-    frame->resumecb = null;
-    task->runquota = 1234;
-    tlTaskReady(task);
-    return tlTaskNotRunning;
-}
 
 INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (throw && throw == s_break) return tlNull;
@@ -48,9 +36,10 @@ INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
 again:;
     // loop bodies can be without invokes, so make loop also accounts quota
     if (task->runquota <= 0) {
-        tlHandle ret = tlTaskPauseResuming(resumeYieldLoopQuota, tlNull);
-        tlTaskPauseAttach(frame);
-        return ret;
+        tlTaskWaitFor(null);
+        // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
+        tlTaskReady(task);
+        return null;
     }
     task->runquota -= 1;
     if (task->limit) {
@@ -59,7 +48,7 @@ again:;
     }
 
     res = tlEval(tlBCallFrom(frame->block, null));
-    if (!res) return tlTaskPauseAttach(frame);
+    if (!res) return null;
     goto again;
     fatal("not reached");
     return tlNull;
@@ -71,7 +60,7 @@ INTERNAL tlHandle _loop(tlArgs* args) {
 
     LoopFrame* frame = tlFrameAlloc(resumeLoop, sizeof(LoopFrame));
     frame->block = block;
-    return tlTaskPause(frame);
+    return resumeLoop((tlFrame*)frame, tlNull, null);
 }
 
 // temporary? solution to "x, y = y, x" -> "x, y = multi(y, x)"

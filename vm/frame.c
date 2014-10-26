@@ -18,8 +18,5 @@ tlFrame* tlFrameSetResume(tlFrame* frame, tlResumeCb cb) {
     return frame;
 }
 
-tlHandle tlTaskPauseAttach(void* frame);
-tlHandle tlTaskPauseResuming(tlResumeCb cb, tlHandle res);
-INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle throw);
 INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
 

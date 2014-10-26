@@ -1333,16 +1333,12 @@ again:;
                 arg = 0;
             }
             trace("invoke: %s %s", tl_str(invoke), tl_str(invoke->fn));
-            frame->pc = pc;
+            frame->pc = lazypc? -pc : pc;
+            if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
             v = tlInvoke(task, invoke);
-            if (!v) { // task paused instead of actually doing work, suspend and return
-                if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
-                if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
-                trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
-                return null;
-            }
+            if (!v) return null;
             assert(tlFrameCurrent(task) == (tlFrame*)frame);
-            pc = frame->pc;
+            pc = lazypc? -frame->pc : frame->pc;
             break;
         }
         case OP_CERR: {
@@ -1643,8 +1639,6 @@ INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
 }
 
 INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
-    tlFramePop(tlTaskCurrent(), (tlFrame*)frame);
-
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
         trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
@@ -1666,9 +1660,10 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
 }
 
 INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    trace("running resuming from a frame: %s %s", tl_str(_frame), tl_str(res));
+    trace("running resuming from a frame: %s res=%s, throw=%s", tl_str(_frame), tl_str(res), tl_str(throw));
     tlBFrame* frame = tlBFrameAs(_frame);
     if (throw) {
+        tlFramePop(tlTaskCurrent(), (tlFrame*)frame);
         if (frame->handler) return handleBFrameThrow(frame, throw);
         return null;
     }
@@ -1852,19 +1847,17 @@ INTERNAL tlHandle __return(tlArgs* args) {
     return tlFrameSet(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
 }
 
-INTERNAL tlHandle resume_bgoto(tlFrame* _frame, tlHandle _res, tlHandle throw) {
-    if (throw || !_res) return null;
-    tlArgs* args = tlArgsAs(_res);
-
+// TODO this is fake, same as return, but instead we need unevaluated args, remove our frame, then eval args
+INTERNAL tlHandle __goto(tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
-    trace("RETURN SCOPES: %d", deep);
+    trace("GOTO SCOPES: %d", deep);
 
     // TODO we should return our scoped function, not the first frame ...
     tlHandle res = tlNull;
     if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
+    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(tlTaskCurrent()));
     assert(scopeframe->locals);
     tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
@@ -1888,10 +1881,7 @@ INTERNAL tlHandle resume_bgoto(tlFrame* _frame, tlHandle _res, tlHandle throw) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlTaskStackUnwind(((tlFrame*)scopeframe)->caller, res);
-}
-INTERNAL tlHandle __goto(tlArgs* args) {
-    return tlTaskPauseResuming(resume_bgoto, args);
+    return tlFrameSet(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
 }
 
 INTERNAL tlHandle _identity(tlArgs* args) {

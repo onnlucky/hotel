@@ -74,19 +74,9 @@ tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
 
 bool tlBFrameIs(tlHandle);
 tlObject* tlBEnvLocalObject(tlFrame*);
-static tlHandle resumeEnvLocalObject(tlFrame* frame, tlHandle res, tlHandle throw) {
-    trace("");
-    while (frame) {
-        if (tlBFrameIs(frame)) {
-            return tlBEnvLocalObject(frame);
-        }
-        frame = frame->caller;
-    }
-    return tlNull;
-}
 static tlHandle _Env_localObject(tlArgs* args) {
     trace("");
-    return tlTaskPauseResuming(resumeEnvLocalObject, tlNull);
+    return tlBEnvLocalObject(tlFrameCurrent(tlTaskCurrent()));
 }
 
 INTERNAL tlHandle _env_current(tlArgs* args);

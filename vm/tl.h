@@ -335,7 +335,7 @@ void tlVmDecExternal(tlVm* vm);
 // ** running code **
 
 // get the current task
-//tlTask* tlTaskCurrent();
+tlTask* tlTaskCurrent();
 
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlHandle v);
@@ -393,16 +393,11 @@ lqentry* tlTaskGetEntry(tlTask* task);
 // if both are null, we are "unwinding" the stack for a jump (return/continuation ...)
 typedef tlHandle(*tlResumeCb)(tlFrame* frame, tlHandle res, tlHandle throw);
 
-// pause task to reify stack
-tlHandle tlTaskPause(void* frame);
-tlHandle tlTaskPauseAttach(void* frame);
-tlHandle tlTaskPauseResuming(tlResumeCb resume, tlHandle res);
-
 // mark task as waiting; returns an array of tasks incase of deadlock
 tlArray* tlTaskWaitFor(tlHandle on);
 
 // mark task as ready, will add to run queue, might be picked up immediately
-void tlTaskReady();
+void tlTaskReady(tlTask* task);
 
 // mark the current task as waiting for external event
 tlTask* tlTaskWaitExternal();
@@ -410,25 +405,25 @@ void tlTaskReadyExternal(tlTask* task);
 void tlTaskSetValue(tlTask* task, tlHandle h);
 
 // throws value, if it is a o with a stack, it will be filled in witha stacktrace
-tlHandle tlTaskThrow(tlHandle err);
+tlHandle tlTaskThrow(tlTask* task, tlHandle err);
 
 // throw errors
-tlHandle tlErrorThrow(tlHandle msg);
-tlHandle tlArgumentErrorThrow(tlHandle msg);
+tlHandle tlErrorThrow(tlTask* task, tlHandle msg);
+tlHandle tlArgumentErrorThrow(tlTask* task, tlHandle msg);
 tlHandle tlUndefMsg(tlString* msg);
 
 #define TL_THROW(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    return tlErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
+    return tlErrorThrow(tlTaskCurrent(), tlStringFromCopy(_s, 0)); } while (0)
 #define TL_THROW_NORETURN(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    tlErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
+    tlErrorThrow(tlTaskCurrent(), tlStringFromCopy(_s, 0)); } while (0)
 #define TL_ILLARG(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    return tlArgumentErrorThrow(tlStringFromCopy(_s, 0)); } while (0)
+    return tlArgumentErrorThrow(tlTaskCurrent(), tlStringFromCopy(_s, 0)); } while (0)
 #define TL_THROW_SET(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    tlTaskThrowTake(strdup(_s)); } while (0)
+    tlTaskThrowTake(tlTaskCurrent(), strdup(_s)); } while (0)
 #define TL_UNDEF(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)

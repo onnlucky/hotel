@@ -1,7 +1,7 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // a native and language level message queue
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 TL_REF_TYPE(tlQueue);
 static tlKind _tlQueueKind = { .name = "Queue" };
@@ -59,17 +59,16 @@ tlHandle _Queue_new(tlArgs* args) {
     return tlQueueNew(size);
 }
 
-INTERNAL tlHandle _queue_add_resume(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (throw) return null;
-    tlQueue* queue = tlQueueAs(tlArgsTarget(tlArgsAs(res)));
+tlHandle _queue_add(tlArgs* args) {
+    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
 
     pthread_mutex_lock(&queue->lock);
     if (!queue->add_q.head) {
         // we are first
         tlTask* getter = tlTaskFromEntry(lqueue_get(&queue->get_q));
         if (getter) {
-            trace("found an getter ... giving it values: %s", tl_str(res));
-            getter->value = tlResultFromArgs(tlArgsAs(res));
+            getter->value = tlResultFromArgs(args);
+            trace("found an getter ... giving it values: %s", tl_str(getter->value));
             tlTaskReady(getter);
             pthread_mutex_unlock(&queue->lock);
             return tlNull;
@@ -78,21 +77,16 @@ INTERNAL tlHandle _queue_add_resume(tlFrame* frame, tlHandle res, tlHandle throw
 
     // enqueue as we are not first, or there is no getter
     trace("waiting for getter");
-    frame->resumecb = null; // don't restart this function
-    tlTaskWaitFor(null);
     tlTask* task = tlTaskCurrent();
-    task->value = res;
+    task->value = args;
+    tlTaskWaitFor(null);
     lqueue_put(&queue->add_q, &task->entry);
     pthread_mutex_unlock(&queue->lock);
-    return tlTaskNotRunning;
-}
-tlHandle _queue_add(tlArgs* args) {
-    return tlTaskPauseResuming(_queue_add_resume, args);
+    return null;
 }
 
-INTERNAL tlHandle _queue_get_resume(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (throw) return null;
-    tlQueue* queue = tlQueueAs(tlArgsTarget(tlArgsAs(res)));
+tlHandle _queue_get(tlArgs* args) {
+    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
 
     pthread_mutex_lock(&queue->lock);
     if (!queue->get_q.head) {
@@ -110,17 +104,13 @@ INTERNAL tlHandle _queue_get_resume(tlFrame* frame, tlHandle res, tlHandle throw
 
     // enqueue as we are not first, or there is no adder
     trace("waiting for adder");
-    frame->resumecb = null; // don't restart this function
     tlTaskWaitFor(null);
     tlTask* task = tlTaskCurrent();
     lqueue_put(&queue->get_q, &task->entry);
     pthread_mutex_unlock(&queue->lock);
-    return tlTaskNotRunning;
+    return null;
 }
 
-tlHandle _queue_get(tlArgs* args) {
-        return tlTaskPauseResuming(_queue_get_resume, args);
-}
 
 // Message Queue
 
@@ -143,7 +133,13 @@ bool tlMsgQueueIsEmpty(tlMsgQueue* queue) {
 INTERNAL void queueSignal(tlMsgQueue* queue) {
     if (queue->signalcb) queue->signalcb();
     tlTask* task = tlTaskFromEntry(lqueue_get(&queue->wait_q));
-    if (task) tlTaskReady(task);
+    if (!task) return;
+
+    tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
+    trace("SENDER: %s", tl_str(sender));
+    if (!sender) return;
+    task->value = sender->value;
+    tlTaskReady(task);
 }
 
 tlHandle tlMessageReply(tlMessage* msg, tlHandle res) {
@@ -165,33 +161,23 @@ tlTask* tlMessageGetSender(tlMessage* msg) {
     return msg->sender;
 }
 
-INTERNAL tlHandle resumeReply(tlFrame* frame, tlHandle res, tlHandle throw) {
-    trace("");
-    return tlTaskCurrent()->value;
-}
-INTERNAL tlHandle resumeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle queueInputReceive(tlArgs* args) {
     tlTask* task = tlTaskCurrent();
-    tlArgs* args = tlArgsAs(res);
     tlMsgQueue* queue = tlMsgQueueInputAs(tlArgsTarget(args))->queue;
     tlMessage* msg = tlMessageNew(args);
     trace("queue.send: %s %s", tl_str(queue), tl_str(msg));
     task->value = msg;
-    task->stack = tlFrameSetResume(frame, resumeReply);
 
     tlTaskWaitNothing1(task);
     lqueue_put(&queue->msg_q, &task->entry);
     queueSignal(queue);
     tlTaskWaitNothing2(task);
-    return tlTaskNotRunning;
-}
-INTERNAL tlHandle queueInputReceive(tlArgs* args) {
-    return tlTaskPauseResuming(resumeEnqueue, args);
+    return null;
 }
 
-INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
-    tlArgs* args = tlArgsAs(res);
+INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
-    trace("queue.get 2: %s", tl_str(queue));
+    trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
     tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
     trace("SENDER: %s", tl_str(sender));
@@ -201,17 +187,9 @@ INTERNAL tlHandle resumeGet(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlTaskWaitNothing1(task);
     lqueue_put(&queue->wait_q, &task->entry);
     tlTaskWaitNothing2(task);
-    return tlTaskNotRunning;
+    return null;
 }
-INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
-    tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
-    trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
-    tlTask* sender = tlTaskFromEntry(lqueue_get(&queue->msg_q));
-    trace("SENDER: %s", tl_str(sender));
-    if (sender) return sender->value;
-    return tlTaskPauseResuming(resumeGet, args);
-}
 INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(tlTaskCurrent()));
@@ -221,6 +199,7 @@ INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
     if (sender) return sender->value;
     return tlNull;
 }
+
 INTERNAL tlHandle _msg_queue_input(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     return queue->input;

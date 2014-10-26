@@ -10,7 +10,7 @@ static tlSym s__methods;
 static unsigned int murmurhash2a(const void * key, int len);
 
 static tlTask* tl_task_current;
-static inline tlTask* tlTaskCurrent() {
+tlTask* tlTaskCurrent() {
     assert(tl_task_current);
     assert(tlTaskIs(tl_task_current));
    // assert(tl_task_current->worker);
@@ -78,7 +78,7 @@ tlHandle tlClone(tlHandle v) {
 
 // primitive toString
 #define _BUF_COUNT 8
-#define _BUF_SIZE 128
+#define _BUF_SIZE 1024
 static char** _str_bufs;
 static char* _str_buf;
 static int _str_buf_at = -1;
