@@ -142,24 +142,12 @@ INTERNAL tlHandle _bcatch(tlArgs* args);
 INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
 bool tlBFrameIs(tlHandle);
 
-// install a catch handler (bit primitive like this)
-INTERNAL tlHandle resumeCatch(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    tlArgs* args = tlArgsAs(res);
-    tlHandle handler = tlArgsBlock(args);
-    //assert(handler);
-    trace("%p.handler = %s", _frame->caller, tl_str(handler));
-    if (tlBFrameIs(_frame->caller)) {
-        install_bcatch(_frame->caller, handler);
-        return tlNull;
-    }
-    fatal("no longer in use");
-    return tlNull;
-}
-
 INTERNAL tlHandle _catch(tlArgs* args) {
-    //if (tlBFrameIs(tlTaskCurrentFrame(tlTaskCurrent()))) return _bcatch(args);
-    return tlTaskPauseResuming(resumeCatch, args);
+    tlFrame* frame = tlFrameCurrent(tlTaskCurrent());
+    tlHandle handler = tlArgsBlock(args);
+    trace("%p.handler = %s", frame, tl_str(handler));
+    install_bcatch(frame, handler);
+    return tlNull;
 }
 
 // TODO not so sure about this, user objects which return something on .call are also callable ...

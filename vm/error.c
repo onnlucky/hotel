@@ -99,17 +99,11 @@ INTERNAL tlHandle _stackTrace_task(tlArgs* args) {
     return trace->task;
 }
 
-INTERNAL tlHandle resumeThrow(tlFrame* frame, tlHandle res, tlHandle throw) {
-    trace("");
-    if (!res) return null;
-    res = tlArgsGet(res, 0);
+INTERNAL tlHandle _throw(tlArgs* args) {
+    tlHandle res = tlArgsGet(args, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
     return tlTaskRunThrow(tlTaskCurrent(), res);
-}
-INTERNAL tlHandle _throw(tlArgs* args) {
-    trace("");
-    return tlTaskPauseResuming(resumeThrow, args);
 }
 
 tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {

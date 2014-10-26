@@ -1,5 +1,5 @@
 #include "bcode.h"
-#define HAVE_DEBUG 1
+//#define HAVE_DEBUG 1
 #include "trace-off.h"
 
 static tlNative* g_goto_native;
@@ -1010,23 +1010,17 @@ tlArgs* bcallFromArgs(tlArgs* args) {
 
 INTERNAL tlHandle afterYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
+    tlFramePop(tlTaskCurrent(), frame);
     return tlInvoke(tlTaskCurrent(), tlArgsAs(res));
-}
-
-INTERNAL tlHandle resumeYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    assert(tlArgsIs(res));
-    tlTask* task = tlTaskCurrent();
-    tlTaskWaitFor(null);
-    frame->resumecb = afterYieldQuota;
-    task->runquota = 1234;
-    tlTaskReady(task);
-    return tlTaskNotRunning;
 }
 
 tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     if (task->runquota <= 0) {
-        return tlTaskPauseResuming(resumeYieldQuota, call);
+        task->runquota = 1234;
+        tlFramePushResume(task, afterYieldQuota, call);
+        tlTaskWaitFor(null);
+        tlTaskReady(task);
+        return null;
     }
 
     task->runquota -= 1;
@@ -1238,8 +1232,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
             frame->locals->args = args;
         }
     }
-    frame->frame.caller = tlTaskCurrentFrame(task);
-    tlTaskSetCurrentFrame(task, (tlFrame*)frame);
+    tlFramePush(task, (tlFrame*)frame);
 
 again:;
     if (debugger && frame->pc != pc) {
@@ -1247,14 +1240,14 @@ again:;
         frame->pc = pc;
         if (calltop >= 0) frame->calls[calltop].at = arg;
         if (!tlDebuggerStep(debugger, task, frame)) {
-            //task->stack = (tlFrame*)frame;
             trace("pausing for debugger");
-            return tlTaskPause((tlFrame*)frame);
+            return null;
         }
     }
     op = ops[pc++];
     if (!op) {
         assert(v);
+        tlFramePop(task, (tlFrame*)frame);
         return v; // OP_END
     }
     assert(op & 0xC0);
@@ -1345,9 +1338,9 @@ again:;
                 if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
                 if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
                 trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
-                return tlTaskPauseAttach(frame);
+                return null;
             }
-            tlTaskSetCurrentFrame(task, (tlFrame*)frame);
+            assert(tlFrameCurrent(task) == (tlFrame*)frame);
             pc = frame->pc;
             break;
         }
@@ -1357,7 +1350,7 @@ again:;
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
             if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
             trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
-            return tlTaskPauseAttach(frame);
+            return null;
         }
         case OP_SYSTEM: {
             at = pcreadsize(ops, &pc);
@@ -1383,7 +1376,7 @@ again:;
                 if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
                 if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
                 trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
-                return tlTaskPauseAttach(frame);
+                return null;
             }
             break;
         case OP_ENVARG: {
@@ -1514,7 +1507,7 @@ resume:;
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
             if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
             trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
-            return tlTaskPauseAttach(frame);
+            return null;
         }
         if (!method) {
             assert(safe); // object?method but method does not exist
@@ -1643,11 +1636,14 @@ INTERNAL tlHandle _env_current(tlArgs* args) {
 INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resume a call");
     if (throw) return null;
+    tlTaskSetCurrentFrame(tlTaskCurrent(), _frame->caller);
     tlArgs* call = tlArgsAs(res);
     return beval(tlTaskCurrent(), null, call, 0, null);
 }
 
 INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
+    tlFramePop(tlTaskCurrent(), (tlFrame*)frame);
+
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
         trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
