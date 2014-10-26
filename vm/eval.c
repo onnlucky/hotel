@@ -1,6 +1,6 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 // var.c
 tlHandle tlVarSet(tlVar*, tlHandle);

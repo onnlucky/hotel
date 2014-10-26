@@ -9,7 +9,7 @@
 //
 // If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
-#include "trace-on.h"
+#include "trace-off.h"
 
 INTERNAL tlHandle tlresult_get(tlHandle v, int at);
 INTERNAL void print_backtrace(tlFrame*);
@@ -227,7 +227,10 @@ INTERNAL void tlTaskRun(tlTask* task) {
             value = task->stack->resumecb(task->stack, value, null);
         }
         if (!value) {
-            if (task->state != TL_STATE_RUN) return;
+            if (task->state != TL_STATE_RUN) {
+                assert(task->value || task->throw);
+                return;
+            }
             value = task->value;
         }
     }
@@ -349,6 +352,7 @@ tlArray* tlTaskWaitFor(tlHandle on) {
     tlTask* task = tlTaskCurrent();
     assert(tlTaskIs(task));
     assert(task->state == TL_STATE_RUN);
+    assert(task->value || task->throw);
     trace("%s.value: %s", tl_str(task), tl_str(task->value));
     tlVm* vm = tlTaskGetVm(task);
     task->state = TL_STATE_WAIT;

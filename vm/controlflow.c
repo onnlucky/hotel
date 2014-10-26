@@ -27,15 +27,20 @@ typedef struct LoopFrame {
 } LoopFrame;
 
 INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (throw && throw == s_break) return tlNull;
-    if (throw && throw != s_continue) return null;
-    if (!throw && !res) return null;
+    if (throw && throw != s_continue) {
+        tlFramePop(tlTaskCurrent(), _frame);
+        if (throw == s_break) return tlNull;
+        return null;
+    }
 
     tlTask* task = tlTaskCurrent();
     LoopFrame* frame = (LoopFrame*)_frame;
 again:;
     // loop bodies can be without invokes, so make loop also accounts quota
     if (task->runquota <= 0) {
+        task->runquota = 1234;
+        task->value = tlNull;
+        task->throw = null;
         tlTaskWaitFor(null);
         // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
@@ -60,6 +65,7 @@ INTERNAL tlHandle _loop(tlArgs* args) {
 
     LoopFrame* frame = tlFrameAlloc(resumeLoop, sizeof(LoopFrame));
     frame->block = block;
+    tlFramePush(tlTaskCurrent(), (tlFrame*)frame);
     return resumeLoop((tlFrame*)frame, tlNull, null);
 }
 

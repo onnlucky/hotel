@@ -1312,6 +1312,7 @@ again:;
 
     switch (op) {
         case OP_INVOKE: {
+            assert(tlFrameCurrent(task) == (tlFrame*)frame);
             assert(call);
             assert(!lazy);
             assert(arg - 2 == call->size); // must be done with args here
@@ -1332,13 +1333,14 @@ again:;
                 call = null;
                 arg = 0;
             }
-            trace("invoke: %s %s", tl_str(invoke), tl_str(invoke->fn));
+            trace("%p invoke: %s %s", frame, tl_str(invoke), tl_str(invoke->fn));
             frame->pc = lazypc? -pc : pc;
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
             v = tlInvoke(task, invoke);
             if (!v) return null;
             assert(tlFrameCurrent(task) == (tlFrame*)frame);
             pc = lazypc? -frame->pc : frame->pc;
+            trace("%p after: %d", frame, pc);
             break;
         }
         case OP_CERR: {
@@ -1476,7 +1478,10 @@ again:;
 resume:;
     assert(v);
     if (!call) {
-        if (lazypc) return v; // if we were evaulating a lazy call, and we are back at "top"
+        if (lazypc) {
+            tlFramePop(task, (tlFrame*)frame);
+            return v; // if we were evaulating a lazy call, and we are back at "top", OP_END
+        }
         goto again;
     }
 
