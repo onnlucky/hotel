@@ -173,8 +173,11 @@ typedef struct tlHashMapEachFrame {
 } tlHashMapEachFrame;
 
 static tlHandle resumeHashMapEach(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (throw && throw == s_break) return tlNull;
-    if (throw && throw != s_continue) return null;
+    if (throw && throw != s_continue) {
+        tlFramePop(tlTaskCurrent(), _frame);
+        if (throw == s_break) return tlNull;
+        return null;
+    }
     if (!throw && !res) return null;
 
     tlHashMapEachFrame* frame = (tlHashMapEachFrame*)_frame;
@@ -186,10 +189,15 @@ again:;
     lhashmapiter_next(frame->iter);
     frame->at += 1;
     trace("hashmap each: %s %s", tl_str(key), tl_str(val));
-    if (!key) return tlNull;
+    if (!key) {
+        tlFramePop(tlTaskCurrent(), _frame);
+        return tlNull;
+    }
     res = tlEval(tlBCallFrom(frame->block, key, val, tlINT(frame->at), null));
-    if (!res) return tlTaskPauseAttach(frame);
+    if (!res) return null;
     goto again;
+
+    fatal("not reached");
     return tlNull;
 }
 
@@ -202,6 +210,7 @@ INTERNAL tlHandle _hashmap_each(tlArgs* args) {
     tlHashMapEachFrame* frame = tlFrameAlloc(resumeHashMapEach, sizeof(tlHashMapEachFrame));
     frame->block = block;
     frame->iter = lhashmapiter_new(map->map);
+    tlFramePush(tlTaskCurrent(), (tlFrame*)frame);
     return resumeHashMapEach((tlHandle)frame, tlNull, null);
 }
 

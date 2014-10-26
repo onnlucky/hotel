@@ -32,6 +32,7 @@ INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
         if (throw == s_break) return tlNull;
         return null;
     }
+    if (!throw && !res) return null;
 
     tlTask* task = tlTaskCurrent();
     LoopFrame* frame = (LoopFrame*)_frame;

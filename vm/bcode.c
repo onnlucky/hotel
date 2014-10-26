@@ -1849,7 +1849,7 @@ INTERNAL tlHandle __return(tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlFrameSet(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
+    return tlFrameUnwind(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
 }
 
 // TODO this is fake, same as return, but instead we need unevaluated args, remove our frame, then eval args
@@ -1886,7 +1886,7 @@ INTERNAL tlHandle __goto(tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlFrameSet(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
+    return tlFrameUnwind(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
 }
 
 INTERNAL tlHandle _identity(tlArgs* args) {

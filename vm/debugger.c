@@ -89,21 +89,15 @@ INTERNAL tlHandle returnStep(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlNull;
 }
 
-INTERNAL tlHandle resumeStep(tlFrame* frame, tlHandle res, tlHandle throw) {
-    tlTaskWaitExternal();
-    frame->resumecb = returnStep;
-    return tlTaskNotRunning;
-}
-
 INTERNAL tlHandle _debugger_step(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (debugger->subject) {
         tlTaskReadyExternal(debugger->subject);
         debugger->subject = null;
     }
-
-    debugger->waiter = tlTaskCurrent();
-    return tlTaskPauseResuming(resumeStep, debugger);
+    tlTaskWaitExternal();
+    tlFramePushResume(tlTaskCurrent(), returnStep, debugger);
+    return null;
 }
 
 INTERNAL tlHandle _debugger_continue(tlArgs* args) {

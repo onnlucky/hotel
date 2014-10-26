@@ -74,8 +74,8 @@ INTERNAL tlHandle resumeLockEnqueue(tlFrame* frame, tlHandle res, tlHandle throw
     return lockEnqueue(tlLockAs(tlArgsAs(res)->target), frame);
 }
 
-static tlHandle tlTaskPauseResuming(tlResumeCb resume, tlHandle res) { return null; }
-static tlHandle tlTaskPauseAttach(void* frame) { return null; }
+static tlHandle XtlTaskPauseResuming(tlResumeCb resume, tlHandle res) { return null; }
+static tlHandle XtlTaskPauseAttach(void* frame) { return null; }
 INTERNAL tlHandle tlLockTake(tlTask* task, tlLock* lock, tlResumeCb resume, tlHandle res) {
     // if we are the owner of a light weight lock, no action is required
     if (lock->owner == task) return res;
@@ -115,7 +115,7 @@ heavy:;
     if (a_swap_if(A_VAR(hlock->owner), A_VAL_NB(task), 0) == 0) return res;
 
     // failed to own lock; pause current task, and enqueue it
-    return tlTaskPauseResuming(resume, res);
+    return XtlTaskPauseResuming(resume, res);
 }
 
 typedef struct ReleaseFrame {
@@ -156,7 +156,7 @@ tlHandle tlLockAndInvoke(tlArgs* call) {
     // if the lock is taken and there are tasks in the queue, there is never a point that owner == null
     if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
         // failed to own lock; pause current task, and enqueue it
-        return tlTaskPauseResuming(resumeInvokeEnqueue, call);
+        return XtlTaskPauseResuming(resumeInvokeEnqueue, call);
     }
     return lockedInvoke(lock, call);
 }
@@ -169,7 +169,7 @@ INTERNAL tlHandle lockedInvoke(tlLock* lock, tlArgs* call) {
     if (!res) {
         ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
         frame->lock = lock;
-        return tlTaskPauseAttach(frame);
+        return XtlTaskPauseAttach(frame);
     }
     lockScheduleNext(lock);
     return res;

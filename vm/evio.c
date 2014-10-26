@@ -717,8 +717,11 @@ typedef struct tlDirEachFrame {
 } tlDirEachFrame;
 
 static tlHandle resumeDirEach(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (throw && throw == s_break) return tlNull;
-    if (throw && throw != s_continue) return null;
+    if (throw && throw != s_continue) {
+        tlFramePop(tlTaskCurrent(), _frame);
+        if (throw == s_break) return tlNull;
+        return null;
+    }
     if (!throw && !res) return null;
 
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
@@ -727,10 +730,15 @@ again:;
     struct dirent *dpp;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
-    if (!dpp) return tlNull;
+    if (!dpp) {
+        tlFramePop(tlTaskCurrent(), _frame);
+        return tlNull;
+    }
     res = tlEval(tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
-    if (!res) return tlTaskPauseAttach(frame);
+    if (!res) return null;
     goto again;
+
+    fatal("not reached");
     return tlNull;
 }
 
@@ -742,6 +750,7 @@ static tlHandle _dir_each(tlArgs* args) {
     tlDirEachFrame* frame = tlFrameAlloc(resumeDirEach, sizeof(tlDirEachFrame));
     frame->dir = dir;
     frame->block = block;
+    tlFramePush(tlTaskCurrent(), (tlFrame*)frame);
     return resumeDirEach((tlHandle)frame, tlNull, null);
 }
 
@@ -846,9 +855,11 @@ static tlChild* tlChildNew(pid_t pid, int in, int out, int err) {
     return child;
 }
 
-static tlHandle resumeChildWait(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    tlChild* child = tlChildAs(res);
+static tlHandle _child_wait(tlArgs* args) {
+    tlChild* child = tlChildAs(tlArgsTarget(args));
+    trace("child_wait: %d", child->ev.pid);
+
+    // TODO use a_var and this will be thread safe ... (child_cb)
     if (child->res) return child->res;
 
     // TODO not thread save ... needs mutex ...
@@ -856,19 +867,11 @@ static tlHandle resumeChildWait(tlFrame* frame, tlHandle res, tlHandle throw) {
     tlVm* vm = tlTaskGetVm(task);
     vm->waitevent += 1;
 
-    frame->resumecb = null;
     tlTaskWaitFor(null);
     lqueue_put(&child->wait_q, &task->entry);
-    return tlTaskNotRunning;
+    return null;
 }
-static tlHandle _child_wait(tlArgs* args) {
-    tlChild* child = tlChildAs(tlArgsTarget(args));
-    trace("child_wait: %d", child->ev.pid);
 
-    // TODO use a_var and this will be thread safe ... (child_cb)
-    if (child->res) return child->res;
-    return tlTaskPauseResuming(resumeChildWait, child);
-}
 static tlHandle _child_running(tlArgs* args) {
     tlChild* child = tlChildAs(tlArgsTarget(args));
     return tlBOOL(child->res == 0);

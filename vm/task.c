@@ -501,10 +501,27 @@ void tlFramePop(tlTask* task, tlFrame* frame) {
     task->stack = frame->caller;
 }
 
-tlHandle tlFrameSet(tlTask* task, tlFrame* frame, tlHandle value) {
-    task->stack = frame;
+tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
+    assert(value);
+    assert(task->stack);
+
+    tlFrame* frame = task->stack;
+    task->stack = null; // to assert more down
+    while (frame != upto) {
+        assert(frame); // upto must be in our stack
+        trace("UNWINDING: %p.resumecb: %p", frame, frame->resumecb);
+        if (frame->resumecb) {
+            tlHandle res = frame->resumecb(frame, null, null);
+            assert(!res); // we don't want to see normal returns
+            assert(!task->stack); // we don't want to see a stack being created
+        }
+        frame = frame->caller;
+    }
+
+    task->stack = upto;
     task->value = value;
     task->throw = null;
+    trace("UNWINDING DONE");
     return null;
 }
 
