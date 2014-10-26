@@ -1019,6 +1019,7 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         task->runquota = 1234;
         tlFramePushResume(task, afterYieldQuota, call);
         tlTaskWaitFor(null);
+        // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
         return null;
     }
@@ -1815,10 +1816,7 @@ INTERNAL tlHandle __map(tlArgs* args) {
     return tlMapFromObject_(object);
 }
 
-INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw) {
-    if (throw || !_res) return null;
-    tlArgs* args = tlArgsAs(_res);
-
+INTERNAL tlHandle __return(tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
     trace("RETURN SCOPES: %d", deep);
 
@@ -1827,7 +1825,7 @@ INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw)
     if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlBFrame* scopeframe = tlBFrameAs(_frame->caller);
+    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(tlTaskCurrent()));
     assert(scopeframe->locals);
     tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
@@ -1851,10 +1849,7 @@ INTERNAL tlHandle resume_breturn(tlFrame* _frame, tlHandle _res, tlHandle throw)
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlTaskStackUnwind(((tlFrame*)scopeframe)->caller, res);
-}
-INTERNAL tlHandle __return(tlArgs* args) {
-    return tlTaskPauseResuming(resume_breturn, args);
+    return tlFrameSet(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
 }
 
 INTERNAL tlHandle resume_bgoto(tlFrame* _frame, tlHandle _res, tlHandle throw) {

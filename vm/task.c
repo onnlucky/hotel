@@ -9,7 +9,7 @@
 //
 // If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
-#include "trace-off.h"
+#include "trace-on.h"
 
 INTERNAL tlHandle tlresult_get(tlHandle v, int at);
 INTERNAL void print_backtrace(tlFrame*);
@@ -223,9 +223,13 @@ INTERNAL void tlTaskRun(tlTask* task) {
             if (value) task->throw = null;
         } else {
             value = task->stack->resumecb(task->stack, value, null);
-            if (!value && !task->throw) return; // pause for rescheduling, task->value is likely set due to side effect
+        }
+        if (!value) {
+            if (task->state != TL_STATE_RUN) return;
+            value = task->value;
         }
     }
+    assert(value);
     task->value = value;
     tlTaskDone(task);
 }
@@ -681,11 +685,19 @@ void tlFramePushResume(tlTask* task, tlResumeCb resume, tlHandle value) {
     frame->caller = task->stack;
     task->stack = frame;
     task->value = value;
+    task->throw = null;
 }
 
 void tlFramePop(tlTask* task, tlFrame* frame) {
     assert(task->stack == frame);
     task->stack = frame->caller;
+}
+
+tlHandle tlFrameSet(tlTask* task, tlFrame* frame, tlHandle value) {
+    task->stack = frame;
+    task->value = value;
+    task->throw = null;
+    return null;
 }
 
 INTERNAL const char* _TasktoString(tlHandle v, char* buf, int size) {
