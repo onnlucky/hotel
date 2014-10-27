@@ -426,17 +426,18 @@ tlObject* tlBEnvLocalObject(tlFrame* frame) {
 }
 
 tlHandle tlBEnvGet(tlBEnv* env, int at) {
-    assert(env);
+    assert(tlBEnvIs(env));
     assert(at >= 0 && at <= tlListSize(env->names));
     return env->data[at];
 }
 tlBEnv* tlBEnvGetParentAt(tlBEnv* env, int depth) {
+    assert(tlBEnvIs(env));
     if (depth == 0) return env;
     if (env == null) return null;
     return tlBEnvGetParentAt(env->parent, depth - 1);
 }
 tlHandle tlBEnvArgGet(tlBEnv* env, int at) {
-    assert(env);
+    assert(tlBEnvIs(env));
     assert(env->args);
     assert(at >= 0);
     return tlBCallGetExtra(env->args, at, tlBClosureAs(env->args->fn)->code);
@@ -1163,6 +1164,8 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     tlBModule* mod = bcode->mod;
     tlList* data = mod->data;
     const uint8_t* ops = bcode->code;
+
+    trace("%s env=%p closure=%p", tl_str(bcode->debuginfo->name), closure->env, closure);
 
     // program counter, saved and restored into frame
     int pc = 0;

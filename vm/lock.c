@@ -124,8 +124,10 @@ typedef struct ReleaseFrame {
 } ReleaseFrame;
 
 INTERNAL tlHandle resumeRelease(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    trace("");
     lockScheduleNext(tlLockAs(((ReleaseFrame*)_frame)->lock));
+    if (!res && !throw) return null;
+    tlFramePop(tlTaskCurrent(), _frame);
+    if (!res) return null;
     return res;
 }
 
@@ -137,13 +139,22 @@ INTERNAL tlHandle lockedInvoke(tlLock* lock, tlArgs* call);
 INTERNAL tlHandle resumeInvoke(tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("%s", tl_str(res));
     if (!res) return null;
+    tlFramePop(tlTaskCurrent(), _frame);
     return lockedInvoke(tlLockAs(tlBCallTarget(res)), res);
 }
-INTERNAL tlHandle resumeInvokeEnqueue(tlFrame* frame, tlHandle res, tlHandle throw) {
-    trace("%s", tl_str(res));
-    if (!res) return null;
-    frame->resumecb = resumeInvoke;
-    return lockEnqueue(tlLockAs(tlBCallTarget(res)), frame);
+INTERNAL tlHandle lockEnqueue2(tlTask* task, tlLock* lock, tlResumeCb resume, tlHandle res) {
+    tlArray* deadlock = tlTaskWaitFor(lock);
+    if (deadlock) return tlDeadlockErrorThrow(task, deadlock);
+
+    tlFramePushResume(task, resumeInvoke, res);
+    lqueue_put(&lock->wait_q, &task->entry);
+
+    // try to own the lock, incase another worker released it inbetween ...
+    // notice the task we put in is a place holder, and if we succeed, it might be any task
+    if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) == 0) {
+        lockScheduleNext(lock);
+    }
+    return null;
 }
 tlHandle tlLockAndInvoke(tlArgs* call) {
     tlTask* task = tlTaskCurrent();
@@ -156,7 +167,7 @@ tlHandle tlLockAndInvoke(tlArgs* call) {
     // if the lock is taken and there are tasks in the queue, there is never a point that owner == null
     if (a_swap_if(A_VAR(lock->owner), A_VAL_NB(task), 0) != 0) {
         // failed to own lock; pause current task, and enqueue it
-        return XtlTaskPauseResuming(resumeInvokeEnqueue, call);
+        return lockEnqueue2(task, lock, resumeInvoke, call);
     }
     return lockedInvoke(lock, call);
 }
@@ -165,13 +176,15 @@ INTERNAL tlHandle lockedInvoke(tlLock* lock, tlArgs* call) {
     trace("%s", tl_str(lock));
     assert(lock->owner == task);
 
+    ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
+    frame->lock = lock;
+    tlFramePush(task, (tlFrame*)frame);
+
     tlHandle res = tlInvoke(task, call);
-    if (!res) {
-        ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
-        frame->lock = lock;
-        return XtlTaskPauseAttach(frame);
-    }
+    if (!res) return null;
+
     lockScheduleNext(lock);
+    tlFramePop(task, (tlFrame*)frame);
     return res;
 }
 
