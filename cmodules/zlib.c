@@ -1,7 +1,7 @@
 #include <zlib.h>
 #include <tl.h>
 
-static tlHandle _deflate(tlArgs* args) {
+static tlHandle _deflate(tlTask* task, tlArgs* args) {
     tlBin* in = tlBinCast(tlArgsGet(args, 0));
     if (!in) TL_THROW("require input binary as arg[1]");
     int level = tl_int_or(tlArgsGet(args, 1), Z_DEFAULT_COMPRESSION);
@@ -32,7 +32,7 @@ static tlHandle _deflate(tlArgs* args) {
     return tlBinFromBufferTake(out);
 }
 
-static tlHandle _inflate(tlArgs* args) {
+static tlHandle _inflate(tlTask* task, tlArgs* args) {
     tlBin* in = tlBinCast(tlArgsGet(args, 0));
     if (!in) TL_THROW("require input binary as arg[1]");
     bool gzip = tl_bool(tlArgsGet(args, 1));

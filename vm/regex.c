@@ -30,7 +30,7 @@ static void free_regex(void* _regex, void* data) {
 /// call(pattern): create a regex using #pattern
 /// > Regex("[^ ]+")
 // TODO expose flags
-static tlHandle _Regex_new(tlArgs* args) {
+static tlHandle _Regex_new(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("require a pattern");
     int flags = tl_int_or(tlArgsGet(args, 1), 0);
@@ -52,7 +52,7 @@ static tlHandle _Regex_new(tlArgs* args) {
 /// > s, e = Regex("[^ ]+").find("test more")
 /// > assert s == 1 and e == 4
 // TODO expose flags
-static tlHandle _regex_find(tlArgs* args) {
+static tlHandle _regex_find(tlTask* task, tlArgs* args) {
     tlRegex* regex = tlRegexAs(tlArgsTarget(args));
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("require a String");
@@ -74,7 +74,7 @@ static tlHandle _regex_find(tlArgs* args) {
 /// match(string): match a regex against an input returns a #Match object or null if not a match
 /// > Regex("[^ ]+").match("test more").main == "test"
 // TODO expose flags
-static tlHandle _regex_match(tlArgs* args) {
+static tlHandle _regex_match(tlTask* task, tlArgs* args) {
     tlRegex* regex = tlRegexAs(tlArgsTarget(args));
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("require a String");
@@ -109,13 +109,13 @@ static tlHandle _regex_match(tlArgs* args) {
 /// object Match: a #Regex result
 
 /// main: the main result of the match, the part of the input string that actually matched the #Regex
-static tlHandle _match_main(tlArgs* args) {
+static tlHandle _match_main(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     return tlStringFromCopy(tlStringData(match->string) + match->groups[0].rm_so, match->groups[0].rm_eo - match->groups[0].rm_so);
 }
 
 /// size: the amount of regex subexpressions matched
-static tlHandle _match_size(tlArgs* args) {
+static tlHandle _match_size(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     return tlINT(match->size);
 }
@@ -124,7 +124,7 @@ static tlHandle _match_size(tlArgs* args) {
 /// > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
 /// > m[1] == "2014-01-01"
 /// > m[2] == "hello world"
-static tlHandle _match_get(tlArgs* args) {
+static tlHandle _match_get(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), match->size);
     if (at < 0) return tlUndef();
@@ -136,7 +136,7 @@ static tlHandle _match_get(tlArgs* args) {
 /// > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
 /// > b, e = m.group(1)
 /// > assert b == 2 and e == 11
-static tlHandle _match_group(tlArgs* args) {
+static tlHandle _match_group(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), match->size);
     if (at < 0) return tlUndef();
@@ -144,7 +144,7 @@ static tlHandle _match_group(tlArgs* args) {
     return tlResultFrom(tlINT(match->groups[at].rm_so + 1), tlINT(match->groups[at].rm_eo), null);
 }
 
-static tlHandle _isRegex(tlArgs* args) { return tlBOOL(tlRegexIs(tlArgsGet(args, 0))); }
+static tlHandle _isRegex(tlTask* task, tlArgs* args) { return tlBOOL(tlRegexIs(tlArgsGet(args, 0))); }
 
 void regex_init_vm(tlVm* vm) {
     if (!_tlRegexKind.klass) {

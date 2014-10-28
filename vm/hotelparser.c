@@ -6044,7 +6044,7 @@ static State r_items(Parser* _p, int _start) { // and
 }
 
 #ifndef NO_VALUE
-static tlHandle _parser_parse(tlArgs* args) {
+static tlHandle _parser_parse(tlTask* task, tlArgs* args) {
     tlString* code = tlStringCast(tlArgsGet(args, 0));
     if (!code) TL_THROW("expected a String");
     Parser* p = parser_new(tlStringData(code), tlStringSize(code));

@@ -114,7 +114,7 @@ int tlSetAdd_(tlSet* set, tlHandle key) {
     return at;
 }
 
-INTERNAL tlHandle _Set_from(tlArgs* args) {
+INTERNAL tlHandle _Set_from(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
     tlSet* set = tlSetNew(size);
     for (int i = 0; i < size; i++) {
@@ -123,28 +123,28 @@ INTERNAL tlHandle _Set_from(tlArgs* args) {
     return set;
 }
 
-static tlHandle _set_has(tlArgs* args) {
+static tlHandle _set_has(tlTask* task, tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     int at = tlSetIndexof(set, tlArgsGet(args, 0));
     if (at < 0) return tlFalse;
     return tlTrue;
 }
 
-static tlHandle _set_get(tlArgs* args) {
+static tlHandle _set_get(tlTask* task, tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlSetSize(set));
     if (at < 0) return tlNull;
     return tlMAYBE(tlSetGet(set, at));
 }
 
-static tlHandle _set_find(tlArgs* args) {
+static tlHandle _set_find(tlTask* task, tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     int at = tlSetIndexof(set, tlArgsGet(args, 0));
     if (at < 0) return tlNull;
     return tlINT(at + 1);
 }
 
-static tlHandle _set_slice(tlArgs* args) {
+static tlHandle _set_slice(tlTask* task, tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     int first = tl_int_or(tlArgsGet(args, 0), 1);
     int last = tl_int_or(tlArgsGet(args, 1), -1);
@@ -161,12 +161,12 @@ static tlHandle _set_slice(tlArgs* args) {
     return nset;
 }
 
-static tlHandle _set_size(tlArgs* args) {
+static tlHandle _set_size(tlTask* task, tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     return tlINT(tlSetSize(set));
 }
 
-static tlHandle runSet(tlHandle _fn, tlArgs* args) {
+static tlHandle runSet(tlTask* task, tlHandle _fn, tlArgs* args) {
     tlSet* set = tlSetAs(_fn);
     int at = tlSetIndexof(set, tlArgsGet(args, 0));
     if (at < 0) return tlNull;

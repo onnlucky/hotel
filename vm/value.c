@@ -9,14 +9,6 @@ static tlSym s__methods;
 
 static unsigned int murmurhash2a(const void * key, int len);
 
-static tlTask* tl_task_current;
-tlTask* tlTaskCurrent() {
-    assert(tl_task_current);
-    assert(tlTaskIs(tl_task_current));
-   // assert(tl_task_current->worker);
-    return tl_task_current;
-}
-
 static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
 static inline void set_kind(tlHandle v, tlKind* kind) { ((tlHead*)v)->kind = (intptr_t)kind; } // TODO take care of flags?
 
@@ -164,15 +156,15 @@ tlKind* tlNullKind;
 tlKind* tlBoolKind;
 tlKind* tlIntKind;
 
-static tlHandle _bool_toString(tlArgs* args) {
+static tlHandle _bool_toString(tlTask* task, tlArgs* args) {
     bool b = tl_bool(tlArgsTarget(args));
     if (b) return _t_true;
     return _t_false;
 }
-static tlHandle _int_hash(tlArgs* args) {
+static tlHandle _int_hash(tlTask* task, tlArgs* args) {
     return tlINT(intHash(tlArgsTarget(args)));
 }
-static tlHandle _int_toChar(tlArgs* args) {
+static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     if (c < 0) c = 32;
     if (c > 255) c = 32;
@@ -181,7 +173,7 @@ static tlHandle _int_toChar(tlArgs* args) {
     const char buf[] = { c, 0 };
     return tlStringFromCopy(buf, 1);
 }
-static tlHandle _int_toString(tlArgs* args) {
+static tlHandle _int_toString(tlTask* task, tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     int base = tl_int_or(tlArgsGet(args, 0), 10);
     char buf[128];
@@ -215,49 +207,49 @@ static tlHandle _int_toString(tlArgs* args) {
     }
     return tlStringFromCopy(buf, len);
 }
-static tlHandle _int_self(tlArgs* args) {
+static tlHandle _int_self(tlTask* task, tlArgs* args) {
     return tlArgsTarget(args);
 }
-static tlHandle _int_abs(tlArgs* args) {
+static tlHandle _int_abs(tlTask* task, tlArgs* args) {
     int i = tl_int(tlArgsTarget(args));
     // TODO check for overflow and move to tlNum
     if (i < 0) return tlINT(-i);
     return tlArgsTarget(args);
 }
-static tlHandle _int_bytes(tlArgs* args) {
+static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
     int32_t n = tl_int(tlArgsTarget(args));
     char bytes[4];
     for (int i = 0; i < 4; i++) bytes[3 - i] = n >> (8 * i);
     return tlBinFromCopy(bytes, 4);
 }
 
-static tlHandle _isUndefined(tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
-static tlHandle _isDefined(tlArgs* args) { return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0))); }
-static tlHandle _isNull(tlArgs* args) { return tlBOOL(tlNull == tlArgsGet(args, 0)); }
-static tlHandle _isBool(tlArgs* args) { return tlBOOL(tlBoolIs(tlArgsGet(args, 0))); }
-static tlHandle _isInt(tlArgs* args) { return tlBOOL(tlIntIs(tlArgsGet(args, 0))); }
-static tlHandle _isFloat(tlArgs* args) { return tlBOOL(tlFloatIs(tlArgsGet(args, 0))); }
-static tlHandle _isBignum(tlArgs* args) { return tlBOOL(tlNumIs(tlArgsGet(args, 0))); }
-static tlHandle _isNumber(tlArgs* args) {
+static tlHandle _isUndefined(tlTask* task, tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
+static tlHandle _isDefined(tlTask* task, tlArgs* args) { return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0))); }
+static tlHandle _isNull(tlTask* task, tlArgs* args) { return tlBOOL(tlNull == tlArgsGet(args, 0)); }
+static tlHandle _isBool(tlTask* task, tlArgs* args) { return tlBOOL(tlBoolIs(tlArgsGet(args, 0))); }
+static tlHandle _isInt(tlTask* task, tlArgs* args) { return tlBOOL(tlIntIs(tlArgsGet(args, 0))); }
+static tlHandle _isFloat(tlTask* task, tlArgs* args) { return tlBOOL(tlFloatIs(tlArgsGet(args, 0))); }
+static tlHandle _isBignum(tlTask* task, tlArgs* args) { return tlBOOL(tlNumIs(tlArgsGet(args, 0))); }
+static tlHandle _isNumber(tlTask* task, tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     return tlBOOL(tlIntIs(v) || tlFloatIs(v) || tlNumIs(v));
 }
-static tlHandle _isChar(tlArgs* args) { return tlBOOL(tlCharIs(tlArgsGet(args, 0))); }
-static tlHandle _isString(tlArgs* args) { return tlBOOL(tlStringIs(tlArgsGet(args, 0))); }
-static tlHandle _isList(tlArgs* args) { return tlBOOL(tlListIs(tlArgsGet(args, 0))); }
-static tlHandle _isObject(tlArgs* args) { return tlBOOL(tlObjectIs(tlArgsGet(args, 0))); }
+static tlHandle _isChar(tlTask* task, tlArgs* args) { return tlBOOL(tlCharIs(tlArgsGet(args, 0))); }
+static tlHandle _isString(tlTask* task, tlArgs* args) { return tlBOOL(tlStringIs(tlArgsGet(args, 0))); }
+static tlHandle _isList(tlTask* task, tlArgs* args) { return tlBOOL(tlListIs(tlArgsGet(args, 0))); }
+static tlHandle _isObject(tlTask* task, tlArgs* args) { return tlBOOL(tlObjectIs(tlArgsGet(args, 0))); }
 
-static tlHandle _isSet(tlArgs* args) { return tlBOOL(tlSetIs(tlArgsGet(args, 0))); }
-static tlHandle _isMap(tlArgs* args) { return tlBOOL(tlMapIs(tlArgsGet(args, 0))); }
-static tlHandle _isBin(tlArgs* args) { return tlBOOL(tlBinIs(tlArgsGet(args, 0))); }
+static tlHandle _isSet(tlTask* task, tlArgs* args) { return tlBOOL(tlSetIs(tlArgsGet(args, 0))); }
+static tlHandle _isMap(tlTask* task, tlArgs* args) { return tlBOOL(tlMapIs(tlArgsGet(args, 0))); }
+static tlHandle _isBin(tlTask* task, tlArgs* args) { return tlBOOL(tlBinIs(tlArgsGet(args, 0))); }
 
-static tlHandle _isArray(tlArgs* args) { return tlBOOL(tlArrayIs(tlArgsGet(args, 0))); }
-static tlHandle _isHashMap(tlArgs* args) { return tlBOOL(tlHashMapIs(tlArgsGet(args, 0))); }
-static tlHandle _isBuffer(tlArgs* args) { return tlBOOL(tlBufferIs(tlArgsGet(args, 0))); }
-static tlHandle _isRegex(tlArgs* args);
+static tlHandle _isArray(tlTask* task, tlArgs* args) { return tlBOOL(tlArrayIs(tlArgsGet(args, 0))); }
+static tlHandle _isHashMap(tlTask* task, tlArgs* args) { return tlBOOL(tlHashMapIs(tlArgsGet(args, 0))); }
+static tlHandle _isBuffer(tlTask* task, tlArgs* args) { return tlBOOL(tlBufferIs(tlArgsGet(args, 0))); }
+static tlHandle _isRegex(tlTask* task, tlArgs* args);
 
 static bool tlBClosureIs(tlHandle h);
-static tlHandle _isFunction(tlArgs* args) {
+static tlHandle _isFunction(tlTask* task, tlArgs* args) {
     tlHandle fn = tlArgsGet(args, 0);
     return tlBOOL(tlBClosureIs(fn));
 }

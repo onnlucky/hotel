@@ -102,7 +102,7 @@ void tlMapValueIterSet_(tlMap* map, int i, tlHandle v) {
 /// object Map: an associative array mapping keys to values
 
 // called when map literals contain lookups or expressions to evaluate
-static tlHandle _Map_clone(tlArgs* args) {
+static tlHandle _Map_clone(tlTask* task, tlArgs* args) {
     if (!tlMapIs(tlArgsGet(args, 0))) TL_THROW("Expected a Map");
     tlMap* map = tlArgsGet(args, 0);
     int size = tlMapSize(map);
@@ -118,7 +118,7 @@ static tlHandle _Map_clone(tlArgs* args) {
 }
 
 tlMap* tlHashMapToMap(tlHashMap*);
-static tlHandle _Map_from(tlArgs* args) {
+static tlHandle _Map_from(tlTask* task, tlArgs* args) {
     tlHandle a1 = tlArgsGet(args, 0);
     if (tlHashMapIs(a1)) return tlHashMapToMap(a1);
     if (tlObjectIs(a1)) return tlMapFromObject(a1);
@@ -126,27 +126,27 @@ static tlHandle _Map_from(tlArgs* args) {
 }
 
 /// hash: return the hash value of this #Map
-static tlHandle _map_hash(tlArgs* args) {
+static tlHandle _map_hash(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlINT(tlMapHash(map));
 }
 /// size: return the size of this #Map
-static tlHandle _map_size(tlArgs* args) {
+static tlHandle _map_size(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlINT(tlMapSize(map));
 }
 /// keys: return a #Set containing all keys of this #Map
-static tlHandle _map_keys(tlArgs* args) {
+static tlHandle _map_keys(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlMapKeys(map);
 }
 /// values: return a #List containing all values of this #Map
-static tlHandle _map_values(tlArgs* args) {
+static tlHandle _map_values(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlMapValues(map);
 }
 /// get(key): return the value for #key
-static tlHandle _map_get(tlArgs* args) {
+static tlHandle _map_get(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
@@ -154,7 +154,7 @@ static tlHandle _map_get(tlArgs* args) {
     return tlMAYBE(res);
 }
 /// set(key, value): return a new #Map with a new mapping from #key to #value
-static tlHandle _map_set(tlArgs* args) {
+static tlHandle _map_set(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Expected a key");
@@ -164,7 +164,7 @@ static tlHandle _map_set(tlArgs* args) {
     return nmap;
 }
 /// toObject: return an object where all fields are the keys of this #Map
-static tlHandle _map_toObject(tlArgs* args) {
+static tlHandle _map_toObject(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
     return tlObjectFromMap(map);
 }

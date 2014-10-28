@@ -47,36 +47,36 @@ bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame) {
 
     assert(debugger->subject == null);
     debugger->subject = task;
-    tlTaskWaitExternal();
+    tlTaskWaitExternal(task);
 
     if (debugger->waiter) tlTaskReadyExternal(debugger->waiter);
     return false;
 }
 
-INTERNAL tlHandle _Debugger_new(tlArgs* args) {
+INTERNAL tlHandle _Debugger_new(tlTask* task, tlArgs* args) {
     return tlDebuggerNew();
 }
 
-INTERNAL tlHandle _debugger_attach(tlArgs* args) {
+INTERNAL tlHandle _debugger_attach(tlTask* task, tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCast(tlArgsGet(args, 0));
-    if (!task) TL_THROW("require a task");
-    if (task->debugger) TL_THROW("task already has a debugger set");
-    tlDebuggerAttach(debugger, task);
+    tlTask* other = tlTaskCast(tlArgsGet(args, 0));
+    if (!other) TL_THROW("require a task");
+    if (other->debugger) TL_THROW("task already has a debugger set");
+    tlDebuggerAttach(debugger, other);
     return tlNull;
 }
 
-INTERNAL tlHandle _debugger_detach(tlArgs* args) {
+INTERNAL tlHandle _debugger_detach(tlTask* task, tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCast(tlArgsGet(args, 0));
-    if (!task) TL_THROW("require a task");
-    if (!task->debugger) TL_THROW("task has no debugger set");
-    tlDebuggerDetach(debugger, task);
+    tlTask* other = tlTaskCast(tlArgsGet(args, 0));
+    if (!other) TL_THROW("require a task");
+    if (!other->debugger) TL_THROW("task has no debugger set");
+    tlDebuggerDetach(debugger, other);
     return tlNull;
 }
 
 
-INTERNAL tlHandle returnStep(tlFrame* frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle returnStep(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     tlDebugger* debugger = tlDebuggerCast(res);
     if (debugger && debugger->subject) {
         tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
@@ -89,14 +89,14 @@ INTERNAL tlHandle returnStep(tlFrame* frame, tlHandle res, tlHandle throw) {
     return tlNull;
 }
 
-INTERNAL tlHandle _debugger_step(tlArgs* args) {
+INTERNAL tlHandle _debugger_step(tlTask* task, tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (debugger->subject) {
         tlTaskReadyExternal(debugger->subject);
         debugger->subject = null;
     }
-    tlTaskWaitExternal();
-    tlFramePushResume(tlTaskCurrent(), returnStep, debugger);
+    tlTaskWaitExternal(task);
+    tlFramePushResume(task, returnStep, debugger);
     return null;
 }
 

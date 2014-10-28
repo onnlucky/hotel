@@ -16,14 +16,14 @@ tlMutable* tlMutableNew() {
     obj->map = tlObjectEmpty();
     return obj;
 }
-INTERNAL tlHandle _Mutable_new(tlArgs* args) {
+INTERNAL tlHandle _Mutable_new(tlTask* task, tlArgs* args) {
     tlObject* map = (tlObject*)tlObjectCast(tlArgsGet(args, 0));
     if (!map) map = tlObjectEmpty();
     tlMutable* obj = tlMutableNew();
     obj->map = map;
     return obj;
 }
-INTERNAL tlHandle _Mutable_new_shareLock(tlArgs* args) {
+INTERNAL tlHandle _Mutable_new_shareLock(tlTask* task, tlArgs* args) {
     tlHandle* share = tlArgsGet(args, 0);
     assert(tlLockIs(share));
 
@@ -35,9 +35,8 @@ INTERNAL tlHandle _Mutable_new_shareLock(tlArgs* args) {
     obj->map = map;
     return obj;
 }
-INTERNAL tlHandle mutableSend(tlArgs* args) {
+INTERNAL tlHandle mutableSend(tlTask* task, tlArgs* args) {
     tlMutable* obj = tlMutableAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     assert(tlLockOwner(tlLockAs(obj)) == task);
 
     assert(tlArgsMsg(args));
@@ -82,11 +81,10 @@ send:;
         TL_THROW("%s.%s is undefined", tl_str(map), tl_str(msg));
     }
     if (!tlCallableIs(field)) return field;
-    return tlEvalArgsFn(args, field);
+    return tlEvalArgsFn(task, args, field);
 }
 
-INTERNAL tlHandle _this_get(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle _this_get(tlTask* task, tlArgs* args) {
     tlMutable* obj = tlMutableCast(tlArgsGet(args, 0));
     if (!obj) TL_THROW("expected an Mutable");
     if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
@@ -97,8 +95,7 @@ INTERNAL tlHandle _this_get(tlArgs* args) {
     tlHandle res = tlObjectGetSym(obj->map, msg);
     return res?res:tlNull;
 }
-INTERNAL tlHandle _this_set(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle _this_set(tlTask* task, tlArgs* args) {
     tlMutable* obj = tlMutableCast(tlArgsGet(args, 0));
     if (!obj) TL_THROW("expected an Mutable");
     if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
@@ -112,8 +109,7 @@ INTERNAL tlHandle _this_set(tlArgs* args) {
     obj->map = tlObjectSet(obj->map, msg, val);
     return val;
 }
-INTERNAL tlHandle _this_send(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle _this_send(tlTask* task, tlArgs* args) {
     tlMutable* obj = tlMutableCast(tlArgsGet(args, 0));
     if (!obj) TL_THROW("expected an Mutable");
     if (tlLockOwner(tlLockAs(obj)) != task) TL_THROW("task not owner of: %s", tl_str(obj));
@@ -135,7 +131,7 @@ INTERNAL tlHandle _this_send(tlArgs* args) {
     if (nargs->names) {
         nargs->names = tlListSub(args->names, 2, args->size + args->nsize - 2);
     }
-    return tlEvalArgsFn(nargs, field);
+    return tlEvalArgsFn(task, nargs, field);
 }
 
 static const tlNativeCbs __mutable_nativecbs[] = {

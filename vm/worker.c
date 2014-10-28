@@ -71,9 +71,6 @@ void tlVmWaitSignal(tlVm* vm) {
     pthread_mutex_unlock(vm->lock);
 }
 
-tlVm* tlVmCurrent() {
-    return tlTaskGetVm(tlTaskCurrent());
-}
 void tlVmIncExternal(tlVm* vm) {
     assert(vm);
     a_inc(&vm->waitevent);

@@ -27,14 +27,12 @@ struct tlUndefined {
     tlStackTrace* trace;
 };
 
-static tlFrame* tlTaskCurrentFrame(tlTask* task);
 bool tlBFrameIs(tlHandle);
 
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
 INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     if (skip < 0) skip = 0;
-    if (!task) task = tlTaskCurrent();
-    if (!stack) stack = tlTaskCurrentFrame(task);
+    if (!stack) stack = tlFrameCurrent(task);
     trace("stack: %p, skip: %d, task: %s", stack, skip, tl_str(task));
     assert(task);
 
@@ -78,11 +76,11 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     return trace;
 }
 
-INTERNAL tlHandle _stackTrace_size(tlArgs* args) {
+INTERNAL tlHandle _stackTrace_size(tlTask* task, tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     return tlINT(trace->size);
 }
-INTERNAL tlHandle _stackTrace_get(tlArgs* args) {
+INTERNAL tlHandle _stackTrace_get(tlTask* task, tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), trace->size);
     if (at < 0) return tlUndef();
@@ -94,16 +92,16 @@ INTERNAL tlHandle _stackTrace_get(tlArgs* args) {
     assert(trace->entries[at + 2]);
     return tlResultFrom(trace->entries[at], trace->entries[at + 1], trace->entries[at + 2], null);
 }
-INTERNAL tlHandle _stackTrace_task(tlArgs* args) {
+INTERNAL tlHandle _stackTrace_task(tlTask* task, tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     return trace->task;
 }
 
-INTERNAL tlHandle _throw(tlArgs* args) {
+INTERNAL tlHandle _throw(tlTask* task, tlArgs* args) {
     tlHandle res = tlArgsGet(args, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
-    return tlTaskThrow(tlTaskCurrent(), res);
+    return tlTaskThrow(task, res);
 }
 
 tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
@@ -116,7 +114,7 @@ tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
 tlHandle tlUndef() {
     return tlUndefinedNew(null, null/*tlStackTraceNew(null, null, 1)*/);
 }
-INTERNAL tlHandle _undefined(tlArgs* args) {
+INTERNAL tlHandle _undefined(tlTask* task, tlArgs* args) {
     return tlUndefinedNew(null, null/*tlStackTraceNew(null, null, 1)*/);
 }
 tlHandle tlUndefMsg(tlString* msg) {
@@ -226,10 +224,10 @@ tlHandle tlDeadlockErrorThrow(tlTask* task, tlArray* tasks) {
     tlObjectSet_(err, s_class, deadlockErrorClass);
     return tlTaskThrow(task, err);
 }
-void tlErrorAttachStack(tlHandle _err, tlFrame* frame) {
+void tlErrorAttachStack(tlTask* task, tlHandle _err, tlFrame* frame) {
     tlObject* err = tlObjectCast(_err);
     if (!err || err->keys != _errorKeys) return;
     assert(tlObjectGetSym(err, _s_stack) == null);
-    tlObjectSet_(err, _s_stack, tlStackTraceNew(null, frame, 0));
+    tlObjectSet_(err, _s_stack, tlStackTraceNew(task, frame, 0));
 }
 

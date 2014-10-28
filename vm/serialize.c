@@ -148,7 +148,7 @@ static tlHandle parse(tlBuffer* buf) {
     return null;
 }
 
-tlHandle _from_repr(tlArgs* args) {
+tlHandle _from_repr(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("from_repr requires a Buffer");
     tlHandle res = parse(buf);
@@ -250,7 +250,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print, int depth)
     return false;
 }
 
-tlHandle _to_repr(tlArgs* args) {
+tlHandle _to_repr(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     if (!h) h = tlNull;
 
@@ -259,7 +259,7 @@ tlHandle _to_repr(tlArgs* args) {
     return buf;
 }
 
-tlHandle _repr(tlArgs* args) {
+tlHandle _repr(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     if (!h) h = tlNull;
     tlBuffer* buf = tlBufferNew();
@@ -267,7 +267,7 @@ tlHandle _repr(tlArgs* args) {
     tlBufferWrite(buf, "\0", 1);
     return tlStringFromTake(tlBufferTakeData(buf), tlBufferSize(buf) - 1);
 }
-tlHandle _str(tlArgs* args) {
+tlHandle _str(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     if (!h) h = tlNull;
     if (tlStringIs(h)) return h;

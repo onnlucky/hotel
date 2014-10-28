@@ -12,12 +12,12 @@
 
 #include "trace-off.h"
 
-INTERNAL tlHandle _break(tlArgs* args) {
-    return tlTaskThrow(tlTaskCurrent(), s_break);
+INTERNAL tlHandle _break(tlTask* task, tlArgs* args) {
+    return tlTaskThrow(task, s_break);
 }
 
-INTERNAL tlHandle _continue(tlArgs* args) {
-    return tlTaskThrow(tlTaskCurrent(), s_continue);
+INTERNAL tlHandle _continue(tlTask* task, tlArgs* args) {
+    return tlTaskThrow(task, s_continue);
 }
 
 // loop
@@ -26,15 +26,14 @@ typedef struct LoopFrame {
     tlHandle block;
 } LoopFrame;
 
-INTERNAL tlHandle resumeLoop(tlFrame* _frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle resumeLoop(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (throw && throw != s_continue) {
-        tlFramePop(tlTaskCurrent(), _frame);
+        tlFramePop(task, _frame);
         if (throw == s_break) return tlNull;
         return null;
     }
     if (!throw && !res) return null;
 
-    tlTask* task = tlTaskCurrent();
     LoopFrame* frame = (LoopFrame*)_frame;
 again:;
     // loop bodies can be without invokes, so make loop also accounts quota
@@ -42,7 +41,7 @@ again:;
         task->runquota = 1234;
         task->value = tlNull;
         task->throw = null;
-        tlTaskWaitFor(null);
+        tlTaskWaitFor(task, null);
         // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
         return null;
@@ -53,25 +52,25 @@ again:;
         task->limit -= 1;
     }
 
-    res = tlEval(tlBCallFrom(frame->block, null));
+    res = tlEval(task, tlBCallFrom(frame->block, null));
     if (!res) return null;
     goto again;
     fatal("not reached");
     return tlNull;
 }
 
-INTERNAL tlHandle _loop(tlArgs* args) {
+INTERNAL tlHandle _loop(tlTask* task, tlArgs* args) {
     tlHandle block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) TL_THROW("loop requires a block");
 
     LoopFrame* frame = tlFrameAlloc(resumeLoop, sizeof(LoopFrame));
     frame->block = block;
-    tlFramePush(tlTaskCurrent(), (tlFrame*)frame);
-    return resumeLoop((tlFrame*)frame, tlNull, null);
+    tlFramePush(task, (tlFrame*)frame);
+    return resumeLoop(task, (tlFrame*)frame, tlNull, null);
 }
 
 // temporary? solution to "x, y = y, x" -> "x, y = multi(y, x)"
-INTERNAL tlHandle _multiple_return(tlArgs* args) {
+INTERNAL tlHandle _multiple_return(tlTask* task, tlArgs* args) {
     return tlResultFromArgs(args);
 }
 

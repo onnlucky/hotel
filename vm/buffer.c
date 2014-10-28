@@ -229,31 +229,31 @@ tlBuffer* tlBufferFromFile(const char* file) {
 /// while reading the buffer temporarily keeps the read bytes until any write operation
 
 /// size: return the current amount of bytes that can be read
-INTERNAL tlHandle _buffer_size(tlArgs* args) {
+INTERNAL tlHandle _buffer_size(tlTask* task, tlArgs* args) {
     return tlINT(canread(tlBufferAs(tlArgsTarget(args))));
 }
 
 /// compact: discard any temporarily bytes already read
-INTERNAL tlHandle _buffer_compact(tlArgs* args) {
+INTERNAL tlHandle _buffer_compact(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferCompact(buf);
     return buf;
 }
 /// clear: reset the buffer, discarding any read and unread bytes
-INTERNAL tlHandle _buffer_clear(tlArgs* args) {
+INTERNAL tlHandle _buffer_clear(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferClear(buf);
     return buf;
 }
 /// rewind: undo the read operations by rewinding the read position back to the bytes already read
-INTERNAL tlHandle _buffer_rewind(tlArgs* args) {
+INTERNAL tlHandle _buffer_rewind(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferRewind(buf, -1);
     return buf;
 }
 /// read(max): read #max bytes from the buffer returning them as a #Bin (binary list)
 /// if no #max is not given, read all bytes from the buffer
-INTERNAL tlHandle _buffer_read(tlArgs* args) {
+INTERNAL tlHandle _buffer_read(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int max = canread(buf);
@@ -267,7 +267,7 @@ INTERNAL tlHandle _buffer_read(tlArgs* args) {
 }
 
 static int process_utf8(const char* from, int len, char** into, int* intolen, int* intochars);
-INTERNAL tlHandle _buffer_readString(tlArgs* args) {
+INTERNAL tlHandle _buffer_readString(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int max = canread(buf);
@@ -288,7 +288,7 @@ INTERNAL tlHandle _buffer_readString(tlArgs* args) {
 }
 
 /// readByte: read a single byte from the buffer, returns a number between 0-255
-INTERNAL tlHandle _buffer_readByte(tlArgs* args) {
+INTERNAL tlHandle _buffer_readByte(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     if (canread(buf) == 0) return tlNull;
     return tlINT(tlBufferReadByte(buf));
@@ -323,7 +323,7 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
 /// write(bytes*): write all passed in arguments as bytes
 /// bytes can be #String's or #Bin's or other #Buffer's or numbers
 /// Numbers are interpreted as a single byte by masking with `0xFF`.
-INTERNAL tlHandle _buffer_write(tlArgs* args) {
+INTERNAL tlHandle _buffer_write(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     int written = 0;
@@ -340,7 +340,7 @@ INTERNAL tlHandle _buffer_write(tlArgs* args) {
 /// find(bytes): find the position of the bytes passed in, or null if no matching sequence is found
 /// [from] start here instead of beginning
 /// [upto] search no further than this posision
-INTERNAL tlHandle _buffer_find(tlArgs* args) {
+INTERNAL tlHandle _buffer_find(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     int size = tlBufferSize(buf);
     assert(size == canread(buf));
@@ -389,7 +389,7 @@ INTERNAL tlHandle _buffer_find(tlArgs* args) {
 }
 
 /// startsWith(bytes): returns true if buffer starts with this sequence of bytes
-INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
+INTERNAL tlHandle _buffer_startsWith(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
     tlString* start = tlStringCast(tlArgsGet(args, 0));
@@ -406,7 +406,7 @@ INTERNAL tlHandle _buffer_startsWith(tlArgs* args) {
     return tlBOOL(r == 0);
 }
 
-INTERNAL tlHandle _buffer_dump(tlArgs* args) {
+INTERNAL tlHandle _buffer_dump(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     for (int i = 0; i < tlBufferSize(buf); i++) {
         if (i > 0 && i % 64 == 0) fprintf(stdout, "\n");
@@ -420,7 +420,7 @@ INTERNAL tlHandle _buffer_dump(tlArgs* args) {
     printf("\n");
     return tlNull;
 }
-INTERNAL tlHandle _buffer_hexdump(tlArgs* args) {
+INTERNAL tlHandle _buffer_hexdump(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     for (int i = 0; i < tlBufferSize(buf); i++) {
         if (i > 0 && i % 16 == 0) fprintf(stdout, "\n");
@@ -433,7 +433,7 @@ INTERNAL tlHandle _buffer_hexdump(tlArgs* args) {
 }
 
 /// new(bytes*): create a new buffer filled with bytes
-INTERNAL tlHandle _Buffer_new(tlArgs* args) {
+INTERNAL tlHandle _Buffer_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
     const char* error = null;

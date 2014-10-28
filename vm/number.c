@@ -70,15 +70,15 @@ static tlKind _tlCharKind = {
 };
 tlKind* tlCharKind;
 
-static tlHandle _Char(tlArgs* args) {
+static tlHandle _Char(tlTask* task, tlArgs* args) {
     // TODO take from bin/buffer/string other chars and numbers
     // TODO verify it is unicode code point
     return tlCHAR(tl_int(tlArgsGet(args, 0)));
 }
-static tlHandle _char_hash(tlArgs* args) {
+static tlHandle _char_hash(tlTask* task, tlArgs* args) {
     return tlINT(charHash(tlArgsTarget(args)));
 }
-static tlHandle _char_toString(tlArgs* args) {
+static tlHandle _char_toString(tlTask* task, tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[8];
     int len = 0;
@@ -86,7 +86,7 @@ static tlHandle _char_toString(tlArgs* args) {
     buf[len] = 0;
     return tlStringFromCopy(buf, len);
 }
-static tlHandle _char_toNumber(tlArgs* args) {
+static tlHandle _char_toNumber(tlTask* task, tlArgs* args) {
     return tlINT(tl_int(tlArgsTarget(args)));
 }
 
@@ -131,10 +131,10 @@ static tlKind _tlFloatKind = {
 };
 tlKind* tlFloatKind;
 
-static tlHandle _float_hash(tlArgs* args) {
+static tlHandle _float_hash(tlTask* task, tlArgs* args) {
     return tlINT(floatHash(tlArgsTarget(args)));
 }
-static tlHandle _float_bytes(tlArgs* args) {
+static tlHandle _float_bytes(tlTask* task, tlArgs* args) {
     double d = tl_double(tlArgsTarget(args));
     uint64_t n = *(uint64_t*)&d;
     assert(d == *(double*)&n);
@@ -142,19 +142,19 @@ static tlHandle _float_bytes(tlArgs* args) {
     for (int i = 0; i < 8; i++) bytes[7 - i] = n >> (8 * i);
     return tlBinFromCopy(bytes, 8);
 }
-static tlHandle _float_abs(tlArgs* args) {
+static tlHandle _float_abs(tlTask* task, tlArgs* args) {
     return tlFLOAT(abs(tl_double(tlArgsTarget(args))));
 }
-static tlHandle _float_floor(tlArgs* args) {
+static tlHandle _float_floor(tlTask* task, tlArgs* args) {
     return tlNUM(floor(tl_double(tlArgsTarget(args))));
 }
-static tlHandle _float_round(tlArgs* args) {
+static tlHandle _float_round(tlTask* task, tlArgs* args) {
     return tlNUM(round(tl_double(tlArgsTarget(args))));
 }
-static tlHandle _float_ceil(tlArgs* args) {
+static tlHandle _float_ceil(tlTask* task, tlArgs* args) {
     return tlNUM(ceil(tl_double(tlArgsTarget(args))));
 }
-static tlHandle _float_toString(tlArgs* args) {
+static tlHandle _float_toString(tlTask* task, tlArgs* args) {
     double c = tl_double(tlArgsTarget(args));
     char buf[255];
     int len = snprintf(buf, sizeof(buf), "%.17g", c);
@@ -246,11 +246,11 @@ static tlNum* tlNumPow(tlNum* l, intptr_t r) {
     return tlNumberFrom(res);
 }
 
-static tlHandle _num_abs(tlArgs* args) {
+static tlHandle _num_abs(tlTask* task, tlArgs* args) {
     tlNum* num = tlNumAs(tlArgsTarget(args));
     return num;
 }
-static tlHandle _num_toString(tlArgs* args) {
+static tlHandle _num_toString(tlTask* task, tlArgs* args) {
     tlNum* num = tlNumAs(tlArgsTarget(args));
     int base = tl_int_or(tlArgsGet(args, 0), 10);
     char buf[1024];
@@ -270,7 +270,7 @@ static tlHandle _num_toString(tlArgs* args) {
     return tlStringFromCopy(buf, 0);
 }
 
-static tlHandle _num_bytes(tlArgs* args) {
+static tlHandle _num_bytes(tlTask* task, tlArgs* args) {
     tlNum* num = tlNumAs(tlArgsTarget(args));
 
     // count how many bytes
@@ -342,7 +342,7 @@ tlNum* tlNumFromBuffer(tlBuffer* buf, int len) {
     return tlNumFrom(t);
 }
 
-static tlHandle _Num_fromBytes(tlArgs* args) {
+static tlHandle _Num_fromBytes(tlTask* task, tlArgs* args) {
     tlBin* bin = tlBinCast(tlArgsGet(args, 0));
     if (!bin) TL_THROW("expected a Bin as args[1]");
     return tlNumFromBin(bin);

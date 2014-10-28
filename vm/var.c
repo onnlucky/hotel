@@ -13,20 +13,20 @@ struct tlVar {
 tlHandle tlVarGet(tlVar* var) { return var->value; }
 tlHandle tlVarSet(tlVar* var, tlHandle v) { var->value = v; return v; }
 
-INTERNAL tlHandle _Var_new(tlArgs* args) {
+INTERNAL tlHandle _Var_new(tlTask* task, tlArgs* args) {
     trace("");
     tlVar* var = tlAlloc(tlVarKind, sizeof(tlVar));
     var->value = tlArgsGet(args, 0);
     return var;
 }
-INTERNAL tlHandle __var_get(tlArgs* args) {
+INTERNAL tlHandle __var_get(tlTask* task, tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
     if (!var->value) return tlNull;
     return var->value;
 }
-INTERNAL tlHandle __var_set(tlArgs* args) {
+INTERNAL tlHandle __var_set(tlTask* task, tlArgs* args) {
     trace("");
     tlVar* var = tlVarCast(tlArgsGet(args, 0));
     if (!var) TL_THROW("expected a Var");
@@ -34,12 +34,12 @@ INTERNAL tlHandle __var_set(tlArgs* args) {
     if (!var->value) return tlNull;
     return var->value;
 }
-INTERNAL tlHandle _var_get(tlArgs* args) {
+INTERNAL tlHandle _var_get(tlTask* task, tlArgs* args) {
     tlVar* var = tlVarAs(tlArgsTarget(args));
     tlHandle v = var->value;
     return v?v : tlNull;
 }
-INTERNAL tlHandle _var_set(tlArgs* args) {
+INTERNAL tlHandle _var_set(tlTask* task, tlArgs* args) {
     tlVar* var = tlVarAs(tlArgsTarget(args));
     tlHandle v = tlArgsGet(args, 0);
     var->value = v;

@@ -319,7 +319,6 @@ void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
 void tl_init();
 
 tlVm* tlVmNew();
-tlVm* tlVmCurrent();
 tlBuffer* tlVmGetBoot();
 tlBuffer* tlVmGetCompiler();
 void tlVmInitDefaultEnv(tlVm* vm);
@@ -331,11 +330,11 @@ int tlVmExitCode(tlVm* vm);
 void tlVmIncExternal(tlVm* vm);
 void tlVmDecExternal(tlVm* vm);
 
+tlVm* tlVmCurrent(tlTask* task);
+tlWorker* tlWorkerCurrent(tlTask* task);
+tlFrame* tlFrameCurrent(tlTask* task);
 
 // ** running code **
-
-// get the current task
-tlTask* tlTaskCurrent();
 
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlHandle v);
@@ -345,7 +344,7 @@ tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as);
 
 // setup a single task to eval something, returns immedately
-tlHandle tlEval(tlHandle v);
+tlHandle tlEval(tlTask* task, tlHandle v);
 tlHandle tlEvalCall(tlHandle fn, ...);
 tlTask* tlEvalCode(tlVm* vm, tlString* code, tlArgs* as);
 
@@ -369,7 +368,7 @@ tlString* tltoString(tlHandle v);
 // ** extending hotel with native functions **
 
 // native functions signature
-typedef tlHandle(*tlNativeCb)(tlArgs*);
+typedef tlHandle(*tlNativeCb)(tlTask*, tlArgs*);
 tlNative* tlNATIVE(tlNativeCb cb, const char* name);
 tlNative* tlNativeNew(tlNativeCb cb, tlSym name);
 
@@ -391,16 +390,16 @@ lqentry* tlTaskGetEntry(tlTask* task);
 // if res is set, a call returned a regular result
 // otherwise, if throw is set, a call has thrown a value (likely a tlError)
 // if both are null, we are "unwinding" the stack for a jump (return/continuation ...)
-typedef tlHandle(*tlResumeCb)(tlFrame* frame, tlHandle res, tlHandle throw);
+typedef tlHandle(*tlResumeCb)(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw);
 
 // mark task as waiting; returns an array of tasks incase of deadlock
-tlArray* tlTaskWaitFor(tlHandle on);
+tlArray* tlTaskWaitFor(tlTask* task, tlHandle on);
 
 // mark task as ready, will add to run queue, might be picked up immediately
 void tlTaskReady(tlTask* task);
 
 // mark the current task as waiting for external event
-tlTask* tlTaskWaitExternal();
+tlTask* tlTaskWaitExternal(tlTask* task);
 void tlTaskReadyExternal(tlTask* task);
 void tlTaskSetValue(tlTask* task, tlHandle h);
 
@@ -414,16 +413,16 @@ tlHandle tlUndefMsg(tlString* msg);
 
 #define TL_THROW(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    return tlErrorThrow(tlTaskCurrent(), tlStringFromCopy(_s, 0)); } while (0)
+    return tlErrorThrow(task, tlStringFromCopy(_s, 0)); } while (0)
 #define TL_THROW_NORETURN(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    tlErrorThrow(tlTaskCurrent(), tlStringFromCopy(_s, 0)); } while (0)
+    tlErrorThrow(task, tlStringFromCopy(_s, 0)); } while (0)
 #define TL_ILLARG(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    return tlArgumentErrorThrow(tlTaskCurrent(), tlStringFromCopy(_s, 0)); } while (0)
+    return tlArgumentErrorThrow(task, tlStringFromCopy(_s, 0)); } while (0)
 #define TL_THROW_SET(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    tlTaskThrowTake(tlTaskCurrent(), strdup(_s)); } while (0)
+    tlTaskThrowTake(task, strdup(_s)); } while (0)
 #define TL_UNDEF(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)
@@ -489,9 +488,9 @@ void tlWorkerDelete(tlWorker* worker);
 // when creating your own worker, run this ... (not implemented yet)
 void tlWorkerRun(tlWorker* worker);
 
-// todo too low level?
-tlHandle tlEvalArgsFn(tlArgs* args, tlHandle fn);
-tlHandle tlEvalArgsTarget(tlArgs* args, tlHandle target, tlHandle fn);
+// TODO remove?
+tlHandle tlEvalArgsFn(tlTask* task, tlArgs* args, tlHandle fn);
+tlHandle tlEvalArgsTarget(tlTask* task, tlArgs* args, tlHandle target, tlHandle fn);
 
 typedef struct tlLock tlLock;
 
@@ -505,9 +504,9 @@ typedef unsigned int(*tlHashFn)(tlHandle from);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
 typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
 typedef size_t(*tlByteSizeFn)(tlHandle from);
-typedef tlHandle(*tlCallFn)(tlArgs* args);
-typedef tlHandle(*tlRunFn)(tlHandle fn, tlArgs* args);
-typedef tlHandle(*tlSendFn)(tlArgs* args);
+typedef tlHandle(*tlCallFn)(tlTask* task, tlArgs* args);
+typedef tlHandle(*tlRunFn)(tlTask* task, tlHandle fn, tlArgs* args);
+typedef tlHandle(*tlSendFn)(tlTask* task, tlArgs* args);
 
 // a kind describes a hotel value for the vm (not at the language level)
 // a kind can have a tlObject* klass, which represents its class from the language level

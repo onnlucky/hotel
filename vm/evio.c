@@ -52,7 +52,7 @@ static int setblock(int fd) {
     return 0;
 }
 
-static tlHandle _io_getrusage(tlArgs* args) {
+static tlHandle _io_getrusage(tlTask* task, tlArgs* args) {
     tlObject *res = tlClone(_usageMap);
     struct rusage use;
     getrusage(RUSAGE_SELF, &use);
@@ -64,7 +64,7 @@ static tlHandle _io_getrusage(tlArgs* args) {
 #endif
     return res;
 }
-static tlHandle _io_getenv(tlArgs* args) {
+static tlHandle _io_getenv(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
     const char* s = getenv(tlStringData(str));
@@ -93,19 +93,18 @@ static tlString* path_join(tlString* lhs, tlString* rhs) {
 
     return tlStringFromTake(buf, llen + 1 + rlen);
 }
-static tlString* cwd_join(tlString* path) {
-    tlTask* task = tlTaskCurrent();
+static tlString* cwd_join(tlTask* task, tlString* path) {
     tlString* cwd = null;
     if (task->locals) cwd = tlStringCast(tlObjectGetSym(task->locals, _s_cwd));
     tlString* res = path_join(cwd, path);
     return res;
 }
 
-static tlHandle _io_chdir(tlArgs* args) {
+static tlHandle _io_chdir(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
 
-    tlString* path = cwd_join(str);
+    tlString* path = cwd_join(task, str);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("chdir: invalid cwd");
 
@@ -114,15 +113,14 @@ static tlHandle _io_chdir(tlArgs* args) {
     if (r == -1) TL_THROW("chdir: %s", strerror(errno));
     if (!(buf.st_mode & S_IFDIR)) TL_THROW("chdir: not a directory: %s", p);
 
-    tlTask* task = tlTaskCurrent();
     task->locals = tlObjectSet(task->locals, _s_cwd, path);
     return tlNull;
 }
-static tlHandle _io_mkdir(tlArgs* args) {
+static tlHandle _io_mkdir(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
 
-    tlString* path = cwd_join(str);
+    tlString* path = cwd_join(task, str);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("mkdir: invalid cwd");
 
@@ -132,11 +130,11 @@ static tlHandle _io_mkdir(tlArgs* args) {
     }
     return tlNull;
 }
-static tlHandle _io_rmdir(tlArgs* args) {
+static tlHandle _io_rmdir(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
 
-    tlString* path = cwd_join(str);
+    tlString* path = cwd_join(task, str);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("rmdir: invalid cwd");
 
@@ -145,18 +143,18 @@ static tlHandle _io_rmdir(tlArgs* args) {
     }
     return tlNull;
 }
-static tlHandle _io_rename(tlArgs* args) {
+static tlHandle _io_rename(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
 
-    tlString* path = cwd_join(str);
+    tlString* path = cwd_join(task, str);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("rename: invalid cwd");
 
     tlString* toString = tlStringCast(tlArgsGet(args, 1));
     if (!toString) TL_THROW("expected a String");
 
-    tlString* topath = cwd_join(toString);
+    tlString* topath = cwd_join(task, toString);
     const char *to_p = tlStringData(topath);
     if (to_p[0] != '/') TL_THROW("rename: invalid cwd");
 
@@ -165,11 +163,11 @@ static tlHandle _io_rename(tlArgs* args) {
     }
     return tlNull;
 }
-static tlHandle _io_unlink(tlArgs* args) {
+static tlHandle _io_unlink(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expected a String");
 
-    tlString* path = cwd_join(str);
+    tlString* path = cwd_join(task, str);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("unlink: invalid cwd");
 
@@ -250,7 +248,7 @@ static tlFile* tlFileNew(int fd) {
     return file;
 }
 
-static tlHandle _file_port(tlArgs* args) {
+static tlHandle _file_port(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
 
     struct sockaddr_in sockaddr;
@@ -260,14 +258,13 @@ static tlHandle _file_port(tlArgs* args) {
     if (r < 0) TL_THROW("file.port: %s", strerror(errno));
     return tlINT(ntohs(sockaddr.sin_port));
 }
-static tlHandle _file_isClosed(tlArgs* args) {
+static tlHandle _file_isClosed(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
     return tlBOOL(file->ev.fd < 0);
 }
 
-static tlHandle _file_close(tlArgs* args) {
+static tlHandle _file_close(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(file->reader), task)) TL_THROW("expected a locked Reader");
     if (!tlLockIsOwner(tlLockAs(file->writer), task)) TL_THROW("expected a locked Writer");
 
@@ -283,20 +280,19 @@ static tlHandle _file_close(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _file_reader(tlArgs* args) {
+static tlHandle _file_reader(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
     if (file->reader) return file->reader;
     return tlNull;
 }
-static tlHandle _file_writer(tlArgs* args) {
+static tlHandle _file_writer(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
     if (file->writer) return file->writer;
     return tlNull;
 }
 
-static tlHandle _reader_isClosed(tlArgs* args) {
+static tlHandle _reader_isClosed(tlTask* task, tlArgs* args) {
     tlReader* reader = tlReaderAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
 
     tlFile* file = tlFileFromReader(reader);
@@ -304,9 +300,8 @@ static tlHandle _reader_isClosed(tlArgs* args) {
 
     return tlBOOL(file->ev.fd < 0 || reader->closed);
 }
-static tlHandle _reader_close(tlArgs* args) {
+static tlHandle _reader_close(tlTask* task, tlArgs* args) {
     tlReader* reader = tlReaderAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
 
     tlFile* file = tlFileFromReader(reader);
@@ -318,10 +313,9 @@ static tlHandle _reader_close(tlArgs* args) {
     if (r) trace("error in shutdown: %s", strerror(errno));
     return tlNull;
 }
-static tlHandle _reader_read(tlArgs* args) {
+static tlHandle _reader_read(tlTask* task, tlArgs* args) {
     tlReader* reader = tlReaderAs(tlArgsTarget(args));
     tlBuffer* buf= tlBufferCast(tlArgsGet(args, 0));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     if (!buf|| !tlLockIsOwner(tlLockAs(buf), task)) TL_THROW("expected a locked Buffer");
 
@@ -348,9 +342,8 @@ static tlHandle _reader_read(tlArgs* args) {
     return tlINT(len);
 }
 
-static tlHandle _writer_isClosed(tlArgs* args) {
+static tlHandle _writer_isClosed(tlTask* task, tlArgs* args) {
     tlWriter* writer = tlWriterAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
 
     tlFile* file = tlFileFromWriter(writer);
@@ -358,9 +351,8 @@ static tlHandle _writer_isClosed(tlArgs* args) {
 
     return tlBOOL(file->ev.fd < 0 || writer->closed);
 }
-static tlHandle _writer_close(tlArgs* args) {
+static tlHandle _writer_close(tlTask* task, tlArgs* args) {
     tlWriter* writer = tlWriterAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
 
     tlFile* file = tlFileFromWriter(writer);
@@ -373,10 +365,9 @@ static tlHandle _writer_close(tlArgs* args) {
     writer->closed = true;
     return tlNull;
 }
-static tlHandle _writer_write(tlArgs* args) {
+static tlHandle _writer_write(tlTask* task, tlArgs* args) {
     tlWriter* writer = tlWriterAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
     if (!buf || !tlLockIsOwner(tlLockAs(buf), task)) TL_THROW("expected a locked Buffer");
 
@@ -400,9 +391,8 @@ static tlHandle _writer_write(tlArgs* args) {
     return tlINT(len);
 }
 
-static tlHandle _reader_accept(tlArgs* args) {
+static tlHandle _reader_accept(tlTask* task, tlArgs* args) {
     tlReader* reader = tlReaderAs(tlArgsTarget(args));
-    tlTask* task = tlTaskCurrent();
     if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
     tlFile* file = tlFileFromReader(reader);
     assert(tlFileIs(file));
@@ -423,7 +413,7 @@ static tlHandle _reader_accept(tlArgs* args) {
     return tlFileNew(fd);
 }
 
-static tlHandle _File_open(tlArgs* args) {
+static tlHandle _File_open(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a file name");
     trace("open: %s", tl_str(name));
@@ -431,7 +421,7 @@ static tlHandle _File_open(tlArgs* args) {
     if (flags < 0) TL_THROW("expected flags");
     int perms = 0666;
 
-    tlString* path = cwd_join(name);
+    tlString* path = cwd_join(task, name);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("open: invalid cwd");
 
@@ -440,7 +430,7 @@ static tlHandle _File_open(tlArgs* args) {
     return tlFileNew(fd);
 }
 
-static tlHandle _File_from(tlArgs* args) {
+static tlHandle _File_from(tlTask* task, tlArgs* args) {
     tlInt fd = tlIntCast(tlArgsGet(args, 0));
     if (!fd) TL_THROW("espected a file descriptor");
     //int r = nonblock(tl_int(fd));
@@ -452,7 +442,7 @@ static tlHandle _File_from(tlArgs* args) {
 // ** sockets **
 
 // TODO this is a blocking call
-static tlHandle _Socket_resolve(tlArgs* args) {
+static tlHandle _Socket_resolve(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a String");
 
@@ -462,7 +452,7 @@ static tlHandle _Socket_resolve(tlArgs* args) {
     return tlStringFromTake(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
 }
 
-static tlHandle _Socket_udp(tlArgs* args) {
+static tlHandle _Socket_udp(tlTask* task, tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 0), 0);
     bool broadcast = tl_bool_or(tlArgsGet(args, 0), false);
 
@@ -490,7 +480,7 @@ static tlHandle _Socket_udp(tlArgs* args) {
     return tlFileNew(fd);
 }
 
-static tlHandle _Socket_recvfrom(tlArgs* args) {
+static tlHandle _Socket_recvfrom(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a udp socket");
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 1));
@@ -514,7 +504,7 @@ static tlHandle _Socket_recvfrom(tlArgs* args) {
     return tlResultFrom(buf, ip, tlINT(ntohs(from.sin_port)));
 }
 
-static tlHandle _Socket_sendto(tlArgs* args) {
+static tlHandle _Socket_sendto(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a udp socket");
     tlString* address = tlStringCast(tlArgsGet(args, 1));
@@ -545,7 +535,7 @@ static tlHandle _Socket_sendto(tlArgs* args) {
     return tlINT(len);
 }
 
-static tlHandle _Socket_connect(tlArgs* args) {
+static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
     tlString* address = tlStringCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a ip address");
     int port = tl_int_or(tlArgsGet(args, 1), -1);
@@ -574,7 +564,7 @@ static tlHandle _Socket_connect(tlArgs* args) {
     return tlFileNew(fd);
 }
 
-static tlHandle _Socket_connect_unix(tlArgs* args) {
+static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     tlString* address = tlStringCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a unix path");
 
@@ -598,7 +588,7 @@ static tlHandle _Socket_connect_unix(tlArgs* args) {
 }
 
 // TODO make backlog configurable
-static tlHandle _ServerSocket_listen(tlArgs* args) {
+static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 0), 0);
     trace("tcp_listen: 0.0.0.0:%d", port);
 
@@ -628,11 +618,11 @@ static tlHandle _ServerSocket_listen(tlArgs* args) {
 
 // ** paths **
 
-static tlHandle _Path_stat(tlArgs* args) {
+static tlHandle _Path_stat(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a name");
 
-    tlString* path = cwd_join(name);
+    tlString* path = cwd_join(task, name);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("stat: invalid cwd");
 
@@ -679,11 +669,11 @@ static tlDir* tlDirNew(DIR* p) {
     return dir;
 }
 
-static tlHandle _Dir_open(tlArgs* args) {
+static tlHandle _Dir_open(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     trace("opendir: %s", tl_str(name));
 
-    tlString* path = cwd_join(name);
+    tlString* path = cwd_join(task, name);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("opendir: invalid cwd");
 
@@ -692,14 +682,14 @@ static tlHandle _Dir_open(tlArgs* args) {
     return tlDirNew(dir);
 }
 
-static tlHandle _dir_close(tlArgs* args) {
+static tlHandle _dir_close(tlTask* task, tlArgs* args) {
     tlDir* dir = tlDirAs(tlArgsTarget(args));
     trace("closedir: %p", dir);
     if (closedir(dir->p)) TL_THROW("closedir: failed: %s", strerror(errno));
     return tlNull;
 }
 
-static tlHandle _dir_read(tlArgs* args) {
+static tlHandle _dir_read(tlTask* task, tlArgs* args) {
     tlDir* dir = tlDirAs(tlArgsTarget(args));
 
     struct dirent dp;
@@ -716,9 +706,9 @@ typedef struct tlDirEachFrame {
     tlHandle* block;
 } tlDirEachFrame;
 
-static tlHandle resumeDirEach(tlFrame* _frame, tlHandle res, tlHandle throw) {
+static tlHandle resumeDirEach(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
     if (throw && throw != s_continue) {
-        tlFramePop(tlTaskCurrent(), _frame);
+        tlFramePop(task, _frame);
         if (throw == s_break) return tlNull;
         return null;
     }
@@ -731,10 +721,10 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) {
-        tlFramePop(tlTaskCurrent(), _frame);
+        tlFramePop(task, _frame);
         return tlNull;
     }
-    res = tlEval(tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
+    res = tlEval(task, tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
     if (!res) return null;
     goto again;
 
@@ -742,7 +732,7 @@ again:;
     return tlNull;
 }
 
-static tlHandle _dir_each(tlArgs* args) {
+static tlHandle _dir_each(tlTask* task, tlArgs* args) {
     tlDir* dir = tlDirAs(tlArgsTarget(args));
     tlHandle* block = tlArgsMapGet(args, tlSYM("block"));
     if (!block) return tlNull;
@@ -750,8 +740,8 @@ static tlHandle _dir_each(tlArgs* args) {
     tlDirEachFrame* frame = tlFrameAlloc(resumeDirEach, sizeof(tlDirEachFrame));
     frame->dir = dir;
     frame->block = block;
-    tlFramePush(tlTaskCurrent(), (tlFrame*)frame);
-    return resumeDirEach((tlHandle)frame, tlNull, null);
+    tlFramePush(task, (tlFrame*)frame);
+    return resumeDirEach(task, (tlHandle)frame, tlNull, null);
 }
 
 
@@ -784,7 +774,7 @@ static void launch(const char* cwd, char** argv) {
 }
 
 // exec ... replaces current process, stopping hotel effectively
-static tlHandle _io_exec(tlArgs* args) {
+static tlHandle _io_exec(tlTask* task, tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlArgsSize(args) + 1));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlString* str = tlStringCast(tlArgsGet(args, i));
@@ -796,7 +786,7 @@ static tlHandle _io_exec(tlArgs* args) {
     }
     argv[tlArgsSize(args)] = 0;
 
-    tlString* path = cwd_join(null);
+    tlString* path = cwd_join(task, null);
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("exec: invalid cwd");
 
@@ -855,7 +845,7 @@ static tlChild* tlChildNew(pid_t pid, int in, int out, int err) {
     return child;
 }
 
-static tlHandle _child_wait(tlArgs* args) {
+static tlHandle _child_wait(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildAs(tlArgsTarget(args));
     trace("child_wait: %d", child->ev.pid);
 
@@ -863,35 +853,34 @@ static tlHandle _child_wait(tlArgs* args) {
     if (child->res) return child->res;
 
     // TODO not thread save ... needs mutex ...
-    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     vm->waitevent += 1;
 
-    tlTaskWaitFor(null);
+    tlTaskWaitFor(task, null);
     lqueue_put(&child->wait_q, &task->entry);
     return null;
 }
 
-static tlHandle _child_running(tlArgs* args) {
+static tlHandle _child_running(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildAs(tlArgsTarget(args));
     return tlBOOL(child->res == 0);
 }
-static tlHandle _child_in(tlArgs* args) {
+static tlHandle _child_in(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildAs(tlArgsTarget(args));
     return child->in;
 }
-static tlHandle _child_out(tlArgs* args) {
+static tlHandle _child_out(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildAs(tlArgsTarget(args));
     return child->out;
 }
-static tlHandle _child_err(tlArgs* args) {
+static tlHandle _child_err(tlTask* task, tlArgs* args) {
     tlChild* child = tlChildAs(tlArgsTarget(args));
     return child->err;
 }
 
 // launch a child process
 // TODO allow passing in an tlFile as in/out/err ...
-static tlHandle _io_launch(tlArgs* args) {
+static tlHandle _io_launch(tlTask* task, tlArgs* args) {
     static int null_fd;
     if (!null_fd) {
         null_fd = open("/dev/null", O_RDWR);
@@ -1037,7 +1026,7 @@ static void io_cb(ev_io *ev, int revents) {
     if (!ev->events) ev_io_stop(ev);
 }
 
-static tlHandle _io_close(tlArgs* args) {
+static tlHandle _io_close(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a File");
 
@@ -1074,8 +1063,7 @@ static tlHandle _io_close(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _io_waitread(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+static tlHandle _io_waitread(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
 
     tlReader* reader = tlReaderCast(tlArgsGet(args, 0));
@@ -1100,8 +1088,7 @@ static tlHandle _io_waitread(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _io_waitwrite(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+static tlHandle _io_waitwrite(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
 
     tlWriter* writer = tlWriterCast(tlArgsGet(args, 0));
@@ -1134,8 +1121,7 @@ static void timer_cb(ev_timer* timer, int revents) {
     tlMessageReply(tlMessageAs(timer->data), null);
     free(timer);
 }
-static tlHandle _io_wait(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+static tlHandle _io_wait(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
     if (!msg) TL_THROW("expect a Msg");
@@ -1158,16 +1144,15 @@ static void async_cb(ev_async* async, int revents) { }
 
 static void iointerrupt() { ev_async_send(&loop_interrupt); }
 
-static tlHandle _io_init(tlArgs* args) {
+static tlHandle _io_init(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueNew();
     queue->signalcb = iointerrupt;
     return queue;
 }
 
-static tlHandle _io_haswaiting(tlArgs* args) {
+static tlHandle _io_haswaiting(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueCast(tlArgsGet(args, 0));
     if (!queue) TL_THROW("require the queue from init");
-    tlTask* task = tlTaskCurrent();
     tlVm* vm = tlTaskGetVm(task);
     assert(vm->waitevent >= 0);
     trace("tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
@@ -1183,8 +1168,7 @@ static tlHandle _io_haswaiting(tlArgs* args) {
     return tlFalse;
 }
 
-static tlHandle _io_run(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+static tlHandle _io_run(tlTask* task, tlArgs* args) {
     tlVm* vm = tlTaskGetVm(task);
     if (vm->lock) {
         trace("blocking for events");
@@ -1218,13 +1202,13 @@ static void tty_restore() {
         trace("tty restored: %d", tty_fd);
     }
 }
-static tlHandle _tty_is(tlArgs* args) {
+static tlHandle _tty_is(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
     if (!isatty(file->ev.fd)) return tlFalse;
     return tlTrue;
 }
-static tlHandle _tty_setRaw(tlArgs* args) {
+static tlHandle _tty_setRaw(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
     int fd = file->ev.fd;
@@ -1250,7 +1234,7 @@ static tlHandle _tty_setRaw(tlArgs* args) {
 fatal:
     return tlFalse;
 }
-static tlHandle _tty_restore(tlArgs* args) {
+static tlHandle _tty_restore(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
     int fd = file->ev.fd;
@@ -1259,7 +1243,7 @@ static tlHandle _tty_restore(tlArgs* args) {
     if (fd == tty_fd) tty_restore();
     return tlNull;
 }
-static tlHandle _tty_size(tlArgs* args) {
+static tlHandle _tty_size(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
     int fd = file->ev.fd;

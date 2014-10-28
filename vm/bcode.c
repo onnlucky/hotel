@@ -53,7 +53,7 @@ TL_REF_TYPE(tlBSendToken);
 
 typedef struct tlBFrame tlBFrame;
 
-INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw);
+INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw);
 tlDebugger* tlDebuggerFor(tlTask* task);
 bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame);
 
@@ -199,12 +199,8 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     return fn;
 }
 
-INTERNAL tlHandle stopBCode(tlFrame* _frame, tlHandle res, tlHandle throw) {
-    return res;
-}
-
 bool tlBFrameIs(tlHandle v) {
-    return tlFrameIs(v) && (tlFrameAs(v)->resumecb == resumeBFrame || tlFrameAs(v)->resumecb == stopBCode);
+    return tlFrameIs(v) && (tlFrameAs(v)->resumecb == resumeBFrame);
 }
 tlBFrame* tlBFrameAs(tlHandle v) {
     assert(tlBFrameIs(v));
@@ -215,7 +211,7 @@ tlBFrame* tlBFrameCast(tlHandle v) {
     return (tlBFrame*)v;
 }
 
-tlBFrame* tlBFrameNew(tlArgs* args) {
+tlBFrame* tlBFrameNew(tlTask* task, tlArgs* args) {
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
     tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(CallEntry) * calldepth);
     frame->pc = -1;
@@ -1009,17 +1005,18 @@ tlArgs* bcallFromArgs(tlArgs* args) {
     return args;
 }
 
-INTERNAL tlHandle afterYieldQuota(tlFrame* frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle afterYieldQuota(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
-    tlFramePop(tlTaskCurrent(), frame);
-    return tlInvoke(tlTaskCurrent(), tlArgsAs(res));
+    tlFramePop(task, frame);
+    return tlInvoke(task, tlArgsAs(res));
 }
 
 tlHandle tlInvoke(tlTask* task, tlArgs* call) {
+    assert(tlTaskIs(task));
     if (task->runquota <= 0) {
         task->runquota = 1234;
         tlFramePushResume(task, afterYieldQuota, call);
-        tlTaskWaitFor(null);
+        tlTaskWaitFor(task, null);
         // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
         return null;
@@ -1034,16 +1031,16 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     tlHandle fn = tlBCallFn(call);
     trace(" %s invoke %s.%s", tl_str(call), tl_str(call->target), tl_str(fn));
     if (call->target && tl_kind(call->target)->locked) {
-        if (!tlLockIsOwner(tlLockAs(call->target), task)) return tlLockAndInvoke(call);
+        if (!tlLockIsOwner(tlLockAs(call->target), task)) return tlLockAndInvoke(task, call);
     }
 
     if (tlBSendTokenIs(fn) || tlNativeIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
             assert(tlArgsMsg(args) == tlBSendTokenAs(fn)->method);
-            return tl_kind(call->target)->send(args);
+            return tl_kind(call->target)->send(task, args);
         }
-        return tlNativeKind->run(tlNativeAs(fn), args);
+        return tlNativeKind->run(task, tlNativeAs(fn), args);
     }
     if (tlBClosureIs(fn)) {
         return beval(task, null, call, 0, null);
@@ -1064,14 +1061,14 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     if (tlCallableIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         tlKind* kind = tl_kind(fn);
-        if (kind->run) return kind->run(fn, args);
+        if (kind->run) return kind->run(task, fn, args);
     }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
-tlHandle tlEval(tlHandle v) {
+tlHandle tlEval(tlTask* task, tlHandle v) {
     trace("%s", tl_str(v));
-    if (tlArgsIs(v)) return tlInvoke(tlTaskCurrent(), tlArgsAs(v));
+    if (tlArgsIs(v)) return tlInvoke(task, tlArgsAs(v));
     return v;
 }
 
@@ -1228,7 +1225,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     }
 
     if (!frame) {
-        frame = tlBFrameNew(args);
+        frame = tlBFrameNew(task, args);
         if (lazylocals) {
             frame->locals = lazylocals;
         } else {
@@ -1572,8 +1569,7 @@ void tlBFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlIn
     if (!(*function)) *function = _t_anon;
 }
 
-INTERNAL tlHandle _env_locals(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {
     tlBFrame* frame = tlBFrameAs(task->stack);
     tlBCode* code = tlBClosureAs(frame->args->fn)->code;
     tlHashMap* res = tlHashMapNew();
@@ -1598,8 +1594,7 @@ INTERNAL tlHandle _env_locals(tlArgs* args) {
 }
 
 // TODO every env needs an indication of where its was "closed" compared to its parent
-INTERNAL tlHandle _env_current(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
     tlBFrame* frame = tlBFrameAs(task->stack);
     tlHashMap* res = tlHashMapNew();
 
@@ -1615,7 +1610,7 @@ INTERNAL tlHandle _env_current(tlArgs* args) {
         env = env->parent;
     }
 
-    tlObject* oop = tlEnvGetMap(tlVmGlobalEnv(tlVmCurrent()));
+    tlObject* oop = tlEnvGetMap(tlVmGlobalEnv(tlVmCurrent(task)));
     for (int i = 0;; i++) {
         tlHandle key;
         tlHandle value;
@@ -1638,22 +1633,22 @@ INTERNAL tlHandle _env_current(tlArgs* args) {
     return res;
 }
 
-INTERNAL tlHandle resumeBCall(tlFrame* _frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("running resume a call");
+    tlFramePop(task, frame);
     if (throw) return null;
-    tlTaskSetCurrentFrame(tlTaskCurrent(), _frame->caller);
     tlArgs* call = tlArgsAs(res);
-    return beval(tlTaskCurrent(), null, call, 0, null);
+    return beval(task, null, call, 0, null);
 }
 
-INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
+INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlBFrame* frame, tlHandle throw) {
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
         trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
         tlArgs* call = tlBCallNew(1);
         call->fn = tlBClosureAs(handler);
         tlBCallAdd_(call, throw, 2);
-        return beval(tlTaskCurrent(), null, call, 0, null);
+        return beval(task, null, call, 0, null);
     }
     if (tlCallableIs(handler)) {
         // operate with old style hotel
@@ -1661,23 +1656,23 @@ INTERNAL tlHandle handleBFrameThrow(tlBFrame* frame, tlHandle throw) {
         tlArgs* call = tlBCallNew(1);
         tlBCallSetFn_(call, handler);
         tlBCallSet_(call, 0, throw);
-        return tlEval(call);
+        return tlEval(task, call);
     }
     trace("returing handler value as handled: %s %s", tl_str(frame), tl_str(handler));
     return handler;
 }
 
-INTERNAL tlHandle resumeBFrame(tlFrame* _frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resuming from a frame: %s res=%s, throw=%s", tl_str(_frame), tl_str(res), tl_str(throw));
     tlBFrame* frame = tlBFrameAs(_frame);
     if (throw) {
-        tlFramePop(tlTaskCurrent(), (tlFrame*)frame);
-        if (frame->handler) return handleBFrameThrow(frame, throw);
+        tlFramePop(task, (tlFrame*)frame);
+        if (frame->handler) return handleBFrameThrow(task, frame, throw);
         return null;
     }
     if (!res) return null;
-    tlTaskCurrent()->value = res;
-    return beval(tlTaskCurrent(), frame, null, 0, null);
+    task->value = res;
+    return beval(task, frame, null, 0, null);
 }
 
 tlHandle beval_module(tlTask* task, tlBModule* mod) {
@@ -1717,7 +1712,7 @@ tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args) {
     return task;
 }
 
-INTERNAL tlHandle _Module_new(tlArgs* args) {
+INTERNAL tlHandle _Module_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     tlString* name = tlStringCast(tlArgsGet(args, 1));
 
@@ -1727,8 +1722,8 @@ INTERNAL tlHandle _Module_new(tlArgs* args) {
     return mod;
 }
 
-INTERNAL tlHandle _disasm(tlArgs* args) {
-    tlBFrame* frame = tlBFrameAs(tlTaskCurrentFrame(tlTaskCurrent()));
+INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
+    tlBFrame* frame = tlBFrameAs(tlFrameCurrent(task));
     tlBModule* mod = tlBClosureAs(frame->args->fn)->code->mod;
     for (int i = 0;; i++) {
         tlHandle data = tlListGet(mod->data, i);
@@ -1738,10 +1733,10 @@ INTERNAL tlHandle _disasm(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _module_run(tlArgs* args) {
+INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
-    tlTask* task = tlTaskCast(tlArgsGet(args, 1));
+    tlTask* other = tlTaskCast(tlArgsGet(args, 1));
 
     tlList* list = tlListCast(tlArgsGet(args, 2));
     tlObject* map = tlObjectCast(tlArgsGet(args, 3));
@@ -1749,24 +1744,24 @@ INTERNAL tlHandle _module_run(tlArgs* args) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     call->fn = fn;
 
-    if (!task) {
-        return beval(tlTaskCurrent(), null, call, 0, null);
+    if (!other) {
+        return beval(task, null, call, 0, null);
     }
 
-    if (!task->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
-    task->value = call;
-    task->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
-    task->state = TL_STATE_INIT;
-    tlTaskStart(task);
+    if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
+    other->value = call;
+    other->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
+    other->state = TL_STATE_INIT;
+    tlTaskStart(other);
     return tlNull;
 }
 
-INTERNAL tlHandle _module_links(tlArgs* args) {
+INTERNAL tlHandle _module_links(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     return mod->links;
 }
 
-INTERNAL tlHandle _module_link(tlArgs* args) {
+INTERNAL tlHandle _module_link(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     tlList* links = tlListCast(tlArgsGet(args, 1));
     if (!mod) TL_THROW("expect a module as arg[1]");
@@ -1777,7 +1772,7 @@ INTERNAL tlHandle _module_link(tlArgs* args) {
     return mod;
 }
 
-INTERNAL tlHandle _unknown(tlArgs* args) {
+INTERNAL tlHandle _unknown(tlTask* task, tlArgs* args) {
     return tlUnknown;
 }
 
@@ -1792,7 +1787,7 @@ INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
     }
 }
 
-INTERNAL tlHandle __list(tlArgs* args) {
+INTERNAL tlHandle __list(tlTask* task, tlArgs* args) {
     tlList* list = tlListNew(tlArgsSize(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlListSet_(list, i, tlArgsGet(args, i));
@@ -1801,7 +1796,7 @@ INTERNAL tlHandle __list(tlArgs* args) {
     return list;
 }
 
-INTERNAL tlHandle __object(tlArgs* args) {
+INTERNAL tlHandle __object(tlTask* task, tlArgs* args) {
     tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
     for (int i = 1; i < tlArgsSize(args); i += 2) {
         tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
@@ -1810,7 +1805,7 @@ INTERNAL tlHandle __object(tlArgs* args) {
     return object;
 }
 
-INTERNAL tlHandle __map(tlArgs* args) {
+INTERNAL tlHandle __map(tlTask* task, tlArgs* args) {
     tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
     for (int i = 1; i < tlArgsSize(args); i += 2) {
         tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
@@ -1819,7 +1814,7 @@ INTERNAL tlHandle __map(tlArgs* args) {
     return tlMapFromObject_(object);
 }
 
-INTERNAL tlHandle __return(tlArgs* args) {
+INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
     trace("RETURN SCOPES: %d", deep);
 
@@ -1828,7 +1823,7 @@ INTERNAL tlHandle __return(tlArgs* args) {
     if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(tlTaskCurrent()));
+    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(task));
     assert(scopeframe->locals);
     tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
@@ -1852,11 +1847,11 @@ INTERNAL tlHandle __return(tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlFrameUnwind(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
+    return tlFrameUnwind(task, ((tlFrame*)scopeframe)->caller, res);
 }
 
 // TODO this is fake, same as return, but instead we need unevaluated args, remove our frame, then eval args
-INTERNAL tlHandle __goto(tlArgs* args) {
+INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
     trace("GOTO SCOPES: %d", deep);
 
@@ -1865,7 +1860,7 @@ INTERNAL tlHandle __goto(tlArgs* args) {
     if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(tlTaskCurrent()));
+    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(task));
     assert(scopeframe->locals);
     tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
 
@@ -1889,10 +1884,10 @@ INTERNAL tlHandle __goto(tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlFrameUnwind(tlTaskCurrent(), ((tlFrame*)scopeframe)->caller, res);
+    return tlFrameUnwind(task, ((tlFrame*)scopeframe)->caller, res);
 }
 
-INTERNAL tlHandle _identity(tlArgs* args) {
+INTERNAL tlHandle _identity(tlTask* task, tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     return v? v: tlNull;
 }
@@ -1901,8 +1896,8 @@ INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
     trace("installing exception handler: %s %s", tl_str(_frame), tl_str(handler));
     tlBFrameAs(_frame)->handler = handler;
 }
-INTERNAL tlHandle _bcatch(tlArgs* args) {
-    tlBFrame* frame = tlBFrameAs(tlTaskCurrentFrame(tlTaskCurrent()));
+INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args) {
+    tlBFrame* frame = tlBFrameAs(tlFrameCurrent(task));
     tlHandle handler = tlArgsBlock(args);
     if (!handler) handler = tlArgsGet(args, 0);
     if (!handler) handler = tlNull;
@@ -1911,7 +1906,7 @@ INTERNAL tlHandle _bcatch(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _bclosure_call(tlArgs* args) {
+INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
     trace("bclosure.call");
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlObject* map = tlObjectCast(tlArgsGet(args, 1));
@@ -1920,50 +1915,50 @@ INTERNAL tlHandle _bclosure_call(tlArgs* args) {
     call->target = null; // TODO unless this was passed in? e.g. method.call(this=target, 10, 10)
     call->fn = tlArgsTarget(args);
     assert(tlBClosureIs(call->fn));
-    return beval(tlTaskCurrent(), null, call, 0, null);
+    return beval(task, null, call, 0, null);
 }
-INTERNAL tlHandle runBClosure(tlHandle _fn, tlArgs* args) {
+INTERNAL tlHandle runBClosure(tlTask* task, tlHandle _fn, tlArgs* args) {
     trace("bclosure.run");
     tlArgs* call = bcallFromArgs(args);
     call->fn = _fn;
     assert(tlBClosureIs(call->fn));
-    return beval(tlTaskCurrent(), null, call, 0, null);
+    return beval(task, null, call, 0, null);
 }
-INTERNAL tlHandle _bclosure_file(tlArgs* args) {
+INTERNAL tlHandle _bclosure_file(tlTask* task, tlArgs* args) {
     return tlNull;
 }
-INTERNAL tlHandle _bclosure_name(tlArgs* args) {
+INTERNAL tlHandle _bclosure_name(tlTask* task, tlArgs* args) {
     tlBClosure* fn = tlBClosureAs(tlArgsTarget(args));
     return tlVALUE_OR_NULL(tlBCodeName(fn->code));
 }
-INTERNAL tlHandle _bclosure_line(tlArgs* args) {
+INTERNAL tlHandle _bclosure_line(tlTask* task, tlArgs* args) {
     return tlNull;
 }
-INTERNAL tlHandle _bclosure_args(tlArgs* args) {
+INTERNAL tlHandle _bclosure_args(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _blazy_call(tlArgs* args) {
+INTERNAL tlHandle _blazy_call(tlTask* task, tlArgs* args) {
     trace("blazy.call");
     tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
     tlArgs* call = bcallFromArgs(args);
     call->target = null;
     call->fn = lazy;
-    return beval(tlTaskCurrent(), null, lazy->args, lazy->pc, lazy->locals);
+    return beval(task, null, lazy->args, lazy->pc, lazy->locals);
 }
-INTERNAL tlHandle runBLazy(tlHandle fn, tlArgs* args) {
+INTERNAL tlHandle runBLazy(tlTask* task, tlHandle fn, tlArgs* args) {
     trace("blazy.run");
     tlBLazy* lazy = tlBLazyAs(fn);
     tlArgs* call = bcallFromArgs(args);
     call->fn = lazy;
-    return beval(tlTaskCurrent(), null, lazy->args, lazy->pc, lazy->locals);
+    return beval(task, null, lazy->args, lazy->pc, lazy->locals);
 }
 
-INTERNAL tlHandle _blazydata_call(tlArgs* args) {
+INTERNAL tlHandle _blazydata_call(tlTask* task, tlArgs* args) {
     trace("blazydata.call");
     return tlBLazyDataAs(tlArgsTarget(args))->data;
 }
-INTERNAL tlHandle runBLazyData(tlHandle fn, tlArgs* args) {
+INTERNAL tlHandle runBLazyData(tlTask* task, tlHandle fn, tlArgs* args) {
     trace("blazydata.run");
     return tlBLazyDataAs(fn)->data;
 }

@@ -74,12 +74,12 @@ tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
 
 bool tlBFrameIs(tlHandle);
 tlObject* tlBEnvLocalObject(tlFrame*);
-static tlHandle _Env_localObject(tlArgs* args) {
+static tlHandle _Env_localObject(tlTask* task, tlArgs* args) {
     trace("");
-    return tlBEnvLocalObject(tlFrameCurrent(tlTaskCurrent()));
+    return tlBEnvLocalObject(tlFrameCurrent(task));
 }
 
-INTERNAL tlHandle _env_current(tlArgs* args);
+INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args);
 
 static tlObject* envClass;
 static void env_init() {

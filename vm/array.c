@@ -122,7 +122,7 @@ tlList* tlArrayToList(tlArray* array) {
     return list;
 }
 
-INTERNAL tlHandle _Array_new(tlArgs* args) {
+INTERNAL tlHandle _Array_new(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayNew();
     for (int i = 0; i < 1000; i++) {
         tlHandle h = tlArgsGet(args, i);
@@ -146,25 +146,25 @@ INTERNAL tlHandle _Array_new(tlArgs* args) {
     }
     return array;
 }
-INTERNAL tlHandle _array_size(tlArgs* args) {
+INTERNAL tlHandle _array_size(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlINT(tlArraySize(array));
 }
-INTERNAL tlHandle _array_clear(tlArgs* args) {
+INTERNAL tlHandle _array_clear(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlArrayClear(array);
 }
-INTERNAL tlHandle _array_toList(tlArgs* args) {
+INTERNAL tlHandle _array_toList(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlArrayToList(array);
 }
-INTERNAL tlHandle _array_get(tlArgs* args) {
+INTERNAL tlHandle _array_get(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
     int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     return tlMAYBE(tlArrayGet(array, at));
 }
-INTERNAL tlHandle _array_set(tlArgs* args) {
+INTERNAL tlHandle _array_set(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
     int at = at_offset_raw(tlArgsGet(args, 0));
@@ -172,7 +172,7 @@ INTERNAL tlHandle _array_set(tlArgs* args) {
     if (at < 0) TL_THROW("index must be >= 1");
     return tlArraySet(array, at, tlArgsGet(args, 1));
 }
-INTERNAL tlHandle _array_add(tlArgs* args) {
+INTERNAL tlHandle _array_add(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     tlHandle v = tlNull;
     for (int i = 0; i < tlArgsSize(args); i++) {
@@ -181,7 +181,7 @@ INTERNAL tlHandle _array_add(tlArgs* args) {
     }
     return tlResultFrom(v, tlINT(array->size), null);
 }
-INTERNAL tlHandle _array_cat(tlArgs* args) {
+INTERNAL tlHandle _array_cat(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlHandle v = tlArgsGet(args, i);
@@ -197,11 +197,11 @@ INTERNAL tlHandle _array_cat(tlArgs* args) {
     }
     return array;
 }
-INTERNAL tlHandle _array_pop(tlArgs* args) {
+INTERNAL tlHandle _array_pop(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlMAYBE(tlArrayPop(array));
 }
-INTERNAL tlHandle _array_insert(tlArgs* args) {
+INTERNAL tlHandle _array_insert(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
     int at = at_offset_raw(tlArgsGet(args, 0));
@@ -209,14 +209,14 @@ INTERNAL tlHandle _array_insert(tlArgs* args) {
     if (at < 0) TL_THROW("index must be >= 1");
     return tlArrayInsert(array, at, tlArgsGet(args, 1));
 }
-INTERNAL tlHandle _array_remove(tlArgs* args) {
+INTERNAL tlHandle _array_remove(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     if (!tlIntIs(tlArgsGet(args, 0))) TL_THROW("require an index");
     int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     if (at < 0) TL_THROW("index must be >= 1");
     return tlMAYBE(tlArrayRemove(array, at));
 }
-INTERNAL tlHandle _array_splice(tlArgs* args) {
+INTERNAL tlHandle _array_splice(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int from = at_offset_min(tlArgsGet(args, 0), tlArraySize(array));
     if (from < 0) TL_THROW("require an index from");
@@ -251,7 +251,7 @@ INTERNAL tlHandle _array_splice(tlArgs* args) {
 }
 
 /// slice(left, right): return a new list, from the range between left and right
-INTERNAL tlHandle _array_slice(tlArgs* args) {
+INTERNAL tlHandle _array_slice(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
 
     int first = tl_int_or(tlArgsGet(args, 0), 0);
@@ -266,7 +266,7 @@ INTERNAL tlHandle _array_slice(tlArgs* args) {
 // TODO taken from list.c ... duplicate code ... oeps
 /// toChar: return a string, formed from a array of numbers
 /// if the array contains numbers that are not valid characters, it throws an exception
-INTERNAL tlHandle _array_toChar(tlArgs* args) {
+INTERNAL tlHandle _array_toChar(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
 
     int size = tlArraySize(array);

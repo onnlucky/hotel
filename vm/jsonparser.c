@@ -1072,7 +1072,7 @@ static State r_sign(Parser* _p, int _start) { // or
 }
 
 #ifndef NO_VALUE
-static tlHandle _json_parse(tlArgs* args) {
+static tlHandle _json_parse(tlTask* task, tlArgs* args) {
     tlString* code = tlStringCast(tlArgsGet(args, 0));
     if (!code) TL_THROW("expected a String");
     Parser* p = parser_new(tlStringData(code), tlStringSize(code));

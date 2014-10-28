@@ -109,25 +109,26 @@ INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** functio
     }
 }
 
-INTERNAL tlHandle evalArgs(tlArgs* args) {
+INTERNAL tlHandle evalArgs(tlTask* task, tlArgs* args) {
+    assert(tlTaskIs(task));
     tlHandle fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
     tlKind* kind = tl_kind(fn);
-    if (kind->run) return kind->run(fn, args);
+    if (kind->run) return kind->run(task, fn, args);
     TL_THROW("'%s' not callable", tl_str(fn));
     return null;
 }
-tlHandle tlEvalArgsFn(tlArgs* args, tlHandle fn) {
+tlHandle tlEvalArgsFn(tlTask* task, tlArgs* args, tlHandle fn) {
     trace("%s %s", tl_str(fn), tl_str(args));
     assert(tlCallableIs(fn));
     args->fn = fn;
-    return evalArgs(args);
+    return evalArgs(task, args);
 }
-tlHandle tlEvalArgsTarget(tlArgs* args, tlHandle target, tlHandle fn) {
+tlHandle tlEvalArgsTarget(tlTask* task, tlArgs* args, tlHandle target, tlHandle fn) {
     assert(tlCallableIs(fn));
     args->target = target;
     args->fn = fn;
-    return evalArgs(args);
+    return evalArgs(task, args);
 }
 
 // Various high level eval stuff, will piggyback on the task given
@@ -138,12 +139,12 @@ tlString* tltoString(tlHandle v) {
     return tlStringFromCopy(tl_str(v), 0);
 }
 
-INTERNAL tlHandle _bcatch(tlArgs* args);
+INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args);
 INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
 bool tlBFrameIs(tlHandle);
 
-INTERNAL tlHandle _catch(tlArgs* args) {
-    tlFrame* frame = tlFrameCurrent(tlTaskCurrent());
+INTERNAL tlHandle _catch(tlTask* task, tlArgs* args) {
+    tlFrame* frame = tlFrameCurrent(task);
     tlHandle handler = tlArgsBlock(args);
     trace("%p.handler = %s", frame, tl_str(handler));
     install_bcatch(frame, handler);
@@ -164,7 +165,7 @@ bool tlCallableIs(tlHandle v) {
 
 // implement fn.call ... pretty generic
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
-INTERNAL tlHandle _call(tlArgs* args) {
+INTERNAL tlHandle _call(tlTask* task, tlArgs* args) {
     tlHandle* fn = tlArgsTarget(args);
     tlList* list = tlListCast(tlArgsGet(args, 0));
     tlObject* map = tlObjectCast(tlArgsGet(args, 1));
@@ -173,7 +174,7 @@ INTERNAL tlHandle _call(tlArgs* args) {
     return tlNull; //tlEvalArgsFn(nargs, fn);
 }
 
-static tlHandle _bufferFromFile(tlArgs* args) {
+static tlHandle _bufferFromFile(tlTask* task, tlArgs* args) {
     tlString* file = tlStringCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a file name");
     tlBuffer* buf = tlBufferFromFile(tlStringData(file));
@@ -181,7 +182,7 @@ static tlHandle _bufferFromFile(tlArgs* args) {
     return buf;
 }
 
-static tlHandle _stringFromFile(tlArgs* args) {
+static tlHandle _stringFromFile(tlTask* task, tlArgs* args) {
     tlString* file = tlStringCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a file name");
     tlBuffer* buf = tlBufferFromFile(tlStringData(file));
@@ -191,7 +192,7 @@ static tlHandle _stringFromFile(tlArgs* args) {
     return tlStringFromTake(tlBufferTakeData(buf), 0);
 }
 
-INTERNAL tlHandle _install(tlArgs* args) {
+INTERNAL tlHandle _install(tlTask* task, tlArgs* args) {
     trace("install: %s", tl_str(tlArgsGet(args, 1)));
     tlObject* map = tlObjectCast(tlArgsGet(args, 0));
     if (!map) TL_THROW("expected a Map");
@@ -205,7 +206,7 @@ INTERNAL tlHandle _install(tlArgs* args) {
 }
 
 INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value);
-INTERNAL tlHandle _install_global(tlArgs* args) {
+INTERNAL tlHandle _install_global(tlTask* task, tlArgs* args) {
     trace("install global: %s %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
     tlString* key = tlStringCast(tlArgsGet(args, 0));
     if (!key) TL_THROW("expected a String");

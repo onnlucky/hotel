@@ -1215,7 +1215,7 @@ static State r_string(Parser* _p, int _start) { // or
 }
 
 #ifndef NO_VALUE
-static tlHandle _xml_parse(tlArgs* args) {
+static tlHandle _xml_parse(tlTask* task, tlArgs* args) {
     tlString* code = tlStringCast(tlArgsGet(args, 0));
     if (!code) TL_THROW("expected a String");
     Parser* p = parser_new(tlStringData(code), tlStringSize(code));

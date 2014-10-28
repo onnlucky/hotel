@@ -54,12 +54,12 @@ tlQueue* tlQueueNew(int buffer) {
     assert(queue);
     return queue;
 }
-tlHandle _Queue_new(tlArgs* args) {
+tlHandle _Queue_new(tlTask* task, tlArgs* args) {
     int size = tl_int_or(tlArgsGet(args, 0), 0);
     return tlQueueNew(size);
 }
 
-tlHandle _queue_add(tlArgs* args) {
+tlHandle _queue_add(tlTask* task, tlArgs* args) {
     tlQueue* queue = tlQueueAs(tlArgsTarget(args));
 
     pthread_mutex_lock(&queue->lock);
@@ -77,15 +77,14 @@ tlHandle _queue_add(tlArgs* args) {
 
     // enqueue as we are not first, or there is no getter
     trace("waiting for getter");
-    tlTask* task = tlTaskCurrent();
     task->value = args;
-    tlTaskWaitFor(null);
+    tlTaskWaitFor(task, null);
     lqueue_put(&queue->add_q, &task->entry);
     pthread_mutex_unlock(&queue->lock);
     return null;
 }
 
-tlHandle _queue_get(tlArgs* args) {
+tlHandle _queue_get(tlTask* task, tlArgs* args) {
     tlQueue* queue = tlQueueAs(tlArgsTarget(args));
 
     pthread_mutex_lock(&queue->lock);
@@ -104,8 +103,7 @@ tlHandle _queue_get(tlArgs* args) {
 
     // enqueue as we are not first, or there is no adder
     trace("waiting for adder");
-    tlTaskWaitFor(null);
-    tlTask* task = tlTaskCurrent();
+    tlTaskWaitFor(task, null);
     lqueue_put(&queue->get_q, &task->entry);
     pthread_mutex_unlock(&queue->lock);
     return null;
@@ -114,9 +112,9 @@ tlHandle _queue_get(tlArgs* args) {
 
 // Message Queue
 
-tlMessage* tlMessageNew(tlArgs* args) {
+tlMessage* tlMessageNew(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlAlloc(tlMessageKind, sizeof(tlMessage));
-    msg->sender = tlTaskCurrent();
+    msg->sender = task;
     msg->args = args;
     return msg;
 }
@@ -161,10 +159,9 @@ tlTask* tlMessageGetSender(tlMessage* msg) {
     return msg->sender;
 }
 
-INTERNAL tlHandle queueInputReceive(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle queueInputReceive(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueInputAs(tlArgsTarget(args))->queue;
-    tlMessage* msg = tlMessageNew(args);
+    tlMessage* msg = tlMessageNew(task, args);
     trace("queue.send: %s %s", tl_str(queue), tl_str(msg));
     task->value = msg;
 
@@ -175,7 +172,7 @@ INTERNAL tlHandle queueInputReceive(tlArgs* args) {
     return null;
 }
 
-INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
+INTERNAL tlHandle _msg_queue_get(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
@@ -183,14 +180,13 @@ INTERNAL tlHandle _msg_queue_get(tlArgs* args) {
     trace("SENDER: %s", tl_str(sender));
     if (sender) return sender->value;
 
-    tlTask* task = tlTaskCurrent();
     tlTaskWaitNothing1(task);
     lqueue_put(&queue->wait_q, &task->entry);
     tlTaskWaitNothing2(task);
     return null;
 }
 
-INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
+INTERNAL tlHandle _msg_queue_poll(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
@@ -200,29 +196,29 @@ INTERNAL tlHandle _msg_queue_poll(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _msg_queue_input(tlArgs* args) {
+INTERNAL tlHandle _msg_queue_input(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     return queue->input;
 }
-INTERNAL tlHandle _MsgQueue_new(tlArgs* args) {
+INTERNAL tlHandle _MsgQueue_new(tlTask* task, tlArgs* args) {
     return tlMsgQueueNew();
 }
 
-INTERNAL tlHandle _message_reply(tlArgs* args) {
+INTERNAL tlHandle _message_reply(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     // TODO do multiple return ...
     return tlMessageReply(msg, tlArgsGet(args, 0));
 }
-INTERNAL tlHandle _message_throw(tlArgs* args) {
+INTERNAL tlHandle _message_throw(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     // TODO do multiple return ...
     return tlMessageThrow(msg, tlArgsGet(args, 0));
 }
-INTERNAL tlHandle _message_name(tlArgs* args) {
+INTERNAL tlHandle _message_name(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     return tlArgsMsg(msg->args);
 }
-INTERNAL tlHandle _message_get(tlArgs* args) {
+INTERNAL tlHandle _message_get(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));

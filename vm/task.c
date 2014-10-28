@@ -57,15 +57,11 @@ struct tlTask {
     long runquota; // bytecode can yields after x amount of invokes
 };
 
-void tlTaskSetCurrentFrame(tlTask* task, tlFrame* frame) {
-    task->stack = frame;
+tlVm* tlVmCurrent(tlTask* task) {
+    return task->worker->vm;
 }
-tlFrame* tlTaskCurrentFrame(tlTask* task) {
-    return task->stack;
-}
-
-tlWorker* tlWorkerCurrent() {
-    return tlTaskCurrent()->worker;
+tlWorker* tlWorkerCurrent(tlTask* task) {
+    return task->worker;
 }
 
 tlVm* tlTaskGetVm(tlTask* task) {
@@ -112,73 +108,6 @@ void assert_backtrace(tlFrame* frame) {
     if (frame) fatal("STACK CORRUPTED");
 }
 
-/*
-tlHandle tlTaskPauseAttach(void* _frame) {
-    tlTask* task = tlTaskCurrent();
-    assert(task->worker);
-    assert(task->worker->top);
-    assert(_frame);
-    tlFrame* frame = tlFrameAs(_frame);
-    //trace("> %p.caller = %p", task->stack, frame);
-    task->stack->caller = frame;
-    task->stack = frame;
-    if_debug(assert_backtrace(task->worker->top));
-    return null;
-}
-
-tlHandle tlTaskPause(void* _frame) {
-    tlTask* task = tlTaskCurrent();
-    assert(task->worker);
-    tlFrame* frame = tlFrameAs(_frame);
-    assert(frame);
-    //trace("    >>>> %p", frame);
-    task->stack = frame;
-    task->worker->top = frame;
-    if_debug(assert_backtrace(task->worker->top));
-    return null;
-}
-
-tlHandle tlTaskPauseResuming(tlResumeCb cb, tlHandle res) {
-    tlTask* task = tlTaskCurrent();
-    assert(res);
-    task->value = res;
-    return tlTaskPause(tlFrameAlloc(cb, sizeof(tlFrame)));
-}
-
-INTERNAL tlHandle tlTaskSetStack(tlFrame* frame, tlHandle res) {
-    tlTask* task = tlTaskCurrent();
-    trace("UNSAFE: set stack: %p", frame);
-    if (task->stack == frame) warning("set-stack on same frame");
-    task->stack = frame;
-    task->value = res;
-    assert(task->value);
-    return tlTaskJumping;
-}
-INTERNAL tlHandle tlTaskStackUnwind(tlFrame* upto, tlHandle res) {
-    tlTask* task = tlTaskCurrent();
-    trace("SAFE: unwind stack upto: %p", upto);
-    //print_backtrace(task->stack);
-    tlFrame* frame = task->stack;
-    task->stack = null;
-    while (frame != upto) {
-        assert(frame); // upto must be in our stack
-        trace("UNWINDING: %p.resumecb: %p", frame, frame->resumecb);
-        if (frame->resumecb) {
-            tlHandle _res = frame->resumecb(frame, null, null);
-            assert(_res != tlTaskJumping && _res != tlTaskNotRunning);
-            assert(!_res); // we don't want to see normal returns
-            assert(!task->stack); // we don't want to see a stack being created
-        }
-        frame = frame->caller;
-    }
-    task->stack = upto;
-    task->value = res;
-    assert(task->value);
-    trace("UNWINDING DONE");
-    return tlTaskJumping;
-}
-*/
-
 INTERNAL tlHandle tlTaskDone(tlTask* task);
 
 INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task) {
@@ -186,15 +115,12 @@ INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task) {
     assert(task);
     assert(task->worker != worker);
     task->worker = worker;
-    tl_task_current = task;
 }
 INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task) {
     trace("UNBIND: %s", tl_str(task));
     assert(task);
-    assert(tl_task_current == task);
     //assert(task->worker);
     //assert(task->worker == task->worker->vm->waiter);
-    tl_task_current = null;
 }
 
 void print_backtrace(tlFrame* frame) {
@@ -209,7 +135,6 @@ void print_backtrace(tlFrame* frame) {
 // at that point any other worker could aready have picked up this task
 INTERNAL void tlTaskRun(tlTask* task) {
     trace(">>> running %s <<<", tl_str(task));
-    assert(tlTaskCurrent() == task);
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
     assert(task->worker);
@@ -221,10 +146,10 @@ INTERNAL void tlTaskRun(tlTask* task) {
         trace("frame: %p", task->stack);
 
         if (task->throw) {
-            value = task->stack->resumecb(task->stack, null, task->throw);
+            value = task->stack->resumecb(task, task->stack, null, task->throw);
             if (value) task->throw = null;
         } else {
-            value = task->stack->resumecb(task->stack, value, null);
+            value = task->stack->resumecb(task, task->stack, value, null);
         }
         if (!value) {
             if (task->state != TL_STATE_RUN) {
@@ -269,11 +194,10 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
 }
 
 void tlFramePop(tlTask* task, tlFrame* frame);
-INTERNAL tlHandle resumeTaskEval(tlFrame* frame, tlHandle res, tlHandle throw) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle resumeTaskEval(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlFramePop(task, frame);
-    return tlEval(task->value);
+    return tlEval(task, task->value);
 }
 void tlTaskEval(tlTask* task, tlHandle v) {
     trace("on %s eval %s", tl_str(task), tl_str(v));
@@ -284,7 +208,7 @@ void tlTaskEval(tlTask* task, tlHandle v) {
 
 tlHandle tlTaskThrow(tlTask* task, tlHandle throw) {
     // if it is an error object; attach the stack now; TODO this can now be moved back to error.c
-    tlErrorAttachStack(throw, task->stack);
+    tlErrorAttachStack(task, throw, task->stack);
     task->value = null;
     task->throw = throw;
     return null;
@@ -348,8 +272,7 @@ INTERNAL tlArray* deadlocked(tlTask* task, tlHandle on) {
     return array;
 }
 
-tlArray* tlTaskWaitFor(tlHandle on) {
-    tlTask* task = tlTaskCurrent();
+tlArray* tlTaskWaitFor(tlTask* task, tlHandle on) {
     assert(tlTaskIs(task));
     assert(task->state == TL_STATE_RUN);
     assert(task->value || task->throw);
@@ -399,11 +322,10 @@ void tlTaskReady(tlTask* task) {
     }
 }
 
-tlTask* tlTaskWaitExternal() {
-    tlTask* task = tlTaskCurrent();
+tlTask* tlTaskWaitExternal(tlTask* task) {
     tlVm* vm = tlTaskGetVm(task);
     a_inc(&vm->waitevent);
-    tlTaskWaitFor(null);
+    tlTaskWaitFor(task, null);
     return task;
 }
 
@@ -511,7 +433,7 @@ tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
         assert(frame); // upto must be in our stack
         trace("UNWINDING: %p.resumecb: %p", frame, frame->resumecb);
         if (frame->resumecb) {
-            tlHandle res = frame->resumecb(frame, null, null);
+            tlHandle res = frame->resumecb(task, frame, null, null);
             assert(!res); // we don't want to see normal returns
             assert(!task->stack); // we don't want to see a stack being created
         }
@@ -526,8 +448,7 @@ tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
 }
 
 // called by ! operator
-INTERNAL tlHandle _Task_new(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
+INTERNAL tlHandle _Task_new(tlTask* task, tlArgs* args) {
     assert(task->worker && task->worker->vm);
 
     tlHandle v = tlArgsMapGet(args, s_block);
@@ -539,37 +460,35 @@ INTERNAL tlHandle _Task_new(tlArgs* args) {
     tlTaskStart(ntask);
     return ntask;
 }
-INTERNAL tlHandle _Task_new_none(tlArgs* args) {
-    tlTask* current = tlTaskCurrent();
-    tlTask* task = tlTaskNew(tlTaskGetVm(current), current->locals);
-    task->limit = tl_int_or(tlArgsGet(args, 0), -1) + 1; // 0 means disabled, 1 means at limit, so off by one ...
-    return task;
+INTERNAL tlHandle _Task_new_none(tlTask* task, tlArgs* args) {
+    tlTask* ntask = tlTaskNew(tlVmCurrent(task), task->locals);
+    ntask->limit = tl_int_or(tlArgsGet(args, 0), -1) + 1; // 0 means disabled, 1 means at limit, so off by one ...
+    return ntask;
 }
-INTERNAL tlHandle _task_run(tlArgs* args) {
-    tlTask* task = tlTaskAs(tlArgsTarget(args));
-    if (task->state != TL_STATE_INIT) TL_THROW("cannot reuse tasks");
+INTERNAL tlHandle _task_run(tlTask* task, tlArgs* args) {
+    tlTask* other = tlTaskAs(tlArgsTarget(args));
+    if (other->state != TL_STATE_INIT) TL_THROW("cannot reuse tasks");
 
     tlHandle v = tlArgsMapGet(args, s_block);
     if (!v) v = tlArgsGet(args, 0);
     if (tlCallableIs(v)) v = tlBCallFrom(v, null);
 
-    tlTaskEval(task, v);
-    tlTaskStart(task);
+    tlTaskEval(other, v);
+    tlTaskStart(other);
+    return other;
+}
+INTERNAL tlHandle _Task_current(tlTask* task, tlArgs* args) {
     return task;
 }
-INTERNAL tlHandle _Task_current(tlArgs* args) {
-    return tlTaskCurrent();
-}
 
-INTERNAL tlHandle _Task_stacktrace(tlArgs* args) {
+INTERNAL tlHandle _Task_stacktrace(tlTask* task, tlArgs* args) {
     int skip = tl_int_or(tlArgsGet(args, 0), 0);
-    return tlStackTraceNew(null, tlFrameCurrent(tlTaskCurrent()), skip);
+    return tlStackTraceNew(task, tlFrameCurrent(task), skip);
 }
 
-INTERNAL tlHandle _Task_bindToThread(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    tlTaskWaitFor(null);
-    task->worker = tlWorkerNewBind(tlTaskGetVm(task), task);
+INTERNAL tlHandle _Task_bindToThread(tlTask* task, tlArgs* args) {
+    tlTaskWaitFor(task, null);
+    task->worker = tlWorkerNewBind(tlVmCurrent(task), task);
     assert(tlWorkerIsBound(task->worker));
     // TODO move this to "post parking"
     tlTaskReady(task);
@@ -577,33 +496,33 @@ INTERNAL tlHandle _Task_bindToThread(tlArgs* args) {
 }
 
 bool tlLockIsOwner(tlLock* lock, tlTask* task);
-INTERNAL tlHandle _Task_holdsLock(tlArgs* args) {
-    return tlBOOL(tlLockIsOwner(tlArgsGet(args, 0), tlTaskCurrent()));
+INTERNAL tlHandle _Task_holdsLock(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlLockIsOwner(tlArgsGet(args, 0), task));
 }
 
-INTERNAL tlHandle _Task_yield(tlArgs* args) {
-    tlTaskWaitFor(null);
+INTERNAL tlHandle _Task_yield(tlTask* task, tlArgs* args) {
+    tlTaskWaitFor(task, null);
     // TODO move this to "post parking"
-    tlTaskReady(tlTaskCurrent());
+    tlTaskReady(task);
     return null;
 }
 
-INTERNAL tlHandle _Task_locals(tlArgs* args) {
-    return tlTaskCurrent()->locals;
+INTERNAL tlHandle _Task_locals(tlTask* task, tlArgs* args) {
+    return task->locals;
 }
 
-INTERNAL tlHandle _task_isDone(tlArgs* args) {
+INTERNAL tlHandle _task_isDone(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
 
-INTERNAL tlHandle _task_toString(tlArgs* args) {
+INTERNAL tlHandle _task_toString(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlStringFromCopy(tl_str(other), 0);
 }
 
 // TODO this is not thread save, the task might be running and changing limit cannot be done this way
-INTERNAL tlHandle _task_abort(tlArgs* args) {
+INTERNAL tlHandle _task_abort(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.abort: %s", tl_str(other));
@@ -612,12 +531,11 @@ INTERNAL tlHandle _task_abort(tlArgs* args) {
 }
 
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
-INTERNAL tlHandle _task_wait(tlArgs* args) {
+INTERNAL tlHandle _task_wait(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.wait: %s", tl_str(other));
 
-    tlTask* task = tlTaskCurrent();
     if (tlTaskIsDone(other)) {
         tlTaskCopyValue(task, other);
         if (task->throw) return tlTaskRunThrow(task, task->throw);
@@ -626,7 +544,7 @@ INTERNAL tlHandle _task_wait(tlArgs* args) {
     }
 
     trace("!! parking");
-    tlArray* deadlock = tlTaskWaitFor(other);
+    tlArray* deadlock = tlTaskWaitFor(task, other);
     if (deadlock) return tlDeadlockErrorThrow(task, deadlock);
 
     tlHandle already_waiting = A_PTR(a_swap_if(A_VAR(other->waiting), A_VAL(task), 0));
@@ -761,8 +679,7 @@ static void task_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 
-void tlDumpTaskTrace() {
-    tlTask* task = tlTaskCurrent();
+void tlDumpTaskTrace(tlTask* task) {
     if (!task) return;
     fprintf(stderr, "\nTaskCurrent(); backtrace:\n");
     for (tlFrame* frame = task->stack; frame; frame = frame->caller) {

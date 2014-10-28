@@ -53,7 +53,7 @@
 
 #include "trace-off.h"
 
-tlHandle _dlopen(tlArgs* args);
+tlHandle _dlopen(tlTask* task, tlArgs* args);
 
 // return a hash
 unsigned tlHandleHash(tlHandle v) {
@@ -130,7 +130,7 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
     return res;
 }
 
-static tlHandle _out(tlArgs* args) {
+static tlHandle _out(tlTask* task, tlArgs* args) {
     trace("out(%d)", tlArgsSize(args));
     for (int i = 0; i < 1000; i++) {
         tlHandle v = tlArgsGet(args, i);
@@ -141,32 +141,32 @@ static tlHandle _out(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _bool(tlArgs* args) {
+static tlHandle _bool(tlTask* task, tlArgs* args) {
     tlHandle c = tlArgsGet(args, 0);
     trace("bool(%s)", tl_bool(c)?"true":"false");
     tlHandle res = tlArgsGet(args, tl_bool(c)?1:2);
     return tlVALUE_OR_NULL(res);
 }
-static tlHandle _not(tlArgs* args) {
+static tlHandle _not(tlTask* task, tlArgs* args) {
     trace("!%s", tl_str(tlArgsGet(args, 0)));
     return tlBOOL(!tl_bool(tlArgsGet(args, 0)));
 }
-static tlHandle _eq(tlArgs* args) {
+static tlHandle _eq(tlTask* task, tlArgs* args) {
     trace("%p == %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-static tlHandle _neq(tlArgs* args) {
+static tlHandle _neq(tlTask* task, tlArgs* args) {
     trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(!tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
 /// compare: compare two values, and always return a ordering, order will be runtime dependend sometimes
-static tlHandle _compare(tlArgs* args) {
+static tlHandle _compare(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     tlHandle cmp = tlHandleCompare(left, right);
     if (!cmp) return tlCOMPARE(tl_kind(left) - tl_kind(right));
     return cmp;
 }
-static tlHandle _lt(tlArgs* args) {
+static tlHandle _lt(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s < %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
@@ -174,7 +174,7 @@ static tlHandle _lt(tlArgs* args) {
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res == tlSmaller);
 }
-static tlHandle _lte(tlArgs* args) {
+static tlHandle _lte(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s <= %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
@@ -182,7 +182,7 @@ static tlHandle _lte(tlArgs* args) {
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res != tlLarger);
 }
-static tlHandle _gt(tlArgs* args) {
+static tlHandle _gt(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s > %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
@@ -190,7 +190,7 @@ static tlHandle _gt(tlArgs* args) {
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res == tlLarger);
 }
-static tlHandle _gte(tlArgs* args) {
+static tlHandle _gte(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s >= %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
@@ -200,29 +200,29 @@ static tlHandle _gte(tlArgs* args) {
 }
 
 // shift operators
-static tlHandle _band(tlArgs* args) {
+static tlHandle _band(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) & tl_int(r));
     TL_THROW("'&' not implemented for: %s & %s", tl_str(l), tl_str(r));
 }
-static tlHandle _bor(tlArgs* args) {
+static tlHandle _bor(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) | tl_int(r));
     TL_THROW("'|' not implemented for: %s | %s", tl_str(l), tl_str(r));
 }
-static tlHandle _lshift(tlArgs* args) {
+static tlHandle _lshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) << tl_int(r));
     TL_THROW("'<<' not implemented for: %s << %s", tl_str(l), tl_str(r));
 }
-static tlHandle _rshift(tlArgs* args) {
+static tlHandle _rshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) >> tl_int(r));
     TL_THROW("'>>' not implemented for: %s >> %s", tl_str(l), tl_str(r));
 }
 
 // int/float
-static tlHandle _add(tlArgs* args) {
+static tlHandle _add(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) + tl_int(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) + tl_double(r));
@@ -242,14 +242,14 @@ static tlHandle _add(tlArgs* args) {
     }
     TL_THROW("'+' not implemented for: %s + %s", tl_str(l), tl_str(r));
 }
-static tlHandle _sub(tlArgs* args) {
+static tlHandle _sub(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) - tl_int(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) - tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumSub(tlNumTo(l), tlNumTo(r));
     TL_THROW("'-' not implemented for: %s - %s", tl_str(l), tl_str(r));
 }
-static tlHandle _mul(tlArgs* args) {
+static tlHandle _mul(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) {
         // TODO figure out better limits, or let tlNum be smarter when to return small int
@@ -261,25 +261,25 @@ static tlHandle _mul(tlArgs* args) {
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMul(tlNumTo(l), tlNumTo(r));
     TL_THROW("'*' not implemented for: %s * %s", tl_str(l), tl_str(r));
 }
-static tlHandle _div(tlArgs* args) {
+static tlHandle _div(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
-static tlHandle _idiv(tlArgs* args) {
+static tlHandle _idiv(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) / tl_int(r)); // TODO return remainder as well?
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumDiv(tlNumTo(l), tlNumTo(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
-static tlHandle _mod(tlArgs* args) {
+static tlHandle _mod(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) % tl_int(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
     TL_THROW("'%%' not implemented for: %s %% %s", tl_str(l), tl_str(r));
 }
-static tlHandle _pow(tlArgs* args) {
+static tlHandle _pow(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(pow(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) {
@@ -290,27 +290,27 @@ static tlHandle _pow(tlArgs* args) {
     }
     TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
 }
-static tlHandle _binand(tlArgs* args) {
+static tlHandle _binand(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
     trace("BIN AND: %d", res);
     return tlINT(res);
 }
-static tlHandle _binor(tlArgs* args) {
+static tlHandle _binor(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) | tl_int(tlArgsGet(args, 1));
     trace("BIN OR: %d", res);
     return tlINT(res);
 }
-static tlHandle _binxor(tlArgs* args) {
+static tlHandle _binxor(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) ^ tl_int(tlArgsGet(args, 1));
     trace("BIN XOR: %d", res);
     return tlINT(res);
 }
-static tlHandle _binnot(tlArgs* args) {
+static tlHandle _binnot(tlTask* task, tlArgs* args) {
     int res = ~tl_int(tlArgsGet(args, 0));
     trace("BIN NOT: %d", res);
     return tlINT(res);
 }
-static tlHandle _shift(tlArgs* args) {
+static tlHandle _shift(tlTask* task, tlArgs* args) {
     int from = tl_int(tlArgsGet(args, 0));
     int by = tl_int_or(tlArgsGet(args, 1), 0);
     int res;
@@ -324,7 +324,7 @@ static tlHandle _shift(tlArgs* args) {
     trace("BIN SHIFT: %d by: %d == %d", from, by, res);
     return tlINT(res);
 }
-static tlHandle _sqrt(tlArgs* args) {
+static tlHandle _sqrt(tlTask* task, tlArgs* args) {
     double res = sqrt(tl_double(tlArgsGet(args, 0)));
     trace("SQRT: %d", res);
     return tlFLOAT(res);
@@ -332,7 +332,7 @@ static tlHandle _sqrt(tlArgs* args) {
 
 /// random(n)
 /// return number between 0 upto n (including 0, but not including n)
-static tlHandle _random(tlArgs* args) {
+static tlHandle _random(tlTask* task, tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);
     if (upto <= 0) return tlINT(0);
@@ -340,49 +340,49 @@ static tlHandle _random(tlArgs* args) {
     trace("RND: %d", res);
     return tlINT(res);
 }
-static tlHandle _sin(tlArgs* args) {
+static tlHandle _sin(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(sin(in));
 }
-static tlHandle _cos(tlArgs* args) {
+static tlHandle _cos(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(cos(in));
 }
-static tlHandle _tan(tlArgs* args) {
+static tlHandle _tan(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(tan(in));
 }
-static tlHandle _asin(tlArgs* args) {
+static tlHandle _asin(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(asin(in));
 }
-static tlHandle _acos(tlArgs* args) {
+static tlHandle _acos(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(acos(in));
 }
-static tlHandle _atan(tlArgs* args) {
+static tlHandle _atan(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(atan(in));
 }
-static tlHandle _atan2(tlArgs* args) {
+static tlHandle _atan2(tlTask* task, tlArgs* args) {
     double a = tl_double(tlArgsGet(args, 0));
     double b = tl_double(tlArgsGet(args, 1));
     return tlFLOAT(atan2(a, b));
 }
-static tlHandle _sinh(tlArgs* args) {
+static tlHandle _sinh(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(sinh(in));
 }
-static tlHandle _cosh(tlArgs* args) {
+static tlHandle _cosh(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(cosh(in));
 }
-static tlHandle _tanh(tlArgs* args) {
+static tlHandle _tanh(tlTask* task, tlArgs* args) {
     double in = tl_double(tlArgsGet(args, 0));
     return tlFLOAT(tanh(in));
 }
 
-static tlHandle _int_parse(tlArgs* args) {
+static tlHandle _int_parse(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
     int base = tl_int_or(tlArgsGet(args, 1), 10);
@@ -395,7 +395,7 @@ static tlHandle _int_parse(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _urldecode(tlArgs* args) {
+static tlHandle _urldecode(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
 
@@ -577,9 +577,9 @@ void tlVmSetExitCode(tlVm* vm, int code) {
     vm->exitcode = code;
 }
 
-INTERNAL tlHandle _set_exitcode(tlArgs* args) {
+INTERNAL tlHandle _set_exitcode(tlTask* task, tlArgs* args) {
     int code = tl_int_or(tlArgsGet(args, 0), 1);
-    tlVm* vm = tlVmCurrent();
+    tlVm* vm = tlVmCurrent(task);
     if (vm->exitcode >= 0) warning("exitcode already set: %d new: %d", vm->exitcode, code);
     vm->exitcode = code;
     return tlNull;
@@ -706,7 +706,7 @@ void tlVmRun(tlVm* vm, tlTask* task) {
     tlWorkerRun(worker);
 }
 
-static tlHandle _print(tlArgs* args) {
+static tlHandle _print(tlTask* task, tlArgs* args) {
     tlString* sep = tlSTR(" ");
     tlHandle v = tlArgsMapGet(args, tlSYM("sep"));
     if (v) sep = tltoString(v);
@@ -732,7 +732,7 @@ static tlHandle _print(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _assert(tlArgs* args) {
+static tlHandle _assert(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsMapGet(args, tlSYM("string")));
     if (!str) str = tlStringEmpty();
     for (int i = 0; i < 1000; i++) {
@@ -743,7 +743,7 @@ static tlHandle _assert(tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _error(tlArgs* args) {
+static tlHandle _error(tlTask* task, tlArgs* args) {
     TL_THROW("hello world!");
 }
 
@@ -760,7 +760,7 @@ void tlVmInitDefaultEnv(tlVm* vm) {
 
 #include <dlfcn.h>
 typedef tlHandle(*tlCModuleLoad)();
-tlHandle _dlopen(tlArgs* args) {
+tlHandle _dlopen(tlTask* task, tlArgs* args) {
     tlString* name = tlStringAs(tlArgsGet(args, 0));
     void* lib = dlopen(tlStringData(name), RTLD_NOW|RTLD_LOCAL);
     if (!lib) TL_THROW("dlopen: %s", dlerror());

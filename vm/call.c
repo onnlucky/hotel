@@ -2,7 +2,7 @@
 
 #include "trace-off.h"
 
-INTERNAL tlHandle _call(tlArgs* args);
+INTERNAL tlHandle _call(tlTask* task, tlArgs* args);
 
 tlKind* tlNativeKind;
 
@@ -86,8 +86,8 @@ tlArgs* tlBCallFrom(tlHandle fn, ...) {
 const char* nativetoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Native@%p: %s>", v, tlSymData((tlNativeName(v)))); return buf;
 }
-static tlHandle nativeRun(tlHandle fn, tlArgs* args) {
-    return tlNativeAs(fn)->native(args);
+static tlHandle nativeRun(tlTask* task, tlHandle fn, tlArgs* args) {
+    return tlNativeAs(fn)->native(task, args);
 }
 static tlKind _tlNativeKind = {
     .name = "Native",

@@ -100,7 +100,7 @@ tlAudio* AudioNew(int samplerate, int channels, unsigned format) {
     return audio;
 }
 
-static tlHandle _Audio_open(tlArgs* args) {
+static tlHandle _Audio_open(tlTask* task, tlArgs* args) {
     int samplerate = tl_int_or(tlArgsGet(args, 0), -1);
     int channels = tl_int_or(tlArgsGet(args, 1), -1);
     int format = tl_int_or(tlArgsGet(args, 2), -1);
@@ -113,13 +113,12 @@ static tlHandle _Audio_open(tlArgs* args) {
     return audio;
 }
 
-static tlHandle resumeAudioWrite(tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    tlArgs* args = tlArgsAs(res);
+static tlHandle _audio_write(tlTask* task, tlArgs* args) {
     tlAudio* audio = tlAudioAs(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    if (!buf) TL_THROW("require a buffer");
 
-    frame->resumecb = null;
-    tlTask* task = tlTaskWaitExternal();
+    tlTaskWaitExternal(task);
     lqueue_put(&audio->wait_q, tlTaskGetEntry(task));
 
     if (!Pa_IsStreamActive(audio->stream)) {
@@ -127,14 +126,7 @@ static tlHandle resumeAudioWrite(tlFrame* frame, tlHandle res, tlHandle throw) {
         if (err) fatal("portaudio error: %s", Pa_GetErrorText(err));
     }
     trace("playing");
-    return tlTaskNotRunning;
-}
-static tlHandle _audio_write(tlArgs* args) {
-    assert(tlAudioIs(tlArgsTarget(args)));
-    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
-    if (!buf) TL_THROW("require a buffer");
-
-    return tlTaskPauseResuming(resumeAudioWrite, args);
+    return null;
 }
 
 void audio_init_vm(tlVm* vm) {

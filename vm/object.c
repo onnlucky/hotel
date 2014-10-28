@@ -239,7 +239,7 @@ tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...) {
 }
 
 // called when map literals contain lookups or expressions to evaluate
-static tlHandle _Object_clone(tlArgs* args) {
+static tlHandle _Object_clone(tlTask* task, tlArgs* args) {
     tlObject* o = tlObjectCast(tlArgsGet(args, 0));
     if (!o) TL_THROW("Expected an Object");
     int size = tlObjectSize(o);
@@ -256,7 +256,7 @@ static tlHandle _Object_clone(tlArgs* args) {
 
 tlObject* tlObjectFromMap(tlMap* map);
 tlObject* tlHashMapToObject(tlHashMap*);
-static tlHandle _Object_from(tlArgs* args) {
+static tlHandle _Object_from(tlTask* task, tlArgs* args) {
     tlHandle a1 = tlArgsGet(args, 0);
     if (tlHashMapIs(a1)) return tlHashMapToObject(a1);
     if (tlMapIs(a1)) return tlObjectFromMap(a1);
@@ -265,7 +265,7 @@ static tlHandle _Object_from(tlArgs* args) {
 }
 
 // {class=SomeThing},{foo=bar,class=brr} -> {class=SomeThing,foo=bar}
-static tlHandle _Object_inherit(tlArgs* args) {
+static tlHandle _Object_inherit(tlTask* task, tlArgs* args) {
     tlObject* o = tlObjectCast(tlArgsGet(args, 0));
     if (!o) TL_THROW("Expected an Object");
     tlHandle oclass = tlObjectGetSym(o, s_class);
@@ -279,32 +279,32 @@ static tlHandle _Object_inherit(tlArgs* args) {
     if (oclass) o = tlObjectSet(o, s_class, oclass);
     return o;
 }
-static tlHandle _Object_hash(tlArgs* args) {
+static tlHandle _Object_hash(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlINT(tlObjectHash(object));
 }
-static tlHandle _Object_size(tlArgs* args) {
+static tlHandle _Object_size(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlINT(tlObjectSize(object));
 }
-static tlHandle _Object_keys(tlArgs* args) {
+static tlHandle _Object_keys(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlObjectKeys(object);
 }
-static tlHandle _Object_values(tlArgs* args) {
+static tlHandle _Object_values(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlObjectValues(object);
 }
-static tlHandle _Object_toMap(tlArgs* args) {
+static tlHandle _Object_toMap(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlMapFromObject(object);
 }
-static tlHandle _Object_has(tlArgs* args) {
+static tlHandle _Object_has(tlTask* task, tlArgs* args) {
     trace("");
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
@@ -313,7 +313,7 @@ static tlHandle _Object_has(tlArgs* args) {
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
     return tlBOOL(res != null);
 }
-static tlHandle _Object_get(tlArgs* args) {
+static tlHandle _Object_get(tlTask* task, tlArgs* args) {
     trace("");
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
@@ -322,7 +322,7 @@ static tlHandle _Object_get(tlArgs* args) {
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
     return tlMAYBE(res);
 }
-static tlHandle _Object_set(tlArgs* args) {
+static tlHandle _Object_set(tlTask* task, tlArgs* args) {
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
     if (tlObjectIs(tlArgsGet(args, 1))) {
@@ -342,7 +342,7 @@ static tlHandle _Object_set(tlArgs* args) {
     return tlObjectToObject_(tlObjectSet(object, tlSymFromString(key), val));
 }
 
-static tlHandle _Object_merge(tlArgs* args) {
+static tlHandle _Object_merge(tlTask* task, tlArgs* args) {
     tlHashMap* res = tlHashMapNew();
     for (int i = 0;; i++) {
         tlHandle arg = tlArgsGet(args, i);
@@ -407,7 +407,7 @@ send:;
     return field;
 }
 
-static tlHandle objectSend(tlArgs* args) {
+static tlHandle objectSend(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectAs(tlArgsTarget(args));
     tlSym msg = tlArgsMsg(args);
     tlHandle field = null;
@@ -435,16 +435,17 @@ send:;
     trace("VALUE SEND %p: %s -> %s", object, tl_str(msg), tl_str(field));
     if (!field) TL_THROW("%s.%s is undefined", tl_str(object), tl_str(msg));
     if (!tlCallableIs(field)) return field;
-    return tlEvalArgsFn(args, field);
+    return tlEvalArgsFn(task, args, field);
 }
-static tlHandle objectRun(tlHandle fn, tlArgs* args) {
+static tlHandle objectRun(tlTask* task, tlHandle fn, tlArgs* args) {
+    assert(tlTaskIs(task));
     tlObject* object = tlObjectAs(fn);
     tlHandle field = tlObjectGetSym(object, s_call);
     if (field) {
         trace("%s", tl_str(field));
         // TODO this is awkward, tlCallableIs does not know about complex user objects
         if (!tlCallableIs(field)) return field;
-        return tlEvalArgsTarget(args, fn, field);
+        return tlEvalArgsTarget(task, args, fn, field);
     }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
@@ -481,7 +482,7 @@ static tlHandle objectCmp(tlHandle _left, tlHandle _right) {
     return tlCOMPARE(left->keys->size - right->keys->size);
 }
 
-static tlHandle _bless(tlArgs* args) {
+static tlHandle _bless(tlTask* task, tlArgs* args) {
     tlObject* methods = tlObjectCast(tlArgsGet(args, 0));
     if (!methods) TL_THROW("expected an object as arg[1]");
     tlHandle klass = tlArgsGet(args, 1);
