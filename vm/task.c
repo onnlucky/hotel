@@ -497,7 +497,7 @@ void tlFramePushResume(tlTask* task, tlResumeCb resume, tlHandle value) {
 }
 
 void tlFramePop(tlTask* task, tlFrame* frame) {
-    assert(task->stack == frame);
+    if (task->stack != frame) return;
     task->stack = frame->caller;
 }
 
