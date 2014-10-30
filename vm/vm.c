@@ -609,7 +609,7 @@ extern tlBModule* g_boot_module;
 
 tlTask* tlVmEvalBootBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args) {
     const char* error = null;
-    tlBModule* mod = tlBModuleFromBuffer(tlVmGetBoot(), tlSTR(name), &error);
+    tlBModule* mod = tlBModuleFromBuffer(buf, tlSTR(name), &error);
     if (error) fatal("error booting: %s", error);
     g_boot_module = mod;
 
