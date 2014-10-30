@@ -31,8 +31,8 @@ struct Window {
     tlHandle onresize;
 };
 
-void renderWindow(Window* window, cairo_t* cairo);
-void closeWindow(Window* window);
+void renderWindow(tlTask* task, Window* window, cairo_t* cairo);
+void closeWindow(tlTask* task, Window* window);
 
 // platform needs to implement this
 

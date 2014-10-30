@@ -70,18 +70,18 @@ void GraphicsSetImage(Graphics* g, Image* img) {
 
 /** cairo api **/
 
-static tlHandle _save(tlArgs* args) {
+static tlHandle _save(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_save(g->cairo);
     return g;
 }
-static tlHandle _restore(tlArgs* args) {
+static tlHandle _restore(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_restore(g->cairo);
     return g;
 }
 
-static tlHandle _setFillRule(tlArgs* args) {
+static tlHandle _setFillRule(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     cairo_fill_rule_t rule = CAIRO_FILL_RULE_WINDING;
     if (h == s_even_odd) rule = CAIRO_FILL_RULE_EVEN_ODD;
@@ -90,7 +90,7 @@ static tlHandle _setFillRule(tlArgs* args) {
     return g;
 }
 
-static tlHandle _setLineCap(tlArgs* args) {
+static tlHandle _setLineCap(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     cairo_line_cap_t cap = CAIRO_LINE_CAP_BUTT;
     if (h == s_round) {
@@ -103,7 +103,7 @@ static tlHandle _setLineCap(tlArgs* args) {
     return g;
 }
 
-static tlHandle _setLineJoin(tlArgs* args) {
+static tlHandle _setLineJoin(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     cairo_line_join_t join = CAIRO_LINE_JOIN_MITER;
     if (h == s_round) {
@@ -116,21 +116,21 @@ static tlHandle _setLineJoin(tlArgs* args) {
     return g;
 }
 
-static tlHandle _setLineWidth(tlArgs* args) {
+static tlHandle _setLineWidth(tlTask* task, tlArgs* args) {
     double width = tl_double_or(tlArgsGet(args, 0), 2.0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_line_width(g->cairo, width);
     return g;
 }
 
-static tlHandle _setMiterLimit(tlArgs* args) {
+static tlHandle _setMiterLimit(tlTask* task, tlArgs* args) {
     double limit = tl_double_or(tlArgsGet(args, 0), 10.0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_line_width(g->cairo, limit);
     return g;
 }
 
-static tlHandle _setOperator(tlArgs* args) {
+static tlHandle _setOperator(tlTask* task, tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     cairo_operator_t op = CAIRO_OPERATOR_OVER;
     if (h == s_clear) {
@@ -193,13 +193,13 @@ static tlHandle _setOperator(tlArgs* args) {
     return g;
 }
 
-static tlHandle _clip(tlArgs* args) {
+static tlHandle _clip(tlTask* task, tlArgs* args) {
     bool preserve = tl_bool(tlArgsGet(args, 0));
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     (!preserve)? cairo_clip(g->cairo) : cairo_clip_preserve(g->cairo);
     return g;
 }
-static tlHandle _resetClip(tlArgs* args) {
+static tlHandle _resetClip(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_reset_clip(g->cairo);
     return g;
@@ -207,7 +207,7 @@ static tlHandle _resetClip(tlArgs* args) {
 
 // TODO handle color names in string and symbol form
 // TODO also support floats and 3 or 4 length float arrays
-static tlHandle _color(tlArgs* args) {
+static tlHandle _color(tlTask* task, tlArgs* args) {
     double r = tl_double_or(tlArgsGet(args, 0), 0);
     double g = tl_double_or(tlArgsGet(args, 1), 0);
     double b = tl_double_or(tlArgsGet(args, 2), 0);
@@ -224,14 +224,14 @@ static tlHandle _color(tlArgs* args) {
     return gr;
 }
 
-static tlHandle _fill(tlArgs* args) {
+static tlHandle _fill(tlTask* task, tlArgs* args) {
     bool preserve = tl_bool(tlArgsGet(args, 0));
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     (!preserve)? cairo_fill(g->cairo) : cairo_fill_preserve(g->cairo);
     return g;
 }
 
-static tlHandle _stroke(tlArgs* args) {
+static tlHandle _stroke(tlTask* task, tlArgs* args) {
     bool preserve = tl_bool(tlArgsGet(args, 0));
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     (!preserve)? cairo_stroke(g->cairo) : cairo_stroke_preserve(g->cairo);
@@ -240,18 +240,18 @@ static tlHandle _stroke(tlArgs* args) {
 
 //** path api **
 
-static tlHandle _newPath(tlArgs* args) {
+static tlHandle _newPath(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_new_path(g->cairo);
     return g;
 }
-static tlHandle _closePath(tlArgs* args) {
+static tlHandle _closePath(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_close_path(g->cairo);
     return g;
 }
 
-static tlHandle _curveTo(tlArgs* args) {
+static tlHandle _curveTo(tlTask* task, tlArgs* args) {
     double x1 = tl_double_or(tlArgsGet(args, 0), 0);
     double y1 = tl_double_or(tlArgsGet(args, 1), 0);
     double x2 = tl_double_or(tlArgsGet(args, 2), 0);
@@ -262,21 +262,21 @@ static tlHandle _curveTo(tlArgs* args) {
     cairo_curve_to(g->cairo, x1, y1, x2, y2, x3, y3);
     return g;
 }
-static tlHandle _lineTo(tlArgs* args) {
+static tlHandle _lineTo(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_line_to(g->cairo, x, y);
     return g;
 }
-static tlHandle _moveTo(tlArgs* args) {
+static tlHandle _moveTo(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_move_to(g->cairo, x, y);
     return g;
 }
-static tlHandle _curveToRel(tlArgs* args) {
+static tlHandle _curveToRel(tlTask* task, tlArgs* args) {
     double x1 = tl_double_or(tlArgsGet(args, 0), 0);
     double y1 = tl_double_or(tlArgsGet(args, 1), 0);
     double x2 = tl_double_or(tlArgsGet(args, 2), 0);
@@ -287,14 +287,14 @@ static tlHandle _curveToRel(tlArgs* args) {
     cairo_rel_curve_to(g->cairo, x1, y1, x2, y2, x3, y3);
     return g;
 }
-static tlHandle _lineToRel(tlArgs* args) {
+static tlHandle _lineToRel(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rel_line_to(g->cairo, x, y);
     return g;
 }
-static tlHandle _moveToRel(tlArgs* args) {
+static tlHandle _moveToRel(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
@@ -302,7 +302,7 @@ static tlHandle _moveToRel(tlArgs* args) {
     return g;
 }
 
-static tlHandle _arc(tlArgs* args) {
+static tlHandle _arc(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     double r = tl_double_or(tlArgsGet(args, 2), 0);
@@ -313,7 +313,7 @@ static tlHandle _arc(tlArgs* args) {
     (!flip)? cairo_arc(g->cairo, x, y, r, a1, a2) : cairo_arc_negative(g->cairo, x, y, r, a1, a2);
     return g;
 }
-static tlHandle _rectangle(tlArgs* args) {
+static tlHandle _rectangle(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     double w = tl_double_or(tlArgsGet(args, 2), 0);
@@ -324,7 +324,7 @@ static tlHandle _rectangle(tlArgs* args) {
 };
 
 void charToUtf8(int c, char buf[], int* len);
-static tlHandle _textPath(tlArgs* args) {
+static tlHandle _textPath(tlTask* task, tlArgs* args) {
     tlHandle in = tlArgsGet(args, 0);
     const char* utf8;
     if (tlStringIs(in)) {
@@ -344,20 +344,20 @@ static tlHandle _textPath(tlArgs* args) {
 }
 
 // ** transforms **
-static tlHandle _translate(tlArgs* args) {
+static tlHandle _translate(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_translate(g->cairo, x, y);
     return g;
 }
-static tlHandle _rotate(tlArgs* args) {
+static tlHandle _rotate(tlTask* task, tlArgs* args) {
     double r = tl_double_or(tlArgsGet(args, 0), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_rotate(g->cairo, r);
     return g;
 }
-static tlHandle _scale(tlArgs* args) {
+static tlHandle _scale(tlTask* task, tlArgs* args) {
     double x = tl_double_or(tlArgsGet(args, 0), 0);
     double y = tl_double_or(tlArgsGet(args, 1), 0);
     Graphics* g = GraphicsAs(tlArgsTarget(args));
@@ -366,7 +366,7 @@ static tlHandle _scale(tlArgs* args) {
 }
 
 // ** text **
-static tlHandle _setFont(tlArgs* args) {
+static tlHandle _setFont(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     int size = tl_double_or(tlArgsGet(args, 1), 16);
     bool italic = tl_bool(tlArgsGet(args, 2));
@@ -380,14 +380,14 @@ static tlHandle _setFont(tlArgs* args) {
     return g;
 }
 
-static tlHandle _fontSize(tlArgs* args) {
+static tlHandle _fontSize(tlTask* task, tlArgs* args) {
     cairo_font_extents_t extents;
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_font_extents(g->cairo, &extents);
     return tlResultFrom(tlFLOAT(extents.height), tlFLOAT(extents.ascent), tlFLOAT(extents.descent), null);
 }
 
-static tlHandle _fillText(tlArgs* args) {
+static tlHandle _fillText(tlTask* task, tlArgs* args) {
     tlHandle in = tlArgsGet(args, 0);
     const char* utf8;
     if (tlStringIs(in)) {
@@ -406,7 +406,7 @@ static tlHandle _fillText(tlArgs* args) {
     return g;
 }
 
-static tlHandle _measureText(tlArgs* args) {
+static tlHandle _measureText(tlTask* task, tlArgs* args) {
     cairo_text_extents_t extents;
     tlHandle in = tlArgsGet(args, 0);
     const char* utf8;
@@ -427,7 +427,7 @@ static tlHandle _measureText(tlArgs* args) {
 }
 
 // ** images **
-static tlHandle _image(tlArgs* args) {
+static tlHandle _image(tlTask* task, tlArgs* args) {
     Image* img = ImageCast(tlArgsGet(args, 0));
     if (!img) {
         Graphics* g = GraphicsCast(tlArgsGet(args, 0));
@@ -463,7 +463,7 @@ static tlHandle _image(tlArgs* args) {
     return g;
 }
 
-static tlHandle _Graphics_new(tlArgs* args) {
+static tlHandle _Graphics_new(tlTask* task, tlArgs* args) {
     int width = tl_int_or(tlArgsGet(args, 0), 250);
     int height = tl_int_or(tlArgsGet(args, 1), width);
 
@@ -471,13 +471,13 @@ static tlHandle _Graphics_new(tlArgs* args) {
     return imageGetGraphics(image);
 }
 
-static tlHandle _graphics_width(tlArgs* args) {
+static tlHandle _graphics_width(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     if (!g->img) return tlNull;
     return tlINT(imageWidth(g->img));
 }
 
-static tlHandle _graphics_height(tlArgs* args) {
+static tlHandle _graphics_height(tlTask* task, tlArgs* args) {
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     if (!g->img) return tlNull;
     return tlINT(imageHeight(g->img));

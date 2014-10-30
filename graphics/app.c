@@ -31,15 +31,15 @@ void toolkit_schedule_done(tlRunOnMain* onmain) {
     pthread_mutex_unlock(&toolkit_lock);
 }
 
-tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args) {
+tlHandle tl_on_toolkit(tlTask* task, tlNativeCb cb, tlArgs* args) {
     // if blocking the toolkit thread, run immediately
-    if (toolkit_blocked) return cb(args);
+    if (toolkit_blocked) return cb(task, args);
     // if on the toolkit thread, run immediately
-    if (toolkit_thread == pthread_self()) return cb(args);
+    if (toolkit_thread == pthread_self()) return cb(task, args);
 
     // otherwise schedule to run
     pthread_mutex_lock(&toolkit_lock);
-    tlRunOnMain onmain = {.cb=cb,.args=args};
+    tlRunOnMain onmain = {.task=task,.cb=cb,.args=args};
     toolkit_schedule(&onmain);
     while (!onmain.result) {
         pthread_cond_wait(&toolkit_signal, &toolkit_lock);
@@ -47,8 +47,9 @@ tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args) {
     pthread_mutex_unlock(&toolkit_lock);
     return onmain.result;
 }
-void tl_on_toolkit_async(tlNativeCb cb, tlArgs* args) {
+void tl_on_toolkit_async(tlTask* task, tlNativeCb cb, tlArgs* args) {
     tlRunOnMain* onmain = malloc(sizeof(tlRunOnMain));
+    onmain->task = task;
     onmain->cb = cb;
     onmain->args = args;
     toolkit_schedule(onmain);
@@ -69,12 +70,12 @@ void toolkit_launch() {
     shared = tlAlloc(AppKind, sizeof(App));
 }
 
-static tlHandle _App_shared(tlArgs* args) {
+static tlHandle _App_shared(tlTask* task, tlArgs* args) {
     toolkit_launch();
     assert(shared);
     return shared;
 }
-static tlHandle App_shared(tlArgs* args) { return tl_on_toolkit(_App_shared, args); }
+static tlHandle App_shared(tlTask* task, tlArgs* args) { return tl_on_toolkit(task, _App_shared, args); }
 
 void toolkit_started() {
     assert(should_start_toolkit);
@@ -91,6 +92,7 @@ static void* tl_main(void* _args) {
     graphics_init(vm);
     image_init(vm);
     window_init(vm);
+
     tlVmEvalBoot(vm, tlArgsAs(_args));
     tl_exit_code = tlVmExitCode(vm);
 
@@ -109,7 +111,7 @@ int main(int argc, char** argv) {
     toolkit_init(argc, argv);
     tl_init();
 
-    tlArgs* args = tlArgsNew(tlListNew(argc - 1), null);
+    tlArgs* args = tlArgsNewNew(argc - 1);
     for (int i = 1; i < argc; i++) {
         tlArgsSet_(args, i - 1, tlSTR(argv[i]));
     }

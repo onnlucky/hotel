@@ -64,7 +64,7 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
 
     // call out to render task, it runs on the vm thread, blocking ours until done
     if (b->ondraw) {
-        tlBlockingTaskEval(b->window->rendertask, tlCallFrom(b->ondraw, g, null));
+        tlBlockingTaskEval(b->window->rendertask, tlBCallFrom(b->ondraw, g, null));
     }
 
     // draw the sub boxes
@@ -74,7 +74,7 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
     cairo_restore(c);
 }
 
-void renderWindow(Window* window, cairo_t* cairo) {
+void renderWindow(tlTask* task, Window* window, cairo_t* cairo) {
     assert(window);
     assert(window->rendertask);
     assert(cairo);
@@ -104,77 +104,77 @@ void box_dirty(Box* box) {
         if(b->window) TL_THROW("box is still attached");\
         b->window = w;
 
-Window* WindowNew(int width, int height) {
+Window* WindowNew(tlTask* task, int width, int height) {
     Window* window = tlAlloc(WindowKind, sizeof(Window));
-    window->rendertask = tlBlockingTaskNew(tlVmCurrent());
+    window->rendertask = tlBlockingTaskNew(tlVmCurrent(task));
     window->width = width;
     window->height = height;
 
     window->native = nativeWindowNew(window);
 
     // ensure open windows don't quit the runtime
-    tlVmIncExternal(tlVmCurrent());
+    tlVmIncExternal(tlVmCurrent(task));
 
     return window;
 }
-static tlHandle __Window_new(tlArgs* args) {
+static tlHandle __Window_new(tlTask* task, tlArgs* args) {
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
     if (width <= 0) width = 100;
     if (height <= 0) height = 100;
-    Window* window = WindowNew(width, height);
+    Window* window = WindowNew(task, width, height);
     return window;
 }
-static tlHandle _Window_new(tlArgs* args) {
+static tlHandle _Window_new(tlTask* task, tlArgs* args) {
     toolkit_launch();
-    return tl_on_toolkit(__Window_new, args);
+    return tl_on_toolkit(task, __Window_new, args);
 }
-void closeWindow(Window* window) {
+void closeWindow(tlTask* task, Window* window) {
     if (!window->native) return;
-    tlVmDecExternal(tlVmCurrent());
+    tlVmDecExternal(tlVmCurrent(task));
     window->native = null;
 }
-static tlHandle __window_close(tlArgs* args) {
+static tlHandle __window_close(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     nativeWindowClose(window->native);
-    closeWindow(window);
+    closeWindow(task, window);
     return tlNull;
 }
-static tlHandle _window_close(tlArgs* args) {
-    tl_on_toolkit_async(__window_close, args);
+static tlHandle _window_close(tlTask* task, tlArgs* args) {
+    tl_on_toolkit_async(task, __window_close, args);
     return tlNull;
 }
-static tlHandle _window_isClosed(tlArgs* args) {
+static tlHandle _window_isClosed(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     return tlBOOL(window->native == null);
 }
 
-static tlHandle __window_fullscreen(tlArgs* args) {
+static tlHandle __window_fullscreen(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     bool full = tl_bool(tlArgsGet(args, 0));
     nativeWindowSetFullScreen(window->native, full);
     return tlNull;
 }
-static tlHandle _window_fullscreen(tlArgs* args) {
+static tlHandle _window_fullscreen(tlTask* task, tlArgs* args) {
     if (tlArgsSize(args) == 0) {
         Window* window = WindowAs(tlArgsTarget(args));
         return tlBOOL(nativeWindowFullScreen(window->native));
     }
-    tl_on_toolkit_async(__window_fullscreen, args);
+    tl_on_toolkit_async(task, __window_fullscreen, args);
     return tlArgsGet(args, 0);
 }
 
-static tlHandle _window_clipboardGet(tlArgs* args) {
+static tlHandle _window_clipboardGet(tlTask* task, tlArgs* args) {
     return nativeClipboardGet();
 }
-static tlHandle _window_clipboardSet(tlArgs* args) {
+static tlHandle _window_clipboardSet(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
     nativeClipboardSet(str);
     return tlNull;
 }
 
-static tlHandle _window_add(tlArgs* args) {
+static tlHandle _window_add(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     Box* box = BoxCast(tlArgsGet(args, 0));
     if (!box) TL_THROW("expect a Box to add");
@@ -191,16 +191,16 @@ static tlHandle _window_add(tlArgs* args) {
     box->prev = b;
     return box;
 }
-static tlHandle _window_remove(tlArgs* args) {
+static tlHandle _window_remove(tlTask* task, tlArgs* args) {
     TL_THROW("not implemented");
 }
-static tlHandle _window_get(tlArgs* args) {
+static tlHandle _window_get(tlTask* task, tlArgs* args) {
     TL_THROW("not implemented");
 }
-static tlHandle _window_up(tlArgs* args) {
+static tlHandle _window_up(tlTask* task, tlArgs* args) {
     return tlNull;
 }
-static tlHandle _window_x(tlArgs* args) {
+static tlHandle _window_x(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         window->x = tl_int_or(tlArgsGet(args, 0), 0);
@@ -208,7 +208,7 @@ static tlHandle _window_x(tlArgs* args) {
     }
     return tlINT(window->x);
 }
-static tlHandle _window_y(tlArgs* args) {
+static tlHandle _window_y(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         window->y = tl_int_or(tlArgsGet(args, 0), 0);
@@ -216,7 +216,7 @@ static tlHandle _window_y(tlArgs* args) {
     }
     return tlINT(window->y);
 }
-static tlHandle _window_width(tlArgs* args) {
+static tlHandle _window_width(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         window->width = tl_int_or(tlArgsGet(args, 0), 0);
@@ -224,7 +224,7 @@ static tlHandle _window_width(tlArgs* args) {
     }
     return tlINT(window->width);
 }
-static tlHandle _window_height(tlArgs* args) {
+static tlHandle _window_height(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         window->height = tl_int_or(tlArgsGet(args, 0), 0);
@@ -232,7 +232,7 @@ static tlHandle _window_height(tlArgs* args) {
     }
     return tlINT(window->height);
 }
-static tlHandle __window_title(tlArgs* args) {
+static tlHandle __window_title(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         tlString* str = tlStringCast(tlArgsGet(args, 0));
@@ -242,9 +242,9 @@ static tlHandle __window_title(tlArgs* args) {
     }
     return nativeWindowTitle(window->native);
 }
-static tlHandle _window_title(tlArgs* args) { return tl_on_toolkit(__window_title, args); }
+static tlHandle _window_title(tlTask* task, tlArgs* args) { return tl_on_toolkit(task, __window_title, args); }
 
-static tlHandle __window_visible(tlArgs* args) {
+static tlHandle __window_visible(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         bool visible = tl_bool(tlArgsGet(args, 0));
@@ -255,16 +255,16 @@ static tlHandle __window_visible(tlArgs* args) {
     }
     return tlBOOL(nativeWindowVisible(window->native));
 }
-static tlHandle _window_visible(tlArgs* args) { return tl_on_toolkit(__window_visible, args); }
+static tlHandle _window_visible(tlTask* task, tlArgs* args) { return tl_on_toolkit(task, __window_visible, args); }
 
-static tlHandle __window_focus(tlArgs* args) {
+static tlHandle __window_focus(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     window->dirty = false;
     window_dirty(window);
     nativeWindowFocus(window->native);
     return tlNull;
 }
-static tlHandle _window_focus(tlArgs* args) { tl_on_toolkit_async(__window_focus, args); return tlNull; }
+static tlHandle _window_focus(tlTask* task, tlArgs* args) { tl_on_toolkit_async(task, __window_focus, args); return tlNull; }
 
 void windowKeyEvent(Window* window, int code, tlString* input, int modifiers) {
     if (!window->onkey) return;
@@ -274,7 +274,7 @@ void windowKeyEvent(Window* window, int code, tlString* input, int modifiers) {
     tlObjectSet_(res, _s_key, tlINT(code));
     tlObjectSet_(res, _s_input, input);
     tlObjectSet_(res, _s_modifiers, tlINT(modifiers));
-    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onkey, res, null));
+    tlBlockingTaskEval(window->rendertask, tlBCallFrom(window->onkey, res, null));
     unblock_toolkit();
 }
 
@@ -283,7 +283,7 @@ void windowMouseEvent(Window* window, double x, double y, int buttons, int count
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), tlINT(count), null));
+            tlBCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), tlINT(count), null));
     unblock_toolkit();
 }
 void windowMouseMoveEvent(Window* window, double x, double y, int buttons, int modifiers) {
@@ -291,7 +291,7 @@ void windowMouseMoveEvent(Window* window, double x, double y, int buttons, int m
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlCallFrom(window->onmousemove, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), null));
+            tlBCallFrom(window->onmousemove, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), null));
     unblock_toolkit();
 }
 void windowMouseScrollEvent(Window* window, double deltaX, double deltaY) {
@@ -299,7 +299,7 @@ void windowMouseScrollEvent(Window* window, double deltaX, double deltaY) {
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlCallFrom(window->onmousescroll, tlFLOAT(deltaX), tlFLOAT(deltaY), null));
+            tlBCallFrom(window->onmousescroll, tlFLOAT(deltaX), tlFLOAT(deltaY), null));
     unblock_toolkit();
 }
 void windowResizeEvent(Window* window, int x, int y, int width, int height) {
@@ -307,7 +307,7 @@ void windowResizeEvent(Window* window, int x, int y, int width, int height) {
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
+            tlBCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
     unblock_toolkit();
 }
 
@@ -321,7 +321,7 @@ Box* BoxNew(int x, int y, int width, int height) {
     box->alpha = 1.0;
     return box;
 }
-static tlHandle _Box_new(tlArgs* args) {
+static tlHandle _Box_new(tlTask* task, tlArgs* args) {
     int x = 0, y = 0, width = 0, height = 0;
     if (tlArgsSize(args) <= 2) {
         width = tl_int_or(tlArgsGet(args, 0), 0);
@@ -336,7 +336,7 @@ static tlHandle _Box_new(tlArgs* args) {
     // TODO allow more arguments, like ondraw and such
     return box;
 }
-static tlHandle _box_add(tlArgs* args) {
+static tlHandle _box_add(tlTask* task, tlArgs* args) {
     Box* up = BoxAs(tlArgsTarget(args));
     Box* box = BoxCast(tlArgsGet(args, 0));
     if (!box) TL_THROW("expect a Box to add");
@@ -353,16 +353,16 @@ static tlHandle _box_add(tlArgs* args) {
     box->prev = b;
     return box;
 }
-static tlHandle _box_remove(tlArgs* args) {
+static tlHandle _box_remove(tlTask* task, tlArgs* args) {
     TL_THROW("not implemented");
 }
-static tlHandle _box_get(tlArgs* args) {
+static tlHandle _box_get(tlTask* task, tlArgs* args) {
     TL_THROW("not implemented");
 }
-static tlHandle _box_up(tlArgs* args) {
+static tlHandle _box_up(tlTask* task, tlArgs* args) {
     return tlNull;
 }
-static tlHandle _box_x(tlArgs* args) {
+static tlHandle _box_x(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->x = tl_double_or(tlArgsGet(args, 0), 0);
@@ -370,7 +370,7 @@ static tlHandle _box_x(tlArgs* args) {
     }
     return tlFLOAT(box->x);
 }
-static tlHandle _box_y(tlArgs* args) {
+static tlHandle _box_y(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->y = tl_double_or(tlArgsGet(args, 0), 0);
@@ -378,7 +378,7 @@ static tlHandle _box_y(tlArgs* args) {
     }
     return tlFLOAT(box->y);
 }
-static tlHandle _box_width(tlArgs* args) {
+static tlHandle _box_width(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->width = tl_double_or(tlArgsGet(args, 0), 0);
@@ -386,7 +386,7 @@ static tlHandle _box_width(tlArgs* args) {
     }
     return tlFLOAT(box->width);
 }
-static tlHandle _box_height(tlArgs* args) {
+static tlHandle _box_height(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->height = tl_double_or(tlArgsGet(args, 0), 0);
@@ -394,7 +394,7 @@ static tlHandle _box_height(tlArgs* args) {
     }
     return tlFLOAT(box->height);
 }
-static tlHandle _box_center(tlArgs* args) {
+static tlHandle _box_center(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->cx = tl_double_or(tlArgsGet(args, 0), 0);
@@ -403,7 +403,7 @@ static tlHandle _box_center(tlArgs* args) {
     }
     return tlResultFrom(tlFLOAT(box->cx), tlFLOAT(box->cy), null);
 }
-static tlHandle _box_scale(tlArgs* args) {
+static tlHandle _box_scale(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->sx = tl_double_or(tlArgsGet(args, 0), 0);
@@ -414,7 +414,7 @@ static tlHandle _box_scale(tlArgs* args) {
     }
     return tlResultFrom(tlFLOAT(box->sx), tlFLOAT(box->sy), null);
 }
-static tlHandle _box_rotate(tlArgs* args) {
+static tlHandle _box_rotate(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->r = tl_double_or(tlArgsGet(args, 0), 0);
@@ -422,7 +422,7 @@ static tlHandle _box_rotate(tlArgs* args) {
     }
     return tlFLOAT(box->r);
 }
-static tlHandle _box_alpha(tlArgs* args) {
+static tlHandle _box_alpha(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     if (tlArgsSize(args) > 0) {
         box->alpha = tl_double_or(tlArgsGet(args, 0), 0);
@@ -431,7 +431,7 @@ static tlHandle _box_alpha(tlArgs* args) {
     return tlFLOAT(box->alpha);
 }
 
-static tlHandle _box_ondraw(tlArgs* args) {
+static tlHandle _box_ondraw(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
@@ -441,13 +441,13 @@ static tlHandle _box_ondraw(tlArgs* args) {
     }
     return box->ondraw?box->ondraw : tlNull;
 }
-static tlHandle _box_redraw(tlArgs* args) {
+static tlHandle _box_redraw(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsTarget(args));
     box_dirty(box);
     return tlNull;
 }
 
-static tlHandle __Text_new(tlArgs* args) {
+static tlHandle __Text_new(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsGet(args, 0));
     Text* text = tlAlloc(TextKind, sizeof(Text));
     text->box = box;
@@ -456,18 +456,18 @@ static tlHandle __Text_new(tlArgs* args) {
     return text;
 }
 
-static tlHandle _Text_new(tlArgs* args) {
+static tlHandle _Text_new(tlTask* task, tlArgs* args) {
     Box* box = BoxAs(tlArgsGet(args, 0));
     if (!box) TL_THROW("need a box to render in");
-    return tl_on_toolkit(__Text_new, args);
+    return tl_on_toolkit(task, __Text_new, args);
 }
 
-static tlHandle _text_text(tlArgs* args) {
+static tlHandle _text_text(tlTask* task, tlArgs* args) {
     Text* text = TextAs(tlArgsTarget(args));
     return nativeTextBoxGetText(text->native);
 }
 
-static tlHandle _window_onkey(tlArgs* args) {
+static tlHandle _window_onkey(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
@@ -475,7 +475,7 @@ static tlHandle _window_onkey(tlArgs* args) {
     return window->onkey?window->onkey : tlNull;
 }
 
-static tlHandle _window_onmouse(tlArgs* args) {
+static tlHandle _window_onmouse(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
@@ -483,7 +483,7 @@ static tlHandle _window_onmouse(tlArgs* args) {
     return window->onmouse?window->onmouse : tlNull;
 }
 
-static tlHandle _window_onmousemove(tlArgs* args) {
+static tlHandle _window_onmousemove(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
@@ -491,7 +491,7 @@ static tlHandle _window_onmousemove(tlArgs* args) {
     return window->onmousemove?window->onmousemove : tlNull;
 }
 
-static tlHandle _window_onmousescroll(tlArgs* args) {
+static tlHandle _window_onmousescroll(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
@@ -499,7 +499,7 @@ static tlHandle _window_onmousescroll(tlArgs* args) {
     return window->onmousescroll?window->onmousescroll : tlNull;
 }
 
-static tlHandle _window_onresize(tlArgs* args) {
+static tlHandle _window_onresize(tlTask* task, tlArgs* args) {
     Window* window = WindowAs(tlArgsTarget(args));
     tlHandle block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);

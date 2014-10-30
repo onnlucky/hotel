@@ -142,7 +142,7 @@ int imageHeight(Image* img) {
 }
 cairo_surface_t* imageSurface(Image* img) { return img->surface; }
 
-static tlHandle _Image_new(tlArgs* args) {
+static tlHandle _Image_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (buf) return ImageFromBuffer(buf);
 
@@ -159,19 +159,19 @@ static tlHandle _Image_new(tlArgs* args) {
     TL_THROW("Image.new requires a Buffer or a width and height");
 }
 
-static tlHandle _image_width(tlArgs* args) {
+static tlHandle _image_width(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageWidth(img));
 }
-static tlHandle _image_height(tlArgs* args) {
+static tlHandle _image_height(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageHeight(img));
 }
-static tlHandle _image_graphics(tlArgs* args) {
+static tlHandle _image_graphics(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return imageGetGraphics(img);
 }
-static tlHandle _image_writePNG(tlArgs* args) {
+static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     tlString* path = tlStringCast(tlArgsGet(args, 0));
     if (!path) TL_THROW("require a filename");

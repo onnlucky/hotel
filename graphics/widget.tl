@@ -63,12 +63,12 @@ Widget = text -> _Mutable_new(Object.merge(
         onmouse = event, x, y ->
             this.setFocus()
             { event.buttons == 1 }:
-                this.width += 10
-                this.height += 10
+                this.width = this.width + 10
+                this.height = this.height + 10
                 this.parent.dirty
             { event.buttons == 2 }:
-                this.width -= 10
-                this.height -= 10
+                this.width =  this.width - 10
+                this.height = this.height - 10
                 this.parent.dirty
     })}
 ))
@@ -87,8 +87,8 @@ Text = text -> _Mutable_new(Object.merge(
             words = text.split(" ")
             sizes = words.map(w -> g.measureText(w + " "))
 
-            size = Var.new 0
-            text = Var.new ""
+            var $size = 0
+            var $text = ""
             sizes.each: s, n ->
                 if $size + s > width:
                     this.lines.add($text)
@@ -103,7 +103,7 @@ Text = text -> _Mutable_new(Object.merge(
             g.setFont("Arial", 16)
             _, height = g.measureText("fg")
             g.color(0,0,0)
-            x = Var.new height
+            var $x = height
             this.lines.each: l ->
                 g.moveTo(0, $x)
                 g.fillText(l)
@@ -156,7 +156,7 @@ Vertical = -> _Mutable_new {
             c.size(g, width)
             c.x = 0
             c.y = this.height
-            this.height += c.height
+            this.height = this.height + c.height
             this.width = max(this.width, c.width)
 
     onmouse = event, x, y ->

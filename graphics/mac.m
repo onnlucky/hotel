@@ -165,7 +165,7 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     windowKeyEvent(window, key, tlStringFromCopy(input, 0), modifiers);
 }
 - (void)windowWillClose:(NSNotification *)notification {
-    closeWindow(window);
+    closeWindow(window->rendertask, window);
 }
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
     NSRect rect = [self contentRectForFrameRect:NSMakeRect(0, 0, frameSize.width, frameSize.height)];
@@ -200,7 +200,7 @@ void nativeWindowSetFullScreen(NativeWindow* _w, bool full) {
     cairo_surface_t* surface = cairo_quartz_surface_create_for_cg_context(cgx, width, height);
     cairo_t* cairo = cairo_create(surface);
 
-    renderWindow(window, cairo);
+    renderWindow(window->rendertask, window, cairo);
 
     cairo_destroy(cairo);
     cairo_surface_destroy(surface);
@@ -354,7 +354,7 @@ void toolkit_stop() {
 @end
 @implementation RunOnMain
 - (void)run {
-    onmain->result = onmain->cb(onmain->args);
+    onmain->result = onmain->cb(onmain->task, onmain->args);
     toolkit_schedule_done(onmain);
 }
 @end

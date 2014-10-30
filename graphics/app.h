@@ -4,6 +4,7 @@
 #include "vm/tl.h"
 
 typedef struct {
+    tlTask* task;
     tlNativeCb cb;
     tlArgs* args;
     tlHandle result;
@@ -21,8 +22,8 @@ void toolkit_schedule_done(tlRunOnMain* onmain);
 
 // others
 void toolkit_launch();
-tlHandle tl_on_toolkit(tlNativeCb cb, tlArgs* args);
-void tl_on_toolkit_async(tlNativeCb cb, tlArgs* args);
+tlHandle tl_on_toolkit(tlTask* task, tlNativeCb cb, tlArgs* args);
+void tl_on_toolkit_async(tlTask* task, tlNativeCb cb, tlArgs* args);
 
 // indicate toolkit thread is blocked on hotel
 void block_toolkit();
