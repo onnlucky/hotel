@@ -340,6 +340,7 @@ tlFrame* tlFrameCurrent(tlTask* task);
 tlTask* tlVmEval(tlVm* vm, tlHandle v);
 tlTask* tlVmEvalCall(tlVm* vm, tlHandle fn, ...);
 tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as);
+tlTask* tlVmEvalBootBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args);
 tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as);
 

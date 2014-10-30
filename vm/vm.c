@@ -605,6 +605,26 @@ tlBuffer* tlVmGetCompiler() {
     return buf;
 }
 
+extern tlBModule* g_boot_module;
+
+tlTask* tlVmEvalBootBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args) {
+    const char* error = null;
+    tlBModule* mod = tlBModuleFromBuffer(tlVmGetBoot(), tlSTR(name), &error);
+    if (error) fatal("error booting: %s", error);
+    g_boot_module = mod;
+
+    tlBModuleLink(mod, tlVmGlobalEnv(vm), &error);
+    if (error) fatal("error linking boot: %s", error);
+
+    tlTask* task = tlBModuleCreateTask(vm, mod, args);
+    tlVmRun(vm, task);
+    return task;
+}
+
+tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* args) {
+    return tlVmEvalBootBuffer(vm, tlVmGetBoot(), "<boot>", args);
+}
+
 static tlHandle _vm_get_compiler() {
     return tlVmGetCompiler();
 }

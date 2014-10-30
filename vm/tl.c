@@ -36,16 +36,7 @@ int main(int argc, char** argv) {
     }
     if (!buf) fatal("unable to load: %s", boot);
 
-    const char* error = null;
-    tlBModule* mod = tlBModuleFromBuffer(buf, tlSTR(boot), &error);
-    if (error) fatal("error booting: %s", error);
-    g_boot_module = mod;
-
-    tlBModuleLink(mod, tlVmGlobalEnv(vm), &error);
-    if (error) fatal("error linking boot: %s", error);
-
-    tlTask* task = tlBModuleCreateTask(vm, mod, args);
-    tlVmRun(vm, task);
+    tlTask* task = tlVmEvalBootBuffer(vm, buf, boot, args);
     tlHandle h = tlTaskGetValue(task);
     if (tl_bool(h)) printf("%s\n", tl_str(h));
 
