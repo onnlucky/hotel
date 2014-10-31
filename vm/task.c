@@ -164,13 +164,6 @@ INTERNAL void tlTaskRun(tlTask* task) {
     tlTaskDone(task);
 }
 
-// when a task is in an error state it will throw it until somebody handles it
-INTERNAL tlHandle tlTaskRunThrow(tlTask* task, tlHandle thrown) {
-    task->value = null;
-    task->throw = thrown;
-    return null;
-}
-
 void tlTaskFinalize(void* _task, void* data) {
     tlTask* task = tlTaskAs(_task);
     if (!task->read && task->throw) {
@@ -538,7 +531,7 @@ INTERNAL tlHandle _task_wait(tlTask* task, tlArgs* args) {
 
     if (tlTaskIsDone(other)) {
         tlTaskCopyValue(task, other);
-        if (task->throw) return tlTaskRunThrow(task, task->throw);
+        if (task->throw) return tlTaskThrow(task, task->throw);
         assert(task->value);
         return task->value;
     }
