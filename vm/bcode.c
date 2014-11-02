@@ -30,6 +30,12 @@ const char* op_name(uint8_t op) {
         case OP_RSTORE: return "RESULT";
         case OP_INVOKE: return "INVOKE";
         case OP_CERR: return "CERR";
+        case OP_VGET: return "VGET";
+        case OP_VSTORE: return "VSTORE";
+        case OP_VRSTORE: return "VRSTORE";
+        case OP_EVGET: return "EVGET";
+        case OP_EVSTORE: return "EVSTORE";
+        case OP_EVRSTORE: return "EVRSTORE";
         case OP_MCALL: return "MCALL";
         case OP_FCALL: return "FCALL";
         case OP_BCALL: return "BCALL";
@@ -426,6 +432,11 @@ tlHandle tlBEnvGet(tlBEnv* env, int at) {
     assert(at >= 0 && at <= tlListSize(env->names));
     return env->data[at];
 }
+tlHandle tlBEnvSet_(tlBEnv* env, int at, tlHandle value) {
+    assert(tlBEnvIs(env));
+    assert(at >= 0 && at <= tlListSize(env->names));
+    return env->data[at] = value;
+}
 tlBEnv* tlBEnvGetParentAt(tlBEnv* env, int depth) {
     assert(tlBEnvIs(env));
     if (depth == 0) return env;
@@ -777,7 +788,7 @@ static void disasm(tlBCode* bcode) {
     }
     print(" </locals>");
     int pc = 0;
-    int r = 0; int r2 = 0; tlHandle o = null;
+    int r = 0; int r2 = 0; int r3 = 0; tlHandle o = null;
     while (true) {
         int opc = pc;
         uint8_t op = ops[pc++];
@@ -789,7 +800,7 @@ static void disasm(tlBCode* bcode) {
             case OP_CERR:
                 print(" % 3d 0x%X %s", opc, op, op_name(op));
                 break;
-            case OP_INT: case OP_LOCAL: case OP_ARG:
+            case OP_INT:
             case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
             case OP_CCALL:
                 r = pcreadsize(ops, &pc);
@@ -809,22 +820,34 @@ static void disasm(tlBCode* bcode) {
                 print(" % 3d 0x%X %s: %s(%s)", opc, op, op_name(op),
                         tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r)));
                 break;
-            case OP_ENV: case OP_ENVARG:
-                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
-                break;
             case OP_BIND:
                 o = pcreadref(ops, &pc, data);
                 print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
                 //if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
                 break;
-            case OP_STORE:
+            case OP_LOCAL: case OP_ARG: case OP_VGET: // slot
+                r = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
+                break;
+            case OP_STORE: case OP_VSTORE: // slot
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d(%s) <-", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
                 break;
-            case OP_RSTORE:
+            case OP_RSTORE: case OP_VRSTORE: // result, slot
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d(%s) <- %d", opc, op, op_name(op), r2, tl_str(tlListGet(bcode->localnames, r2)), r);
+                break;
+            case OP_ENV: case OP_ENVARG: case OP_EVGET: // parent, slot
+                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
+                break;
+            case OP_EVSTORE: // parent, slot
+                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d %d <- ", opc, op, op_name(op), r, r2);
+                break;
+            case OP_EVRSTORE: // parent, result, slot
+                r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc); r3 = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d %d <- %d", opc, op, op_name(op), r, r3, r2);
                 break;
             default: print("OEPS: %d 0x%X %s", opc, op, op_name(op));
         }
@@ -899,6 +922,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_MODULE: dreadref(&code, data); break;
             case OP_GLOBAL: dreadsize(&code); break;
             case OP_ENV:
+            case OP_EVGET:
                 parent = dreadsize(&code);
                 at = dreadsize(&code);
                 // TODO check if parent locals actually support these
@@ -922,6 +946,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 if (parent > 200) FAIL("parent out of range");
                 break;
             case OP_LOCAL:
+            case OP_VGET:
                 at = dreadsize(&code);
                 assert(at >= 0);
                 if (at >= locals) FAIL("local out of range");
@@ -933,15 +958,32 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 if (*error) return null;
                 break;
             case OP_STORE:
+            case OP_VSTORE:
                 at = dreadsize(&code);
                 assert(at >= 0);
                 if (at >= locals) FAIL("local store out of range");
                 break;
             case OP_RSTORE:
+            case OP_VRSTORE:
                 dreadsize(&code);
                 at = dreadsize(&code);
                 assert(at >= 0);
                 if (at >= locals) FAIL("local store out of range");
+                break;
+            case OP_EVSTORE:
+                parent = dreadsize(&code);
+                at = dreadsize(&code);
+                assert(parent >= 0);
+                assert(at >= 0);
+                if (parent > 200) FAIL("parent out of range");
+                break;
+            case OP_EVRSTORE:
+                parent = dreadsize(&code);
+                dreadsize(&code);
+                at = dreadsize(&code);
+                assert(parent >= 0);
+                assert(at >= 0);
+                if (parent > 200) FAIL("parent out of range");
                 break;
 
             case OP_INVOKE:
@@ -1467,6 +1509,63 @@ again:;
             trace("result %d <- %s (%d %s)", at, tl_str(res), rat, tl_str(v));
             break;
         }
+        // TODO these all need to be thread safe, when we support multithreading again
+        case OP_VGET: {
+            at = pcreadsize(ops, &pc);
+            assert(at >= 0 && at < bcode->locals);
+            v = frame->locals->data[at];
+            if (!v) v = tlNull; // TODO tlUndefined or throw?
+            trace("vget %d -> %s", at, tl_str(v));
+            break;
+        }
+        case OP_VSTORE: {
+            at = pcreadsize(ops, &pc);
+            assert(at >= 0 && at < bcode->locals);
+            frame->locals->data[at] = tlFirst(v);
+            trace("vstore %d <- %s", at, tl_str(v));
+            break;
+        }
+        case OP_VRSTORE: {
+            int rat = pcreadsize(ops, &pc);
+            tlHandle res = tlResultGet(v, rat);
+            at = pcreadsize(ops, &pc);
+            frame->locals->data[at] = res;
+            trace("rvstore %d <- %s (%d %s)", at, tl_str(res), rat, tl_str(v));
+            break;
+        }
+        case OP_EVGET: {
+            depth = pcreadsize(ops, &pc);
+            at = pcreadsize(ops, &pc);
+            assert(depth >= 0 && at >= 0);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            assert(parent);
+            v = tlBEnvGet(parent, at);
+            trace("env[%d][%d] -> %s", depth, at, tl_str(v));
+            break;
+        }
+        case OP_EVSTORE: {
+            depth = pcreadsize(ops, &pc);
+            at = pcreadsize(ops, &pc);
+            assert(depth >= 0 && at >= 0);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            assert(parent);
+            tlBEnvSet_(parent, at, v);
+            trace("env[%d][%d] <- %s", depth, at, tl_str(v));
+            break;
+        }
+        case OP_EVRSTORE: {
+            int rat = pcreadsize(ops, &pc);
+            tlHandle res = tlResultGet(v, rat);
+            depth = pcreadsize(ops, &pc);
+            at = pcreadsize(ops, &pc);
+            assert(depth >= 0 && at >= 0);
+            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            assert(parent);
+            tlBEnvSet_(parent, at, res);
+            trace("env[%d][%d] <- %s (%d %s)", depth, at, tl_str(res), rat, tl_str(v));
+            break;
+        }
+
         case OP_TRUE: v = tlTrue; break;
         case OP_FALSE: v = tlFalse; break;
         case OP_NULL: v = tlNull; break;

@@ -9,6 +9,8 @@ enum {
     OP_BIND, OP_STORE, OP_RSTORE,                             // bind closures, store into locals (16-18)
     OP_INVOKE,                                                // invoke calls (19)
     OP_CERR,                                                  // end of pcall sequence (20)
+    OP_VGET, OP_VSTORE, OP_VRSTORE,                           // 21-23, get and set mutables in local env
+    OP_EVGET, OP_EVSTORE, OP_EVRSTORE,                        // 24-26, get and set mutables in parent env
     // upto 31 instructions possible
 
     // 0b1110_0000

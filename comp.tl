@@ -148,6 +148,13 @@ writeCode = mod, c ->
         { op == "invoke" }: buf.write(0b1100_0000 + 19)
         { op == "cerr"   }: buf.write(0b1100_0000 + 20)
 
+        { op == "vget"    }: buf.write(0b1100_0000 + 21); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "vstore"  }: buf.write(0b1100_0000 + 22); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "vrstore" }: buf.write(0b1100_0000 + 23); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "evget"   }: buf.write(0b1100_0000 + 24); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "evstore" }: buf.write(0b1100_0000 + 25); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "evrstore"}: buf.write(0b1100_0000 + 26); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+
         { op == "mcall"  }: buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
@@ -417,20 +424,19 @@ compile = (text, ast ->
                 ref = scope.ref(term.to.name, peek=true)
                 type = try(ids[ref.id])
                 if type?type == "var":
-                    return {type="method",target=ref,method="set",args=[value]}
+                    return {type="vset",target=ref,{value}}
                 local, id = scope.add(term.to.name, term.to.pos)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
                 value = lex(scope, term.value)
-                value = {type="method",target={type="global",name="Var"},method="new",args=[value]}
-                to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
-                {type="assign",{to,value}}
+                {type="vset",target=scope.ref(term.to.name),{value}}
             { term.to.type == "var"    }:
                 ref = scope.ref(term.to.name)
+                assert ids[ref.id].type == "var"
                 value = lex(scope, term.value)
-                {type="method",target=ref,method="set",args=[value]}
+                {type="vset",target=ref,{value}}
         { term.type == "multiassign" }:
             // TODO perhaps function defined this way must stay open?
             value = lex(scope, term.value)
@@ -485,14 +491,9 @@ compile = (text, ast ->
             rhs = lex(scope, term.rhs)
             {type="op",op=term.op,{lhs,rhs}}
         { term.type == "ref" }:
-            ref = scope.ref(term.name)
-            type = try(ids[ref.id])
-            if type?type == "var":
-                return {type="method",method="get",target=ref,args=[]}
-            return ref
+            return scope.ref(term.name)
         { term.type == "varref" }:
-            ref = scope.ref(term.name)
-            {type="method",method="get",target=ref,args=[]}
+            return scope.ref(term.name)
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
             lhs = {type="method",method="get",target=ref,args=[]}
@@ -545,6 +546,7 @@ compile = (text, ast ->
         { term.type == "function" }: ["bind", term.function]
         { term.type == "system"   }: ["system", term.name]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
+        { term.type == "vset"     }: emit(term.value) + ["vstore", term.target.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
             ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
