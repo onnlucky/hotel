@@ -439,10 +439,12 @@ compile = (text, ast ->
                 {type="vset",target=ref,{value}}
         { term.type == "multiassign" }:
             // TODO perhaps function defined this way must stay open?
+            // TODO fixup for new var stuff
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
                 { to.type == "local" }: scope.add(to.name, to.pos)
                 {                    }: scope.add("", to.pos) // anonymous locals for Var.new and var.set
+                                        assert false
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
@@ -496,10 +498,9 @@ compile = (text, ast ->
             return scope.ref(term.name)
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
-            lhs = {type="method",method="get",target=ref,args=[]}
             rhs = lex(scope, term.value)
-            value = {type="op",op=term.op,{lhs,rhs}}
-            {type="method",target=ref,method="set",args=[value]}
+            value = {type="op",op=term.op,lhs=ref,{rhs}}
+            {type="vset",target=ref,{value}}
         { term.type == "list" }:
             data = try(term.data, []).map(term -> lex(scope, term))
             {type="list",{data}}
@@ -589,9 +590,13 @@ compile = (text, ast ->
             term.guards.map(term ->
                 [emit(term.cond), "ccall", 0, emit(term.block), "invoke"]
             ).flatten + ["cerr"]
-        { term.type == "local"  }: ["local", term.at - 1]
+        { term.type == "local"  }:
+            { term?var }: ["vget", term.at - 1]
+            {          }: ["local", term.at - 1]
         { term.type == "arg"    }: ["arg", term.at - 1]
-        { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
+        { term.type == "env"    }:
+            { term?var }: ["evget", term.up - 1, term.at - 1]
+            {          }: ["env", term.up - 1, term.at - 1]
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
         { term.type == "global" }: ["global", term.name]
         { term.type == "args"   }: ["args"]
