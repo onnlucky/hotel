@@ -220,9 +220,9 @@ compile = (text, ast ->
             if this.locals[-1] == name and try(this.names[name].fn):
                 ref = this.names[name]
                 return ref.at, ref.id
-            _, id = ids.add({{name},at=Array.new([pos]),type=type})
+            _, id = ids.add({{name,type},at=Array.new([pos])})
             _, at = this.locals.add(name)
-            this.names[name] = {arg=false,{at,id}}
+            this.names[name] = {arg=false,{at,id,type}}
             return at, id
         close = ->
             this.names.each(name, ref ->
@@ -260,8 +260,8 @@ compile = (text, ast ->
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
                     return {type="envarg",up=level,at=ref.at,id=ref.id}
-                if not level: return {type="local",at=ref.at,id=ref.id}
-                return {type="env",up=level,at=ref.at,id=ref.id}
+                if not level: return {type="local",at=ref.at,id=ref.id,stype=ref.type}
+                return {type="env",up=level,at=ref.at,id=ref.id,stype=ref.type}
             if name == "args" and not this.block:
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
@@ -296,9 +296,9 @@ compile = (text, ast ->
             if this.methods[-1] == name: // TODO not entirely correct ...
                 ref = this.names[name]
                 return ref.at, ref.id
-            _, id = ids.add({{name},at=Array.new([pos]),type=type})
+            _, id = ids.add({{name,type},at=Array.new([pos])})
             _, at = this.locals.add(name)
-            this.names[name] = {arg=false,{at,id}}
+            this.names[name] = {arg=false,{at,id,type}}
             return at, id
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
@@ -317,14 +317,14 @@ compile = (text, ast ->
                 assert level
                 assert name != "this"
                 assert name != "args"
-                if ref: return {type="field",name=name,up=level,at=ref.at,id=ref.id}
+                if ref: return {type="field",name=name,up=level,at=ref.at,id=ref.id,stype=ref?type}
                 return parent.ref(name, level)
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
                     return {type="envarg",up=level,at=ref.at,id=ref.id}
-                if not level: return {type="local",at=ref.at,id=ref.id}
-                return {type="env",up=level,at=ref.at,id=ref.id}
+                if not level: return {type="local",at=ref.at,id=ref.id,stype=ref?type}
+                return {type="env",up=level,at=ref.at,id=ref.id,stype=ref?type}
             if name == "args" and not this.block:
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
@@ -423,7 +423,8 @@ compile = (text, ast ->
                 value = lex(scope, term.value, term.to.name, term.to.pos)
                 ref = scope.ref(term.to.name, peek=true)
                 type = try(ids[ref.id])
-                if type?type == "var":
+                if type?type == "var" or type?stype == "var":
+                    print repr ref
                     return {type="vset",target=ref,{value}}
                 local, id = scope.add(term.to.name, term.to.pos)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
@@ -547,7 +548,9 @@ compile = (text, ast ->
         { term.type == "function" }: ["bind", term.function]
         { term.type == "system"   }: ["system", term.name]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
-        { term.type == "vset"     }: emit(term.value) + ["vstore", term.target.at - 1]
+        { term.type == "vset"     }:
+            print "VSET:", repr(term)
+            emit(term.value) + ["vstore", term.target.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
             ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
