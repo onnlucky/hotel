@@ -1120,10 +1120,11 @@ static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlArgs*
     int pc = *ppc;
     int start = pc;
     trace("LAZY: %d - %s(%X)", pc, op_name(ops[pc]), ops[pc]);
-    if ((ops[pc] & 0xE0) != 0xE0) {
+    if ((ops[pc] & 0xE0) != 0xE0) { // not an OP_CALL
         pc++;
-        while ((ops[pc] & 0xC0) != 0xC0) pc++;
+        while ((ops[pc] & 0xC0) != 0xC0) pc++; // upto the next OP
         *ppc = pc;
+        // TODO if not mutable, [e]vstore, create a LazyData instead?
         return tlBLazyNew(args, locals, start);
     }
     int depth = 0;
@@ -1219,7 +1220,6 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     int calltop = -1; // current call index in the call stack
     tlArgs* call = null; // current call, if any
     int arg = 0; // current argument to a call
-    bool lazy = false; // if current call[arg] is lazy
 
     uint8_t op = 0; // current opcode
     tlHandle v = tlNull; // tmp result register
@@ -1295,10 +1295,8 @@ again:;
         }
     }
 
-    lazy = tlBCallIsLazy(call, arg);
-    trace("LAZY? %d[%d] %s", calltop, arg - 2, lazy?"yes":"no");
-    if (lazy) {
-        trace("lazy call");
+    if (tlBCallIsLazy(call, arg)) {
+        trace("LAZY %d[%d]", calltop, arg - 2);
         v = create_lazy(ops, bcode->size, &pc, args, frame->locals);
         tlBCallAdd_(call, v, arg++);
         goto again;
@@ -1363,7 +1361,6 @@ again:;
         case OP_INVOKE: {
             assert(tlFrameCurrent(task) == (tlFrame*)frame);
             assert(call);
-            assert(!lazy);
             assert(arg - 2 == call->size); // must be done with args here
             tlArgs* invoke = call;
             frame->calls[calltop].at = 0;
@@ -1590,10 +1587,6 @@ resume:;
         }
         goto again;
     }
-
-    // if setting a lazy argument, wrap the data
-    // TODO this is broken, for the "while $n: ..."
-    if (lazy) v = tlBLazyDataNew(v);
 
     // set the data to the call
     trace("load: %s[%d] = %s", tl_str(call), arg, tl_str(v));
