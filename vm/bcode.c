@@ -1118,8 +1118,15 @@ static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlArgs*
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
-    int start = pc - 2; // we re-interpret OP_CALL and SIZE when working on lazy; TODO - 2 is not always correct?
-    int depth = 1;
+    int start = pc;
+    trace("LAZY: %d - %s(%X)", pc, op_name(ops[pc]), ops[pc]);
+    if ((ops[pc] & 0xE0) != 0xE0) {
+        pc++;
+        while ((ops[pc] & 0xC0) != 0xC0) pc++;
+        *ppc = pc;
+        return tlBLazyNew(args, locals, start);
+    }
+    int depth = 0;
     while (pc < len) {
         uint8_t op = ops[pc++];
         trace("SEARCHING: %d - %d - %s(%X)", depth, pc - 1, op_name(op), op);
@@ -1287,6 +1294,16 @@ again:;
             return null;
         }
     }
+
+    lazy = tlBCallIsLazy(call, arg);
+    trace("LAZY? %d[%d] %s", calltop, arg - 2, lazy?"yes":"no");
+    if (lazy) {
+        trace("lazy call");
+        v = create_lazy(ops, bcode->size, &pc, args, frame->locals);
+        tlBCallAdd_(call, v, arg++);
+        goto again;
+    }
+
     op = ops[pc++];
     if (!op) {
         assert(v);
@@ -1294,9 +1311,6 @@ again:;
         return v; // OP_END
     }
     assert(op & 0xC0);
-
-    lazy = tlBCallIsLazy(call, arg);
-    trace("LAZY? %d[%d] %s", calltop, arg - 2, lazy?"yes":"no");
 
     // is it a call
     if (op & 0x20) {
@@ -1308,13 +1322,6 @@ again:;
                 pc = skip_ccall(ops, bcode->size, pc); // predicate is false, skip this clause
                 goto again;
             }
-        }
-
-        if (lazy) {
-            trace("lazy call");
-            v = create_lazy(ops, bcode->size, &pc, args, frame->locals);
-            tlBCallAdd_(call, v, arg++);
-            goto again;
         }
 
         // create a new call
@@ -1585,6 +1592,7 @@ resume:;
     }
 
     // if setting a lazy argument, wrap the data
+    // TODO this is broken, for the "while $n: ..."
     if (lazy) v = tlBLazyDataNew(v);
 
     // set the data to the call
