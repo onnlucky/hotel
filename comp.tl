@@ -209,11 +209,12 @@ compile = (text, ast ->
         args = Array.new
         // TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
         addOpen = function, name, pos ->
+            type = "local"
             _, fn = functions.add({name=name or "",open=function,scope=this})
             if name:
-                _, id = ids.add({{name},at=Array.new([pos])})
+                _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.locals.add(name)
-                this.names[name] = {arg=false,{at,id,fn}}
+                this.names[name] = {arg=false,{at,id,fn,type}}
             return fn
         add = name, pos, type ->
             type = type or "local"
@@ -284,12 +285,13 @@ compile = (text, ast ->
         methods = Array.new
         open = Var.new(true) // methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
         addOpen = function, name, pos ->
+            type = "local"
             _, method = functions.add({name=name or "",open=function,scope=this})
             if name:
                 // TODO perhaps change type="function" to type="method"
-                _, id = ids.add({{name},at=Array.new([pos])})
+                _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.methods.add(name)
-                this.names[name] = {arg=false,{at,id,method}}
+                this.names[name] = {arg=false,{at,id,method,type}}
             return method
         add = name, pos, type ->
             type = type or "local"
@@ -424,7 +426,6 @@ compile = (text, ast ->
                 ref = scope.ref(term.to.name, peek=true)
                 type = try(ids[ref.id])
                 if type?type == "var" or type?stype == "var":
-                    print repr ref
                     return {type="vset",target=ref,{value}}
                 local, id = scope.add(term.to.name, term.to.pos)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
@@ -499,6 +500,9 @@ compile = (text, ast ->
             return scope.ref(term.name)
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
+            if ref.type == "global" or ref?stype != "var":
+                // hehe, a first type error ... hmm
+                throw "'$(term.to)' at $(term.pos) is not a mutable"
             rhs = lex(scope, term.value)
             value = {type="op",op=term.op,lhs=ref,{rhs}}
             {type="vset",target=ref,{value}}
@@ -549,8 +553,8 @@ compile = (text, ast ->
         { term.type == "system"   }: ["system", term.name]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
         { term.type == "vset"     }:
-            print "VSET:", repr(term)
-            emit(term.value) + ["vstore", term.target.at - 1]
+            { term.target.type == "env" }: emit(term.value) + ["evstore", term.target.up - 1, term.target.at - 1]
+            {                           }: emit(term.value) + ["vstore", term.target.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
             ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten

@@ -23,8 +23,8 @@ walk = node, match, result ->
         { s.match == "id" and s.name == node.attrs["id"] }: 1
         { s.match == "hasattr" and node.attrs.has(s.name) }: 1
         { s.match == "attr" and node.attrs[s.name] == s.val }: 1
-        { true }: m.set(false)
-    if m.get:
+        { true }: $m = false
+    if $m:
         if match.size == 1:
             if not result: return node
             result.add(node)

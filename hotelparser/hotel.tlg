@@ -19,8 +19,8 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
  endexpr: @"end of expression" . ("," | ";" | ":" | nl | end | ")" | "}" | "]" | slcomment | postif)
   endstm: @"end of expression" . (";" | nl | end | ")" | "}" | "]" | slcomment | postif)
 
-  letter: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
-   first: [@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
+  letter: [$@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789]
+   first: [$@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_]
     name: f=first fs=letter* -> String(prepend(fs,f))
 
 // ---- TEXT ----
@@ -108,7 +108,6 @@ reserved: "else" !letter
 literal*: "true" | "false" | "null" | "undefined"
   opname: ("not"|"and"|"or"|"xor") !letter
     ref*: pos=pos !opname !reserved name=name type=<ref>
- varref*: pos=pos "$" !opname !reserved name=name type=<varref>
    value: function
         | class
         | object
@@ -117,7 +116,6 @@ literal*: "true" | "false" | "null" | "undefined"
         | "(".. pos=pos body=body ..")" type=<scope>
         | num | chr | text
         | literal
-        | varref
         | ref
 
    margs: e=arg es=(.","..@"a value" arg)* &eostmb                          -> prepend(es, e)
@@ -191,12 +189,10 @@ elifexpr: .."else". pos=pos "if". c=expr . b=block &eostm els=elifexpr     -> pr
         | !(.."else" !letter)
 
   intro*: !reserved name
- newvar*: "var" sp."$" !opname !reserved name
-  tovar*: "$" !opname !reserved name
+ newvar*: "var" sp. !opname !reserved name
 
 selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !letter type=<ref>
   assign: pos=pos name=newvar type=<newvar>
-        | pos=pos name=tovar type=<var>
         | pos=pos name=intro type=<local>
    mexpr: guards
         | ifexpr
@@ -209,7 +205,7 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
         | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail -> process_assert(args, t, p, b, e, _p)
         | e=mbcall &eostm                                                            -> e
         | expr
-     stm: pos=pos to=tovar .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
+     stm: pos=pos to=intro .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
         | to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
         | multi=(assign)+(.","..) .."="!"=".. @"a value" value=mexpr &endstm type=<multiassign>
         | e=mexpr &endstm                                                    -> e

@@ -32,7 +32,7 @@ readSome = reader, buf ->
         _io.waitread(reader)
 
 readFull = reader, buf ->
-    total = Var.new(0)
+    var $total = 0
     loop:
         len = reader.read(buf)
         if len == 0: return $total
@@ -40,7 +40,7 @@ readFull = reader, buf ->
         _io.waitread(reader)
 
 writeFull = writer, buf ->
-    total = Var.new(0)
+    var $total = 0
     loop:
         if buf.size == 0: return
         len = writer.write(buf)
@@ -189,7 +189,7 @@ File = {
         )
 
         open = (->
-            mode = Var.new(0)
+            var $mode = 0
             if args.namesmap["truncate"]: $mode += _File_TRUNC
             if args.namesmap["create"]: $mode += _File_CREAT
             if not args.namesmap["readonly"]: $mode += _File_RDWR

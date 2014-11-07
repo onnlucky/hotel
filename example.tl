@@ -1,7 +1,7 @@
 Queue = {
     new: (depth ->
         queue = MsgQueue.new
-        running = Var.new 0
+        var $running = 0
         holding = Array.new
         !(
             loop:

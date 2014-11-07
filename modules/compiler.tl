@@ -148,6 +148,13 @@ writeCode = mod, c ->
         { op == "invoke" }: buf.write(0b1100_0000 + 19)
         { op == "cerr"   }: buf.write(0b1100_0000 + 20)
 
+        { op == "vget"    }: buf.write(0b1100_0000 + 21); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "vstore"  }: buf.write(0b1100_0000 + 22); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "vrstore" }: buf.write(0b1100_0000 + 23); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "evget"   }: buf.write(0b1100_0000 + 24); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "evstore" }: buf.write(0b1100_0000 + 25); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "evrstore"}: buf.write(0b1100_0000 + 26); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
+
         { op == "mcall"  }: buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
@@ -202,20 +209,21 @@ compile = (text, ast ->
         args = Array.new
         // TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
         addOpen = function, name, pos ->
+            type = "local"
             _, fn = functions.add({name=name or "",open=function,scope=this})
             if name:
-                _, id = ids.add({{name},at=Array.new([pos])})
+                _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.locals.add(name)
-                this.names[name] = {arg=false,{at,id,fn}}
+                this.names[name] = {arg=false,{at,id,fn,type}}
             return fn
         add = name, pos, type ->
             type = type or "local"
             if this.locals[-1] == name and try(this.names[name].fn):
                 ref = this.names[name]
                 return ref.at, ref.id
-            _, id = ids.add({{name},at=Array.new([pos]),type=type})
+            _, id = ids.add({{name,type},at=Array.new([pos])})
             _, at = this.locals.add(name)
-            this.names[name] = {arg=false,{at,id}}
+            this.names[name] = {arg=false,{at,id,type}}
             return at, id
         close = ->
             this.names.each(name, ref ->
@@ -253,8 +261,8 @@ compile = (text, ast ->
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
                     return {type="envarg",up=level,at=ref.at,id=ref.id}
-                if not level: return {type="local",at=ref.at,id=ref.id}
-                return {type="env",up=level,at=ref.at,id=ref.id}
+                if not level: return {type="local",at=ref.at,id=ref.id,stype=ref.type}
+                return {type="env",up=level,at=ref.at,id=ref.id,stype=ref.type}
             if name == "args" and not this.block:
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
@@ -277,47 +285,48 @@ compile = (text, ast ->
         methods = Array.new
         open = Var.new(true) // methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
         addOpen = function, name, pos ->
+            type = "local"
             _, method = functions.add({name=name or "",open=function,scope=this})
             if name:
                 // TODO perhaps change type="function" to type="method"
-                _, id = ids.add({{name},at=Array.new([pos])})
+                _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.methods.add(name)
-                this.names[name] = {arg=false,{at,id,method}}
+                this.names[name] = {arg=false,{at,id,method,type}}
             return method
-        add = name, pos ->
+        add = name, pos, type ->
+            type = type or "local"
             if this.methods[-1] == name: // TODO not entirely correct ...
                 ref = this.names[name]
                 return ref.at, ref.id
-            _, id = ids.add({{name},at=Array.new([pos])})
+            _, id = ids.add({{name,type},at=Array.new([pos])})
             _, at = this.locals.add(name)
-            this.names[name] = {arg=false,{at,id}}
+            this.names[name] = {arg=false,{at,id,type}}
             return at, id
-        close = ->
-            // TODO inherit ;()
-            this.names.each(name, ref ->
-                if try(functions[ref.fn].open):
-                    close(ref.fn)
-            )
-            this.open.set(false)
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.args.add(name)
             this.names[name] = {arg=true,{at,id}}
             return id
+        close = ->
+            this.open.set(false)
+            this.names.each(name, ref ->
+                if try(functions[ref.fn].open):
+                    close(ref.fn)
+            )
         ref = name, level ->
+            ref = this.names[name]
             if not this.open.get:
                 assert level
                 assert name != "this"
                 assert name != "args"
-                if this.names[name]: return {type="field",name=name,up=level}
+                if ref: return {type="field",name=name,up=level,at=ref.at,id=ref.id,stype=ref?type}
                 return parent.ref(name, level)
-            ref = this.names[name]
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
                     return {type="envarg",up=level,at=ref.at,id=ref.id}
-                if not level: return {type="local",at=ref.at,id=ref.id}
-                return {type="env",up=level,at=ref.at,id=ref.id}
+                if not level: return {type="local",at=ref.at,id=ref.id,stype=ref?type}
+                return {type="env",up=level,at=ref.at,id=ref.id,stype=ref?type}
             if name == "args" and not this.block:
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
@@ -414,25 +423,30 @@ compile = (text, ast ->
         { term.type == "assign" }:
             { term.to.type == "local" }:
                 value = lex(scope, term.value, term.to.name, term.to.pos)
+                ref = scope.ref(term.to.name, peek=true)
+                type = try(ids[ref.id])
+                if type?type == "var" or type?stype == "var":
+                    return {type="vset",target=ref,{value}}
                 local, id = scope.add(term.to.name, term.to.pos)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
                 value = lex(scope, term.value)
-                value = {type="method",target={type="global",name="Var"},method="new",args=[value]}
-                to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
-                {type="assign",{to,value}}
+                {type="vset",target=scope.ref(term.to.name),{value}}
             { term.to.type == "var"    }:
                 ref = scope.ref(term.to.name)
+                assert ids[ref.id].type == "var"
                 value = lex(scope, term.value)
-                {type="method",target=ref,method="set",args=[value]}
+                {type="vset",target=ref,{value}}
         { term.type == "multiassign" }:
             // TODO perhaps function defined this way must stay open?
+            // TODO fixup for new var stuff
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
                 { to.type == "local" }: scope.add(to.name, to.pos)
                 {                    }: scope.add("", to.pos) // anonymous locals for Var.new and var.set
+                                        assert false
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
@@ -481,16 +495,17 @@ compile = (text, ast ->
             rhs = lex(scope, term.rhs)
             {type="op",op=term.op,{lhs,rhs}}
         { term.type == "ref" }:
-            scope.ref(term.name)
+            return scope.ref(term.name)
         { term.type == "varref" }:
-            ref = scope.ref(term.name)
-            {type="method",method="get",target=ref,args=[]}
+            return scope.ref(term.name)
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
-            lhs = {type="method",method="get",target=ref,args=[]}
+            if ref.type == "global" or ref?stype != "var":
+                // hehe, a first type error ... hmm
+                throw "'$(term.to)' at $(term.pos) is not a mutable"
             rhs = lex(scope, term.value)
-            value = {type="op",op=term.op,{lhs,rhs}}
-            {type="method",target=ref,method="set",args=[value]}
+            value = {type="op",op=term.op,lhs=ref,{rhs}}
+            {type="vset",target=ref,{value}}
         { term.type == "list" }:
             data = try(term.data, []).map(term -> lex(scope, term))
             {type="list",{data}}
@@ -537,6 +552,9 @@ compile = (text, ast ->
         { term.type == "function" }: ["bind", term.function]
         { term.type == "system"   }: ["system", term.name]
         { term.type == "assign"   }: emit(term.value) + ["store", term.to.at - 1]
+        { term.type == "vset"     }:
+            { term.target.type == "env" }: emit(term.value) + ["evstore", term.target.up - 1, term.target.at - 1]
+            {                           }: emit(term.value) + ["vstore", term.target.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
             ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
@@ -579,9 +597,13 @@ compile = (text, ast ->
             term.guards.map(term ->
                 [emit(term.cond), "ccall", 0, emit(term.block), "invoke"]
             ).flatten + ["cerr"]
-        { term.type == "local"  }: ["local", term.at - 1]
+        { term.type == "local"  }:
+            { term?var }: ["vget", term.at - 1]
+            {          }: ["local", term.at - 1]
         { term.type == "arg"    }: ["arg", term.at - 1]
-        { term.type == "env"    }: ["env", term.up - 1, term.at - 1]
+        { term.type == "env"    }:
+            { term?var }: ["evget", term.up - 1, term.at - 1]
+            {          }: ["env", term.up - 1, term.at - 1]
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
         { term.type == "global" }: ["global", term.name]
         { term.type == "args"   }: ["args"]

@@ -1,5 +1,5 @@
 _results = Array.new
-_test = Var.new
+var $_test = null
 
 starttest = title ->
     $_test = title

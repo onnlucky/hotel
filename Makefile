@@ -28,10 +28,10 @@ C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
 all: tl $(C_MODULES) $(TLG_MODULES)
 
-boot/boot.tlb boot/boot.tlb.h: boot/boot.tl tlcompiler modules/compiler.tl
-	TL_MODULE_PATH=./modules ./tlcompiler boot/boot.tl -c
-modules/compiler.tlb boot/compiler.tlb.h: tlcompiler modules/compiler.tl
-	TL_MODULE_PATH=./modules ./tlcompiler modules/compiler.tl -c
+boot/boot.tlb boot/boot.tlb.h: boot/boot.tl tlcompiler
+	./tlcompiler boot/boot.tl -c
+modules/compiler.tlb boot/compiler.tlb.h: modules/compiler.tl tlcompiler
+	./tlcompiler modules/compiler.tl -c
 	cp modules/compiler.tlb.h boot/compiler.tlb.h
 
 run: tl boot/boot.tlb modules/compiler.tlb
