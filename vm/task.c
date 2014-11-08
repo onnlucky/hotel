@@ -130,6 +130,8 @@ void print_backtrace(tlFrame* frame) {
     }
 }
 
+static tlTask* g_task;
+
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
 // at that point any other worker could aready have picked up this task
@@ -138,6 +140,7 @@ INTERNAL void tlTaskRun(tlTask* task) {
     assert(task->state == TL_STATE_READY);
     task->state = TL_STATE_RUN;
     assert(task->worker);
+    g_task = task;
 
     assert(task->value || task->throw);
     assert(task->stack);
@@ -672,10 +675,10 @@ static void task_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 
-void tlDumpTaskTrace(tlTask* task) {
-    if (!task) return;
+void tlDumpTaskTrace() {
     fprintf(stderr, "\nTaskCurrent(); backtrace:\n");
-    for (tlFrame* frame = task->stack; frame; frame = frame->caller) {
+    if (!g_task) return;
+    for (tlFrame* frame = g_task->stack; frame; frame = frame->caller) {
         tlString* file;
         tlString* function;
         tlInt line;

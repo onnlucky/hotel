@@ -146,7 +146,7 @@ mcallarg: v=mcall
         | ""                                                                       -> tlNull
    mtail: pos=pos " ". !met !"(" !":" args=margs &eostmb                           -> process_call(args, tlNull, pos)
     call: value=value t=tail                                                       -> process_tail(value, t)
-   mcall: pos=pos value=ref &" " t=mtail                                            -> process_add_block(process_tail(value, t), tlNull, pos)
+   mcall: pos=pos value=ref &" " t=mtail                                           -> process_add_block(process_tail(value, t), null, pos)
         | call
   mbcall: pos=pos value=ref &" " t=mtail block=block?                            -> process_add_block(process_tail(value, t), block, pos)
         | pos=pos value=ref block=block                                          -> process_add_block(value, block, pos)
