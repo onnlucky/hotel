@@ -69,3 +69,11 @@ test "boundaries of upto":
         { n >= 9  }: assert r
         {         }: assert not r
 
+test "startsWith":
+    buf = Buffer.new("hello")
+    assert buf.startsWith("hello")
+    assert buf.startsWith("hell")
+    assert buf.startsWith("hel")
+
+    assert "hello".startsWith("ello", 2)
+

@@ -395,8 +395,10 @@ INTERNAL tlHandle _buffer_startsWith(tlTask* task, tlArgs* args) {
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
 
-    int from = at_offset(tlArgsGet(args, 1), tlBufferSize(buf));
-    if (from < 0) return tlFalse;
+    tlHandle vfrom = tlArgsGet(args, 1);
+    int from = at_offset(vfrom, tlBufferSize(buf));
+    if (!vfrom || vfrom == tlNull) from = 0;
+    if (from == -1) return tlFalse;
 
     int bufsize = tlBufferSize(buf);
     int startsize = tlStringSize(start);
