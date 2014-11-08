@@ -675,15 +675,23 @@ static void task_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 
+void tlBFrameDump(tlFrame* frame);
+
 void tlDumpTaskTrace() {
     fprintf(stderr, "\nTaskCurrent(); backtrace:\n");
     if (!g_task) return;
+    bool dumped = false;
     for (tlFrame* frame = g_task->stack; frame; frame = frame->caller) {
         tlString* file;
         tlString* function;
         tlInt line;
         tlFrameGetInfo(frame, &file, &function, &line);
         fprintf(stderr, "%s - %s:%s\n", tl_str(function), tl_str(file), tl_str(line));
+
+        if (!dumped && tlBFrameIs(frame)) {
+            tlBFrameDump(frame);
+            dumped = true;
+        }
     }
     fflush(stderr);
 }

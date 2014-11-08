@@ -809,7 +809,7 @@ static void disasm(tlBCode* bcode) {
             case OP_MCALLN: case OP_FCALLN: case OP_BCALLN: case OP_MCALLNS:
                 r = pcreadsize(ops, &pc);
                 o = pcreadref(ops, &pc, data);
-                print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_str(o));
+                print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_repr(o));
                 break;
             case OP_SYSTEM: case OP_MODULE:
                 o = pcreadref(ops, &pc, data);
@@ -1198,6 +1198,25 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method) {
     return null;
 }
 
+void tlBFrameDump(tlFrame* _frame) {
+    tlBFrame* frame = (tlBFrame*)_frame;
+    tlArgs* args = frame->args;
+    tlBClosure* closure = tlBClosureAs(args->fn);
+    tlBCode* code = closure->code;
+
+    print("PC: %d", frame->pc);
+    disasm(code);
+    print("args: %d", tlArgsSize(args));
+    for (int i = 0; i < tlArgsSize(args); i++) {
+        print("  %d = %s", i, tl_repr(tlArgsGet(args, i)));
+    }
+    print("locals: %d", tlListSize(code->localnames));
+    for (int local = 0; local < tlListSize(code->localnames); local++) {
+        tlHandle name = tlListGet(code->localnames, local);
+        print("  %d(%s) = %s", local, tl_str(name), tl_repr(tlBEnvGet(frame->locals, local)));
+    }
+}
+
 tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
     trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
     assert(task);
@@ -1242,6 +1261,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
             trace("restoring lazypc to 1");
         }
         v = task->value;
+        if (!v) v = tlNull;
 
         // TODO we really need to know if we came from debugger or not ... just having a debugger is not good enough
         // plus, debuggers attach/deattach any time
@@ -1302,6 +1322,7 @@ again:;
         goto again;
     }
 
+    frame->pc = pc;
     op = ops[pc++];
     if (!op) {
         assert(v);
@@ -1433,6 +1454,7 @@ again:;
             assert(depth >= 0 && at >= 0);
             tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
             v = tlBEnvArgGet(parent, at);
+            assert(v);
             trace("envarg[%d][%d] -> %s", depth, at, tl_str(v));
             break;
         }
@@ -1443,6 +1465,7 @@ again:;
             tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
             assert(parent);
             v = tlBEnvGet(parent, at);
+            assert(v);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
         }
@@ -1466,6 +1489,7 @@ again:;
             depth = pcreadsize(ops, &pc);
             tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
             v = argsFromBCall(parent->args);
+            assert(v);
             trace("envargs[%d] -> %s", depth, tl_str(v));
             break;
         }
@@ -1547,6 +1571,7 @@ again:;
             tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
             assert(parent);
             v = tlBEnvGet(parent, at);
+            assert(v);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
         }

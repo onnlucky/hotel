@@ -584,6 +584,7 @@ compiler = (
 
 // TODO Env.current
 _env = _env_current()
+_env = _env_current()
 
 // TODO when this works, move capturing the env up
 //_env["fileFromModulePath"] = fileFromModulePath;
