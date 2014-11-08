@@ -1345,7 +1345,10 @@ again:;
             trace("set names: %s", tl_str(call->names));
         }
         // for non methods, skip target
-        if (op & 0x07) tlBCallAdd_(call, null, arg++);
+        if (op & 0x07) {
+            tlBCallAdd_(call, null, arg++);
+        }
+        // safe methods, mark as such
         if (op & 0x08) {
             trace("safe method call");
             frame->calls[calltop].safe = true;
@@ -1640,6 +1643,10 @@ resume:;
             } else {
                 arg = 0;
                 call = null;
+                if (lazypc) {
+                    tlFramePop(task, (tlFrame*)frame);
+                    return v; // if we were evaulating a lazy call, and we are back at "top", OP_END
+                }
             }
             goto again;
         }
