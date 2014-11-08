@@ -201,7 +201,7 @@ compile = (text, ast ->
     functions = Array.new
     ids = Array.new
 
-    Scope = parent, block -> {{parent},
+    Scope = { parent, block ->
         parentVisible = parent?locals.size or 0
         block = block or false
         names = HashMap.new
@@ -227,7 +227,7 @@ compile = (text, ast ->
             return at, id
         close = ->
             this.names.each(name, ref ->
-                if functions[ref?fn]?open: close(ref.fn)
+                if functions[ref?fn]?open: closefn(ref.fn)
             )
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
@@ -255,7 +255,7 @@ compile = (text, ast ->
             if name == "continue": return this.gcontinue(0, [])
             ref = this.names[name]
             if ref?fn and not args["peek"]:
-                if functions[ref.fn].open: close(ref.fn)
+                if functions[ref.fn].open: closefn(ref.fn)
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
@@ -275,7 +275,7 @@ compile = (text, ast ->
             return {type="global",{name}}
     }
 
-    ClassScope = parent -> {{parent},
+    ClassScope = { parent ->
         parentVisible = parent?locals.size or 0
         block = false
         names = HashMap.new
@@ -309,7 +309,8 @@ compile = (text, ast ->
         close = ->
             this.open.set(false)
             this.names.each(name, ref ->
-                if functions[ref?fn]?open: close(ref.fn)
+                if functions[ref?fn]?open: closefn(ref.fn)
+                //if functions[ref?method]?open: closefn(ref.method)
             )
         ref = name, level ->
             ref = this.names[name]
@@ -336,7 +337,7 @@ compile = (text, ast ->
             parent.ref(name, level + 1)
     }
 
-    close = n ->
+    closefn = n ->
         ref = functions[n]
         functions[n] = {name=ref.name,open=false}
         fn = lextop(ref.scope, ref.open)
@@ -384,7 +385,7 @@ compile = (text, ast ->
             {type="call",target={type="function",function=fn}}
         { term.type == "function" or term.type == "block" }:
             function = scope.addOpen(term, name, pos)
-            if not name: close(function)
+            if not name: closefn(function)
             {type="function",{function}}
         { term.type == "class" }:
             outerscope = scope
@@ -399,9 +400,9 @@ compile = (text, ast ->
             ).filter
             scope.close
             m = HashMap.new
-            methods = body.filter(stm -> not (stm?type == "assign" and stm.value.type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
+            methods = body.filter(stm -> not (stm?type == "assign" and stm.value?type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
             m["class"] = null
-            constructor = body.filter(stm -> stm?type == "assign" and stm.value.type == "function")
+            constructor = body.filter(stm -> stm?type == "assign" and stm.value?type == "function")
             fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
             class = [name=name, call=null, methods=null]
             /*
@@ -636,9 +637,9 @@ compile = (text, ast ->
               {     }: parse(text)
         ast = lextop(Scope(null), ast)
         // TODO wait until stable? as closing functions might produce new functions ...
-        functions.each: fn, n -> if fn.open: close(n)
-        functions.each: fn, n -> if fn.open: close(n)
-        functions.each: fn, n -> if fn.open: close(n)
+        functions.each: fn, n -> if fn.open: closefn(n)
+        functions.each: fn, n -> if fn.open: closefn(n)
+        functions.each: fn, n -> if fn.open: closefn(n)
         //functions.each: fn, n -> print "fn $n:", repr(fn)
         //print "fn 0:", repr(ast)
         functions.each: fn, n -> functions[n] = emittop(fn.function, fn.name)
@@ -727,8 +728,8 @@ compile = (text, ast ->
         builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]})
         builder.create
 
-    main, functions = parseemit(text, ast)
-    buf = compilemain(main, functions)
+    main, functions2 = parseemit(text, ast)
+    buf = compilemain(main, functions2)
     if args["buffer"]: return buf
     return buf.read
 )

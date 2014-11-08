@@ -1,7 +1,7 @@
-_disasm()
-
 Test = { ->
-    var $x = 10
-    set = n -> $x = n
+    test = -> print foo
 }
-Test().set(40)
+foo = 42
+// TODO here we should close Test, so that it binds the correct foo
+Test().test
+foo = 100
