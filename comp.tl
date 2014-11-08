@@ -202,7 +202,7 @@ compile = (text, ast ->
     ids = Array.new
 
     Scope = parent, block -> {{parent},
-        parentVisible = try(parent.locals.size, 0)
+        parentVisible = parent?locals.size or 0
         block = block or false
         names = HashMap.new
         locals = Array.new
@@ -218,7 +218,7 @@ compile = (text, ast ->
             return fn
         add = name, pos, type ->
             type = type or "local"
-            if this.locals[-1] == name and try(this.names[name].fn):
+            if this.locals[-1] == name and this.names[name]?fn:
                 ref = this.names[name]
                 return ref.at, ref.id
             _, id = ids.add({{name,type},at=Array.new([pos])})
@@ -227,8 +227,7 @@ compile = (text, ast ->
             return at, id
         close = ->
             this.names.each(name, ref ->
-                if try(functions[ref.fn].open):
-                    close(ref.fn)
+                if functions[ref?fn]?open: close(ref.fn)
             )
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
@@ -255,7 +254,7 @@ compile = (text, ast ->
             if name == "break": return this.gbreak(0, [])
             if name == "continue": return this.gcontinue(0, [])
             ref = this.names[name]
-            if try(ref.fn) and not args["peek"]:
+            if ref?fn and not args["peek"]:
                 if functions[ref.fn].open: close(ref.fn)
             if ref:
                 if ref.arg:
@@ -277,7 +276,7 @@ compile = (text, ast ->
     }
 
     ClassScope = parent -> {{parent},
-        parentVisible = try(parent.locals.size, 0)
+        parentVisible = parent?locals.size or 0
         block = false
         names = HashMap.new
         locals = Array.new
@@ -310,8 +309,7 @@ compile = (text, ast ->
         close = ->
             this.open.set(false)
             this.names.each(name, ref ->
-                if try(functions[ref.fn].open):
-                    close(ref.fn)
+                if functions[ref?fn]?open: close(ref.fn)
             )
         ref = name, level ->
             ref = this.names[name]
@@ -352,19 +350,19 @@ compile = (text, ast ->
     lextop = scope, term ->
         { term.type == "function" }:
             scope = Scope(scope)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+            args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
             {type="function",{args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "block" }:
             scope = Scope(scope, true)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+            args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
             {type="block",{args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "scope" }:
             scope = Scope(scope, true)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+            args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
             {type="scope",{args,body},locals=scope.locals.toList,pos=term.pos}
@@ -372,7 +370,7 @@ compile = (text, ast ->
     lex = scope, term, name, pos ->
         { term == null              }: "null"
         { isChar(term)              }: {type="call",target={type="global",name="Char"},args=[term.toNumber]}
-        { not try(term.type)        }: term
+        { not term?type             }: term
         { term.type == "string"     }: term
         { term.type == "stringlist" }:
             data = term.data.map(s ->
@@ -391,19 +389,19 @@ compile = (text, ast ->
         { term.type == "class" }:
             outerscope = scope
             scope = ClassScope(scope)
-            args = try(term.as, []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+            args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             var $extend = null
             body = term.body.map(stm ->
-                if try(stm.type == "call" and stm.target.name == "extend"):
+                if stm?type == "call" and stm.target.name == "extend":
                     $extend = {type="method",target=stm.args[1].v,method="methods"}
                     return null
                 lex(scope, stm)
             ).filter
             scope.close
             m = HashMap.new
-            methods = body.filter(stm -> not try(stm.type == "assign" and stm.value.type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
+            methods = body.filter(stm -> not (stm?type == "assign" and stm.value.type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
             m["class"] = null
-            constructor = body.filter(stm -> try(stm.type == "assign" and stm.value.type == "function"))
+            constructor = body.filter(stm -> stm?type == "assign" and stm.value.type == "function")
             fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
             class = [name=name, call=null, methods=null]
             /*
@@ -424,7 +422,7 @@ compile = (text, ast ->
             { term.to.type == "local" }:
                 value = lex(scope, term.value, term.to.name, term.to.pos)
                 ref = scope.ref(term.to.name, peek=true)
-                type = try(ids[ref.id])
+                type = ids[ref?id]
                 if type?type == "var" or type?stype == "var":
                     return {type="vset",target=ref,{value}}
                 local, id = scope.add(term.to.name, term.to.pos)
@@ -464,26 +462,28 @@ compile = (text, ast ->
             {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
             target = lex(scope, term.target)
-            names = try(term.args, []).map: stm -> try(stm.n)
-            args = try(term.args, []).map: stm -> lex(scope, stm.v)
-            block = try(lex(scope, term.block))
-            if try(target.type) == "return" or try(target.type) == "goto":
+            names = (term?args or []).map: stm -> stm?n
+            args = (term?args or []).map: stm -> lex(scope, stm.v)
+            block = { term?block }: lex(scope, term.block)
+                    {            }: null
+            if target?type == "return" or target?type == "goto":
                 t = {type="global",name=target.type}
                 return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block}}
-            if try(target.type) == "break" or try(target.type) == "continue":
+            if target?type == "break" or target?type == "continue":
                 t = {type="global",name=target.type}
                 s = lex(scope, {type="list",data=target.scope})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
             {type="call",{target,args,names,block}}
         { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
-            names = try(term.args, []).map: stm -> try(stm.n)
-            args = try(term.args, []).map: stm -> lex(scope, stm.v)
-            block = try(lex(scope, term.block))
+            names = (term?args or []).map: stm -> stm?n
+            args = (term?args or []).map: stm -> lex(scope, stm.v)
+            block = { term?block }: lex(scope, term.block)
+                    {            }: null
             {type=term.type,method=term.method,{target,args,names,block}}
         { term.type == "async" }:
-            body = { try(term.body) }: term.body
-                   {                }: [term.rhs]
+            body = { term?body }: term.body
+                   {           }: [term.rhs]
             function = lextop(scope, {type="scope",{body},pos=term.pos})
             _, fn = functions.add({name="",open=false,function=function})
             {type="async",body={type="function",function=fn}}
@@ -502,21 +502,22 @@ compile = (text, ast ->
             ref = scope.ref(term.to)
             if ref.type == "global" or ref?stype != "var":
                 // hehe, a first type error ... hmm
-                throw "'$(term.to)' at $(term.pos) is not a mutable"
+                line, char = lineFromPos(term.pos)
+                throw "'$(term.to)' on line $line is not a mutable"
             rhs = lex(scope, term.value)
             value = {type="op",op=term.op,lhs=ref,{rhs}}
             {type="vset",target=ref,{value}}
         { term.type == "list" }:
-            data = try(term.data, []).map(term -> lex(scope, term))
+            data = (term?data or []).map(term -> lex(scope, term))
             {type="list",{data}}
         { term.type == "object" or term.type == "map" }:
             map = HashMap.new
             fill = Array.new
-            try(term.data, []).each: entry ->
-                { try(entry.n) }:
+            (term?data or []).each: entry ->
+                { entry?n }:
                     map[entry.n] = null
                     fill.add([entry.n,lex(scope, entry.v)])
-                {              }:
+                {         }:
                     entry.names.each(term ->
                         map[term.name] = null
                         fill.add([term.name, lex(scope, term)])
@@ -525,7 +526,7 @@ compile = (text, ast ->
             {type=term.type, {fill}, map=map.toMap}
         { term.type == "guards" }:
             gs = term.guards.map(guard ->
-                cond = lex(scope, try(guard.cond, "true"))
+                cond = lex(scope, (guard?cond or "true"))
                 function = lextop(scope,{type="block", body=guard.body, pos=guard.pos})
                 _, fn = functions.add({name="",open=false,function=function})
                 block = {type="function",function=fn}
@@ -564,8 +565,8 @@ compile = (text, ast ->
             ["mcall", 0, "this", "data", term.name, "invoke"]
         { term.type == "call" }:
             target = emit(term.target)
-            args = try(term.args,[]).map(arg -> emit(arg))
-            if try(term.block):
+            args = (term?args or []).map(arg -> emit(arg))
+            if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
                 return ["fcalln", args.size, {ns=names}] + target + args + ["invoke"]
@@ -574,9 +575,9 @@ compile = (text, ast ->
             ["fcall", args.size] + target + args + ["invoke"]
         { term.type == "method" or term.type == "safemethod" }:
             target = emit(term.target)
-            args = try(term.args,[]).map(arg -> emit(arg))
+            args = (term?args or []).map(arg -> emit(arg))
             s = bool(term.type == "safemethod", "s", "")
-            if try(term.block):
+            if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
                 return ["mcalln$s", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
@@ -624,11 +625,11 @@ compile = (text, ast ->
         { }:
             print "ERROR"
             print repr(term)
-            throw "unknown term $(try(term.type)), $(repr term)"
+            throw "unknown term $(term?type), $(repr term)"
 
     emittop = fn, name ->
         code = fn.body.map(term -> emit(term)).flatten
-        {{code},name=try(fn.name, name or ""),locals=fn.locals,args=fn.args,pos=fn.pos}
+        {{code},name=(fn?name or name or ""),locals=fn.locals,args=fn.args,pos=fn.pos}
 
     parseemit = text, ast ->
         ast = { ast }: ast
@@ -664,7 +665,7 @@ compile = (text, ast ->
             mid = ($min + $max) /. 2
             { lines[mid] < pos }: $min = mid + 1
             {                  }: $max = mid
-        return $min
+        return $min, pos - $min
 
     builder_new = functions -> {
         functions = functions
@@ -716,11 +717,11 @@ compile = (text, ast ->
     }
 
     compilemain = main, function ->
-        name = try(main.name, "<main>")
-        locals = try(main.locals, [])
-        argspec = try(main.args, [])
-        text = try(main.text, "")
-        pos = try(main.pos, [])
+        name = main?name or "<main>"
+        locals = main?locals or []
+        argspec = main?args or []
+        text = main?text or ""
+        pos = main?pos or []
 
         builder = builder_new(functions)
         builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]})
