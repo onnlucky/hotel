@@ -44,7 +44,6 @@ static int at_offset_raw(tlHandle v) {
 // returns offset from index based number or -1 if not a valid number or out of range
 int at_offset(tlHandle v, int size) {
     trace("before: %s (%d)", tl_str(v), size);
-    if (!v || tlNullIs(v)) return 0;
 
     int at;
     if (tlIntIs(v)) at = tl_int(v);
@@ -455,7 +454,9 @@ INTERNAL tlHandle _string_cat(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle _string_get(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
 
-    int at = at_offset(tlArgsGet(args, 0), tlStringSize(str));
+    tlHandle vat = tlArgsGet(args, 0);
+    int at = at_offset(vat, tlStringSize(str));
+    if (!vat || vat == tlNull) at = 0;
     if (at < 0) return tlUndef();
     return tlCHAR(str->data[at]);
 }
@@ -601,7 +602,9 @@ INTERNAL tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
 
-    int from = at_offset((tlArgsGet(args, 1)), tlStringSize(str));
+    tlHandle vfrom = tlArgsGet(args, 1);
+    int from = at_offset(vfrom, tlStringSize(str));
+    if (!vfrom || vfrom == tlNull) from = 0;
     if (from == -1) return tlFalse;
 
     int strsize = tlStringSize(str);

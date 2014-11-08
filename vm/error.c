@@ -227,7 +227,7 @@ tlHandle tlDeadlockErrorThrow(tlTask* task, tlArray* tasks) {
 void tlErrorAttachStack(tlTask* task, tlHandle _err, tlFrame* frame) {
     tlObject* err = tlObjectCast(_err);
     if (!err || err->keys != _errorKeys) return;
-    assert(tlObjectGetSym(err, _s_stack) == null);
+    if (tlObjectGetSym(err, _s_stack) != null) return;
     tlObjectSet_(err, _s_stack, tlStackTraceNew(task, frame, 0));
 }
 

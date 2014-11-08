@@ -11,6 +11,18 @@ test "basic":
     assert "hello" == "hello"
     assert "hello" == "h" +"ello"
 
+test "get with weird index":
+    // TODO maybe remove this?
+    assert "hello".get == 'h'
+    assert "hello".get() == 'h'
+    assert "hello".get(null) == 'h'
+
+    assert isUndefined("hello"[0])
+    //assert isUndefined("hello"[null])
+    assert isUndefined("hello"["1"])
+    assert isUndefined("hello"[10000])
+    assert isUndefined("hello"[-10000])
+
 test "iterate":
     var $called = false
     "hello".each: l, n ->
@@ -132,3 +144,11 @@ test "find backward upto":
     assert "12345a789a12345".find("a", from=9, upto=7, backward=true) == null
     assert "12345a789a12345".find('a', from=9, upto=6, backward=true) == 6
     assert "12345a789a12345".find("a", from=9, upto=6, backward=true) == 6
+
+test "startsWith":
+    assert "hello".startsWith("hello")
+    assert "hello".startsWith("hell")
+    assert "hello".startsWith("hel")
+
+    assert "hello".startsWith("ello", 2)
+

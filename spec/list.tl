@@ -20,6 +20,14 @@ test "slice":
     assert [1,2,3,4,5][1:2] == [1,2]
     assert [1,2,3,4,5][1:100] == [1,2,3,4,5]
 
+test "invalid index":
+    assert isUndefined([1][null])
+    assert isUndefined([1]["hello"])
+    assert isUndefined([1]["1"])
+    assert isUndefined([1][0])
+    assert isUndefined([1][2])
+    assert isUndefined([1][-2])
+
 test "iterate":
     [1,2,3,4,5].each: e, n -> assert e == n
 
