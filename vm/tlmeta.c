@@ -397,6 +397,7 @@ static tlSym g_s_method;
 static tlSym g_s_classmethod;
 static tlSym g_s_asyncmethod;
 static tlSym g_s_safemethod;
+static tlSym g_s_setfieldop;
 
 static void init() {
     if (g_s_string) return;
@@ -427,6 +428,7 @@ static void init() {
     g_s_classmethod = tlSYM("classmethod");
     g_s_asyncmethod = tlSYM("asyncmethod");
     g_s_safemethod = tlSYM("safemethod");
+    g_s_setfieldop = tlSYM("setfieldop");
 }
 
 // ** tools **
@@ -591,6 +593,10 @@ static tlHandle process_set_field(tlHandle field, tlHandle value, tlHandle pos) 
     tlHandle f = tlObjectFrom("v", tlObjectFrom("type", g_s_string, "data", field, null), null);
     return tlObjectFrom("target", tlNull, "args", tlListFrom2(f, value), "method", g_s__set,
             "type", g_s_method, "pos", pos, null);
+}
+
+static tlHandle process_setop_field(tlHandle field, tlHandle value, tlHandle pos, tlHandle op) {
+    return tlObjectFrom("target", tlNull, "type", g_s_setfieldop, "field", field, "rhs", value, "pos", pos, "op", op, null);
 }
 
 static tlHandle process_get(tlHandle key, tlHandle tail, tlHandle pos) {

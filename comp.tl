@@ -499,6 +499,12 @@ compile = (text, ast ->
             return scope.ref(term.name)
         { term.type == "varref" }:
             return scope.ref(term.name)
+        { term.type == "setfieldop" }:
+            target = lex(scope, term.target)
+            lhs = {type="method",method=term.field,{target}}
+            rhs = lex(scope, term.rhs.v)
+            op = {type="op",op=term.op,{lhs,rhs}}
+            {type="method",method="_set",args=[{type="string",data=term.field},op],pos=term.pos,{target}}
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
             if ref.type == "global" or ref?stype != "var":
