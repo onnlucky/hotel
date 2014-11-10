@@ -35,7 +35,7 @@ INTERNAL tlHandle _Mutable_new_shareLock(tlTask* task, tlArgs* args) {
     obj->map = map;
     return obj;
 }
-INTERNAL tlHandle mutableSend(tlTask* task, tlArgs* args) {
+INTERNAL tlHandle mutableSend(tlTask* task, tlArgs* args, bool safe) {
     tlMutable* obj = tlMutableAs(tlArgsTarget(args));
     assert(tlLockOwner(tlLockAs(obj)) == task);
 
@@ -78,6 +78,7 @@ send:;
             obj->map = tlObjectSet(obj->map, key, val);
             return val;
         }
+        if (safe) return tlNull;
         TL_THROW("%s.%s is undefined", tl_str(map), tl_str(msg));
     }
     if (!tlCallableIs(field)) return field;

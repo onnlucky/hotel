@@ -159,7 +159,7 @@ tlTask* tlMessageGetSender(tlMessage* msg) {
     return msg->sender;
 }
 
-INTERNAL tlHandle queueInputReceive(tlTask* task, tlArgs* args) {
+INTERNAL tlHandle queueInputReceive(tlTask* task, tlArgs* args, bool safe) {
     tlMsgQueue* queue = tlMsgQueueInputAs(tlArgsTarget(args))->queue;
     tlMessage* msg = tlMessageNew(task, args);
     trace("queue.send: %s %s", tl_str(queue), tl_str(msg));

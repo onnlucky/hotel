@@ -138,6 +138,7 @@ struct tlBLazyData {
 struct tlBSendToken {
     tlHead head;
     tlSym method;
+    bool safe;
 };
 
 static tlKind _tlBModuleKind = { .name = "BModule" };
@@ -240,9 +241,10 @@ tlBLazyData* tlBLazyDataNew(tlHandle data) {
     return lazy;
 }
 
-tlBSendToken* tlBSendTokenNew(tlSym method) {
+tlBSendToken* tlBSendTokenNew(tlSym method, bool safe) {
     tlBSendToken* token = tlAlloc(tlBSendTokenKind, sizeof(tlBSendToken));
     token->method = method;
+    token->safe = safe;
     return token;
 }
 
@@ -801,6 +803,7 @@ static void disasm(tlBCode* bcode) {
                 print(" % 3d 0x%X %s", opc, op, op_name(op));
                 break;
             case OP_INT:
+            case OP_ENVTHIS:
             case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
             case OP_CCALL:
                 r = pcreadsize(ops, &pc);
@@ -1080,7 +1083,7 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
             assert(tlArgsMsg(args) == tlBSendTokenAs(fn)->method);
-            return tl_kind(call->target)->send(task, args);
+            return tl_kind(call->target)->send(task, args, tlBSendTokenAs(fn)->safe);
         }
         return tlNativeKind->run(task, tlNativeAs(fn), args);
     }
@@ -1189,11 +1192,11 @@ static int skip_pcalls(const uint8_t* ops, const int len, int pc) {
     return 0;
 }
 
-static tlHandle bmethodResolve(tlHandle target, tlSym method) {
+static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     trace("resolve method: %s.%s", tl_str(target), tl_str(method));
     if (tlObjectIs(target)) return objectResolve(target, method);
     tlKind* kind = tl_kind(target);
-    if (kind->send) return tlBSendTokenNew(method);
+    if (kind->send) return tlBSendTokenNew(method, safe);
     if (kind->klass) return objectResolve(kind->klass, method);
     return null;
 }
@@ -1628,9 +1631,9 @@ resume:;
     // resolve method at object ...
     if (arg == 2 && call->target && tlStringIs(call->fn)) {
         tlSym msg = tlSymFromString(call->fn);
-        tlHandle method = bmethodResolve(call->target, msg);
-        trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
         bool safe = frame->calls[calltop].safe;
+        tlHandle method = bmethodResolve(call->target, msg, safe);
+        trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
         if (!method && !safe) {
             TL_THROW_NORETURN("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
             // TODO remove this duplication

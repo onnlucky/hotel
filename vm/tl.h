@@ -507,7 +507,7 @@ typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
 typedef size_t(*tlByteSizeFn)(tlHandle from);
 typedef tlHandle(*tlCallFn)(tlTask* task, tlArgs* args);
 typedef tlHandle(*tlRunFn)(tlTask* task, tlHandle fn, tlArgs* args);
-typedef tlHandle(*tlSendFn)(tlTask* task, tlArgs* args);
+typedef tlHandle(*tlSendFn)(tlTask* task, tlArgs* args, bool safe);
 
 // a kind describes a hotel value for the vm (not at the language level)
 // a kind can have a tlObject* klass, which represents its class from the language level
