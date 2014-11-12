@@ -232,15 +232,9 @@ static int buttons = 0;
         case NSRightMouseUp: buttons &= ~2; break;
         case NSOtherMouseUp: buttons &= ~4; break;
     }
-    /*
+
     NSPoint loc = [event locationInWindow];
-    int count = [event clickCount];
-    int modifiers = 0;
-    int m = [event modifierFlags];
-    if (m & NSShiftKeyMask) modifiers |= 1;   // shift
-    if (m & NSCommandKeyMask) modifiers |= 2; // ctrl
-    windowMouseEvent(window, loc.x, self.bounds.size.height - loc.y, buttons, modifiers, count);
-    */
+    windowMouseMoveEvent(window, loc.x, self.bounds.size.height - loc.y, buttons, 0);
 }
 - (void)rightMouseDragged:(NSEvent*)event { [self mouseDragged:event]; }
 - (void)otherMouseDragged:(NSEvent*)event { [self mouseDragged:event]; }
