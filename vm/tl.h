@@ -11,8 +11,9 @@
 // all values are tagged pointers, memory based values are aligned to 8 bytes, so 3 tag bits
 typedef void* tlHandle;
 
-typedef tlHandle tlSym;
 typedef tlHandle tlInt;
+typedef tlHandle tlMini;
+typedef tlHandle tlSym;
 
 // a kind describes a value, sort of like a common vtable
 typedef struct tlKind tlKind;
@@ -41,22 +42,23 @@ static const tlHandle tlIntMin = (tlHead*)(0xFFFFFFFFFFFFFFFD);
 #define TL_MIN_INT ((int64_t)0xBFFFFFFFFFFFFFFF)
 #endif
 
-// symbols are tlString* tagged with 010 and address > 1024
-// so we use values tagged with 010 and < 1024 to encode some special values
+// mini strings are 7 (or 3) byte chars encode directly into the pointer, ending with 0b010
+// symbols are tlString* tagged with 0b100 and address > 1024
+// so we use values tagged with 0b100 and < 1024 to encode some special values
 #define TL_NULL      ((2 << 3)|2)
 #define TL_FALSE     ((3 << 3)|2)
 #define TL_TRUE      ((4 << 3)|2)
 static const tlHandle tlNull =      (tlHead*)TL_NULL;
 static const tlHandle tlFalse =     (tlHead*)TL_FALSE;
 static const tlHandle tlTrue =      (tlHead*)TL_TRUE;
-static const tlHandle tlUnknown =   (tlHead*)((5 << 3)|2);
+static const tlHandle tlUnknown =   (tlHead*)((5 << 3)|4);
 
-static const tlHandle tlTaskNotRunning = (tlHead*)((10 << 3)|2);
-static const tlHandle tlTaskJumping    = (tlHead*)((11 << 3)|2);
+static const tlHandle tlTaskNotRunning = (tlHead*)((10 << 3)|4);
+static const tlHandle tlTaskJumping    = (tlHead*)((11 << 3)|4);
 
-static const tlHandle tlThunkNull =    (tlHead*)((50 << 3)|2);
-static const tlHandle tlCollectLazy =  (tlHead*)((51 << 3)|2);
-static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|2);
+static const tlHandle tlThunkNull =    (tlHead*)((50 << 3)|4);
+static const tlHandle tlCollectLazy =  (tlHead*)((51 << 3)|4);
+static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|4);
 
 // for the attentive reader, where does 100 tag come into play?
 // internally this is called an "active" value, which is used in the interpreter
@@ -66,7 +68,7 @@ static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|2);
 #define TL_MAX_ARGS_SIZE 2000
 
 static inline bool tlRefIs(tlHandle v) { return v && ((intptr_t)v & 7) == 0; }
-static inline bool tlTagIs(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v < 1024; }
+static inline bool tlTagIs(tlHandle v) { return ((intptr_t)v & 7) == 4 && (intptr_t)v < 1024; }
 
 static inline bool tlNullIs(tlHandle v) { return v == tlNull; }
 static inline bool tlBoolIs(tlHandle v) { return v == tlTrue || v == tlFalse; }
@@ -77,10 +79,13 @@ static inline bool tlIntIs(tlHandle v) { return ((intptr_t)v & 1) == 1; }
 static inline tlInt tlIntAs(tlHandle v) { assert(tlIntIs(v)); return v; }
 static inline tlInt tlIntCast(tlHandle v) { return tlIntIs(v)?tlIntAs(v):0; }
 
-static inline bool tlSymIs_(tlHandle v) { return ((intptr_t)v & 7) == 2 && (intptr_t)v >= 1024; }
+static inline bool tlMiniIs_(tlHandle v) { return ((intptr_t)v & 7) == 2; }
+static inline tlMini tlMiniAs_(tlHandle v) { assert(tlMiniIs_(v)); return v; }
+static inline tlMini tlMiniCast_(tlHandle v) { return tlMiniIs_(v)?tlMiniAs_(v):0; }
+
+static inline bool tlSymIs_(tlHandle v) { return ((intptr_t)v & 7) == 4 && (intptr_t)v >= 1024; }
 static inline tlSym tlSymAs_(tlHandle v) { assert(tlSymIs_(v)); return (tlSym)v; }
 static inline tlSym tlSymCast_(tlHandle v) { return tlSymIs_(v)?tlSymAs_(v):0; }
-
 
 static inline tlHead* tl_head(tlHandle v) { assert(tlRefIs(v)); return (tlHead*)v; }
 
@@ -95,7 +100,7 @@ static inline tlKind* tl_kind(tlHandle v) {
     if (tlRefIs(v)) return (tlKind*)(get_kptr(v) & ~0x7);
     if (tlIntIs(v)) return tlIntKind;
     if (tlSymIs_(v)) return tlSymKind;
-    // assert(tlTagIs(v));
+    //assert(tlTagIs(v));
     switch ((intptr_t)v) {
         case TL_NULL: return tlNullKind;
         case TL_FALSE: return tlBoolKind;

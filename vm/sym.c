@@ -38,8 +38,8 @@ tlHandle tlLarger;
 static LHashMap *symbols = 0;
 static LHashMap *globals = 0;
 
-static tlSym _SYM_FROM_TEXT(tlString* v) { return (tlSym)((intptr_t)v | 2); }
-static tlString* _TEXT_FROM_SYM(tlSym v) { return (tlString*)((intptr_t)v & ~7); }
+static tlSym _SYM_FROM_STRING(tlString* v) { return (tlSym)((intptr_t)v | 4); }
+static tlString* _STRING_FROM_SYM(tlSym v) { return (tlString*)((intptr_t)v & ~7); }
 
 tlKind* tlSymKind;
 
@@ -64,7 +64,7 @@ tlHandle tlACTIVE(tlHandle v) {
 
 tlString* tlStringFromSym(tlSym sym) {
     assert(tlSymIs_(sym));
-    tlString* str = _TEXT_FROM_SYM(sym);
+    tlString* str = _STRING_FROM_SYM(sym);
     assert(str->interned);
     return str;
 }
@@ -112,7 +112,7 @@ tlSym tlSymFromString(tlString* str) {
     assert(symbols);
     trace("#%s", tl_str(str));
 
-    tlSym sym = _SYM_FROM_TEXT(str);
+    tlSym sym = _SYM_FROM_STRING(str);
     tlSym cur = (tlSym)lhashmap_putif(symbols, (char*)tlStringData(str), sym, 0);
 
     if (cur) return cur;
@@ -144,7 +144,7 @@ void tl_register_natives(const tlNativeCbs* cbs) {
 static tlHandle tl_global(tlSym sym) {
     assert(tlSymIs_(sym));
     assert(globals);
-    return lhashmap_get(globals, tlStringData(_TEXT_FROM_SYM(sym)));
+    return lhashmap_get(globals, tlStringData(_STRING_FROM_SYM(sym)));
 }
 
 static unsigned int strhash(void *str) {
@@ -159,12 +159,12 @@ static bool symEquals(tlHandle left, tlHandle right) {
     trace("SYMBOL EQUALS? %s == %s", tl_str(left), tl_str(right));
     if (left == right) return true;
     if (tlSymIs_(left) && tlSymIs_(right)) return false;
-    return tlStringEquals(_TEXT_FROM_SYM(left), _TEXT_FROM_SYM(right));
+    return tlStringEquals(_STRING_FROM_SYM(left), _STRING_FROM_SYM(right));
 }
 static tlHandle symCmp(tlHandle left, tlHandle right) {
     trace("SYMBOL CMP? %s <> %s", tl_str(left), tl_str(right));
     if (left == right) return tlEqual;
-    return tlCOMPARE(tlStringCmp(_TEXT_FROM_SYM(left), _TEXT_FROM_SYM(right)));
+    return tlCOMPARE(tlStringCmp(_STRING_FROM_SYM(left), _STRING_FROM_SYM(right)));
 }
 static tlKind _tlSymKind = {
     .name = "String",
