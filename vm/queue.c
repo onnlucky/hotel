@@ -109,6 +109,26 @@ tlHandle _queue_get(tlTask* task, tlArgs* args) {
     return null;
 }
 
+tlHandle _queue_poll(tlTask* task, tlArgs* args) {
+    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
+
+    pthread_mutex_lock(&queue->lock);
+    if (!queue->get_q.head) {
+        // we are first
+        tlTask* adder = tlTaskFromEntry(lqueue_get(&queue->add_q));
+        if (adder) {
+            trace("found an adder ... taking its values %s", tl_str(adder->value));
+            tlArgs* res = tlArgsAs(adder->value);
+            adder->value = tlNull;
+            tlTaskReady(adder);
+            pthread_mutex_unlock(&queue->lock);
+            return tlResultFromArgs(res);
+        }
+    }
+    pthread_mutex_unlock(&queue->lock);
+    return tlNull;
+}
+
 
 // Message Queue
 
@@ -234,6 +254,7 @@ void queue_init() {
     _tlQueueKind.klass = tlClassObjectFrom(
         "add", _queue_add,
         "get", _queue_get,
+        "poll", _queue_poll,
         null
     );
 
