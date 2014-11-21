@@ -1,123 +1,209 @@
 w = Window.new(500, 500)
-w.title("widget test")
+w.title("game test")
 b = Box.new(0, 0, w.width, w.height)
 w.add(b)
 w.onresize(width, height -> b.width(width); b.height(height))
 
-PI = 3.14
-TAU = 6.28
+debug = false
 
-dist2 = o1, o2 -> (o1.x - o2.x)^2 + (o1.y - o2.y)^2
-dist = o1, o2 -> sqrt((o1.x - o2.x)^2 + (o1.y - o2.y)^2)
-angle = o1, o2 -> atan2(o2.y - o1.y, o2.x - o1.x)
+map = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,1,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1]
+    [1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+]
+width = map[1].size
+height = map.size
+game = map.map(row -> Array.new())
 
-PUSH_SPEED = 10
+// TODO cannot be global mutable ...
+nav = map.map(row -> Array.new())
 
-var dragging = null
-world = Array.new
+pass = x, y ->
+    return map[y][x] == 0
 
-nearestEnemy = from, player ->
-    var targetdist = 1000_000_000
-    var target = null
-    world.each(o ->
-        if o.type == "player": return
-        if o.player == player: return
-        d = dist(from, o)
-        if d < targetdist:
-            targetdist = d
-            target = o
+moves = [[-1,0],[1,0],[0,-1],[0,1]]
+move = p, m -> [p[1] + m[1], p[2] + m[2]]
+getnav = p ->
+    return nav[p[2]][p[1]]
+getnavm = p, m ->
+    x = p[1] + m[1]
+    y = p[2] + m[2]
+    if x < 1 or x > width: return 100_000
+    if y < 1 or y > height: return 100_000
+    return nav[y][x] or 100_000
+
+navfrom = ps, n ->
+    nc = Array.new
+    ps.each(p ->
+        x = p[1]
+        y = p[2]
+        if x - 1 >= 1 and not nav[y][x - 1] and pass(x - 1, y): nav[y][x - 1] = n; nc.add([x - 1, y])
+        if x + 1 <= width and not nav[y][x + 1] and pass(x + 1, y): nav[y][x + 1] = n; nc.add([x + 1, y])
+        if y - 1 >= 1 and not nav[y - 1][x] and pass(x, y - 1): nav[y - 1][x] = n; nc.add([x, y - 1])
+        if y + 1 <= height and not nav[y + 1][x] and pass(x, y + 1): nav[y + 1][x] = n; nc.add([x, y + 1])
     )
-    return target
+    if nc.size == 0: return
+    navfrom(nc, n + 1)
 
-Player = name, x, y, color -> _Mutable_new {
-    type = "player"
-    {name,x,y,color}
-    energy = 100.0
-    proto = Array.new
-    init = ->
-        this.proto.add(Turret(this, 0, 0))
-        this.proto.add(Energy(this, 0, 0))
-    draw = g ->
-        g.color(this.color)
-        this.proto.each(p, n -> g.save.translate(n * 30, 0); p.draw(g); g.restore)
-        g.fillText("$(this.name) energy=$(this.energy.round)") //"
-    update = -> null
-}
 
-Turret = player, x, y -> _Mutable_new {
-    type = "turret"
-    {player,x,y}
-    turret = 0.0
-    target = null
-    energy = 0
-    health = 1.0
-    draw = g ->
-        g.color(0,0.1,0).rectangle(-10,5,20,6).fill
-        g.color(0,1,0).rectangle(-10,5,20 * this.health,6).fill
-        g.color(this.player.color)
-        g.arc(0, 0, 10)
-        g.rotate(this.turret)
-        g.rectangle(-2, -2, 20, 2)
-        g.fill
-    update = dt ->
-        if this.health <= 0: return false
-        if this.energy < 1:
-            this.energy += 0.5 * dt
-            this.player.energy -= 0.5 * dt
-        this.target = nearestEnemy(this, this.player)
-        if this.target:
-            this.turret = angle(this, this.target)
-            d = dist(this, this.target)
-            if d < 100 and this.energy >= 0.5:
-                this.energy -= 0.5
-                this.target.health -= 0.1
-}
+down1 = p ->
+    places = moves.map(m -> getnavm(p, m))
+    return move(p, moves[places.find(places.min)])
+down2 = p ->
+    places = moves.map(m -> getnavm(p, m))
+    return move(p, moves.reverse[places.reverse.find(places.min)])
 
-Energy = player, x, y -> _Mutable_new {
-    type = "energy"
-    {player,x,y}
-    color = [0.6,0,0]
-    health = 1.0
-    draw = g ->
-        g.color(0,0.1,0).rectangle(-10,6,20,7).fill
-        g.color(0,1,0).rectangle(-10,6,20 * this.health,7).fill
-        g.color(this.player.color)
-        g.rectangle(-10, -10, 20, 20)
-        g.fill
-    update = dt ->
-        if this.health <= 0: return false
-        p = this.player
-        p.energy += 1 * dt
-        world.each(o ->
-            if o == this: return
-            if o.type == "player": return
-            if o.player != this.player: return
-            d = dist(this, o)
-            if d < 50:
-                a = angle(this, o)
-                o.x += cos(a) * dt * PUSH_SPEED
-                o.y += sin(a) * dt * PUSH_SPEED
-        )
-}
+pathto = p, ps ->
+    ps = ps.add(p)
+    if getnav(p) == 0: return ps
+    p1 = { random(2) > 0 }: down1(p)
+         {               }: down2(p)
+    if not p1: return ps
+    pathto(p1, ps)
 
-p1 = Player("p1", 10, 20, [1,0,0])
-p1.init
-p2 = Player("p2", 10, 480, [0,0,1])
-p2.init
+findpath = p1, p2 ->
+    nav.each(row -> row.clear)
+    nav[p1[2]][p1[1]] = 0
+    navfrom([p1], 1)
+    return pathto(p2, [])
 
-world.add(p1)
-world.add(p2)
+draw = g ->
+    g.setFont("arial", 10)
+    map.each: row, y ->
+        row.each: cell, x ->
+            { cell == 1 }:
+                g.color(0)
+            {           }:
+                g.color(200,200,200)
+            g.rectangle(x * 10 + 1, y * 10 + 1, 8, 8).fill
+            if debug:
+                n = nav[y][x]
+                if n: g.moveTo(x * 10, y * 10 + 8).color(200).fillText("$n", x * 10, y * 10)
+    game.each: row, y ->
+        row.each: cell, x ->
+            g.color(0,0,200)
+            g.rectangle(x * 10 + 1, y * 10 + 1, 8, 8).fill
 
-!(loop:
-    catch: e -> print e.toString
-    sleep 0.01
-    toremove = Array.new
-    world.each: o ->
-        if o.update(0.01) == false: toremove.add(o)
-    toremove.each: o ->
-        world.remove(world.find(o))
-    b.redraw
-)
+units = Array.new
+
+drawunits = g ->
+    units.each(unit ->
+        { unit.type == "energy" }:
+            g.rectangle(unit.x * 10 + 1, unit.y * 10 + 1, 8, 8).color(0.7,0.7,0.1).fill
+        { unit.type == "base" }:
+            g.rectangle(unit.x * 10 + 1, unit.y * 10 + 1, 8, 8).color(0,220,220,0.5).stroke
+        { }:
+            g.arc(unit.x * 10 + 5, unit.y * 10 + 5, 4).color(0,0,200,0.5).fill
+    )
+
+drawstats = g ->
+    g.color.setFont("arial", 16)
+    g.moveTo(250, 50)
+    units.each(unit ->
+        { unit.type == "base" }:
+            g.fillText("base: $(unit.state.energy)") //"
+        { }: null
+    )
+
+moveunits = ->
+    if debug: print "move", units.size
+    units.each(unit ->
+        cmd = unit.cmd
+        { not cmd        }: null
+        { isList(cmd)    }: unit.state.x = cmd[1]
+                            unit.state.y = cmd[2]
+        { cmd == "left"  }: unit.state.x -= 1
+        { cmd == "right" }: unit.state.x += 1
+        { cmd == "up"    }: unit.state.y -= 1
+        { cmd == "down"  }: unit.state.y += 1
+    )
+
+Unit = x, y ->
+    u = {
+        type = "unit"
+        cmdq = Queue.new
+        state = _Mutable_new {
+            {x, y}
+            task = null
+            energy = 0
+        }
+        x = -> this.state.x
+        y = -> this.state.y
+        pos = -> [this.state.x, this.state.y]
+        cmd = ->
+            if not this.state.task: return this.cmdq.poll
+            this.cmdq.get
+        harvest = ->
+            this.state.energy += 50
+        transfer = to ->
+            to.state.energy += this.state.energy
+            this.state.energy = 0
+        move = dir -> this.cmdq.add(dir)
+        moveTo = x, y ->
+            to = { isNumber(x) and isNumber(y) }: [x, y]
+                 { isList(x)                   }: x
+                 {                             }: x?pos
+            ps = findpath(this.pos, to)
+            if not ps: return
+            ps.reverse[2:].each: p ->
+                this.cmdq.add(p)
+        setTask = fn ->
+            fn = fn or args.block
+            if this.state.task: this.state.task.stop
+            this.state.task = !(
+                (
+                    catch: e -> print e.toString
+                    fn()
+                )
+                this.state.task = null
+                this.cmdq.add(null)
+            )
+    }
+    units.add(u)
+
+Base = x, y ->
+    b = {
+        type = "base"
+        cmdq = Queue.new
+        state = _Mutable_new {
+            energy = 300
+        }
+        {x, y}
+        pos = -> [this.x, this.y]
+        new = ->
+            if this.state.energy < 100: return
+            this.state.energy -= 100
+            this.cmdq.add(null)
+            Unit(this.x, this.y)
+        cmd = -> this.cmdq.poll
+    }
+    units.add(b)
+
+Energy = x, y ->
+    e = {
+        type = "energy"
+        {x, y}
+        pos = -> [this.x, this.y]
+        cmd = -> null
+    }
+    units.add(e)
 
 w.onkey(event ->
     catch: e -> print e.toString
@@ -125,46 +211,48 @@ w.onkey(event ->
     if event.key == 81 and event.modifiers == 2: w.close; return
     b.redraw
 )
+
 w.onmouse(x, y, buttons, clicks ->
     catch: e -> print e.toString
     print x, y, buttons, clicks
-
-    player = { y < 50  }: p1
-             { y > 450 }: p2
-             {         }: null
-    if player:
-        { x >= 30 and x <= 60 }:
-            dragging = Turret(player, x, y)
-        { x >= 60 and x <= 90 }:
-            dragging = Energy(player, x, y)
-        {                     }:
-            dragging = null
-
-    if not dragging: return
-    w.onmousemove(x, y, buttons ->
-        dragging.x = x
-        dragging.y = y
-        if buttons == 0:
-            if dragging: world.add(dragging)
-            dragging = null
-            w.onmousemove(null)
-        b.redraw
-    )
     b.redraw
 )
+
 b.ondraw(g ->
     catch: e -> print e.toString
-    world.each: o ->
-        g.save
-        g.translate(o.x, o.y)
-        o.draw(g)
-        g.restore
-    if dragging:
-        g.save
-        g.translate(dragging.x, dragging.y)
-        dragging.draw(g)
-        g.restore
+    draw(g)
+    drawunits(g)
+    drawstats(g)
 )
-!(sleep 0.01; w.focus)
+w.focus
+
+!(
+    catch: e -> print e.toString
+    loop:
+        sleep(0.33)
+        moveunits()
+        b.redraw
+)
+
+energy = Energy(3, 3)
+base = Base(10, 10)
+u1 = base.new()
+u1.setTask(->
+    loop:
+        u1.moveTo(energy)
+        u1.harvest()
+        u1.moveTo(base)
+        u1.transfer(base)
+)
+
+u2 = base.new()
+u2.setTask(->
+    loop:
+        u2.moveTo(energy)
+        u2.harvest()
+        u2.moveTo(base)
+        u2.transfer(base)
+)
+
 return null
 
