@@ -36,6 +36,15 @@ tlSet* tlSetNew(int size) {
     return set;
 }
 
+tlSet* tlSetFromArrayOrdered(tlArray* array) {
+    tlSet* set = tlSetNew(tlArraySize(array));
+    for (int i = 0; i < tlArraySize(array); i++){
+        set->data[i] = tlArrayGet(array, i);
+    }
+    tlSetAssert(set);
+    return set;
+}
+
 tlHandle tlSetGet(tlSet* set, int at) {
     if (at < 0 || at >= tlSetSize(set)) return null;
     return set->data[at];
@@ -166,6 +175,55 @@ static tlHandle _set_size(tlTask* task, tlArgs* args) {
     return tlINT(tlSetSize(set));
 }
 
+static tlHandle _set_intersect(tlTask* task, tlArgs* args) {
+    tlSet* set = tlSetAs(tlArgsTarget(args));
+    tlSet* set2 = tlSetCast(tlArgsGet(args, 0));
+    if (!set2) TL_THROW("expect a set as arg[1]");
+
+    tlArray* res = tlArrayNew();
+    int i = 0;
+    int j = 0;
+    while (true) {
+        if (i >= set->size) return tlSetFromArrayOrdered(res);
+        if (j >= set2->size) return tlSetFromArrayOrdered(res);
+        tlHandle k = set->data[i];
+        tlHandle l = set2->data[j];
+        if (k == l) {
+            tlArrayAdd(res, k);
+            i++; j++;
+        } else if (k < l) {
+            j++;
+        } else {
+            i++;
+        }
+    }
+}
+
+static tlHandle _set_union(tlTask* task, tlArgs* args) {
+    tlSet* set = tlSetAs(tlArgsTarget(args));
+    tlSet* set2 = tlSetCast(tlArgsGet(args, 0));
+    if (!set2) TL_THROW("expect a set as arg[1]");
+
+    tlArray* res = tlArrayNew();
+    int i = 0;
+    int j = 0;
+    while (true) {
+        tlHandle k = i < set->size? set->data[i] : 0;
+        tlHandle l = j < set2->size? set2->data[j] : 0;
+        if (k == l) {
+            if (k == 0) return tlSetFromArrayOrdered(res);
+            tlArrayAdd(res, k);
+            i++; j++;
+        } else if (k > l) {
+            tlArrayAdd(res, k);
+            i++;
+        } else {
+            tlArrayAdd(res, l);
+            j++;
+        }
+    }
+}
+
 static tlHandle runSet(tlTask* task, tlHandle _fn, tlArgs* args) {
     tlSet* set = tlSetAs(_fn);
     int at = tlSetIndexof(set, tlArgsGet(args, 0));
@@ -173,10 +231,14 @@ static tlHandle runSet(tlTask* task, tlHandle _fn, tlArgs* args) {
     return tlINT(at + 1);
 }
 
+INTERNAL const char* settoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "<Set@%p %d>", v, tlSetSize(tlSetAs(v))); return buf;
+}
 
 static tlKind _tlSetKind = {
     .name = "Set",
-    .run = runSet
+    .run = runSet,
+    .toString = settoString
 };
 tlKind* tlSetKind;
 
@@ -187,6 +249,8 @@ static void set_init() {
         "has", _set_has,
         "find", _set_find,
         "get", _set_get,
+        "intersect", _set_intersect,
+        "union", _set_union,
         "slice", _set_slice,
         "random", null,
         "each", null,

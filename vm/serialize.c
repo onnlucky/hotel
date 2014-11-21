@@ -187,6 +187,19 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print, int depth)
         return false;
     }
 
+    if (kind == tlSetKind) {
+        tlSet* set = tlSetAs(h);
+        tlBufferWrite(buf, "<[", 2);
+        for (int i = 0;; i++) {
+            tlHandle v = tlSetGet(set, i);
+            if (!v) break;
+            if (i != 0) tlBufferWrite(buf, ",", 1);
+            pprint(buf, v, false, print, depth + 1);
+        }
+        tlBufferWrite(buf, "]>", 2);
+        return false;
+    }
+
     if (tlObjectIs(h)) {
         tlObject* map = (tlObject*)h;
         tlBufferWrite(buf, "{", 1);
