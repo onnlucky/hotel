@@ -209,9 +209,6 @@ Energy = x, y ->
     }
     units.add(e)
 
-view.add(widget.Space(220))
-editor = view.add(Editor("print \"hello\""))
-
 w.onkey(event ->
     catch: e -> print e.toString
     print repr event
@@ -246,17 +243,36 @@ w.focus
 energy = Energy(3, 3)
 base = Base(10, 10)
 
+view.add(widget.Space(220))
 
-u1 = base.new()
-u1.move("up")
-u1.move("up")
-u1.move("up")
-u1.move("up")
+var editor = null
+process = ->
+    editor.readonly = true
+    editor.cursor = false
+    code = editor.text
+    print "PROCESS:", repr(code)
+
+    out = view.add(Editor("", readonly=true,zeroheight=true))
+    _print = -> out.addLines(args.join(" ").split("\n"))
+    !(
+        catch: e -> print e.toString
+        code.eval({{energy,base},print=_print})
+    )
+
+    editor = view.add(Editor(""))
+    editor.onsubmit = process
+
+example =
+"u1 = base.new()
 u1.setTask(->
-    loop:
-        u1.moveTo(energy)
-        u1.harvest()
-        u1.moveTo(base)
-        u1.transfer(base)
+ loop:
+   u1.moveTo(energy)
+   u1.harvest()
+   u1.moveTo(base)
+   u1.transfer(base)
 )
+"
+
+editor = view.add(Editor(example))
+editor.onsubmit = process
 
