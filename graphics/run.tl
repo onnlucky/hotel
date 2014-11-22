@@ -4,6 +4,10 @@ b = Box.new(0, 0, w.width, w.height)
 w.add(b)
 w.onresize(width, height -> b.width(width); b.height(height))
 
+app = widget.App(w, b)
+view = widget.Vertical()
+app.setView(view)
+
 debug = false
 
 map = [
@@ -205,21 +209,26 @@ Energy = x, y ->
     }
     units.add(e)
 
+view.add(widget.Space(220))
+editor = view.add(Editor("print \"hello\""))
+
 w.onkey(event ->
     catch: e -> print e.toString
     print repr event
     if event.key == 81 and event.modifiers == 2: w.close; return
-    b.redraw
+    app.onkey(event)
 )
 
 w.onmouse(x, y, buttons, clicks ->
     catch: e -> print e.toString
     print x, y, buttons, clicks
-    b.redraw
+    view.onmouse({{x,y,buttons,clicks}}, x, y)
 )
 
 b.ondraw(g ->
     catch: e -> print e.toString
+    view.size(g, b.width, b.height)
+    view.draw(g, b.width, b.height)
     draw(g)
     drawunits(g)
     drawstats(g)
@@ -236,7 +245,13 @@ w.focus
 
 energy = Energy(3, 3)
 base = Base(10, 10)
+
+
 u1 = base.new()
+u1.move("up")
+u1.move("up")
+u1.move("up")
+u1.move("up")
 u1.setTask(->
     loop:
         u1.moveTo(energy)
@@ -244,15 +259,4 @@ u1.setTask(->
         u1.moveTo(base)
         u1.transfer(base)
 )
-
-u2 = base.new()
-u2.setTask(->
-    loop:
-        u2.moveTo(energy)
-        u2.harvest()
-        u2.moveTo(base)
-        u2.transfer(base)
-)
-
-return null
 

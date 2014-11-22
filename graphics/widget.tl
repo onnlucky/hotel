@@ -1,3 +1,6 @@
+DEFAULT_FONT = "Arial"
+DEFAULT_FONT_SIZE = 16
+
 clamp = value, min, max -> { value < min }: min
                            { max < min   }: min
                            { value > max }: max
@@ -23,68 +26,58 @@ App = window, box -> _Mutable_new {
         view.parent = this
 
     onkey = event ->
-        try(this.focus.onkey(event))
+        if this._focus: this._focus.onkey(event)
+
+    onmousemove = handler -> window.onmousemove(handler)
+    clipboardGet = -> window.clipboardGet
+    clipboardSet = text -> window.clipboardSet(text)
 }
 
 widget_class = {
     app = -> this.parent.app
     focus = -> try(this.app._focus) == this
-    setFocus = -> this.app.setFocus(this)
+    setFocus = -> !this.app.setFocus(this)
+    setVisible = visible -> this.visible = visible; !try(this.parent.dirty)
     size = g, width -> null
-    draw = g -> null
+    draw = g, width, height -> null
     onkey = event -> null
     onmouse = event, x, y -> null
 }
 
 widget_fields = {
     parent = null
+    visible = true
     x = 0
     y = 0
     width = 0
     height = 0
 }
 
-Widget = text -> _Mutable_new(Object.merge(
+Space = height -> _Mutable_new(Object.merge(
     widget_fields
-    { text = text, width = 100, height = 100 }
+    { height = height or DEFAULT_FONT_SIZE }
     { class = Object.merge(widget_class, {
-        size = g, width ->
-            null
-        draw = g ->
-            g.setFont("Arial", 16)
-            g.color(0.9,0.9,0.9)
-            if this.focus: g.color(1,0.8,0.8)
-            g.rectangle(2, 2, this.width - 4, this.height - 4)
-            g.fill
-            g.color(0,0,0)
-            w, h = g.measureText(text)
-            g.moveTo(this.width / 2 - w / 2, this.height / 2 + h / 2)
-            g.fillText(text)
-        onmouse = event, x, y ->
-            this.setFocus()
-            { event.buttons == 1 }:
-                this.width = this.width + 10
-                this.height = this.height + 10
-                this.parent.dirty
-            { event.buttons == 2 }:
-                this.width =  this.width - 10
-                this.height = this.height - 10
-                this.parent.dirty
+        size = g, width, height -> this.width = width
     })}
 ))
 
-Text = text -> _Mutable_new(Object.merge(
+Text = text, align, font, size, style, color, background -> _Mutable_new(Object.merge(
     widget_fields
-    { lines = Array.new }
+    { text = text, lines = Array.new, linesizes = Array.new }
     { class = Object.merge(widget_class, {
+        setText = text ->
+            this.text = text
+            this.width = 0
+            this.parent.dirty
         size = g, width ->
             if this.width == width: return
             this.width = width
             this.lines.clear
+            this.linesizes.clear
 
-            g.setFont("Arial", 16)
-            _, height = g.measureText("fg")
-            words = text.split(" ")
+            g.setFont(font or DEFAULT_FONT, size or DEFAULT_FONT_SIZE, style == "italic", style == "bold")
+            height = g.fontSize()
+            words = this.text.split(" ")
             sizes = words.map(w -> g.measureText(w + " "))
 
             var $size = 0
@@ -92,20 +85,28 @@ Text = text -> _Mutable_new(Object.merge(
             sizes.each: s, n ->
                 if $size + s > width:
                     this.lines.add($text)
+                    this.linesizes.add($size)
                     $text = ""
                     $size = 0
                 $text = "$($text)$(words[n]) "
                 $size += s
-            if $text.size > 0: this.lines.add($text)
+            if $text.size > 0:
+                this.lines.add($text)
+                this.linesizes.add($size)
             this.width = width
-            this.height = this.lines.size * height
-        draw = g ->
-            g.setFont("Arial", 16)
-            _, height = g.measureText("fg")
-            g.color(0,0,0)
-            var $x = height
-            this.lines.each: l ->
-                g.moveTo(0, $x)
+            this.height = this.lines.size * height + 2
+
+        draw = g, width, height ->
+            if background: g.color(background).rectangle(0, 0, width, height).fill
+
+            g.setFont(font or DEFAULT_FONT, size or DEFAULT_FONT_SIZE, style == "italic", style == "bold")
+            height = g.fontSize()
+            g.color(color or "black")
+            var $x = height - 2
+            this.lines.each: l, n ->
+                { align == "center" }: g.moveTo(width / 2 - this.linesizes[n] / 2, $x)
+                { align == "right"  }: g.moveTo(width - this.linesizes[n], $x)
+                {                   }: g.moveTo(0, $x)
                 g.fillText(l)
                 $x += height
     })}
@@ -113,6 +114,7 @@ Text = text -> _Mutable_new(Object.merge(
 
 Vertical = -> _Mutable_new {
     parent = null
+    visible = true
     children = Array.new
     _dirty = true
     x = 0
@@ -129,19 +131,20 @@ Vertical = -> _Mutable_new {
         this._dirty = true
         if this.parent: this.parent.dirty
 
-    draw = g ->
+    draw = g, width, height ->
         ymin = this.yscroll
         ymax = this.yscroll + this.parent.height
         xmin = this.xscroll
         xmax = this.xscroll + this.parent.width
         this.children.each: c ->
+            if not c.visible: continue
             if c.y + c.height < ymin and c.y > ymax: continue
             if c.x + c.width < xmin and c.x > xmax: continue
             g.save
             g.translate(c.x - xmin, c.y - ymin)
             g.rectangle(0, 0, c.width, c.height)
             g.clip()
-            c.draw(g)
+            c.draw(g, width - (c.x - xmin), height - (c.y - ymin))
             g.restore
 
     add = c ->
@@ -153,10 +156,11 @@ Vertical = -> _Mutable_new {
         this.width = 0
         this.height = 0
         this.children.each: c ->
+            if not c.visible: continue
             c.size(g, width)
             c.x = 0
             c.y = this.height
-            this.height = this.height + c.height
+            this.height += c.height.ceil
             this.width = max(this.width, c.width)
 
     onmouse = event, x, y ->
@@ -175,4 +179,4 @@ Vertical = -> _Mutable_new {
         this.dirty
 }
 
-{{ App, Text, Widget, Vertical }}
+{{ widget_class, App, Vertical, Text, Space }}
