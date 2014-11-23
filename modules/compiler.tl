@@ -771,13 +771,15 @@ SimpleDebugger = debugger, stream ->
 Module = m -> {
         links = -> _module_links(m)
         link = ls -> Module(_module_link(m, ls))
-        run = as, am, task ->
-            _module_run(m, task, as, am)
-        debug = stream, as, am ->
+        frame = as ->
+            _module_frame(m, as)
+        run = as, task, frame ->
+            _module_run(m, as, task, frame)
+        debug = stream, as, frame ->
             debugger = Debugger.new
             task = Task.new
             debugger.attach(task)
-            _module_run(m, task, as, am)
+            _module_run(m, as, task, frame)
             return SimpleDebugger(debugger, stream)
     }
 

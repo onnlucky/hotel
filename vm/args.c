@@ -260,6 +260,10 @@ static tlHandle _args_slice(tlTask* task, tlArgs* args) {
     return tlListSub(list, offset, len);
 }
 
+static tlHandle _Args_from(tlTask* task, tlArgs* args) {
+    return args;
+}
+
 const char* _ArgstoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
     return buf;
@@ -303,6 +307,7 @@ static void args_init() {
             null
     );
     tlObject* constructor = tlClassObjectFrom(
+        "call", _Args_from,
         "_methods", null,
         null
     );

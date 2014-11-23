@@ -218,7 +218,7 @@ tlBFrame* tlBFrameCast(tlHandle v) {
     return (tlBFrame*)v;
 }
 
-tlBFrame* tlBFrameNew(tlTask* task, tlArgs* args) {
+tlBFrame* tlBFrameNew(tlArgs* args) {
     int calldepth = tlBClosureAs(args->fn)->code->calldepth;
     tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(CallEntry) * calldepth);
     frame->pc = -1;
@@ -1220,6 +1220,20 @@ void tlBFrameDump(tlFrame* _frame) {
     }
 }
 
+tlBFrame* tlFrameFor(tlArgs* args) {
+    tlBClosure* closure = tlBClosureAs(args->fn);
+    tlBCode* bcode = closure->code;
+    tlBFrame* frame = tlBFrameNew(args);
+    frame->pc = 0;
+    frame->locals = tlBEnvNew(bcode->localnames, closure->env);
+    frame->locals->args = args;
+    return frame;
+}
+
+tlHandle tlFrameEval(tlTask* task, tlBFrame* frame) {
+    return beval(task, frame, null, 0, null);
+}
+
 tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
     trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
     assert(task);
@@ -1255,7 +1269,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     // 3. we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
     // 4. we set a method name to a call, and resolving it paused the task; see end of this function
     // 5. we resumed from a debugger
-    if (frame) { // 3 or 4 or 5
+    if (frame && frame->pc != 0) { // 3 or 4 or 5
         assert(args == frame->args);
         pc = frame->pc;
         if (pc < 0) {
@@ -1269,7 +1283,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
         // TODO we really need to know if we came from debugger or not ... just having a debugger is not good enough
         // plus, debuggers attach/deattach any time
         if (bcode->calldepth == 0 || !frame->calls[0].call) {
-            trace("resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
+            trace("A resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
             if (lazypc) goto resume;
             goto again;
@@ -1285,7 +1299,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
         assert(call);
         assert(arg >= 0);
 
-        trace("resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
+        trace("B resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
                 tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
         if (debugger) goto again;
         goto resume; // for speed and code density
@@ -1297,7 +1311,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     }
 
     if (!frame) {
-        frame = tlBFrameNew(task, args);
+        frame = tlBFrameNew(args);
         if (lazylocals) {
             frame->locals = lazylocals;
         } else {
@@ -1868,24 +1882,109 @@ INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
+INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
-    tlTask* other = tlTaskCast(tlArgsGet(args, 1));
-
-    tlList* list = tlListCast(tlArgsGet(args, 2));
-    tlObject* map = tlObjectCast(tlArgsGet(args, 3));
-    tlArgs* call = bcallFromArgs(tlArgsNewFromListMap(list, map));
     tlBClosure* fn = tlBClosureNew(mod->body, null);
-    call->fn = fn;
 
+    tlArgs* as;
+    tlHandle _as = tlArgsGet(args, 1);
+    if (!_as || _as == tlNull) {
+        as = tlArgsEmpty();
+    } else if (tlArgsIs(_as)) {
+        as = tlArgsAs(_as);
+    } else {
+        TL_THROW("frame requires Args as args[2]");
+    }
+    as->fn = fn;
+    return tlFrameFor(as);
+}
+
+INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
+    tlBFrame* frame = tlBFrameCast(tlArgsTarget(args));
+    if (!frame) TL_THROW("run requires a frame");
+    if (frame->pc != 0) TL_THROW("cannot reuse frames");
+
+    tlTask* other = tlTaskCast(tlArgsGet(args, 0));
     if (!other) {
-        return beval(task, null, call, 0, null);
+        return beval(task, frame, null, 0, null);
     }
 
     if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
-    other->value = call;
-    other->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
+    other->value = tlNull;
+    other->stack = (tlFrame*)frame;
+    other->state = TL_STATE_INIT;
+    tlTaskStart(other);
+    return tlNull;
+}
+
+INTERNAL tlHandle _frame_locals(tlTask* task, tlArgs* args) {
+    tlBFrame* frame = tlBFrameCast(tlArgsTarget(args));
+    if (!frame) TL_THROW("run requires a frame");
+
+    tlBEnv* env = frame->locals;
+    tlList* names = env->names;
+    tlObject* map = tlObjectNew(0);
+    for (int i = 0; i < tlListSize(names); i++) {
+        tlHandle name = tlListGet(names, i);
+        tlHandle v = env->data[i];
+        if (!name) continue;
+        if (!v) continue;
+        map = tlObjectSet(map, tlSymAs(name), v);
+    }
+    return map;
+}
+
+// true if last statement is a store
+// TODO can use some work ...
+INTERNAL tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
+    tlBFrame* frame = tlBFrameCast(tlArgsTarget(args));
+    if (!frame) TL_THROW("run requires a frame");
+
+    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBCode* code = closure->code;
+
+    int op = code->code[code->size - 3];
+    return op == OP_STORE? tlTrue : tlFalse;
+}
+
+INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
+    tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    if (!mod) TL_THROW("run requires a module");
+
+    tlArgs* as = null;
+    tlHandle* _as = tlArgsGet(args, 1);
+    if (!_as || _as == tlNull) {
+        as = tlArgsEmpty();
+    } else if (tlArgsIs(_as)) {
+        as = tlArgsAs(_as);
+    } else if (tlListIs(_as)) {
+        as = tlArgsNewFromListMap(tlListAs(_as), tlObjectEmpty());
+    } else if (tlMapIs(_as)) {
+        as = tlArgsNewFromListMap(tlListEmpty(), tlObjectFromMap(tlMapAs(_as)));
+    } else if (tlObjectIs(_as)) {
+        as = tlArgsNewFromListMap(tlListEmpty(), tlObjectAs(_as));
+    }
+    if (!as) TL_THROW("require Args(), List, or Map as arg[2], not: %s", tl_str(_as));
+
+    tlTask* other = tlTaskCast(tlArgsGet(args, 2));
+    tlBFrame* frame = tlBFrameCast(tlArgsGet(args, 3));
+    if (frame && frame->pc != 0) TL_THROW("cannot reuse frames");
+    if (!frame) {
+        tlBClosure* fn = tlBClosureNew(mod->body, null);
+        // TODO mutable like this ...
+        as->fn = fn;
+        frame = tlFrameFor(as);
+    }
+    trace("MODULE RUN: %s %s %s", tl_str(other), tl_str(frame), tl_str(as));
+
+    if (!other) {
+        return beval(task, frame, null, 0, null);
+    }
+
+    if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
+    other->value = tlNull;
+    other->stack = (tlFrame*)frame;
     other->state = TL_STATE_INIT;
     tlTaskStart(other);
     return tlNull;
@@ -2103,6 +2202,7 @@ static const tlNativeCbs __bcode_natives[] = {
     { "_module_run", _module_run },
     { "_module_links", _module_links },
     { "_module_link", _module_link },
+    { "_module_frame", _module_frame },
     { "_unknown", _unknown },
     { "__list", __list },
     { "__map", __map },
@@ -2137,6 +2237,12 @@ void bcode_init() {
         "name", _bclosure_name,
         "line", _bclosure_line,
         "args", _bclosure_args,
+    null);
+
+    tlFrameKind->klass = tlClassObjectFrom(
+        "run", _frame_run,
+        "locals", _frame_locals,
+        "allStored", _frame_allStored,
     null);
 
     INIT_KIND(tlBModuleKind);
