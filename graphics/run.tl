@@ -170,7 +170,7 @@ Unit = x, y ->
                 this.cmdq.add(p)
         setTask = fn ->
             fn = fn or args.block
-            if this.state.task: this.state.task.stop
+            if this.state.task: this.state.task.abort
             this.state.task = !(
                 (
                     catch: e -> print e.toString
@@ -179,6 +179,7 @@ Unit = x, y ->
                 this.state.task = null
                 this.cmdq.add(null)
             )
+            null
     }
     units.add(u)
 
@@ -246,33 +247,28 @@ base = Base(10, 10)
 view.add(widget.Space(220))
 
 var editor = null
+var env = {{energy,base}}
 process = ->
     editor.readonly = true
     editor.cursor = false
     code = editor.text
-    print "PROCESS:", repr(code)
 
     out = view.add(Editor("", readonly=true,zeroheight=true))
     _print = -> out.addLines(args.join(" ").split("\n"))
     !(
         catch: e -> print e.toString
-        code.eval({{energy,base},print=_print})
+        frame = code.eval(Object.set(env, {print=_print}), frame=true)
+        res = frame.run
+        env = Object.set(env, frame.locals, {$=res})
     )
 
     editor = view.add(Editor(""))
     editor.onsubmit = process
+    editor.setFocus
 
-example =
-"u1 = base.new()
-u1.setTask(->
- loop:
-   u1.moveTo(energy)
-   u1.harvest()
-   u1.moveTo(base)
-   u1.transfer(base)
-)
-"
+example = "u1 = base.new()\nu1.move(\"up\")"
 
 editor = view.add(Editor(example))
 editor.onsubmit = process
+editor.setFocus
 
