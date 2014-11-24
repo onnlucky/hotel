@@ -251,7 +251,8 @@ var env = {{energy,base}}
 process = ->
     editor.readonly = true
     editor.cursor = false
-    code = editor.text
+    code = editor.text.trim
+    editor.setText(code)
 
     out = view.add(Editor("", readonly=true,zeroheight=true))
     _print = -> out.addLines(args.join(" ").split("\n"))
@@ -259,6 +260,7 @@ process = ->
         catch: e -> print e.toString
         frame = code.eval(Object.set(env, {print=_print}), frame=true)
         res = frame.run
+        if isDefined(res) and res != null: _print(res)
         env = Object.set(env, frame.locals, {$=res})
     )
 
