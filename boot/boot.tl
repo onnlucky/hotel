@@ -260,10 +260,10 @@ _join = sep ->
     if this.size == 0: return ""
     sep = sep or ""
 
-    var $res = this[1].toString
+    var $res = toString(this[1])
     var $i = 2
     while $i <= this.size:
-        $res = $res.cat(sep).cat(this[$i].toString)
+        $res = $res.cat(sep).cat(toString(this[$i]))
         $i += 1
     return $res
 
@@ -354,6 +354,11 @@ _str = o ->
     if isNumber(o): return o.toChar
     if isList(o) or isArray(o): return o.flatten(true).toChar
     return "$o"
+
+toString = o ->
+    s = o?toString
+    if s: return s
+    repr(o)
 
 /// String():
 /// call with numbers, interprets them as letters (unicode points)
