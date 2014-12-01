@@ -223,6 +223,11 @@ w.onmouse(x, y, buttons, clicks ->
     view.onmouse({{x,y,buttons,clicks}}, x, y)
 )
 
+w.onmousescroll(dx, dy ->
+    catch: e -> print e.toString
+    view.onmousescroll(dx, dy)
+)
+
 b.ondraw(g ->
     catch: e -> print e.toString
     view.size(g, b.width, b.height)

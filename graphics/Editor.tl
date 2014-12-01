@@ -375,7 +375,6 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
                 if x > width: return
                 if markup[c]: g.color(markup[c])
                 g.moveTo(x, y).fillText(line[c])
-        g.color(0,1,0,0.2).rectangle(1, 1, width - 2, height - 2).fill
 
     onmouse = event, mx, my ->
         if event.buttons == 0: return this.app.onmousemove(null)
