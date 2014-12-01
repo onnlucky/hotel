@@ -92,10 +92,8 @@ draw = g ->
     g.setFont("arial", 10)
     map.each: row, y ->
         row.each: cell, x ->
-            { cell == 1 }:
-                g.color(0)
-            {           }:
-                g.color(200,200,200)
+            { cell == 1 }: g.color(0)
+            {           }: g.color(200,200,200)
             g.rectangle(x * 10 + 1, y * 10 + 1, 8, 8).fill
             if debug:
                 n = nav[y][x]
@@ -115,15 +113,6 @@ drawunits = g ->
             g.rectangle(unit.x * 10 + 1, unit.y * 10 + 1, 8, 8).color(0,220,220,0.5).stroke
         { }:
             g.arc(unit.x * 10 + 5, unit.y * 10 + 5, 4).color(0,0,200,0.5).fill
-    )
-
-drawstats = g ->
-    g.color.setFont("arial", 16)
-    g.moveTo(250, 50)
-    units.each(unit ->
-        { unit.type == "base" }:
-            g.fillText("base: $(unit.state.energy)") //"
-        { }: null
     )
 
 moveunits = ->
@@ -210,6 +199,24 @@ Energy = x, y ->
     }
     units.add(e)
 
+energy = Energy(3, 3)
+base = Base(10, 10)
+
+var env = {{energy,base}}
+
+drawstats = g ->
+    g.color.setFont("arial", 16)
+    Object.each(env): k, v, n ->
+        g.moveTo(250, 20 + 18 * n)
+        { v?type == "base" }:
+            g.fillText("$k = base: $(v.x),$(v.y) $(v.state.energy)") //"
+        { v?type == "unit" }:
+            g.fillText("$k = unit: $(v.x),$(v.y) $(v.state.energy)") // "
+        { v?type == "energy" }:
+            g.fillText("$k = energy: $(v.x),$(v.y)") // "
+        {                   }:
+            g.fillText("$k = " + repr(v))
+
 w.onkey(event ->
     catch: e -> print e.toString
     print repr event
@@ -246,13 +253,9 @@ w.focus
         b.redraw
 )
 
-energy = Energy(3, 3)
-base = Base(10, 10)
-
 view.add(widget.Space(220))
 
 var editor = null
-var env = {{energy,base}}
 process = ->
     editor.readonly = true
     editor.cursor = false
