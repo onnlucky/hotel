@@ -1891,9 +1891,9 @@ INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
     tlArgs* as;
     tlHandle _as = tlArgsGet(args, 1);
     if (!_as || _as == tlNull) {
-        as = tlArgsEmpty();
+        as = tlClone(tlArgsEmpty());
     } else if (tlArgsIs(_as)) {
-        as = tlArgsAs(_as);
+        as = tlClone(tlArgsAs(_as));
     } else {
         TL_THROW("frame requires Args as args[2]");
     }
@@ -1956,9 +1956,9 @@ INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
     tlArgs* as = null;
     tlHandle* _as = tlArgsGet(args, 1);
     if (!_as || _as == tlNull) {
-        as = tlArgsEmpty();
+        as = tlClone(tlArgsEmpty());
     } else if (tlArgsIs(_as)) {
-        as = tlArgsAs(_as);
+        as = tlClone(tlArgsAs(_as));
     } else if (tlListIs(_as)) {
         as = tlArgsNewFromListMap(tlListAs(_as), tlObjectEmpty());
     } else if (tlMapIs(_as)) {
