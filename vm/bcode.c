@@ -1339,6 +1339,7 @@ again:;
         goto again;
     }
 
+    if (pc < 0 || pc > bcode->size) fatal("bad pc: %d", pc);
     frame->pc = pc;
     op = ops[pc++];
     if (!op) {
