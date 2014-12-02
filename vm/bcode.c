@@ -1201,6 +1201,51 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     return null;
 }
 
+tlBFrame* tlFrameFor(tlArgs* args) {
+    tlBClosure* closure = tlBClosureAs(args->fn);
+    tlBCode* bcode = closure->code;
+    tlBFrame* frame = tlBFrameNew(args);
+    frame->pc = 0;
+    frame->locals = tlBEnvNew(bcode->localnames, closure->env);
+    frame->locals->args = args;
+    return frame;
+}
+
+tlHandle tlFrameEval(tlTask* task, tlBFrame* frame) {
+    return beval(task, frame, null, 0, null);
+}
+
+// trace frame invocations incase we crash and burn
+#define TRACE_EVENT_SIZE 0x10000
+#define TRACE_EVENT_MASK 0x0FFFF
+static int g_trace_event;
+static int g_trace_pc[TRACE_EVENT_SIZE];
+static tlTask* g_trace_task[TRACE_EVENT_SIZE];
+static tlBFrame* g_trace_frame[TRACE_EVENT_SIZE];
+static tlArgs* g_trace_args[TRACE_EVENT_SIZE];
+
+void debug_trace_frame(tlTask* task, tlBFrame* frame, tlArgs* args) {
+    g_trace_event = (g_trace_event + 1) & TRACE_EVENT_MASK;
+    g_trace_task[g_trace_event] = task;
+    g_trace_pc[g_trace_event] = frame? frame->pc : 0;
+    g_trace_frame[g_trace_event] = frame;
+    g_trace_args[g_trace_event] = args;
+}
+
+void tlDumpTraceEvent(int event) {
+    int npc = g_trace_frame[event]? g_trace_frame[event]->pc : -1;
+    tlBClosure* fn = tlBClosureAs(tlArgsFn(g_trace_args[event]));
+    print("task=%p frame=%p pc=%d(%d) function: %s(%d) args=%s", g_trace_task[event],
+            g_trace_frame[event], g_trace_pc[event], npc, tl_str(fn->code->debuginfo->name), fn->code->size,
+            tl_str(g_trace_args[event]));
+}
+
+void tlDumpTraceEvents(int count) {
+    for (int i = 0; i < count; i++) {
+        tlDumpTraceEvent((g_trace_event - i) & TRACE_EVENT_MASK);
+    }
+}
+
 void tlBFrameDump(tlFrame* _frame) {
     tlBFrame* frame = (tlBFrame*)_frame;
     tlArgs* args = frame->args;
@@ -1220,19 +1265,6 @@ void tlBFrameDump(tlFrame* _frame) {
     }
 }
 
-tlBFrame* tlFrameFor(tlArgs* args) {
-    tlBClosure* closure = tlBClosureAs(args->fn);
-    tlBCode* bcode = closure->code;
-    tlBFrame* frame = tlBFrameNew(args);
-    frame->pc = 0;
-    frame->locals = tlBEnvNew(bcode->localnames, closure->env);
-    frame->locals->args = args;
-    return frame;
-}
-
-tlHandle tlFrameEval(tlTask* task, tlBFrame* frame) {
-    return beval(task, frame, null, 0, null);
-}
 
 tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
     trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
@@ -1242,6 +1274,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
         args = frame->args;
         assert(args);
     }
+    if (!frame && !lazylocals) frame = tlFrameFor(args);
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* bcode = closure->code;
     tlBModule* mod = bcode->mod;
@@ -1249,6 +1282,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     const uint8_t* ops = bcode->code;
 
     trace("%s env=%p closure=%p", tl_str(bcode->debuginfo->name), closure->env, closure);
+    debug_trace_frame(task, frame, args);
 
     // program counter, saved and restored into frame
     int pc = 0;

@@ -676,8 +676,11 @@ static void task_vm_default(tlVm* vm) {
 }
 
 void tlBFrameDump(tlFrame* frame);
+void tlDumpTraceEvents(int count);
 
 void tlDumpTaskTrace() {
+    tlDumpTraceEvents(100);
+
     fprintf(stderr, "\nTaskCurrent(); backtrace:\n");
     if (!g_task) return;
     bool dumped = false;
