@@ -21,14 +21,16 @@ static gboolean draw_window(GtkWidget* w, GdkEventExpose* e, void* data) {
     cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_paint(cr);
 
-    renderWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")), cr);
+    Window* window = WindowAs(g_object_get_data(G_OBJECT(w), "tl"));
+    renderWindow(window->rendertask, window, cr);
 
     cairo_destroy(cr);
     return TRUE;
 }
 static gboolean destroy_window(GtkWindow* w) {
     trace("destroy window: %p", w);
-    closeWindow(WindowAs(g_object_get_data(G_OBJECT(w), "tl")));
+    Window* window = WindowAs(g_object_get_data(G_OBJECT(w), "tl"));
+    closeWindow(window->rendertask, window);
     return FALSE;
 }
 static gboolean key_release_window(GtkWidget* widget, GdkEventKey* event, gpointer data) {
@@ -223,7 +225,7 @@ tlString* nativeTextBoxGetText(NativeTextBox* textbox) {
 
 gboolean run_on_main(gpointer _onmain) {
     tlRunOnMain* onmain = (tlRunOnMain*)_onmain;
-    onmain->result = onmain->cb(onmain->args);
+    onmain->result = onmain->cb(onmain->task, onmain->args);
     toolkit_schedule_done(onmain);
     return false;
 }
