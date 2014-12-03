@@ -84,7 +84,7 @@ libtl.a: $(LIBGC) $(LIBMP) ev.o vm.o hotelparser.o jsonparser.o xmlparser.o
 ifneq ($(BOEHM),)
 	ar -q libtl.a libgc/.libs/objs/*.o
 endif
-	ar -s libtl.a
+	ar -s libtl.a 2>&1 | fgrep -v 'has no symbols' || true
 
 vm.o: vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBGC) $(LIBMP) boot/boot.tlb.h boot/compiler.tlb.h
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
