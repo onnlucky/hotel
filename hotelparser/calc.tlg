@@ -1,0 +1,21 @@
+parser = parser {
+   start: .stm .
+     stm: name ."=" .expr
+        | expr
+    expr: sum
+     sum: sum ."+" .value
+        | value
+   value: number
+        | call
+        | "(".expr.")"
+        | name
+    call: value "(".args.")"
+        | value "." name "(".args.")"
+        | value "." name
+    args: expr*(.",".)
+
+  number: [0123456789]+
+    name: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]+
+      ws: (" " | "\t" | "\r" | "\n")*
+}
+

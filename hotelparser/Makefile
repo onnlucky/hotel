@@ -1,4 +1,16 @@
-all: main
+all: calc.c
+
+run: calc
+	./calc example.tl
+
+calc: calc.c tlmeta.c main.c
+	cc -std=c99 -g -O2 -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o calc -ltl -lm -lpthread -ldl
+
+calc.c: abstract.tl calc.tld
+	tl abstract.tl calc.tld calc.c
+
+calc.tld: tlmeta.tl calc.tlg
+	tl tlmeta.tl calc.tlg calc.tld
 
 xmlparser.c: tlmeta.tl xml.tlg
 	tl tlmeta.tl xml.tlg xmlparser.c
@@ -15,7 +27,7 @@ tlmeta.tl: tlmeta.tlg
 main: tlmeta.c xmlparser.c jsonparser.c hotelparser.c main.c
 	cc -std=c99 -g -O2 -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -ldl
 
-run: main
+run2: main
 	./main example.tl
 
 clean:

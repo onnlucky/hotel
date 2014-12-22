@@ -1,4 +1,4 @@
-#include "hotelparser.c"
+#include "calc.c"
 
 int main(int argv, char** args) {
     tl_init();
