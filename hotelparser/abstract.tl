@@ -184,7 +184,7 @@ rectoken = name ->
 
 emit_rule = rule ->
     lines.add "static State r_$(rule.name)(Parser* _p, const int _start, int _rec) { // $(rule.type)"
-    lines.add " print(\"START: $(rule.name) %d %d %c\", _start, _rec, _p->input[_start]);"
+    //lines.add " print(\"START: $(rule.name) %d %d %c\", _start, _rec, _p->input[_start]);"
     cache = { rule.callers > 1      }: $nextcache += 1
             { directleft[rule.name] }: $nextcache += 1
             {                       }: 0

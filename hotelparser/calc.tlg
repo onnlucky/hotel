@@ -1,18 +1,26 @@
 parser = parser {
    start: .stm .
-     stm: name ."=" .expr
+     stm: name ."=" .mexpr -> (print("SET"), tlNull)
+        | mexpr
+   mexpr: name "." name . args
+        | name . args
         | expr
     expr: sum
-     sum: sum ."+" .value
+     sum: sum ."+" .value -> (print("PLUS"), tlNull)
         | value
    value: number
         | call
         | "(".expr.")"
         | name
-    call: value "(".args.")"
-        | value "." name "(".args.")"
-        | value "." name
+        | object
+    call: value "(".args.")"          -> (print("CALL"), tlNull)
+        | value "." name "(".args.")" -> (print("METHOD CALL"), tlNull)
+        | value "." name              -> (print("METHOD CALL ZERO"), tlNull)
     args: expr*(.",".)
+
+  object: "{".kv*(.",".)."}"
+      kv: name ."=". expr
+        | name
 
   number: [0123456789]+
     name: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]+

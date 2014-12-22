@@ -153,11 +153,11 @@ static State parser_error(Parser* p, const char* name, int begin, int end) {
 }
 
 static State parser_fail(Parser* p, const char* name, int pos) {
-    print("<< fail: %s %d", name, pos);
+    //print("<< fail: %s %d", name, pos);
     if (!p->in_peek) {
         const char* t = p->last_consume;
         if (!t) t = p->last_rule;
-        if (t) print("<< fail: %s %d -- expected: %s", name, pos, t);
+        //if (t) print("<< fail: %s %d -- expected: %s", name, pos, t);
         p->last_consume = null;
         p->last_rule = null;
     }
@@ -166,7 +166,7 @@ static State parser_fail(Parser* p, const char* name, int pos) {
 }
 
 static State parser_pass(Parser* p, const char* name, int start, State state, int cache_token) {
-    print("<< pass: %s (cache: %d) %d -- %s", name, cache_token, state.pos, tl_repr(state.value));
+    //print("<< pass: %s (cache: %d) %d -- %s", name, cache_token, state.pos, tl_repr(state.value));
     if (!cache_token) return state;
     for (int i = p->cache_at - 1; i >= 0; i--) {
         if (p->cache[i].start == start && p->cache[i].token == cache_token) {
@@ -175,7 +175,7 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
                 assert(p->cache[i].state.value == state.value);
                 return state;
             }
-            print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
+            //print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
             p->cache[i].start = start;
             p->cache[i].token = cache_token;
             p->cache[i].state = state;
@@ -185,9 +185,9 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
     if (p->cache_len <= p->cache_at) {
         if (p->cache_len == 0) p->cache_len = 1024; else p->cache_len *= 2;
         p->cache = realloc(p->cache, p->cache_len * sizeof(CacheState));
-        print("resizing cache: %d", p->cache_len);
+        //print("resizing cache: %d", p->cache_len);
     }
-    print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
+    //print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
     p->cache[p->cache_at].start = start;
     p->cache[p->cache_at].token = cache_token;
     p->cache[p->cache_at].state = state;
@@ -198,12 +198,12 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
 static State cached(Parser* p, int pos, int cache_token) {
     for (int i = p->cache_at - 1; i >= 0; i--) {
         if (p->cache[i].start == pos && p->cache[i].token == cache_token) {
-            print("CACHE HIT: %d(%d), %d - %d", i, p->cache_at, pos, p->cache[i].state.pos);
+            //print("CACHE HIT: %d(%d), %d - %d", i, p->cache_at, pos, p->cache[i].state.pos);
             assert(p->cache[i].state.ok);
             return p->cache[i].state;
         }
     }
-    print("CACHE MISS: %d", pos);
+    //print("CACHE MISS: %d", pos);
     return state_fail(pos);
 }
 
@@ -242,7 +242,7 @@ static State prim_wsnl(Parser* p, int pos) {
 }
 
 static State prim_char(Parser* p, int pos, const char* chars) {
-    print("CHAR: %s", chars);
+    //print("CHAR: %s", chars);
     int c = p->input[pos];
     if (!c) return state_fail(pos);
     while (*chars) {
@@ -256,7 +256,7 @@ static State prim_char(Parser* p, int pos, const char* chars) {
 
 // TODO only create the String if value is used by caller
 static State prim_text(Parser* p, int pos, const char* chars) {
-    print("TEXT: %s", chars);
+    //print("TEXT: %s", chars);
     if (!p->in_peek) p->last_consume = chars;
     int start = pos;
     while (*chars) {
