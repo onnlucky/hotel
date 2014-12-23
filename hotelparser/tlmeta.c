@@ -64,9 +64,9 @@ static void parser_free(Parser* parser) {
     free(parser);
 }
 
-typedef State(*ParserRule)(Parser*, int, int);
+typedef State(*ParserRule)(Parser*, int, int, bool);
 static bool parser_parse(Parser* p, ParserRule rule) {
-    State s = rule(p, 0, 0);
+    State s = rule(p, 0, 0, false);
     if (!s.ok) {
         if (!p->error_msg) p->error_msg = "unknown";
         return false;
@@ -175,7 +175,7 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
                 assert(p->cache[i].state.value == state.value);
                 return state;
             }
-            //print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
+            print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
             p->cache[i].start = start;
             p->cache[i].token = cache_token;
             p->cache[i].state = state;
@@ -187,7 +187,7 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
         p->cache = realloc(p->cache, p->cache_len * sizeof(CacheState));
         //print("resizing cache: %d", p->cache_len);
     }
-    //print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
+    print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
     p->cache[p->cache_at].start = start;
     p->cache[p->cache_at].token = cache_token;
     p->cache[p->cache_at].state = state;
@@ -195,35 +195,35 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
     return state;
 }
 
-static State cached(Parser* p, int pos, int cache_token) {
+static State cached(Parser* p, const char* name, int pos, int cache_token) {
     for (int i = p->cache_at - 1; i >= 0; i--) {
         if (p->cache[i].start == pos && p->cache[i].token == cache_token) {
-            //print("CACHE HIT: %d(%d), %d - %d", i, p->cache_at, pos, p->cache[i].state.pos);
+            print("CACHE HIT: %s %d(%d), %d - %d", name, i, p->cache_at, pos, p->cache[i].state.pos);
             assert(p->cache[i].state.ok);
             return p->cache[i].state;
         }
     }
-    //print("CACHE MISS: %d", pos);
+    print("CACHE MISS: %s %d %d", name, pos, p->cache_at);
     return state_fail(pos);
 }
 
-static State prim_end(Parser* p, int pos) {
+static State prim_end(Parser* p, int pos, bool ignored) {
     int c = p->input[pos];
     if (c) return state_fail(pos);
     return state_ok(pos, tlNull);
 }
 
-static State prim_pos(Parser* p, int pos) {
+static State prim_pos(Parser* p, int pos, bool ignored) {
     return state_ok(pos, tlINT(pos));
 }
 
-static State prim_any(Parser* p, int pos) {
+static State prim_any(Parser* p, int pos, bool ignored) {
     int c = p->input[pos];
     if (!c) return state_fail(pos);
     return state_ok(pos + 1, tlINT(c));
 }
 
-static State prim_ws(Parser* p, int pos) {
+static State prim_ws(Parser* p, int pos, bool ignored) {
     while (1) {
         int c = p->input[pos];
         if (c == 0 || c > 32 || c == '\r' || c == '\n') break;
@@ -232,7 +232,7 @@ static State prim_ws(Parser* p, int pos) {
     return state_ok(pos, tlNull);
 }
 
-static State prim_wsnl(Parser* p, int pos) {
+static State prim_wsnl(Parser* p, int pos, bool ignored) {
     while (1) {
         int c = p->input[pos];
         if (c == 0 || c > 32) break;
@@ -241,7 +241,7 @@ static State prim_wsnl(Parser* p, int pos) {
     return state_ok(pos, tlNull);
 }
 
-static State prim_char(Parser* p, int pos, const char* chars) {
+static State prim_char(Parser* p, int pos, const char* chars, bool ignored) {
     //print("CHAR: %s", chars);
     int c = p->input[pos];
     if (!c) return state_fail(pos);
@@ -254,8 +254,7 @@ static State prim_char(Parser* p, int pos, const char* chars) {
     return state_fail(pos);
 }
 
-// TODO only create the String if value is used by caller
-static State prim_text(Parser* p, int pos, const char* chars) {
+static State prim_text(Parser* p, int pos, const char* chars, bool ignored) {
     //print("TEXT: %s", chars);
     if (!p->in_peek) p->last_consume = chars;
     int start = pos;
@@ -265,14 +264,15 @@ static State prim_text(Parser* p, int pos, const char* chars) {
         if (*chars != c) return state_fail(start);
         pos++; chars++;
     }
+    p->last_consume = null;
+    if (ignored) return state_ok(pos, tlNull);
+
+#ifndef NO_VALUE
     int len = pos - start;
     char* buf = malloc(len + 1);
     memcpy(buf, p->input + start, len);
     buf[len] = 0;
 
-    p->last_consume = null;
-
-#ifndef NO_VALUE
     return state_ok(pos, tlStringFromTake(buf, len));
 #else
     return state_ok(pos, tlNull);

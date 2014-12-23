@@ -1,29 +1,54 @@
 parser = parser {
-   start: .stm .
-     stm: name ."=" .mexpr -> (print("SET"), tlNull)
+
+hashbang: "#!" (!nl _)*
+   start: .. hashbang? .. pos=pos body=bodynl mustend type=<function>
+
+ mustend: @"indent error" .. end
+   mstms: @"a statement" stms
+
+// ---- BLOCKS ----
+
+  bodynl: addindent ts=stms tss=(.. indent !end mstms)*
+        | ""
+    body: CI ts=stms tss=(.. stms)*
+        | ""
+    stms: t=stm ts=(.";".@"a statement after ';'" stm)*
+
+     stm: name ."="..mexpr
         | mexpr
    mexpr: name "." name . args
         | name . args
         | expr
     expr: sum
-     sum: sum ."+" .value -> (print("PLUS"), tlNull)
+     sum: sum ."+"..value
         | value
    value: number
         | call
-        | "(".expr.")"
+        | "(".. expr ..")"
+        | "(".. body ..")"
         | name
         | object
-    call: value "(".args.")"          -> (print("CALL"), tlNull)
-        | value "." name "(".args.")" -> (print("METHOD CALL"), tlNull)
-        | value "." name              -> (print("METHOD CALL ZERO"), tlNull)
-    args: expr*(.",".)
+    call: value "("..CI args..")"
+        | value "." name "(".. CI args ..")"
+        | value "." name
+    args: expr*(.","..)
 
-  object: "{".kv*(.",".)."}"
-      kv: name ."=". expr
+  object: "{"..CI kv*(.","..).."}"
+      kv: name ."=".. expr
         | name
 
   number: [0123456789]+
     name: [abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ]+
-      ws: (" " | "\t" | "\r" | "\n")*
+
+
+slcomment: "//" (!nl _)* (nl|end)
+  comment: "/*" (!"*/" _)* ("*/"|end)
+
+      ws: (sp | comment)*
+    wsnl: (sp | nl | comment | slcomment)*
+
+      sp: " " | "\t"
+      nl: "\r\n" | "\n\r" | "\n" | "\r"
+     end: !_
 }
 
