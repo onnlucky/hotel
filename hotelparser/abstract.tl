@@ -5,6 +5,9 @@ grammar.each: rule -> names[rule.name] = rule
 
 TERMS = [prim=true,token=true,indent=true,addindent=true,setindent=true,resetindent=true,anchor=true]
 
+// 2 == terminal
+// 1 == maybe but might not consume tokens
+// false == not terminal
 isterm = rule, seen ->
     assert seen
     name = try(rule.name)
@@ -12,35 +15,37 @@ isterm = rule, seen ->
            { seen.find(name) }: return false
            {                 }: seen.add(name)
     //print "seen:", try(rule.name), repr(seen)
-    { TERMS[rule.type] }: return true
+    { TERMS[rule.type] }: return 2
     { rule.type == "call" }: return isterm(names[rule.target], seen)
-    { rule.type == "not"  }: if isterm(rule.term, seen): return "maybe"
-    { rule.type == "ahead"}: if isterm(rule.term, seen): return "maybe"
+    { rule.type == "not"  }: if isterm(rule.term, seen): return 1
+    { rule.type == "ahead"}: if isterm(rule.term, seen): return 1
     { rule.type == "name" }: return isterm(rule.term, seen)
     { rule.type == "or"   }:
-        var $type = true
+        var $type = 2
         rule.terms.each: term =>
             t = isterm(term, seen)
             if not t: return false
-            if t == "maybe": $type = t
+            if t == 1: $type = t
         return $type
-    { rule.type == "opt"  }: if isterm(rule.term, seen): return "maybe"
+    { rule.type == "opt"  }: if isterm(rule.term, seen): return 1
                              return false
     { rule.type == "star" }:
-        if isterm(rule.term, seen): return "maybe"
+        if isterm(rule.term, seen): return 1
         return false
     { rule.type == "plus" }:
         return isterm(rule.term, seen)
     { rule.type == "starsep" }:
-        if isterm(rule.term, seen) and isterm(rule.sep, seen): return "maybe"
+        if isterm(rule.term, seen) and isterm(rule.sep, seen): return 1
+        return false
     { rule.type == "plussep" }:
-        return isterm(rule.term, seen) and isterm(rule.sep, seen)
+        if not isterm(rule.sep, seen): return false
+        return isterm(rule.term, seen)
     { rule.type == "and" }:
-        var $type = "maybe"
+        var $type = 1
         rule.terms.each: term =>
             t = isterm(term, seen)
             if not t: return false
-            if t == true: $type = t
+            if t == 2: $type = t
         return $type
     {                    }: throw "unknown isterm $(repr(rule))"
 
@@ -85,6 +90,7 @@ trace = up ->
 
     step = rule, at, up ->
         //print try(rule.name), rule.type, at
+        // TODO perhaps only terminal >= 2
         { TERMS[rule.type] or try(rule.terminal) }:
             if up == null: return
             terms = terminals[rule] or []
@@ -175,12 +181,20 @@ directterm = term ->
     if not directleft[term.target]: return
     names[term.target].terms.first
 
+// returns true if this parse always consumes input if successful
+consumes = term ->
+    { term.type == "call" }: return names[term.target].terminal >= 2
+    { term.type == "prim" }: return try(term.text) != null
+    { term.type == "name" }: return consumes(term.term)
+    { term.type == "token"}: return false
+    { }: throw "unknown consumes term:"+ repr(term)
+
 emit = term, ignored ->
     signored = if(ignored,"true","ignored")
     { term.type == "call" }: "r_$(term.target)(_p, _pos, _start == _pos? _rec : 0, $signored);"
     { term.type == "prim" and try(term.text) }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\", $signored);"
     { term.type == "prim" }: "prim_$(term.target)(_p, _pos, $signored);"
-    { term.type == "name" }: emit(term.term, ignored)
+    { term.type == "name" }: return emit(term.term, ignored)
     { term.type == "token"}: "state_ok(_pos, $signored?tlNull:tlSTR(\"$(term.token.escape(true))\"));"
     { }: throw "unknown emit term:"+ repr(term)
 
@@ -208,6 +222,8 @@ emit_rule = rule ->
     { can_optimize_and(rule) }:
         assert not directleft[rule.name]
         lines.add " State _r = "+ emit(rule.terms[1])
+        if consumes(rule.terms[1]):
+            lines.add " if (_r.ok) parser_commit(_p, _r.pos, \"$(rule.name)\", 1);"
         lines.add " if (_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, _r, $cache);"
         lines.add " if (_p->error_line) { /*print(\"expect: $(rule.name)\");*/ return _r; }"
         lines.add " return parser_fail(_p, \"$(rule.name)\", _start);"
@@ -218,7 +234,7 @@ emit_rule = rule ->
         lines.add " return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_start, tlNull), $cache);"
     { rule.type == "ahead" }:
         lines.add " State _r;"
-        lines.add " _r = "+ emit(rule.term, try(rule.term.terminal, true))
+        lines.add " _r = "+ emit(rule.term, true)
         lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
         lines.add " return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_start, tlNull), $cache);"
     { rule.type == "opt" }:
@@ -349,7 +365,6 @@ emit_rule = rule ->
             ignored = { term.type == "name"  }: false
                       { n == rule.terms.size }: names.size > 0
                       {                      }: true
-            print "IGNORED?", ignored, repr(term)
             lines.add " _r = "+ emit(term, ignored)
             restore = { $indent }: "_p->indent = _indent; "
                       {         }: ""
@@ -362,6 +377,8 @@ emit_rule = rule ->
                 names.add term.name
                 lines.add " tlHandle $(term.name) = _r.value;"
             lines.add " _pos = _r.pos;"
+            if consumes(term):
+                lines.add " parser_commit(_p, _pos, \"$(rule.name)\", $n);"
         { try(rule.act)  }:
             lines.add " tlHandle _v = tlNull; if (!ignored) { _v = $(rule.act); }"
         { names.size > 0 }:
