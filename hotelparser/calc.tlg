@@ -1,9 +1,7 @@
 parser = parser {
 
 hashbang: "#!" (!nl _)*
-   start: .. hashbang? .. pos=pos body=bodynl mustend type=<function>
-
- mustend: @"indent error" .. end
+   start: .. hashbang? .. pos=pos body=bodynl .. end type=<function>
    mstms: @"a statement" stms
 
 // ---- BLOCKS ----
@@ -14,30 +12,31 @@ hashbang: "#!" (!nl _)*
         | ""
     stms: t=stm ts=(.";".@"a statement after ';'" stm)*
 
-     stm: name ."="..mexpr
+     stm: name ."=".. mexpr
         | mexpr
    mexpr: name "." name . margs
         | name . margs
         | expr
-    expr: cmp
-     cmp: cmp ."=="..sum
+    expr: mul
+     cmp: cmp .("=="|"!="|">="|">"|"<="|"<").. sum
         | sum
-     sum: sum .("+"|"-")..mul
+     sum: sum .("+"|"-").. mul
         | mul
-     mul: mul .("*"|"/."|"/"|"%")..value
+     mul: mul .("*"|"/."|"/"|"%").. value
         | value
    value: number
         | call
-        | "(".. expr ..")"
+        | "("..CI expr ..")"
+        | "("..CI body ..")"
         | name
         | object
     call: value "("..CI args..")"
-        | value "." name "(".. CI args ..")"
+        | value "." name "("..CI args ..")"
         | value "." name
    margs: expr+(.","..)
     args: expr*(.","..)
 
-  object: "{"..CI kv*(.","..).."}"
+  object: "{"@"a closing '}'" ..CI kv*(.","..) .."}"
       kv: name ."=".. expr
         | name
 

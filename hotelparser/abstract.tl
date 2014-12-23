@@ -111,12 +111,12 @@ trace = rule ->
     step(rule, [rule.name])
 
 grammar = grammar.map(rule ->
-    print "analyzing rule:", rule.name, rule.type
     terminal = isterm(rule, [])
     terminal = try(terminal >= 2) or false
     consumes = trace(rule)
     callers = allcallers(rule)
-    left = directleft[rule.name]
+    left = directleft[rule.name] or false
+    print "rule:", rule.name, rule.type, "terminal:", terminal, "consumes:", consumes, "callers:", callers, "left:", left
     Object.set(rule, {{terminal, consumes, callers, left}})
 )
 names.clear
@@ -145,7 +145,9 @@ can_optimize_and = t ->
 directterm = term ->
     if term.type != "call": return
     if not directleft[term.target]: return
-    names[term.target].terms.first
+    rule = names[term.target]
+    if rule.type != "and": return
+    rule.terms.first
 
 // returns true if this parse always consumes input if successful
 consumes = term ->
