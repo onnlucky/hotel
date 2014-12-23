@@ -1,4 +1,4 @@
-all: calc.c
+all: calc
 
 run: calc
 	./calc example.tl
@@ -6,11 +6,8 @@ run: calc
 calc: calc.c tlmeta.c main.c
 	cc -std=c99 -g -O2 -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o calc -ltl -lm -lpthread -ldl
 
-calc.c: abstract.tl calc.tld
-	tl abstract.tl calc.tld calc.c
-
-calc.tld: tlmeta.tl calc.tlg
-	tl tlmeta.tl calc.tlg calc.tld
+calc.c: tlmeta.tl abstract.tl calc.tlg
+	tl tlmeta.tl calc.tlg calc.c
 
 xmlparser.c: tlmeta.tl xml.tlg
 	tl tlmeta.tl xml.tlg xmlparser.c

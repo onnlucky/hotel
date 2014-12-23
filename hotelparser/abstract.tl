@@ -1,8 +1,9 @@
-grammar = io.File("calc.tld").readString.eval
+abstract = grammar ->
+
 names = HashMap.new
 grammar.each: rule -> names[rule.name] = rule
 
-TERMS = [prim=true,token=true,indent=true,addindent=true,resetindent=true,anchor=true]
+TERMS = [prim=true,token=true,indent=true,addindent=true,setindent=true,resetindent=true,anchor=true]
 
 isterm = rule, seen ->
     assert seen
@@ -13,7 +14,8 @@ isterm = rule, seen ->
     //print "seen:", try(rule.name), repr(seen)
     { TERMS[rule.type] }: return true
     { rule.type == "call" }: return isterm(names[rule.target], seen)
-    { rule.type == "not"  }: return isterm(rule.term, seen)
+    { rule.type == "not"  }: if isterm(rule.term, seen): return "maybe"
+    { rule.type == "ahead"}: if isterm(rule.term, seen): return "maybe"
     { rule.type == "name" }: return isterm(rule.term, seen)
     { rule.type == "or"   }:
         var $type = true
@@ -45,6 +47,7 @@ isterm = rule, seen ->
 callers = rule, name ->
     { TERMS[rule.type] }: 0
     { rule.type == "not"  }: callers(rule.term, name)
+    { rule.type == "ahead"}: callers(rule.term, name)
     { rule.type == "name" }: callers(rule.term, name)
     { rule.type == "call" }: if(rule.target==name, 1, 0)
     { rule.type == "or"   }: rule.terms.map(t -> callers(t, name)).sum
@@ -90,6 +93,7 @@ trace = up ->
         { rule.type == "call" }: step(names[rule.target], at, up)
         { rule.type == "or"   }: rule.terms.each(term, n -> step(term, 1, up))
         { rule.type == "not"  }: step(rule.term, 1, up)
+        { rule.type == "ahead"}: step(rule.term, 1, up)
         { rule.type == "name" }: step(rule.term, 1, up)
         { rule.type == "opt"  }: step(rule.term, 1, up)
                                  upstep(up)
@@ -172,12 +176,12 @@ directterm = term ->
     names[term.target].terms.first
 
 emit = term, ignored ->
-    ignored = if(ignored,"true","ignored")
-    { term.type == "call" }: "r_$(term.target)(_p, _pos, _start == _pos? _rec : 0, $ignored);"
-    { term.type == "prim" and try(term.text) }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\", $ignored);"
-    { term.type == "prim" }: "prim_$(term.target)(_p, _pos, $ignored);"
+    signored = if(ignored,"true","ignored")
+    { term.type == "call" }: "r_$(term.target)(_p, _pos, _start == _pos? _rec : 0, $signored);"
+    { term.type == "prim" and try(term.text) }: "prim_$(term.target)(_p, _pos, \"$(term.text.escape(true))\", $signored);"
+    { term.type == "prim" }: "prim_$(term.target)(_p, _pos, $signored);"
     { term.type == "name" }: emit(term.term, ignored)
-    { term.type == "token"}: "state_ok(_pos, $ignored?tlNull:tlSTR(\"$(term.token.escape(true))\"));"
+    { term.type == "token"}: "state_ok(_pos, $signored?tlNull:tlSTR(\"$(term.token.escape(true))\"));"
     { }: throw "unknown emit term:"+ repr(term)
 
 var $nextcache = 1
@@ -212,6 +216,11 @@ emit_rule = rule ->
         lines.add " _r = "+ emit(rule.term, true)
         lines.add " if (_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
         lines.add " return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_start, tlNull), $cache);"
+    { rule.type == "ahead" }:
+        lines.add " State _r;"
+        lines.add " _r = "+ emit(rule.term, try(rule.term.terminal, true))
+        lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_start, tlNull), $cache);"
     { rule.type == "opt" }:
         lines.add " tlHandle* _v = tlNull;"
         lines.add " State _r;"
@@ -219,50 +228,57 @@ emit_rule = rule ->
         lines.add " if (_r.ok) { _v = _r.value; _pos = _r.pos; }"
         lines.add " return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, _v), $cache);"
     { rule.type == "star" }:
-        lines.add " tlArray* _v = tlArrayNew();"
+        lines.add " tlArray* arr = ignored? 0 : tlArrayNew();"
         lines.add " State _r;"
         lines.add "step1:;"
         lines.add " _r = "+ emit(rule.term)
-        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, _v), $cache);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add " goto step1;"
     { rule.type == "starsep" }:
-        lines.add " tlArray* _v = tlArrayNew();"
+        lines.add " tlArray* arr = ignored? 0 : tlArrayNew();"
         lines.add " State _r;"
         lines.add " _r = "+ emit(rule.term)
-        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, _v), $cache);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add "step1:;"
         lines.add " _r = "+ emit(rule.sep, true)
-        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, _v), $cache);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
         lines.add " _pos = _r.pos;"
         lines.add " _r = "+ emit(rule.term)
         lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add " goto step1;"
     { rule.type == "plus" }:
-        lines.add " tlArray* _v = tlArrayNew();"
+        lines.add " tlArray* arr = ignored? 0 : tlArrayNew();"
         lines.add " State _r;"
         lines.add " _r = "+ emit(rule.term)
         lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add "step1:;"
         lines.add " _r = "+ emit(rule.term)
-        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, _v), $cache);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add " goto step1;"
     { rule.type == "plussep" }:
-        lines.add " tlArray* _v = tlArrayNew();"
+        lines.add " tlArray* arr = ignored? 0 : tlArrayNew();"
         lines.add " State _r;"
         lines.add " _r = "+ emit(rule.term)
         lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add "step1:;"
         lines.add " _r = "+ emit(rule.sep, true)
-        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, _v), $cache);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
         lines.add " _pos = _r.pos;"
         lines.add " _r = "+ emit(rule.term)
         lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add " goto step1;"
     { rule.type == "or" }:
@@ -333,6 +349,7 @@ emit_rule = rule ->
             ignored = { term.type == "name"  }: false
                       { n == rule.terms.size }: names.size > 0
                       {                      }: true
+            print "IGNORED?", ignored, repr(term)
             lines.add " _r = "+ emit(term, ignored)
             restore = { $indent }: "_p->indent = _indent; "
                       {         }: ""
@@ -340,12 +357,13 @@ emit_rule = rule ->
                 lines.add " if (!_r.ok) { $(restore)return parser_fail(_p, \"$(rule.name)\", _pos); }"
             if $anchor:
                 lines.add " if (!_r.ok) { $(restore)return parser_error(_p, \"$(rule.name)\", _start, _pos); }"
-            lines.add " _pos = _r.pos;"
             if term.type == "name":
+                assert not ignored
                 names.add term.name
                 lines.add " tlHandle $(term.name) = _r.value;"
+            lines.add " _pos = _r.pos;"
         { try(rule.act)  }:
-            lines.add " tlHandle _v = $(rule.act);"
+            lines.add " tlHandle _v = tlNull; if (!ignored) { _v = $(rule.act); }"
         { names.size > 0 }:
             inner = names.toList.map(n -> "\"$n\", $n").join(", ")
             lines.add " tlHandle _v = tlObjectFrom($inner, null);"
@@ -358,6 +376,5 @@ emit_rule = rule ->
     lines.add "}"
 grammar.each(r -> emit_rule(r))
 
-//io.File("calc.c").write(ast.before + lines.join("\n") + ast.after)
-io.File("calc.c").write(lines.join("\n"))
+return lines.join("\n")
 

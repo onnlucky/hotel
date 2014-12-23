@@ -174,11 +174,6 @@ if not rules["start"] and ast.rules.size > 0:
 rules.each: name, rule ->
     to_sub(rule.term, null, name)
 
-buf = Buffer.new
-buf.write "[\n"
-subs.each(r -> buf.write("  ", repr(r), "\n"))
-buf.write "]\n"
-io.File("calc.tld").write(buf)
-return
-
+lines = abstract(subs)
+io.File(args[2]).write(ast.before + lines + ast.after)
 

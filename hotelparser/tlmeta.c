@@ -175,7 +175,7 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
                 assert(p->cache[i].state.value == state.value);
                 return state;
             }
-            print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
+            //print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
             p->cache[i].start = start;
             p->cache[i].token = cache_token;
             p->cache[i].state = state;
@@ -187,7 +187,7 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
         p->cache = realloc(p->cache, p->cache_len * sizeof(CacheState));
         //print("resizing cache: %d", p->cache_len);
     }
-    print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
+    //print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
     p->cache[p->cache_at].start = start;
     p->cache[p->cache_at].token = cache_token;
     p->cache[p->cache_at].state = state;
@@ -198,12 +198,12 @@ static State parser_pass(Parser* p, const char* name, int start, State state, in
 static State cached(Parser* p, const char* name, int pos, int cache_token) {
     for (int i = p->cache_at - 1; i >= 0; i--) {
         if (p->cache[i].start == pos && p->cache[i].token == cache_token) {
-            print("CACHE HIT: %s %d(%d), %d - %d", name, i, p->cache_at, pos, p->cache[i].state.pos);
+            //print("CACHE HIT: %s %d(%d), %d - %d", name, i, p->cache_at, pos, p->cache[i].state.pos);
             assert(p->cache[i].state.ok);
             return p->cache[i].state;
         }
     }
-    print("CACHE MISS: %s %d %d", name, pos, p->cache_at);
+    //print("CACHE MISS: %s %d %d", name, pos, p->cache_at);
     return state_fail(pos);
 }
 
