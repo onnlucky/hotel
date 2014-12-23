@@ -18,6 +18,7 @@ typedef struct Parser {
     int len;
     const char* input;
     int upto;
+    bool backtracking;
     const char* anchor;
     int indent;
 
@@ -162,16 +163,17 @@ static State parser_error(Parser* p, const char* name, int begin, int end) {
 }
 
 static State parser_fail(Parser* p, const char* name, int pos) {
-    //print("<< fail: %s %d", name, pos);
-    if (pos >= p->upto && p->last_rule) {
-        //print("<< fail: %s %d -- expected: %s@%d", name, pos, p->last_rule, p->last_step);
-    }
+    p->backtracking = true;
     return state_fail(pos);
 }
 
 static void parser_commit(Parser* p, int pos, const char* name, int step) {
-    //print(">> COMMIT: %s@%d %d", name, step, pos);
-    if (pos >= p->upto) {
+    //print(">> commit: %s@%d %d", name, step, pos);
+    if (pos > p->upto) {
+        p->backtracking = false;
+    }
+    if (!p->backtracking && pos >= p->upto) {
+        //print(">> COMMIT: %s@%d %d", name, step, pos);
         p->upto = pos;
         p->last_rule = name;
         p->last_step = step;

@@ -1,25 +1,30 @@
 abstract = grammar ->
 
+print "analyzing"
+
 names = HashMap.new
 grammar.each: rule -> names[rule.name] = rule
 
 TERMS = [prim=true,token=true,indent=true,addindent=true,setindent=true,resetindent=true,anchor=true]
+consumers = HashMap.new
 
+// TODO fold this in with tracing??
 // 2 == terminal
 // 1 == maybe but might not consume tokens
 // false == not terminal
-isterm = rule, seen ->
+isterm2 = rule, seen ->
     assert seen
     name = try(rule.name)
     seen = { not name        }: seen
            { seen.find(name) }: return false
            {                 }: seen.add(name)
     //print "seen:", try(rule.name), repr(seen)
-    { TERMS[rule.type] }: return 2
-    { rule.type == "call" }: return isterm(names[rule.target], seen)
+    { rule.type == "prim" and try(rule.text) }: 2
+    { TERMS[rule.type]    }: 1
+    { rule.type == "call" }: isterm(names[rule.target], seen)
     { rule.type == "not"  }: if isterm(rule.term, seen): return 1
     { rule.type == "ahead"}: if isterm(rule.term, seen): return 1
-    { rule.type == "name" }: return isterm(rule.term, seen)
+    { rule.type == "name" }: isterm(rule.term, seen)
     { rule.type == "or"   }:
         var $type = 2
         rule.terms.each: term =>
@@ -33,21 +38,27 @@ isterm = rule, seen ->
         if isterm(rule.term, seen): return 1
         return false
     { rule.type == "plus" }:
-        return isterm(rule.term, seen)
+        isterm(rule.term, seen)
     { rule.type == "starsep" }:
         if isterm(rule.term, seen) and isterm(rule.sep, seen): return 1
         return false
     { rule.type == "plussep" }:
         if not isterm(rule.sep, seen): return false
-        return isterm(rule.term, seen)
-    { rule.type == "and" }:
+        isterm(rule.term, seen)
+    { rule.type == "and"  }:
         var $type = 1
         rule.terms.each: term =>
             t = isterm(term, seen)
             if not t: return false
             if t == 2: $type = t
         return $type
-    {                    }: throw "unknown isterm $(repr(rule))"
+    {                     }: throw "unknown isterm $(repr(rule))"
+
+isterm = rule, seen ->
+    cache = consumers[rule]
+    if isDefined(cache): return cache
+    term = isterm2(rule, seen)
+    consumers[rule] = term
 
 callers = rule, name ->
     { TERMS[rule.type] }: 0
@@ -61,102 +72,57 @@ callers = rule, name ->
     { rule.type == "plus" }: callers(rule.term, name)
     { rule.type == "starsep" }: callers(rule.term, name) + callers(rule.sep, name)
     { rule.type == "plussep" }: callers(rule.term, name) + callers(rule.sep, name)
-    { rule.type == "and" }: rule.terms.map(t -> callers(t, name)).sum
-    {                    }: throw "unknown callers $(repr(rule))"
+    { rule.type == "and"  }: rule.terms.map(t -> callers(t, name)).sum
+    {                     }: throw "unknown callers $(repr(rule))"
 allcallers = rule ->
     grammar.map(r -> callers(r, rule.name)).sum
 
+directleft = HashMap.new
+trace = rule ->
+    step = rule, seen ->
+        { rule.type == "prim" and try(rule.text) }: true
+        { TERMS[rule.type]    }: false
+        { rule.type == "call" }:
+            if seen.find(rule.target):
+                directleft[rule.target] = true
+                return true, true
+            step(names[rule.target], seen.add(rule.target))
+        { rule.type == "not"  }: false
+        { rule.type == "ahead"}: false
+        { rule.type == "name" }: step(rule.term, seen)
+        { rule.type == "opt"  }: false
+        { rule.type == "star" }: false
+        { rule.type == "starsep" }: false
+        { rule.type == "plus" }: return step(rule.term, seen)
+        { rule.type == "plussep" }: return step(rule.term, seen)
+        { rule.type == "or"   }:
+            rule.terms.each: term =>
+                if not step(term, seen): return false
+            return true
+        { rule.type == "and"  }:
+            rule.terms.each: term =>
+                // handle type == "call" when it is direct left recursive
+                consumes, direct = step(term, seen)
+                if direct: continue
+                if consumes: return true
+            return false
+        {                     }:
+            throw "unknown step for: $(repr(rule))"
+    step(rule, [rule.name])
+
 grammar = grammar.map(rule ->
+    print "analyzing rule:", rule.name, rule.type
     terminal = isterm(rule, [])
+    terminal = try(terminal >= 2) or false
+    consumes = trace(rule)
     callers = allcallers(rule)
-    Object.set(rule, {{terminal, callers}})
+    left = directleft[rule.name]
+    Object.set(rule, {{terminal, consumes, callers, left}})
 )
 names.clear
 grammar.each: rule -> names[rule.name] = rule
 
-// TODO direct can be any rule at at state where it might have consumed nothing, not at == 2
-recursive = name, up, direct ->
-    if not up: return
-    if up.rule == name: return up.up, up.at, direct and up.at == 2
-    recursive(name, up.up, direct and up.at == 2)
-
-directleft = HashMap.new
-terminals = HashMap.new
-
-trace = up ->
-    upstep = up ->
-        if not up: return
-        step(names[up.rule], up.at, up.up)
-
-    step = rule, at, up ->
-        //print try(rule.name), rule.type, at
-        // TODO perhaps only terminal >= 2
-        { TERMS[rule.type] or try(rule.terminal) }:
-            if up == null: return
-            terms = terminals[rule] or []
-            term = {rule=up.rule, at=up.at}
-            if not terms.find(term): terminals[rule] = terms.add(term)
-        { rule.type == "call" }: step(names[rule.target], at, up)
-        { rule.type == "or"   }: rule.terms.each(term, n -> step(term, 1, up))
-        { rule.type == "not"  }: step(rule.term, 1, up)
-        { rule.type == "ahead"}: step(rule.term, 1, up)
-        { rule.type == "name" }: step(rule.term, 1, up)
-        { rule.type == "opt"  }: step(rule.term, 1, up)
-                                 upstep(up)
-        { rule.type == "star" }:
-            { at == 1 }: step(rule.term, 1, {rule=rule.name, at=1, up=up})
-                         upstep(up)
-        { rule.type == "starsep" }:
-            { at == 1 }: step(rule.term, 1, {rule=rule.name, at=2, up=up})
-                         upstep(up)
-            { at == 2 }: step(rule.sep, 1, {rule=rule.name, at=3, up=up})
-                         upstep(up)
-            { at == 3 }: step(rule.term, 1, {rule=rule.name, at=2, up=up})
-        { rule.type == "plus" }:
-            { at == 1 }: step(rule.term, 1, {rule=rule.name, at=2, up=up})
-            { at == 2 }: step(rule.term, 1, {rule=rule.name, at=2, up=up})
-                         upstep(up)
-        { rule.type == "plussep" }:
-            { at == 1 }: step(rule.term, 1, {rule=rule.name, at=2, up=up})
-            { at == 2 }: step(rule.term, 1, {rule=rule.name, at=3, up=up})
-                         upstep(up)
-            { at == 3 }: step(rule.term, 1, {rule=rule.name, at=2, up=up})
-        { rule.type == "and" }:
-            rup, rat, direct = recursive(rule.name, up, true)
-            if rat:
-                { direct   }: directleft[rule.name] = true
-                { rat > rule.terms.size }: null
-                {          }: step(rule.terms[at], 1, {rule=rule.name, at=at + 1, up=rup})
-                upstep(up)
-                return
-            if at > rule.terms.size:
-                upstep(up)
-                return
-            step(rule.terms[at], 1, {rule=rule.name, at=at + 1, up=up})
-        {                    }:
-            throw "unknown step for: $(repr(rule))"
-
-    //print "!!tracing:", repr(up)
-    upstep(up)
-
-// trace all and/start rules, rest will be traced by them
-grammar.each: rule ->
-    { rule.type == "and" }:
-        rule.terms.each: t, n -> trace({rule=rule.name, at=n, up=null})
-    { rule.type == "star" }:
-        1.times: n -> trace({rule=rule.name, at=n, up=null})
-    { rule.type == "plus" }:
-        2.times: n -> trace({rule=rule.name, at=n, up=null})
-    { rule.type == "starsep" }:
-        3.times: n -> trace({rule=rule.name, at=n, up=null})
-    { rule.type == "plussep" }:
-        3.times: n -> trace({rule=rule.name, at=n, up=null})
-    { }: null
-
-print "DIRECT LEFT RECURSIONS", directleft.size
-directleft.each: k -> print k
-print "TERMINALS", terminals.size
-
+print "direct left recursions:", directleft.size
 
 lines = Array.new
 lines.add "#include \"tlmeta.c\""
@@ -183,7 +149,7 @@ directterm = term ->
 
 // returns true if this parse always consumes input if successful
 consumes = term ->
-    { term.type == "call" }: return names[term.target].terminal >= 2
+    { term.type == "call" }: return names[term.target].consumes
     { term.type == "prim" }: return try(term.text) != null
     { term.type == "name" }: return consumes(term.term)
     { term.type == "token"}: return false
@@ -201,19 +167,13 @@ emit = term, ignored ->
 var $nextcache = 1
 rectokens = HashMap.new
 rectoken = name ->
-    /*
-    under = name.find("_")
-    name = { under }: name[:under - 1]
-           {       }: name
-    */
     if not rectokens[name]: rectokens[name] = rectokens.size
     1 << rectokens[name]
 
 emit_rule = rule ->
     lines.add "static State r_$(rule.name)(Parser* _p, const int _start, int _rec, bool ignored) { // $(rule.type)"
-    //lines.add " print(\"START: $(rule.name) %d %d %c\", _start, _rec, _p->input[_start]);"
-    cache = { rule.callers > 1      }: $nextcache += 1
-            {                       }: 0
+    cache = { rule.callers > 1 }: $nextcache += 1
+            {                  }: 0
     if cache > 0:
         lines.add " State _c = cached(_p, \"$(rule.name)\", _start, $cache);"
         lines.add " if (_c.ok) return parser_pass(_p, \"$(rule.name)\", _start, _c, 0);"
