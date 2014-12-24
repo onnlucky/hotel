@@ -369,12 +369,12 @@ INTERNAL tlHandle _string_find_backward(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
 
     int at = 1;
-    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    tlHandle afrom = tlArgsGetNamed(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_max(afrom, tlStringSize(str));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
 
-    tlHandle aupto = tlArgsMapGet(args, tlSYM("upto"));
+    tlHandle aupto = tlArgsGetNamed(args, tlSYM("upto"));
     if (!aupto) aupto = tlArgsGet(args, at++);
     int upto = at_offset_min(aupto, tlStringSize(str));
     if (upto < 0) TL_THROW("upto must be Number, not: %s", tl_str(aupto));
@@ -409,17 +409,17 @@ INTERNAL tlHandle _string_find_backward(tlTask* task, tlArgs* args) {
 /// > "hello world".find('o') == 5
 /// > "hello world".find("o", backward=true) == 8
 INTERNAL tlHandle _string_find(tlTask* task, tlArgs* args) {
-    if (tl_bool(tlArgsMapGet(args, tlSYM("backward")))) return _string_find_backward(task, args);
+    if (tl_bool(tlArgsGetNamed(args, tlSYM("backward")))) return _string_find_backward(task, args);
 
     tlString* str = tlStringAs(tlArgsTarget(args));
 
     int at = 1;
-    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    tlHandle afrom = tlArgsGetNamed(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_min(afrom, tlStringSize(str));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
 
-    tlHandle aupto = tlArgsMapGet(args, tlSYM("upto"));
+    tlHandle aupto = tlArgsGetNamed(args, tlSYM("upto"));
     if (!aupto) aupto = tlArgsGet(args, at++);
     int upto = at_offset_max(aupto, tlStringSize(str));
     if (upto < 0) TL_THROW("upto must be Number, not: %s", tl_str(aupto));

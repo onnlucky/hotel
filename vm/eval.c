@@ -118,17 +118,32 @@ INTERNAL tlHandle evalArgs(tlTask* task, tlArgs* args) {
     TL_THROW("'%s' not callable", tl_str(fn));
     return null;
 }
+
 tlHandle tlEvalArgsFn(tlTask* task, tlArgs* args, tlHandle fn) {
     trace("%s %s", tl_str(fn), tl_str(args));
     assert(tlCallableIs(fn));
-    args->fn = fn;
-    return evalArgs(task, args);
+    tlArgs* nargs = tlClone(args);
+    nargs->fn = fn;
+    return evalArgs(task, nargs);
 }
+
 tlHandle tlEvalArgsTarget(tlTask* task, tlArgs* args, tlHandle target, tlHandle fn) {
     assert(tlCallableIs(fn));
-    args->target = target;
-    args->fn = fn;
-    return evalArgs(task, args);
+    assert(args);
+    int size = tlArgsRawSize(args);
+    tlList* names = tlArgsNames(args);
+
+    tlArgs* nargs = tlArgsNewNames(size, names != null, true);
+
+    if (names) tlArgsSetNames_(nargs, names, tlArgsNamedSize(args));
+    nargs->fn = fn;
+    tlArgsSetTarget_(nargs, target);
+    tlArgsSetMethod_(nargs, tlArgsMethod(args));
+
+    for (int i = 0; i < size; i++) {
+        tlArgsSet_(nargs, i, tlArgsGetRaw(args, i));
+    }
+    return evalArgs(task, nargs);
 }
 
 // Various high level eval stuff, will piggyback on the task given
@@ -167,11 +182,8 @@ bool tlCallableIs(tlHandle v) {
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
 INTERNAL tlHandle _call(tlTask* task, tlArgs* args) {
     tlHandle* fn = tlArgsTarget(args);
-    tlList* list = tlListCast(tlArgsGet(args, 0));
-    tlObject* map = tlObjectCast(tlArgsGet(args, 1));
-    tlArgs* nargs = tlArgsNew(list, map);
-    fatal("%p, %p", nargs, fn);
-    return tlNull; //tlEvalArgsFn(nargs, fn);
+    tlArgs* nargs = tlArgsGet(args, 0);
+    return tlEvalArgsFn(task, nargs, fn);
 }
 
 static tlHandle _bufferFromFile(tlTask* task, tlArgs* args) {

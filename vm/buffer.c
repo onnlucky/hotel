@@ -349,12 +349,12 @@ INTERNAL tlHandle _buffer_find(tlTask* task, tlArgs* args) {
     if (!arg0) TL_THROW("expected a String or Number");
 
     int at = 1;
-    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    tlHandle afrom = tlArgsGetNamed(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_min(afrom, tlBufferSize(buf));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
 
-    tlHandle aupto = tlArgsMapGet(args, tlSYM("upto"));
+    tlHandle aupto = tlArgsGetNamed(args, tlSYM("upto"));
     if (!aupto) aupto = tlArgsGet(args, at++);
     int upto = at_offset_max(aupto, tlBufferSize(buf));
     if (upto < 0) TL_THROW("upto must be Number, not: %s", tl_str(aupto));
@@ -363,7 +363,7 @@ INTERNAL tlHandle _buffer_find(tlTask* task, tlArgs* args) {
     assert(from >= 0 && from <= canread(buf));
     assert(upto >= 0 && upto <= canread(buf));
 
-    //bool backward = tl_bool(tlArgsMapGet(args, tlSYM("backward")));
+    //bool backward = tl_bool(tlArgsGetNamed(args, tlSYM("backward")));
 
     const char* needle = null;
     int needle_len = 0;

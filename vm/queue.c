@@ -236,14 +236,14 @@ INTERNAL tlHandle _message_throw(tlTask* task, tlArgs* args) {
 }
 INTERNAL tlHandle _message_name(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
-    return tlArgsMsg(msg->args);
+    return tlArgsMethod(msg->args);
 }
 INTERNAL tlHandle _message_get(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));
     if (tlIntIs(key)) return tlMAYBE(tlArgsGet(msg->args, at_offset(key, tlArgsSize(msg->args))));
-    return tlArgsMapGet(msg->args, key);
+    return tlArgsGetNamed(msg->args, key);
 }
 
 static tlObject* queueClass;

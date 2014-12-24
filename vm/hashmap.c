@@ -204,7 +204,7 @@ again:;
 
 INTERNAL tlHandle _hashmap_each(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
-    tlHandle* block = tlArgsMapGet(args, tlSYM("block"));
+    tlHandle* block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
     if (!block) TL_THROW("each requires block or function");
 

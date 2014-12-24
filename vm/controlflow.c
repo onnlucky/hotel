@@ -60,7 +60,7 @@ again:;
 }
 
 INTERNAL tlHandle _loop(tlTask* task, tlArgs* args) {
-    tlHandle block = tlArgsMapGet(args, tlSYM("block"));
+    tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("loop requires a block");
 
     LoopFrame* frame = tlFrameAlloc(resumeLoop, sizeof(LoopFrame));

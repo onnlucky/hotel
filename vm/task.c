@@ -181,7 +181,7 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
     task->locals = locals;
-    task->runquota = 100234;
+    task->runquota = 1024;
     trace("new %s", tl_str(task));
 #ifdef HAVE_BOEHMGC
     GC_REGISTER_FINALIZER_NO_ORDER(task, tlTaskFinalize, null, null, null);
@@ -447,7 +447,7 @@ tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
 INTERNAL tlHandle _Task_new(tlTask* task, tlArgs* args) {
     assert(task->worker && task->worker->vm);
 
-    tlHandle v = tlArgsMapGet(args, s_block);
+    tlHandle v = tlArgsBlock(args);
     if (!v) v = tlArgsGet(args, 0);
     if (tlCallableIs(v)) v = tlBCallFrom(v, null);
 
@@ -465,7 +465,7 @@ INTERNAL tlHandle _task_run(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (other->state != TL_STATE_INIT) TL_THROW("cannot reuse tasks");
 
-    tlHandle v = tlArgsMapGet(args, s_block);
+    tlHandle v = tlArgsBlock(args);
     if (!v) v = tlArgsGet(args, 0);
     if (tlCallableIs(v)) v = tlBCallFrom(v, null);
 

@@ -1,6 +1,8 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 //
-// args, passed to all functions
+// args, an argument object passed to all functions native and user level
+
+// TODO the names list, can have a set as last element, to make args.object and args.map faster
 
 #include "trace-off.h"
 
@@ -8,181 +10,185 @@ tlKind* tlArgsKind;
 
 struct tlArgs {
     tlHead head;
-    int size;
-    int nsize;
-    tlHandle target;
-    tlSym msg;
+    uint32_t size; // total data size
+    uint32_t spec; // 0b...11 count of target/method/names, spec >> 2 = count of names
     tlHandle fn;
-    tlList* names;
-    tlHandle args[];
+    tlHandle data[];
+    // first 3 items in data[] are:
+    // target; // if spec & 2
+    // method; // if spec & 2 (a tlSym)
+    // names;  // if spec & 1 (a tlList)
 };
-
-void dumpArgs(tlArgs* call) {
-    tlList* names = call->names;
-    print("args: %d (%d %d)", call->size + call->nsize, call->size, call->nsize);
-    print("%s", tl_str(call->fn));
-    print("%s", tl_str(call->target));
-    print("%s", tl_str(call->msg));
-    for (int i = 0; i < call->size + call->nsize; i++) {
-        print("%d %s %s", i, tl_str(call->args[i]), tl_str(names? tlListGet(names, i) : tlNull));
-    }
-}
 
 static tlArgs* _tl_emptyArgs;
 tlArgs* tlArgsEmpty() { return _tl_emptyArgs; }
 
-tlArgs* tlArgsNewNew(int size) {
+tlArgs* tlArgsNew(int size) {
     tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
     args->size = size;
     return args;
 }
 
-tlArgs* tlArgsNewNames(int size, tlSet* names) {
-    fatal("shouldn't use this");
-    int nsize = tlSetSize(names);
-    size += nsize;
+tlArgs* tlArgsNewNames(int size, bool hasNames, bool isMethod) {
+    if (isMethod) size += 2;
+    if (hasNames) size += 1;
     tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
     args->size = size;
-    args->nsize = nsize;
+    args->spec = !!isMethod << 1 | !!hasNames;
     return args;
 }
 
-tlArgs* tlArgsNewSize(int size, int nsize) {
-    fatal("shouldn't use this");
-    size += nsize;
-    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
-    args->size = size;
-    args->nsize = nsize;
-    return args;
+int tlArgsSize(tlArgs* args) {
+    return args->size - (args->spec >> 2) - (args->spec & 3);
 }
 
-tlArgs* tlArgsNew(tlList* list, tlObject* map) {
-    fatal("shouldn't use this");
+int tlArgsNamedSize(tlArgs* args) {
+    return args->spec >> 2;
+}
+
+int tlArgsRawSize(tlArgs* args) {
+    return args->size - (args->spec & 3);
+}
+
+tlHandle tlArgsFn(tlArgs* args) { return args->fn; }
+
+tlHandle tlArgsTarget(tlArgs* args) {
+    if (args->spec & 2) return args->data[0];
     return null;
 }
 
-tlArgs* tlArgsNewFromListMap(tlList* list, tlObject* map) {
-    if (!list) list = tlListEmpty();
-    if (!map) map = tlObjectEmpty();
-    int lsize = tlListSize(list);
-    int nsize = tlObjectSize(map);
-    tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * (lsize + nsize));
-    args->size = lsize + nsize;
-    args->nsize = nsize;
-    for (int i = 0; i < lsize; i++) {
-        args->args[i] = tlListGet(list, i);
-    }
-    if (nsize > 0) {
-        args->names = tlListNew(lsize + nsize);
-        for (int i = 0; i < lsize; i++) tlListSet_(args->names, i, tlNull);
-        for (int i = 0; i < nsize; i++) {
-            tlHandle name;
-            tlHandle value;
-            tlObjectKeyValueIter(map, i, &name, &value);
-            tlListSet_(args->names, lsize + i, name);
-            args->args[lsize + i] = value;
-        }
-    }
-    return args;
+tlHandle tlArgsMethod(tlArgs* args) {
+    if (args->spec & 2) return args->data[1];
+    return null;
 }
 
-tlHandle tlArgsTarget(tlArgs* args) { assert(tlArgsIs(args)); return args->target; }
-tlHandle tlArgsMsg(tlArgs* args) { assert(tlArgsIs(args)); return args->msg; }
-tlHandle tlArgsFn(tlArgs* args) { assert(tlArgsIs(args)); return args->fn; }
+tlList* tlArgsNames(tlArgs* args) {
+    if (args->spec & 1) return args->data[args->spec & 2];
+    return null;
+}
 
-int tlArgsSize(tlArgs* args) {
-    assert(tlArgsIs(args));
-    return args->size - args->nsize;
-}
-int tlArgsMapSize(tlArgs* args) {
-    assert(tlArgsIs(args));
-    return args->nsize;
-}
 tlList* tlArgsList(tlArgs* args) {
     assert(tlArgsIs(args));
-    tlList* list = tlListNew(args->size - args->nsize);
-    int named = 0;
-    for (int i = 0; i < args->size; i++) {
-        tlHandle name = args->names? tlListGet(args->names, i) : tlNull;
-        if (name != tlNull) { named++; continue; }
-        tlListSet_(list, i - named, args->args[i]);
+    int size = tlArgsSize(args);
+    tlList* list = tlListNew(size);
+    for (int i = 0; i < size; i++) {
+        tlListSet_(list, i, tlArgsGet(args, i));
     }
-    assert(tlListGet(list, args->size - args->nsize - 1));
+    assert(tlListGet(list, size - 1));
     return list;
 }
+
 tlObject* tlArgsObject(tlArgs* args) {
     assert(tlArgsIs(args));
-    if (!args->names) return tlObjectEmpty();
+    tlList* names = tlArgsNames(args);
+    if (!names) return tlObjectEmpty();
 
-    tlSet* set = tlSetNew(args->nsize);
-    for (int i = 0; i < args->size; i++) {
-        tlHandle name = tlListGet(args->names, i);
-        if (name == tlNull) continue;
-        tlSetAdd_(set, name);
+    assert(tlListSize(names) == tlArgsRawSize(args));
+    int nsize = tlArgsNamedSize(args);
+    int size = tlArgsRawSize(args);
+    tlSet* set = tlSetNew(nsize);
+    for (int i = 0; i < size; i++) {
+        tlHandle name = tlListGet(names, i);
+        if (!tlSymIs(name)) continue;
+        tlSetAdd_(set, tlSymAs(name));
     }
 
     tlObject* object = tlObjectNew(set);
-    for (int i = 0; i < args->size; i++) {
-        tlHandle name = tlListGet(args->names, i);
-        if (name == tlNull) continue;
-        tlObjectSet_(object, name, args->args[i]);
+    for (int i = 0; i < size; i++) {
+        tlHandle name = tlListGet(names, i);
+        if (!tlSymIs(name)) continue;
+        tlObjectSet_(object, tlSymAs(name), args->data[(args->spec & 3) + i]);
     }
-    assert(tlObjectSize(object) == args->nsize);
+    assert(tlObjectSize(object) == tlArgsNamedSize(args));
     return object;
 }
+
 tlMap* tlArgsMap(tlArgs* args) {
-    assert(tlArgsIs(args));
     return tlMapFromObject_(tlArgsObject(args));
 }
-tlHandle tlArgsGet(const tlArgs* args, int at) {
-    if (at < 0 || at >= args->size - args->nsize) return null;
-    if (!args->names) return args->args[at];
+
+tlHandle tlArgsGetRaw(tlArgs* args, int at) {
+    if (at < 0 || at >= tlArgsRawSize(args)) return null;
+    return args->data[(args->spec & 3) + at];
+}
+
+// this is a linear scan, if there are names set
+tlHandle tlArgsGet(tlArgs* args, int at) {
+    if (at < 0 || at >= tlArgsSize(args)) return null;
+    tlList* names = tlArgsNames(args);
+    if (!names) return args->data[(args->spec & 3) + at];
 
     int target = -1;
-    for (int i = 0; i < args->size; i++) {
-        if (tlListGet(args->names, i) == tlNull) target++;
-        if (target == at) return args->args[i];
+    int size = tlArgsRawSize(args);
+    for (int i = 0; i < size; i++) {
+        if (!tlSymIs(tlListGet(names, i))) target++;
+        if (target == at) return args->data[(args->spec & 3) + i];
     }
     fatal("precondition failed");
     return null;
 }
-tlHandle tlArgsMapGet(tlArgs* args, tlSym name) {
+
+// also a linear scan
+tlHandle tlArgsGetNamed(tlArgs* args, tlSym name) {
     assert(tlArgsIs(args));
-    if (!args->names) return null;
-    for (int i = 0; i < args->size; i++) {
-        if (tlListGet(args->names, i) == name) return args->args[i];
+    tlList* names = tlArgsNames(args);
+    trace("%s %s", tl_repr(name), tl_repr(names));
+    if (!names) return null;
+    int size = tlListSize(names);
+    for (int i = 0; i < size; i++) {
+        if (tlHandleEquals(name, tlListGet(names, i))) return args->data[(args->spec & 3) + i];
     }
     return null;
 }
+
 tlHandle tlArgsBlock(tlArgs* args) {
-    assert(tlArgsIs(args));
-    return tlArgsMapGet(args, s_block);
+    return tlArgsGetNamed(args, s_block);
 }
 
-void tlArgsSetTarget_(tlArgs* args, tlHandle target) {
-    assert(tlArgsIs(args));
-    assert(!args->target);
-    args->target = target;
+void tlArgsSetNames_(tlArgs* args, tlList* names, int nsize) {
+    assert(args->spec & 1);
+    assert(tlListSize(names) == tlArgsRawSize(args));
+    if (nsize == 0) {
+        int size = tlListSize(names);
+        for (int i = 0; i < size; i++) {
+            assert(tlListGet(names, i));
+            if (tlSymIs(tlListGet(names, i))) nsize++;
+        }
+    }
+    assert(nsize <= tlArgsRawSize(args));
+
+    args->spec = nsize << 2 | (args->spec & 3);
+    args->data[args->spec & 2] = names;
 }
+
 void tlArgsSetFn_(tlArgs* args, tlHandle fn) {
     assert(tlArgsIs(args));
     assert(!args->fn);
     args->fn = fn;
 }
-void tlArgsSetMsg_(tlArgs* args, tlSym msg) {
+
+void tlArgsSetTarget_(tlArgs* args, tlHandle target) {
     assert(tlArgsIs(args));
-    assert(!args->msg);
-    args->msg = msg;
+    assert(args->spec & 2);
+    assert(!args->data[0]);
+    args->data[0] = target;
 }
+
+void tlArgsSetMethod_(tlArgs* args, tlSym method) {
+    assert(tlArgsIs(args));
+    assert(args->spec & 2);
+    assert(!args->data[1]);
+    args->data[1] = method;
+}
+
+// unlinke the getters, this does not take names into account
 void tlArgsSet_(tlArgs* args, int at, tlHandle v) {
     assert(tlArgsIs(args));
-    assert(at >= 0 && at < args->size);
-    args->args[at] = v;
+    assert(at >= 0 && at < tlArgsRawSize(args));
+    assert(!args->data[(args->spec & 3) + at]);
+    args->data[(args->spec & 3) + at] = v;
 }
-void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v) {
-    assert(tlArgsIs(args));
-    fatal("should not use this");
-}
+
 static tlHandle _args_size(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     return tlINT(tlArgsSize(as));
@@ -203,7 +209,7 @@ static tlHandle _args_has(tlTask* task, tlArgs* args) {
         return tlBOOL(tlArgsGet(as, at) != 0);
     }
     if (tlSymIs(v)) {
-        return tlBOOL(tlArgsMapGet(as, tlSymAs(v)) != 0);
+        return tlBOOL(tlArgsGetNamed(as, tlSymAs(v)) != 0);
     }
     TL_THROW("Expected an index or name");
 }
@@ -217,7 +223,7 @@ static tlHandle _args_get(tlTask* task, tlArgs* args) {
         return tlMAYBE(tlArgsGet(args, 1));
     }
     if (tlSymIs(v)) {
-        tlHandle res = tlArgsMapGet(as, tlSymAs(v));
+        tlHandle res = tlArgsGetNamed(as, tlSymAs(v));
         if (res) return res;
         return tlMAYBE(tlArgsGet(args, 1));
     }
@@ -230,7 +236,7 @@ static tlHandle _args_this(tlTask* task, tlArgs* args) {
 }
 static tlHandle _args_msg(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
-    tlHandle res = tlArgsMsg(as);
+    tlHandle res = tlArgsMethod(as);
     return tlMAYBE(res);
 }
 static tlHandle _args_block(tlTask* task, tlArgs* args) {
@@ -265,7 +271,7 @@ static tlHandle _Args_from(tlTask* task, tlArgs* args) {
 }
 
 const char* _ArgstoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsMapSize(tlArgsAs(v)));
+    snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsNamedSize(tlArgsAs(v)));
     return buf;
 }
 
@@ -281,7 +287,7 @@ static void args_init() {
     };
     INIT_KIND(tlArgsKind);
 
-    _tl_emptyArgs = tlArgsNewNew(0);
+    _tl_emptyArgs = tlArgsNew(0);
     tlArgsKind->klass = tlClassObjectFrom(
             "this", _args_this,
             "msg", _args_msg,

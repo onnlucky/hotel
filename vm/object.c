@@ -410,7 +410,7 @@ send:;
 // TODO remove? object resolve is always used ...
 static tlHandle objectSend(tlTask* task, tlArgs* args, bool safe) {
     tlObject* object = tlObjectAs(tlArgsTarget(args));
-    tlSym msg = tlArgsMsg(args);
+    tlSym msg = tlArgsMethod(args);
     tlHandle field = null;
     tlObject* cls;
 

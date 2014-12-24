@@ -1,5 +1,4 @@
 #include "bcode.h"
-//#define HAVE_DEBUG 1
 #include "trace-off.h"
 
 static tlNative* g_goto_native;
@@ -248,41 +247,47 @@ tlBSendToken* tlBSendTokenNew(tlSym method, bool safe) {
     return token;
 }
 
+// TODO instead of argspec as list, do this "raw"
 // TODO speed this up by using an index of sorts
+// TODO remove tlHandleEquals for == when we *finally* have end-to-end symbols
 static int findNamedArg(tlBCode* code, tlHandle name) {
-    if (!name || name == tlNull) return -1;
-    for (int i = 0; i < tlListSize(code->argspec); i++) {
+    if (!name) return -1;
+    int size = tlListSize(code->argspec);
+    for (int i = 0; i < size; i++) {
         tlHandle spec = tlListGet(code->argspec, i);
-        if (!spec || spec == tlNull) continue;
+        assert(spec);
+        if (spec == tlNull) continue;
         if (tlHandleEquals(name, tlListGet(tlListAs(spec), 0))) return i; // 0=name 1=default 2=lazy
     }
     return -1;
 }
 
-static bool isNameInCall(tlBCode* code, const tlArgs* call, int arg) {
+static bool isNameInCall(tlBCode* code, tlList* names, int arg) {
     tlHandle spec = tlListGet(code->argspec, arg);
     if (!spec || spec == tlNull) return false;
-    tlHandle name =  tlListGet(tlListAs(spec), 0);
+    tlHandle name = tlListGet(tlListAs(spec), 0);
     if (!name || name == tlNull) return false;
-    for (int i = 0; i < tlListSize(call->names); i++) {
-        if (tlHandleEquals(name, tlListGet(call->names, i))) return true;
+    int size = tlListSize(names);
+    for (int i = 0; i < size; i++) {
+        if (tlHandleEquals(name, tlListGet(names, i))) return true;
     }
     return false;
 }
 
 // TODO this is dog slow ...
-bool tlBCallIsLazy(const tlArgs* call, int arg) {
+bool tlBCallIsLazy(tlArgs* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
-    if (arg < 0 || !call || arg >= call->size) return false;
+    if (arg < 0 || !call || arg >= tlArgsRawSize(call)) return false;
     if (!tlBClosureIs(call->fn)) return false;
 
     tlBCode* code = tlBClosureAs(call->fn)->code;
     // TODO add mark when any arg can be lazy
     //if (!code->hasLazy) return false;
 
-    if (call->names) {
-        tlHandle name = tlListGet(call->names, arg);
-        if (name && name != tlNull) {
+    tlList* names = tlArgsNames(call);
+    if (names) {
+        tlHandle name = tlListGet(names, arg);
+        if (tlSymIs(name)) {
             arg = findNamedArg(code, name);
             trace("named arg is numer: %d", arg);
             if (arg == -1) return false;
@@ -290,12 +295,12 @@ bool tlBCallIsLazy(const tlArgs* call, int arg) {
             // first figure out the which unnamed argument we are
             int unnamed = 0;
             for (int a = 0; a < arg; a++) {
-                if (tlListGet(call->names, a) == tlNull) unnamed++;
+                if (!tlSymIs(tlListGet(names, a))) unnamed++;
             }
             trace("unnamed arg: %d", unnamed);
             // then figure out which arg that maps to
             for (arg = 0;; arg++) {
-                if (!isNameInCall(code, call, arg)) {
+                if (!isNameInCall(code, names, arg)) {
                     if (unnamed == 0) break;
                     unnamed -= 1;
                 }
@@ -309,12 +314,12 @@ bool tlBCallIsLazy(const tlArgs* call, int arg) {
     return tlTrue == tlListGet(tlListAs(spec), 2); // 0=name 1=default 2=lazy
 }
 
+// TODO we should actually make the bytecode use an exact "builder" pattern against call->data layout
 void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
     assert(arg >= 0);
     if (arg == 0) {
         trace("%s.target <- %s", tl_str(call), tl_str(o));
-        assert(!call->target);
-        call->target = o;
+        if (o) tlArgsSetTarget_(call, o);
         return;
     }
     if (arg == 1) {
@@ -326,68 +331,47 @@ void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
     arg -= 2;
     assert(arg < call->size);
     trace("%s[%d] <- %s", tl_str(call), arg, tl_str(o));
-    assert(!call->args[arg]);
-    call->args[arg] = o;
+    tlArgsSet_(call, arg, o);
 }
 
-void tlBCallSetNames_(tlArgs* call, tlList* names) {
-    assert(call->size == tlListSize(names));
-    call->names = names;
-    for (int i = 0; i < tlListSize(names); i++) {
-        tlHandle name = tlListGet(names, i);
-        assert(name);
-        if (name != tlNull) call->nsize += 1;
-        if (tlStringIs(name)) {
-            name = tlSymFromString(name);
-            tlListSet__(names, i, name);
-        }
-    }
-    assert(call->size >= call->nsize);
-}
-
-int tlBCallNameIndex(tlArgs* call, tlString* name) {
-    for (int i = 0; i < call->size; i++) {
-        tlHandle v = tlListGet(call->names, i);
-        if (tlStringIs(v) && tlStringEquals(tlStringAs(v), name)) return i;
+int tlBCallNameIndex(tlList* names, tlString* name) {
+    int size = tlListSize(names);
+    for (int i = 0; i < size; i++) {
+        if (tlHandleEquals(name, tlListGet(names, i))) return i;
     }
     return -1;
-}
-
-int tlBCallGetUnnamedIndex(tlArgs* call, int skipped) {
-    trace("get unnamed: %d", skipped);
-    int i = 0;
-    for (; i < call->size; i++) {
-        if (tlStringIs(tlListGet(call->names, i))) continue;
-        if (!skipped) break;
-        skipped--;
-    }
-    return i;
 }
 
 tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlList* argspec = tlListAs(tlListGet(code->argspec, at));
     tlString* name = tlStringCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
-    if (tlStringEquals(name, g_this)) {
-        return tlBCallTarget(call);
-    }
-    if (call->names) {
-        int index = tlBCallNameIndex(call, name);
-        if (index >= 0) return call->args[index];
+
+    if (tlStringEquals(name, g_this)) return tlArgsTarget(call);
+
+    tlList* names = tlArgsNames(call);
+    if (names) {
+        tlHandle v = tlArgsGetNamed(call, name);
+        if (v) {
+            trace("ARG(%d) name=%s value=%s", at, tl_str(name), tl_repr(v));
+            return v;
+        }
 
         int skipped = 0;
         for (int i = 0; i < at; i++) {
             tlString* name = tlStringCast(tlListGet(tlListGet(code->argspec, i), 0));
-            if (tlBCallNameIndex(call, name) < 0) skipped++;
+            if (tlBCallNameIndex(names, name) < 0) skipped++;
         }
-
-        at = tlBCallGetUnnamedIndex(call, skipped);
+        at = skipped;
     }
 
-    tlHandle v = tlBCallGet(call, at);
+    tlHandle v = tlArgsGet(call, at);
+    trace("ARG(%d) value=%s", at, tl_repr(v));
     if (v) return v;
+
     v = tlListGet(argspec, 1);
     bool lazy = tl_bool(tlListGet(argspec, 2));
+    trace("ARG(%d) default=%s%s", at, tl_repr(v), lazy?" (lazy)":"");
     if (lazy) return tlBLazyDataNew(v);
     if (!v) return tlNull;
     return v;
@@ -451,6 +435,8 @@ tlHandle tlBEnvArgGet(tlBEnv* env, int at) {
     assert(at >= 0);
     return tlBCallGetExtra(env->args, at, tlBClosureAs(env->args->fn)->code);
 }
+
+#include "trace-off.h"
 
 #define FAIL(r) do{ *error = r; return null; }while(0)
 
@@ -765,7 +751,6 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod, const char** error) {
     return v;
 }
 
-#include "trace-off.h"
 static void disasm(tlBCode* bcode) {
     assert(bcode->mod);
     const uint8_t* ops = bcode->code;
@@ -1073,17 +1058,18 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         task->limit -= 1;
     }
 
-    tlHandle fn = tlBCallFn(call);
-    trace(" %s invoke %s.%s", tl_str(call), tl_str(call->target), tl_str(fn));
-    if (call->target && tl_kind(call->target)->locked) {
-        if (!tlLockIsOwner(tlLockAs(call->target), task)) return tlLockAndInvoke(task, call);
+    tlHandle fn = tlArgsFn(call);
+    tlHandle target = tlArgsTarget(call);
+    trace(" %s invoke %s.%s", tl_str(call), tl_str(target), tl_str(fn));
+    if (target && tl_kind(target)->locked) {
+        if (!tlLockIsOwner(tlLockAs(target), task)) return tlLockAndInvoke(task, call);
     }
 
     if (tlBSendTokenIs(fn) || tlNativeIs(fn)) {
         tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
-            assert(tlArgsMsg(args) == tlBSendTokenAs(fn)->method);
-            return tl_kind(call->target)->send(task, args, tlBSendTokenAs(fn)->safe);
+            assert(tlArgsMethod(args) == tlBSendTokenAs(fn)->method);
+            return tl_kind(target)->send(task, args, tlBSendTokenAs(fn)->safe);
         }
         return tlNativeKind->run(task, tlNativeAs(fn), args);
     }
@@ -1098,7 +1084,7 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         return tlBLazyDataAs(fn)->data;
     }
     // if method call and target is set, field is already resolved and apparently not callable
-    if (call->target && !tlCallableIs(fn)) {
+    if (target && !tlCallableIs(fn)) {
         assert(fn);
         return fn;
     }
@@ -1233,6 +1219,7 @@ void debug_trace_frame(tlTask* task, tlBFrame* frame, tlArgs* args) {
 }
 
 void tlDumpTraceEvent(int event) {
+    if (!g_trace_task[event]) return;
     int npc = g_trace_frame[event]? g_trace_frame[event]->pc : -1;
     tlBClosure* fn = tlBClosureAs(tlArgsFn(g_trace_args[event]));
     print("task=%p frame=%p pc=%d(%d) function: %s(%d) args=%s", g_trace_task[event],
@@ -1402,7 +1389,7 @@ again:;
             trace("push call: %d: %d %s", calltop, arg, tl_str(call));
         }
         arg = 0;
-        call = tlBCallNew(size);
+        call = tlArgsNewNames(size, op & 0x10, (op & 0x7) == 0); // size, hasNames, isMethod
         calltop++;
         assert(calltop >= 0 && calltop < bcode->calldepth);
         assert(frame->calls[calltop].call == null);
@@ -1414,8 +1401,8 @@ again:;
         // load names if it is a named call
         if (op & 0x10) {
             int at = pcreadsize(ops, &pc);
-            tlBCallSetNames_(call, tlListAs(tlListGet(data, at)));
-            trace("set names: %s", tl_str(call->names));
+            tlArgsSetNames_(call, tlListAs(tlListGet(data, at)), 0);
+            trace("set names: %s", tl_repr(tlArgsNames(call)));
         }
         // for non methods, skip target
         if (op & 0x07) {
@@ -1437,7 +1424,7 @@ again:;
         case OP_INVOKE: {
             assert(tlFrameCurrent(task) == (tlFrame*)frame);
             assert(call);
-            assert(arg - 2 == call->size); // must be done with args here
+            assert(arg - 2 == tlArgsRawSize(call)); // must be done with args here
             tlArgs* invoke = call;
             frame->calls[calltop].at = 0;
             frame->calls[calltop].call = null;
@@ -1547,12 +1534,12 @@ again:;
         }
         case OP_THIS: {
             // TODO is this needed, compiler can figure out the exact this
-            v = args->target;
+            v = tlArgsTarget(args);
             tlBEnv* env = frame->locals;
             trace("this: %s (%s)", tl_str(args), tl_str(v));
             while (!v && env) {
                 env = env->parent;
-                if (env) v = env->args->target;
+                if (env) v = tlArgsTarget(env->args);
             }
             assert(v);
             if (!v) v = tlNull;
@@ -1561,11 +1548,11 @@ again:;
         case OP_ENVTHIS: {
             depth = pcreadsize(ops, &pc);
             tlBEnv* env = tlBEnvGetParentAt(closure->env, depth);
-            v = env->args->target;
+            v = tlArgsTarget(env->args);
             trace("this: %s (%s)", tl_str(args), tl_str(v));
             while (!v && env) {
                 env = env->parent;
-                if (env) v = env->args->target;
+                if (env) v = tlArgsTarget(env->args);
             }
             assert(v);
             if (!v) v = tlNull;
@@ -1678,13 +1665,14 @@ resume:;
     tlBCallAdd_(call, tlFirst(v), arg++);
 
     // resolve method at object ...
-    if (arg == 2 && call->target && tlStringIs(call->fn)) {
-        tlSym msg = tlSymFromString(call->fn);
+    tlHandle target = tlArgsTarget(call);
+    if (arg == 2 && target && tlStringIs(call->fn)) {
+        tlSym mname = tlSymFromString(call->fn);
         bool safe = frame->calls[calltop].safe;
-        tlHandle method = bmethodResolve(call->target, msg, safe);
+        tlHandle method = bmethodResolve(target, mname, safe);
         trace("method resolve: %s %s", tl_str(call->fn), tl_str(method));
         if (!method && !safe) {
-            TL_THROW_NORETURN("'%s' is not a property of '%s'", tl_str(msg), tl_str(call->target));
+            TL_THROW_NORETURN("'%s' is not a property of '%s'", tl_str(mname), tl_str(target));
             // TODO remove this duplication
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
             if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
@@ -1727,7 +1715,7 @@ resume:;
             }
             goto again;
         }
-        call->msg = msg;
+        tlArgsSetMethod_(call, mname);
         call->fn = method;
     }
     goto again;
@@ -1829,7 +1817,7 @@ INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlBFrame* frame, tlHandle thro
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
         trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlArgs* call = tlBCallNew(1);
+        tlArgs* call = tlArgsNew(1);
         call->fn = tlBClosureAs(handler);
         tlBCallAdd_(call, throw, 2);
         return beval(task, null, call, 0, null);
@@ -1837,9 +1825,9 @@ INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlBFrame* frame, tlHandle thro
     if (tlCallableIs(handler)) {
         // operate with old style hotel
         trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlArgs* call = tlBCallNew(1);
-        tlBCallSetFn_(call, handler);
-        tlBCallSet_(call, 0, throw);
+        tlArgs* call = tlArgsNew(1);
+        tlArgsSetFn_(call, handler);
+        tlArgsSet_(call, 0, throw);
         return tlEval(task, call);
     }
     trace("returing handler value as handled: %s %s", tl_str(frame), tl_str(handler));
@@ -1861,7 +1849,7 @@ INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHa
 
 tlHandle beval_module(tlTask* task, tlBModule* mod) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
-    tlArgs* call = tlBCallNew(0);
+    tlArgs* call = tlArgsNew(0);
     call->fn = fn;
     return beval(task, null, call, 0, null);
 }
@@ -1994,21 +1982,21 @@ INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
     } else if (tlArgsIs(_as)) {
         as = tlClone(tlArgsAs(_as));
     } else if (tlListIs(_as)) {
-        as = tlArgsNewFromListMap(tlListAs(_as), tlObjectEmpty());
-    } else if (tlMapIs(_as)) {
-        as = tlArgsNewFromListMap(tlListEmpty(), tlObjectFromMap(tlMapAs(_as)));
-    } else if (tlObjectIs(_as)) {
-        as = tlArgsNewFromListMap(tlListEmpty(), tlObjectAs(_as));
+        tlList* list = tlListAs(_as);
+        int size = tlListSize(list);
+        as = tlArgsNew(size);
+        for (int i = 0; i < size; i++) {
+            tlArgsSet_(as, i, tlListGet(list, i));
+        }
     }
-    if (!as) TL_THROW("require Args(), List, or Map as arg[2], not: %s", tl_str(_as));
+    if (!as) TL_THROW("require an Args or List as args[2], not: %s", tl_str(_as));
 
     tlTask* other = tlTaskCast(tlArgsGet(args, 2));
     tlBFrame* frame = tlBFrameCast(tlArgsGet(args, 3));
     if (frame && frame->pc != 0) TL_THROW("cannot reuse frames");
     if (!frame) {
         tlBClosure* fn = tlBClosureNew(mod->body, null);
-        // TODO mutable like this ...
-        as->fn = fn;
+        as->fn = fn; // as is a copy ...
         frame = tlFrameFor(as);
     }
     trace("MODULE RUN: %s %s %s", tl_str(other), tl_str(frame), tl_str(as));
@@ -2033,8 +2021,8 @@ INTERNAL tlHandle _module_links(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle _module_link(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     tlList* links = tlListCast(tlArgsGet(args, 1));
-    if (!mod) TL_THROW("expect a module as arg[1]");
-    if (!links) TL_THROW("expect a list as arg[2]");
+    if (!mod) TL_THROW("expect a module as args[1]");
+    if (!links) TL_THROW("expect a list as args[2]");
     if (tlListSize(links) != tlListSize(mod->links)) TL_THROW("arg[2].size != module.links.size");
 
     mod->linked = links;
@@ -2177,12 +2165,29 @@ INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args) {
 
 INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
     trace("bclosure.call");
-    tlList* list = tlListCast(tlArgsGet(args, 0));
-    tlObject* map = tlObjectCast(tlArgsGet(args, 1));
-    tlArgs* nargs = tlArgsNewFromListMap(list, map);
-    tlArgs* call = bcallFromArgs(nargs);
-    call->target = null; // TODO unless this was passed in? e.g. method.call(this=target, 10, 10)
-    call->fn = tlArgsTarget(args);
+    tlBClosure* fn = tlBClosureCast(tlArgsTarget(args));
+    if (!fn) TL_THROW(".call expects a Function as this");
+
+    tlHandle a1 = tlArgsGet(args, 0);
+    if (!a1) a1 = tlArgsEmpty();
+    if (!tlArgsIs(a1)) TL_THROW(".call expects an Args or nothing, not: %s", tl_str(a1));
+    tlArgs* from = tlArgsAs(a1);
+    tlHandle target = tlArgsGetNamed(args, s_this);
+    tlSym method = tlSymCast(tlArgsGetNamed(args, tlSYM("method")));
+
+    int size = tlArgsRawSize(from);
+    tlList* names = tlArgsNames(from);
+
+    tlArgs* call = tlArgsNewNames(size, names != null, target || method);
+
+    if (names) tlArgsSetNames_(call, names, tlArgsNamedSize(from));
+    if (target) tlArgsSetTarget_(call, target);
+    if (method) tlArgsSetMethod_(call, method);
+    tlArgsSetFn_(call, fn);
+
+    for (int i = 0; i < size; i++) {
+        tlArgsSet_(call, i, tlArgsGetRaw(from, i));
+    }
     assert(tlBClosureIs(call->fn));
     return beval(task, null, call, 0, null);
 }
@@ -2211,7 +2216,8 @@ INTERNAL tlHandle _blazy_call(tlTask* task, tlArgs* args) {
     trace("blazy.call");
     tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
     tlArgs* call = bcallFromArgs(args);
-    call->target = null;
+    fatal("broken for now");
+    //call->target = null;
     call->fn = lazy;
     return beval(task, null, lazy->args, lazy->pc, lazy->locals);
 }

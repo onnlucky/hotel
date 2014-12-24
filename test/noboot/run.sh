@@ -6,8 +6,10 @@ FAIL=0
 for i in *.tl; do
     REF=${i/.tl/.ref}
     LOG=${i/.tl/.log}
-    TL_MODULE_PATH=../../modules ../../tl ../../tlcompiler $i
-    ../../tl --boot ${i}b 2>/dev/null | diff $REF - >$LOG
+    ERR=${i/.tl/.err}
+    #TL_MODULE_PATH=../../modules ../../tl ../../tlcompiler $i
+    ../../tlcompiler $i
+    ../../tl --boot ${i}b 2>$ERR | diff $REF - >$LOG
 
     if (( $? == 0 )); then
         PASS=$((PASS+1))

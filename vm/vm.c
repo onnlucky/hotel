@@ -728,15 +728,15 @@ void tlVmRun(tlVm* vm, tlTask* task) {
 
 static tlHandle _print(tlTask* task, tlArgs* args) {
     tlString* sep = tlSTR(" ");
-    tlHandle v = tlArgsMapGet(args, tlSYM("sep"));
+    tlHandle v = tlArgsGetNamed(args, tlSYM("sep"));
     if (v) sep = tltoString(v);
 
     tlString* begin = null;
-    v = tlArgsMapGet(args, tlSYM("begin"));
+    v = tlArgsGetNamed(args, tlSYM("begin"));
     if (v) begin = tltoString(v);
 
     tlString* end = null;
-    v = tlArgsMapGet(args, tlSYM("end"));
+    v = tlArgsGetNamed(args, tlSYM("end"));
     if (v) end = tltoString(v);
 
     if (begin) printf("%s", tlStringData(begin));
@@ -753,7 +753,7 @@ static tlHandle _print(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _assert(tlTask* task, tlArgs* args) {
-    tlString* str = tlStringCast(tlArgsMapGet(args, tlSYM("string")));
+    tlString* str = tlStringCast(tlArgsGetNamed(args, tlSYM("string")));
     if (!str) str = tlStringEmpty();
     for (int i = 0; i < 1000; i++) {
         tlHandle v = tlArgsGet(args, i);

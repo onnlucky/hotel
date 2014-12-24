@@ -39,10 +39,10 @@ INTERNAL tlHandle mutableSend(tlTask* task, tlArgs* args, bool safe) {
     tlMutable* mut = tlMutableAs(tlArgsTarget(args));
     assert(tlLockOwner(tlLockAs(mut)) == task);
 
-    assert(tlArgsMsg(args));
+    assert(tlArgsMethod(args));
     assert(mut->data);
 
-    tlSym msg = tlArgsMsg(args);
+    tlSym msg = tlArgsMethod(args);
     tlHandle field = null;
     tlObject* cls;
 

@@ -734,7 +734,7 @@ again:;
 
 static tlHandle _dir_each(tlTask* task, tlArgs* args) {
     tlDir* dir = tlDirAs(tlArgsTarget(args));
-    tlHandle* block = tlArgsMapGet(args, tlSYM("block"));
+    tlHandle* block = tlArgsBlock(args);
     if (!block) return tlNull;
 
     tlDirEachFrame* frame = tlFrameAlloc(resumeDirEach, sizeof(tlDirEachFrame));

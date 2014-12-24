@@ -58,7 +58,7 @@ static tlHandle _regex_find(tlTask* task, tlArgs* args) {
     if (!str) TL_THROW("require a String");
 
     int at = 1;
-    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    tlHandle afrom = tlArgsGetNamed(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_min(afrom, tlStringSize(str));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
@@ -80,7 +80,7 @@ static tlHandle _regex_match(tlTask* task, tlArgs* args) {
     if (!str) TL_THROW("require a String");
 
     int at = 1;
-    tlHandle afrom = tlArgsMapGet(args, tlSYM("from"));
+    tlHandle afrom = tlArgsGetNamed(args, tlSYM("from"));
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_min(afrom, tlStringSize(str));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));

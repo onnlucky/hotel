@@ -435,31 +435,29 @@ tlHandle tlUndefMsg(tlString* msg);
 
 // args
 tlArgs* tlArgsEmpty();
-tlArgs* tlArgsNewNew(int size);
+tlArgs* tlArgsNew(int size);
+tlArgs* tlArgsNewNamed(int size, bool isMethod, bool hasNames);
 tlArgs* tlArgsNewFromListMap(tlList* list, tlObject* map);
+tlArgs* tlArgsNewNames(int size, bool hasNames, bool isMethod);
 void tlArgsSet_(tlArgs* args, int at, tlHandle v);
-void tlArgsSetNames_(tlArgs* args, tlList* names);
+void tlArgsSetNames_(tlArgs* args, tlList* names, int nsize);
 
-void tlArgsSetTarget_(tlArgs* args, tlHandle target);
 void tlArgsSetFn_(tlArgs* args, tlHandle fn);
-void tlArgsSetMsg_(tlArgs* args, tlHandle msg);
-
-tlArgs* tlArgsNew(tlList* list, tlObject* o); // TODO depricated
-void tlArgsMapSet_(tlArgs* args, tlSym name, tlHandle v); // TODO depricated
+void tlArgsSetTarget_(tlArgs* args, tlHandle target);
+void tlArgsSetMethod_(tlArgs* args, tlHandle msg);
 
 tlHandle tlArgsTarget(tlArgs* args);
-tlSym tlArgsMsg(tlArgs* args);
+tlSym tlArgsMethod(tlArgs* args);
 tlHandle tlArgsBlock(tlArgs* args);
 
 tlHandle tlArgsFn(tlArgs* args);
 int tlArgsSize(tlArgs* args);
-tlHandle tlArgsGet(const tlArgs* args, int at);
-int tlArgsMapSize(tlArgs* args);
-tlHandle tlArgsMapGet(tlArgs* args, tlSym name);
+int tlArgsNamedSize(tlArgs* args);
+int tlArgsRawSize(tlArgs* args);
+tlHandle tlArgsGet(tlArgs* args, int at);
+tlHandle tlArgsGetNamed(tlArgs* args, tlSym name);
+tlHandle tlArgsGetRaw(tlArgs* args, int at);
 
-// calls
-
-tlArgs* tlBCallFrom(tlHandle h, ...);
 
 // results, from a result or a value, get the first result or the value itself
 tlHandle tlFirst(tlHandle v);

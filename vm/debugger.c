@@ -182,10 +182,10 @@ INTERNAL tlHandle _debugger_call(tlArgs* args) {
 
     int size = call->size;
     tlList* list = tlListNew(size + 2);
-    tlListSet_(list, 0, call->target);
-    tlListSet_(list, 1, call->fn);
+    tlListSet_(list, 0, tlArgsTarget(call));
+    tlListSet_(list, 1, tlArgsFn(call));
     for (int i = 0; i < size; i++) {
-        tlHandle v = tlBCallGet(call, i);
+        tlHandle v = tlArgsGet(call, i);
         if (!v) v = tlNull;
         tlListSet_(list, i + 2, v);
     }

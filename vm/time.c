@@ -110,7 +110,7 @@ static tlHandle _strptime(tlTask* task, tlArgs* args) {
     char* out = strptime(in, tlStringData(format), &tm);
     if (!out) return tlNull;
 
-    if (tl_bool(tlArgsMapGet(args, _s_timestamp))) {
+    if (tl_bool(tlArgsGetNamed(args, _s_timestamp))) {
         return tlResultFrom(tlFLOAT(mktime(&tm)), tlINT(out - in), null);
     }
     return tlResultFrom(object_from_tm(&tm), tlINT(out - in), null);

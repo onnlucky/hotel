@@ -138,18 +138,17 @@ INTERNAL tlHandle resumeRelease(tlTask* task, tlFrame* _frame, tlHandle res, tlH
 
 // ** lock a native object to send it a message from bytecode **
 tlHandle tlInvoke(tlTask* task, tlArgs* call);
-tlHandle tlBCallTarget(tlArgs* call);
 INTERNAL tlHandle lockedInvoke(tlTask* task, tlLock* lock, tlArgs* call);
 
 INTERNAL tlHandle resumeInvoke(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("%s", tl_str(res));
     if (!res) return null;
     tlFramePop(task, _frame);
-    return lockedInvoke(task, tlLockAs(tlBCallTarget(res)), res);
+    return lockedInvoke(task, tlLockAs(tlArgsTarget(res)), res);
 }
 
 tlHandle tlLockAndInvoke(tlTask* task, tlArgs* call) {
-    tlLock* lock = tlLockAs(tlBCallTarget(call));
+    tlLock* lock = tlLockAs(tlArgsTarget(call));
     trace("%s", tl_str(lock));
     assert(lock);
 
