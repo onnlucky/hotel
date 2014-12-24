@@ -1,5 +1,9 @@
 # TODO
 
+fix last bits of hotel parser (.value)*(.sep) should just work, failing sep, we should backtrack to last value, not fail loop
+make sure symbols work all the way, bytecode statics must be symbols, args["test"] or Object.get(o, "test") must ensure a symbol, bail if symbol does not exist
+optimize code->argspec
+
 add something for 'collection["key", otherwise]' but will be part of get interface then
 think about shared locks, so whole slew of items share single lock, especially helpful for Mutable objects
 think about {call:42} meaning something different from {foo:42} and perhaps remove that "meaning" by only making call special if "object" with a "class"

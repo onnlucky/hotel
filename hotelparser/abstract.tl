@@ -184,8 +184,12 @@ rectoken = name ->
 
 emit_rule = rule ->
     lines.add "static State r_$(rule.name)(Parser* _p, const int _start, int _rec, bool ignored) { // $(rule.type)"
-    cache = { rule.callers > 1 }: $nextcache += 1
-            {                  }: 0
+    cache = { rule.name == "expr"   }: $nextcache += 1
+            { rule.name == "mexpr"  }: $nextcache += 1
+            { rule.name == "value"  }: $nextcache += 1
+            { rule.name == "body"   }: $nextcache += 1
+            { rule.name == "bodynl" }: $nextcache += 1
+            {                       }: 0
     if cache > 0:
         lines.add " State _c = cached(_p, \"$(rule.name)\", _start, $cache);"
         lines.add " if (_c.ok) return parser_pass(_p, \"$(rule.name)\", _start, _c, 0);"
