@@ -63,7 +63,7 @@ slcomment: "//" (!nl _)*
         | t=term "+"                      -> { type="plus", term=t, sep=null }
         | t=term "?"                      -> { type="opt", term=t }
         | term
-   named: n=name "=" @"a term"  t=post    -> { type="name", name=n, term=t }
+   named: n=name "=" @"a term"  t=post    -> { type="name", value=n, term=t }
         | "@" t=text                      -> { type="anchor", msg=t }
         | "@"                             -> { type="anchor", msg="" }
         | post
@@ -114,7 +114,7 @@ to_call = t, name ->
         if t.term.terms.size == 1:
             return to_call(t.term.terms[1], name)
         {type="call", target=to_sub(t.term, name)}
-    { t.type == "name"    }: {type="name", name=t.name, term=to_call(t.term, name)}
+    { t.type == "name"    }: {type="name", value=t.value, term=to_call(t.term, name)}
     { t.type == "call"    }:
         if not rules[t.target]: throw "rule without a definition: '$(t.target)'"
         {type="call", target="$(t.target)"}

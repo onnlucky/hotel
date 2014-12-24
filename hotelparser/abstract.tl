@@ -6,6 +6,27 @@ names = HashMap.new
 grammar.each: rule -> names[rule.name] = rule
 
 TERMS = [prim=true,token=true,indent=true,addindent=true,setindent=true,resetindent=true,anchor=true]
+
+callersmap = HashMap.new
+callingmap = HashMap.new
+callers = rule, name ->
+    assert name
+    { TERMS[rule.type]    }: null
+    { rule.type == "not"  }: callers(rule.term, name)
+    { rule.type == "ahead"}: callers(rule.term, name)
+    { rule.type == "name" }: callers(rule.term, name)
+    { rule.type == "call" }: callersmap[rule.target] = (callersmap[rule.target] or 0) + 1
+                             callingmap[name] = (callingmap[name] or 0) + 1
+    { rule.type == "or"   }: rule.terms.each(t -> callers(t, name))
+    { rule.type == "opt"  }: callers(rule.term, name)
+    { rule.type == "star" }: callers(rule.term, name)
+    { rule.type == "plus" }: callers(rule.term, name)
+    { rule.type == "starsep" }: callers(rule.term, name); callers(rule.sep, name)
+    { rule.type == "plussep" }: callers(rule.term, name); callers(rule.sep, name)
+    { rule.type == "and"  }: rule.terms.each(t -> callers(t, name))
+    {                     }: throw "unknown callers $(repr(rule))"
+grammar.each: rule -> callers(rule, rule.name)
+
 consumers = HashMap.new
 
 // TODO fold this in with tracing??
@@ -60,23 +81,7 @@ isterm = rule, seen ->
     term = isterm2(rule, seen)
     consumers[rule] = term
 
-callers = rule, name ->
-    { TERMS[rule.type] }: 0
-    { rule.type == "not"  }: callers(rule.term, name)
-    { rule.type == "ahead"}: callers(rule.term, name)
-    { rule.type == "name" }: callers(rule.term, name)
-    { rule.type == "call" }: if(rule.target==name, 1, 0)
-    { rule.type == "or"   }: rule.terms.map(t -> callers(t, name)).sum
-    { rule.type == "opt"  }: callers(rule.term, name)
-    { rule.type == "star" }: callers(rule.term, name)
-    { rule.type == "plus" }: callers(rule.term, name)
-    { rule.type == "starsep" }: callers(rule.term, name) + callers(rule.sep, name)
-    { rule.type == "plussep" }: callers(rule.term, name) + callers(rule.sep, name)
-    { rule.type == "and"  }: rule.terms.map(t -> callers(t, name)).sum
-    {                     }: throw "unknown callers $(repr(rule))"
-allcallers = rule ->
-    grammar.map(r -> callers(r, rule.name)).sum
-
+// TODO cache as well, or merge with above??
 directleft = HashMap.new
 trace = rule ->
     step = rule, seen ->
@@ -114,13 +119,18 @@ grammar = grammar.map(rule ->
     terminal = isterm(rule, [])
     terminal = try(terminal >= 2) or false
     consumes = trace(rule)
-    callers = allcallers(rule)
+    callers = callersmap[rule.name] or 0
+    calling = callingmap[rule.name] or 0
     left = directleft[rule.name] or false
-    print "rule:", rule.name, rule.type, "terminal:", terminal, "consumes:", consumes, "callers:", callers, "left:", left
-    Object.set(rule, {{terminal, consumes, callers, left}})
+    print "rule:", rule.name, rule.type, "terminal:", terminal, "consumes:", consumes, "callers:", callers, "calling:", calling, "left:", left
+    Object.set(rule, {{terminal, consumes, callers, calling, left}})
 )
 names.clear
 grammar.each: rule -> names[rule.name] = rule
+
+grammar.sort(l, r -> max(l.callers, l.calling) > max(r.callers, r.calling))[:40].each: rule, n ->
+    print n, rule.name, "callers:", rule.callers, "calling:", rule.calling, "term:", rule.terminal, "left:", rule.left
+
 
 print "direct left recursions:", directleft.size
 
@@ -336,8 +346,8 @@ emit_rule = rule ->
                 lines.add " if (!_r.ok) { $(restore)return parser_error(_p, \"$(rule.name)\", _start, _pos); }"
             if term.type == "name":
                 assert not ignored
-                names.add term.name
-                lines.add " tlHandle $(term.name) = _r.value;"
+                names.add term.value
+                lines.add " tlHandle $(term.value) = _r.value;"
             lines.add " _pos = _r.pos;"
             if consumes(term):
                 lines.add " parser_commit(_p, _pos, \"$(rule.name)\", $n);"
