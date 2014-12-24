@@ -14,6 +14,7 @@ typedef struct State {
 
 typedef struct CacheState {
     int start;
+    int token;
     State state;
 } CacheState;
 
@@ -21,12 +22,12 @@ typedef struct Parser {
     int len;
     const char* input;
     int upto;
+    bool backtracking;
     const char* anchor;
     int indent;
 
-    bool in_peek;
     const char* last_rule;
-    const char* last_consume;
+    int last_step;
 
     int cache_at;
     int cache_len;
@@ -58,7 +59,6 @@ static Parser* parser_new(const char* input, int len) {
     parser->input = input;
     parser->out = calloc(1, len + 1);
     parser->indent = -1;
-    parser->in_peek = true;
     return parser;
 }
 
@@ -67,11 +67,37 @@ static void parser_free(Parser* parser) {
     free(parser);
 }
 
-typedef State(*ParserRule)(Parser*, int);
+static void parser_line_char(Parser* p, int pos, int* pline, int* pchar) {
+    int l = 0; int c = 0;
+    for (int i = 0; i < pos; i++) {
+        if (p->input[i] == '\n') { l++; c = 0; } else { c++; }
+    }
+    if (pline) *pline = l + 1;
+    if (pchar) *pchar = c + 1;
+}
+
+static void parser_process_error(Parser* p) {
+    parser_line_char(p, p->error_pos_end, &p->error_line, &p->error_char);
+
+    int begin = p->error_pos_begin;
+    int end = p->error_pos_end;
+    while (begin > 0 && p->input[begin] != '\n') begin--;
+    while (end < p->len && p->input[end] != '\n') end++;
+    if (begin != 0 && begin < end) begin++;
+    p->error_line_begin = begin;
+    p->error_line_end = end;
+}
+
+typedef State(*ParserRule)(Parser*, int, int, bool);
 static bool parser_parse(Parser* p, ParserRule rule) {
-    State s = rule(p, 0);
+    State s = rule(p, 0, 0, false);
     if (!s.ok) {
-        if (!p->error_msg) p->error_msg = "unknown";
+        if (!p->error_msg) {
+            p->error_msg = p->last_rule;
+            p->error_rule = p->last_rule;
+            p->error_pos_begin = p->error_pos_end = p->upto;
+            parser_process_error(p);
+        }
         return false;
     } else if (p->input[s.pos] != 0) {
         p->error_msg = "incomplete parse";
@@ -115,19 +141,9 @@ static State state_ok(int pos, tlHandle value) {
 typedef State(Rule)(Parser*,int);
 
 static State parser_enter(Parser* p, const char* name, int pos) {
-    if (!p->in_peek) p->last_rule = name;
     //print(">> enter: %s %d '%c'", name, pos, p->input[pos]);
     return (State){};
 }
-static void parser_line_char(Parser* p, int pos, int* pline, int* pchar) {
-    int l = 0; int c = 0;
-    for (int i = 0; i < pos; i++) {
-        if (p->input[i] == '\n') { l++; c = 0; } else { c++; }
-    }
-    if (pline) *pline = l + 1;
-    if (pchar) *pchar = c + 1;
-}
-
 static const char* parser_set_anchor(Parser* p, const char* anchor) {
     const char* prev = p->anchor;
     p->anchor = anchor;
@@ -138,91 +154,95 @@ static const char* parser_set_anchor(Parser* p, const char* anchor) {
 static State parser_error(Parser* p, const char* name, int begin, int end) {
     const int pos = end;
     if (p->error_msg) return state_fail(pos);
+
     if (end < begin) end = begin;
 
     p->error_rule = name;
     p->error_msg = p->anchor;
-    parser_line_char(p, end, &p->error_line, &p->error_char);
-
     p->error_pos_begin = begin;
     p->error_pos_end = end;
-    while (begin > 0 && p->input[begin] != '\n') begin--;
-    while (end < p->len && p->input[end] != '\n') end++;
-    if (begin != 0 && begin < end) begin++;
-    p->error_line_begin = begin;
-    p->error_line_end = end;
 
+    parser_process_error(p);
     return state_fail(pos);
 }
 
 static State parser_fail(Parser* p, const char* name, int pos) {
-    if (!p->in_peek) {
-        const char* t = p->last_consume;
-        if (!t) t = p->last_rule;
-        if (t) print("<< fail: %s %d -- expected: %s", name, pos, t);
-        p->last_consume = null;
-        p->last_rule = null;
-    }
-    if (pos < p->upto) p->upto = pos;
+    p->backtracking = true;
     return state_fail(pos);
 }
 
-static State parser_pass(Parser* p, const char* name, uint8_t number, int start, State state) {
-    //print("<< pass: %s %d -- %s", name, state.pos, tl_repr(state.value));
-    //print("<< pass: %s(%d) %d - %d", name, number, start, state.pos);
-    if (number) {
-        for (int i = p->upto; i < start; i++) p->out[i] = 0;
-        for (int i = start; i < state.pos; i++) {
-            if (!p->out[i] || i >= p->upto) p->out[i] = number;
-        }
-        p->upto = state.pos;
+static void parser_commit(Parser* p, int pos, const char* name, int step) {
+    //print(">> commit: %s@%d %d", name, step, pos);
+    if (pos > p->upto) {
+        p->backtracking = false;
     }
-    return state;
+    if (!p->backtracking && pos >= p->upto) {
+        //print(">> COMMIT: %s@%d %d", name, step, pos);
+        p->upto = pos;
+        p->last_rule = name;
+        p->last_step = step;
+    }
 }
 
-static State parser_pass_cache(Parser* p, const char* name, uint8_t number, int start, State state) {
+static State parser_pass(Parser* p, const char* name, int start, State state, int cache_token) {
+    //print("<< pass: %s (cache: %d) %d -- %s", name, cache_token, state.pos, tl_repr(state.value));
+    if (!cache_token) return state;
+    for (int i = p->cache_at - 1; i >= 0; i--) {
+        if (p->cache[i].start == start && p->cache[i].token == cache_token) {
+            assert(p->cache[i].state.ok);
+            if (p->cache[i].state.pos == state.pos) {
+                assert(p->cache[i].state.value == state.value);
+                return state;
+            }
+            //print("CACHE UPDATE: %s %d(%d), %d - %d(was: %d)", name, i, p->cache_at, start, state.pos, p->cache[i].state.pos);
+            p->cache[i].start = start;
+            p->cache[i].token = cache_token;
+            p->cache[i].state = state;
+            return state;
+        }
+    }
     if (p->cache_len <= p->cache_at) {
         if (p->cache_len == 0) p->cache_len = 1024; else p->cache_len *= 2;
         p->cache = realloc(p->cache, p->cache_len * sizeof(CacheState));
+        //print("resizing cache: %d", p->cache_len);
     }
+    //print("CACHE INSERT: %s %d, %d - %d", name, p->cache_at, start, state.pos);
     p->cache[p->cache_at].start = start;
+    p->cache[p->cache_at].token = cache_token;
     p->cache[p->cache_at].state = state;
     p->cache_at++;
-
-    //print("<< pass: %s %d -- %s", name, state.pos, tl_repr(state.value));
-    //print("<< pass: %s(%d) %d - %d", name, number, start, state.pos);
-    if (number) {
-        for (int i = p->upto; i < start; i++) p->out[i] = 0;
-        for (int i = start; i < state.pos; i++) {
-            if (!p->out[i] || i >= p->upto) p->out[i] = number;
-        }
-        p->upto = state.pos;
-    }
     return state;
 }
 
-static State expr_cache(Parser* p, int pos) {
+static State cached(Parser* p, const char* name, int pos, int cache_token) {
     for (int i = p->cache_at - 1; i >= 0; i--) {
-        if (p->cache[i].start == pos) {
-            //print("CACHE HIT: %d(%d), %d - %d", i, p->cache_at, pos, p->cache[i].state.pos);
+        if (p->cache[i].start == pos && p->cache[i].token == cache_token) {
+            //print("CACHE HIT: %s %d(%d), %d - %d", name, i, p->cache_at, pos, p->cache[i].state.pos);
+            assert(p->cache[i].state.ok);
             return p->cache[i].state;
         }
     }
-    //print("CACHE MISS: %d", pos);
+    //print("CACHE MISS: %s %d %d", name, pos, p->cache_at);
     return state_fail(pos);
 }
 
-static State prim_pos(Parser* p, int pos) {
+static State prim_end(Parser* p, int pos, bool ignored) {
+    int c = p->input[pos];
+    if (c) return state_fail(pos);
+    return state_ok(pos, tlNull);
+}
+
+static State prim_pos(Parser* p, int pos, bool ignored) {
     return state_ok(pos, tlINT(pos));
 }
 
-static State prim_any(Parser* p, int pos) {
+static State prim_any(Parser* p, int pos, bool ignored) {
     int c = p->input[pos];
     if (!c) return state_fail(pos);
     return state_ok(pos + 1, tlINT(c));
 }
 
-static State prim_ws(Parser* p, int pos) {
+static State prim_ws(Parser* p, int pos, bool ignored) {
     while (1) {
         int c = p->input[pos];
         if (c == 0 || c > 32 || c == '\r' || c == '\n') break;
@@ -231,7 +251,7 @@ static State prim_ws(Parser* p, int pos) {
     return state_ok(pos, tlNull);
 }
 
-static State prim_wsnl(Parser* p, int pos) {
+static State prim_wsnl(Parser* p, int pos, bool ignored) {
     while (1) {
         int c = p->input[pos];
         if (c == 0 || c > 32) break;
@@ -240,7 +260,8 @@ static State prim_wsnl(Parser* p, int pos) {
     return state_ok(pos, tlNull);
 }
 
-static State prim_char(Parser* p, int pos, const char* chars) {
+static State prim_char(Parser* p, int pos, const char* chars, bool ignored) {
+    //print("CHAR: %s", chars);
     int c = p->input[pos];
     if (!c) return state_fail(pos);
     while (*chars) {
@@ -252,8 +273,8 @@ static State prim_char(Parser* p, int pos, const char* chars) {
     return state_fail(pos);
 }
 
-static State prim_text(Parser* p, int pos, const char* chars) {
-    if (!p->in_peek) p->last_consume = chars;
+static State prim_text(Parser* p, int pos, const char* chars, bool ignored) {
+    //print("TEXT: %s", chars);
     int start = pos;
     while (*chars) {
         int c = p->input[pos];
@@ -261,111 +282,18 @@ static State prim_text(Parser* p, int pos, const char* chars) {
         if (*chars != c) return state_fail(start);
         pos++; chars++;
     }
+    if (ignored) return state_ok(pos, tlNull);
+
+#ifndef NO_VALUE
     int len = pos - start;
     char* buf = malloc(len + 1);
     memcpy(buf, p->input + start, len);
     buf[len] = 0;
 
-    p->last_consume = null;
-
-#ifndef NO_VALUE
     return state_ok(pos, tlStringFromTake(buf, len));
 #else
     return state_ok(pos, tlNull);
 #endif
-}
-
-static State many(const char* name, tlArray* res, Parser* p, int pos, Rule r, Rule sep) {
-    int begin = pos;
-    while (1) {
-        int start = pos;
-        if (sep) {
-            State s = sep(p, pos);
-            if (!s.ok) break;
-            pos = s.pos;
-        }
-        State s = r(p, pos);
-        if (!s.ok) {
-            pos = start;
-            break;
-        }
-        pos = s.pos;
-#ifndef NO_VALUE
-        tlArrayAdd(res, s.value);
-#endif
-        if (pos == start) break;
-    }
-#ifndef NO_VALUE
-    return parser_pass(p, name, 0, begin, state_ok(pos, tlArrayToList(res)));
-#else
-    return parser_pass(p, name, 0, begin, state_ok(pos, tlNull));
-#endif
-}
-static State meta_plus(Parser* p, int pos, Rule r, Rule sep) {
-    parser_enter(p, "plus", pos);
-    State s = r(p, pos);
-    if (!s.ok) return parser_fail(p, "plus", pos);
-#ifndef NO_VALUE
-    tlArray* res = tlArrayNew();
-    tlArrayAdd(res, s.value);
-#else
-    tlArray* res = null;
-#endif
-    p->in_peek = true;
-    State ret = many("plus", res, p, s.pos, r, sep);
-    //p->in_peek = false;
-    return ret;
-}
-static State meta_star(Parser* p, int pos, Rule r, Rule sep) {
-    int begin = pos;
-    parser_enter(p, "star", pos);
-    p->in_peek = true;
-    State s = r(p, pos);
-    //p->in_peek = false;
-#ifndef NO_VALUE
-    if (!s.ok) return parser_pass(p, "star", 0, begin, state_ok(pos, tlListEmpty()));
-#else
-    if (!s.ok) return parser_pass(p, "star", 0, begin, state_ok(pos, tlNull));
-#endif
-    if (!sep && s.pos == pos) {
-#ifndef NO_VALUE
-        return parser_pass(p, "star", 0, begin, state_ok(pos, tlListFrom1(s.value)));
-#else
-        return parser_pass(p, "star", 0, begin, state_ok(pos, tlNull));
-#endif
-    }
-#ifndef NO_VALUE
-    tlArray* res = tlArrayNew();
-    tlArrayAdd(res, s.value);
-#else
-    tlArray* res = null;
-#endif
-    p->in_peek = true;
-    State ret = many("star", res, p, s.pos, r, sep);
-    //p->in_peek = false;
-    return ret;
-}
-static State meta_opt(Parser* p, int start, Rule r) {
-    parser_enter(p, "opt", start);
-    State s = r(p, start);
-    if (s.ok) return parser_pass(p, "opt", 0, start, s);
-    return parser_pass(p, "opt", 0, start, state_ok(start, tlNull));
-}
-static State meta_not(Parser* p, int start, Rule r) {
-    p->in_peek = true;
-    parser_enter(p, "not", start);
-    State s = r(p, start);
-    //p->in_peek = false;
-    if (s.ok) {
-        return parser_fail(p, "not", start);
-    }
-    return parser_pass(p, "not", 0, start, state_ok(start, tlNull));
-}
-static State meta_ahead(Parser* p, int start, Rule r) {
-    parser_enter(p, "ahead", start);
-    State s = r(p, start);
-    if (!s.ok) return parser_fail(p, "ahead", start);
-    return parser_pass(p, "ahead", 0, start, state_ok(start, tlNull));
 }
 
 #ifndef NO_VALUE

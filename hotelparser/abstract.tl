@@ -136,7 +136,6 @@ print "direct left recursions:", directleft.size
 
 lines = Array.new
 lines.add "#include \"tlmeta.c\""
-lines.add "#define GROW 2"
 lines.add ""
 
 emit_declare = rule ->
@@ -238,9 +237,10 @@ emit_rule = rule ->
         lines.add "step1:;"
         lines.add " _r = "+ emit(rule.sep, true)
         lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
+        lines.add " int _pos2 = _r.pos;"
         lines.add " _pos = _r.pos;"
         lines.add " _r = "+ emit(rule.term)
-        lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos2, arr? tlArrayToList(arr) : tlNull), $cache);"
         lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add " goto step1;"
@@ -267,9 +267,10 @@ emit_rule = rule ->
         lines.add "step1:;"
         lines.add " _r = "+ emit(rule.sep, true)
         lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), $cache);"
+        lines.add " int _pos2 = _r.pos;"
         lines.add " _pos = _r.pos;"
         lines.add " _r = "+ emit(rule.term)
-        lines.add " if (!_r.ok) return parser_fail(_p, \"$(rule.name)\", _start);"
+        lines.add " if (!_r.ok) return parser_pass(_p, \"$(rule.name)\", _start, state_ok(_pos2, arr? tlArrayToList(arr) : tlNull), $cache);"
         lines.add " if (arr) tlArrayAdd(arr, _r.value);"
         lines.add " _pos = _r.pos;"
         lines.add " goto step1;"

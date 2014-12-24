@@ -1,6 +1,5 @@
 # TODO
 
-fix last bits of hotel parser (.value)*(.sep) should just work, failing sep, we should backtrack to last value, not fail loop
 make sure symbols work all the way, bytecode statics must be symbols, args["test"] or Object.get(o, "test") must ensure a symbol, bail if symbol does not exist
 optimize code->argspec
 
