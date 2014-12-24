@@ -1,7 +1,16 @@
 # TODO
 
+add more unit tests and a testrunner for them
+
 make sure symbols work all the way, bytecode statics must be symbols, args["test"] or Object.get(o, "test") must ensure a symbol, bail if symbol does not exist
+add tlClass with mixins and super and fields and methods, all primitives should have a tlClass
+
 optimize code->argspec
+optimize code->hasLazy
+perhaps add args->names.last as object that maps symbol to args->names index
+allow tlEnv to link to a previous env, where this one can be larger, but if a value == 0, we link back, for repl and var's
+allow tlEnv to have imports, so that before mod->links[global] we look up global against all scoped imports first
+
 
 add something for 'collection["key", otherwise]' but will be part of get interface then
 think about shared locks, so whole slew of items share single lock, especially helpful for Mutable objects
