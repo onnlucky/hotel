@@ -47,7 +47,7 @@ writeFull = writer, buf ->
         if len == 0: return buf.size
         if not len: _io.waitwrite(writer)
 
-/// A Stream is a lot like a buffer, but we read and write from some source
+/// object Stream: represents input and output of bytes, behaves much like a buffer
 Stream = {
     // TODO optimize the read/write buffer usage
     new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new }
@@ -84,9 +84,9 @@ Stream = {
                 return this.rbuf.readString(len)
             this._readFull
             return this.rbuf.readString
-        /// blocks and reads until a newline character '\n' is seen, returns a String including the newline
-        /// also returns a string at end of stream
-        /// returns null if stream cannot be read
+        /// readLine: reads or waits until a newline character '\n' is seen, returns a String including the newline
+        /// also returns a string at end of stream, possibly without a '\n'
+        /// returns null if stream cannot be read, or is passed end
         readLine = ->
             len = this.find("\n")
             if not len:
@@ -115,7 +115,7 @@ Stream = {
                 if this.file.reader.isClosed: return null
                 this._readSome
 
-        /// write many of Buffer, String, Binary, or byte (any number); skipping nulls
+        /// write: many of Buffer, String, Binary, or byte (any number); skipping nulls
         write = ->
             args.each: v -> this._writeOne(v)
         writeclose = ->
@@ -274,15 +274,21 @@ _run = arglist, env, check ->
     if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=output).throw
     return output, r
 
-/// run(cmdline, args...) env=null, allowerror=false
-/// execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[1:].cat(args) as arguments
+/// package
+
+/// run(cmdline, args*):
+/// [env=null] a custom environment
+/// [allowerror=false] supress the exception thrown if command results in nonzero status
+/// execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[2:] + args as arguments
 /// will throw an error when command returns nonzero status
 /// will return output of stdin and stderr combined
 run = cmd ->
     arglist = cmd.toString.split.cat(args[2:].map(a -> a.toString))
     _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
 
-/// shell(cmd, args...) env=null, allowerror=false
+/// shell(cmd, args*):
+/// [env=null] a custom environment
+/// [allowerror=false] supress the exception thrown if command results in nonzero status
 /// execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
 /// will throw an error when command returns nonzero status
 /// will return output of stdin and stderr combined

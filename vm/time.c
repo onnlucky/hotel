@@ -97,8 +97,9 @@ static tlHandle _time(tlTask* task, tlArgs* args) {
     return tlFLOAT(mktime(&tm));
 }
 
-/// strptime(format, input): returns a time object (see #localtime()) based on a #format string and an #input. See unix manual "man 3 strptime" for exact format.
-/// returns a time object and the amount of characters consumed from the input, or null on any error.
+/// strptime(format, input): returns a time object (see #localtime()) based on a #format string and an #input.
+/// See unix manual "man 3 strptime" for exact format.
+/// returns a time object and the amount of characters consumed from the input, or #null on any error.
 static tlHandle _strptime(tlTask* task, tlArgs* args) {
     tlString* format = tlStringCast(tlArgsGet(args, 0));
     if (!format) TL_THROW("strptime requires a format string arg[1]");
@@ -116,7 +117,8 @@ static tlHandle _strptime(tlTask* task, tlArgs* args) {
     return tlResultFrom(object_from_tm(&tm), tlINT(out - in), null);
 }
 
-/// strftime(format, [timestamp|object]): returns a time string formatted according to #format. It uses the passed in #timestamp or time #object or the current local time. See unix manual "man 3 strftime" for exact format.
+/// strftime(format, [timestamp|object]): returns a time string formatted according to #format.
+/// It uses the passed in #timestamp or time #object or the current local time. See unix manual "man 3 strftime" for exact format.
 /// > strftime("%c", 1406703361) == "Wed Jul 30 08:56:01 2014"
 static tlHandle _strftime(tlTask* task, tlArgs* args) {
     tlString* format = tlStringCast(tlArgsGet(args, 0));

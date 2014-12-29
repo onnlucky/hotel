@@ -330,7 +330,7 @@ static tlHandle _sqrt(tlTask* task, tlArgs* args) {
     return tlFLOAT(res);
 }
 
-/// random(n)
+/// random(n):
 /// return number between 0 upto n (including 0, but not including n)
 static tlHandle _random(tlTask* task, tlArgs* args) {
     // TODO fix this when we have floating point ...

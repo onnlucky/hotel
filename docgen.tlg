@@ -3,74 +3,81 @@ objects = HashMap.new
 var $package = null
 var $object = null
 
-makeName = { ns ->
-    if ns.size == 0: {
+makeName = ns ->
+    if ns.size == 0:
         if not $object: return ""
         if not $package: return $object
         return "$($package).$($object)"
-    }
-    if ns.size == 1: {
-        if not $package: return ns[0]
-        return "$($package).$(ns[0])"
-    }
+    if ns.size == 1:
+        if not $package: return ns[1]
+        return "$($package).$(ns[1])"
     return ns.join(".")
-}
 
-docPackage = { path, doc ->
+docPackage = path, doc ->
+    print "package:", path, doc
     $package = null
     $object = null
     if path and path != "global": $package = path
     // TODO doc
-}
-docObject = { path, doc ->
+
+docObject = path, doc ->
+    print "object:", path, doc
     names = path.split(".")
-    if names.size == 1: $object = names[0]
-    if names.size > 1: {
+    if names.size == 1: $object = names[1]
+    if names.size > 1:
         $package = names[:-1].join(".")
         $object = names[names.size - 1]
-    }
     // TODO doc
-}
-docMethod = { path, doc ->
+
+docMethod = path, doc ->
+    print "method:", path, $package, $object, "--", doc
     names = path.split(".")
-    name = makeName(names[:-1])
-    method = names[names.size - 1]
-    object = objects[name] or (objects[name] = Array.new)
-    object.add({ name: method, doc: doc })
-    print "found:", name, method
-}
+    ns = makeName(names[:-2])
+    method = names[-1]
+    name = method.split("(")[1]
+    object = objects[ns] or (objects[ns] = Array.new)
+    object.add({{name, method, doc}})
 
 parseDocs = parser {
-       nl: "\n"
-     text: ts=(!"\n" _)*             -> ts.toChar.strip
+       ws: [ \t]*
+       nl: "\n" | "\r\n" | "\r"
+     text: ts=(!"\n" _)*             -> ts.toChar.trim
    textnl: t=text nl                 -> t
-     name: ts=(![: \t\n\r] _)+       -> ts.toChar
+     name: ts=(![:\n\r] _)+          -> ts.toChar
 
    bodynl: ."///". textnl
      body: ":" f=textnl bs=bodynl*   -> bs.prepend(f).join("\n")
          | bs=bodynl*                -> bs.join("\n")
       cmd: "package" .n=name .b=body -> docPackage(n, b)
+         | "package" .nl             -> docPackage()
          | "object" .n=name .b=body  -> docObject(n, b)
-         | n=name b=body             -> docMethod(n, b)
+         | n=name .b=body            -> docMethod(n, b)
          | t=textnl                  -> print "WARNING:", t
       doc: ."///". cmd
 
      line: doc | (!"\n" _)* nl
-    start: line* (!"\n" _)* end
+    start: line* . end
 }
 
-args.slice.each: { a ->
+args.slice.each: a ->
     print "processing:", a
     docPackage()
-    parseDocs io.File(a).read
-}
+    parseDocs io.File(a).readString
 
 f = io.File("doc.html").open(create=true,truncate=true)
-objects.keys.each: { k ->
-    f.write "<h2>$k</h2>\n"
-    objects[k].each: { m ->
-        f.write "<h4>$(m.name)</h4>\n<p>\n$(m.doc)\n</p>\n"
-    }
-}
+
+f.write("<style>h4 { margin: 0 0; }</style>\n")
+
+objects.each: name, methods ->
+    f.write("<b><a href=\"#$name\">$name</a></b>")
+    methods.each: m ->
+        f.write(" <a href=\"#$name.$(m.name)\">$(m.name)</a>")
+    f.write("<br>")
+
+objects.each: name, methods ->
+    f.write("<h2 id=\"$name\">$name</h2>\n")
+    methods.each: m ->
+        f.write("<h4 id=\"$name.$(m.name)\">$(m.method)</h4>\n<pre>\n$(m.doc)\n</pre>\n")
+
 print "open doc.html"
 
