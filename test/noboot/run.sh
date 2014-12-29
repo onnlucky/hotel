@@ -1,5 +1,7 @@
 #!/bin/bash
 
+make
+
 PASS=0
 FAIL=0
 
@@ -8,7 +10,7 @@ for i in *.tl; do
     LOG=${i/.tl/.log}
     ERR=${i/.tl/.err}
     #TL_MODULE_PATH=../../modules ../../tl ../../tlcompiler $i
-    ../../tlcompiler $i
+    #../../tlcompiler $i
     ../../tl --boot ${i}b 2>$ERR | diff $REF - >$LOG
 
     if (( $? == 0 )); then
