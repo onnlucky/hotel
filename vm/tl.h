@@ -337,7 +337,7 @@ void tlVmDecExternal(tlVm* vm);
 
 tlVm* tlVmCurrent(tlTask* task);
 tlWorker* tlWorkerCurrent(tlTask* task);
-tlFrame* tlFrameCurrent(tlTask* task);
+tlFrame* tlTaskCurrentFrame(tlTask* task);
 
 // ** running code **
 
@@ -410,7 +410,7 @@ void tlTaskReadyExternal(tlTask* task);
 void tlTaskSetValue(tlTask* task, tlHandle h);
 
 // throws value, if it is a o with a stack, it will be filled in witha stacktrace
-tlHandle tlTaskThrow(tlTask* task, tlHandle err);
+tlHandle tlTaskError(tlTask* task, tlHandle err);
 
 // throw errors
 tlHandle tlErrorThrow(tlTask* task, tlHandle msg);
@@ -428,7 +428,7 @@ tlHandle tlUndefMsg(tlString* msg);
     return tlArgumentErrorThrow(task, tlStringFromCopy(_s, 0)); } while (0)
 #define TL_THROW_SET(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
-    tlTaskThrowTake(task, strdup(_s)); } while (0)
+    tlTaskErrorTake(task, strdup(_s)); } while (0)
 #define TL_UNDEF(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)

@@ -1,4 +1,5 @@
 #include "bcode.h"
+#include "task.h"
 #include "trace-off.h"
 
 static tlNative* g_goto_native;
@@ -215,12 +216,16 @@ tlCodeFrame* tlCodeFrameCast(tlHandle v) {
     return (tlCodeFrame*)v;
 }
 
-tlCodeFrame* tlCodeFrameNew(tlArgs* args) {
+tlCodeFrame* tlCodeFrameNew(tlArgs* args, tlBEnv* locals) {
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* code = closure->code;
     tlCodeFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlCodeFrame) + sizeof(CallEntry) * code->calldepth);
-    frame->locals = tlBEnvNew(code->localnames, closure->env);
-    frame->locals->args = args;
+    if (!locals) {
+        frame->locals = tlBEnvNew(code->localnames, closure->env);
+        frame->locals->args = args;
+    } else {
+        frame->locals = locals;
+    }
     return frame;
 }
 
@@ -1025,7 +1030,9 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     return mod;
 }
 
-tlHandle beval(tlTask* task, tlCodeFrame* frame, tlArgs* args, int lazypc, tlBEnv* locals);
+tlHandle eval_args(tlTask* task, tlArgs* args);
+tlHandle eval_lazy(tlTask* task, tlBLazy* lazy);
+tlHandle beval(tlTask* task, tlCodeFrame* frame, tlHandle resuming);
 
 tlArgs* argsFromBCall(tlArgs* call) {
     return call;
@@ -1037,26 +1044,22 @@ tlArgs* bcallFromArgs(tlArgs* args) {
 
 INTERNAL tlHandle afterYieldQuota(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
-    tlFramePop(task, frame);
+    tlTaskPopFrame(task, frame);
     return tlInvoke(task, tlArgsAs(res));
 }
 
 tlHandle tlInvoke(tlTask* task, tlArgs* call) {
-    assert(tlTaskIs(task));
-    if (task->runquota <= 0) {
-        task->runquota = 1234;
+    assert(!tlTaskHasError(task));
+    if (!tlTaskTick(task)) {
+        if (tlTaskHasError(task)) return null;
+
         tlFramePushResume(task, afterYieldQuota, call);
         tlTaskWaitFor(task, null);
         // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
         return null;
     }
-
-    task->runquota -= 1;
-    if (task->limit) {
-        if (task->limit == 1) TL_THROW("Out of quota");
-        task->limit -= 1;
-    }
+    assert(!tlTaskHasError(task));
 
     tlHandle fn = tlArgsFn(call);
     tlHandle target = tlArgsTarget(call);
@@ -1074,11 +1077,11 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         return tlNativeKind->run(task, tlNativeAs(fn), args);
     }
     if (tlBClosureIs(fn)) {
-        return beval(task, null, call, 0, null);
+        return eval_args(task, call);
     }
     if (tlBLazyIs(fn)) {
         tlBLazy* lazy = tlBLazyAs(fn);
-        return beval(task, null, lazy->args, lazy->pc, lazy->locals);
+        return eval_lazy(task, lazy);
     }
     if (tlBLazyDataIs(fn)) {
         return tlBLazyDataAs(fn)->data;
@@ -1188,7 +1191,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
 }
 
 tlHandle tlFrameEval(tlTask* task, tlCodeFrame* frame) {
-    return beval(task, frame, null, 0, null);
+    return beval(task, frame, null);
 }
 
 // trace frame invocations incase we crash and burn
@@ -1242,101 +1245,83 @@ void tlCodeFrameDump(tlFrame* _frame) {
     }
 }
 
+INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle throw);
+tlHandle eval_resume(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+    tlCodeFrame* frame = tlCodeFrameAs(_frame);
+    //if (error) return tlCodeFrameHandleError(task, frame, error);
+    if (error) return handleBFrameThrow(task, frame, error);
+    if (!value) return null;
 
-tlHandle beval(tlTask* task, tlCodeFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
-    trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
+    return beval(task, frame, value);
+}
+
+tlHandle eval_args(tlTask* task, tlArgs* args) {
+    trace("%s", tl_str(args));
+    tlCodeFrame* frame = tlCodeFrameNew(args, null);
+
+    tlTaskPushFrame(task, (tlFrame*)frame);
+    return beval(task, frame, null);
+}
+
+tlHandle eval_lazy(tlTask* task, tlBLazy* lazy) {
+    tlCodeFrame* frame = tlCodeFrameNew(lazy->locals->args, lazy->locals);
+    frame->pc = lazy->pc;
+    frame->lazy = true;
+
+    tlTaskPushFrame(task, (tlFrame*)frame);
+    return beval(task, frame, null);
+}
+
+tlHandle beval(tlTask* task, tlCodeFrame* frame, tlHandle resuming) {
     assert(task);
-    if (!args) {
-        assert(frame);
-        args = frame->locals->args;
-        assert(args);
-    }
-    if (!frame && !lazylocals) frame = tlCodeFrameNew(args);
+    assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
+    trace("task=%p frame=%p pc=%d (lazy:%d) resuming=%s", task, frame, frame->pc, frame->lazy, tl_repr(resuming));
+
+    tlArgs* args = frame->locals->args;
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* bcode = closure->code;
     tlBModule* mod = bcode->mod;
     tlList* data = mod->data;
     const uint8_t* ops = bcode->code;
 
-    trace("%s env=%p closure=%p", tl_str(bcode->debuginfo->name), closure->env, closure);
+    trace("%p '%s' env=%p closure=%p", frame, tl_str(bcode->debuginfo->name), closure->env, closure);
     debug_trace_frame(task, frame, args);
 
     // program counter, saved and restored into frame
-    int pc = 0;
+    int pc = frame->pc;
 
     int calltop = -1; // current call index in the call stack
     tlArgs* call = null; // current call, if any
     int arg = 0; // current argument to a call
 
     uint8_t op = 0; // current opcode
-    tlHandle v = tlNull; // tmp result register
+    tlHandle v = resuming? resuming : tlNull; // tmp result register
 
     // get current attached debugger, if any
     tlDebugger* debugger = tlDebuggerFor(task);
 
-    // when we get here, it is because of the following reasons:
-    // 1. we start a closure
-    // 2. we start a lazy call
-    // 3. we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
-    // 4. we set a method name to a call, and resolving it paused the task; see end of this function
-    // 5. we resumed from a debugger
-    if (frame && frame->pc != 0) { // 3 or 4 or 5
-        assert(args == frame->locals->args);
-        pc = frame->pc;
-        if (pc < 0) {
-            pc = -pc;
-            lazypc = 1;
-            trace("restoring lazypc to 1");
+    // we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
+    // or we did a resolve, which paused
+    if (resuming) {
+        // we need to find the current calltop/call/arg
+        for (int i = 0; i < bcode->calldepth; i++) {
+            if (!frame->calls[i].call) {
+                calltop = i - 1;
+                break;
+            }
         }
-        v = task->value;
-        if (!v) v = tlNull;
-
-        // TODO we really need to know if we came from debugger or not ... just having a debugger is not good enough
-        // plus, debuggers attach/deattach any time
-        if (bcode->calldepth == 0 || !frame->calls[0].call) {
-            trace("A resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
-                tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
-            if (lazypc) goto resume;
-            goto again;
+        if (calltop >= 0) {
+            call = frame->calls[calltop].call;
+            arg = frame->calls[calltop].at;
+            assert(call);
         }
-
-        // this is 3 or 4 and so there *must* be a call
-        // find current call, we mark non current call by setting sign bit
-        assert(bcode->calldepth > 0); // cannot be zero, or we would never suspend
-        for (calltop = bcode->calldepth - 1; frame->calls[calltop].call == null; calltop--)
-        assert(calltop >= 0);
-        call = frame->calls[calltop].call;
-        arg = frame->calls[calltop].at;
-        assert(call);
-        assert(arg >= 0);
-
-        trace("B resume eval; %s %s; %s locals: %d call: %d/%d[%d]", tl_str(frame), tl_str(v),
-                tl_str(bcode), bcode->locals, calltop, bcode->calldepth, arg);
-        if (debugger) goto again;
-        goto resume; // for speed and code density
-    } else if (lazypc) { // 2
-        pc = lazypc;
-        trace("lazy eval; %s locals: %d call: %d/%d", tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
-    } else { // 1
-        trace("new eval; %s locals: %d call: %d/%d", tl_str(bcode), bcode->locals, calltop, bcode->calldepth);
+        goto resume;
     }
-
-    if (!frame) {
-        frame = tlCodeFrameNew(args);
-        if (lazylocals) {
-            frame->locals = lazylocals;
-            frame->lazy = true;
-        } else {
-            frame->locals = tlBEnvNew(bcode->localnames, closure->env);
-            frame->locals->args = args;
-        }
-    }
-    tlFramePush(task, (tlFrame*)frame);
 
 again:;
     if (debugger && frame->pc != pc) {
-        task->value = v;
         frame->pc = pc;
+        task->value = v;
         if (calltop >= 0) frame->calls[calltop].at = arg;
         if (!tlDebuggerStep(debugger, task, frame)) {
             trace("pausing for debugger");
@@ -1356,7 +1341,7 @@ again:;
     op = ops[pc++];
     if (!op) {
         assert(v);
-        tlFramePop(task, (tlFrame*)frame);
+        tlTaskPopFrame(task, (tlFrame*)frame);
         return v; // OP_END
     }
     assert(op & 0xC0);
@@ -1413,7 +1398,7 @@ again:;
 
     switch (op) {
         case OP_INVOKE: {
-            assert(tlFrameCurrent(task) == (tlFrame*)frame);
+            assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
             assert(call);
             assert(arg - 2 == tlArgsRawSize(call)); // must be done with args here
             tlArgs* invoke = call;
@@ -1434,12 +1419,11 @@ again:;
                 arg = 0;
             }
             trace("%p invoke: %s %s", frame, tl_str(invoke), tl_str(invoke->fn));
-            frame->pc = lazypc? -pc : pc;
+            frame->pc = pc;
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
             v = tlInvoke(task, invoke);
             if (!v) return null;
-            assert(tlFrameCurrent(task) == (tlFrame*)frame);
-            pc = lazypc? -frame->pc : frame->pc;
+            assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
             trace("%p after: %d", frame, pc);
             break;
         }
@@ -1447,7 +1431,6 @@ again:;
             TL_THROW_NORETURN("no branch taken");
             // TODO remove this duplication
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
-            if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
             trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
             return null;
         }
@@ -1473,7 +1456,6 @@ again:;
                 TL_THROW_NORETURN("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
                 // TODO remove this duplication
                 if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
-                if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
                 trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
                 return null;
             }
@@ -1639,8 +1621,8 @@ again:;
 resume:;
     assert(v);
     if (!call) {
-        if (lazypc) {
-            tlFramePop(task, (tlFrame*)frame);
+        if (frame->lazy) {
+            tlTaskPopFrame(task, (tlFrame*)frame);
             return v; // if we were evaulating a lazy call, and we are back at "top", OP_END
         }
         goto again;
@@ -1666,7 +1648,6 @@ resume:;
             TL_THROW_NORETURN("'%s' is not a property of '%s'", tl_str(mname), tl_str(target));
             // TODO remove this duplication
             if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
-            if (lazypc) frame->pc = -frame->pc; // mark frame as lazy
             trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);
             return null;
         }
@@ -1699,8 +1680,8 @@ resume:;
             } else {
                 arg = 0;
                 call = null;
-                if (lazypc) {
-                    tlFramePop(task, (tlFrame*)frame);
+                if (frame->lazy) {
+                    tlTaskPopFrame(task, (tlFrame*)frame);
                     return v; // if we were evaulating a lazy call, and we are back at "top", OP_END
                 }
             }
@@ -1798,51 +1779,59 @@ INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
 
 INTERNAL tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("running resume a call");
-    tlFramePop(task, frame);
     if (throw) return null;
+    if (!res) return null;
+    tlTaskPopFrame(task, frame);
     tlArgs* call = tlArgsAs(res);
-    return beval(task, null, call, 0, null);
+    return eval_args(task, call);
 }
 
-INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle throw) {
+INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle error) {
+    assert(tlTaskCurrentFrame(task) != (tlFrame*)frame);
+    assert(tlTaskHasError(task));
+
     tlHandle handler = frame->handler;
+    tlArgs* call = null;
     if (tlBClosureIs(handler)) {
-        trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlArgs* call = tlArgsNew(1);
-        call->fn = tlBClosureAs(handler);
-        tlBCallAdd_(call, throw, 2);
-        return beval(task, null, call, 0, null);
+        trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(error));
+        call = tlArgsNew(1);
+        tlArgsSetFn_(call, handler);
+        tlArgsSet_(call, 0, error);
     }
     if (tlCallableIs(handler)) {
         // operate with old style hotel
-        trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
-        tlArgs* call = tlArgsNew(1);
+        trace("invoke callable as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(error));
+        call = tlArgsNew(1);
         tlArgsSetFn_(call, handler);
-        tlArgsSet_(call, 0, throw);
-        return tlEval(task, call);
+        tlArgsSet_(call, 0, error);
     }
-    trace("returing handler value as handled: %s %s", tl_str(frame), tl_str(handler));
-    return handler;
-}
-
-INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
-    trace("running resuming from a frame: %s res=%s, throw=%s", tl_str(_frame), tl_str(res), tl_str(throw));
-    tlCodeFrame* frame = tlCodeFrameAs(_frame);
-    if (throw) {
-        tlFramePop(task, (tlFrame*)frame);
-        if (frame->handler) return handleBFrameThrow(task, frame, throw);
+    if (call) {
+        tlTaskClearError(task, tlNull);
+        tlTaskEval(task, call);
         return null;
     }
-    if (!res) return null;
-    task->value = res;
-    return beval(task, frame, null, 0, null);
+
+    trace("returing handler value as handled: %s %s", tl_str(frame), tl_str(handler));
+    return tlTaskClearError(task, handler);
+}
+
+INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+    trace("running resuming from a frame: %s value=%s, error=%s", tl_str(_frame), tl_str(value), tl_str(error));
+    tlCodeFrame* frame = tlCodeFrameAs(_frame);
+    if (error) {
+        if (frame->handler) return handleBFrameThrow(task, frame, error);
+        return null;
+    }
+    if (!value) return null;
+    assert(tlTaskValue(task) == value);
+    return beval(task, frame, value);
 }
 
 tlHandle beval_module(tlTask* task, tlBModule* mod) {
     tlBClosure* fn = tlBClosureNew(mod->body, null);
     tlArgs* call = tlArgsNew(0);
     call->fn = fn;
-    return beval(task, null, call, 0, null);
+    return eval_args(task, call);
 }
 
 tlBModule* tlBModuleFromBuffer(tlBuffer* buf, tlString* name, const char** error) {
@@ -1886,7 +1875,7 @@ INTERNAL tlHandle _Module_new(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
-    tlCodeFrame* frame = tlCodeFrameAs(tlFrameCurrent(task));
+    tlCodeFrame* frame = tlCodeFrameAs(tlTaskCurrentFrame(task));
     tlBModule* mod = tlBClosureAs(frame->locals->args->fn)->code->mod;
     for (int i = 0;; i++) {
         tlHandle data = tlListGet(mod->data, i);
@@ -1911,7 +1900,7 @@ INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
         TL_THROW("frame requires Args as args[2]");
     }
     as->fn = fn;
-    return tlCodeFrameNew(as);
+    return tlCodeFrameNew(as, null);
 }
 
 INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
@@ -1921,7 +1910,8 @@ INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
 
     tlTask* other = tlTaskCast(tlArgsGet(args, 0));
     if (!other) {
-        return beval(task, frame, null, 0, null);
+        tlTaskPushFrame(task, (tlFrame*)frame);
+        return beval(task, frame, null);
     }
 
     if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
@@ -1988,12 +1978,13 @@ INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
     if (!frame) {
         tlBClosure* fn = tlBClosureNew(mod->body, null);
         as->fn = fn; // as is a copy ...
-        frame = tlCodeFrameNew(as);
+        frame = tlCodeFrameNew(as, null);
     }
     trace("MODULE RUN: %s %s %s", tl_str(other), tl_str(frame), tl_str(as));
 
     if (!other) {
-        return beval(task, frame, null, 0, null);
+        tlTaskPushFrame(task, (tlFrame*)frame);
+        return beval(task, frame, null);
     }
 
     if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
@@ -2072,7 +2063,7 @@ INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
     // TODO we should return our scoped function, not the first frame
-    tlCodeFrame* scopeframe = tlCodeFrameAs(tlFrameCurrent(task));
+    tlCodeFrame* scopeframe = tlCodeFrameAs(tlTaskCurrentFrame(task));
     assert(scopeframe->locals);
     tlBEnv* target = tlBEnvGetParentAt(scopeframe->locals, deep);
 
@@ -2081,14 +2072,14 @@ INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
         trace("%p", frame);
         if (tlCodeFrameIs(frame)) {
             tlCodeFrame* bframe = tlCodeFrameAs(frame);
-            trace("found a bframe: %s{.pc=%d,.args=%s) env->args=%s", tl_str(bframe), bframe->pc, tl_str(bframe->args), tl_str(bframe->locals->args));
+            trace("found a bframe: %s{.pc=%d,.env=%s) env=%s", tl_str(bframe), bframe->pc, tl_str(bframe->locals), tl_str(bframe->locals));
             // lazy frames have same env as target ... but we ignore them
             if (!bframe->lazy && bframe->locals == target) {
                 scopeframe = bframe;
                 break;
             }
             // we keep track of lexically related frames, for when the to return to target is not on stack (captured blocks)
-            if (bframe->locals == scopeframe->locals->parent) {
+            if (!bframe->lazy && bframe->locals == scopeframe->locals->parent) {
                 scopeframe = tlCodeFrameAs(frame);
                 trace("found a scope frame: %s.pc=%d (%d)", tl_str(frame), scopeframe->pc, deep);
             }
@@ -2096,7 +2087,7 @@ INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlFrameUnwind(task, ((tlFrame*)scopeframe)->caller, res);
+    return tlTaskUnwindFrame(task, ((tlFrame*)scopeframe)->caller, res);
 }
 
 // TODO this is fake, same as return, but instead we need unevaluated args, remove our frame, then eval args
@@ -2110,7 +2101,7 @@ INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
     // TODO we should return our scoped function, not the first frame ...
-    tlCodeFrame* scopeframe = tlCodeFrameAs(tlFrameCurrent(task));
+    tlCodeFrame* scopeframe = tlCodeFrameAs(tlTaskCurrentFrame(task));
     assert(scopeframe->locals);
     tlBEnv* target = tlBEnvGetParentAt(scopeframe->locals, deep);
 
@@ -2119,14 +2110,14 @@ INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
         trace("%p", frame);
         if (tlCodeFrameIs(frame)) {
             tlCodeFrame* bframe = tlCodeFrameAs(frame);
-            trace("found a bframe: %s{.pc=%d,.args=%s) env->args=%s", tl_str(bframe), bframe->pc, tl_str(bframe->args), tl_str(bframe->locals->args));
+            trace("found a bframe: %s{.pc=%d,.env=%s) env=%s", tl_str(bframe), bframe->pc, tl_str(bframe->locals), tl_str(bframe->locals));
             // negative pc means a lazy frame, has same locals and bcall as target ... but we ignore it
             if (!bframe->lazy && bframe->locals == target) {
                 scopeframe = bframe;
                 break;
             }
             // we keep track of lexically related frames, for when the to return to target is not on stack (captured blocks)
-            if (bframe->locals == scopeframe->locals->parent) {
+            if (!bframe->lazy && bframe->locals == scopeframe->locals->parent) {
                 scopeframe = tlCodeFrameAs(frame);
                 trace("found a scope frame: %s.pc=%d (%d)", tl_str(frame), scopeframe->pc, deep);
             }
@@ -2134,7 +2125,7 @@ INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlFrameUnwind(task, ((tlFrame*)scopeframe)->caller, res);
+    return tlTaskUnwindFrame(task, ((tlFrame*)scopeframe)->caller, res);
 }
 
 INTERNAL tlHandle _identity(tlTask* task, tlArgs* args) {
@@ -2147,7 +2138,7 @@ INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
     tlCodeFrameAs(_frame)->handler = handler;
 }
 INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args) {
-    tlCodeFrame* frame = tlCodeFrameAs(tlFrameCurrent(task));
+    tlCodeFrame* frame = tlCodeFrameAs(tlTaskCurrentFrame(task));
     tlHandle handler = tlArgsBlock(args);
     if (!handler) handler = tlArgsGet(args, 0);
     if (!handler) handler = tlNull;
@@ -2182,14 +2173,14 @@ INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
         tlArgsSet_(call, i, tlArgsGetRaw(from, i));
     }
     assert(tlBClosureIs(call->fn));
-    return beval(task, null, call, 0, null);
+    return eval_args(task, call);
 }
 INTERNAL tlHandle runBClosure(tlTask* task, tlHandle _fn, tlArgs* args) {
     trace("bclosure.run");
     tlArgs* call = bcallFromArgs(args);
     call->fn = _fn;
     assert(tlBClosureIs(call->fn));
-    return beval(task, null, call, 0, null);
+    return eval_args(task, call);
 }
 INTERNAL tlHandle _bclosure_file(tlTask* task, tlArgs* args) {
     return tlNull;
@@ -2208,18 +2199,12 @@ INTERNAL tlHandle _bclosure_args(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle _blazy_call(tlTask* task, tlArgs* args) {
     trace("blazy.call");
     tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
-    tlArgs* call = bcallFromArgs(args);
-    fatal("broken for now");
-    //call->target = null;
-    call->fn = lazy;
-    return beval(task, null, lazy->args, lazy->pc, lazy->locals);
+    return eval_lazy(task, lazy);
 }
 INTERNAL tlHandle runBLazy(tlTask* task, tlHandle fn, tlArgs* args) {
     trace("blazy.run");
     tlBLazy* lazy = tlBLazyAs(fn);
-    tlArgs* call = bcallFromArgs(args);
-    call->fn = lazy;
-    return beval(task, null, lazy->args, lazy->pc, lazy->locals);
+    return eval_lazy(task, lazy);
 }
 
 INTERNAL tlHandle _blazydata_call(tlTask* task, tlArgs* args) {

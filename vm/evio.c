@@ -706,13 +706,14 @@ typedef struct tlDirEachFrame {
     tlHandle* block;
 } tlDirEachFrame;
 
-static tlHandle resumeDirEach(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (throw && throw != s_continue) {
-        tlFramePop(task, _frame);
-        if (throw == s_break) return tlNull;
+static tlHandle resumeDirEach(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+    if (error == s_continue) {
+        tlTaskClearError(task, tlNull);
+        tlTaskPushFrame(task, _frame);
         return null;
     }
-    if (!throw && !res) return null;
+    if (error == s_break) return tlTaskClearError(task, tlNull);
+    if (!value) return null;
 
     tlDirEachFrame* frame = (tlDirEachFrame*)_frame;
 again:;
@@ -721,10 +722,10 @@ again:;
     if (readdir_r(frame->dir->p, &dp, &dpp)) TL_THROW("readdir: failed: %s", strerror(errno));
     trace("readdir: %p", dpp);
     if (!dpp) {
-        tlFramePop(task, _frame);
+        tlTaskPopFrame(task, _frame);
         return tlNull;
     }
-    res = tlEval(task, tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
+    tlHandle res = tlEval(task, tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
     if (!res) return null;
     goto again;
 
@@ -740,7 +741,7 @@ static tlHandle _dir_each(tlTask* task, tlArgs* args) {
     tlDirEachFrame* frame = tlFrameAlloc(resumeDirEach, sizeof(tlDirEachFrame));
     frame->dir = dir;
     frame->block = block;
-    tlFramePush(task, (tlFrame*)frame);
+    tlTaskPushFrame(task, (tlFrame*)frame);
     return resumeDirEach(task, (tlHandle)frame, tlNull, null);
 }
 

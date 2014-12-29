@@ -32,7 +32,7 @@ bool tlCodeFrameIs(tlHandle);
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
 INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     if (skip < 0) skip = 0;
-    if (!stack) stack = tlFrameCurrent(task);
+    if (!stack) stack = tlTaskCurrentFrame(task);
     trace("stack: %p, skip: %d, task: %s", stack, skip, tl_str(task));
     assert(task);
 
@@ -101,7 +101,7 @@ INTERNAL tlHandle _throw(tlTask* task, tlArgs* args) {
     tlHandle res = tlArgsGet(args, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));
-    return tlTaskThrow(task, res);
+    return tlTaskError(task, res);
 }
 
 tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
@@ -197,21 +197,21 @@ tlHandle tlErrorThrow(tlTask* task, tlHandle msg) {
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, errorClass);
     tlObjectToObject_(err);
-    return tlTaskThrow(task, err);
+    return tlTaskError(task, err);
 }
 tlHandle tlUndefinedErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, undefinedErrorClass);
     tlObjectToObject_(err);
-    return tlTaskThrow(task, err);
+    return tlTaskError(task, err);
 }
 tlHandle tlArgumentErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, argumentErrorClass);
     tlObjectToObject_(err);
-    return tlTaskThrow(task, err);
+    return tlTaskError(task, err);
 }
 tlHandle tlDeadlockErrorThrow(tlTask* task, tlArray* tasks) {
     tlList* stacks = tlListNew(tlArraySize(tasks));
@@ -222,7 +222,7 @@ tlHandle tlDeadlockErrorThrow(tlTask* task, tlArray* tasks) {
     tlObjectSet_(err, _s_msg, tlSTR("deadlock"));
     tlObjectSet_(err, _s_stacks, stacks);
     tlObjectSet_(err, s_class, deadlockErrorClass);
-    return tlTaskThrow(task, err);
+    return tlTaskError(task, err);
 }
 void tlErrorAttachStack(tlTask* task, tlHandle _err, tlFrame* frame) {
     tlObject* err = tlObjectCast(_err);

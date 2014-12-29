@@ -172,14 +172,14 @@ typedef struct tlHashMapEachFrame {
     int at;
 } tlHashMapEachFrame;
 
-static tlHandle resumeHashMapEach(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
-    assert(tlTaskIs(task));
-    if (throw && throw != s_continue) {
-        tlFramePop(task, _frame);
-        if (throw == s_break) return tlNull;
+static tlHandle resumeHashMapEach(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+    if (error == s_continue) {
+        tlTaskClearError(task, tlNull);
+        tlTaskPushFrame(task, _frame);
         return null;
     }
-    if (!throw && !res) return null;
+    if (error == s_break) return tlTaskClearError(task, tlNull);
+    if (!value) return null;
 
     tlHashMapEachFrame* frame = (tlHashMapEachFrame*)_frame;
     tlHandle key;
@@ -191,10 +191,10 @@ again:;
     frame->at += 1;
     trace("hashmap each: %s %s", tl_str(key), tl_str(val));
     if (!key) {
-        tlFramePop(task, _frame);
+        tlTaskPopFrame(task, _frame);
         return tlNull;
     }
-    res = tlEval(task, tlBCallFrom(frame->block, key, val, tlINT(frame->at), null));
+    tlHandle res = tlEval(task, tlBCallFrom(frame->block, key, val, tlINT(frame->at), null));
     if (!res) return null;
     goto again;
 
@@ -211,7 +211,7 @@ INTERNAL tlHandle _hashmap_each(tlTask* task, tlArgs* args) {
     tlHashMapEachFrame* frame = tlFrameAlloc(resumeHashMapEach, sizeof(tlHashMapEachFrame));
     frame->block = block;
     frame->iter = lhashmapiter_new(map->map);
-    tlFramePush(task, (tlFrame*)frame);
+    tlTaskPushFrame(task, (tlFrame*)frame);
     return resumeHashMapEach(task, (tlHandle)frame, tlNull, null);
 }
 

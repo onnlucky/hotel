@@ -159,7 +159,7 @@ INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
 bool tlCodeFrameIs(tlHandle);
 
 INTERNAL tlHandle _catch(tlTask* task, tlArgs* args) {
-    tlFrame* frame = tlFrameCurrent(task);
+    tlFrame* frame = tlTaskCurrentFrame(task);
     tlHandle handler = tlArgsBlock(args);
     trace("%p.handler = %s", frame, tl_str(handler));
     install_bcatch(frame, handler);

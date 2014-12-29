@@ -170,8 +170,8 @@ tlHandle tlMessageReply(tlMessage* msg, tlHandle res) {
 tlHandle tlMessageThrow(tlMessage* msg, tlHandle res) {
     trace("msg.throw: %s", tl_str(msg));
     if (!res) res = tlNull;
-    msg->sender->value = null;
-    msg->sender->throw = res;
+    msg->sender->value = res;
+    msg->sender->hasError = true;
     tlTaskReady(msg->sender);
     return res;
 }

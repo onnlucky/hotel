@@ -35,6 +35,8 @@ modules/compiler.tlb boot/compiler.tlb.h: modules/compiler.tl tlcompiler
 	cp modules/compiler.tlb.h boot/compiler.tlb.h
 
 run: tl boot/boot.tlb modules/compiler.tlb
+	#./tlcompiler run.tl
+	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --boot run.tlb
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
@@ -77,7 +79,7 @@ endif
 vm.o: vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBGC) $(LIBMP) boot/boot.tlb.h boot/compiler.tlb.h
 	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
 
-tl: libtl.a vm/tl.c
+tl: libtl.a vm/tl.c Makefile
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a $(LDFLAGS)
 
 $(C_MODULES): cmodules/*.c

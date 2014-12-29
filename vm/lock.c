@@ -128,23 +128,22 @@ typedef struct ReleaseFrame {
     tlLock* lock;
 } ReleaseFrame;
 
-INTERNAL tlHandle resumeRelease(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle resumeRelease(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
     lockScheduleNext(task, tlLockAs(((ReleaseFrame*)_frame)->lock));
-    if (!res && !throw) return null;
-    tlFramePop(task, _frame);
-    if (!res) return null;
-    return res;
+    if (!value) return null;
+    tlTaskPopFrame(task, _frame);
+    return value;
 }
 
 // ** lock a native object to send it a message from bytecode **
 tlHandle tlInvoke(tlTask* task, tlArgs* call);
 INTERNAL tlHandle lockedInvoke(tlTask* task, tlLock* lock, tlArgs* call);
 
-INTERNAL tlHandle resumeInvoke(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle resumeInvoke(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
     trace("%s", tl_str(res));
-    if (!res) return null;
-    tlFramePop(task, _frame);
-    return lockedInvoke(task, tlLockAs(tlArgsTarget(res)), res);
+    if (!value) return null;
+    tlTaskPopFrame(task, _frame);
+    return lockedInvoke(task, tlLockAs(tlArgsTarget(value)), value);
 }
 
 tlHandle tlLockAndInvoke(tlTask* task, tlArgs* call) {
@@ -168,13 +167,13 @@ INTERNAL tlHandle lockedInvoke(tlTask* task, tlLock* lock, tlArgs* call) {
 
     ReleaseFrame* frame = tlFrameAlloc(resumeRelease, sizeof(ReleaseFrame));
     frame->lock = lock;
-    tlFramePush(task, (tlFrame*)frame);
+    tlTaskPushFrame(task, (tlFrame*)frame);
 
     tlHandle res = tlInvoke(task, call);
     if (!res) return null;
 
     lockScheduleNext(task, lock);
-    tlFramePop(task, (tlFrame*)frame);
+    tlTaskPopFrame(task, (tlFrame*)frame);
     return res;
 }
 
@@ -187,21 +186,21 @@ typedef struct WithFrame {
     tlHandle block;
 } WithFrame;
 
-INTERNAL tlHandle resumeWithUnlock(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
+INTERNAL tlHandle resumeWithUnlock(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
     WithFrame* frame = (WithFrame*)_frame;
 
-    tlFramePop(task, _frame);
     for (int i = tlArraySize(frame->locks) - 1; i >= 0; i--) {
         tlLock* lock = tlLockAs(tlArrayGet(frame->locks, i));
         if (!tlLockIsOwner(lock, task)) continue;
         trace("unlocking: %d %s", i, tl_str(lock));
         lockScheduleNext(task, lock);
     }
-    return res;
+    if (value) tlTaskPopFrame(task, _frame);
+    return value;
 }
 
-INTERNAL tlHandle resumeWithLock(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (!res) return resumeWithUnlock(task, _frame, res, throw);
+INTERNAL tlHandle resumeWithLock(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+    if (!value) return resumeWithUnlock(task, _frame, value, error);
 
     WithFrame* frame = (WithFrame*)_frame;
 
@@ -216,7 +215,7 @@ INTERNAL tlHandle resumeWithLock(tlTask* task, tlFrame* _frame, tlHandle res, tl
     }
 
     _frame->resumecb = resumeWithUnlock;
-    res = tlEval(task, tlBCallFrom(frame->block, null));
+    tlHandle res = tlEval(task, tlBCallFrom(frame->block, null));
     if (!res) return null;
     return resumeWithUnlock(task, _frame, res, null);
 }
@@ -240,7 +239,7 @@ INTERNAL tlHandle _with_lock(tlTask* task, tlArgs* args) {
     frame->locked = 0;
     frame->locks = locks;
     frame->block = block;
-    tlFramePush(task, (tlFrame*)frame);
+    tlTaskPushFrame(task, (tlFrame*)frame);
     return resumeWithLock(task, (tlFrame*)frame, tlNull, null);
 }
 

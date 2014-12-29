@@ -13,11 +13,11 @@
 #include "trace-off.h"
 
 INTERNAL tlHandle _break(tlTask* task, tlArgs* args) {
-    return tlTaskThrow(task, s_break);
+    return tlTaskError(task, s_break);
 }
 
 INTERNAL tlHandle _continue(tlTask* task, tlArgs* args) {
-    return tlTaskThrow(task, s_continue);
+    return tlTaskError(task, s_continue);
 }
 
 // loop
@@ -26,33 +26,29 @@ typedef struct LoopFrame {
     tlHandle block;
 } LoopFrame;
 
-INTERNAL tlHandle resumeLoop(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
-    if (throw && throw != s_continue) {
-        tlFramePop(task, _frame);
-        if (throw == s_break) return tlNull;
+INTERNAL tlHandle resumeLoop(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+    if (error == s_continue) {
+        tlTaskClearError(task, tlNull);
+        tlTaskPushFrame(task, _frame);
         return null;
     }
-    if (!throw && !res) return null;
+    if (error == s_break) return tlTaskClearError(task, tlNull);
+    if (!value) return null;
 
     LoopFrame* frame = (LoopFrame*)_frame;
 again:;
     // loop bodies can be without invokes, so make loop also accounts quota
-    if (task->runquota <= 0) {
-        task->runquota = 1234;
-        task->value = tlNull;
-        task->throw = null;
+    assert(!tlTaskHasError(task));
+    if (!tlTaskTick(task)) {
+        if (tlTaskHasError(task)) return null;
         tlTaskWaitFor(task, null);
         // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
         return null;
     }
-    task->runquota -= 1;
-    if (task->limit) {
-        if (task->limit == 1) TL_THROW("Out of quota");
-        task->limit -= 1;
-    }
+    assert(!tlTaskHasError(task));
 
-    res = tlEval(task, tlBCallFrom(frame->block, null));
+    tlHandle res = tlEval(task, tlBCallFrom(frame->block, null));
     if (!res) return null;
     goto again;
     fatal("not reached");
@@ -65,7 +61,7 @@ INTERNAL tlHandle _loop(tlTask* task, tlArgs* args) {
 
     LoopFrame* frame = tlFrameAlloc(resumeLoop, sizeof(LoopFrame));
     frame->block = block;
-    tlFramePush(task, (tlFrame*)frame);
+    tlTaskPushFrame(task, (tlFrame*)frame);
     return resumeLoop(task, (tlFrame*)frame, tlNull, null);
 }
 

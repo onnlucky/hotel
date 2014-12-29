@@ -9,6 +9,8 @@
 //
 // If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
+#include "task.h"
+
 #include "trace-off.h"
 
 INTERNAL tlHandle tlresult_get(tlHandle v, int at);
@@ -43,18 +45,19 @@ struct tlTask {
     tlHandle waiting;   // a single tlTask* or a tlQueue* with many waiting tasks
     tlHandle waitFor;   // what this task is blocked on
 
+    tlObject* locals;     // task local storage, for cwd, stdout etc ...
     tlHandle value;     // current value
-    tlHandle throw;     // current throw (throwing or done)
     tlFrame* stack;     // current frame (== top of stack or current continuation)
+
     tlDebugger* debugger; // current debugger
 
-    tlObject* locals;     // task local storage, for cwd, stdout etc ...
     // TODO remove these in favor a some flags
     tlTaskState state; // state it is currently in
-    bool read;
+    bool hasError;
+    bool read; // check if the task.value has been seen, if not, we log a message
     void* data;
-    long limit; // bytecode can limit amount of invokes
-    long runquota; // bytecode can yields after x amount of invokes
+    long ticks; // tasks will suspend/resume every now and then
+    long limit; // tasks can have a tick limit
 };
 
 tlVm* tlVmCurrent(tlTask* task) {
@@ -130,49 +133,55 @@ void print_backtrace(tlFrame* frame) {
     }
 }
 
-static tlTask* g_task;
-
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
 // at that point any other worker could aready have picked up this task
 INTERNAL void tlTaskRun(tlTask* task) {
     trace(">>> running %s <<<", tl_str(task));
     assert(task->state == TL_STATE_READY);
-    task->state = TL_STATE_RUN;
     assert(task->worker);
-    g_task = task;
 
-    assert(task->value || task->throw);
+    assert(task->value);
     assert(task->stack);
-    tlHandle value = task->value;
-    while (task->stack) { // task->stack is manipulated by tlFrameX methods
-        trace("frame: %p", task->stack);
 
-        if (task->throw) {
-            value = task->stack->resumecb(task, task->stack, null, task->throw);
-            if (value) task->throw = null;
-        } else {
-            value = task->stack->resumecb(task, task->stack, value, null);
-        }
-        if (!value) {
-            if (task->state != TL_STATE_RUN) {
-                assert(task->value || task->throw);
-                return;
+    task->state = TL_STATE_RUN;
+
+    while (task->stack) {
+        if (tlTaskHasError(task)) {
+            tlFrame* unwind = task->stack;
+            task->stack = unwind->caller;
+            trace("unwinding with error: %p %s", unwind, tl_repr(task->value));
+            if (unwind->resumecb) {
+                tlHandle v = unwind->resumecb(task, unwind, null, task->value);
+                assert(!v);
+                UNUSED(v);
             }
-            value = task->value;
+        } else {
+            tlFrame* running = task->stack;
+            trace("resuming with value: %p %s", running, tl_repr(task->value));
+            assert(running->resumecb);
+            tlHandle v = running->resumecb(task, running, task->value, null);
+            if (v) {
+                task->value = v;
+                assert(task->stack == running->caller);
+            } else {
+                if (task->state != TL_STATE_RUN) {
+                    assert(task->value);
+                    return;
+                }
+            }
         }
     }
-    assert(value || task->throw);
-    task->value = value;
+
+    assert(task->value);
     tlTaskDone(task);
 }
 
 void tlTaskFinalize(void* _task, void* data) {
     tlTask* task = tlTaskAs(_task);
-    if (!task->read && task->throw) {
-        assert(!task->value);
+    if (!task->read && tlTaskHasError(task)) {
         // TODO write into special uncaught exception queue
-        warning("uncaught exception: %s", tl_str(task->throw));
+        warning("uncaught exception: %s", tl_repr(task->value));
     }
 }
 
@@ -181,7 +190,7 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
     task->locals = locals;
-    task->runquota = 1024;
+    task->ticks = 1234;
     trace("new %s", tl_str(task));
 #ifdef HAVE_BOEHMGC
     GC_REGISTER_FINALIZER_NO_ORDER(task, tlTaskFinalize, null, null, null);
@@ -189,29 +198,20 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     return task;
 }
 
-void tlFramePop(tlTask* task, tlFrame* frame);
-INTERNAL tlHandle resumeTaskEval(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
-    if (!res) return null;
-    tlFramePop(task, frame);
-    return tlEval(task, task->value);
+INTERNAL tlHandle resumeTaskEval(tlTask* task, tlFrame* frame, tlHandle value, tlHandle error) {
+    if (!value) return null;
+    tlTaskPopFrame(task, frame);
+    return tlEval(task, value);
 }
+
 void tlTaskEval(tlTask* task, tlHandle v) {
     trace("on %s eval %s", tl_str(task), tl_str(v));
-
-    task->stack = tlFrameAlloc(resumeTaskEval, sizeof(tlFrame));
     task->value = v;
+    tlTaskPushFrame(task, tlFrameAlloc(resumeTaskEval, sizeof(tlFrame)));
 }
 
-tlHandle tlTaskThrow(tlTask* task, tlHandle throw) {
-    // if it is an error object; attach the stack now; TODO this can now be moved back to error.c
-    tlErrorAttachStack(task, throw, task->stack);
-    task->value = null;
-    task->throw = throw;
-    return null;
-}
-
-tlHandle tlTaskThrowTake(tlTask* task, char* str) {
-    return tlTaskThrow(task, tlStringFromTake(str, 0));
+tlHandle tlTaskErrorTake(tlTask* task, char* str) {
+    return tlTaskError(task, tlStringFromTake(str, 0));
 }
 
 bool tlTaskIsDone(tlTask* task) {
@@ -219,15 +219,24 @@ bool tlTaskIsDone(tlTask* task) {
 }
 tlHandle tlTaskGetThrowValue(tlTask* task) {
     assert(tlTaskIsDone(task));
-    return task->throw;
+    if (tlTaskHasError(task)) return task->value;
+    return null;
 }
+
 tlHandle tlTaskGetValue(tlTask* task) {
     assert(task->state >= TL_STATE_WAIT);
+    if (tlTaskHasError(task)) return null;
     return tlFirst(task->value);
 }
+
 void tlTaskSetValue(tlTask* task, tlHandle h) {
     assert(task->state >= TL_STATE_WAIT);
+    assert(!tlTaskHasError(task));
     task->value = h;
+}
+
+tlHandle tlTaskValue(tlTask* task) {
+    return task->value;
 }
 
 void tlTaskEnqueue(tlTask* task, lqueue* q) {
@@ -271,7 +280,7 @@ INTERNAL tlArray* deadlocked(tlTask* task, tlHandle on) {
 tlArray* tlTaskWaitFor(tlTask* task, tlHandle on) {
     assert(tlTaskIs(task));
     assert(task->state == TL_STATE_RUN);
-    assert(task->value || task->throw);
+    assert(task->value);
     trace("%s.value: %s", tl_str(task), tl_str(task->value));
     tlVm* vm = tlTaskGetVm(task);
     task->state = TL_STATE_WAIT;
@@ -347,10 +356,9 @@ void tlTaskStart(tlTask* task) {
 
 void tlTaskCopyValue(tlTask* task, tlTask* other) {
     trace("take value: %s, throw: %s", tl_str(other->value), tl_str(other->throw));
-    assert(task->value || task->throw);
-    assert(!(task->value && task->throw));
+    assert(task->value);
     task->value = other->value;
-    task->throw = other->throw;
+    task->hasError = other->hasError;
     other->read = true;
 }
 
@@ -383,9 +391,9 @@ void tlBlockingTaskDone(tlTask* task);
 INTERNAL tlHandle tlTaskDone(tlTask* task) {
     trace("%s done: %s %s", tl_str(task), tl_str(task->value), tl_str(task->throw));
     assert(!task->stack);
-    assert(!!task->value ^ !!task->throw);
+    assert(task->value);
     assert(task->state = TL_STATE_RUN);
-    task->state = task->throw? TL_STATE_ERROR : TL_STATE_DONE;
+    task->state = tlTaskHasError(task)? TL_STATE_ERROR : TL_STATE_DONE;
     tlVm* vm = tlTaskGetVm(task);
     a_dec(&vm->tasks);
     a_dec(&vm->runnable);
@@ -397,29 +405,24 @@ INTERNAL tlHandle tlTaskDone(tlTask* task) {
     return tlTaskNotRunning;
 }
 
-tlFrame* tlFrameCurrent(tlTask* task) {
+tlFrame* tlTaskCurrentFrame(tlTask* task) {
     return task->stack;
 }
 
-void tlFramePush(tlTask* task, tlFrame* frame) {
+void tlTaskPushFrame(tlTask* task, tlFrame* frame) {
+    assert(!tlTaskHasError(task));
     frame->caller = task->stack;
     task->stack = frame;
 }
 
-void tlFramePushResume(tlTask* task, tlResumeCb resume, tlHandle value) {
-    tlFrame* frame = tlFrameAlloc(resume, sizeof(tlFrame));
-    frame->caller = task->stack;
-    task->stack = frame;
-    task->value = value;
-    task->throw = null;
-}
-
-void tlFramePop(tlTask* task, tlFrame* frame) {
-    if (task->stack != frame) return;
+void tlTaskPopFrame(tlTask* task, tlFrame* frame) {
+    assert(!tlTaskHasError(task));
+    assert(task->stack == frame);
     task->stack = frame->caller;
 }
 
-tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
+tlHandle tlTaskUnwindFrame(tlTask* task, tlFrame* upto, tlHandle value) {
+    assert(!tlTaskHasError(task));
     assert(value);
     assert(task->stack);
 
@@ -427,7 +430,7 @@ tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
     task->stack = null; // to assert more down
     while (frame != upto) {
         assert(frame); // upto must be in our stack
-        trace("UNWINDING: %p.resumecb: %p", frame, frame->resumecb);
+        trace("forcefully unwinding: %p.resumecb: %p %s", frame, frame->resumecb, tl_repr(value));
         if (frame->resumecb) {
             tlHandle res = frame->resumecb(task, frame, null, null);
             assert(!res); // we don't want to see normal returns
@@ -438,10 +441,53 @@ tlHandle tlFrameUnwind(tlTask* task, tlFrame* upto, tlHandle value) {
 
     task->stack = upto;
     task->value = value;
-    task->throw = null;
-    trace("UNWINDING DONE");
+    trace("unwind done");
     return null;
 }
+
+bool tlTaskHasError(tlTask* task) {
+    return task->hasError;
+}
+
+tlHandle tlTaskError(tlTask* task, tlHandle error) {
+    // if it is an error object; attach the stack now; TODO this can now be moved back to error.c
+    tlErrorAttachStack(task, error, task->stack);
+    task->value = error;
+    task->hasError = true;
+    return null;
+}
+
+tlHandle tlTaskClearError(tlTask* task, tlHandle value) {
+    assert(tlTaskHasError(task));
+    task->hasError = false;
+    task->value = value;
+    return null;
+}
+
+bool tlTaskTick(tlTask* task) {
+    task->ticks -= 1;
+    if (task->ticks <= 0) {
+        task->ticks = 1234;
+        return false;
+    }
+    if (task->limit) {
+        if (task->limit == 1) {
+            TL_THROW_SET("Out of quota");
+            return false;
+        }
+        task->limit -= 1;
+    }
+    return true;
+}
+
+void tlFramePushResume(tlTask* task, tlResumeCb resume, tlHandle value) {
+    assert(!tlTaskHasError(task));
+    tlFrame* frame = tlFrameAlloc(resume, sizeof(tlFrame));
+    frame->caller = task->stack;
+    task->stack = frame;
+    task->value = value;
+}
+
 
 // called by ! operator
 INTERNAL tlHandle _Task_new(tlTask* task, tlArgs* args) {
@@ -479,7 +525,7 @@ INTERNAL tlHandle _Task_current(tlTask* task, tlArgs* args) {
 
 INTERNAL tlHandle _Task_stacktrace(tlTask* task, tlArgs* args) {
     int skip = tl_int_or(tlArgsGet(args, 0), 0);
-    return tlStackTraceNew(task, tlFrameCurrent(task), skip);
+    return tlStackTraceNew(task, tlTaskCurrentFrame(task), skip);
 }
 
 INTERNAL tlHandle _Task_bindToThread(tlTask* task, tlArgs* args) {
@@ -534,7 +580,7 @@ INTERNAL tlHandle _task_wait(tlTask* task, tlArgs* args) {
 
     if (tlTaskIsDone(other)) {
         tlTaskCopyValue(task, other);
-        if (task->throw) return tlTaskThrow(task, task->throw);
+        if (tlTaskHasError(task)) return tlTaskError(task, task->value);
         assert(task->value);
         return task->value;
     }
@@ -613,7 +659,6 @@ tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
     // re-init task ...
     task->state = TL_STATE_INIT;
     task->value = null;
-    task->throw = null;
     task->stack = null;
 
     return res;
@@ -680,7 +725,7 @@ void tlDumpTraceEvents(int count);
 
 void tlDumpTaskTrace() {
     tlDumpTraceEvents(100);
-
+/*
     fprintf(stderr, "\nTaskCurrent(); backtrace:\n");
     if (!g_task) return;
     bool dumped = false;
@@ -696,6 +741,7 @@ void tlDumpTaskTrace() {
             dumped = true;
         }
     }
+*/
     fflush(stderr);
 }
 

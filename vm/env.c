@@ -76,7 +76,7 @@ bool tlCodeFrameIs(tlHandle);
 tlObject* tlBEnvLocalObject(tlFrame*);
 static tlHandle _Env_localObject(tlTask* task, tlArgs* args) {
     trace("");
-    return tlBEnvLocalObject(tlFrameCurrent(task));
+    return tlBEnvLocalObject(tlTaskCurrentFrame(task));
 }
 
 INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args);
