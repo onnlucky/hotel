@@ -81,22 +81,11 @@ void tlVmDecExternal(tlVm* vm) {
     if (vm->signalcb) vm->signalcb();
 }
 
-// TODO move most/all structs to some place to include them first
-typedef struct tlCodeFrame {
-    tlFrame frame;
-    tlCode* code;
-    tlEnv* env;
-    tlClosure* handler;
-    int pc;
-} tlCodeFrame;
-
 struct tlWorker {
     tlHead head;
 
     tlVm* vm;
     tlTask* task;
-    // te last codeframe the task is/was executing
-    tlCodeFrame* codeframe;
 
     // when creating a stack, this is the top frame
     tlFrame* top;

@@ -97,11 +97,11 @@ tlHandle tlFirst(tlHandle v) {
     return tlNull;
 }
 
-void tlBFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
+void tlCodeFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
 INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line) {
     assert(file); assert(function); assert(line);
-    if (tlBFrameIs(frame)) {
-        tlBFrameGetInfo(frame, file, function, line);
+    if (tlCodeFrameIs(frame)) {
+        tlCodeFrameGetInfo(frame, file, function, line);
     } else {
         *file = tlStringEmpty();
         *function = _t_native;
@@ -156,7 +156,7 @@ tlString* tltoString(tlHandle v) {
 
 INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args);
 INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
-bool tlBFrameIs(tlHandle);
+bool tlCodeFrameIs(tlHandle);
 
 INTERNAL tlHandle _catch(tlTask* task, tlArgs* args) {
     tlFrame* frame = tlFrameCurrent(task);

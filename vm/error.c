@@ -27,7 +27,7 @@ struct tlUndefined {
     tlStackTrace* trace;
 };
 
-bool tlBFrameIs(tlHandle);
+bool tlCodeFrameIs(tlHandle);
 
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
 INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
@@ -38,7 +38,7 @@ INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
 
     tlFrame* start = null;
     for (tlFrame* frame = stack; frame; frame = frame->caller) {
-        if (tlBFrameIs(frame)) {
+        if (tlCodeFrameIs(frame)) {
             if (skip--) continue;
             start = frame;
             break;

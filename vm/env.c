@@ -72,7 +72,7 @@ tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
     return env;
 }
 
-bool tlBFrameIs(tlHandle);
+bool tlCodeFrameIs(tlHandle);
 tlObject* tlBEnvLocalObject(tlFrame*);
 static tlHandle _Env_localObject(tlTask* task, tlArgs* args) {
     trace("");

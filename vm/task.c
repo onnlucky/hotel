@@ -675,7 +675,7 @@ static void task_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 
-void tlBFrameDump(tlFrame* frame);
+void tlCodeFrameDump(tlFrame* frame);
 void tlDumpTraceEvents(int count);
 
 void tlDumpTaskTrace() {
@@ -691,8 +691,8 @@ void tlDumpTaskTrace() {
         tlFrameGetInfo(frame, &file, &function, &line);
         fprintf(stderr, "%s - %s:%s\n", tl_str(function), tl_str(file), tl_str(line));
 
-        if (!dumped && tlBFrameIs(frame)) {
-            tlBFrameDump(frame);
+        if (!dumped && tlCodeFrameIs(frame)) {
+            tlCodeFrameDump(frame);
             dumped = true;
         }
     }

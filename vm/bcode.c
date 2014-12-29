@@ -56,11 +56,11 @@ TL_REF_TYPE(tlBLazy);
 TL_REF_TYPE(tlBLazyData);
 TL_REF_TYPE(tlBSendToken);
 
-typedef struct tlBFrame tlBFrame;
+typedef struct tlCodeFrame tlCodeFrame;
 
 INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw);
 tlDebugger* tlDebuggerFor(tlTask* task);
-bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame);
+bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlCodeFrame* frame);
 
 // against better judgement, modules are linked by mutating
 struct tlBModule {
@@ -111,15 +111,13 @@ struct tlBClosure {
 };
 
 typedef struct CallEntry { bool safe; bool ccall; int at; tlArgs* call; } CallEntry;
-struct tlBFrame {
-    tlFrame frame;
-    tlArgs* args;
-
-    // mutable! but only by addition ...
-    tlBEnv* locals;
+struct tlCodeFrame {
+    tlFrame frame;    // TODO move resumecb into tlCodeFrameKind
+    tlBEnv* locals;   // locals->args
     tlHandle handler; // stack unwind handler
 
     // save/restore
+    bool lazy;
     int pc;
     CallEntry calls[];
 };
@@ -205,25 +203,27 @@ tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
     return fn;
 }
 
-bool tlBFrameIs(tlHandle v) {
+bool tlCodeFrameIs(tlHandle v) {
     return tlFrameIs(v) && (tlFrameAs(v)->resumecb == resumeBFrame);
 }
-tlBFrame* tlBFrameAs(tlHandle v) {
-    assert(tlBFrameIs(v));
-    return (tlBFrame*)v;
+tlCodeFrame* tlCodeFrameAs(tlHandle v) {
+    assert(tlCodeFrameIs(v));
+    return (tlCodeFrame*)v;
 }
-tlBFrame* tlBFrameCast(tlHandle v) {
-    if (!tlBFrameIs(v)) return null;
-    return (tlBFrame*)v;
+tlCodeFrame* tlCodeFrameCast(tlHandle v) {
+    if (!tlCodeFrameIs(v)) return null;
+    return (tlCodeFrame*)v;
 }
 
-tlBFrame* tlBFrameNew(tlArgs* args) {
-    int calldepth = tlBClosureAs(args->fn)->code->calldepth;
-    tlBFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlBFrame) + sizeof(CallEntry) * calldepth);
-    frame->pc = -1;
-    frame->args = args;
+tlCodeFrame* tlCodeFrameNew(tlArgs* args) {
+    tlBClosure* closure = tlBClosureAs(args->fn);
+    tlBCode* code = closure->code;
+    tlCodeFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlCodeFrame) + sizeof(CallEntry) * code->calldepth);
+    frame->locals = tlBEnvNew(code->localnames, closure->env);
+    frame->locals->args = args;
     return frame;
 }
+
 tlBLazy* tlBLazyNew(tlArgs* args, tlBEnv* locals, int pc) {
     assert(args);
     assert(pc > 0);
@@ -378,7 +378,7 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
 }
 
 tlObject* tlBEnvLocalObject(tlFrame* frame) {
-    tlBEnv* env = tlBFrameAs(frame)->locals;
+    tlBEnv* env = tlCodeFrameAs(frame)->locals;
     tlList* names = env->names;
     tlObject* map = tlObjectNew(0);
     for (int i = 0; i < tlListSize(names); i++) {
@@ -1025,7 +1025,7 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
     return mod;
 }
 
-tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* locals);
+tlHandle beval(tlTask* task, tlCodeFrame* frame, tlArgs* args, int lazypc, tlBEnv* locals);
 
 tlArgs* argsFromBCall(tlArgs* call) {
     return call;
@@ -1187,17 +1187,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     return null;
 }
 
-tlBFrame* tlFrameFor(tlArgs* args) {
-    tlBClosure* closure = tlBClosureAs(args->fn);
-    tlBCode* bcode = closure->code;
-    tlBFrame* frame = tlBFrameNew(args);
-    frame->pc = 0;
-    frame->locals = tlBEnvNew(bcode->localnames, closure->env);
-    frame->locals->args = args;
-    return frame;
-}
-
-tlHandle tlFrameEval(tlTask* task, tlBFrame* frame) {
+tlHandle tlFrameEval(tlTask* task, tlCodeFrame* frame) {
     return beval(task, frame, null, 0, null);
 }
 
@@ -1207,10 +1197,10 @@ tlHandle tlFrameEval(tlTask* task, tlBFrame* frame) {
 static int g_trace_event;
 static int g_trace_pc[TRACE_EVENT_SIZE];
 static tlTask* g_trace_task[TRACE_EVENT_SIZE];
-static tlBFrame* g_trace_frame[TRACE_EVENT_SIZE];
+static tlCodeFrame* g_trace_frame[TRACE_EVENT_SIZE];
 static tlArgs* g_trace_args[TRACE_EVENT_SIZE];
 
-void debug_trace_frame(tlTask* task, tlBFrame* frame, tlArgs* args) {
+void debug_trace_frame(tlTask* task, tlCodeFrame* frame, tlArgs* args) {
     g_trace_event = (g_trace_event + 1) & TRACE_EVENT_MASK;
     g_trace_task[g_trace_event] = task;
     g_trace_pc[g_trace_event] = frame? frame->pc : 0;
@@ -1233,9 +1223,9 @@ void tlDumpTraceEvents(int count) {
     }
 }
 
-void tlBFrameDump(tlFrame* _frame) {
-    tlBFrame* frame = (tlBFrame*)_frame;
-    tlArgs* args = frame->args;
+void tlCodeFrameDump(tlFrame* _frame) {
+    tlCodeFrame* frame = (tlCodeFrame*)_frame;
+    tlArgs* args = frame->locals->args;
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* code = closure->code;
 
@@ -1253,15 +1243,15 @@ void tlBFrameDump(tlFrame* _frame) {
 }
 
 
-tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
+tlHandle beval(tlTask* task, tlCodeFrame* frame, tlArgs* args, int lazypc, tlBEnv* lazylocals) {
     trace("task=%s frame=%s args=%s lazypc=%d lazylocals=%s", tl_str(task), tl_str(frame), tl_str(args), lazypc, tl_str(lazylocals));
     assert(task);
     if (!args) {
         assert(frame);
-        args = frame->args;
+        args = frame->locals->args;
         assert(args);
     }
-    if (!frame && !lazylocals) frame = tlFrameFor(args);
+    if (!frame && !lazylocals) frame = tlCodeFrameNew(args);
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* bcode = closure->code;
     tlBModule* mod = bcode->mod;
@@ -1291,7 +1281,7 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     // 4. we set a method name to a call, and resolving it paused the task; see end of this function
     // 5. we resumed from a debugger
     if (frame && frame->pc != 0) { // 3 or 4 or 5
-        assert(args == frame->args);
+        assert(args == frame->locals->args);
         pc = frame->pc;
         if (pc < 0) {
             pc = -pc;
@@ -1332,9 +1322,10 @@ tlHandle beval(tlTask* task, tlBFrame* frame, tlArgs* args, int lazypc, tlBEnv* 
     }
 
     if (!frame) {
-        frame = tlBFrameNew(args);
+        frame = tlCodeFrameNew(args);
         if (lazylocals) {
             frame->locals = lazylocals;
+            frame->lazy = true;
         } else {
             frame->locals = tlBEnvNew(bcode->localnames, closure->env);
             frame->locals->args = args;
@@ -1722,10 +1713,10 @@ resume:;
 }
 
 // get stack frame info from a single beval frame
-void tlBFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlInt* line) {
-    tlBFrame* frame = tlBFrameAs(_frame);
+void tlCodeFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlInt* line) {
+    tlCodeFrame* frame = tlCodeFrameAs(_frame);
 
-    tlArgs* args = frame->args;
+    tlArgs* args = frame->locals->args;
     assert(args);
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* code = closure->code;
@@ -1742,8 +1733,8 @@ void tlBFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, tlIn
 }
 
 INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameAs(task->stack);
-    tlBCode* code = tlBClosureAs(frame->args->fn)->code;
+    tlCodeFrame* frame = tlCodeFrameAs(task->stack);
+    tlBCode* code = tlBClosureAs(frame->locals->args->fn)->code;
     tlHashMap* res = tlHashMapNew();
 
     const uint8_t* ops = code->code;
@@ -1767,7 +1758,7 @@ INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {
 
 // TODO every env needs an indication of where its was "closed" compared to its parent
 INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameAs(task->stack);
+    tlCodeFrame* frame = tlCodeFrameAs(task->stack);
     tlHashMap* res = tlHashMapNew();
 
     tlBEnv* env = frame->locals;
@@ -1813,7 +1804,7 @@ INTERNAL tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHand
     return beval(task, null, call, 0, null);
 }
 
-INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlBFrame* frame, tlHandle throw) {
+INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle throw) {
     tlHandle handler = frame->handler;
     if (tlBClosureIs(handler)) {
         trace("invoke closure as exception handler: %s %s(%s)", tl_str(frame), tl_str(handler), tl_str(throw));
@@ -1836,7 +1827,7 @@ INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlBFrame* frame, tlHandle thro
 
 INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw) {
     trace("running resuming from a frame: %s res=%s, throw=%s", tl_str(_frame), tl_str(res), tl_str(throw));
-    tlBFrame* frame = tlBFrameAs(_frame);
+    tlCodeFrame* frame = tlCodeFrameAs(_frame);
     if (throw) {
         tlFramePop(task, (tlFrame*)frame);
         if (frame->handler) return handleBFrameThrow(task, frame, throw);
@@ -1895,8 +1886,8 @@ INTERNAL tlHandle _Module_new(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameAs(tlFrameCurrent(task));
-    tlBModule* mod = tlBClosureAs(frame->args->fn)->code->mod;
+    tlCodeFrame* frame = tlCodeFrameAs(tlFrameCurrent(task));
+    tlBModule* mod = tlBClosureAs(frame->locals->args->fn)->code->mod;
     for (int i = 0;; i++) {
         tlHandle data = tlListGet(mod->data, i);
         if (!data) break;
@@ -1920,11 +1911,11 @@ INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
         TL_THROW("frame requires Args as args[2]");
     }
     as->fn = fn;
-    return tlFrameFor(as);
+    return tlCodeFrameNew(as);
 }
 
 INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameCast(tlArgsTarget(args));
+    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
     if (!frame) TL_THROW("run requires a frame");
     if (frame->pc != 0) TL_THROW("cannot reuse frames");
 
@@ -1942,7 +1933,7 @@ INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlHandle _frame_locals(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameCast(tlArgsTarget(args));
+    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
     if (!frame) TL_THROW("run requires a frame");
 
     tlBEnv* env = frame->locals;
@@ -1961,10 +1952,10 @@ INTERNAL tlHandle _frame_locals(tlTask* task, tlArgs* args) {
 // true if last statement is a store
 // TODO can use some work ...
 INTERNAL tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameCast(tlArgsTarget(args));
+    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
     if (!frame) TL_THROW("run requires a frame");
 
-    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
     tlBCode* code = closure->code;
 
     int op = code->code[code->size - 3];
@@ -1992,12 +1983,12 @@ INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
     if (!as) TL_THROW("require an Args or List as args[2], not: %s", tl_str(_as));
 
     tlTask* other = tlTaskCast(tlArgsGet(args, 2));
-    tlBFrame* frame = tlBFrameCast(tlArgsGet(args, 3));
+    tlCodeFrame* frame = tlCodeFrameCast(tlArgsGet(args, 3));
     if (frame && frame->pc != 0) TL_THROW("cannot reuse frames");
     if (!frame) {
         tlBClosure* fn = tlBClosureNew(mod->body, null);
         as->fn = fn; // as is a copy ...
-        frame = tlFrameFor(as);
+        frame = tlCodeFrameNew(as);
     }
     trace("MODULE RUN: %s %s %s", tl_str(other), tl_str(frame), tl_str(as));
 
@@ -2075,29 +2066,30 @@ INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
     trace("RETURN SCOPES: %d", deep);
 
-    // TODO we should return our scoped function, not the first frame ...
+    // create a return value
     tlHandle res = tlNull;
     if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(task));
+    // TODO we should return our scoped function, not the first frame
+    tlCodeFrame* scopeframe = tlCodeFrameAs(tlFrameCurrent(task));
     assert(scopeframe->locals);
-    tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
+    tlBEnv* target = tlBEnvGetParentAt(scopeframe->locals, deep);
 
     tlFrame* frame = (tlFrame*)scopeframe;
     while (frame) {
         trace("%p", frame);
-        if (tlBFrameIs(frame)) {
-            tlBFrame* bframe = tlBFrameAs(frame);
+        if (tlCodeFrameIs(frame)) {
+            tlCodeFrame* bframe = tlCodeFrameAs(frame);
             trace("found a bframe: %s{.pc=%d,.args=%s) env->args=%s", tl_str(bframe), bframe->pc, tl_str(bframe->args), tl_str(bframe->locals->args));
-            // negative pc means a lazy frame, has same locals and bcall as target ... but we ignore it
-            if (bframe->pc > 0 && bframe->args == target) {
+            // lazy frames have same env as target ... but we ignore them
+            if (!bframe->lazy && bframe->locals == target) {
                 scopeframe = bframe;
                 break;
             }
             // we keep track of lexically related frames, for when the to return to target is not on stack (captured blocks)
             if (bframe->locals == scopeframe->locals->parent) {
-                scopeframe = tlBFrameAs(frame);
+                scopeframe = tlCodeFrameAs(frame);
                 trace("found a scope frame: %s.pc=%d (%d)", tl_str(frame), scopeframe->pc, deep);
             }
         }
@@ -2112,29 +2104,30 @@ INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
     trace("GOTO SCOPES: %d", deep);
 
-    // TODO we should return our scoped function, not the first frame ...
+    // create a return value
     tlHandle res = tlNull;
     if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
     if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
 
-    tlBFrame* scopeframe = tlBFrameAs(tlFrameCurrent(task));
+    // TODO we should return our scoped function, not the first frame ...
+    tlCodeFrame* scopeframe = tlCodeFrameAs(tlFrameCurrent(task));
     assert(scopeframe->locals);
-    tlArgs* target = tlBEnvGetParentAt(scopeframe->locals, deep)->args;
+    tlBEnv* target = tlBEnvGetParentAt(scopeframe->locals, deep);
 
     tlFrame* frame = (tlFrame*)scopeframe;
     while (frame) {
         trace("%p", frame);
-        if (tlBFrameIs(frame)) {
-            tlBFrame* bframe = tlBFrameAs(frame);
+        if (tlCodeFrameIs(frame)) {
+            tlCodeFrame* bframe = tlCodeFrameAs(frame);
             trace("found a bframe: %s{.pc=%d,.args=%s) env->args=%s", tl_str(bframe), bframe->pc, tl_str(bframe->args), tl_str(bframe->locals->args));
             // negative pc means a lazy frame, has same locals and bcall as target ... but we ignore it
-            if (bframe->pc > 0 && bframe->args == target) {
+            if (!bframe->lazy && bframe->locals == target) {
                 scopeframe = bframe;
                 break;
             }
             // we keep track of lexically related frames, for when the to return to target is not on stack (captured blocks)
             if (bframe->locals == scopeframe->locals->parent) {
-                scopeframe = tlBFrameAs(frame);
+                scopeframe = tlCodeFrameAs(frame);
                 trace("found a scope frame: %s.pc=%d (%d)", tl_str(frame), scopeframe->pc, deep);
             }
         }
@@ -2151,10 +2144,10 @@ INTERNAL tlHandle _identity(tlTask* task, tlArgs* args) {
 
 INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
     trace("installing exception handler: %s %s", tl_str(_frame), tl_str(handler));
-    tlBFrameAs(_frame)->handler = handler;
+    tlCodeFrameAs(_frame)->handler = handler;
 }
 INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args) {
-    tlBFrame* frame = tlBFrameAs(tlFrameCurrent(task));
+    tlCodeFrame* frame = tlCodeFrameAs(tlFrameCurrent(task));
     tlHandle handler = tlArgsBlock(args);
     if (!handler) handler = tlArgsGet(args, 0);
     if (!handler) handler = tlNull;

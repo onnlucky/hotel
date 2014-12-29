@@ -37,10 +37,10 @@ void tlDebuggerTaskDone(tlDebugger* debugger, tlTask* task) {
     if (debugger->waiter) tlTaskReadyExternal(debugger->waiter);
 }
 
-bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlBFrame* frame) {
+bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlCodeFrame* frame) {
     if (debugger->running) return true;
 
-    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
     const uint8_t* ops = closure->code->code;
     ops = ops + 0;
     trace("step: %d %s", frame->pc, op_name(ops[frame->pc]));
@@ -79,9 +79,9 @@ INTERNAL tlHandle _debugger_detach(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle returnStep(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     tlDebugger* debugger = tlDebuggerCast(res);
     if (debugger && debugger->subject) {
-        tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+        tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
         if (frame) {
-            tlBClosure* closure = tlBClosureAs(frame->args->fn);
+            tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
             const uint8_t* ops = closure->code->code;
             return tlResultFrom(tlSTR(op_name(ops[frame->pc])), tlINT(frame->pc));
         }
@@ -121,10 +121,10 @@ INTERNAL tlHandle _debugger_pos(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (!debugger->subject) return tlNull;
 
-    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
     if (!frame) return tlNull;
 
-    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
 
     tlBDebugInfo* info = closure->code->debuginfo;
     if (!info) return tlNull;
@@ -138,10 +138,10 @@ INTERNAL tlHandle _debugger_op(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (!debugger->subject) return tlNull;
 
-    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
     if (!frame) return tlNull;
 
-    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
     const uint8_t* ops = closure->code->code;
     int pc = frame->pc;
     int op = ops[pc++];
@@ -167,9 +167,9 @@ INTERNAL tlHandle _debugger_call(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (!debugger->subject) return tlNull;
 
-    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
     if (!frame) return tlNull;
-    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
     tlBCode* code = closure->code;
 
     tlArgs* call = null;
@@ -196,9 +196,9 @@ INTERNAL tlHandle _debugger_locals(tlArgs* args) {
     tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
     if (!debugger->subject) return tlNull;
 
-    tlBFrame* frame = tlBFrameCast(debugger->subject->stack);
+    tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
     if (!frame) return tlNull;
-    tlBClosure* closure = tlBClosureAs(frame->args->fn);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
     tlBCode* code = closure->code;
 
     int size = code->locals;
