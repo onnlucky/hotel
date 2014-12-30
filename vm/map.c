@@ -3,7 +3,7 @@
 // Maps are not used often, usually object is used.
 // Maps and Objects share a lot of code and their data structure is basically the same, with two big differences:
 // 1. in user land, objects are accessed using properties, maps using [] and .get() .slice() etc.
-// 2. keys in an object are limited to interned Strings (Symbols)
+// 2. keys in an object are limited to Symbols (interned Strings)
 
 #include "trace-off.h"
 
