@@ -175,7 +175,9 @@ tlObject* tlObjectFrom(const char* n1, tlHandle v1, ...) {
     va_start(ap, v1);
     while (true) {
         const char* n = va_arg(ap, const char*); if (!n) break;
-        tlHandle v = va_arg(ap, tlHandle); assert(v);
+        tlHandle v = va_arg(ap, tlHandle);
+        assert(v);
+        UNUSED(v);
         size++;
     }
     va_end(ap);

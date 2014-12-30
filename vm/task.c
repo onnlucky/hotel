@@ -433,6 +433,7 @@ tlHandle tlTaskUnwindFrame(tlTask* task, tlFrame* upto, tlHandle value) {
         trace("forcefully unwinding: %p.resumecb: %p %s", frame, frame->resumecb, tl_repr(value));
         if (frame->resumecb) {
             tlHandle res = frame->resumecb(task, frame, null, null);
+            UNUSED(res);
             assert(!res); // we don't want to see normal returns
             assert(!task->stack); // we don't want to see a stack being created
         }

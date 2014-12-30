@@ -83,6 +83,8 @@ struct tlBDebugInfo {
     tlList* pos;
 };
 
+enum { kCodeHasLazy = 1 };
+
 struct tlBCode {
     tlHead head;
     tlBModule* mod; // back reference to module it belongs
@@ -286,8 +288,7 @@ bool tlBCallIsLazy(tlArgs* call, int arg) {
     if (!tlBClosureIs(call->fn)) return false;
 
     tlBCode* code = tlBClosureAs(call->fn)->code;
-    // TODO add mark when any arg can be lazy
-    //if (!code->hasLazy) return false;
+    if (!tlflag_isset(code, kCodeHasLazy)) return false;
 
     tlList* names = tlArgsNames(call);
     if (names) {
@@ -577,9 +578,18 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     tlHandle name = readref(buf, data, null);
     if (!tlStringIs(name) || tlNullIs(name)) FAIL("code[1] must be the name (string|null)");
 
+    // TODO would be much better as 3 lists, names, defauls, lazy
     tlHandle argspec = readref(buf, data, null);
     if (!tlListIs(argspec)) FAIL("code[2] must be the argspec (list)");
     bcode->argspec = tlListAs(argspec);
+    // cache hasLazy
+    for (int i = 0, l = tlListSize(bcode->argspec); i < l; i++) {
+        tlHandle spec = tlListGet(bcode->argspec, i);
+        if (!tlListIs(spec)) continue;
+        if (tlListGet(tlListAs(spec), 2) != tlTrue) continue;
+        tlflag_set(bcode, kCodeHasLazy);
+        break;
+    }
 
     tlHandle localnames = readref(buf, data, null);
     if (!tlListIs(localnames)) FAIL("code[3] must be the localnames (list)");
@@ -628,6 +638,7 @@ tlNum* readBignum(tlBuffer* buf, int size, const char** error) {
     if (tlBufferSize(buf) < size) FAIL("not enough data");
     int oldsize = tlBufferSize(buf);
     tlNum* res = tlNumFromBuffer(buf, size);
+    UNUSED(oldsize);
     assert(tlBufferSize(buf) + size == oldsize);
     return res;
 }

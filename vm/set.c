@@ -69,7 +69,7 @@ tlSet* tlSetCopy(tlSet* set, int size) {
 }
 
 int tlSetIndexof2(tlSet* set, tlHandle key) {
-    tlSetAssert(set);
+    //tlSetAssert(set);
     int size = tlSetSize(set);
     if (key == null || size == 0) return -1;
 
