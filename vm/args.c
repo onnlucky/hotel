@@ -130,13 +130,14 @@ tlHandle tlArgsGet(tlArgs* args, int at) {
 
 // also a linear scan
 tlHandle tlArgsGetNamed(tlArgs* args, tlSym name) {
+    assert(tlSymIs_(name));
     assert(tlArgsIs(args));
     tlList* names = tlArgsNames(args);
     trace("%s %s", tl_repr(name), tl_repr(names));
     if (!names) return null;
     int size = tlListSize(names);
     for (int i = 0; i < size; i++) {
-        if (tlHandleEquals(name, tlListGet(names, i))) return args->data[(args->spec & 3) + i];
+        if (name == tlListGet(names, i)) return args->data[(args->spec & 3) + i];
     }
     return null;
 }

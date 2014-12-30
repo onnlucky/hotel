@@ -8,6 +8,7 @@ static tlSym s_block;
 static tlSym s_else;
 
 static tlSym s_this;
+static tlSym s_method;
 static tlSym s_args;
 static tlSym s_continuation;
 static tlSym s_return;
@@ -188,6 +189,7 @@ static void sym_string_init() {
     s_block  = tlSYM("block");
     s_else   = tlSYM("else");
     s_this   = tlSYM("this");
+    s_method = tlSYM("method");
     s_call   = tlSYM("call");
     s_send   = tlSYM("send");
     s_op     = tlSYM("op");

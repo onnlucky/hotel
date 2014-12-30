@@ -256,15 +256,14 @@ tlBSendToken* tlBSendTokenNew(tlSym method, bool safe) {
 
 // TODO instead of argspec as list, do this "raw"
 // TODO speed this up by using an index of sorts
-// TODO remove tlHandleEquals for == when we *finally* have end-to-end symbols
-static int findNamedArg(tlBCode* code, tlHandle name) {
+static int findNamedArg(tlBCode* code, tlSym name) {
     if (!name) return -1;
     int size = tlListSize(code->argspec);
     for (int i = 0; i < size; i++) {
         tlHandle spec = tlListGet(code->argspec, i);
         assert(spec);
         if (spec == tlNull) continue;
-        if (tlHandleEquals(name, tlListGet(tlListAs(spec), 0))) return i; // 0=name 1=default 2=lazy
+        if (name == tlListGet(tlListAs(spec), 0)) return i; // 0=name 1=default 2=lazy
     }
     return -1;
 }
@@ -276,7 +275,7 @@ static bool isNameInCall(tlBCode* code, tlList* names, int arg) {
     if (!name || name == tlNull) return false;
     int size = tlListSize(names);
     for (int i = 0; i < size; i++) {
-        if (tlHandleEquals(name, tlListGet(names, i))) return true;
+        if (name == tlListGet(names, i)) return true;
     }
     return false;
 }
@@ -340,20 +339,20 @@ void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
     tlArgsSet_(call, arg, o);
 }
 
-int tlBCallNameIndex(tlList* names, tlString* name) {
+int tlBCallNameIndex(tlList* names, tlSym name) {
     int size = tlListSize(names);
     for (int i = 0; i < size; i++) {
-        if (tlHandleEquals(name, tlListGet(names, i))) return i;
+        if (name == tlListGet(names, i)) return i;
     }
     return -1;
 }
 
 tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlList* argspec = tlListAs(tlListGet(code->argspec, at));
-    tlString* name = tlStringCast(tlListGet(argspec, 0));
+    tlSym name = tlSymCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
 
-    if (tlStringEquals(name, g_this)) return tlArgsTarget(call);
+    if (name == g_this) return tlMAYBE(tlArgsTarget(call));
 
     tlList* names = tlArgsNames(call);
     if (names) {
@@ -365,7 +364,7 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
 
         int skipped = 0;
         for (int i = 0; i < at; i++) {
-            tlString* name = tlStringCast(tlListGet(tlListGet(code->argspec, i), 0));
+            tlHandle name = tlListGet(tlListGet(code->argspec, i), 0);
             if (tlBCallNameIndex(names, name) < 0) skipped++;
         }
         at = skipped;
@@ -531,17 +530,13 @@ static int readsize(tlBuffer* buf) {
     return decoderef2(buf, tlBufferReadByte(buf));
 }
 
-tlString* readString(tlBuffer* buf, int size, const char** error, tlBModule* mod) {
+tlSym readString(tlBuffer* buf, int size, const char** error, tlBModule* mod) {
     trace("string: %d", size);
     if (tlBufferSize(buf) < size) FAIL("not enough data");
     char *data = malloc_atomic(size + 1);
     tlBufferRead(buf, data, size);
     data[size] = 0;
-    if (mod) {
-        return tlStringFromSym(tlSymFromTake(data, size));
-    } else {
-        return tlStringFromTake(data, size);
-    }
+    return tlSymFromTake(data, size);
 }
 
 tlList* readList(tlBuffer* buf, int size, tlList* data, const char** error) {
@@ -584,11 +579,15 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     bcode->argspec = tlListAs(argspec);
     // cache hasLazy
     for (int i = 0, l = tlListSize(bcode->argspec); i < l; i++) {
-        tlHandle spec = tlListGet(bcode->argspec, i);
-        if (!tlListIs(spec)) continue;
-        if (tlListGet(tlListAs(spec), 2) != tlTrue) continue;
+        tlList* spec = tlListAs(tlListGet(bcode->argspec, i));
+        if (!tl_bool(tlListGet(spec, 2))) continue;
         tlflag_set(bcode, kCodeHasLazy);
+#ifdef HAVE_ASSERT
+        tlHandle name = tlListGet(spec, 0);
+        assert(name == tlNull || tlSymIs_(name));
+#else
         break;
+#endif
     }
 
     tlHandle localnames = readref(buf, data, null);
@@ -1388,8 +1387,14 @@ again:;
         // load names if it is a named call
         if (op & 0x10) {
             int at = pcreadsize(ops, &pc);
-            tlArgsSetNames_(call, tlListAs(tlListGet(data, at)), 0);
-            trace("set names: %s", tl_repr(tlArgsNames(call)));
+            tlList* names = tlListAs(tlListGet(data, at));
+            trace("set names: %s", tl_repr(names));
+            tlArgsSetNames_(call, names, 0);
+#ifdef HAVE_ASSERT
+            for (int i = 0, l = tlListSize(names); i < l; i++) {
+                assert(tlSymIs_(tlListGet(names, i)) || tlListGet(names, i) == tlNull);
+            }
+#endif
         }
         // for non methods, skip target
         if (op & 0x07) {
@@ -2026,11 +2031,12 @@ INTERNAL tlHandle _unknown(tlTask* task, tlArgs* args) {
     return tlUnknown;
 }
 
+// TODO use symbols
 INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
     tlList* links = mod->links;
     for (int i = 0; i < tlListSize(links); i++) {
-        if (tlStringEquals(key, tlListGet(links, i))) {
-            //print("OVERWRITING: %d %s %s", i, tl_str(key), tl_str(value));
+        if (tlHandleEquals(key, tlListGet(links, i))) {
+            trace("OVERWRITING: %d %s %s", i, tl_str(key), tl_str(value));
             tlListSet_(mod->linked, i, value);
             return;
         }
@@ -2168,7 +2174,7 @@ INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
     if (!tlArgsIs(a1)) TL_THROW(".call expects an Args or nothing, not: %s", tl_str(a1));
     tlArgs* from = tlArgsAs(a1);
     tlHandle target = tlArgsGetNamed(args, s_this);
-    tlSym method = tlSymCast(tlArgsGetNamed(args, tlSYM("method")));
+    tlSym method = tlSymCast(tlArgsGetNamed(args, s_method));
 
     int size = tlArgsRawSize(from);
     tlList* names = tlArgsNames(from);

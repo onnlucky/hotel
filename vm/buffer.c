@@ -367,7 +367,7 @@ INTERNAL tlHandle _buffer_find(tlTask* task, tlArgs* args) {
 
     const char* needle = null;
     int needle_len = 0;
-    if (tlStringIs(arg0)) { needle = tlStringData(arg0); needle_len = tlStringSize(arg0); }
+    if (tlStringIs(arg0)) { needle = tlStringData(tlStringAs(arg0)); needle_len = tlStringSize(tlStringAs(arg0)); }
     else if (tlBinIs(arg0)) { needle = tlBinData(arg0); needle_len = tlBinSize(arg0); }
     else if (tlBufferIs(arg0)) { needle = tlBufferData(arg0); needle_len = tlBufferSize(arg0); } // TODO check for locked buffer?!
     if (needle) {
