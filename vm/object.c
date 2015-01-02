@@ -2,9 +2,92 @@
 
 #include "trace-off.h"
 
-tlKind* tlObjectKind;
+tlKind* tlClassKind;
+struct tlClass {
+    tlHead head;
+    tlSym name;
+    tlSet* fields;
+    tlClass* super;
+    tlList* mixins; // a list of tlClasses or objects, while they can extend the functionality, they cannot add state (fields)
+    tlObject* methods;
+    tlObject* statics;
+    tlHandle constructor; // when called as Example()
+};
+
+static tlClass* _tl_class;
+
+tlClass* tlCLASS(const char* name, tlNative* ctor, tlObject* methods, tlObject* statics) {
+    tlClass* cls = tlAlloc(tlClassKind, sizeof(tlClass));
+    cls->name = tlSYM(name);
+    cls->constructor = ctor;
+    cls->methods = methods;
+    cls->statics = statics;
+    return cls;
+}
+
+static tlHandle _Class_name(tlTask* task, tlArgs* args) {
+    tlClass* cls = tlClassAs(tlArgsTarget(args));
+    return cls->name;
+}
+static tlHandle _Class_class(tlTask* task, tlArgs* args) {
+    assert(tlClassIs(tlArgsTarget(args)));
+    return _tl_class;
+}
+
+tlKind _tlClassKind = {
+    .name = "Class",
+    //.hash = classHash,
+    //.equals = classEquals,
+    //.cmp = classCmp,
+};
+
+void class_init() {
+    _tl_class = tlCLASS("Class",
+    null,
+    tlMETHODS(
+        "name", _Class_name,
+        "class", _Class_class,
+        null
+    ),
+    tlMETHODS(
+        null, null
+    ));
+    tlClassKind->cls = _tl_class;
+    tl_register_global("Class", _tl_class);
+}
+
+// resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
+tlHandle classResolve(tlClass* cls, tlSym name) {
+    assert(cls);
+    assert(tl_kind(cls));
+    if (name == s_class) return cls;
+
+    tlClass* super = cls;
+    while (super) {
+        if (super->mixins) {
+            for (int i = 0, l = tlListSize(super->mixins); i < l; i++) {
+                tlHandle m = tlListGet(super->mixins, i);
+                if (tlClassIs(m)) {
+                    tlHandle v = classResolve(m, name);
+                    if (v) return v;
+                } else if (tlObjectIs(m)) {
+                    tlHandle v = tlObjectGet(m, name);
+                    if (v) return v;
+                } else {
+                    assert(false);
+                }
+            }
+        }
+        tlHandle v = tlObjectGet(super->methods, name);
+        if (v) return v;
+        super = super->super;
+    }
+    return null;
+}
+
 static tlSym s_methods;
 
+tlKind* tlObjectKind;
 struct tlObject {
     tlHead head;
     tlSet* keys;
@@ -206,6 +289,10 @@ tlObject* tlObjectFrom(const char* n1, tlHandle v1, ...) {
 }
 
 tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...) {
+    if (!n1) {
+        assert(!fn1);
+        return tlObjectEmpty();
+    }
     va_list ap;
     int size = 1;
 

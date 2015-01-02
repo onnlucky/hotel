@@ -464,6 +464,7 @@ void tl_init() {
     signal(SIGBUS, tlbacktrace_fatal);
     signal(SIGSYS, tlbacktrace_fatal);
 
+    INIT_KIND(tlClassKind);
     INIT_KIND(tlSymKind);
     INIT_KIND(tlStringKind);
     INIT_KIND(tlSetKind);
@@ -488,6 +489,7 @@ void tl_init() {
     list_init();
     set_init();
     object_init();
+    class_init();
     map_init();
 
 

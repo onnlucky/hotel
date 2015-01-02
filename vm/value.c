@@ -46,6 +46,7 @@ double tlIntToDouble(tlHandle v) {
 
 // creating value objects
 tlHandle tlAlloc(tlKind* kind, size_t bytes) {
+    assert(kind);
     assert((((intptr_t)kind) & 0x7) == 0);
     trace("ALLOC: %p %zd", kind, bytes);
     assert(bytes % sizeof(tlHandle) == 0);

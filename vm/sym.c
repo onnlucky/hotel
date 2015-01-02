@@ -211,7 +211,7 @@ static void sym_string_init() {
 
     string_init();
 
-    assert(tlStringKind->klass);
-    tlSymKind->klass = tlStringKind->klass;
+    assert(tlStringKind->cls);
+    tlSymKind->cls = tlStringKind->cls;
 }
 

@@ -149,6 +149,7 @@ TL_REF_TYPE(tlChar);
 TL_REF_TYPE(tlSet);
 TL_REF_TYPE(tlList);
 TL_REF_TYPE(tlObject);
+TL_REF_TYPE(tlClass);
 TL_REF_TYPE(tlMap);
 
 TL_REF_TYPE(tlArgs);
@@ -226,6 +227,8 @@ unsigned int tlHandleHash(tlHandle v);
 bool tlHandleEquals(tlHandle left, tlHandle right);
 tlHandle tlHandleCompare(tlHandle left, tlHandle right);
 
+tlClass* tlCLASS(const char* name, tlNative* ctor, tlObject* methods, tlObject* statics);
+#define tlMETHODS tlClassObjectFrom
 
 // ** text **
 int tlStringSize(tlString* str);
@@ -530,7 +533,9 @@ struct tlKind {
 
     bool locked;       // if the object has a lock, the task will aqcuire the lock
     tlSendFn send;     // if send a message args.this and args.msg are filled in
-    tlObject* klass;      // if send a message, lookup args.msg here and eval its field
+    tlObject* klass;   // if send a message, lookup args.msg here and eval its field
+
+    tlClass* cls;      // the class of this value
 };
 
 // any non-value object will have to be protected from concurrent access

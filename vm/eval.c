@@ -233,6 +233,28 @@ INTERNAL tlHandle _install_global(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _install_constructor(tlTask* task, tlArgs* args) {
+    trace("install %s.constructor = %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
+    tlClass* cls = tlClassCast(tlArgsGet(args, 0));
+    if (!cls) TL_THROW("expected a Class");
+    tlHandle val = tlArgsGet(args, 1);
+    if (!val) TL_THROW("expected a Value");
+    cls->constructor = val;
+    return tlNull;
+}
+
+static tlHandle _install_method(tlTask* task, tlArgs* args) {
+    trace("install: %s.%s = %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)), tl_str(tlArgsGet(args, 2)));
+    tlClass* cls = tlClassCast(tlArgsGet(args, 0));
+    if (!cls) TL_THROW("expected a Class");
+    tlSym sym = tlSymCast(tlArgsGet(args, 1));
+    if (!sym) TL_THROW("expected a Sym");
+    tlHandle val = tlArgsGet(args, 2);
+    if (!val) TL_THROW("expected a Value");
+    tlObjectSet_(cls->methods, sym, val);
+    return tlNull;
+}
+
 static const tlNativeCbs __eval_natives[] = {
     { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
@@ -245,6 +267,8 @@ static const tlNativeCbs __eval_natives[] = {
 
     { "_install", _install },
     { "_install_global", _install_global },
+    { "_install_constructor", _install_constructor },
+    { "_install_method", _install_method },
 
     { "catch", _catch },
 

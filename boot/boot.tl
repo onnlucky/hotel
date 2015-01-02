@@ -364,7 +364,7 @@ toString = o ->
 /// call with numbers, interprets them as letters (unicode points)
 /// call with binaries or buffers, interprets them as utf8 letters
 /// TODO allow configuration on what to do for invalid utf8 and/or invalid unicode points
-_install(String, "call", (new = (->
+_install_constructor(String, (String = (->
     if args.size == 0: return ""
     if args.size == 1: return _str(args[1])
     arr = Array.new
@@ -374,14 +374,14 @@ _install(String, "call", (new = (->
 
 // TODO should have special boot places for string, list and such
 /// String.each: for ever character run block or function given
-_install(String._methods, "times", (times = (n ->
+_install_method(String, "times", (times = (n ->
     arr = Array.new
     n.times: arr.add(this)
     arr.join("")
 )))
-_install(String._methods, "each", _each)
-_install(String._methods, "map", _map)
-_install(String._methods, "random", _get_random)
+_install_method(String, "each", _each)
+_install_method(String, "map", _map)
+_install_method(String, "random", _get_random)
 
 _install(Bin._methods, "find", _find)
 _install(Bin._methods, "each", _each)
@@ -389,9 +389,9 @@ _install(Bin._methods, "map", _map)
 _install(Bin._methods, "random", _get_random)
 
 /// String.split: split the string wherever args[1] occurs, returns a list of string fragments
-_install(String._methods, "split", _split)
+_install_method(String, "split", _split)
 /// String.replace: replace all occurances of args[1] with args[2], returns a new "String"
-_install(String._methods, "replace", (replace = (from, to ->
+_install_method(String, "replace", (replace = (from, to ->
     if from.size == 0: return this
     if not this.find(from): return this
     return this.split(from).join(to)
@@ -649,7 +649,7 @@ _eval = env/*env*/ ->
     {                       }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).run()
 
 /// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
-_install(String._methods, "eval", _eval)
+_install_method(String, "eval", _eval)
 
 test "eval":
     "x = 42\nreturn x".eval == 42

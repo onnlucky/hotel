@@ -650,8 +650,8 @@ static tlKind _tlStringKind = {
 };
 
 static void string_init() {
-    _tl_emptyString = tlSTR("");
-    tlStringKind->klass = tlClassObjectFrom(
+    tlClass* cls = tlCLASS("String", null,
+    tlMETHODS(
         "class", null,
         "toString", _string_toString,
         "toSym", _string_toSym,
@@ -679,17 +679,13 @@ static void string_init() {
         "replace", null,
         "eval", null,
         null
-    );
-    tlObject* constructor = tlClassObjectFrom(
-        "class", null,
-        "call", null,
+    ), tlMETHODS(
         "cat", _String_cat,
-        "_methods", null,
         null
-    );
-    tlObjectSet_(constructor, s_class, tlObjectFrom("name", tlSYM("String"), null));
-    tlObjectSet_(tlStringKind->klass, s_class, constructor);
-    tlObjectSet_(constructor, s__methods, tlStringKind->klass);
-    tl_register_global("String", constructor);
+    ));
+    tlStringKind->cls = cls;
+    tl_register_global("String", cls);
+
+    _tl_emptyString = tlSTR("");
 }
 

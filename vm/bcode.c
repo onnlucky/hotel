@@ -1107,6 +1107,12 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         tlKind* kind = tl_kind(fn);
         if (kind->run) return kind->run(task, fn, args);
     }
+    if (tlClassIs(fn)) {
+        tlHandle ctor = tlClassAs(fn)->constructor;
+        // TODO this is not a nice way of forwarding args
+        call->fn = ctor;
+        return tlInvoke(task, call);
+    }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
@@ -1197,6 +1203,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     tlKind* kind = tl_kind(target);
     if (kind->send) return tlBSendTokenNew(method, safe);
     if (kind->klass) return objectResolve(kind->klass, method);
+    if (kind->cls) return classResolve(kind->cls, method);
     return null;
 }
 
