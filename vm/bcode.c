@@ -1025,12 +1025,14 @@ exit:;
 }
 
 #include "trace-off.h"
-tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error) {
+tlBModule* tlBModuleLink(tlBModule* mod, tlObject* env, const char** error) {
     trace("linking: %p", mod);
     mod->linked = tlListNew(tlListSize(mod->links));
     for (int i = 0; i < tlListSize(mod->links); i++) {
         tlHandle name = tlListGet(mod->links, i);
-        tlHandle v = tlEnvGet(env, tlSymFromString(name));
+        assert(tlSymIs_(name));
+        tlHandle v = tlObjectGet(env, name);
+        if (!v) v = tl_global(name);
         if (!v) v = tlNull; // TODO tlUndef
         trace("linking: %s as %s", tl_str(name), tl_str(v));
         tlListSet_(mod->linked, i, v);
@@ -1777,22 +1779,22 @@ INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
         env = env->parent;
     }
 
-    tlObject* oop = tlEnvGetMap(tlVmGlobalEnv(tlVmCurrent(task)));
+    tlObject* gs = tlVmGlobals(tlVmCurrent(task));
     for (int i = 0;; i++) {
-        tlHandle key;
-        tlHandle value;
-        if (!tlObjectKeyValueIter(oop, i, &key, &value)) break;
-        if (tlHashMapGet(res, key)) continue;
-        tlHashMapSet(res, key, value);
+        tlHandle key = null;
+        tlHandle value = null;
+        tlObjectKeyValueIter(gs, i, &key, &value);
+        if (!key) break;
+        if (!tlHashMapGet(res, key)) tlHashMapSet(res, key, value);
     }
 
     LHashMapIter* iter = lhashmapiter_new(globals);
     for (int i = 0;; i++) {
-        tlHandle key = null;
+        void* key = null;
         tlHandle value = null;
         lhashmapiter_get(iter, &key, &value);
         if (!key) break;
-        key = tlSYM(key);
+        key = tlSYM((const char*)key);
         if (!tlHashMapGet(res, key)) tlHashMapSet(res, key, value);
         lhashmapiter_next(iter);
     }
@@ -2030,6 +2032,7 @@ INTERNAL tlHandle _module_link(tlTask* task, tlArgs* args) {
     if (!links) TL_THROW("expect a list as args[2]");
     if (tlListSize(links) != tlListSize(mod->links)) TL_THROW("arg[2].size != module.links.size");
 
+    trace("link: %s", tl_repr(links));
     mod->linked = links;
     return mod;
 }

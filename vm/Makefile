@@ -7,8 +7,8 @@ TEST_SOURCES:=$(shell echo *_test.c)
 TESTS:=$(TEST_SOURCES:.c=.o)
 
 run: args_test number_test hashmap_test
-	#./args_test
-	#./number_test
+	./args_test
+	./number_test
 	./hashmap_test
 
 args_test: args_test.c ../libtl.a Makefile *.h

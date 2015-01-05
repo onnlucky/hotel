@@ -37,7 +37,7 @@ struct tlVm {
     a_val runnable;
     a_val waitevent; // external events ...
 
-    tlEnv* globals;
+    tlObject* globals; // all globals in the default env
     tlObject* locals; // default task locals
 
     // to wake up select
@@ -84,16 +84,10 @@ void tlVmDecExternal(tlVm* vm) {
 struct tlWorker {
     tlHead head;
 
+    // the vm this worker belongs to
     tlVm* vm;
+    // the current task it is processing, null if none
     tlTask* task;
-
-    // when creating a stack, this is the top frame
-    tlFrame* top;
-
-    // when _eval, this is where we can fish back the last env
-    // TODO does that actually work? I don't think so ...
-    tlArgs* evalArgs;
-    tlEnv* evalEnv;
 
     // for bound tasks, when task is not running, thread will wait
     pthread_mutex_t* lock;
@@ -103,10 +97,10 @@ struct tlWorker {
 bool tlWorkerIsBound(tlWorker* worker) {
     return worker->lock != null;
 }
+
 void tlWorkerSignal(tlWorker* worker) {
     pthread_cond_signal(worker->signal);
 }
-
 
 // this will run a bound task until that task is done, waiting if necesairy (or the vm has stopped)
 void tlWorkerRunBound(tlWorker* worker) {

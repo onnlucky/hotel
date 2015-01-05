@@ -579,6 +579,8 @@ assert [3000, 19, 10, 99].sort[1] == 10
 
 compiler = (
     _env = _env_current()
+    assert _env["Array"]
+    assert _env["Arra" + "y"]
     bcode = _vm_get_compiler()
     // TODO somehow this name leaks into the global env below ... that must not be!
     _mod = _Module_new(bcode, "<compiler>")

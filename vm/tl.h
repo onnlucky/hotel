@@ -155,7 +155,6 @@ TL_REF_TYPE(tlMap);
 TL_REF_TYPE(tlArgs);
 TL_REF_TYPE(tlResult);
 
-TL_REF_TYPE(tlEnv);
 TL_REF_TYPE(tlFrame);
 
 TL_REF_TYPE(tlNative);
@@ -330,9 +329,12 @@ tlVm* tlVmNew();
 tlBuffer* tlVmGetBoot();
 tlBuffer* tlVmGetCompiler();
 void tlVmInitDefaultEnv(tlVm* vm);
-void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v);
 void tlVmDelete(tlVm* vm);
 int tlVmExitCode(tlVm* vm);
+
+tlHandle tlVmGlobalGet(tlVm* vm, tlSym key);
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v);
+tlObject* tlVmGlobals(tlVm* vm);
 
 // register an external "task" as still running
 void tlVmIncExternal(tlVm* vm);
@@ -361,6 +363,8 @@ tlTask* tlEvalCode(tlVm* vm, tlString* code, tlArgs* as);
 bool tlTaskIsDone(tlTask* task);
 tlHandle tlTaskGetThrowValue(tlTask* task);
 tlHandle tlTaskGetValue(tlTask* task);
+bool tlTaskHasError(tlTask* task);
+tlHandle tlTaskValue(tlTask* task);
 
 void tlTaskEnqueue(tlTask* task, lqueue* q);
 tlTask* tlTaskDequeue(lqueue* q);
@@ -478,15 +482,6 @@ tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
 // create objects with only native functions (to use as classes)
 tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...);
 
-
-// ** environment (scope) **
-tlEnv* tlEnvNew(tlEnv* parent);
-tlObject* tlEnvGetMap(tlEnv* env);
-tlHandle tlEnvGet(tlEnv* env, tlSym key);
-tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v);
-
-tlEnv* tlVmGlobalEnv(tlVm* vm);
-
 tlWorker* tlWorkerCurrent();
 
 tlWorker* tlWorkerNew(tlVm* vm);
@@ -602,7 +597,7 @@ tlMap* tlHashMapToMap(tlHashMap* map);
 // ** running code **
 
 tlBModule* tlBModuleFromBuffer(tlBuffer* buf, tlString* name, const char** error);
-tlBModule* tlBModuleLink(tlBModule* mod, tlEnv* env, const char** error);
+tlBModule* tlBModuleLink(tlBModule* mod, tlObject* env, const char** error);
 tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args);
 void tlVmRun(tlVm* vm, tlTask* task);
 

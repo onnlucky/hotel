@@ -7,6 +7,7 @@
 static tlKind _tlEnvKind = { .name = "Environment" };
 tlKind* tlEnvKind;
 
+TL_REF_TYPE(tlEnv);
 struct tlEnv {
     tlHead head;
 

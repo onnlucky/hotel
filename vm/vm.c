@@ -530,7 +530,7 @@ tlVm* tlVmNew() {
     srandom(time(NULL));
     tlVm* vm = tlAlloc(tlVmKind, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
-    vm->globals = tlEnvNew(null);
+    vm->globals = tlObjectEmpty();
 
     error_vm_default(vm);
     env_vm_default(vm);
@@ -587,11 +587,18 @@ INTERNAL tlHandle _set_exitcode(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v) {
-    vm->globals = tlEnvSet(vm->globals, key, v);
+tlHandle tlVmGlobalGet(tlVm* vm, tlSym key) {
+    return tlObjectGet(vm->globals, key);
 }
 
-tlEnv* tlVmGlobalEnv(tlVm* vm) {
+void tlVmGlobalSet(tlVm* vm, tlSym key, tlHandle v) {
+    assert(tlSymIs_(key));
+    trace("%s = %s", tl_str(key), tl_str(v));
+    vm->globals = tlObjectSet(vm->globals, key, v);
+    assert(tlVmGlobalGet(vm, key) == v);
+}
+
+tlObject* tlVmGlobals(tlVm* vm) {
     return vm->globals;
 }
 
@@ -615,7 +622,7 @@ tlTask* tlVmEvalBootBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* ar
     if (error) fatal("error booting: %s", error);
     g_boot_module = mod;
 
-    tlBModuleLink(mod, tlVmGlobalEnv(vm), &error);
+    tlBModuleLink(mod, tlVmGlobals(vm), &error);
     if (error) fatal("error linking boot: %s", error);
 
     tlTask* task = tlBModuleCreateTask(vm, mod, args);

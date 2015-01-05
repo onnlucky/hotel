@@ -45,7 +45,7 @@ struct tlTask {
     tlHandle waiting;   // a single tlTask* or a tlQueue* with many waiting tasks
     tlHandle waitFor;   // what this task is blocked on
 
-    tlObject* locals;     // task local storage, for cwd, stdout etc ...
+    tlObject* locals;   // task local storage, for cwd, stdout etc ...
     tlHandle value;     // current value
     tlFrame* stack;     // current frame (== top of stack or current continuation)
 

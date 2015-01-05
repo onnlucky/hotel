@@ -37,8 +37,20 @@ int main(int argc, char** argv) {
     if (!buf) fatal("unable to load: %s", boot);
 
     tlTask* task = tlVmEvalBootBuffer(vm, buf, boot, args);
-    tlHandle h = tlTaskGetValue(task);
-    if (tl_bool(h)) printf("%s\n", tl_str(h));
+    tlHandle h = tlTaskValue(task);
+    if (tlTaskHasError(task)) {
+        if (tlStringIs(h)) {
+            printf("Error: %s\n", tl_str(h));
+        } else {
+            printf("Error: %s\n", tl_repr(h));
+        }
+    } else {
+        if (tlStringIs(h)) {
+            printf("%s\n", tl_str(h));
+        } else if (tl_bool(h)) {
+            if (tl_bool(h)) printf("%s\n", tl_repr(h));
+        }
+    }
 
     int exitcode = tlVmExitCode(vm);
     tlVmDelete(vm);
