@@ -31,10 +31,10 @@
 #include "task.c"
 #include "lock.c"
 #include "mutable.c"
-#include "env.c"
 #include "eval.c"
 
 #include "bcode.c"
+#include "env.c"
 #include "debugger.c"
 
 #include "var.c"

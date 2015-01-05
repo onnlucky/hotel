@@ -1,4 +1,5 @@
 #include "bcode.h"
+#include "env.h"
 #include "task.h"
 #include "trace-off.h"
 
@@ -51,13 +52,10 @@ const char* op_name(uint8_t op) {
 
 TL_REF_TYPE(tlBDebugInfo);
 TL_REF_TYPE(tlBCode);
-TL_REF_TYPE(tlBEnv);
 TL_REF_TYPE(tlBClosure);
 TL_REF_TYPE(tlBLazy);
 TL_REF_TYPE(tlBLazyData);
 TL_REF_TYPE(tlBSendToken);
-
-typedef struct tlCodeFrame tlCodeFrame;
 
 INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw);
 tlDebugger* tlDebuggerFor(tlTask* task);
@@ -99,24 +97,16 @@ struct tlBCode {
     const uint8_t* code;
 };
 
-struct tlBEnv {
-    tlHead head;
-    tlBEnv* parent;
-    tlArgs* args;
-    tlList* names;
-    tlHandle data[];
-};
-
 struct tlBClosure {
     tlHead head;
     tlBCode* code;
-    tlBEnv* env;
+    tlEnv* env;
 };
 
 typedef struct CallEntry { bool safe; bool ccall; int at; tlArgs* call; } CallEntry;
 struct tlCodeFrame {
     tlFrame frame;    // TODO move resumecb into tlCodeFrameKind
-    tlBEnv* locals;   // locals->args
+    tlEnv* locals;    // locals->args
     tlHandle handler; // stack unwind handler
 
     // save/restore
@@ -128,7 +118,7 @@ struct tlCodeFrame {
 struct tlBLazy {
     tlHead head;
     tlArgs* args;
-    tlBEnv* locals;
+    tlEnv* locals;
     int pc; // where the actuall call is located in the code
 };
 struct tlBLazyData {
@@ -149,9 +139,6 @@ tlKind* tlBDebugInfoKind;
 
 static tlKind _tlBCodeKind = { .name = "BCode" };
 tlKind* tlBCodeKind;
-
-static tlKind _tlBEnvKind = { .name = "BEnv" };
-tlKind* tlBEnvKind;
 
 static tlKind _tlBClosureKind = { .name = "BClosure" };
 tlKind* tlBClosureKind;
@@ -189,17 +176,11 @@ tlBCode* tlBCodeNew(tlBModule* mod) {
     code->mod = mod;
     return code;
 }
-tlBEnv* tlBEnvNew(tlList* names, tlBEnv* parent) {
-    tlBEnv* env = tlAlloc(tlBEnvKind, sizeof(tlBEnv) + sizeof(tlHandle) * tlListSize(names));
-    env->names = names;
-    env->parent = parent;
-    return env;
-}
 tlString* tlBCodeName(tlBCode* code) {
     if (code->debuginfo) return code->debuginfo->name;
     return null;
 }
-tlBClosure* tlBClosureNew(tlBCode* code, tlBEnv* env) {
+tlBClosure* tlBClosureNew(tlBCode* code, tlEnv* env) {
     tlBClosure* fn = tlAlloc(tlBClosureKind, sizeof(tlBClosure));
     fn->code = code;
     fn->env = env;
@@ -218,12 +199,12 @@ tlCodeFrame* tlCodeFrameCast(tlHandle v) {
     return (tlCodeFrame*)v;
 }
 
-tlCodeFrame* tlCodeFrameNew(tlArgs* args, tlBEnv* locals) {
+tlCodeFrame* tlCodeFrameNew(tlArgs* args, tlEnv* locals) {
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* code = closure->code;
     tlCodeFrame* frame = tlFrameAlloc(resumeBFrame, sizeof(tlCodeFrame) + sizeof(CallEntry) * code->calldepth);
     if (!locals) {
-        frame->locals = tlBEnvNew(code->localnames, closure->env);
+        frame->locals = tlEnvNew(code->localnames, closure->env);
         frame->locals->args = args;
     } else {
         frame->locals = locals;
@@ -231,7 +212,11 @@ tlCodeFrame* tlCodeFrameNew(tlArgs* args, tlBEnv* locals) {
     return frame;
 }
 
-tlBLazy* tlBLazyNew(tlArgs* args, tlBEnv* locals, int pc) {
+tlEnv* tlCodeFrameEnv(tlFrame* frame) {
+    return tlCodeFrameAs(frame)->locals;
+}
+
+tlBLazy* tlBLazyNew(tlArgs* args, tlEnv* locals, int pc) {
     assert(args);
     assert(pc > 0);
     tlBLazy* lazy = tlAlloc(tlBLazyKind, sizeof(tlBLazy));
@@ -380,65 +365,6 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     if (lazy) return tlBLazyDataNew(v);
     if (!v) return tlNull;
     return v;
-}
-
-tlObject* tlBEnvLocalObject(tlFrame* frame) {
-    tlBEnv* env = tlCodeFrameAs(frame)->locals;
-    tlList* names = env->names;
-    tlObject* map = tlObjectNew(0);
-    for (int i = 0; i < tlListSize(names); i++) {
-        if (!names) continue;
-        tlHandle name = tlListGet(names, i);
-        tlHandle v = env->data[i];
-        trace("env locals: %s=%s", tl_str(name), tl_str(v));
-        if (!name) continue;
-        if (!v) continue;
-        map = tlObjectSet(map, tlSymAs(name), env->data[i]);
-    }
-
-    tlArgs* args = env->args;
-    tlList* argspec = tlBClosureAs(args->fn)->code->argspec;
-    for (int i = 0; i < tlListSize(argspec); i++) {
-        tlHandle name = tlListGet(tlListGet(argspec, i), 0);
-        tlHandle v = tlBCallGetExtra(args, i, tlBClosureAs(args->fn)->code);
-        trace("args locals: %s=%s", tl_str(name), tl_str(v));
-        if (!name) continue;
-        if (!v) continue;
-        map = tlObjectSet(map, tlSymAs(name), v);
-    }
-
-    if (tlArgsTarget(args)) {
-        tlHandle methods = tlObjectGetSym(tlArgsTarget(args), s_methods);
-        if (methods) map = tlObjectSet(map, s_class, methods);
-    }
-
-    assert(map != tlObjectEmpty());
-    map = tlObjectToObject_(map);
-    assert(tlObjectIs(map));
-    return map;
-}
-
-tlHandle tlBEnvGet(tlBEnv* env, int at) {
-    assert(tlBEnvIs(env));
-    assert(at >= 0 && at <= tlListSize(env->names));
-    return env->data[at];
-}
-tlHandle tlBEnvSet_(tlBEnv* env, int at, tlHandle value) {
-    assert(tlBEnvIs(env));
-    assert(at >= 0 && at <= tlListSize(env->names));
-    return env->data[at] = value;
-}
-tlBEnv* tlBEnvGetParentAt(tlBEnv* env, int depth) {
-    assert(tlBEnvIs(env));
-    if (depth == 0) return env;
-    if (env == null) return null;
-    return tlBEnvGetParentAt(env->parent, depth - 1);
-}
-tlHandle tlBEnvArgGet(tlBEnv* env, int at) {
-    assert(tlBEnvIs(env));
-    assert(env->args);
-    assert(at >= 0);
-    return tlBCallGetExtra(env->args, at, tlBClosureAs(env->args->fn)->code);
 }
 
 #include "trace-off.h"
@@ -1124,7 +1050,7 @@ tlHandle tlEval(tlTask* task, tlHandle v) {
     return v;
 }
 
-static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlArgs* args, tlBEnv* locals) {
+static tlBLazy* create_lazy(const uint8_t* ops, const int len, int* ppc, tlArgs* args, tlEnv* locals) {
     // match CALLs with INVOKEs and wrap it for later execution
     // notice bytecode vs literals are such that OP_CALL cannot appear in literals
     int pc = *ppc;
@@ -1260,7 +1186,7 @@ void tlCodeFrameDump(tlFrame* _frame) {
     print("locals: %d", tlListSize(code->localnames));
     for (int local = 0; local < tlListSize(code->localnames); local++) {
         tlHandle name = tlListGet(code->localnames, local);
-        print("  %d(%s) = %s", local, tl_str(name), tl_repr(tlBEnvGet(frame->locals, local)));
+        print("  %d(%s) = %s", local, tl_str(name), tl_repr(tlEnvGet(frame->locals, local)));
     }
 }
 
@@ -1463,7 +1389,7 @@ again:;
             at = pcreadsize(ops, &pc);
             //tlHandle n = tlListGet(data, at);
             //if (n == s_createobject) {
-            v = tlBEnvLocalObject((tlFrame*)frame);
+            v = tlEnvLocalObject((tlFrame*)frame);
             //}
             //fatal("syscall: %s", tl_str(n));
             break;
@@ -1489,8 +1415,8 @@ again:;
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
-            v = tlBEnvArgGet(parent, at);
+            tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
+            v = tlEnvGetArg(parent, at);
             assert(v);
             trace("envarg[%d][%d] -> %s", depth, at, tl_str(v));
             break;
@@ -1499,9 +1425,9 @@ again:;
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            v = tlBEnvGet(parent, at);
+            v = tlEnvGet(parent, at);
             assert(v);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
@@ -1524,7 +1450,7 @@ again:;
             break;
         case OP_ENVARGS: {
             depth = pcreadsize(ops, &pc);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             v = argsFromBCall(parent->args);
             assert(v);
             trace("envargs[%d] -> %s", depth, tl_str(v));
@@ -1533,7 +1459,7 @@ again:;
         case OP_THIS: {
             // TODO is this needed, compiler can figure out the exact this
             v = tlArgsTarget(args);
-            tlBEnv* env = frame->locals;
+            tlEnv* env = frame->locals;
             trace("this: %s (%s)", tl_str(args), tl_str(v));
             while (!v && env) {
                 env = env->parent;
@@ -1545,7 +1471,7 @@ again:;
         }
         case OP_ENVTHIS: {
             depth = pcreadsize(ops, &pc);
-            tlBEnv* env = tlBEnvGetParentAt(closure->env, depth);
+            tlEnv* env = tlEnvGetParentAt(closure->env, depth);
             v = tlArgsTarget(env->args);
             trace("this: %s (%s)", tl_str(args), tl_str(v));
             while (!v && env) {
@@ -1605,9 +1531,9 @@ again:;
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            v = tlBEnvGet(parent, at);
+            v = tlEnvGet(parent, at);
             assert(v);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
@@ -1616,9 +1542,9 @@ again:;
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            tlBEnvSet_(parent, at, v);
+            tlEnvSet_(parent, at, v);
             trace("env[%d][%d] <- %s", depth, at, tl_str(v));
             break;
         }
@@ -1628,9 +1554,9 @@ again:;
             depth = pcreadsize(ops, &pc);
             at = pcreadsize(ops, &pc);
             assert(depth >= 0 && at >= 0);
-            tlBEnv* parent = tlBEnvGetParentAt(closure->env, depth);
+            tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            tlBEnvSet_(parent, at, res);
+            tlEnvSet_(parent, at, res);
             trace("env[%d][%d] <- %s (%d %s)", depth, at, tl_str(res), rat, tl_str(v));
             break;
         }
@@ -1767,7 +1693,7 @@ INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameAs(task->stack);
     tlHashMap* res = tlHashMapNew();
 
-    tlBEnv* env = frame->locals;
+    tlEnv* env = frame->locals;
     while (env) {
         for (int i = tlListSize(env->names) - 1; i >= 0; i--) {
             tlHandle name = tlListGet(env->names, i);
@@ -1951,7 +1877,7 @@ INTERNAL tlHandle _frame_locals(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
     if (!frame) TL_THROW("run requires a frame");
 
-    tlBEnv* env = frame->locals;
+    tlEnv* env = frame->locals;
     tlList* names = env->names;
     tlObject* map = tlObjectNew(0);
     for (int i = 0; i < tlListSize(names); i++) {
@@ -2092,7 +2018,7 @@ INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
     // TODO we should return our scoped function, not the first frame
     tlCodeFrame* scopeframe = tlCodeFrameAs(tlTaskCurrentFrame(task));
     assert(scopeframe->locals);
-    tlBEnv* target = tlBEnvGetParentAt(scopeframe->locals, deep);
+    tlEnv* target = tlEnvGetParentAt(scopeframe->locals, deep);
 
     tlFrame* frame = (tlFrame*)scopeframe;
     while (frame) {
@@ -2130,7 +2056,7 @@ INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
     // TODO we should return our scoped function, not the first frame ...
     tlCodeFrame* scopeframe = tlCodeFrameAs(tlTaskCurrentFrame(task));
     assert(scopeframe->locals);
-    tlBEnv* target = tlBEnvGetParentAt(scopeframe->locals, deep);
+    tlEnv* target = tlEnvGetParentAt(scopeframe->locals, deep);
 
     tlFrame* frame = (tlFrame*)scopeframe;
     while (frame) {
@@ -2294,7 +2220,6 @@ void bcode_init() {
     INIT_KIND(tlBModuleKind);
     INIT_KIND(tlBDebugInfoKind);
     INIT_KIND(tlBCodeKind);
-    INIT_KIND(tlBEnvKind);
     INIT_KIND(tlBClosureKind);
     INIT_KIND(tlBLazyKind);
     INIT_KIND(tlBLazyDataKind);

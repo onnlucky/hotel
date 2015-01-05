@@ -1,86 +1,87 @@
-// environment (scope) management for hotel; mapping names to values
+// environment (scope) management for hotel
 
-// environments start out mutable, but close as soon as they are read from
+#include "env.h"
+#include "bcode.h"
 
 #include "trace-off.h"
 
-static tlKind _tlEnvKind = { .name = "Environment" };
+static tlKind _tlEnvKind = { .name = "Env" };
 tlKind* tlEnvKind;
 
-TL_REF_TYPE(tlEnv);
-struct tlEnv {
-    tlHead head;
-
-    tlEnv* parent;
-    tlEnv* future; // when a closed environment is captured, the future is used
-    tlArgs* args;
-    tlObject* map;
-};
-
-tlEnv* tlEnvNew(tlEnv* parent) {
-    tlEnv* env = tlAlloc(tlEnvKind, sizeof(tlEnv));
-    trace("env new parent: %p, new: %p", parent, env);
+tlEnv* tlEnvNew(tlList* names, tlEnv* parent) {
+    tlEnv* env = tlAlloc(tlEnvKind, sizeof(tlEnv) + sizeof(tlHandle) * tlListSize(names));
+    env->names = names;
     env->parent = parent;
-    env->map = tlObjectEmpty();
     return env;
 }
 
-tlEnv* tlEnvCopy(tlEnv* env) {
-    if (env->future) {
-        // TODO this looks good, but probably setting it to null means under continuations or other
-        // scenario's it might not work right, and it is not thread safe
-        tlEnv* future = env->future;
-        env->future = null;
-        return future;
-    }
-    tlEnv* nenv = tlEnvNew(env->parent);
-    trace("env copy from: %p, parent: %p, new: %p", env, env->parent, nenv);
-    nenv->args = env->args;
-    nenv->map = env->map;
-    return nenv;
-}
-tlObject* tlEnvGetMap(tlEnv* env) {
-    return env->map;
-}
-tlHandle tlEnvGet(tlEnv* env, tlSym key) {
-    assert(tlSymIs_(key));
-    if (!env) {
-        return tl_global(key);
-        return null;
+tlObject* tlEnvLocalObject(tlFrame* frame) {
+    tlEnv* env = tlCodeFrameEnv(frame);
+    tlList* names = env->names;
+    tlObject* map = tlObjectNew(0);
+    for (int i = 0; i < tlListSize(names); i++) {
+        if (!names) continue;
+        tlHandle name = tlListGet(names, i);
+        tlHandle v = env->data[i];
+        trace("env locals: %s=%s", tl_str(name), tl_str(v));
+        if (!name) continue;
+        if (!v) continue;
+        map = tlObjectSet(map, tlSymAs(name), env->data[i]);
     }
 
+    tlArgs* args = env->args;
+    tlList* argspec = tlBClosureAs(args->fn)->code->argspec;
+    for (int i = 0; i < tlListSize(argspec); i++) {
+        tlHandle name = tlListGet(tlListGet(argspec, i), 0);
+        tlHandle v = tlBCallGetExtra(args, i, tlBClosureAs(args->fn)->code);
+        trace("args locals: %s=%s", tl_str(name), tl_str(v));
+        if (!name) continue;
+        if (!v) continue;
+        map = tlObjectSet(map, tlSymAs(name), v);
+    }
+
+    if (tlArgsTarget(args)) {
+        tlHandle methods = tlObjectGetSym(tlArgsTarget(args), s_methods);
+        if (methods) map = tlObjectSet(map, s_class, methods);
+    }
+
+    assert(map != tlObjectEmpty());
+    map = tlObjectToObject_(map);
+    assert(tlObjectIs(map));
+    return map;
+}
+
+tlHandle tlEnvGet(tlEnv* env, int at) {
     assert(tlEnvIs(env));
-    trace("%p.get %s", env, tl_str(key));
-
-    if (env->map) {
-        tlHandle v = tlObjectGetSym(env->map, key);
-        if (v) return v;
-    }
-    return tlEnvGet(env->parent, key);
+    assert(at >= 0 && at <= tlListSize(env->names));
+    return env->data[at];
 }
 
-tlEnv* tlEnvSet(tlEnv* env, tlSym key, tlHandle v) {
+tlHandle tlEnvSet_(tlEnv* env, int at, tlHandle value) {
     assert(tlEnvIs(env));
-    trace("%p.set %s = %s", env, tl_str(key), tl_str(v));
-
-    if (tlObjectGetSym(env->map, key)) {
-        env = tlEnvCopy(env);
-        trace("%p.set !! %s = %s", env, tl_str(key), tl_str(v));
-    }
-
-    env->map = tlObjectSet(env->map, key, v);
-    assert(tlObjectGetSym(env->map, key));
-    return env;
+    assert(at >= 0 && at <= tlListSize(env->names));
+    return env->data[at] = value;
 }
 
-bool tlCodeFrameIs(tlHandle);
-tlObject* tlBEnvLocalObject(tlFrame*);
+tlEnv* tlEnvGetParentAt(tlEnv* env, int depth) {
+    assert(tlEnvIs(env));
+    if (depth == 0) return env;
+    if (env == null) return null;
+    return tlEnvGetParentAt(env->parent, depth - 1);
+}
+
+tlHandle tlEnvGetArg(tlEnv* env, int at) {
+    assert(tlEnvIs(env));
+    assert(env->args);
+    assert(at >= 0);
+    return tlBCallGetExtra(env->args, at, tlBClosureAs(env->args->fn)->code);
+}
+
 static tlHandle _Env_localObject(tlTask* task, tlArgs* args) {
-    trace("");
-    return tlBEnvLocalObject(tlTaskCurrentFrame(task));
+    return tlEnvLocalObject(tlTaskCurrentFrame(task));
 }
 
-INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args);
+static tlHandle _env_current(tlTask* task, tlArgs* args);
 
 static tlObject* envClass;
 static void env_init() {
@@ -92,6 +93,7 @@ static void env_init() {
 
     INIT_KIND(tlEnvKind);
 }
+
 static void env_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Env"), envClass);
 }

@@ -1,3 +1,8 @@
+#ifndef _code_h_
+#define _code_h_
+
+#include "env.h"
+
 enum {
     OP_END = 0,
 
@@ -22,3 +27,13 @@ enum {
 };
 
 const char* op_name(uint8_t op);
+
+typedef struct tlCodeFrame tlCodeFrame;
+
+bool tlCodeFrameIs(tlHandle v);
+tlCodeFrame* tlCodeFrameAs(tlHandle v);
+tlCodeFrame* tlCodeFrameCast(tlHandle v);
+
+tlEnv* tlCodeFrameEnv(tlFrame* frame);
+
+#endif
