@@ -63,6 +63,7 @@ static tlHandle charCmp(tlHandle left, tlHandle right) {
 
 static tlKind _tlCharKind = {
     .name = "Char",
+    .index = -6,
     .toString = chartoString,
     .hash = charHash,
     .equals = charEquals,
@@ -124,6 +125,7 @@ static tlHandle floatCmp(tlHandle left, tlHandle right) {
 
 static tlKind _tlFloatKind = {
     .name = "Float",
+    .index = -4,
     .toString = floattoString,
     .hash = floatHash,
     .equals = floatEquals,
@@ -379,6 +381,7 @@ static tlHandle numCmp(tlHandle left, tlHandle right) {
 
 static tlKind _tlNumKind = {
     .name = "Number",
+    .index = -5,
     .toString = numtoString,
     .hash = numHash,
     .equals = numEquals,

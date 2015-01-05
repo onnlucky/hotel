@@ -163,7 +163,15 @@ static tlHandle _neq(tlTask* task, tlArgs* args) {
 static tlHandle _compare(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     tlHandle cmp = tlHandleCompare(left, right);
-    if (!cmp) return tlCOMPARE(tl_kind(left) - tl_kind(right));
+    if (!cmp) {
+        tlKind* lk = tl_kind(left);
+        tlKind* rk = tl_kind(right);
+        if (lk->index != rk->index) return tlCOMPARE(rk->index - lk->index); // inverse ...
+        int r = strcmp(lk->name, rk->name);
+        if (r) return tlCOMPARE(r);
+        // ultimate fallback, will depend on runtime pointers
+        return tlCOMPARE(tl_kind(left) - tl_kind(right));
+    }
     return cmp;
 }
 static tlHandle _lt(tlTask* task, tlArgs* args) {

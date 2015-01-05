@@ -18,6 +18,9 @@ else
 TOOL=lldb --
 endif
 endif
+ifeq ($(DDD),1)
+TOOL=ddd --args
+endif
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
 LIBGC:=libgc/.libs/objs/libgc.a

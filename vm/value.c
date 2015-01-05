@@ -110,6 +110,7 @@ static const char* nulltoString(tlHandle v, char* buf, int size) { return "null"
 static unsigned int nullHash(tlHandle v) { return 0; }
 static tlKind _tlNullKind = {
     .name = "Null",
+    .index = -1,
     .toString = nulltoString,
     .hash = nullHash,
 };
@@ -127,6 +128,7 @@ static unsigned int boolHash(tlHandle v) {
 }
 static tlKind _tlBoolKind = {
     .name = "Bool",
+    .index = -2,
     .toString = booltoString,
     .hash = boolHash
 };
@@ -146,6 +148,7 @@ static tlHandle intCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlIntKind = {
     .name = "Int",
+    .index = -3,
     .toString = inttoString,
     .hash = intHash,
     .equals = intEquals,

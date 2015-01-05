@@ -643,6 +643,7 @@ INTERNAL tlHandle stringCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlStringKind = {
     .name = "String",
+    .index = -11,
     .toString = stringtoString,
     .hash = stringHash,
     .equals = stringEquals,

@@ -169,6 +169,7 @@ static tlHandle symCmp(tlHandle left, tlHandle right) {
 }
 static tlKind _tlSymKind = {
     .name = "String",
+    .index = -10,
     .toString = stringtoString,
     .hash = stringHash,
     .equals = symEquals,

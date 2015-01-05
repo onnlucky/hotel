@@ -515,6 +515,7 @@ typedef tlHandle(*tlSendFn)(tlTask* task, tlArgs* args, bool safe);
 // fields with a null value is usually perfectly fine
 struct tlKind {
     const char* name;  // general name of the value
+    int index;         // a sorting index, larger values are sorted before other kinds
     tltoStringFn toString; // a toString "printer" function
 
     tlHashFn hash;     // return a hash value, must be stable
