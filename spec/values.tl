@@ -25,11 +25,12 @@ test "cannot compare unrelated values":
     assert isUndefined("hello" >= 1)
 
 test "total ordering":
-    assert compare(null, 1) == -1 or compare(1, null) == -1
-    assert compare("foo", 1) == 1 or compare(1, "foo") == 1
-    assert compare("foo", "foo") == 0
     assert compare(1, 2) == -1
     assert compare(2, 1) == 1
+    assert compare(null, 1) == -1 // smaller
+    assert compare(1, "foo") == -1 // smaller
+    assert compare("foo", 1) == 1
+    assert compare("foo", "fo"+"o") == 0
 
 test "sort on mixed array":
     // NOTE the exact order is undefined, it depends on the kind pointers ... should perhaps fix that one day
@@ -47,7 +48,7 @@ test "max":
 
 test "max on mixed array":
     res = ["hello", 4, 1, 2, 3, "zzz", "world"].max
-    assert res == "zzz" or res == 4
+    assert res == "zzz"
 
 test "min":
     assert [1,2,3,4].min == 1
@@ -55,7 +56,7 @@ test "min":
 
 test "min on mixed array":
     res = ["hello", 4, 1, 2, 3, "zzz", "world"].min
-    assert res == "hello" or res == 1
+    assert res == 1
 
 test "number constructor":
     assert Number(1) == 1
