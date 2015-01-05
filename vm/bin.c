@@ -160,13 +160,20 @@ INTERNAL tlHandle _bin_toHex(tlTask* task, tlArgs* args) {
     buf[len] = 0;
     return tlStringFromTake(buf, len);
 }
-INTERNAL tlHandle _bin_toString(tlTask* task, tlArgs* args) {
+
+static tlHandle _bin_toString(tlTask* task, tlArgs* args) {
     tlBin* bin = tlBinAs(tlArgsTarget(args));
-    char* buf = malloc_atomic(bin->len + 1);
-    memcpy(buf, bin->data, bin->len);
-    buf[bin->len] = 0;
-    return tlStringFromTake(buf, bin->len);
+
+    char* into = malloc_atomic(bin->len + 1);
+    int written = 0; int chars = 0;
+    int read = process_utf8(bin->data, bin->len, &into, &written, &chars);
+    assert(chars >= written / 5);
+    UNUSED(read);
+    // TODO undefined char? warn? throw? configurable?
+
+    return tlStringFromTake(into, written);
 }
+
 INTERNAL const char* bintoString(tlHandle v, char* buf, int size) {
     tlBin* bin = tlBinAs(v);
     if (tlBinSize(bin) == 0) {

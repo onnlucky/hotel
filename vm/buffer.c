@@ -281,6 +281,7 @@ INTERNAL tlHandle _buffer_readString(tlTask* task, tlArgs* args) {
     int written = 0; int chars = 0;
     int read = process_utf8(from, len, &into, &written, &chars);
     assert(read <= len);
+    assert(chars >= written / 5);
     trace("read: %d", read);
 
     didread(buf, read);

@@ -7,11 +7,13 @@ tlKind* tlStringKind;
 static tlString* _tl_emptyString;
 
 // TODO short strings should be "inline" saves finalizer
+// TODO optimize various aspects? ropes? size vs len?
 struct tlString {
     tlHead head;
     bool interned; // true if this is the tlString in the interned_string hashmap
     unsigned int hash;
-    unsigned int len;
+    unsigned int len; // byte size of the string
+    unsigned int chars; // character size of the string
     const char* data;
 };
 
@@ -125,7 +127,7 @@ const char* tlStringData(tlString *str) {
     return str->data;
 }
 
-// TODO this returns the byte size, not the character count! UTF8
+// returns the byte size, not the character count!
 int tlStringSize(tlString* str) {
     assert(tlStringIs(str));
     return str->len;
@@ -167,12 +169,14 @@ static unsigned int murmurhash2a(const void * key, int len) {
 #define CONT(b) ((b & 0xC0) == 0x80)
 #define SKIP_OR_THROW() if (!skip) { return -i; }
 static int process_utf8(const char* from, int len, char** into, int* intolen, int* intochars) {
-    assert(into);
     bool skip = true;
     trace("%d", len);
 
-    char* data = *into;
-    if (!data) *into = data = malloc_atomic(len + 1);
+    char* data = null;
+    if (into) {
+        data = *into;
+        if (!data) *into = data = malloc_atomic(len + 1);
+    }
 
     int j = 0;
     int i = 0;
@@ -181,13 +185,13 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
         char c1 = from[i++];
         if ((c1 & 0x80) == 0) { // 0xxx_xxxx
             chars++;
-            data[j++] = c1;
+            if (data) { data[j++] = c1; }
         } else if ((c1 & 0xE0) == 0xC0) { // 110x_xxxx
             if (i + 1 > len) { i--; break; }
             char c2 = from[i++];
             if ((c2 & 0xC0) == 0x80) {
                 chars++;
-                data[j++] = c1; data[j++] = c2;
+                if (data) { data[j++] = c1; data[j++] = c2; }
             } else {
                 SKIP_OR_THROW()
             }
@@ -196,7 +200,7 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
             char c2 = from[i++]; char c3 = from[i++];
             if (CONT(c2) && CONT(c3)) {
                 chars++;
-                data[j++] = c1; data[j++] = c2; data[j++] = c3;
+                if (data) { data[j++] = c1; data[j++] = c2; data[j++] = c3; }
             } else {
                 SKIP_OR_THROW()
             }
@@ -205,7 +209,7 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
             char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++];
             if (CONT(c2) && CONT(c3) && CONT(c4)) {
                 chars++;
-                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4;
+                if (data) { data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; }
             } else {
                 SKIP_OR_THROW()
             }
@@ -214,7 +218,7 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
             char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++]; char c5 = from[i++];
             if (CONT(c2) && CONT(c3) && CONT(c4) && CONT(c5)) {
                 chars++;
-                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5;
+                if (data) { data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5; }
             } else {
                 SKIP_OR_THROW()
             }
@@ -223,7 +227,7 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
             char c2 = from[i++]; char c3 = from[i++]; char c4 = from[i++]; char c5 = from[i++]; char c6 = from[i++];
             if (CONT(c2) && CONT(c3) && CONT(c4) && CONT(c5) && CONT(c6)) {
                 chars++;
-                data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5; data[j++] = c6;
+                if (data) { data[j++] = c1; data[j++] = c2; data[j++] = c3; data[j++] = c4; data[j++] = c5; data[j++] = c6; }
             } else {
                 SKIP_OR_THROW()
             }
@@ -233,13 +237,14 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
     }
     trace("i: %d, j: %d, len: %d, chars: %d", i, j, len, chars);
     assert(i <= len);
-    data[j] = 0;
+    if (data) data[j] = 0;
 
     if (into) *into = data;
     if (intolen) *intolen = j;
     if (intochars) *intochars = chars;
     return i;
 }
+
 unsigned int tlStringHash(tlString* str) {
     assert(tlStringIs(str) || tlBinIs(str));
     if (str->hash) return str->hash;
@@ -262,6 +267,7 @@ tlString* tlStringIntern(tlString* str) {
     return tlStringFromSym(tlSymFromString(str));
 }
 
+// works in bytes, not characters!
 tlString* tlStringSub(tlString* from, int offset, int len) {
     if (tlStringSize(from) == len) return from;
     if (len == 0) return tlStringEmpty();
@@ -285,6 +291,17 @@ tlString* tlStringCat(tlString* left, tlString* right) {
     memcpy(data + tlStringSize(left), right->data, tlStringSize(right));
     data[size] = 0;
     return tlStringFromTake(data, size);
+}
+
+int tlStringChars(tlString* str) {
+    assert(tlStringIs(str));
+    if (str->chars) return str->chars;
+
+    int chars = 0;
+    int read = process_utf8(str->data, str->len, null, null, &chars);
+    assert(read == str->len);
+    str->chars = chars;
+    return str->chars;
 }
 
 // generated by parser for "foo: $foo" etc...
@@ -351,7 +368,7 @@ INTERNAL tlHandle _string_intern(tlTask* task, tlArgs* args) {
 /// size: return the amount of characters in the #String
 INTERNAL tlHandle _string_size(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
-    return tlINT(tlStringSize(str));
+    return tlINT(tlStringChars(str));
 }
 /// bytes: return the amount of bytes in the #String, bytes >= size due to multibyte characters
 INTERNAL tlHandle _string_bytes(tlTask* task, tlArgs* args) {
