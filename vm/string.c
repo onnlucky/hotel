@@ -315,6 +315,20 @@ int tlStringChars(tlString* str) {
     return str->chars;
 }
 
+// is used for lengths as well, so allow one-to-far
+int tlStringByteForChar(tlString* str, int at) {
+    int chars = tlStringChars(str);
+    assert(at >= 0 && at <= chars);
+
+    int byte = 0;
+    while (at > 0) {
+        if (byte >= str->len) return byte; // extra check to never go out of bounds
+        byte += bytes_utf8(str->data[byte]);
+        at--;
+    }
+    return byte;
+}
+
 // TODO can we cache this somehow, or provide iterators
 int tlStringGet(tlString* str, int at) {
     int chars = tlStringChars(str);
@@ -537,8 +551,13 @@ INTERNAL tlHandle _string_slice(tlTask* task, tlArgs* args) {
     int last = tl_int_or(tlArgsGet(args, 1), -1);
 
     int offset;
-    int len = sub_offset(first, last, tlStringSize(str), &offset);
-    return tlStringSub(str, offset, len);
+    int len = sub_offset(first, last, tlStringChars(str), &offset);
+    if (len == 0) return tlStringEmpty();
+
+    // work out bytes from chars
+    len = tlStringByteForChar(str, len + offset);
+    offset = tlStringByteForChar(str, offset);
+    return tlStringSub(str, offset, len - offset);
 }
 
 static inline char escape(char c, bool cstr) {
