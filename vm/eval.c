@@ -30,17 +30,6 @@ tlResult* tlResultFromArgs(tlArgs* args) {
     return res;
 }
 
-tlResult* tlResultFromArgsPrepend(tlHandle first, tlArgs* args) {
-    int size = tlArgsSize(args);
-    tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size + 1));
-    res->size = size + 1;
-    res->data[0] = first;
-    for (int i = 0; i < size; i++) {
-        res->data[i + 1] = tlArgsGet(args, i);
-    }
-    return res;
-}
-
 tlResult* tlResultFromArgsSkipOne(tlArgs* args) {
     int size = tlArgsSize(args);
     tlResult* res = tlAlloc(tlResultKind, sizeof(tlResult) + sizeof(tlHandle) * (size - 1));
@@ -70,11 +59,6 @@ tlResult* tlResultFrom(tlHandle v1, ...) {
 
     trace("RESULTS: %d", size);
     return res;
-}
-
-void tlResultSet_(tlResult* res, int at, tlHandle v) {
-    assert(at >= 0 && at < res->size);
-    res->data[at] = v;
 }
 
 tlHandle tlResultGet(tlHandle v, int at) {

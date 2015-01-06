@@ -44,25 +44,6 @@ static tlString* _STRING_FROM_SYM(tlSym v) { return (tlString*)((intptr_t)v & ~7
 
 tlKind* tlSymKind;
 
-bool tlActiveIs(tlHandle v) { return !tlIntIs(v) && (((intptr_t)v) & 7) >= 4; }
-tlHandle tl_value(tlHandle a) {
-    assert(tlActiveIs(a));
-    tlHandle v = (tlHandle)((intptr_t)a & ~4);
-    assert(!tlActiveIs(v));
-    assert(tlRefIs(v) || tlSymIs_(v));
-    return v;
-}
-tlHandle tl_active(tlHandle v) {
-    assert(tlRefIs(v) || tlSymIs_(v));
-    assert(!tlActiveIs(v));
-    tlHandle a = (tlHandle)((intptr_t)v | 4);
-    assert(tlActiveIs(a));
-    return a;
-}
-tlHandle tlACTIVE(tlHandle v) {
-    return tl_active(v);
-}
-
 tlString* tlStringFromSym(tlSym sym) {
     assert(tlSymIs_(sym));
     tlString* str = _STRING_FROM_SYM(sym);

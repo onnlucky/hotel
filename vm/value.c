@@ -86,8 +86,6 @@ const char* tl_str(tlHandle v) {
     _str_buf_at = (_str_buf_at + 1) % _BUF_COUNT;
     _str_buf = _str_bufs[_str_buf_at];
 
-    if (tlActiveIs(v)) v = tl_value(v);
-
     tlKind* kind = tl_kind(v);
     if (kind) {
         tltoStringFn fn = kind->toString;

@@ -780,19 +780,12 @@ static tlHandle _assert(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-static tlHandle _error(tlTask* task, tlArgs* args) {
-    TL_THROW("hello world!");
-}
-
 void tlVmInitDefaultEnv(tlVm* vm) {
     tlNative* print = tlNativeNew(_print, tlSYM("print"));
     tlVmGlobalSet(vm, tlNativeName(print), print);
 
     tlNative* assert = tlNativeNew(_assert, tlSYM("assert"));
     tlVmGlobalSet(vm, tlNativeName(assert), assert);
-
-    tlNative* error = tlNativeNew(_error, tlSYM("error"));
-    tlVmGlobalSet(vm, tlNativeName(error), error);
 }
 
 #include <dlfcn.h>
