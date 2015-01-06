@@ -199,6 +199,18 @@ INTERNAL tlHandle _array_pop(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlMAYBE(tlArrayPop(array));
 }
+
+static tlHandle _array_reverse(tlTask* task, tlArgs* args) {
+    tlArray* array = tlArrayAs(tlArgsTarget(args));
+    int size = tlArraySize(array);
+    for (int i = 0; i < size / 2; i++) {
+        tlHandle tmp = array->data[i];
+        array->data[i] = array->data[size - i - 1];
+        array->data[size - i - 1] = tmp;
+    }
+    return array;
+}
+
 INTERNAL tlHandle _array_insert(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset_raw(tlArgsGet(args, 0));
@@ -296,6 +308,7 @@ static void array_init() {
         "insert", _array_insert,
         "slice", _array_slice,
         "splice", _array_splice,
+        "reverse", _array_reverse,
         "toChar", _array_toChar,
         "addAll", null,
         "random", null,

@@ -45,3 +45,39 @@ test "splice":
     assert res[1] == 1
     assert res[2] == "hello"
     assert res[3] == 5
+
+test "reverse":
+    res = Array.new([1,2,3,4,5])
+    res.reverse
+    print res[1], res[2], res[3], res[4], res[5]
+    assert res[1] == 5
+    assert res[2] == 4
+    assert res[3] == 3
+    assert res[4] == 2
+    assert res[5] == 1
+    assert res[-1] == 1
+    assert res[-2] == 2
+
+test "reverse 2":
+    res = Array.new
+    res.reverse
+    assert isUndefined(res[1])
+
+    res.add(1)
+    res.reverse
+    assert res[1] == 1
+    assert isUndefined(res[2])
+
+    res.add(2)
+    res.reverse
+    assert res[1] == 2
+    assert res[2] == 1
+    assert isUndefined(res[3])
+
+    res.add(3)
+    res.reverse
+    assert res[1] == 3
+    assert res[2] == 1
+    assert res[3] == 2
+    assert isUndefined(res[4])
+
