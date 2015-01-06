@@ -649,8 +649,13 @@ INTERNAL tlHandle _string_reverse(tlTask* task, tlArgs* args) {
 
     char* data = malloc_atomic(size + 1);
     const char* from = tlStringData(str);
-    for (int i = 0; i < size; i++) {
-        data[i] = from[size - i - 1];
+    int byte = 0;
+    while (byte < size) {
+        int clen = bytes_utf8(from[byte]);
+        for (int i = 0; i < clen; i++) {
+            data[size - byte - clen + i] = from[byte + i];
+        }
+        byte += clen;
     }
     data[size] = 0;
     return tlStringFromTake(data, size);

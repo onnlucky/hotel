@@ -25,3 +25,7 @@ test "euro string":
     assert s[13:17] == "world"
     assert s[-8:-4] == "world"
     assert s[-3:] == " €€"
+
+test "reverse":
+    "€€ hello €€ world €€".reverse[10:11] == "€€"
+    assert "h€llø".reverse == "øll€h"
