@@ -1,25 +1,30 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
 UNAME := $(shell uname)
-CFLAGS:=-rdynamic -std=c99 -Wall -O -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -O0 -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
 
 LDFLAGS:=-lm -lpthread
 ifneq ($(UNAME),Darwin)
-LDFLAGS:=$(LDFLAGS) -ldl
+	LDFLAGS:=$(LDFLAGS) -ldl
+endif
+
+ifeq ($(GCOV),1)
+	CFLAGS+=-fprofile-arcs -ftest-coverage
+	LDFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(VALGRIND),1)
-TOOL=valgrind --leak-check=full --track-origins=yes --suppressions=libgc.supp
-TOOL=valgrind -q --track-origins=yes --suppressions=libgc.supp
+	TOOL=valgrind --leak-check=full --track-origins=yes --suppressions=libgc.supp
+	TOOL=valgrind -q --track-origins=yes --suppressions=libgc.supp
 endif
 ifeq ($(GDB),1)
 ifneq ($(shell which gdb),)
-TOOL=gdb --args
+	TOOL=gdb --args
 else
-TOOL=lldb --
+	TOOL=lldb --
 endif
 endif
 ifeq ($(DDD),1)
-TOOL=ddd --args
+	TOOL=ddd --args
 endif
 
 BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
@@ -100,6 +105,7 @@ clean:
 	rm -rf tl *.o *.a *.so *.dylib tl.dSYM test/noboot/*.log
 	rm -f modules/sizzle.tl
 	rm -f tlmeta
+	rm -rf gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno
 	$(MAKE) -C graphics clean
 	$(MAKE) -C cmodules clean
 distclean: clean

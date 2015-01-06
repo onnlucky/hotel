@@ -311,6 +311,7 @@ int tlStringChars(tlString* str) {
     int chars = 0;
     int read = process_utf8(str->data, str->len, null, null, &chars);
     assert(read == str->len);
+    UNUSED(read);
     str->chars = chars;
     return str->chars;
 }
@@ -319,6 +320,7 @@ int tlStringChars(tlString* str) {
 int tlStringByteForChar(tlString* str, int at) {
     int chars = tlStringChars(str);
     assert(at >= 0 && at <= chars);
+    UNUSED(chars);
 
     int byte = 0;
     while (at > 0) {
@@ -333,6 +335,7 @@ int tlStringByteForChar(tlString* str, int at) {
 int tlStringGet(tlString* str, int at) {
     int chars = tlStringChars(str);
     assert(at >= 0 && at < chars);
+    UNUSED(chars);
 
     int byte = 0;
     while (at > 0) {
