@@ -80,8 +80,8 @@ encodeNumber = num ->
 
 encodeString = s ->
     assert isString s
-    if s.size < 32: return Bin(0b0000_0000 | s.size, s)
-    return Bin(0b1110_0000, encodeInt(s.size), s)
+    if s.bytes < 32: return Bin(0b0000_0000 | s.bytes, s)
+    return Bin(0b1110_0000, encodeInt(s.bytes), s)
 
 encodeList = l ->
     if l.size < 32:
