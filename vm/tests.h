@@ -8,5 +8,5 @@
         if (count > 0) printf("test '" #test "' passed; %d requires\n", count); \
         fflush(stdout); \
     } while(0)
-#define REQUIRE(c) do{ (*count)++; if (!(c)) { printf("!! test '%s' FAILED: " #c "\n", name); *count = -(*count); return; }}while(0)
+#define REQUIRE(c) do{ (*count)++; if (!(c)) { printf("!! test '%s' FAILED: %s:%d " #c "\n", name, __FILE__, __LINE__); *count = -(*count); return; }}while(0)
 

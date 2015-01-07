@@ -193,6 +193,7 @@ tlHandle tlNUM(intptr_t n);
 tlHandle tlCHAR(int c);
 tlHandle tlPARSENUM(const char* s, int radix);
 static inline bool tlNumberIs(tlHandle v) { return tlIntIs(v) || tlFloatIs(v) || tlNumIs(v); }
+static inline tlHandle tlNumberCast(tlHandle v) { return tlNumberIs(v)? v : null; }
 
 // tlString and tlSYM can only be used after tl_init()
 // TODO remove tlSYM because that requires a *global* *leaking* table ...
@@ -439,6 +440,8 @@ tlHandle tlUndefMsg(tlString* msg);
 #define TL_UNDEF(f, x...) do {\
     char _s[2048]; snprintf(_s, sizeof(_s), f, ##x);\
     return tlUndefMsg(tlStringFromCopy(_s, 0)); } while (0)
+
+#define TL_TARGET(t, n) t* n = t##Cast(tlArgsTarget(args)); if (!n) TL_THROW("unexpected receiver")
 
 // args
 tlArgs* tlArgsEmpty();

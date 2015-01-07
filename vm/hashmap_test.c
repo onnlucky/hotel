@@ -57,7 +57,7 @@ static int getIndex(tlHash* map, uint32_t hash, tlHandle key) {
     }
 }
 
-static void set(tlHash* map, uint32_t hash, tlHandle key, tlHandle value) {
+static tlHandle set(tlHash* map, uint32_t hash, tlHandle key, tlHandle value) {
     assert(map);
     assert(map->data);
 
@@ -68,7 +68,13 @@ static void set(tlHash* map, uint32_t hash, tlHandle key, tlHandle value) {
             map->data[pos].hash = hash;
             map->data[pos].key = key;
             map->data[pos].value = value;
-            return;
+            return null;
+        }
+        if (map->data[pos].hash == hash && tlHandleEquals(map->data[pos].key, key)) {
+            tlHandle old = map->data[pos].value;
+            map->data[pos].key = key; // not stricly needed
+            map->data[pos].value = value;
+            return old;
         }
 
         int dist2 = getDistance(map, map->data[pos].hash, pos);
@@ -77,7 +83,7 @@ static void set(tlHash* map, uint32_t hash, tlHandle key, tlHandle value) {
                 map->data[pos].hash = hash;
                 map->data[pos].key = key;
                 map->data[pos].value = value;
-                return;
+                return null;
             }
 
             // swap Entry
@@ -125,14 +131,14 @@ int tlHashSize(tlHash* map) {
     return map->size;
 }
 
-void tlHashSet(tlHash* map, tlHandle key, tlHandle value) {
-    map->size += 1;
-
+tlHandle tlHashSet(tlHash* map, tlHandle key, tlHandle value) {
     // grow the map if too full
     if (!map->len) tlHashResize(map, INITIAL_LEN);
-    else if (map->size / (double)map->len > GROW_FACTOR) tlHashResize(map, map->len * 2);
+    else if ((map->size + 1) / (double)map->len > GROW_FACTOR) tlHashResize(map, map->len * 2);
 
-    set(map, getHash(key), key, value);
+    tlHandle old = set(map, getHash(key), key, value);
+    if (!old) map->size += 1;
+    return old;
 }
 
 tlHandle tlHashGet(tlHash* map, tlHandle key) {
@@ -169,6 +175,16 @@ TEST(basic) {
     REQUIRE(ref == tlINT(100));
     REQUIRE(tlHashSize(map) == 0);
     REQUIRE(tlHashGet(map, tlINT(42)) == null);
+    REQUIRE(tlHashGet(map, tlINT(41)) == null);
+    REQUIRE(tlHashGet(map, tlINT(43)) == null);
+
+    tlHashSet(map, tlINT(42), tlINT(100));
+    REQUIRE(tlHashSize(map) == 1);
+    REQUIRE(tlHashGet(map, tlINT(42)) == tlINT(100));
+
+    tlHashSet(map, tlINT(42), tlINT(101));
+    REQUIRE(tlHashSize(map) == 1);
+    REQUIRE(tlHashGet(map, tlINT(42)) == tlINT(101));
     REQUIRE(tlHashGet(map, tlINT(41)) == null);
     REQUIRE(tlHashGet(map, tlINT(43)) == null);
 }
