@@ -43,8 +43,5 @@ test "circular":
     assert a["test"]
     assert a["self"]
     assert not a["foobar"]
-
-    catch: e -> null
-    json.toString(a) // throws
-    assert false
+    json.toString(a)
 

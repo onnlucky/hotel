@@ -1128,6 +1128,7 @@ static int skip_pcalls(const uint8_t* ops, const int len, int pc) {
 static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     trace("resolve method: %s.%s", tl_str(target), tl_str(method));
     if (tlObjectIs(target)) return objectResolve(target, method);
+    if (tlClassIs(target)) return classResolveStatic(tlClassAs(target), method);
     tlKind* kind = tl_kind(target);
     if (kind->send) return tlBSendTokenNew(method, safe);
     if (kind->klass) return objectResolve(kind->klass, method);

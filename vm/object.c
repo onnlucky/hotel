@@ -56,6 +56,11 @@ void class_init() {
     tl_register_global("Class", _tl_class);
 }
 
+tlHandle classResolveStatic(tlClass* cls, tlSym name) {
+    if (name == s_class) return _tl_class;
+    return tlObjectGet(cls->statics, name);
+}
+
 // resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
 tlHandle classResolve(tlClass* cls, tlSym name) {
     assert(cls);

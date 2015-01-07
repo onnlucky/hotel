@@ -48,6 +48,8 @@
 #include "time.c"
 #include "regex.c"
 #include "serialize.c"
+#include "idset.h"
+#include "idset.c"
 
 //#include "storage.c"
 
@@ -525,6 +527,8 @@ void tl_init() {
     evio_init();
     time_init();
     serialize_init();
+
+    idset_init();
 
     assert(!tlArgsIs(0));
     assert(tlArgsAs(0) == 0);
