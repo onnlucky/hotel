@@ -549,7 +549,6 @@ tlVm* tlVmNew() {
     task_vm_default(vm);
     queue_vm_default(vm);
     var_vm_default(vm);
-    array_vm_default(vm);
     hashmap_vm_default(vm);
     evio_vm_default(vm);
     buffer_init_vm(vm);

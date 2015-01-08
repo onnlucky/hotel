@@ -457,21 +457,21 @@ _hashmap_map = (fn ->
 )
 _install(HashMap._methods, "map", _hashmap_map)
 
-_install(Array._methods, "addAll", _addAll)
-_install(Array._methods, "random", _get_random)
-_install(Array._methods, "each", _each)
-_install(Array._methods, "map", _map)
-_install(Array._methods, "find", _find)
-_install(Array._methods, "filter", _filter)
-_install(Array._methods, "reduce", _reduce)
-_install(Array._methods, "min", _min)
-_install(Array._methods, "max", _max)
-_install(Array._methods, "sum", _sum)
-_install(Array._methods, "mean", _mean)
-_install(Array._methods, "median", _median)
-_install(Array._methods, "sort", _sort)
-_install(Array._methods, "flatten", _flatten)
-_install(Array._methods, "join", _join)
+_install_method(Array, "addAll", _addAll)
+_install_method(Array, "random", _get_random)
+_install_method(Array, "each", _each)
+_install_method(Array, "map", _map)
+_install_method(Array, "find", _find)
+_install_method(Array, "filter", _filter)
+_install_method(Array, "reduce", _reduce)
+_install_method(Array, "min", _min)
+_install_method(Array, "max", _max)
+_install_method(Array, "sum", _sum)
+_install_method(Array, "mean", _mean)
+_install_method(Array, "median", _median)
+_install_method(Array, "sort", _sort)
+_install_method(Array, "flatten", _flatten)
+_install_method(Array, "join", _join)
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)
@@ -549,7 +549,7 @@ sleep = s -> io.wait(s)
 wait  = s -> io.wait(s)
 
 test = ->
-    catch: e -> print "TEST FAILED:", args.slice.join(" "); print e.toString
+    catch: e -> print "TEST FAILED:", args.slice.join(" "); print toString(e)
     args.block.call
 
 test "split":
@@ -658,7 +658,7 @@ test "eval":
 
 // run a repl, or every argument as a file
 runmain = as ->
-    catch: e -> print e.toString; _set_exitcode(1)
+    catch: e -> print "uncaught error:", toString(e); _set_exitcode(1)
 
     if as.size == 0: resolve("commandline")()
     //if as[1] == "snippets": return snippets.run
@@ -673,5 +673,5 @@ main = !runmain(args)
 io.ioloop
 
 // we are done, print the results, if any, error has already been printed
-if main.value: print main.value
+if main.value: print toString(main.value)
 null

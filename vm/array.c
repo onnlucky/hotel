@@ -3,7 +3,6 @@
 
 #include "trace-off.h"
 
-static tlKind _tlArrayKind = { .name = "Array", .locked = true };
 tlKind* tlArrayKind;
 
 struct tlArray {
@@ -293,13 +292,14 @@ INTERNAL tlHandle _array_toChar(tlTask* task, tlArgs* args) {
 }
 
 
-static tlObject* arrayClass;
 static void array_init() {
-    _tlArrayKind.klass = tlClassObjectFrom(
+    tlClass* cls = tlCLASS("Array", null,
+    tlMETHODS(
         "toList", _array_toList,
         "size", _array_size,
         "clear", _array_clear,
         "get", _array_get,
+        "call", _array_get,
         "set", _array_set,
         "add", _array_add,
         "cat", _array_cat,
@@ -326,18 +326,16 @@ static void array_init() {
         "flatten", null,
         "join", null,
         null
-    );
-    arrayClass = tlClassObjectFrom(
+    ), tlMETHODS(
         "new", _Array_new,
-        "_methods", null,
         null
-    );
-    tlObjectSet_(arrayClass, s__methods, _tlArrayKind.klass);
-
+    ));
+    tlKind _tlArrayKind = {
+        .name = "Array",
+        .locked = true,
+        .cls = cls,
+    };
     INIT_KIND(tlArrayKind);
-}
-
-static void array_vm_default(tlVm* vm) {
-   tlVmGlobalSet(vm, tlSYM("Array"), arrayClass);
+    tl_register_global("Array", cls);
 }
 
