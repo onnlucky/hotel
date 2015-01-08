@@ -1,12 +1,23 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-UNAME := $(shell uname)
-CFLAGS:=-g -O -std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../vm/
+CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../vm/
 
+UNAME := $(shell uname)
 ifneq ($(UNAME),Darwin)
 LINK=-shared
 CFLAGS:=$(CFLAGS) -fPIC
 else
 LINK=-dynamiclib -flat_namespace -undefined suppress
+endif
+
+ifeq ($(BUILD),release)
+	CFLAGS+=-O3
+else
+	CFLAGS+=-g -O
+endif
+# doesn't work with coverage tool
+ifeq ($(GCOV),1)
+	#CFLAGS+=-fprofile-arcs -ftest-coverage
+	#LINK+=-fprofile-arcs -ftest-coverage
 endif
 
 all: openssl.mod zlib.mod audio.mod
@@ -27,4 +38,5 @@ audio.mod: audio.c Makefile ../vm/tl.h
 
 clean:
 	rm -rf *.o *.mod
+	rm -rf *.gcda *.gcno
 

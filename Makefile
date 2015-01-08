@@ -1,12 +1,12 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-UNAME := $(shell uname)
-CFLAGS:=-rdynamic -std=c99 -Wall -O0 -Werror -Wno-unused-function -g -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
 
-LDFLAGS:=-lm -lpthread
-ifneq ($(UNAME),Darwin)
-	LDFLAGS:=$(LDFLAGS) -ldl
+ifeq ($(BUILD),release)
+	CFLAGS+=-O3
+else
+	CFLAGS+=-g -O
 endif
-
 ifeq ($(GCOV),1)
 	CFLAGS+=-fprofile-arcs -ftest-coverage
 	LDFLAGS+=-fprofile-arcs -ftest-coverage
@@ -48,9 +48,11 @@ run: tl boot/boot.tlb modules/compiler.tlb
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
+unit-test: libtl.a
+	$(MAKE) -C vm test
 test-noboot: tl boot/boot.tlb modules/compiler.tlb
 	cd test/noboot/ && ./run.sh
-test: test-noboot $(TLG_MODULES) $(C_MODULES)
+test: unit-test test-noboot $(TLG_MODULES) $(C_MODULES)
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl runspec.tl
 	cd test/ && TL_MODULE_PATH=../modules:../cmodules $(TOOL) ../tl tester.tl
 

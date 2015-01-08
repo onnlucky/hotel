@@ -1,13 +1,25 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-g -O -std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS)
-LDFLAGS:=-lm -lpthread -ldl
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
+LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
+
+ifeq ($(BUILD),release)
+	CFLAGS+=-O3
+else
+	CFLAGS+=-g -O
+endif
+ifeq ($(GCOV),1)
+	CFLAGS+=-fprofile-arcs -ftest-coverage
+	LDFLAGS+=-fprofile-arcs -ftest-coverage
+endif
 
 SOURCES:=$(shell echo *.c | sed -E 's/[a-z]+_test.c//g')
 OBJECTS:=$(SOURCES:.c=.o)
 TEST_SOURCES:=$(shell echo *_test.c)
 TESTS:=$(TEST_SOURCES:.c=.o)
 
-run: args_test number_test hashmap_test idset_test
+run: test
+
+test: args_test number_test hashmap_test idset_test
 	./args_test
 	./number_test
 	./hashmap_test
