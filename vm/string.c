@@ -326,6 +326,7 @@ int tlStringChars(tlString* str) {
 // is used for lengths as well, so allow one-to-far
 int tlStringByteForChar(tlString* str, int at) {
     int chars = tlStringChars(str);
+    if (str->chars == str->len) return at;
     assert(at >= 0 && at <= chars);
     UNUSED(chars);
 
@@ -341,6 +342,7 @@ int tlStringByteForChar(tlString* str, int at) {
 // calculate char position based on byte position
 int tlStringCharForByte(tlString* str, int byte) {
     int chars = tlStringChars(str);
+    if (str->chars == str->len) return byte;
     UNUSED(chars);
     assert(byte >= 0 && byte <= str->len);
 
