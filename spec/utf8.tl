@@ -53,3 +53,19 @@ test "find 2":
     assert s.find("€€€€", backward=true) == 7
     assert s.find("world", backward=true) == 12
 
+test "regex":
+    r = Regex("hello|world|€€€")
+    b, e = r.find("€€€")
+    assert b == 1 and e == 3
+    b, e = r.find("€oo €€€ world")
+    assert b == 5 and e == 7
+    b, e = r.find("€oo €€€ world", from=6)
+    assert b == 9 and e == 13
+
+test "regex groups":
+    r = Regex("(hello|world|€€€)")
+    m = r.match("€oo €€€ world", from=6)
+    b, e = m.group(1)
+    assert b == 9 and e == 13
+    assert m.main == "world"
+

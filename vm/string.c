@@ -350,7 +350,7 @@ int tlStringCharForByte(tlString* str, int byte) {
         b += bytes_utf8(str->data[b]);
         c++;
     }
-    assert(c >= 0 && c < chars);
+    assert(c >= 0 && c <= chars);
     return c;
 }
 

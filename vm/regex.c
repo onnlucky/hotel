@@ -62,13 +62,14 @@ static tlHandle _regex_find(tlTask* task, tlArgs* args) {
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_min(afrom, tlStringSize(str));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
+    from = tlStringByteForChar(str, from);
 
     int msize = 1;
     regmatch_t m[msize];
     int r = regexec(&regex->compiled, tlStringData(str) + from, msize, m, from?REG_NOTBOL:0);
     if (r == REG_NOMATCH) return tlNull;
     if (r == REG_ESPACE) TL_THROW("out of memory");
-    return tlResultFrom(tlINT(m[0].rm_so + from + 1), tlINT(m[0].rm_eo + from), null);
+    return tlResultFrom(tlINT(tlStringCharForByte(str, m[0].rm_so + from) + 1), tlINT(tlStringCharForByte(str, m[0].rm_eo + from)), null);
 }
 
 /// match(string): match a regex against an input returns a #Match object or null if not a match
@@ -84,6 +85,7 @@ static tlHandle _regex_match(tlTask* task, tlArgs* args) {
     if (!afrom) afrom = tlArgsGet(args, at++);
     int from = at_offset_min(afrom, tlStringSize(str));
     if (from < 0) TL_THROW("from must be Number, not: %s", tl_str(afrom));
+    from = tlStringByteForChar(str, from);
 
     int msize = 256;
     regmatch_t m[msize];
@@ -141,7 +143,7 @@ static tlHandle _match_group(tlTask* task, tlArgs* args) {
     int at = at_offset(tlArgsGet(args, 0), match->size);
     if (at < 0) return tlUndef();
     at++;
-    return tlResultFrom(tlINT(match->groups[at].rm_so + 1), tlINT(match->groups[at].rm_eo), null);
+    return tlResultFrom(tlINT(tlStringCharForByte(match->string, match->groups[at].rm_so) + 1), tlINT(tlStringCharForByte(match->string, match->groups[at].rm_eo)), null);
 }
 
 static tlHandle _isRegex(tlTask* task, tlArgs* args) { return tlBOOL(tlRegexIs(tlArgsGet(args, 0))); }
