@@ -451,6 +451,7 @@ tlArgs* tlArgsNewFromListMap(tlList* list, tlObject* map);
 tlArgs* tlArgsNewNames(int size, bool hasNames, bool isMethod);
 void tlArgsSet_(tlArgs* args, int at, tlHandle v);
 void tlArgsSetNames_(tlArgs* args, tlList* names, int nsize);
+tlArgs* tlCallFrom(tlHandle fn, ...);
 
 void tlArgsSetFn_(tlArgs* args, tlHandle fn);
 void tlArgsSetTarget_(tlArgs* args, tlHandle target);

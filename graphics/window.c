@@ -64,7 +64,7 @@ static void renderBox(cairo_t* c, Box* b, Graphics* g) {
 
     // call out to render task, it runs on the vm thread, blocking ours until done
     if (b->ondraw) {
-        tlBlockingTaskEval(b->window->rendertask, tlBCallFrom(b->ondraw, g, null));
+        tlBlockingTaskEval(b->window->rendertask, tlCallFrom(b->ondraw, g, null));
     }
 
     // draw the sub boxes
@@ -274,7 +274,7 @@ void windowKeyEvent(Window* window, int code, tlString* input, int modifiers) {
     tlObjectSet_(res, _s_key, tlINT(code));
     tlObjectSet_(res, _s_input, input);
     tlObjectSet_(res, _s_modifiers, tlINT(modifiers));
-    tlBlockingTaskEval(window->rendertask, tlBCallFrom(window->onkey, res, null));
+    tlBlockingTaskEval(window->rendertask, tlCallFrom(window->onkey, res, null));
     unblock_toolkit();
 }
 
@@ -283,7 +283,7 @@ void windowMouseEvent(Window* window, double x, double y, int buttons, int count
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlBCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), tlINT(count), null));
+            tlCallFrom(window->onmouse, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), tlINT(count), null));
     unblock_toolkit();
 }
 void windowMouseMoveEvent(Window* window, double x, double y, int buttons, int modifiers) {
@@ -291,7 +291,7 @@ void windowMouseMoveEvent(Window* window, double x, double y, int buttons, int m
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlBCallFrom(window->onmousemove, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), null));
+            tlCallFrom(window->onmousemove, tlFLOAT(x), tlFLOAT(y), tlINT(buttons), null));
     unblock_toolkit();
 }
 void windowMouseScrollEvent(Window* window, double deltaX, double deltaY) {
@@ -299,7 +299,7 @@ void windowMouseScrollEvent(Window* window, double deltaX, double deltaY) {
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlBCallFrom(window->onmousescroll, tlFLOAT(deltaX), tlFLOAT(deltaY), null));
+            tlCallFrom(window->onmousescroll, tlFLOAT(deltaX), tlFLOAT(deltaY), null));
     unblock_toolkit();
 }
 void windowResizeEvent(Window* window, int x, int y, int width, int height) {
@@ -307,7 +307,7 @@ void windowResizeEvent(Window* window, int x, int y, int width, int height) {
 
     block_toolkit();
     tlBlockingTaskEval(window->rendertask,
-            tlBCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
+            tlCallFrom(window->onresize, tlINT(width), tlINT(height), tlINT(x), tlINT(y), null));
     unblock_toolkit();
 }
 

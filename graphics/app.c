@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
     toolkit_init(argc, argv);
     tl_init();
 
-    tlArgs* args = tlArgsNewNew(argc - 1);
+    tlArgs* args = tlArgsNew(argc - 1);
     for (int i = 1; i < argc; i++) {
         tlArgsSet_(args, i - 1, tlSTR(argv[i]));
     }

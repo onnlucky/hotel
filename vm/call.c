@@ -35,7 +35,7 @@ tlArgs* tlBCallFromListNormal(tlHandle fn, tlList* list) {
     return call;
 }
 
-tlArgs* tlBCallFrom(tlHandle fn, ...) {
+tlArgs* tlCallFrom(tlHandle fn, ...) {
     va_list ap;
     int size = 0;
 

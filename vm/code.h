@@ -14,8 +14,8 @@ void tlCodeSetInfo_(tlCode* code, tlString* file, tlInt line, tlSym name);
 void tlCodeSetArgs_(tlCode* code, tlList* args);
 void tlCodeSetOps_(tlCode* code, tlList* ops);
 
-tlArgs* tlBCallFrom(tlHandle v1, ...);
-tlArgs* tlBCallFromList(tlHandle fn, tlList* args);
+tlArgs* tlCallFrom(tlHandle v1, ...);
+//tlArgs* tlCallFromList(tlHandle fn, tlList* args);
 
 //tlCall* tlCallNew(int argc, bool keys);
 //tlCall* tlCallSendFromList(tlHandle fn, tlHandle oop, tlHandle msg, tlList* args);

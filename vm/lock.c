@@ -215,7 +215,7 @@ INTERNAL tlHandle resumeWithLock(tlTask* task, tlFrame* _frame, tlHandle value, 
     }
 
     _frame->resumecb = resumeWithUnlock;
-    tlHandle res = tlEval(task, tlBCallFrom(frame->block, null));
+    tlHandle res = tlEval(task, tlCallFrom(frame->block, null));
     if (!res) return null;
     return resumeWithUnlock(task, _frame, res, null);
 }

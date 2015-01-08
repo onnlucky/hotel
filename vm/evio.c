@@ -725,7 +725,7 @@ again:;
         tlTaskPopFrame(task, _frame);
         return tlNull;
     }
-    tlHandle res = tlEval(task, tlBCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
+    tlHandle res = tlEval(task, tlCallFrom(frame->block, tlStringFromCopy(dp.d_name, 0), null));
     if (!res) return null;
     goto again;
 

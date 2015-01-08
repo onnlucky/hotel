@@ -48,7 +48,7 @@ again:;
     }
     assert(!tlTaskHasError(task));
 
-    tlHandle res = tlEval(task, tlBCallFrom(frame->block, null));
+    tlHandle res = tlEval(task, tlCallFrom(frame->block, null));
     if (!res) return null;
     goto again;
     fatal("not reached");

@@ -194,7 +194,7 @@ again:;
         tlTaskPopFrame(task, _frame);
         return tlNull;
     }
-    tlHandle res = tlEval(task, tlBCallFrom(frame->block, key, val, tlINT(frame->at), null));
+    tlHandle res = tlEval(task, tlCallFrom(frame->block, key, val, tlINT(frame->at), null));
     if (!res) return null;
     goto again;
 
