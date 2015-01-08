@@ -25,6 +25,11 @@ tlClass* tlCLASS(const char* name, tlNative* ctor, tlObject* methods, tlObject* 
     return cls;
 }
 
+tlClass* tlClassFor(tlHandle value) {
+    if (!value) return null;
+    return tl_kind(value)->cls;
+}
+
 static tlHandle _Class_name(tlTask* task, tlArgs* args) {
     tlClass* cls = tlClassAs(tlArgsTarget(args));
     return cls->name;

@@ -271,7 +271,7 @@ INTERNAL tlHandle _list_hash(tlTask* task, tlArgs* args) {
 }
 /// get(index): return the element from the list at index
 INTERNAL tlHandle _list_get(tlTask* task, tlArgs* args) {
-    tlList* list = tlListAs(tlArgsTarget(args));
+    TL_TARGET(tlList, list);
     int at = at_offset(tlArgsGet(args, 0), tlListSize(list));
     return tlMAYBE(tlListGet(list, at));
 }
@@ -426,21 +426,13 @@ static tlHandle listCmp(tlHandle _left, tlHandle _right) {
 
 
 static void list_init() {
-    tlKind _tlListKind = {
-        .name = "List",
-        .size = listSize,
-        .hash = listHash,
-        .equals = listEquals,
-        .cmp = listCmp,
-    };
-    INIT_KIND(tlListKind);
-
-    _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
-    tlListKind->klass = tlClassObjectFrom(
+    tlClass* cls = tlCLASS("List", null,
+    tlMETHODS(
         "hash", _list_hash,
         "toList", _list_toList,
         "size", _list_size,
         "get", _list_get,
+        "call", _list_get,
         "first", _list_first,
         "last", _list_last,
         "set", _list_set,
@@ -466,15 +458,21 @@ static void list_init() {
         "median", null,
         "sort", null,
         null
-    );
-    tlObject* constructor = tlClassObjectFrom(
-        //"call", _List_cat,
-        "_methods", null,
-        null
-    );
-    tlObjectSet_(constructor, s__methods, tlListKind->klass);
-    tl_register_global("List", constructor);
+    ), null);
+    tlKind _tlListKind = {
+        .name = "List",
+        .size = listSize,
+        .hash = listHash,
+        .equals = listEquals,
+        .cmp = listCmp,
+        .cls = cls,
+    };
+    INIT_KIND(tlListKind);
+
+    tl_register_global("List", cls);
     tl_register_global("_List_unsafe", tlNativeNew(_List_unsafe, tlSYM("_List_unsafe")));
     tl_register_global("_list_set_", tlNativeNew(_list_set_, tlSYM("_list_set_")));
+
+    _tl_emptyList = tlAlloc(tlListKind, sizeof(tlList));
 }
 

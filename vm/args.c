@@ -4,6 +4,8 @@
 
 // TODO the names list, can have a set as last element, to make args.object and args.map faster
 
+#include "args.h"
+
 #include "trace-off.h"
 
 tlKind* tlArgsKind;
@@ -35,6 +37,27 @@ tlArgs* tlArgsNewNames(int size, bool hasNames, bool isMethod) {
     tlArgs* args = tlAlloc(tlArgsKind, sizeof(tlArgs) + sizeof(tlHandle) * size);
     args->size = size;
     args->spec = !!isMethod << 1 | !!hasNames;
+    return args;
+}
+
+// create a new args, changing/adding function, method, target
+tlArgs* tlArgsFrom(tlArgs* call, tlHandle fn, tlSym method, tlHandle target) {
+    uint32_t size = call->size;
+    tlList* names = tlArgsNames(call);
+    tlArgs* args = tlArgsNewNames(size, !!names, method || target);
+    int call_offset = call->spec & 3;
+    int args_offset = args->spec & 3;
+    for (int i = 0; i < size; i++) {
+        args->data[args_offset + i] = call->data[call_offset + i];
+    }
+    tlArgsSetFn_(args, fn);
+    if (names) {
+        tlArgsSetNames_(args, names, 0);
+    }
+    if (method || target) {
+        tlArgsSetMethod_(args, method);
+        tlArgsSetTarget_(args, target);
+    }
     return args;
 }
 

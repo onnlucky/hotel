@@ -793,7 +793,6 @@ static tlKind _tlStringKind = {
 static void string_init() {
     tlClass* cls = tlCLASS("String", null,
     tlMETHODS(
-        "class", null,
         "toString", _string_toString,
         "toSym", _string_toSym,
         "intern", _string_intern,

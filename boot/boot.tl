@@ -408,20 +408,20 @@ _install(Args._methods, "join", _join)
 _install(Set._methods, "random", _get_random)
 _install(Set._methods, "each", _each)
 _install(Set._methods, "map", _map)
-_install(List._methods, "random", _get_random)
-_install(List._methods, "each", _each)
-_install(List._methods, "map", _map)
-_install(List._methods, "find", _find)
-_install(List._methods, "filter", _filter)
-_install(List._methods, "reduce", _reduce)
-_install(List._methods, "min", _min)
-_install(List._methods, "max", _max)
-_install(List._methods, "sum", _sum)
-_install(List._methods, "mean", _mean)
-_install(List._methods, "median", _median)
-_install(List._methods, "sort", _sort)
-_install(List._methods, "flatten", _flatten)
-_install(List._methods, "join", _join)
+_install_method(List, "random", _get_random)
+_install_method(List, "each", _each)
+_install_method(List, "map", _map)
+_install_method(List, "find", _find)
+_install_method(List, "filter", _filter)
+_install_method(List, "reduce", _reduce)
+_install_method(List, "min", _min)
+_install_method(List, "max", _max)
+_install_method(List, "sum", _sum)
+_install_method(List, "mean", _mean)
+_install_method(List, "median", _median)
+_install_method(List, "sort", _sort)
+_install_method(List, "flatten", _flatten)
+_install_method(List, "join", _join)
 
 _install(Map._methods, "each", (each = (fn ->
     block = args.block or fn
@@ -674,5 +674,4 @@ io.ioloop
 
 // we are done, print the results, if any, error has already been printed
 if main.value: print main.value
-return main.value
-
+null

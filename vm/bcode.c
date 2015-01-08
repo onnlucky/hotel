@@ -1035,11 +1035,22 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
         tlKind* kind = tl_kind(fn);
         if (kind->run) return kind->run(task, fn, args);
     }
+
+    // class support and class.call support
+    // TODO if the found fn is not callable, return it
     if (tlClassIs(fn)) {
         tlHandle ctor = tlClassAs(fn)->constructor;
-        // TODO this is not a nice way of forwarding args
-        call->fn = ctor;
-        return tlInvoke(task, call);
+        if (ctor) {
+            return tlInvoke(task, tlArgsFrom(call, ctor, null, null));
+        }
+    }
+    tlClass* cls = tlClassFor(fn);
+    if (cls) {
+        tlHandle target = fn;
+        fn = classResolve(cls, s_call);
+        if (fn) {
+            return tlInvoke(task, tlArgsFrom(call, fn, s_call, target));
+        }
     }
     TL_THROW("'%s' not callable", tl_str(fn));
 }
