@@ -90,6 +90,7 @@ struct tlBCode {
     tlBDebugInfo* debuginfo;
     tlList* argspec;
     tlList* localnames;
+    tlList* localvars;
 
     int locals;
     int calldepth;
@@ -521,7 +522,16 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     bcode->localnames = tlListAs(localnames);
     trace(" %s -- %s %s", tl_str(tlBCodeName(bcode)), tl_str(bcode->argspec), tl_str(bcode->localnames));
 
-    tlHandle debuginfo = readref(buf, data, null);
+    // TODO optional, but only for now
+    tlHandle localvars = readref(buf, data, null);
+    bcode->localvars = tlListCast(localvars);
+
+    tlHandle debuginfo;
+    if (tlObjectIs(localvars)) {
+        debuginfo = localvars;
+    } else {
+        debuginfo = readref(buf, data, null);
+    }
     if (!tlObjectIs(debuginfo) || tlNullIs(debuginfo)) FAIL("code[4] must be debuginfo (object|null)");
 
     tlBDebugInfo* info = tlBDebugInfoNew();
@@ -1439,8 +1449,9 @@ again:;
             assert(depth >= 0 && at >= 0);
             tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            v = tlEnvGet(parent, at);
+            v = tlEnvGetVar(parent, at); // TODO only for/until OP_EVGET
             assert(v);
+            if (!v) v = tlNull;
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
         }
@@ -1452,8 +1463,9 @@ again:;
         case OP_LOCAL:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            v = frame->locals->data[at];
-            if (!v) v = tlNull; // TODO tlUndefined or throw?
+            v = tlEnvGetVar(frame->locals, at); // TODO only for/until OP_VGET
+            assert(v); // or throw? or undefined?
+            if (!v) v = tlNull;
             trace("local %d -> %s", at, tl_str(v));
             break;
         case OP_ARGS:
@@ -1504,14 +1516,14 @@ again:;
         case OP_STORE:
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            frame->locals->data[at] = tlFirst(v);
+            tlEnvSet_(frame->locals, at, tlFirst(v));
             trace("store %d <- %s", at, tl_str(v));
             break;
         case OP_RSTORE: {
             int rat = pcreadsize(ops, &pc);
             tlHandle res = tlResultGet(v, rat);
             at = pcreadsize(ops, &pc);
-            frame->locals->data[at] = res;
+            tlEnvSet_(frame->locals, at, res);
             trace("result %d <- %s (%d %s)", at, tl_str(res), rat, tl_str(v));
             break;
         }
@@ -1519,7 +1531,7 @@ again:;
         case OP_VGET: {
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            v = frame->locals->data[at];
+            v = tlEnvGetVar(frame->locals, at);
             if (!v) v = tlNull; // TODO tlUndefined or throw?
             trace("vget %d -> %s", at, tl_str(v));
             break;
@@ -1527,7 +1539,7 @@ again:;
         case OP_VSTORE: {
             at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < bcode->locals);
-            frame->locals->data[at] = tlFirst(v);
+            tlEnvSetVar_(frame->locals, at, tlFirst(v));
             trace("vstore %d <- %s", at, tl_str(v));
             break;
         }
@@ -1535,7 +1547,7 @@ again:;
             int rat = pcreadsize(ops, &pc);
             tlHandle res = tlResultGet(v, rat);
             at = pcreadsize(ops, &pc);
-            frame->locals->data[at] = res;
+            tlEnvSetVar_(frame->locals, at, res);
             trace("rvstore %d <- %s (%d %s)", at, tl_str(res), rat, tl_str(v));
             break;
         }
@@ -1545,7 +1557,7 @@ again:;
             assert(depth >= 0 && at >= 0);
             tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            v = tlEnvGet(parent, at);
+            v = tlEnvGetVar(parent, at);
             assert(v);
             trace("env[%d][%d] -> %s", depth, at, tl_str(v));
             break;
@@ -1556,7 +1568,7 @@ again:;
             assert(depth >= 0 && at >= 0);
             tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
             assert(parent);
-            tlEnvSet_(parent, at, v);
+            tlEnvSetVar_(parent, at, v);
             trace("env[%d][%d] <- %s", depth, at, tl_str(v));
             break;
         }
@@ -1690,7 +1702,7 @@ INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {
             int at = pcreadsize(ops, &pc);
             assert(at >= 0 && at < code->locals);
             tlHandle name = tlListGet(code->localnames, at);
-            tlHandle v = frame->locals->data[at];
+            tlHandle v = tlEnvGet(frame->locals, at);
             trace("store %s(%d) = %s", tl_str(name), at, tl_str(v));
             tlHashMapSet(res, name, v);
         } else {
@@ -1709,7 +1721,7 @@ INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
     while (env) {
         for (int i = tlListSize(env->names) - 1; i >= 0; i--) {
             tlHandle name = tlListGet(env->names, i);
-            tlHandle v = env->data[i];
+            tlHandle v = tlEnvGet(env, i);
             if (!v) continue;
             if (tlHashMapGet(res, name)) continue;
             tlHashMapSet(res, name, v);
@@ -1863,12 +1875,14 @@ INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
         TL_THROW("frame requires Args as args[2]");
     }
     as->fn = fn;
-    return tlCodeFrameNew(as, null);
+    tlCodeFrame* frame = tlCodeFrameNew(as, null);
+    tlCodeFrame* link = tlCodeFrameCast(tlArgsGet(args, 2));
+    if (link) tlEnvLink_(frame->locals, link->locals, mod->body->localvars);
+    return frame;
 }
 
-INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
-    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
-    if (!frame) TL_THROW("run requires a frame");
+static tlHandle _frame_run(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlCodeFrame, frame);
     if (frame->pc != 0) TL_THROW("cannot reuse frames");
 
     tlTask* other = tlTaskCast(tlArgsGet(args, 0));
@@ -1885,21 +1899,39 @@ INTERNAL tlHandle _frame_run(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _frame_locals(tlTask* task, tlArgs* args) {
-    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
-    if (!frame) TL_THROW("run requires a frame");
+static tlHandle _frame_locals(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlCodeFrame, frame);
 
     tlEnv* env = frame->locals;
     tlList* names = env->names;
     tlObject* map = tlObjectNew(0);
     for (int i = 0; i < tlListSize(names); i++) {
         tlHandle name = tlListGet(names, i);
-        tlHandle v = env->data[i];
+        tlHandle v = tlEnvGet(env, i);
         if (!name) continue;
         if (!v) continue;
         map = tlObjectSet(map, tlSymAs(name), v);
     }
     return map;
+}
+
+static tlHandle _frame_get(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlCodeFrame, frame);
+    tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
+    tlList* localvars = closure->code->localvars;
+
+    tlEnv* env = frame->locals;
+    int at = at_offset(tlArgsGet(args, 0), tlListSize(env->names));
+
+    if (at < 0) return tlUndef();
+    tlHandle value = tlEnvGet(env, at);
+    if (!value) value = tlEnvGetVar(env, at); // try again as var
+    if (!value) value = tlNull;
+
+    tlHandle name = tlListGet(env->names, at);
+    assert(tl_bool(name));
+    tlHandle type = (localvars && tl_bool(tlListGet(localvars, at)))? s_var : tlNull;
+    return tlResultFrom(name, tlINT(0), type, value, null);
 }
 
 // true if last statement is a store
@@ -2226,6 +2258,7 @@ void bcode_init() {
     tlFrameKind->klass = tlClassObjectFrom(
         "run", _frame_run,
         "locals", _frame_locals,
+        "get", _frame_get,
         "allStored", _frame_allStored,
     null);
 

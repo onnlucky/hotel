@@ -8,11 +8,29 @@
 static tlKind _tlEnvKind = { .name = "Env" };
 tlKind* tlEnvKind;
 
+// TODO don't have to store names, it is also in env->args->fn->localnames
 tlEnv* tlEnvNew(tlList* names, tlEnv* parent) {
     tlEnv* env = tlAlloc(tlEnvKind, sizeof(tlEnv) + sizeof(tlHandle) * tlListSize(names));
     env->names = names;
     env->parent = parent;
     return env;
+}
+
+void tlEnvLink_(tlEnv* env, tlEnv* link, tlList* localvars) {
+    trace("%p %p, %s", env, link, tl_repr(localvars));
+    int size = tlListSize(link->names);
+    assert(size <= tlListSize(env->names));
+    bool mustlink = false;
+    for (int i = 0; i < size; i++) {
+        if (localvars && tl_bool(tlListGet(localvars, i))) {
+            mustlink = !!link->data[i];
+            continue;
+        }
+        env->data[i] = link->data[i];
+    }
+    // we don't link the scope in, unless it holds local variables itself
+    trace("actually linking for mutables: %s", mustlink? "true" : "false");
+    env->link = mustlink? link : link->link;
 }
 
 tlObject* tlEnvLocalObject(tlFrame* frame) {
@@ -53,14 +71,44 @@ tlObject* tlEnvLocalObject(tlFrame* frame) {
 
 tlHandle tlEnvGet(tlEnv* env, int at) {
     assert(tlEnvIs(env));
-    assert(at >= 0 && at <= tlListSize(env->names));
+    assert(at >= 0 && at < tlListSize(env->names));
     return env->data[at];
 }
 
 tlHandle tlEnvSet_(tlEnv* env, int at, tlHandle value) {
     assert(tlEnvIs(env));
-    assert(at >= 0 && at <= tlListSize(env->names));
+    assert(at >= 0 && at < tlListSize(env->names));
     return env->data[at] = value;
+}
+
+tlHandle tlEnvGetVar(tlEnv* env, int at) {
+    assert(tlEnvIs(env));
+    assert(at >= 0 && at < tlListSize(env->names));
+
+    tlHandle v = env->data[at];
+    while (!v && env->link) {
+        env = env->link;
+        if (at >= tlListSize(env->names)) return null;
+        v = env->data[at];
+    }
+    return v;
+}
+
+tlHandle tlEnvSetVar_(tlEnv* env, int at, tlHandle value) {
+    assert(tlEnvIs(env));
+    assert(at >= 0 && at < tlListSize(env->names));
+
+    if (!env->link) {
+        return env->data[at] = value;
+    }
+
+    tlEnv* prev = env;
+    env = env->link;
+    while (env && at < tlListSize(env->names)) {
+        prev = env;
+        env = env->link;
+    }
+    return prev->data[at] = value;
 }
 
 tlEnv* tlEnvGetParentAt(tlEnv* env, int depth) {

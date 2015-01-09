@@ -251,10 +251,9 @@ static tlHandle _isBuffer(tlTask* task, tlArgs* args) { return tlBOOL(tlBufferIs
 static tlHandle _isRegex(tlTask* task, tlArgs* args);
 
 static bool tlBClosureIs(tlHandle h);
-static tlHandle _isFunction(tlTask* task, tlArgs* args) {
-    tlHandle fn = tlArgsGet(args, 0);
-    return tlBOOL(tlBClosureIs(fn));
-}
+static bool tlCodeFrameIs(tlHandle h);
+static tlHandle _isFunction(tlTask* task, tlArgs* args) { return tlBOOL(tlBClosureIs(tlArgsGet(args, 0))); }
+static tlHandle _isFrame(tlTask* task, tlArgs* args) { return tlBOOL(tlCodeFrameIs(tlArgsGet(args, 0))); }
 
 static const tlNativeCbs __value_natives[] = {
     { "isUndefined", _isUndefined },
@@ -270,6 +269,7 @@ static const tlNativeCbs __value_natives[] = {
     { "isList", _isList },
     { "isObject", _isObject },
     { "isFunction", _isFunction },
+    { "isFrame", _isFrame },
 
     { "isSet", _isSet },
     { "isMap", _isMap },

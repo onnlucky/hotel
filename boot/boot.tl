@@ -645,8 +645,8 @@ io = resolve("io")
 
 // TODO allow safe eval by not resolving modules and limited default env ...
 _eval = env/*env*/ ->
-    { args["frame"] and env }: compiler.load(this, name="<eval>", env, _env, (name -> resolve(name, null))).frame()
-    { args["frame"]         }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).frame()
+    { args["frame"] and env }: compiler.load(this, name="<eval>", link=args["frame"], env, _env, (name -> resolve(name, null))).frame(link=args["frame"])
+    { args["frame"]         }: compiler.load(this, name="<eval>", link=args["frame"], _env, (name -> resolve(name, null))).frame(link=args["frame"])
     { env                   }: compiler.load(this, name="<eval>", env, _env, (name -> resolve(name, null))).run()
     {                       }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).run()
 

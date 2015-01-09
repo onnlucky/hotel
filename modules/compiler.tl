@@ -103,12 +103,16 @@ encodeMap = m ->
     m.each: e -> buf.write(e)
     return buf.read
 
-writeCode = mod, c ->
+writeCode = mod, c, scope ->
     buf = Buffer.new
 
     buf.write(mod.data(c.name))
-    buf.write(mod.data(c.argspecs))
+    buf.write(mod.data(c.argspecs)) // TODO split up in 3 lists argnames, argdefaults, arglazy, null should be fine for any
     buf.write(mod.data(c.locals))
+    { scope }:
+        buf.write(mod.data(scope.localvars)) // mutable or not, null is fine if no mutables
+    {       }:
+        buf.write(mod.data(null))
     buf.write(mod.data(c.debuginfo))
 
     var $pc = 0
@@ -229,6 +233,8 @@ compile = (text, ast ->
             this.names.each(name, ref ->
                 if functions[ref?fn]?open: closefn(ref.fn)
             )
+        localvars = ->
+            this.locals.map(name -> this.names[name]?type == "var")
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.args.add(name)
@@ -348,25 +354,29 @@ compile = (text, ast ->
         if arg.d: return [arg.name, arg.d]
         [arg.name]
 
-    lextop = scope, term ->
+    lextop = scope, term, linkframe ->
+        scope = Scope(scope, term.type != "function")
+        if isFrame(linkframe):
+            var $at = 0
+            loop:
+                name, pos, type = linkframe.get(($at += 1))
+                if not name: break
+                scope.add(name, pos, type=type)
         { term.type == "function" }:
-            scope = Scope(scope)
             args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
-            {type="function",{args,body},locals=scope.locals.toList,pos=term.pos}
+            {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "block" }:
-            scope = Scope(scope, true)
             args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
-            {type="block",{args,body},locals=scope.locals.toList,pos=term.pos}
+            {type="block",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "scope" }:
-            scope = Scope(scope, true)
             args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
-            {type="scope",{args,body},locals=scope.locals.toList,pos=term.pos}
+            {type="scope",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
 
     lex = scope, term, name, pos ->
         { term == null              }: "null"
@@ -414,7 +424,7 @@ compile = (text, ast ->
             print "---- class: $class ----"
             print repr(functions[1])
             */
-            constructor = {type="function",{args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
+            constructor = {type="function",{scope,args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
             _, fn = functions.add({name="",open=false,function=constructor})
             c = { $extend }: {type="object", fill=[["call", {type="function",function=fn}],["class",lex(scope.parent,$extend)]], map=(class["class"]=null)}
                 {         }: {type="object", fill=[["call", {type="function",function=fn}]], map=class}
@@ -636,12 +646,12 @@ compile = (text, ast ->
 
     emittop = fn, name ->
         code = fn.body.map(term -> emit(term)).flatten
-        {{code},name=(fn?name or name or ""),locals=fn.locals,args=fn.args,pos=fn.pos}
+        {{code},name=(fn?name or name or ""),locals=fn.locals,args=fn.args,pos=fn.pos,scope=fn?scope}
 
-    parseemit = text, ast ->
+    parseemit = text, ast, linkframe ->
         ast = { ast }: ast
               {     }: parse(text)
-        ast = lextop(Scope(null), ast)
+        ast = lextop(Scope(null), ast, linkframe)
         // TODO wait until stable? as closing functions might produce new functions ...
         functions.each: fn, n -> if fn.open: closefn(n)
         functions.each: fn, n -> if fn.open: closefn(n)
@@ -703,16 +713,16 @@ compile = (text, ast ->
             ref = this.data(v)
             _, at = this.globals.add(ref)
             this.globalsIndex[v] = encodeInt(at - 1)
-        function = name, code, locals, argspecs, debuginfo ->
+        function = name, code, locals, argspecs, debuginfo, scope ->
             code = code.add("end")
             //print "code:", name, debuginfo.line, repr(code)[:20]
-            bin = writeCode(this, {{name, locals, argspecs, code, debuginfo}})
+            bin = writeCode(this, {{name, locals, argspecs, code, debuginfo}}, scope)
             _, at = this.datas.add(bin)
             //print "function", at, name
             this.functions[name] = encodeInt(at - 1)
         code = v ->
             fn = functions[v]
-            return this.function(fn.name, fn.code, fn.locals, fn.args, {line=lineFromPos(fn.pos),text="",offset=0,pos=[]})
+            return this.function(fn.name, fn.code, fn.locals, fn.args, {line=lineFromPos(fn.pos),text="",offset=0,pos=[]}, fn?scope)
         create = ->
             buf = Buffer.new
             buf.write("tl01")
@@ -731,10 +741,10 @@ compile = (text, ast ->
         pos = main?pos or []
 
         builder = builder_new(functions)
-        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]})
+        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]}, main?scope)
         builder.create
 
-    main, functions2 = parseemit(text, ast)
+    main, functions2 = parseemit(text, ast, args["link"])
     buf = compilemain(main, functions2)
     if args["buffer"]: return buf
     return buf.read
@@ -772,7 +782,7 @@ Module = m -> {
         links = -> _module_links(m)
         link = ls -> Module(_module_link(m, ls))
         frame = as ->
-            _module_frame(m, as)
+            _module_frame(m, as, args["link"])
         run = as, task, frame ->
             _module_run(m, as, task, frame)
         debug = stream, as, frame ->
@@ -797,7 +807,7 @@ load = bytes ->
             { isBuffer(bytes) }: bytes
             {                 }: ast = parse(bytes)
                                  //print "parse", args["name"], (time() - start)
-                                 buf = compile(bytes, ast, buffer=true)
+                                 buf = compile(bytes, ast, buffer=true, link=args["link"])
                                  //print "compiled", args["name"], (time() - start)
                                  buf
     m = _Module_new(bytes, args["name"] or "")

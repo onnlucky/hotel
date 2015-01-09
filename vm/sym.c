@@ -19,6 +19,7 @@ static tlSym s_break;
 static tlSym s_call;
 static tlSym s_send;
 static tlSym s_op;
+static tlSym s_var;
 
 static tlSym s__get;
 static tlSym s__set;
@@ -175,6 +176,7 @@ static void sym_string_init() {
     s_call   = tlSYM("call");
     s_send   = tlSYM("send");
     s_op     = tlSYM("op");
+    s_var    = tlSYM("var");
     s_class  = tlSYM("class");
     s__methods = tlSYM("_methods");
     s__get   = tlSYM("_get");
