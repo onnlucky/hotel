@@ -1,6 +1,3 @@
-_env = Env.current
-var $env = Env.new(_env)
-
 // get current cursor position
 cursorPosition = term ->
     term.write(27, "[6n")
@@ -14,7 +11,7 @@ term = io.stdin
 if not term.isTTY: return
 term.setRaw
 
-var $last = {cursor=0,lines=0}
+var $last = { cursor=0, lines=0 }
 writeLine = prompt, left, right ->
     width, height = term.measure
     len = prompt.size + left.size + right.size
@@ -26,7 +23,7 @@ writeLine = prompt, left, right ->
     buf = Buffer.new
     trail = $last.lines - lines
     up = $last.cursor
-    if up > 0: buf.write(27, "[$(up)A")
+    if up > 0: buf.write(27, "[$(up)A") // "
     // output line
     buf.write(27, "[0G", prompt, left, right, 27, "[0K")
     // clear trailing lines from previous long entry
@@ -35,21 +32,22 @@ writeLine = prompt, left, right ->
         trail.times: buf.write(27, "[1B", 27, "[0K")
         trail.times: buf.write(27, "[1A")
     // move cursor back up to cursor position line and col
-    if lines - cursor > 0: buf.write(27, "[$(lines - cursor)A")
-    buf.write(27, "[$(curcol)G")
+    if lines - cursor > 0: buf.write(27, "[$(lines - cursor)A") // "
+    buf.write(27, "[$(curcol)G") // "
     $last = {{cursor,lines}}
     term.write(buf)
 
+var env = true
 runcode = code ->
     term.restore
     print ""
     (
-        catch: e -> print "error: $(e.toString)"
-        res = eval(env, code)
-        if res:
-            r = repr(res)
-            { r == "null"   }: print res
-            {               }: print r
+        catch: e -> print "error: $(toString(e))"
+        frame = code.eval(frame=env)
+        assert(isFrame(frame))
+        res = frame.run
+        env = frame
+        if not frame.allStored and isDefined(res) and res != null: print(toString(res))
     )
     term.write(" ") // seems needed to flush print's and such
     term.setRaw
@@ -61,14 +59,14 @@ older = Array.new
 newer = Array.new
 HIST = _io_getenv("HOME") + "/.tlhistory"
 readSharedHistory = ->
-    history = try(io.File(HIST).readString.split("\n"))
+    history = try(io.File(HIST).readString.split("\n", keepempty=false, trim=true))
     if not history: return
     older.clear
     older.cat(history)
 addHistory = line ->
     readSharedHistory()
     newer.clear
-    older.add(line)
+    older.add(line.trim)
     history = older.toList[-100:]
     content = history.join("\n") + "\n"
     io.File(HIST).write(content)
@@ -145,7 +143,7 @@ commandline = _env ->
         term.readInto(inbuf)
         while inbuf.size > 0:
             c = inbuf.readByte
-            editor.debug("in: $(c)")
+            editor.debug("in: $(c)") // "
             { c == 4   }: $running = false
             { c == 3   }: $running = false
             { c == 13  }: editor.newline
@@ -153,7 +151,7 @@ commandline = _env ->
             { c == 27  }: // esc
                 c2 = inbuf.readByte // [
                 c3 = inbuf.readByte // A for up, etc
-                editor.debug("esc: $(c) $(c2) $(c3)")
+                editor.debug("esc: $(c) $(c2) $(c3)") // "
                 if not c2: editor.special(c)
                 if c2 == 91:
                     if c3 == 68: editor.moveleft
@@ -171,4 +169,3 @@ commandline = _env ->
 
     term.restore
     term.write("\n")
-

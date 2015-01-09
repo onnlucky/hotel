@@ -1944,7 +1944,12 @@ INTERNAL tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
     tlBCode* code = closure->code;
 
     int op = code->code[code->size - 3];
-    return op == OP_STORE? tlTrue : tlFalse;
+    switch (op) {
+        case OP_STORE: case OP_RSTORE: return tlTrue;
+        case OP_VSTORE: case OP_VRSTORE: return tlTrue;
+        case OP_EVSTORE: case OP_EVRSTORE: return tlTrue;
+    }
+    return tlFalse;
 }
 
 INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
