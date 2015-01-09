@@ -262,7 +262,7 @@ INTERNAL tlHandle _list_size(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     return tlINT(tlListSize(list));
 }
-static unsigned int listHash(tlHandle v);
+static uint32_t listHash(tlHandle v);
 /// hash: traverse all elements for a hash, then calculate a final hash
 /// throws an exception if elements could not be hashed
 INTERNAL tlHandle _list_hash(tlTask* task, tlArgs* args) {
@@ -389,14 +389,15 @@ INTERNAL tlHandle _list_remove(tlTask* task, tlArgs* args) {
 static size_t listSize(tlHandle v) {
     return sizeof(tlList) + sizeof(tlHandle) * tlListAs(v)->size;
 }
-static unsigned int listHash(tlHandle v) {
+static uint32_t listHash(tlHandle v) {
     tlList* list = tlListAs(v);
     // if (list->hash) return list->hash;
-    unsigned int hash = 0x1;
+    uint32_t hash = 3615000021; // 10.hash + 1
     for (int i = 0; i < list->size; i++) {
-        hash ^= tlHandleHash(tlListGet(list, i));
+        uint32_t h = tlHandleHash(tlListGet(list, i));
+        h = h << (i & 32) | h >> (32 - (i & 32));
+        hash ^= h;
     }
-    if (!hash) hash = 1;
     return hash;
 }
 static bool listEquals(tlHandle _left, tlHandle _right) {

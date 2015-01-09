@@ -46,8 +46,8 @@ static const char* chartoString(tlHandle v, char* buf, int size) {
     buf[len] = 0;
     return buf;
 }
-static unsigned int charHash(tlHandle h) {
-    return murmurhash2a((uint8_t*)&tlCharAs(h)->value, sizeof(int));
+static uint32_t charHash(tlHandle h) {
+    return murmurhash2a((uint8_t*)&tlCharAs(h)->value, sizeof(int)) + 2;
 }
 static bool charEquals(tlHandle left, tlHandle right) {
     return tl_double(left) == tl_double(right);
@@ -107,8 +107,8 @@ tlHandle tlFLOAT(double d) {
 static const char* floattoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "%.17g", tl_double(v)); return buf;
 }
-static unsigned int floatHash(tlHandle h) {
-    return murmurhash2a((uint8_t*)&tlFloatAs(h)->value, sizeof(double));
+static uint32_t floatHash(tlHandle h) {
+    return murmurhash2a((uint8_t*)&tlFloatAs(h)->value, sizeof(double)) + 3;
 }
 static bool floatEquals(tlHandle left, tlHandle right) {
     return tl_double(left) == tl_double(right);
@@ -353,7 +353,8 @@ static tlHandle _Num_fromBytes(tlTask* task, tlArgs* args) {
 static const char* numtoString(tlHandle v, char* buf, int size) {
     mp_toradix_n(&tlNumAs(v)->value, buf, 10, size); return buf;
 }
-static unsigned int numHash(tlHandle h) {
+static uint32_t numHash(tlHandle h) {
+    // TODO this is broken
     return murmurhash2a((uint8_t*)&tlNumAs(h)->value, sizeof(double));
 }
 static bool numEquals(tlHandle left, tlHandle right) {

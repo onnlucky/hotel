@@ -223,7 +223,7 @@ extern tlHandle tlSmaller;
 extern tlHandle tlLarger;
 tlHandle tlCOMPARE(intptr_t); // returns one of tlEqual, tlSmaller, tlLarger
 
-unsigned int tlHandleHash(tlHandle v);
+uint32_t tlHandleHash(tlHandle v);
 bool tlHandleEquals(tlHandle left, tlHandle right);
 tlHandle tlHandleCompare(tlHandle left, tlHandle right);
 
@@ -506,7 +506,7 @@ tlLock* tlLockCast(tlHandle v);
 tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tltoStringFn)(tlHandle v, char* buf, int size);
-typedef unsigned int(*tlHashFn)(tlHandle from);
+typedef uint32_t(*tlHashFn)(tlHandle from);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
 typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
 typedef size_t(*tlByteSizeFn)(tlHandle from);

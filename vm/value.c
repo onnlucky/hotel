@@ -105,7 +105,7 @@ static const char* undefinedtoString(tlHandle v, char* buf, int size) { return "
 static tlKind _tlUndefinedKind = { .name = "Undefined", .toString = undefinedtoString };
 
 static const char* nulltoString(tlHandle v, char* buf, int size) { return "null"; }
-static unsigned int nullHash(tlHandle v) { return 0; }
+static uint32_t nullHash(tlHandle v) { return 553626246; } // 0.hash + 1
 static tlKind _tlNullKind = {
     .name = "Null",
     .index = -1,
@@ -120,9 +120,9 @@ static const char* booltoString(tlHandle v, char* buf, int size) {
         default: return "<!! error !!>";
     }
 }
-static unsigned int boolHash(tlHandle v) {
-    if ((intptr_t)v == TL_FALSE) return 1;
-    return 2;
+static uint32_t boolHash(tlHandle v) {
+    if ((intptr_t)v == TL_FALSE) return 3132784305; // 1.hash + 1
+    return 3502067542; // 2.hash + 1
 }
 static tlKind _tlBoolKind = {
     .name = "Bool",

@@ -119,14 +119,15 @@ tlObject* tlObjectToObject_(tlObject* object) {
     assert((object->head.kind & 0x7) == 0);
     object->head.kind = (intptr_t)tlObjectKind; return object;
 }
-int tlObjectHash(tlObject* object) {
+uint32_t tlObjectHash(tlObject* object) {
     // if (object->hash) return object->hash;
-    unsigned int hash = 0x1;
+    uint32_t hash = 212601863; // 11.hash + 1
     for (int i = 0; i < object->keys->size; i++) {
-        hash ^= tlHandleHash(tlSetGet(object->keys, i));
-        hash ^= tlHandleHash(object->data[i]);
+        uint32_t k = tlHandleHash(tlSetGet(object->keys, i));
+        uint32_t v = tlHandleHash(object->data[i]);
+        hash ^= k << (i & 32) | k >> (32 - (i & 32));
+        hash ^= v << (i & 32) | v >> (32 - (i & 32));
     }
-    if (!hash) hash = 1;
     return hash;
 }
 int tlObjectSize(const tlObject* object) {
@@ -554,7 +555,7 @@ static tlHandle objectRun(tlTask* task, tlHandle fn, tlArgs* args) {
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
-static unsigned int objectHash(tlHandle v) {
+static uint32_t objectHash(tlHandle v) {
     tlObject* object = tlObjectAs(v);
     return tlObjectHash(object);
 }

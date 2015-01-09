@@ -262,11 +262,10 @@ static int process_utf8(const char* from, int len, char** into, int* intolen, in
     return i;
 }
 
-unsigned int tlStringHash(tlString* str) {
+uint32_t tlStringHash(tlString* str) {
     assert(tlStringIs(str) || tlBinIs(str));
     if (str->hash) return str->hash;
     str->hash = murmurhash2a(str->data, str->len);
-    if (!str->hash) str->hash = 1;
     return str->hash;
 }
 bool tlStringEquals(tlString* left, tlString* right) {
@@ -772,7 +771,7 @@ INTERNAL tlHandle _string_endsWith(tlTask* task, tlArgs* args) {
 INTERNAL const char* stringtoString(tlHandle v, char* buf, int size) {
     return tlStringData(tlStringAs(v));
 }
-INTERNAL unsigned int stringHash(tlHandle v) {
+static uint32_t stringHash(tlHandle v) {
     return tlStringHash(tlStringAs(v));
 }
 INTERNAL int stringEquals(tlHandle left, tlHandle right) {
