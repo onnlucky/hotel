@@ -1,8 +1,8 @@
 # TODO
 
 think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
+rework compile, all .c files should have .h file and compile to .o file
 
-allow tlEnv to link to a previous env, where this one can be larger, but if a value == 0, we link back, for repl and var's
 allow tlEnv to have imports, so that before mod->links[global] we look up global against all scoped imports first
 add tlClass with mixins and super and fields and methods, all primitives should have a tlClass
 implement proper operators and "hello" is String stuff
