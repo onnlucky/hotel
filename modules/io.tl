@@ -226,9 +226,9 @@ Path = {
         mtime = -> this.stat.mtime
         atime = -> this.stat.atime
         size = -> this.stat.size
-        isFile = -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFREG
-        isDir =  -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFDIR
-        isLink = -> binand(this.stat.mode, _Stat_IFMT) == _Stat_IFLNK
+        isFile = -> this.stat.mode & _Stat_IFMT == _Stat_IFREG
+        isDir =  -> this.stat.mode & _Stat_IFMT == _Stat_IFDIR
+        isLink = -> this.stat.mode & _Stat_IFMT == _Stat_IFLNK
         asFile = -> File(this.name)
         asDir =  -> Dir(this.name)
         create = -> _io_mkdir(this.name)

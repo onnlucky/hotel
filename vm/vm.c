@@ -360,40 +360,6 @@ static tlHandle _pow(tlTask* task, tlArgs* args) {
     }
     TL_THROW("'**' not implemented for: %s ** %s", tl_str(l), tl_str(r));
 }
-static tlHandle _binand(tlTask* task, tlArgs* args) {
-    int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
-    trace("BIN AND: %d", res);
-    return tlINT(res);
-}
-static tlHandle _binor(tlTask* task, tlArgs* args) {
-    int res = tl_int(tlArgsGet(args, 0)) | tl_int(tlArgsGet(args, 1));
-    trace("BIN OR: %d", res);
-    return tlINT(res);
-}
-static tlHandle _binxor(tlTask* task, tlArgs* args) {
-    int res = tl_int(tlArgsGet(args, 0)) ^ tl_int(tlArgsGet(args, 1));
-    trace("BIN XOR: %d", res);
-    return tlINT(res);
-}
-static tlHandle _binnot(tlTask* task, tlArgs* args) {
-    int res = ~tl_int(tlArgsGet(args, 0));
-    trace("BIN NOT: %d", res);
-    return tlINT(res);
-}
-static tlHandle _shift(tlTask* task, tlArgs* args) {
-    int from = tl_int(tlArgsGet(args, 0));
-    int by = tl_int_or(tlArgsGet(args, 1), 0);
-    int res;
-    if (by < 0) {
-        if (-by > sizeof(int)*8) { res = 0; } else { res = from >> -by; }
-    } else if (by > 0) {
-        if (by > sizeof(int)*8) { res = 0; } else { res = from << by; }
-    } else {
-        res = from;
-    }
-    trace("BIN SHIFT: %d by: %d == %d", from, by, res);
-    return tlINT(res);
-}
 static tlHandle _sqrt(tlTask* task, tlArgs* args) {
     double res = sqrt(tl_double(tlArgsGet(args, 0)));
     trace("SQRT: %d", res);
@@ -741,15 +707,9 @@ static const tlNativeCbs __vm_natives[] = {
     { "mod",  _mod },
     { "pow", _pow },
 
-    { "binand",  _binand },
-    { "binor",  _binor },
-    { "binxor",  _binxor },
-    { "binnot",  _binnot },
-    { "shift", _shift },
-
-    { "sqrt", _sqrt },
     { "random", _random },
 
+    { "sqrt", _sqrt },
     { "sin", _sin },
     { "cos", _cos },
     { "tan", _tan },
