@@ -641,9 +641,9 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
                 trace("float: %llx %f", n, *(double*)&n);
                 return tlFLOAT(*(double*)&n);
             }
-            if (size > 3) FAIL("bad number or not implemented");
             trace("int size %d", size + 1);
-            int val = 0;
+            if (size > 7) FAIL("bad number");
+            int64_t val = 0;
             for (int i = 0; i < size; i++) {
                 val = (val << 8) | tlBufferReadByte(buf);
             }
@@ -686,6 +686,7 @@ tlHandle deserialize(tlBuffer* buf, tlBModule* mod, const char** error) {
     tlList* data = tlListNew(size);
     for (int i = 0; i < size; i++) {
         v = readvalue(buf, data, mod, error);
+        if (*error) return null;
         if (!v) FAIL("unable to read value");
         trace("%d: %s", i, tl_str(v));
         tlListSet_(data, i, v);

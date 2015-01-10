@@ -187,18 +187,22 @@ opname = op ->
     { op == "<" }: return "lt"
     { op == "<=" }: return "lte"
 
-    { op == "|" }: return "bor"
+    { op == "~" }: return "bnot"
     { op == "&" }: return "band"
+    { op == "|" }: return "bor"
+    { op == "^" }: return "bxor"
     { op == "<<" }: return "lsh"
     { op == ">>" }: return "rsh"
+    { op == ">>>" }: return "rrsh"
 
     { op == "+" }: return "add"
     { op == "-" }: return "sub"
     { op == "*" }: return "mul"
     { op == "/" }: return "div"
-    { op == "/."}: return "idiv"
+    { op == "/."}: return "idiv" // TODO fdiv
+    { op == "//"}: return "idiv"
     { op == "%" }: return "mod"
-    { op == "^" }: return "pow"
+    { op == "**" }: return "pow"
 
 compile = (text, ast ->
     globals = HashMap.new
@@ -501,6 +505,12 @@ compile = (text, ast ->
         { term.type == "not" }:
             rhs = lex(scope, term.rhs)
             {type="not",{rhs}}
+        { term.type == "~" }:
+            rhs = lex(scope, term.rhs)
+            {type="~",{rhs}}
+        { term.type == "-" }:
+            rhs = lex(scope, term.rhs)
+            {type="-",{rhs}}
         { term.type == "op"  }:
             lhs = lex(scope, term.lhs)
             rhs = lex(scope, term.rhs)
@@ -607,6 +617,12 @@ compile = (text, ast ->
         { term.type == "not" }:
             rhs = emit(term.rhs)
             ["fcall", 1, "global", "not", rhs, "invoke"]
+        { term.type == "~" }:
+            rhs = emit(term.rhs)
+            ["fcall", 1, "global", "bnot", rhs, "invoke"]
+        { term.type == "-" }:
+            rhs = emit(term.rhs)
+            ["fcall", 1, "global", "neg", rhs, "invoke"]
         { term.type == "op"  }:
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)

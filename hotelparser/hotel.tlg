@@ -108,17 +108,21 @@ reserved: "else" !letter
 literal*: "true" | "false" | "null" | "undefined"
   opname: ("not"|"and"|"or"|"xor") !letter
     ref*: pos=pos !opname !reserved name=name type=<ref>
-   value: function
-        | class
+  vparen: "(".. e=mexpr ..")" -> e
+        | "(".. pos=pos body=body ..")" type=<scope>
+   value: class
         | object
         | map
         | list
-        | "(".. pos=pos body=body ..")" type=<scope>
         | num | chr | text
+        | function
         | literal
         | ref
+        | vparen
+        | pos=pos type="~" rhs=(num|ref|vparen)
+        | pos=pos type="-" rhs=(ref|vparen)
 
-   margs: e=arg es=(.","..@"a value" arg)* &eostmb                          -> prepend(es, e)
+   margs: e=arg es=(.","..@"a value" arg)* &eostmb                           -> prepend(es, e)
         | e=mcallarg &eostmb                                                 -> tlListFrom1(e)
     args: e=fnarg                                                            -> tlListFrom1(e)
         | e=arg es=(eov.. arg)*                                              -> prepend(es, e)
@@ -145,6 +149,7 @@ mcallarg: v=mcall
         | pos=pos "[".. key=garg .."]" t=tail                                      -> process_get(key, t, pos)
         | pos=pos "["..@"a closing ']'" from=sarg?..":"..to=sarg?.."]" t=tail      -> process_slice(from, to, t, pos)
         | ""                                                                       -> tlNull
+// TODO "print - 1" is same as "x - 1" is same as "x - x" but is not if "- x" parses as "neg(x)"
    mtail: pos=pos " ". !met !"(" !":" args=margs &eostmb                           -> process_call(args, tlNull, pos)
     call: value=value t=tail                                                       -> process_tail(value, t)
    mcall: pos=pos value=ref &" " t=mtail                                           -> process_add_block(process_tail(value, t), null, pos)
@@ -153,18 +158,18 @@ mcallarg: v=mcall
         | pos=pos value=ref block=block                                          -> process_add_block(value, block, pos)
         | pos=pos value=call block=block?                                        -> process_add_block(value, block, pos)
 
-      op: "+" | "-" | "*" | "/." | "/" | "%" | "^" | "|" | "&"
+      op: "+" | "-" | "**" | "*" | "/." | "/" | "%" | "~" | "|" | "&" | "^"
     expr: "!". pos=pos rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=not)*                    -> process_expr(l, rs)
      not: pos=pos type="not".. rhs=not | compare
  compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=bitwise)* -> process_expr(l, rs)
- bitwise: l=shift rs=(..pos=pos op=("&"|"|").. r=shift)*                         -> process_expr(l, rs)
-   shift: l=add rs=(..pos=pos op=("<<"|">>").. r=add)*                           -> process_expr(l, rs)
+ bitwise: l=shift rs=(..pos=pos op=("&"|"|"|"^").. r=shift)*                     -> process_expr(l, rs)
+   shift: l=add rs=(..pos=pos op=("<<"|">>>"|">>").. r=add)*                     -> process_expr(l, rs)
      add: l=mul rs=(..pos=pos op=("+"|"-").. r=mul)*                             -> process_expr(l, rs)
      mul: l=pow rs=(..pos=pos op=("*"|"/."|"/"|"%").. r=pow)*                    -> process_expr(l, rs)
-     pow: l=paren rs=(..pos=pos op=("^").. r=paren)*                             -> process_expr(l, rs)
+     pow: l=paren rs=(..pos=pos op=("**").. r=paren)*                            -> process_expr(l, rs)
    paren: &"(" function
         //| "("..@"a closing ')'" pos=pos body=body ..")" type=<scope>
         | p=pos "assert"."("..@"a closing ')'" b=pos CI args=args e=pos ..")" t=tail  -> process_assert(args, t, p, b, e, _p)

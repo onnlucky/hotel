@@ -142,7 +142,10 @@ static bool intEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
 static tlHandle intCmp(tlHandle left, tlHandle right) {
-    return tlCOMPARE(tl_int(left) - tl_int(right));
+    intptr_t l = tl_int(left); intptr_t r = tl_int(right);
+    if (l < r) return tlSmaller;
+    if (l > r) return tlLarger;
+    return tlEqual;
 }
 static tlKind _tlIntKind = {
     .name = "Int",
@@ -183,6 +186,7 @@ static tlHandle _int_toString(tlTask* task, tlArgs* args) {
     switch (base) {
         case 2:
         {
+            // TODO 7 == 0111; -7 = 1001; ~7 = 11111111111111111111111111111000
             int at = 0;
             bool zero = true;
             for (int i = 31; i >= 0; i--) {
@@ -213,8 +217,7 @@ static tlHandle _int_self(tlTask* task, tlArgs* args) {
     return tlArgsTarget(args);
 }
 static tlHandle _int_abs(tlTask* task, tlArgs* args) {
-    int i = tl_int(tlArgsTarget(args));
-    // TODO check for overflow and move to tlNum
+    intptr_t i = tl_int(tlArgsTarget(args));
     if (i < 0) return tlINT(-i);
     return tlArgsTarget(args);
 }

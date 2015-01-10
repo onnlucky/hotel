@@ -209,29 +209,89 @@ static tlHandle _gte(tlTask* task, tlArgs* args) {
     return tlBOOL(res != tlSmaller);
 }
 
-// shift operators
+// binary operators
+static tlHandle _bnot(tlTask* task, tlArgs* args) {
+    tlHandle v = tlArgsGet(args, 0);
+    if (tlNumberIs(v)) {
+        uint32_t vs = tl_int(v);
+        uint32_t res = ~vs;
+        return tlINT((uint32_t)res);
+    }
+    TL_THROW("'~' not implemented for: ~%s", tl_str(v));
+}
 static tlHandle _band(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) & tl_int(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        uint32_t lhs = tl_int(l);
+        uint32_t rhs = tl_int(r);
+        uint32_t res = lhs & rhs;
+        return tlINT((uint32_t)res);
+    }
     TL_THROW("'&' not implemented for: %s & %s", tl_str(l), tl_str(r));
 }
 static tlHandle _bor(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) | tl_int(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        uint32_t lhs = tl_int(l);
+        uint32_t rhs = tl_int(r);
+        uint32_t res = lhs | rhs;
+        return tlINT((uint32_t)res);
+    }
     TL_THROW("'|' not implemented for: %s | %s", tl_str(l), tl_str(r));
 }
-static tlHandle _lshift(tlTask* task, tlArgs* args) {
+static tlHandle _bxor(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) << tl_int(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        uint32_t lhs = tl_int(l);
+        uint32_t rhs = tl_int(r);
+        uint32_t res = lhs ^ rhs;
+        return tlINT((uint32_t)res);
+    }
+    TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
+}
+// TODO shifting should work on any size number?
+static tlHandle _blshift(tlTask* task, tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        int64_t lhs = tl_int(l);
+        int rhs = tl_int(r);
+        if (rhs <= -64 || rhs >= 64) return tlZero;
+        uint64_t res = rhs >= 0? lhs << rhs : lhs >> -rhs;
+        return tlINT((intptr_t)res);
+    }
     TL_THROW("'<<' not implemented for: %s << %s", tl_str(l), tl_str(r));
 }
-static tlHandle _rshift(tlTask* task, tlArgs* args) {
+static tlHandle _brshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlNumberIs(l) && tlNumberIs(r)) return tlINT(tl_int(l) >> tl_int(r));
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        int64_t lhs = tl_int(l);
+        int rhs = tl_int(r);
+        if (rhs <= -64 || rhs >= 64) return tlZero;
+        uint64_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
+        return tlINT((intptr_t)res);
+    }
     TL_THROW("'>>' not implemented for: %s >> %s", tl_str(l), tl_str(r));
 }
+static tlHandle _brrshift(tlTask* task, tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNumberIs(l) && tlNumberIs(r)) {
+        uint32_t lhs = tl_int(l);
+        int rhs = tl_int(r);
+        if (rhs < -64 || rhs > 64) return tlZero;
+        uint32_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
+        return tlINT((uint32_t)res);
+    }
+    TL_THROW("'>>>' not implemented for: %s >>> %s", tl_str(l), tl_str(r));
+}
 
-// int/float
+// int/float/bigint
+static tlHandle _neg(tlTask* task, tlArgs* args) {
+    tlHandle v = tlArgsGet(args, 0);
+    if (tlIntIs(v)) return tlINT(-tl_int(v));
+    if (tlFloatIs(v)) return tlFLOAT(-tl_double(v));
+    if (tlNumberIs(v)) return tlNumNeg(tlNumTo(v));
+    TL_THROW("'-' not implemented for: -%s", tl_str(v));
+}
 static tlHandle _add(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) + tl_int(r));
@@ -296,9 +356,9 @@ static tlHandle _pow(tlTask* task, tlArgs* args) {
         int p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
         if (p < 0) return tlFLOAT(pow(tl_double(l), p));
         if (p < 1000) return tlNumPow(tlNumTo(l), p);
-        TL_THROW("'^' out of range: %s ^ %d", tl_str(l), p);
+        TL_THROW("'**' out of range: %s ** %d", tl_str(l), p);
     }
-    TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
+    TL_THROW("'**' not implemented for: %s ** %s", tl_str(l), tl_str(r));
 }
 static tlHandle _binand(tlTask* task, tlArgs* args) {
     int res = tl_int(tlArgsGet(args, 0)) & tl_int(tlArgsGet(args, 1));
@@ -664,11 +724,15 @@ static const tlNativeCbs __vm_natives[] = {
     { "gt",   _gt },
     { "gte",  _gte },
 
+    { "bnot",  _bnot },
     { "band",  _band },
-    { "bor",  _bor },
-    { "lsh",  _lshift },
-    { "rsh",  _rshift },
+    { "bor",   _bor },
+    { "bxor",  _bxor },
+    { "lsh",  _blshift },
+    { "rsh",  _brshift },
+    { "rrsh", _brrshift },
 
+    { "neg",  _neg },
     { "add",  _add },
     { "sub",  _sub },
     { "mul",  _mul },

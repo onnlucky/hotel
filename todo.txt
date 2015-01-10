@@ -1,5 +1,15 @@
 # TODO
 
+clean op operators and comments:
+    pow: 2**2 = 4
+    xor: 2 ^ 2 == 0
+    div: 8 / 16 = 0.5
+    intdiv: 8 // 16 = 0
+    floatdiv: 8 /. 16 == 8 / 16f == 8f / 16 == 0.5000000000001
+    # single line comment
+    ### multi line comment, only if at beginning of line
+    (# ... #) nesting multiline comment
+
 think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
 rework compile, all .c files should have .h file and compile to .o file
 

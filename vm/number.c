@@ -216,6 +216,11 @@ intptr_t tlNumToInt(tlNum* num) {
 double tlNumToDouble(tlNum* num) {
     return (double)mp_get_int(&num->value);
 }
+static tlNum* tlNumNeg(tlNum* num) {
+    mp_int res; mp_init(&res);
+    mp_neg(&num->value, &res);
+    return tlNumberFrom(res);
+}
 static tlNum* tlNumAdd(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_add(&l->value, &r->value, &res);
