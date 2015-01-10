@@ -1881,6 +1881,9 @@ INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
     return frame;
 }
 
+/// object Frame: a context for executing code, like from eval
+
+/// run: run the current frame, once running, you cannot reuse this frame
 static tlHandle _frame_run(tlTask* task, tlArgs* args) {
     TL_TARGET(tlCodeFrame, frame);
     if (frame->pc != 0) TL_THROW("cannot reuse frames");
@@ -1915,6 +1918,13 @@ static tlHandle _frame_locals(tlTask* task, tlArgs* args) {
     return map;
 }
 
+/// size: the amount of values stored in this frame
+static tlHandle _frame_size(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlCodeFrame, frame);
+    return tlINT(tlListSize(frame->locals->names));
+}
+
+/// get(at): return the value stored at position #at, returning four things: value, name, type, position
 static tlHandle _frame_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlCodeFrame, frame);
     tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
@@ -1931,11 +1941,11 @@ static tlHandle _frame_get(tlTask* task, tlArgs* args) {
     tlHandle name = tlListGet(env->names, at);
     assert(tl_bool(name));
     tlHandle type = (localvars && tl_bool(tlListGet(localvars, at)))? s_var : tlNull;
-    return tlResultFrom(name, tlINT(0), type, value, null);
+    return tlResultFrom(value, name, type, tlNull, null);
 }
 
-// true if last statement is a store
-// TODO can use some work ...
+/// allStored: a property set to true if the last statement of the code is an assignment
+/// > "x = 10".eval(frame=true).allStored == true
 INTERNAL tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
     if (!frame) TL_THROW("run requires a frame");
@@ -2262,8 +2272,9 @@ void bcode_init() {
 
     tlFrameKind->klass = tlClassObjectFrom(
         "run", _frame_run,
-        "locals", _frame_locals,
+        "size", _frame_size,
         "get", _frame_get,
+        "locals", _frame_locals,
         "allStored", _frame_allStored,
     null);
 

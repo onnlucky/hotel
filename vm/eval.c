@@ -65,6 +65,7 @@ tlHandle tlResultGet(tlHandle v, int at) {
     assert(at >= 0);
     if (!tlResultIs(v)) {
         if (at == 0) return v;
+        if (tlUndefinedIs(v)) return v;
         return tlNull;
     }
     tlResult* result = tlResultAs(v);

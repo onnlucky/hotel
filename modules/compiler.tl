@@ -359,7 +359,7 @@ compile = (text, ast ->
         if isFrame(linkframe):
             var $at = 0
             loop:
-                name, pos, type = linkframe.get(($at += 1))
+                _, name, type, pos = linkframe.get(($at += 1))
                 if not name: break
                 scope.add(name, pos, type=type)
         { term.type == "function" }:
