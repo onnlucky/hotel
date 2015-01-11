@@ -1170,6 +1170,10 @@ static tlHandle _io_haswaiting(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _io_run(tlTask* task, tlArgs* args) {
+    tlMsgQueue* queue = tlMsgQueueCast(tlArgsGet(args, 0));
+    if (!queue) TL_THROW("require the queue from init");
+    if (!tlMsgQueueIsEmpty(queue)) return tlNull;
+
     tlVm* vm = tlTaskGetVm(task);
     if (vm->lock) {
         trace("blocking for events");
