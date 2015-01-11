@@ -1161,50 +1161,40 @@ static tlHandle _io_init(tlArgs* args) {
     return queue;
 }
 
-static tlHandle _io_haswaiting(tlArgs* args) {
+// block current task, until io happens, will return tlTrue when there is nothing left to do
+static tlHandle _io_block(tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueCast(tlArgsGet(args, 0));
     if (!queue) TL_THROW("require the queue from init");
     tlTask* task = tlTaskCurrent();
-    tlVm* vm = tlTaskGetVm(task);
-    assert(vm->waitevent >= 0);
-    trace("tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
-    if (vm->waitevent > 0) return tlTrue;
-
-    // if the runloops are the only tasks, no other task can be spawned
-    // TODO should not be "> 1" but "> runloops"
-    if (a_get(&vm->runnable) > 1) return tlTrue;
-
-    // unless there are waiters in the msg queue, order here is important, inverse of queue.c
-    if (!tlMsgQueueIsEmpty(queue)) return tlTrue;
-    trace("no waiting tasks");
-    return tlFalse;
-}
-
-static tlHandle _io_run(tlArgs* args) {
-    tlTask* task = tlTaskCurrent();
-    tlMsgQueue* queue = tlMsgQueueCast(tlArgsGet(args, 0));
-    if (!queue) TL_THROW("require the queue from init");
-    if (!tlMsgQueueIsEmpty(queue)) return tlNull;
 
     tlVm* vm = tlTaskGetVm(task);
+    intptr_t running = a_get(&vm->runnable);
+    intptr_t waiting = a_get(&vm->waitevent);
+    trace("block for io: events=%s, lock=%s, runnable=%zd, waitevent=%zd", tlMsgQueueIsEmpty(queue)? "no":"yes", vm->lock? "yes":"no", running, waiting);
+
+    // poll the msg queue if events are pending
+    if (!tlMsgQueueIsEmpty(queue)) return tlFalse;
+
+    // if the io task is the only runnable task, and no task is waiting for io, nothing can happen for this vm, so signal to exit
+    if (running <= 1 && waiting == 0) return tlTrue;
+
+    // if multithreaded, one thread will block and wait for events
     if (vm->lock) {
         trace("blocking for events");
         ev_run(EVRUN_ONCE);
-    } else {
-        if (a_get(&vm->runnable) > 1) {
-            trace("checking for events; tasks=%zd, run=%zd, io=%zd",
-                    vm->tasks, vm->runnable, vm->waitevent);
-            ev_run(EVRUN_NOWAIT);
-        } else {
-            trace("blocking for events; tasks=%zd, run=%zd, io=%zd",
-                    vm->tasks, vm->runnable, vm->waitevent);
-            ev_run(EVRUN_ONCE);
-        }
+        return tlFalse;
     }
-    trace("done");
-    return tlNull;
-}
 
+    if (running > 1) {
+        trace("checking for events; tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
+        ev_run(EVRUN_NOWAIT);
+        return tlFalse;
+    }
+
+    trace("blocking for events; tasks=%zd, run=%zd, io=%zd", vm->tasks, vm->runnable, vm->waitevent);
+    ev_run(EVRUN_ONCE);
+    return tlFalse;
+}
 
 // ** crude terminal handling **
 // TODO should support many ttys :)
@@ -1308,8 +1298,7 @@ static const tlNativeCbs __evio_natives[] = {
     { "_io_waitread", _io_waitread },
     { "_io_waitwrite", _io_waitwrite },
 
-    { "_io_haswaiting", _io_haswaiting },
-    { "_io_run", _io_run },
+    { "_io_block", _io_block },
     { "_io_init", _io_init },
     { 0, 0 }
 };
