@@ -13,6 +13,8 @@
 
 #include "trace-off.h"
 
+#define START_TICKS 2011
+
 INTERNAL tlHandle tlresult_get(tlHandle v, int at);
 INTERNAL void print_backtrace(tlFrame*);
 
@@ -190,7 +192,7 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     assert(task->state == TL_STATE_INIT);
     task->worker = vm->waiter;
     task->locals = locals;
-    task->ticks = 1234;
+    task->ticks = START_TICKS;
     trace("new %s", tl_str(task));
 #ifdef HAVE_BOEHMGC
     GC_REGISTER_FINALIZER_NO_ORDER(task, tlTaskFinalize, null, null, null);
@@ -479,7 +481,7 @@ tlHandle tlTaskClearError(tlTask* task, tlHandle value) {
 bool tlTaskTick(tlTask* task) {
     task->ticks -= 1;
     if (task->ticks <= 0) {
-        task->ticks = 1234;
+        task->ticks = START_TICKS;
         trace("%p out of ticks, resetting", task);
         return false;
     }
