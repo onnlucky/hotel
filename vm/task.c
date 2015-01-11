@@ -150,7 +150,7 @@ INTERNAL void tlTaskRun(tlTask* task) {
         if (tlTaskHasError(task)) {
             tlFrame* unwind = task->stack;
             task->stack = unwind->caller;
-            trace("unwinding with error: %p %s", unwind, tl_repr(task->value));
+            trace("%p unwinding with error: %p %s", task, unwind, tl_repr(task->value));
             if (unwind->resumecb) {
                 tlHandle v = unwind->resumecb(task, unwind, null, task->value);
                 assert(!v);
@@ -158,7 +158,7 @@ INTERNAL void tlTaskRun(tlTask* task) {
             }
         } else {
             tlFrame* running = task->stack;
-            trace("resuming with value: %p %s", running, tl_repr(task->value));
+            trace("%p resuming with value: %p %s", task, running, tl_repr(task->value));
             assert(running->resumecb);
             tlHandle v = running->resumecb(task, running, task->value, null);
             if (v) {
@@ -355,7 +355,7 @@ void tlTaskStart(tlTask* task) {
 }
 
 void tlTaskCopyValue(tlTask* task, tlTask* other) {
-    trace("take value: %s, throw: %s", tl_str(other->value), tl_str(other->throw));
+    trace("%p take value: %s%s", other, tl_str(other->value), tlTaskHasError(other)? " (error)":"");
     assert(task->value);
     task->value = other->value;
     task->hasError = other->hasError;
@@ -389,7 +389,7 @@ bool tlBlockingTaskIs(tlTask* task);
 void tlBlockingTaskDone(tlTask* task);
 
 INTERNAL tlHandle tlTaskDone(tlTask* task) {
-    trace("%s done: %s %s", tl_str(task), tl_str(task->value), tl_str(task->throw));
+    trace("%p done: %s%s", task, tl_str(task->value), tlTaskHasError(task)? " (error)":"");
     assert(!task->stack);
     assert(task->value);
     assert(task->state = TL_STATE_RUN);
@@ -410,12 +410,23 @@ tlFrame* tlTaskCurrentFrame(tlTask* task) {
 }
 
 void tlTaskPushFrame(tlTask* task, tlFrame* frame) {
+    trace("%p push: %p", task, frame);
     assert(!tlTaskHasError(task));
     frame->caller = task->stack;
     task->stack = frame;
 }
 
+void tlTaskPushResume(tlTask* task, tlResumeCb resume, tlHandle value) {
+    assert(!tlTaskHasError(task));
+    tlFrame* frame = tlFrameAlloc(resume, sizeof(tlFrame));
+    trace("%p push: %p value: %s", task, frame, tl_str(value));
+    frame->caller = task->stack;
+    task->stack = frame;
+    task->value = value;
+}
+
 void tlTaskPopFrame(tlTask* task, tlFrame* frame) {
+    trace("%p pop: %p (current: %p)", task, frame, frame->caller);
     assert(!tlTaskHasError(task));
     assert(task->stack == frame);
     task->stack = frame->caller;
@@ -430,7 +441,7 @@ tlHandle tlTaskUnwindFrame(tlTask* task, tlFrame* upto, tlHandle value) {
     task->stack = null; // to assert more down
     while (frame != upto) {
         assert(frame); // upto must be in our stack
-        trace("forcefully unwinding: %p.resumecb: %p %s", frame, frame->resumecb, tl_repr(value));
+        trace("%p forcefully unwinding: %p", task, frame);
         if (frame->resumecb) {
             tlHandle res = frame->resumecb(task, frame, null, null);
             UNUSED(res);
@@ -442,7 +453,7 @@ tlHandle tlTaskUnwindFrame(tlTask* task, tlFrame* upto, tlHandle value) {
 
     task->stack = upto;
     task->value = value;
-    trace("unwind done");
+    trace("%p unwind done: %p", task, upto);
     return null;
 }
 
@@ -469,6 +480,7 @@ bool tlTaskTick(tlTask* task) {
     task->ticks -= 1;
     if (task->ticks <= 0) {
         task->ticks = 1234;
+        trace("%p out of ticks, resetting", task);
         return false;
     }
     if (task->limit) {
@@ -480,15 +492,6 @@ bool tlTaskTick(tlTask* task) {
     }
     return true;
 }
-
-void tlFramePushResume(tlTask* task, tlResumeCb resume, tlHandle value) {
-    assert(!tlTaskHasError(task));
-    tlFrame* frame = tlFrameAlloc(resume, sizeof(tlFrame));
-    frame->caller = task->stack;
-    task->stack = frame;
-    task->value = value;
-}
-
 
 // called by ! operator
 INTERNAL tlHandle _Task_new(tlTask* task, tlArgs* args) {

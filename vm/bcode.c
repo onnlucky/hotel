@@ -6,6 +6,8 @@
 static tlNative* g_goto_native;
 static tlNative* g_identity;
 static tlString* g_this;
+static void unwindForGoto(tlTask* task, int deep, tlHandle value);
+static tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw);
 
 const char* op_name(uint8_t op) {
     switch (op) {
@@ -1002,7 +1004,7 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     if (!tlTaskTick(task)) {
         if (tlTaskHasError(task)) return null;
 
-        tlFramePushResume(task, afterYieldQuota, call);
+        tlTaskPushResume(task, afterYieldQuota, call);
         tlTaskWaitFor(task, null);
         // TODO move this to a "after stopping", otherwise real threaded envs will pick up task before really stopped
         tlTaskReady(task);
@@ -1375,12 +1377,17 @@ again:;
             assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
             assert(call);
             assert(arg - 2 == tlArgsRawSize(call)); // must be done with args here
+
             tlArgs* invoke = call;
-            frame->calls[calltop].at = 0;
-            frame->calls[calltop].call = null;
+            trace("%p invoke: %s %s", frame, tl_str(invoke), tl_str(invoke->fn));
             if (frame->calls[calltop].ccall) {
                 pc = skip_pcalls(ops, bcode->size, pc); // about to execute a true clause, skip any others
             }
+            frame->pc = pc;
+
+            // pop the frame's local callstack
+            frame->calls[calltop].at = 0;
+            frame->calls[calltop].call = null;
             calltop--;
             if (calltop >= 0) {
                 call = frame->calls[calltop].call;
@@ -1392,13 +1399,23 @@ again:;
                 call = null;
                 arg = 0;
             }
-            trace("%p invoke: %s %s", frame, tl_str(invoke), tl_str(invoke->fn));
-            frame->pc = pc;
-            if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
+
+            // check if it is a goto call, and if so, remove all stack frames and jump to the invoke
+            if (call && call->fn == g_goto_native) {
+                // check arguments to goto
+                // TODO perhaps leave one "goto" frame, to ensure return semantic:
+                // "return foo()" returns single value, "goto foo()" might return many values
+                // and to allow "goto 10, foo()", though those forms defeat goto's purpose
+                if (tlArgsRawSize(call) != 2) TL_THROW("goto requires a single argument");
+                unwindForGoto(task, tl_int(tlArgsGet(call, 0)), tlNull);
+                tlTaskPushResume(task, resumeBCall, invoke);
+                return null;
+            }
+
             v = tlInvoke(task, invoke);
             if (!v) return null;
-            assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
             trace("%p after: %d", frame, pc);
+            assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
             break;
         }
         case OP_CERR: {
@@ -1606,11 +1623,6 @@ resume:;
 
     // set the data to the call
     trace("load: %s[%d] = %s", tl_str(call), arg, tl_str(v));
-    if (arg == 3 && call->fn == g_goto_native) {
-        // goto is still fake, but at least this gives us same behavior, namely return all values, not first
-        tlBCallAdd_(call, v, arg++);
-        goto again;
-    }
     tlBCallAdd_(call, tlFirst(v), arg++);
 
     // resolve method at object ...
@@ -1753,7 +1765,7 @@ INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
     return res;
 }
 
-INTERNAL tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
+static tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     trace("running resume a call");
     if (throw) return null;
     if (!res) return null;
@@ -2103,17 +2115,9 @@ INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
     return tlTaskUnwindFrame(task, ((tlFrame*)scopeframe)->caller, res);
 }
 
-// TODO this is fake, same as return, but instead we need unevaluated args, remove our frame, then eval args
-INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
-    int deep = tl_int(tlArgsGet(args, 0));
-    trace("GOTO SCOPES: %d", deep);
+static void unwindForGoto(tlTask* task, int deep, tlHandle value) {
+    trace("UNWIND GOTO SCOPES: %d", deep);
 
-    // create a return value
-    tlHandle res = tlNull;
-    if (tlArgsSize(args) == 2) res = tlArgsGet(args, 1);
-    if (tlArgsSize(args) > 2) res = tlResultFromArgsSkipOne(args);
-
-    // TODO we should return our scoped function, not the first frame ...
     tlCodeFrame* scopeframe = tlCodeFrameAs(tlTaskCurrentFrame(task));
     assert(scopeframe->locals);
     tlEnv* target = tlEnvGetParentAt(scopeframe->locals, deep);
@@ -2138,7 +2142,17 @@ INTERNAL tlHandle __goto(tlTask* task, tlArgs* args) {
         frame = frame->caller;
     }
     assert(scopeframe);
-    return tlTaskUnwindFrame(task, ((tlFrame*)scopeframe)->caller, res);
+
+    // now we unwind the stack, releasing all locks and such
+    tlTaskUnwindFrame(task, ((tlFrame*)scopeframe)->caller, value);
+}
+
+// if just goto is called, it is because there was no invoke
+static tlHandle __goto(tlTask* task, tlArgs* args) {
+    if (tlArgsRawSize(args) != 2) TL_THROW("goto requires a single argument");
+    tlHandle value = tlOR_NULL(tlArgsGet(args, 1));
+    unwindForGoto(task, tl_int(tlArgsGet(args, 0)), value);
+    return null;
 }
 
 INTERNAL tlHandle _identity(tlTask* task, tlArgs* args) {

@@ -96,7 +96,7 @@ INTERNAL tlHandle _debugger_step(tlTask* task, tlArgs* args) {
         debugger->subject = null;
     }
     tlTaskWaitExternal(task);
-    tlFramePushResume(task, returnStep, debugger);
+    tlTaskPushResume(task, returnStep, debugger);
     return null;
 }
 

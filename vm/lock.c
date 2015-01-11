@@ -68,7 +68,7 @@ INTERNAL tlHandle lockEnqueueResume(tlTask* task, tlLock* lock, tlResumeCb resum
     tlArray* deadlock = tlTaskWaitFor(task, lock);
     if (deadlock) return tlDeadlockErrorThrow(task, deadlock);
 
-    tlFramePushResume(task, resume, res);
+    tlTaskPushResume(task, resume, res);
     lqueue_put(&lock->wait_q, &task->entry);
 
     // try to own the lock, incase another worker released it inbetween ...
