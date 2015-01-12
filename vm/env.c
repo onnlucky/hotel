@@ -16,6 +16,10 @@ tlEnv* tlEnvNew(tlList* names, tlEnv* parent) {
     return env;
 }
 
+int tlEnvSize(tlEnv* env) {
+    return tlListSize(env->names);
+}
+
 void tlEnvLink_(tlEnv* env, tlEnv* link, tlList* localvars) {
     trace("%p %p, %s", env, link, tl_repr(localvars));
     int size = tlListSize(link->names);
@@ -31,6 +35,10 @@ void tlEnvLink_(tlEnv* env, tlEnv* link, tlList* localvars) {
     // we don't link the scope in, unless it holds local variables itself
     trace("actually linking for mutables: %s", mustlink? "true" : "false");
     env->link = mustlink? link : link->link;
+}
+
+void tlEnvImport_(tlEnv* env, tlObject* names) {
+    env->imports = names;
 }
 
 tlObject* tlEnvLocalObject(tlFrame* frame) {
@@ -67,6 +75,34 @@ tlObject* tlEnvLocalObject(tlFrame* frame) {
     map = tlObjectToObject_(map);
     assert(tlObjectIs(map));
     return map;
+}
+
+tlHandle tlEnvGetFull(tlEnv* env, int depth, int at) {
+    tlEnv* start = env;
+    bool haveImports = !!env->imports;
+    for (int i = 0; i < depth; i++) {
+        env = env->parent;
+        assert(env);
+        if (env->imports) haveImports = true;
+    }
+
+    if (!haveImports) return env->data[at];
+
+    tlSym name = tlListGet(env->names, at);
+    tlHandle res = tlEnvGetName(start, name, depth);
+    return res? res : env->data[at];
+}
+
+tlHandle tlEnvGetName(tlEnv* env, tlSym name, int depth) {
+    while (env && depth >= 0) {
+        if (env->imports) {
+            tlHandle res = tlObjectGet(env->imports, name);
+            if (res) return res;
+        }
+        env = env->parent;
+        depth -= 1;
+    }
+    return null;
 }
 
 tlHandle tlEnvGet(tlEnv* env, int at) {

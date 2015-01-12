@@ -15,11 +15,12 @@ endif
 SOURCES:=$(shell echo *.c | sed -E 's/[a-z]+_test.c//g')
 OBJECTS:=$(SOURCES:.c=.o)
 TEST_SOURCES:=$(shell echo *_test.c)
-TESTS:=$(TEST_SOURCES:.c=.o)
+TESTS:=$(TEST_SOURCES:.c=)
 
 run: test
 
-test: args_test number_test hashmap_test idset_test
+test: $(TESTS)
+	./env_test
 	./args_test
 	./number_test
 	./hashmap_test
