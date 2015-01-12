@@ -68,12 +68,6 @@ tlList* tlListFrom(tlHandle v1, ...) {
     return list;
 }
 
-tlList* tlListFrom_a(tlHandle* as, int size) {
-    tlList* list = tlListNew(size);
-    for (int i = 0; i < size; i++) tlListSet_(list, i, as[i]);
-    return list;
-}
-
 int tlListSize(const tlList* list) {
     return list->size;
 }
@@ -134,19 +128,6 @@ tlList* tlListAppend(tlList* list, tlHandle v) {
     return nlist;
 }
 
-tlList* tlListAppend2(tlList* list, tlHandle v1, tlHandle v2) {
-    assert(tlListIs(list));
-
-    int osize = tlListSize(list);
-    trace("[%d] :: %s :: %s", osize, tl_str(v1), tl_str(v2));
-
-    tlList* nlist = tlListCopy(list, osize + 2);
-    tlListSet_(nlist, osize, v1);
-    tlListSet_(nlist, osize + 1, v2);
-    return nlist;
-}
-
-
 tlList* tlListPrepend(tlList* list, tlHandle v) {
     int size = tlListSize(list);
     trace("%s :: [%d]", tl_str(v), size);
@@ -155,64 +136,6 @@ tlList* tlListPrepend(tlList* list, tlHandle v) {
     memcpy(nlist->data + 1, list->data, sizeof(tlHandle) * size);
     nlist->data[0] = v;
     return nlist;
-}
-
-tlList* tlListPrepend2(tlList* list, tlHandle v1, tlHandle v2) {
-    int size = tlListSize(list);
-    trace("%s :: %s :: [%d]", tl_str(v1), tl_str(v2), size);
-
-    tlList *nlist = tlListNew(size + 2);
-    memcpy(nlist->data + 2, list->data, sizeof(tlHandle) * size);
-    nlist->data[0] = v1;
-    nlist->data[1] = v2;
-    return nlist;
-}
-
-tlList* tlListPrepend4(tlList* list, tlHandle v1, tlHandle v2, tlHandle v3, tlHandle v4) {
-    int size = tlListSize(list);
-    trace("%s :: %s :: ... :: [%d]", tl_str(v1), tl_str(v2), size);
-
-    tlList *nlist = tlListNew(size + 4);
-    memcpy(nlist->data + 2, list->data, sizeof(tlHandle) * size);
-    nlist->data[0] = v1;
-    nlist->data[1] = v2;
-    nlist->data[2] = v3;
-    nlist->data[3] = v4;
-    return nlist;
-}
-
-tlList* tlListNew_add(tlHandle v) {
-    trace("[] :: %s", tl_str(v));
-    tlList* list = tlListNew(1);
-    tlListSet_(list, 0, v);
-    return list;
-}
-
-tlList* tlListNew_add2(tlHandle v1, tlHandle v2) {
-    trace("[] :: %s :: %s", tl_str(v1), tl_str(v2));
-    tlList* list = tlListNew(2);
-    tlListSet_(list, 0, v1);
-    tlListSet_(list, 1, v2);
-    return list;
-}
-
-tlList* tlListNew_add3(tlHandle v1, tlHandle v2, tlHandle v3) {
-    trace("[] :: %s :: %s ...", tl_str(v1), tl_str(v2));
-    tlList* list = tlListNew(3);
-    tlListSet_(list, 0, v1);
-    tlListSet_(list, 1, v2);
-    tlListSet_(list, 2, v3);
-    return list;
-}
-
-tlList* tlListNew_add4(tlHandle v1, tlHandle v2, tlHandle v3, tlHandle v4) {
-    trace("[] :: %s :: %s ...", tl_str(v1), tl_str(v2));
-    tlList* list = tlListNew(4);
-    tlListSet_(list, 0, v1);
-    tlListSet_(list, 1, v2);
-    tlListSet_(list, 2, v3);
-    tlListSet_(list, 3, v4);
-    return list;
 }
 
 tlList* tlListCat(tlList* left, tlList* right) {
@@ -239,18 +162,17 @@ tlList* tlListSub(tlList* list, int offset, int len) {
     return nlist;
 }
 
-// called when list literals contain lookups or expressions to evaluate
-static tlHandle _List_clone(tlTask* task, tlArgs* args) {
-    tlList* list = tlListCast(tlArgsGet(args, 0));
-    if (!list) TL_THROW("Expected a list");
+tlList* tlListSet(tlList* list, int at, tlHandle value) {
     int size = tlListSize(list);
-    list = tlClone(list);
-    int argc = 1;
-    for (int i = 0; i < size; i++) {
-        if (!list->data[i]) list->data[i] = tlArgsGet(args, argc++);
+    tlList* nlist = tlListCopy(list, max(size, at + 1));
+
+    for (int i = size; i < at; i++) {
+        tlListSet_(nlist, i, tlNull);
     }
-    return list;
+    tlListSet__(nlist, at, value);
+    return nlist;
 }
+
 /// object List: a list containing elements, immutable
 
 INTERNAL tlHandle _list_toList(tlTask* task, tlArgs* args) {
@@ -291,9 +213,7 @@ INTERNAL tlHandle _list_set(tlTask* task, tlArgs* args) {
     if (at < 0) TL_THROW("index out of bounds");
     tlHandle val = tlArgsGet(args, 1);
     if (!val || tlUndefinedIs(val)) val = tlNull;
-    fatal("not implemented yet %p", list);
-    tlList* nlist = tlNull; //tlListSet(list, at, val);
-    return nlist;
+    return tlListSet(list, at, val);
 }
 /// add(element): return a new list, with element added to the end
 INTERNAL tlHandle _list_add(tlTask* task, tlArgs* args) {

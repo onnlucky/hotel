@@ -11,6 +11,9 @@ test "basics":
     assert [1,2,3,4,5] == [1,2,3,4,5]
     assert [1,2,3,4,5] == [1] + [2,3,4,5]
 
+    assert [1,2,3].first == 1
+    assert [1,2,3].last == 3
+
 test "slice":
     assert [1,2,3,4,5][2:-2] == [2,3,4]
     assert [1,2,3,4,5][2:4] == [2,3,4]
@@ -27,6 +30,24 @@ test "invalid index":
     assert isUndefined([1][0])
     assert isUndefined([1][2])
     assert isUndefined([1][-2])
+
+test "change":
+    assert [1,2].add(3) == [1,2,3]
+    assert [2,3].prepend(1) == [1,2,3]
+    assert [2,3].prepend(1) == [1,2,3]
+    assert [1,9,3].set(2, 2) == [1,2,3]
+    assert [1,9,3].set(4, 2) == [1,9,3,2]
+    assert [1,9,3].set(5, 2) == [1,9,3,null,2]
+    assert [1,9,3].set(6, 2) == [1,9,3,null,null,2]
+    assert [1,2,3].remove(1) == [2,3]
+    assert [1,2,3].remove(2) == [1,3]
+    assert [1,2,3].remove(3) == [1,2]
+    assert [1,2,3].remove(4) == [1,2,3]
+
+test "comparing":
+    assert [1,2,3] < [2,3,4]
+    assert [1,2] < [2,3,4]
+    assert [1,2] > [-1, 2,3,4]
 
 test "iterate":
     [1,2,3,4,5].each: e, n -> assert e == n

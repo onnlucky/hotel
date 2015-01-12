@@ -246,9 +246,6 @@ static const tlNativeCbs __eval_natives[] = {
     { "_with_lock", _with_lock },
 
     { "_String_cat", _String_cat },
-    { "_List_clone", _List_clone },
-    { "_Map_clone", _Map_clone },
-    { "_Object_clone", _Object_clone },
 
     { "_install", _install },
     { "_install_global", _install_global },
