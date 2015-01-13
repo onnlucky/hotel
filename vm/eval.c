@@ -107,6 +107,7 @@ INTERNAL tlHandle evalArgs(tlTask* task, tlArgs* args) {
 tlHandle tlEvalArgsFn(tlTask* task, tlArgs* args, tlHandle fn) {
     trace("%s %s", tl_str(fn), tl_str(args));
     assert(tlCallableIs(fn));
+    assert(tlArgsIs(args));
     tlArgs* nargs = tlClone(args);
     nargs->fn = fn;
     return evalArgs(task, nargs);
@@ -167,8 +168,8 @@ bool tlCallableIs(tlHandle v) {
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
 INTERNAL tlHandle _call(tlTask* task, tlArgs* args) {
     tlHandle* fn = tlArgsTarget(args);
-    tlArgs* nargs = tlArgsGet(args, 0);
-    return tlEvalArgsFn(task, nargs, fn);
+    //tlArgs* nargs = tlArgsGet(args, 0);
+    return tlEvalArgsFn(task, args, fn);
 }
 
 static tlHandle _bufferFromFile(tlTask* task, tlArgs* args) {

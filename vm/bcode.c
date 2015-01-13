@@ -985,14 +985,6 @@ tlHandle eval_args(tlTask* task, tlArgs* args);
 tlHandle eval_lazy(tlTask* task, tlBLazy* lazy);
 tlHandle beval(tlTask* task, tlCodeFrame* frame, tlHandle resuming);
 
-tlArgs* argsFromBCall(tlArgs* call) {
-    return call;
-}
-
-tlArgs* bcallFromArgs(tlArgs* args) {
-    return args;
-}
-
 INTERNAL tlHandle afterYieldQuota(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     if (!res) return null;
     tlTaskPopFrame(task, frame);
@@ -1020,12 +1012,11 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     }
 
     if (tlBSendTokenIs(fn) || tlNativeIs(fn)) {
-        tlArgs* args = argsFromBCall(call);
         if (tlBSendTokenIs(fn)) {
-            assert(tlArgsMethod(args) == tlBSendTokenAs(fn)->method);
-            return tl_kind(target)->send(task, args, tlBSendTokenAs(fn)->safe);
+            assert(tlArgsMethod(call) == tlBSendTokenAs(fn)->method);
+            return tl_kind(target)->send(task, call, tlBSendTokenAs(fn)->safe);
         }
-        return tlNativeKind->run(task, tlNativeAs(fn), args);
+        return tlNativeKind->run(task, tlNativeAs(fn), call);
     }
     if (tlBClosureIs(fn)) {
         return eval_args(task, call);
@@ -1044,9 +1035,8 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     }
     // oldstyle hotel, include {call=(->)}
     if (tlCallableIs(fn)) {
-        tlArgs* args = argsFromBCall(call);
         tlKind* kind = tl_kind(fn);
-        if (kind->run) return kind->run(task, fn, args);
+        if (kind->run) return kind->run(task, fn, call);
     }
 
     // class support and class.call support
@@ -1487,13 +1477,13 @@ again:;
             trace("local %d -> %s", at, tl_str(v));
             break;
         case OP_ARGS:
-            v = argsFromBCall(args);
+            v = args;
             trace("args: %s", tl_str(v));
             break;
         case OP_ENVARGS: {
             depth = pcreadsize(ops, &pc);
             tlEnv* parent = tlEnvGetParentAt(closure->env, depth);
-            v = argsFromBCall(parent->args);
+            v = parent->args;
             assert(v);
             trace("envargs[%d] -> %s", depth, tl_str(v));
             break;
@@ -1837,16 +1827,15 @@ tlBModule* tlBModuleFromBuffer(tlBuffer* buf, tlString* name, const char** error
     return mod;
 }
 
-tlArgs* bcallFromArgs(tlArgs* args);
 tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args) {
-    tlArgs* call = bcallFromArgs(args);
+    //fatal("broken");
     tlBClosure* fn = tlBClosureNew(mod->body, null);
-    call->fn = fn;
+    args->fn = fn;
 
     tlTask* task = tlTaskNew(vm, vm->locals);
     assert(task->state == TL_STATE_INIT);
 
-    task->value = call;
+    task->value = args;
     task->stack = tlFrameAlloc(resumeBCall, sizeof(tlFrame));
     tlTaskStart(task);
     return task;
@@ -2204,10 +2193,10 @@ INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
 }
 INTERNAL tlHandle runBClosure(tlTask* task, tlHandle _fn, tlArgs* args) {
     trace("bclosure.run");
-    tlArgs* call = bcallFromArgs(args);
-    call->fn = _fn;
-    assert(tlBClosureIs(call->fn));
-    return eval_args(task, call);
+    //fatal("broken");
+    args->fn = _fn;
+    assert(tlBClosureIs(args->fn));
+    return eval_args(task, args);
 }
 INTERNAL tlHandle _bclosure_file(tlTask* task, tlArgs* args) {
     return tlNull;
