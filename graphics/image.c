@@ -87,10 +87,19 @@ cairo_surface_t* readjpg(tlBuffer* buf) {
 // ** png **
 cairo_status_t readbuffer(void* _buf, unsigned char* data, unsigned int length) {
     int len = tlBufferRead(tlBufferAs(_buf), (char*)data, length);
-    return len?CAIRO_STATUS_SUCCESS:CAIRO_STATUS_READ_ERROR;
+    return len? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_READ_ERROR;
 }
 cairo_surface_t* readpng(tlBuffer* buf) {
     return cairo_image_surface_create_from_png_stream(readbuffer, buf);
+}
+
+cairo_status_t writebuffer(void* _buf, const unsigned char *data, unsigned int length) {
+    int len = tlBufferWrite(tlBufferAs(_buf), (const char*)data, length);
+    return len == length? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_READ_ERROR;
+}
+
+cairo_status_t writepngbuffer(cairo_surface_t* surface, tlBuffer* buf) {
+    return cairo_surface_write_to_png_stream(surface, writebuffer, buf);
 }
 // **
 
@@ -173,8 +182,15 @@ static tlHandle _image_graphics(tlTask* task, tlArgs* args) {
 }
 static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    if (buf) {
+        cairo_status_t s = writepngbuffer(img->surface, buf);
+        if (s) TL_THROW("oeps: %s", cairo_status_to_string(s));
+        return tlNull;
+    }
+
     tlString* path = tlStringCast(tlArgsGet(args, 0));
-    if (!path) TL_THROW("require a filename");
+    if (!path) TL_THROW("require a filename or buffer");
     cairo_status_t s = cairo_surface_write_to_png(img->surface, tlStringData(path));
     if (s) TL_THROW("oeps: %s", cairo_status_to_string(s));
     return tlNull;
