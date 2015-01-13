@@ -29,7 +29,7 @@ image.o: image.h image.c
 app.o: app.h app.c
 	$(CC) $(CFLAGS) -c app.c
 
-../libtl.a: ../*.c ../*.h ../vm/*.c ../vm/*.h
+../libtl.a: ../*.h ../vm/*.c ../vm/*.h
 	cd ..; $(MAKE) libtl.a
 
 PREFIX?=/usr/local

@@ -20,7 +20,7 @@ TESTS:=$(TEST_SOURCES:.c=)
 run: test
 
 test: $(TESTS)
-	./env_test
+#	./env_test
 	./args_test
 	./number_test
 	./hashmap_test

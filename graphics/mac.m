@@ -215,6 +215,7 @@ static int buttons = 0;
         case NSLeftMouseDown:  buttons |= 1; break;
         case NSRightMouseDown: buttons |= 2; break;
         case NSOtherMouseDown: buttons |= 4; break;
+        default: break;
     }
     int count = [event clickCount];
     int modifiers = 0;
@@ -231,6 +232,7 @@ static int buttons = 0;
         case NSLeftMouseUp:  buttons &= ~1; break;
         case NSRightMouseUp: buttons &= ~2; break;
         case NSOtherMouseUp: buttons &= ~4; break;
+        default: break;
     }
 
     NSPoint loc = [event locationInWindow];
