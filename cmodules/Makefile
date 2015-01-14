@@ -20,7 +20,7 @@ ifeq ($(GCOV),1)
 	#LINK+=-fprofile-arcs -ftest-coverage
 endif
 
-all: openssl.mod zlib.mod audio.mod
+all: openssl.mod zlib.mod audio.mod image.mod
 
 openssl.mod: openssl.c Makefile ../vm/tl.h
 	$(CC) $(CFLAGS) -c openssl.c
@@ -35,6 +35,12 @@ LAUDIO:=$(LJACK) -lportaudio
 audio.mod: audio.c Makefile ../vm/tl.h
 	$(CC) $(CFLAGS) -c audio.c
 	$(CC) $(LINK) audio.o -o audio.mod $(LAUDIO)
+
+LIMAGE:=-lcairo -lfreetype -lfontconfig -ljpeg
+image.mod: image.c image.h graphics.c graphics.h Makefile ../vm/tl.h
+	$(CC) $(CFLAGS) -c graphics.c
+	$(CC) $(CFLAGS) -c image.c
+	$(CC) $(LINK) graphics.o image.o -o image.mod $(LIMAGE)
 
 clean:
 	rm -rf *.o *.mod

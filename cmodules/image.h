@@ -1,0 +1,20 @@
+#ifndef _image_h_
+#define _image_h_
+
+#include <tl.h>
+
+#include "graphics.h"
+
+TL_REF_TYPE(Image);
+Image* ImageNew(int width, int height);
+Graphics* imageGetGraphics(Image* img);
+void GraphicsSetImage(Graphics* g, Image* img);
+
+int imageWidth(Image* img);
+int imageHeight(Image* img);
+cairo_surface_t* imageSurface(Image* img);
+
+tlObject* image_init();
+
+#endif // _image_h_
+
