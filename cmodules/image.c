@@ -118,6 +118,7 @@ Image* ImageNew(int width, int height) {
 #endif
     return img;
 }
+
 Image* ImageFromBuffer(tlBuffer* buf) {
     Image* img = tlAlloc(ImageKind, sizeof(Image));
     if (tlBufferFind(buf, "PNG", 3) == 1) {
@@ -172,14 +173,17 @@ static tlHandle _image_width(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageWidth(img));
 }
+
 static tlHandle _image_height(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageHeight(img));
 }
+
 static tlHandle _image_graphics(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return imageGetGraphics(img);
 }
+
 static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
@@ -196,6 +200,18 @@ static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _image_data(tlTask* task, tlArgs* args) {
+    TL_TARGET(Image, img);
+
+    unsigned char* data = cairo_image_surface_get_data(img->surface);
+    int height = cairo_image_surface_get_height(img->surface);
+    int scanline = cairo_image_surface_get_stride(img->surface);
+
+    tlBuffer* buf = tlBufferNew();
+    tlBufferWrite(buf, (const char*)data, scanline * height);
+    return buf;
+}
+
 static tlObject* imageStatic;
 tlObject* image_init() {
     if (imageStatic) return imageStatic;
@@ -205,8 +221,10 @@ tlObject* image_init() {
         "height", _image_height,
         "graphics", _image_graphics,
         "writePNG", _image_writePNG,
+        "data", _image_data,
         null
     );
+
     imageStatic = tlClassObjectFrom(
         "new", _Image_new,
         null
@@ -216,5 +234,7 @@ tlObject* image_init() {
 }
 
 tlHandle tl_load() {
-    return tlObjectFrom("Image", image_init(), "Graphics", graphics_init());
+    graphics_init();
+    return image_init();
 }
+
