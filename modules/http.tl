@@ -138,13 +138,20 @@ openstream = url ->
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
     return io.Socket.open(url.host, url.port or 80)
 
-get = url ->
+send = method, url, body ->
     url = httpparser.url(url)
     conn = openstream(url)
-    conn.write("GET "+ url.request +" HTTP/1.0\r\n")
-    conn.write("Host: "+ url.host +"\r\n")
+    //conn.buffer
+    conn.write(method + " " + url.request + " HTTP/1.0\r\n")
+    conn.write("Host: " + url.host + "\r\n")
     conn.write("User-Agent: Mozilla/5.0\r\n")
+    body = { not body       }: body
+           { isBuffer(body) }: body
+           {                }: Buffer.new(body)
+    if body: conn.write("Content-Length: $(body.size)\r\n")
     conn.write("\r\n")
+    conn.write(body)
+    //conn.flush
 
     // TODO now we can just parse without "finding" first ...
     at = conn.find("\r\n\r\n", 0, 8000)
@@ -182,5 +189,11 @@ get = url ->
         { }: null
     return body.read, res
 
-{{ Server, get }}
+get = url ->
+    send("GET", url)
+
+post = url, data ->
+    send("POST", url, data)
+
+{{ Server, get, post }}
 
