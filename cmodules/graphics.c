@@ -1,7 +1,10 @@
-#include <math.h>
-
+#include "debug.h"
 #include "graphics.h"
 #include "image.h"
+
+#include "trace-off.h"
+
+#define max(l, r) (((l) >= (r))?(l):(r))
 
 #define PI (3.141592653589793)
 #define TAU (PI*2)

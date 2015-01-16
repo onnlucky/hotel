@@ -1,5 +1,7 @@
 #include "tests.h"
 
+#include "platform.h"
+#include "tl.h"
 #include "idset.h"
 
 TEST(basic) {

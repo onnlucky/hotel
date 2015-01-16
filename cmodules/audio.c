@@ -1,5 +1,8 @@
-#include <portaudio.h>
+#include "debug.h"
+#include "../llib/lqueue.h"
 #include <tl.h>
+
+#include <portaudio.h>
 
 #include "trace-off.h"
 

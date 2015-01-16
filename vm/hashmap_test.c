@@ -1,7 +1,6 @@
 #include "tests.h"
 
-#define HAVE_DEBUG
-#define HAVE_ASSERTS
+#include "platform.h"
 #include "tl.h"
 
 #define INITIAL_LEN 4

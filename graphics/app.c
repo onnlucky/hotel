@@ -1,9 +1,15 @@
-#include <pthread.h>
+#include "debug.h"
+#include "../vm/platform.h"
 
 #include "graphics.h"
 #include "image.h"
 #include "window.h"
 #include "app.h"
+
+#include <stdlib.h>
+#include <pthread.h>
+
+#include "trace-off.h"
 
 TL_REF_TYPE(App);
 struct App {

@@ -133,6 +133,7 @@ install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES)
 	mkdir -p $(MODDIR)
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
+	cp vm/tl.h $(INCDIR)/tl.h
 	cp -r modules/*.tl $(MODDIR)/
 	cp -r cmodules/*.mod $(MODDIR)/
 	cp tlmeta $(BINDIR)/

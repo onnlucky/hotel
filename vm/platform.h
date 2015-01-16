@@ -7,8 +7,8 @@
 // default includes
 #define _GNU_SOURCE
 #include <string.h>
-#include <math.h>
 #include <strings.h>
+#include <math.h>
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -57,17 +57,17 @@
 #define HAVE_LOCALE
 #include <locale.h>
 
-#include "../llib/lhashmap.h"
-#include "../llib/lqueue.h"
-
 #include "a_var.h"
-
 #include "debug.h"
 #include "trace-off.h"
 
 #ifndef bool
 #define bool int
+#endif
+#ifndef true
 #define true 1
+#endif
+#ifndef false
 #define false 0
 #endif
 #ifndef null

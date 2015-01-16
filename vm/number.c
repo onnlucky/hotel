@@ -169,26 +169,23 @@ struct tlNum {
     tlHead* head;
     mp_int value;
 };
-void clear_num(void* _num, void* data) {
-    tlNum* num = tlNumAs(_num);
+
+void numFinalizer(tlHandle handle) {
+    tlNum* num = tlNumAs(handle);
     mp_clear(&num->value);
 }
+
 // TODO implement from double ...
 tlNum* tlNumNew(intptr_t l) {
     tlNum* num = tlAlloc(tlNumKind, sizeof(tlNum));
     mp_init(&num->value);
     mp_set_signed(&num->value, l);
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(num, clear_num, null, null, null);
-#endif
     return num;
 }
+
 tlNum* tlNumFrom(mp_int n) {
     tlNum* num = tlAlloc(tlNumKind, sizeof(tlNum));
     num->value = n;
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(num, clear_num, null, null, null);
-#endif
     return num;
 }
 
@@ -392,6 +389,7 @@ static tlKind _tlNumKind = {
     .hash = numHash,
     .equals = numEquals,
     .cmp = numCmp,
+    .finalizer = numFinalizer,
 };
 tlKind* tlNumKind;
 

@@ -1,12 +1,14 @@
-#include <pthread.h>
-#include <cairo.h>
-#include <gtk/gtk.h>
-
-#include "vm/tl.h"
+#include "debug.h"
 #include "graphics.h"
 #include "image.h"
 #include "window.h"
 #include "app.h"
+
+#include <pthread.h>
+#include <cairo.h>
+#include <gtk/gtk.h>
+
+#include "trace-off.h"
 
 static void configure_window(GtkWindow* window, GdkEvent* event, gpointer data) {
     int x = event->configure.x;

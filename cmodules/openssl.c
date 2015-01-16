@@ -3,6 +3,7 @@
 #include <openssl/err.h>
 #include <openssl/md5.h>
 
+#include "debug.h"
 #include <tl.h>
 
 #include "trace-off.h"
@@ -12,7 +13,6 @@
 #else
 #define SSLCONST const
 #endif
-
 
 static int sb_write(BIO* bio, const char* from, int len) {
     trace("write: %d", len);
@@ -100,7 +100,7 @@ struct tlSSL {
 };
 
 // TODO server state, getting/setting keys and all that good stuff ...
-INTERNAL tlHandle _SSL_new(tlTask* task, tlArgs* args) {
+static tlHandle _SSL_new(tlTask* task, tlArgs* args) {
     tlSSL* ssl = tlAlloc(tlSSLKind, sizeof(tlSSL));
     ssl->rbio = BIO_new(&buffer_bio_method);
     ssl->wbio = BIO_new(&buffer_bio_method);
@@ -123,15 +123,15 @@ INTERNAL tlHandle _SSL_new(tlTask* task, tlArgs* args) {
 
     return ssl;
 }
-INTERNAL tlHandle _ssl_rbuf(tlTask* task, tlArgs* args) {
+static tlHandle _ssl_rbuf(tlTask* task, tlArgs* args) {
     tlSSL* ssl = tlSSLAs(tlArgsTarget(args));
     return bio_buffer(ssl->rbio);
 }
-INTERNAL tlHandle _ssl_wbuf(tlTask* task, tlArgs* args) {
+static tlHandle _ssl_wbuf(tlTask* task, tlArgs* args) {
     tlSSL* ssl = tlSSLAs(tlArgsTarget(args));
     return bio_buffer(ssl->wbio);
 }
-INTERNAL tlHandle _ssl_write(tlTask* task, tlArgs* args) {
+static tlHandle _ssl_write(tlTask* task, tlArgs* args) {
     tlSSL* ssl = tlSSLAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("require a buffer");
@@ -164,7 +164,7 @@ INTERNAL tlHandle _ssl_write(tlTask* task, tlArgs* args) {
     fatal("oeps");
     return tlFalse;
 }
-INTERNAL tlHandle _ssl_read(tlTask* task, tlArgs* args) {
+static tlHandle _ssl_read(tlTask* task, tlArgs* args) {
     tlSSL* ssl = tlSSLAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (!buf) TL_THROW("require a buffer");
@@ -199,7 +199,7 @@ INTERNAL tlHandle _ssl_read(tlTask* task, tlArgs* args) {
     return tlZero;
 }
 
-INTERNAL tlHandle _ssl_md5(tlTask* task, tlArgs* args) {
+static tlHandle _ssl_md5(tlTask* task, tlArgs* args) {
     tlString* s = tlStringCast(tlArgsGet(args, 0));
     if (!s) TL_THROW("md5 requires a string");
 
@@ -207,7 +207,7 @@ INTERNAL tlHandle _ssl_md5(tlTask* task, tlArgs* args) {
     MD5((const unsigned char*)tlStringData(s), tlStringSize(s), res);
     return tlBinFromCopy((char*)res, sizeof(res));
 }
-INTERNAL tlHandle _ssl_sha1(tlTask* task, tlArgs* args) {
+static tlHandle _ssl_sha1(tlTask* task, tlArgs* args) {
     tlString* s = tlStringCast(tlArgsGet(args, 0));
     if (!s) TL_THROW("sha1 requires a string");
 

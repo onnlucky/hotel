@@ -179,8 +179,8 @@ INTERNAL void tlTaskRun(tlTask* task) {
     tlTaskDone(task);
 }
 
-void tlTaskFinalize(void* _task, void* data) {
-    tlTask* task = tlTaskAs(_task);
+static void taskFinalize(tlHandle handle) {
+    tlTask* task = tlTaskAs(handle);
     if (!task->read && tlTaskHasError(task)) {
         // TODO write into special uncaught exception queue
         warning("uncaught exception: %s", tl_repr(task->value));
@@ -194,9 +194,6 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     task->locals = locals;
     task->ticks = START_TICKS;
     trace("new %s", tl_str(task));
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(task, tlTaskFinalize, null, null, null);
-#endif
     return task;
 }
 
@@ -687,6 +684,7 @@ INTERNAL const char* _TasktoString(tlHandle v, char* buf, int size) {
 static tlKind _tlTaskKind = {
     .name = "Task",
     .toString = _TasktoString,
+    .finalizer = taskFinalize,
 };
 
 static const tlNativeCbs __task_natives[] = {

@@ -1,8 +1,9 @@
-#include <stdio.h>
+#include "debug.h"
+#include "image.h"
+
 #include <stdlib.h>
 #include <jpeglib.h>
 
-#include "image.h"
 
 struct Image {
     tlLock lock;
@@ -10,14 +11,14 @@ struct Image {
     cairo_surface_t* surface;
     cairo_t* cairo;
 };
-tlKind _ImageKind = { .name = "Image", .locked = true, };
+void imageFinalizer(tlHandle handle);
+tlKind _ImageKind = {
+    .name = "Image",
+    .locked = true,
+    .finalizer = imageFinalizer,
+};
 tlKind* ImageKind = &_ImageKind;
 
-
-#ifdef HAVE_BOEHMGC
-#undef malloc
-#undef free
-#endif
 static cairo_user_data_key_t jpeg_free_key;
 void jpeg_free(void* data) { free(data); }
 
@@ -79,10 +80,6 @@ cairo_surface_t* readjpg(tlBuffer* buf) {
     cairo_surface_set_user_data(surface, &jpeg_free_key, img, jpeg_free);
     return surface;
 }
-#ifdef HAVE_BOEHMGC
-#define free GC_free
-#define malloc GC_malloc
-#endif
 
 // ** png **
 cairo_status_t readbuffer(void* _buf, unsigned char* data, unsigned int length) {
@@ -104,8 +101,8 @@ cairo_status_t writepngbuffer(cairo_surface_t* surface, tlBuffer* buf) {
 // **
 
 
-void clear_img(void* _img, void* data) {
-    Image* img = ImageAs(_img);
+void imageFinalizer(tlHandle handle) {
+    Image* img = ImageAs(handle);
     if (img->surface) cairo_surface_destroy(img->surface);
     if (img->cairo) cairo_destroy(img->cairo);
 }
@@ -113,9 +110,6 @@ void clear_img(void* _img, void* data) {
 Image* ImageNew(int width, int height) {
     Image* img = tlAlloc(ImageKind, sizeof(Image));
     img->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(img, clear_img, null, null, null);
-#endif
     return img;
 }
 
@@ -126,9 +120,6 @@ Image* ImageFromBuffer(tlBuffer* buf) {
     } else {
         img->surface = readjpg(buf);
     }
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(img, clear_img, null, null, null);
-#endif
     return img;
 }
 

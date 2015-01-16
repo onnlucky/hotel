@@ -2,7 +2,9 @@
 //   $ cd hotelparser
 //   $ make boot
 // ** do not edit ** do not edit ** do not edit ** do not edit **
-#include <vm/tl.h>
+
+#include "tl.h"
+#include "platform.h"
 
 typedef struct State {
     int ok;

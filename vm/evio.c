@@ -199,8 +199,10 @@ struct tlFile {
     tlReader* reader;
     tlWriter* writer;
 };
+static void fileFinalizer(tlHandle handle);
 static tlKind _tlFileKind = {
     .name = "File",
+    .finalizer = fileFinalizer,
 };
 static tlKind _tlReaderKind = {
     .name = "Reader",
@@ -226,14 +228,15 @@ static tlFile* tlFileFromWriter(tlWriter* writer) {
     //return tlFileAs(((char*)writer) - ((unsigned long)&((tlFile*)0)->writer));
 }
 
-void close_ev_io(void* _file, void* data) {
-    tlFile* file = tlFileAs(_file);
+static void fileFinalizer(tlHandle handle) {
+    tlFile* file = tlFileAs(handle);
     if (file->ev.fd < 0) return;
     int r = close(file->ev.fd);
     if (r) warning("%d: error: gc close file: %s", file->ev.fd, strerror(errno));
     trace(">>>> GC CLOSED FILE: %d <<<<", file->ev.fd);
     file->ev.fd = -1;
 }
+
 static tlFile* tlFileNew(int fd) {
     tlFile *file = tlAlloc(tlFileKind, sizeof(tlFile));
     file->reader = tlAlloc(tlReaderKind, sizeof(tlReader));
@@ -241,9 +244,6 @@ static tlFile* tlFileNew(int fd) {
     file->writer = tlAlloc(tlWriterKind, sizeof(tlWriter));
     file->writer->file = file;
     ev_io_init(&file->ev, io_cb, fd, 0);
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(file, close_ev_io, null, null, null);
-#endif
     trace("open: %p %d", file, fd);
     return file;
 }

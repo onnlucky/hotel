@@ -44,6 +44,10 @@ double tlIntToDouble(tlHandle v) {
     return (double)tlIntToInt(v);
 }
 
+static void run_finalizer(void* handle, void* unused) {
+    tl_kind(handle)->finalizer(handle);
+}
+
 // creating value objects
 tlHandle tlAlloc(tlKind* kind, size_t bytes) {
     assert(kind);
@@ -53,6 +57,11 @@ tlHandle tlAlloc(tlKind* kind, size_t bytes) {
     tlHead* head = (tlHead*)calloc(1, bytes);
     assert((((intptr_t)head) & 0x7) == 0);
     head->kind = (intptr_t)kind;
+#ifdef HAVE_BOEHMGC
+    if (kind->finalizer) {
+        GC_REGISTER_FINALIZER_NO_ORDER(head, run_finalizer, null, null, null);
+    }
+#endif
     return head;
 }
 // cloning objects

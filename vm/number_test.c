@@ -1,5 +1,6 @@
 #include "tests.h"
 
+#include "platform.h"
 #include "tl.h"
 
 // TODO this should be 1G instead ;)

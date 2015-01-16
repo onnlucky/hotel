@@ -1,4 +1,5 @@
 #include "tl.h"
+#include "platform.h"
 #include "debug.h"
 
 extern tlBModule* g_boot_module;

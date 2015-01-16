@@ -1,10 +1,5 @@
 # TODO
 
-clean up .h files:
-    don't expose libgc, instead expose finalizers, allow any malloc
-    don't expose lqueue, just keep room for pointer when externally including api
-    how about those asserts in REF_TYPE vs inline ...
-
 clean op operators and comments:
     pow: 2**2 = 4
     xor: 2 ^ 2 == 0

@@ -7,7 +7,11 @@ struct tlRegex {
     tlHead head;
     regex_t compiled;
 };
-static tlKind _tlRegexKind = { .name = "Regex" };
+static void regexFinalizer(tlHandle handle);
+static tlKind _tlRegexKind = {
+    .name = "Regex",
+    .finalizer = regexFinalizer,
+};
 tlKind* tlRegexKind = &_tlRegexKind;
 
 TL_REF_TYPE(tlMatch);
@@ -17,13 +21,15 @@ struct tlMatch {
     int size;
     regmatch_t groups[];
 };
-static tlKind _tlMatchKind = { .name = "Match" };
+static tlKind _tlMatchKind = {
+    .name = "Match"
+};
 tlKind* tlMatchKind = &_tlMatchKind;
 
 /// object Regex: create posix compatible regular expressions to match strings
 
-static void free_regex(void* _regex, void* data) {
-    tlRegex* regex = tlRegexAs(_regex);
+static void regexFinalizer(tlHandle handle) {
+    tlRegex* regex = tlRegexAs(handle);
     regfree(&regex->compiled);
 }
 
@@ -37,9 +43,6 @@ static tlHandle _Regex_new(tlTask* task, tlArgs* args) {
 
     tlRegex* regex = tlAlloc(tlRegexKind, sizeof(tlRegex));
     int r = regcomp(&regex->compiled, tlStringData(str), flags|REG_EXTENDED);
-#ifdef HAVE_BOEHMGC
-    GC_REGISTER_FINALIZER_NO_ORDER(regex, free_regex, null, null, null);
-#endif
     if (r) {
         char buf[1024];
         regerror(r, &regex->compiled, buf, sizeof(buf));

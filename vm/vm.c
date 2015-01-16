@@ -1,14 +1,15 @@
 // the vm itself, this is the library starting point
 
-#include "tl.h"
+#include "llib/lqueue.h"
 #include "platform.h"
+#include "tl.h"
+
 #include "boot/boot.tlb.h"
 #include "boot/compiler.tlb.h"
 
-#include "llib/lhashmap.c"
 #include "llib/lqueue.c"
+#include "llib/lhashmap.c"
 
-#include "debug.h"
 #include "debug.c"
 #include "buffer.c"
 

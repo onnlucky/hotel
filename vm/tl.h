@@ -4,9 +4,35 @@
 
 #ifndef _tl_h_
 #define _tl_h_
-#pragma once
 
-#include "platform.h"
+#include <stdint.h> // int64_t, etc...
+#include <unistd.h> // size_t
+#include <stdio.h>  // snprintf
+#include <string.h> // strlen
+
+#ifndef bool
+#define bool int
+#endif
+#ifndef true
+#define true 1
+#endif
+#ifndef false
+#define false 0
+#endif
+#ifndef null
+#define null ((void*)0)
+#endif
+
+#ifndef assert
+#define assert(e) ((void)0)
+#endif
+
+#ifndef _lqueue_h_
+typedef struct lqentry lqentry;
+typedef struct lqueue lqueue;
+struct lqentry { lqentry* next; };
+struct lqueue { lqentry* head; lqentry* tail; };
+#endif
 
 // all values are tagged pointers, memory based values are aligned to 8 bytes, so 3 tag bits
 typedef void* tlHandle;
@@ -100,7 +126,6 @@ static inline tlKind* tl_kind(tlHandle v) {
     if (tlRefIs(v)) return (tlKind*)(get_kptr(v) & ~0x7);
     if (tlIntIs(v)) return tlIntKind;
     if (tlSymIs_(v)) return tlSymKind;
-    //assert(tlTagIs(v));
     switch ((intptr_t)v) {
         case TL_NULL: return tlNullKind;
         case TL_FALSE: return tlBoolKind;
@@ -511,7 +536,8 @@ typedef const char*(*tltoStringFn)(tlHandle v, char* buf, int size);
 typedef uint32_t(*tlHashFn)(tlHandle from);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
 typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
-typedef size_t(*tlByteSizeFn)(tlHandle from);
+typedef size_t(*tlByteSizeFn)(tlHandle value);
+typedef void(*tlFinalizer)(tlHandle value);
 typedef tlHandle(*tlCallFn)(tlTask* task, tlArgs* args);
 typedef tlHandle(*tlRunFn)(tlTask* task, tlHandle fn, tlArgs* args);
 typedef tlHandle(*tlSendFn)(tlTask* task, tlArgs* args, bool safe);
@@ -529,6 +555,7 @@ struct tlKind {
     tlCompareFn cmp;   // return tlCOMPARE(left - right) or undefined
 
     tlByteSizeFn size; // return memory use in bytes, e.g. `return sizeof(tlTask)`
+    tlFinalizer finalizer; // if non null, will be called just before the value is gc'ed
 
     tlCallFn call;     // if called as a function, before arguments are evaluated
     tlRunFn run;       // if called as a function, after arguments are evaluated

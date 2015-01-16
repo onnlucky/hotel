@@ -1,5 +1,5 @@
-#include <zlib.h>
 #include <tl.h>
+#include <zlib.h>
 
 static tlHandle _deflate(tlTask* task, tlArgs* args) {
     tlBin* in = tlBinCast(tlArgsGet(args, 0));
