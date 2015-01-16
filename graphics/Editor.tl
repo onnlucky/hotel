@@ -69,6 +69,8 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
             this._lines.remove(-1)
         lines.each: l -> this._lines.add(l)
 
+    currentLine = -> return this._y
+
     // QUERING
     currentline = ->
         if this._left: return this._left + this._right
@@ -352,14 +354,14 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
                 g.rectangle(0, by * FHEIGHT, 1000, (ey - by - 1) * FHEIGHT)
                 g.rectangle(0, ey * FHEIGHT - FHEIGHT, ex * FWIDTH, FHEIGHT)
             g.fill
-        if this.cursor:
+        if this.cursor and this.focus:
             g.color(0.5,0.5,0.5)
             x = { this._left           }: min(this._left.size + this._right.size + 1, this._x)
                 { this._lines[this._y] }: min(this._lines[this._y].size + 1, this._x)
                 {                      }: this._x
             g.rectangle(x * FWIDTH - FWIDTH, this._y * FHEIGHT - FHEIGHT, FWIDTH, FHEIGHT)
-            { this.focus }: g.fill
-            {            }: g.stroke
+            { this.app.focus }: g.fill
+            {                }: g.stroke
 
         this._lines.size.times: r ->
             y = r * FHEIGHT - 3
@@ -411,6 +413,8 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         shift = event.modifiers & 1 == 1
         ctrl = event.modifiers & 2 == 2
 
+        if this.keyfilter(event): this.parent.dirty; return
+
         if this.readonly:
             { ctrl and c == 'X' }: this.copy
             { ctrl and c == 'C' }: this.copy
@@ -423,9 +427,9 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         { ctrl and c == 'X' }: this.cut
         { ctrl and c == 'V' }: this.paste
         { ctrl and c == 'Z' }: this.undo
-        { ctrl and c == 'R' }: change = false; this.onsubmit
         { ctrl and c == 37  }: this.movelinestart(shift); change = false
         { ctrl and c == 39  }: this.movelineend(shift); change = false
+        { ctrl and c ==  13 }: change = false; this.onsubmit
         { c ==  13 and this.singleline }: change = false; this.onsubmit
         { c ==  13 }: this.newline
         { c ==   8 }: this.deleteleft
@@ -446,6 +450,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
 
     onchange = null
     onsubmit = null
+    keyfilter = null
 
     setErrorLine = line, msg ->
         this.error = line

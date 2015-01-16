@@ -150,6 +150,12 @@ Vertical = -> _Mutable_new {
     add = c ->
         c.parent = this
         this.children.add(c)
+    insert = at, c ->
+        c.parent = this
+        this.children.insert(at, c)
+    remove = c ->
+        at = this.children.find(c)
+        if at: this.children.remove(at)
 
     size = g, width ->
         this._dirty = false
