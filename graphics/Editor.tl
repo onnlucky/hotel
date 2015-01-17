@@ -23,8 +23,10 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
     zeroheight = zeroheight or false
     cursor = not readonly
 
+    color = null
+    background = null
+
     _lines = Array.new((text or "").split("\n"))
-    _markup = Array.new()
 
     _offset = 0
     _x = 1
@@ -62,12 +64,16 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
             this._lines[-1] = line
             return
         this._lines.add(line)
+        // TODO if not on ui thread, do in background
+        !this.parent.dirty
 
     addLines = lines ->
         if this.singleline: return
         if this._lines[-1] == "":
             this._lines.remove(-1)
         lines.each: l -> this._lines.add(l)
+        // TODO if not on ui thread, do in background
+        !this.parent.dirty
 
     currentLine = -> return this._y
 
@@ -339,10 +345,11 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
     draw = g, width, height ->
         g.setFont(FONT, FSIZE)
 
-        if not this.readonly:
-            g.color(1,1,1).rectangle(0, 0, width, height).fill
-        if this.error:
-            g.color(1,0.9,0.9).rectangle(0, this.error * FHEIGHT - FHEIGHT, width, FHEIGHT).fill
+        { this.background   }: g.color(this.background).rectangle(0, 0, width, height).fill
+        { this.error        }: g.color(1,0.9,0.9).rectangle(0, this.error * FHEIGHT - FHEIGHT, width, FHEIGHT).fill
+        { not this.readonly }: g.color(1,1,1).rectangle(0, 0, width, height).fill
+        {                   }: null
+
         if this._sx:
             { this.focus }: g.color(0.7,0.83,1)
             {            }: g.color(0.7,0.7,0.7)
@@ -370,12 +377,10 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
                    {                             }: this._lines[r]
             if not line: break
 
-            g.color
-            markup = this._markup[r] or []
+            g.color(this.color)
             line.size.times: c ->
                 x = c * FWIDTH - FWIDTH
                 if x > width: return
-                if markup[c]: g.color(markup[c])
                 g.moveTo(x, y).fillText(line[c])
 
     onmouse = event, mx, my ->

@@ -33,6 +33,32 @@ b.ondraw(g ->
 )
 w.focus
 
+colors = {
+    light = [0.7,0.7,0.7]
+    output = [0.2,0.2,0.2]
+    text = [0.05, 0.05, 0.05]
+
+    normalbg = [0.9, 0.9, 0.9]
+    errorbg = [1, 0.9, 0.9]
+}
+
+var running = null
+
+// TODO run each div in a task, cancel those and reflect it in the output
+stop = ->
+    if not running: return
+    running.abort
+    running = null
+
+run = ls ->
+    stop()
+    task = Task.new
+    task.run:
+        catch: e -> print toString(e)
+        var scope = true
+        ls.each(run -> scope = run(scope))
+    running = task
+
 divs = Array.new
 
 var Div = null
@@ -40,27 +66,36 @@ DivClass = {
     focus = -> this.editor.setFocus
     prev = -> divs[divs.find(this) - 1]
     next = -> divs[divs.find(this) + 1]
-    lastenv = ->
-        env, new = this.prev?lastenv
-        if new: this.run; return this.scope, true
-        if not this.dirty: return this.scope, false
-        ncode = this.editor.text.trim
-        if this.code == ncode: this.dirty = false; return this.scope, false
-        this.run
-        return this.scope, true
-    run = ->
-        this.scope = null
-        this.output.clear
+    preprun = ->
         code = this.editor.text.trim
-        this.code = code
         output = this.output
-        env = this.prev?lastenv or true
-        _print = -> output.addLines(args.map(a -> toString(a)).join(" ").split("\n"))
-        catch: e -> _print(e)
-        frame = code.eval({print=_print}, frame=env)
-        res = frame.run
-        if not frame.allStored and isDefined(res) and res != null: _print(res)
-        this.scope = frame
+        output.color = colors.light
+        // returns a function, so that we release "this" and allow rendering of the ui
+        scope ->
+            // use cached result if possible
+            if scope == this.inscope and this.code == code and this.outscope:
+                output.color = colors.output
+                return this.outscope
+
+            output.clear
+            output.background = colors.normalbg
+            output.color = colors.output
+
+            // exit if error
+            if not scope: return null
+
+            this.inscope = scope
+            this.code = code
+            this.outscope = null
+            _print = -> output.addLines(args.map(a -> toString(a)).join(" ").split("\n")); null
+            catch: e ->
+                output.background = colors.errorbg
+                _print(e)
+            frame = code.eval({print=_print}, frame=scope)
+            res = frame.run
+            if not frame.allStored and isDefined(res) and res != null: _print(res)
+            this.outscope = frame
+
     key = event ->
         cmd = event.modifiers == 2
         { cmd and event.key == 'N' }: Div.new(divs.find(this)).focus
@@ -70,7 +105,10 @@ DivClass = {
                                       view.remove(this.editor)
                                       view.remove(this.output)
                                       divs[at]?focus or divs[at - 1]?focus
-        { cmd and event.key == 'R' }: divs[-1].run; true
+        { cmd and event.key == 'R' }: this.code = null // clear at least our cache
+                                      run(divs.map(div -> div.preprun))
+                                      true
+        { cmd and event.key == 'S' }: stop(); true
         { cmd and event.key == 38  }: this.prev?focus; true
         { cmd and event.key == 40  }: this.next?focus; true
         { event.key == 38 }:
@@ -80,7 +118,7 @@ DivClass = {
             if this.editor.currentLine == this.editor.lines: this.next?focus; return true
             if this.editor.lines == 0: this.next?focus; return true
             false
-        {                          }: this.dirty = true; false
+        {                          }: false
 }
 Div = {
     new = at, code ->
@@ -88,9 +126,9 @@ Div = {
             class = DivClass
             editor = Editor(code or "")
             output = Editor("", readonly=true, zeroheight=false)
-            dirty = false
+            inscope = null
             code = null
-            scope = null
+            outscope = null
         })
         o.editor.keyfilter = key -> o.key(key)
         divs.insert(at + 1, o)
@@ -99,5 +137,5 @@ Div = {
         return o
 }
 
-Div.new(0).focus
+Div.new(0, "sleep 10").focus
 
