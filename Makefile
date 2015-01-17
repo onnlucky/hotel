@@ -5,7 +5,7 @@ LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
-	CFLAGS+=-g -O
+	CFLAGS+=-ggdb -O
 endif
 ifeq ($(GCOV),1)
 	CFLAGS+=-fprofile-arcs -ftest-coverage
@@ -141,7 +141,9 @@ install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES)
 	$(MAKE) -C graphics install
 uninstall:
 	rm -rf $(BINDIR)/tl
+	rm -rf $(BINDIR)/tlmeta
 	rm -rf $(LIBDIR)/libtl.a
+	rm -rf $(INCDIR)/tl.h
 	rm -rf $(MODDIR)
 	$(MAKE) -C graphics uninstall
 

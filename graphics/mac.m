@@ -9,6 +9,8 @@
 #include "window.h"
 #include "app.h"
 
+#include "trace-off.h"
+
 // an implementation of how to integrate the cocoa framework with the hotelvm
 // There is a slight gotcha:
 // when the cocoa mainthread wishes to render, we use a tlBlockingTask, this will run on "a" hotel thread

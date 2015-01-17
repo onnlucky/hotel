@@ -8,7 +8,7 @@
 
 #include "trace-off.h"
 
-#ifdef PLATFORM_MACOSX
+#ifdef __APPLE__
 #define SSLCONST
 #else
 #define SSLCONST const

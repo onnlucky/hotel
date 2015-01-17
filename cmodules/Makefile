@@ -1,7 +1,7 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
 CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../vm/
 
-UNAME := $(shell uname)
+UNAME:=$(shell uname)
 ifneq ($(UNAME),Darwin)
 LINK=-shared
 CFLAGS:=$(CFLAGS) -fPIC
@@ -12,7 +12,7 @@ endif
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
-	CFLAGS+=-g -O
+	CFLAGS+=-ggdb -O
 endif
 # doesn't work with coverage tool
 ifeq ($(GCOV),1)

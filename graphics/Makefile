@@ -1,13 +1,20 @@
-UNAME := $(shell uname)
+CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
+CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I..
 
+UNAME:=$(shell uname)
 ifneq ($(UNAME),Darwin)
 GTKFLAGS:=-ldl $(shell pkg-config --cflags --libs gtk+-3.0)
+CFLAGS+=$(GTKFLAGS)
 endif
 
-CFLAGS:=-std=c99 -Wall -O0 -Werror -Wno-unused-function -g $(CFLAGS) -I.. $(GTKFLAGS)
+ifeq ($(BUILD),release)
+	CFLAGS+=-O3
+else
+	CFLAGS+=-ggdb -O
+endif
 
 run: gtl
-	TL_MODULE_PATH=../modules ./gtl run.tl
+	TL_MODULE_PATH=../modules:../cmodules ./gtl run.tl
 
 ifeq ($(UNAME),Darwin)
 gtl: mac.m graphics.o window.o app.o image.o ../libtl.a
@@ -36,6 +43,8 @@ PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin
 install: gtl
 	cp gtl $(BINDIR)/gtl
+uninstall:
+	rm -rf $(BINDIR)/gtl
 
 clean:
 	rm -rf gtl
