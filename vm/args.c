@@ -97,7 +97,7 @@ tlList* tlArgsList(tlArgs* args) {
     for (int i = 0; i < size; i++) {
         tlListSet_(list, i, tlArgsGet(args, i));
     }
-    assert(tlListGet(list, size - 1));
+    assert(size == 0 || tlListGet(list, size - 1));
     return list;
 }
 
