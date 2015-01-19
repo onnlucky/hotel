@@ -1434,7 +1434,7 @@ again:;
             v = tlListGet(mod->linked, at);
             trace("linked %s (%s)", tl_str(v), tl_str(tlListGet(mod->links, at)));
             if (v == tlUnknown) {
-                TL_THROW_NORETURN("name '%s' is unknown", tl_str(tlListGet(mod->links, at)));
+                TL_THROW_NORETURN("'%s' is not known", tl_str(tlListGet(mod->links, at)));
                 // TODO remove this duplication
                 if (calltop >= 0) frame->calls[calltop].at = arg; // mark as current
                 trace("pause attach: %s pc: %d", tl_str(frame), frame->pc);

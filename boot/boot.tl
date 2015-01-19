@@ -633,12 +633,14 @@ resolve2 = name, path ->
         catch: e -> return null, "Unable to load compiled module '$name': $(e.msg)"
         res = dlopen(file)
         return _modules.set(name, res)
+    return null
     return null, "Unable to read module '$name': no module found"
 
 resolve = name, path ->
     res, fail = resolve2(name, path)
     if res: return res
     if fail: throw Error(fail)
+    return undefined
 
 
 io = resolve("io")
