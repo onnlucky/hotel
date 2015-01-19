@@ -179,7 +179,7 @@ static tlHandle _int_hash(tlTask* task, tlArgs* args) {
     return tlINT(intHash(tlArgsTarget(args)));
 }
 static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
-    int c = tl_int(tlArgsTarget(args));
+    intptr_t c = tl_int(tlArgsTarget(args));
     if (c < 0) c = 32;
     if (c > 255) c = 32;
     if (c < 0) TL_THROW("negative numbers cannot be a char");
@@ -188,7 +188,7 @@ static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
     return tlStringFromCopy(buf, 1);
 }
 static tlHandle _int_toString(tlTask* task, tlArgs* args) {
-    int c = tl_int(tlArgsTarget(args));
+    intptr_t c = tl_int(tlArgsTarget(args));
     int base = tl_int_or(tlArgsGet(args, 0), 10);
     char buf[128];
     int len = 0;
@@ -212,10 +212,10 @@ static tlHandle _int_toString(tlTask* task, tlArgs* args) {
         }
         break;
         case 10:
-        len = snprintf(buf, sizeof(buf), "%d", c);
+        len = snprintf(buf, sizeof(buf), "%zd", c);
         break;
         case 16:
-        len = snprintf(buf, sizeof(buf), "%x", c);
+        len = snprintf(buf, sizeof(buf), "%zx", c);
         break;
         default:
         TL_THROW("base must be 10 (default), 2 or 16");
@@ -231,7 +231,7 @@ static tlHandle _int_abs(tlTask* task, tlArgs* args) {
     return tlArgsTarget(args);
 }
 static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
-    int32_t n = tl_int(tlArgsTarget(args));
+    intptr_t n = tl_int(tlArgsTarget(args));
     char bytes[4];
     for (int i = 0; i < 4; i++) bytes[3 - i] = n >> (8 * i);
     return tlBinFromCopy(bytes, 4);

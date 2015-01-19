@@ -250,7 +250,7 @@ static tlHandle _bxor(tlTask* task, tlArgs* args) {
     }
     TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
 }
-// TODO shifting should work on any size number?
+// TODO shifting should work on arbitrary size number include tlNUM
 static tlHandle _blshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
@@ -354,7 +354,7 @@ static tlHandle _pow(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(pow(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        int p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
+        intptr_t p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
         if (p < 0) return tlFLOAT(pow(tl_double(l), p));
         if (p < 1000) return tlNumPow(tlNumTo(l), p);
         TL_THROW("'**' out of range: %s ** %d", tl_str(l), p);
