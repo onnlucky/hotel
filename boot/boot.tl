@@ -350,9 +350,8 @@ _str = o ->
     if isBin(o): return o.toString
     if isBuffer(o): return o.readString
     if isChar(o): return o.toString
-    // TODO these are weird ...
-    if isNumber(o): return o.toChar
-    if isList(o) or isArray(o): return o.flatten(true).toChar
+    if isNumber(o): return Char(o).toString
+    if isList(o) or isArray(o): return o.flatten(true).map(_str).join
     return "$o"
 
 toString = o ->

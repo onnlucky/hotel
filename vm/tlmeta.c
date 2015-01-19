@@ -2,7 +2,6 @@
 //   $ cd hotelparser
 //   $ make boot
 // ** do not edit ** do not edit ** do not edit ** do not edit **
-
 #include "tl.h"
 #include "platform.h"
 

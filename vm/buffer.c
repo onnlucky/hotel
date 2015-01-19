@@ -295,7 +295,17 @@ INTERNAL tlHandle _buffer_readByte(tlTask* task, tlArgs* args) {
     return tlINT(tlBufferReadByte(buf));
 }
 
+void write_utf8(int c, char buf[], int* len);
 INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
+    if (tlCharIs(v)) {
+        int c = tl_int(v);
+        char* data = tlBufferWriteData(buf, 4);
+        int len;
+        write_utf8(c, data, &len);
+        tlBufferDidWrite(buf, len);
+        assert(len >= 0 && len < 4);
+        return len;
+    }
     if (tlIntIs(v)) {
         return tlBufferWriteByte(buf, tl_int(v));
     }
@@ -317,7 +327,26 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
         didread(from, size);
         return size;
     }
-    if (error) *error = "expected a String or Buffer or Bin to write";
+
+    // recurse into lists of these
+    if (tlListIs(v)) {
+        int len = 0;
+        for (int i = 0, l = tlListSize(v); i < l; i++) {
+            len += buffer_write_object(buf, tlListGet(v, i), error);
+            if (*error) return len;
+        }
+        return len;
+    }
+    if (tlArrayIs(v)) {
+        int len = 0;
+        for (int i = 0, l = tlArraySize(v); i < l; i++) {
+            len += buffer_write_object(buf, tlArrayGet(v, i), error);
+            if (*error) return len;
+        }
+        return len;
+    }
+
+    if (error) *error = "expected a String or Buffer or Bin, or list of those";
     return 0;
 }
 

@@ -15,7 +15,7 @@ tlHandle tlCHAR(int value) {
 
 // error char: 0xFFFD
 // max char: 0x10FFFF
-void charToUtf8(int c, char buf[], int* len) {
+void write_utf8(int c, char buf[], int* len) {
     if (c < 0x80) { // 7 bits
         buf[0] = c;
         *len = 1;
@@ -36,13 +36,13 @@ void charToUtf8(int c, char buf[], int* len) {
         *len = 4;
     } else {
         // encode the error char
-        charToUtf8(0xFFFD, buf, len);
+        write_utf8(0xFFFD, buf, len);
     }
 }
 
 static const char* chartoString(tlHandle v, char* buf, int size) {
     int len = 0;
-    charToUtf8(tl_int(v), buf, &len);
+    write_utf8(tl_int(v), buf, &len);
     buf[len] = 0;
     return buf;
 }
@@ -83,7 +83,7 @@ static tlHandle _char_toString(tlTask* task, tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
     char buf[8];
     int len = 0;
-    charToUtf8(c, buf, &len);
+    write_utf8(c, buf, &len);
     buf[len] = 0;
     return tlStringFromCopy(buf, len);
 }

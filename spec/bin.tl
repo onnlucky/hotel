@@ -36,3 +36,46 @@ test "slice":
 
 test "bin equals string":
     assert Bin("hello") == "hello"
+
+test "bin uses bytes in constructor, string uses chars":
+    assert Bin(97) == "a"
+    assert Bin(97) == String(97)
+    assert Bin('a') == String('a')
+    assert Bin(97) == Bin('a')
+
+    assert Bin('€') == String(8364)
+    // Bin constructor takes numbers as bytes, String sees numbers as chars (unicodepoints)
+    assert Bin(8364) != String(8364)
+    assert Bin(8364) != Bin('€')
+
+test "bin/string/buffer constructors with io lists":
+    l = 'a'
+    assert Bin(l) == String(l)
+    assert Bin(l) == Buffer.new(l).read
+    assert String(l) == Buffer.new(l).read
+
+    l2 = '€'
+    assert l2 == Char(8364)
+    assert l2 == "€"[1]
+
+    assert Bin(l2) == String(l2)
+    assert Bin(l2) == Buffer.new(l2).read
+    assert String(l2) == Buffer.new(l2).read
+
+    l3 = " hello"
+    assert Bin(l, l2, l3) == Bin([l, l2], l3)
+    assert Bin(l, l2, l3) == Bin([l, [l2, l3]])
+    assert Bin(l, l2, l3) == Bin([l, [[l2], []]], [], l3)
+
+    assert Bin(l, l2, l3) == String(l, l2, l3)
+    assert Bin(l, l2, l3) == Buffer.new(l, l2, l3).read
+
+    assert Bin([l, l2, l3]) == String([l, l2, l3])
+    assert Bin([l, l2, l3]) == Buffer.new([l, l2, l3]).read
+
+    assert Bin([l, [l2, l3]]) == String([l, [l2, l3]])
+    assert Bin([l, [l2, l3]]) == Buffer.new([l, [l2, l3]]).read
+
+    assert Bin([l, [[l2], []]], [], l3) == String([l, [[l2], []]], [], l3)
+    assert Bin([l, [[l2], []]], [], l3) == Buffer.new([l, [[l2], []]], [], l3).read
+

@@ -32,3 +32,5 @@ shapes.map(s -> s.move(10, 10)).each(s -> print(s))
 inspect(shapes)
 
 if shapes.size > 1: shapes.each: shape -> print shape
+
+print.call('€', "€€")

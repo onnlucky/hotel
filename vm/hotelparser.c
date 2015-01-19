@@ -366,6 +366,9 @@ static State r_chr_2(Parser*, int, int, bool);
 static State r_chr_3(Parser*, int, int, bool);
 static State r_chr_4(Parser*, int, int, bool);
 static State r_chr_5(Parser*, int, int, bool);
+static State r_chr_6_1_1_1(Parser*, int, int, bool);
+static State r_chr_6_1_1(Parser*, int, int, bool);
+static State r_chr_6_1(Parser*, int, int, bool);
 static State r_chr_6(Parser*, int, int, bool);
 static State r_chr(Parser*, int, int, bool);
 static State r_paren_1_1(Parser*, int, int, bool);
@@ -6669,6 +6672,43 @@ static State r_chr_5(Parser* _p, const int _start, int _rec, bool ignored) { // 
  tlHandle _v = tlNull; if (!ignored) { _v = tlCHAR('\''); }
  return parser_pass(_p, "chr_5", _start, state_ok(_pos, _v), 0);
 }
+static State r_chr_6_1_1_1(Parser* _p, const int _start, int _rec, bool ignored) { // not
+ parser_enter(_p, "chr_6_1_1_1", _start);
+ int _pos = _start;
+ State _r;
+ _r = prim_text(_p, _pos, "'", true);
+ if (_r.ok) return parser_fail(_p, "chr_6_1_1_1", _start);
+ return parser_pass(_p, "chr_6_1_1_1", _start, state_ok(_start, tlNull), 0);
+}
+static State r_chr_6_1_1(Parser* _p, const int _start, int _rec, bool ignored) { // and
+ parser_enter(_p, "chr_6_1_1", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_chr_6_1_1_1(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "chr_6_1_1", _pos); }
+ _pos = _r.pos;
+ _r = prim_any(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "chr_6_1_1", _pos); }
+ _pos = _r.pos;
+ tlHandle _v = _r.value;
+ return parser_pass(_p, "chr_6_1_1", _start, state_ok(_pos, _v), 0);
+}
+static State r_chr_6_1(Parser* _p, const int _start, int _rec, bool ignored) { // plus
+ parser_enter(_p, "chr_6_1", _start);
+ int _pos = _start;
+ tlArray* arr = ignored? 0 : tlArrayNew();
+ State _r;
+ _r = r_chr_6_1_1(_p, _pos, _start == _pos? _rec : 0, ignored);
+ if (!_r.ok) return parser_fail(_p, "chr_6_1", _start);
+ if (arr) tlArrayAdd(arr, _r.value);
+ _pos = _r.pos;
+step1:;
+ _r = r_chr_6_1_1(_p, _pos, _start == _pos? _rec : 0, ignored);
+ if (!_r.ok) return parser_pass(_p, "chr_6_1", _start, state_ok(_pos, arr? tlArrayToList(arr) : tlNull), 0);
+ if (arr) tlArrayAdd(arr, _r.value);
+ _pos = _r.pos;
+ goto step1;
+}
 static State r_chr_6(Parser* _p, const int _start, int _rec, bool ignored) { // and
  parser_enter(_p, "chr_6", _start);
  int _pos = _start;
@@ -6677,15 +6717,15 @@ static State r_chr_6(Parser* _p, const int _start, int _rec, bool ignored) { // 
  if (!_r.ok) { return parser_fail(_p, "chr_6", _pos); }
  _pos = _r.pos;
  parser_commit(_p, _pos, "chr_6", 1);
- _r = prim_any(_p, _pos, ignored);
+ _r = r_chr_6_1(_p, _pos, _start == _pos? _rec : 0, ignored);
  if (!_r.ok) { return parser_fail(_p, "chr_6", _pos); }
- tlHandle l = _r.value;
+ tlHandle ts = _r.value;
  _pos = _r.pos;
  _r = prim_text(_p, _pos, "'", true);
  if (!_r.ok) { return parser_fail(_p, "chr_6", _pos); }
  _pos = _r.pos;
  parser_commit(_p, _pos, "chr_6", 3);
- tlHandle _v = tlNull; if (!ignored) { _v = tlCHAR(tl_int(l)); }
+ tlHandle _v = tlNull; if (!ignored) { _v = tlCHAR(tlStringGet(String(ts), 0)); }
  return parser_pass(_p, "chr_6", _start, state_ok(_pos, _v), 0);
 }
 static State r_chr(Parser* _p, const int _start, int _rec, bool ignored) { // or

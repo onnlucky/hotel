@@ -257,8 +257,9 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right);
 tlClass* tlCLASS(const char* name, tlNative* ctor, tlObject* methods, tlObject* statics);
 #define tlMETHODS tlClassObjectFrom
 
-// ** text **
+// ** strings **
 int tlStringSize(tlString* str);
+int tlStringGet(tlString* str, int at);
 const char* tlStringData(tlString* str);
 
 tlString* tlStringEmpty();

@@ -47,7 +47,8 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
         | "'\\t'"       -> tlCHAR('\t')
         | "'\\\\'"      -> tlCHAR('\\')
         | "'\\''"       -> tlCHAR('\'')
-        | "'" l=_ "'"   -> tlCHAR(tl_int(l))
+// TODO until parser properly supports utf8?
+        | "'" ts=(!"'" _)+ "'"                   -> tlCHAR(tlStringGet(String(ts), 0))
 
 // ---- NUMBERS ----
 
