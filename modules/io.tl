@@ -60,7 +60,6 @@ Stream = {
             reader = this.file.reader
             _with_lock(reader, this.rbuf): readFull(reader, this.rbuf)
         _writeOne = val ->
-            if not val: return
             writer = this.file.writer
             // TODO throw exception if not all could be written
             if isBuffer(val):
@@ -115,8 +114,10 @@ Stream = {
                 this._readSome
 
         /// write: many of Buffer, String, Binary, or byte (any number); skipping nulls
-        write = ->
-            args.each: v -> this._writeOne(v)
+        write = v ->
+            if args.size == 1 and isBuffer(v):
+                this._writeOne(v)
+            this._writeOne(args)
         writeclose = ->
             if this.file.isClosed: return
             writer = this.file.writer
@@ -156,7 +157,7 @@ Server = {
 File = {
     call = name -> { name = name, class = this.class }
     class = {
-        read = (buf ->
+        read = buf ->
             reader = _File_open(this.name, _File_RDONLY).reader
             if buf:
                 _with_lock(reader, buf):
@@ -168,33 +169,28 @@ File = {
                 len = readFull(reader, buf)
                 if len == 0: return null
                 return buf.read
-        )
 
         readString = ->
             buf = Buffer.new
             this.read(buf)
             return buf.readString
 
-        write = (val ->
+        write = v ->
             writer = _File_open(this.name, _File_WRONLY+_File_TRUNC+_File_CREAT).writer
-            if isBuffer(val):
-                _with_lock(writer, val):
-                    return writeFull(writer, val)
-            buf = Buffer.new
-            { isBin(val) }: buf.write(val)
-            {            }: buf.write(val.toString)
+            if args.size == 1 and isBuffer(v):
+                _with_lock(writer, v):
+                    return writeFull(writer, v)
+            buf = Buffer.new(args)
             _with_lock(writer, buf):
                 return writeFull(writer, buf)
-        )
 
-        open = (->
+        open = ->
             var $mode = 0
             if args.namesmap["truncate"]: $mode += _File_TRUNC
             if args.namesmap["create"]: $mode += _File_CREAT
             if not args.namesmap["readonly"]: $mode += _File_RDWR
             if args.namesmap["readonly"]: $mode += _File_RDONLY
             Stream.new(_File_open(this.name, $mode))
-        )
     }
 }
 

@@ -297,6 +297,8 @@ INTERNAL tlHandle _buffer_readByte(tlTask* task, tlArgs* args) {
 
 void write_utf8(int c, char buf[], int* len);
 INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
+    trace("writing object: %s", tl_repr(v));
+    assert(v);
     if (tlCharIs(v)) {
         int c = tl_int(v);
         char* data = tlBufferWriteData(buf, 4);
@@ -341,6 +343,14 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
         int len = 0;
         for (int i = 0, l = tlArraySize(v); i < l; i++) {
             len += buffer_write_object(buf, tlArrayGet(v, i), error);
+            if (*error) return len;
+        }
+        return len;
+    }
+    if (tlArgsIs(v)) {
+        int len = 0;
+        for (int i = 0, l = tlArgsSize(v); i < l; i++) {
+            len += buffer_write_object(buf, tlArgsGet(v, i), error);
             if (*error) return len;
         }
         return len;

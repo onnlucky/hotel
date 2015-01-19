@@ -150,7 +150,7 @@ send = method, url, body ->
            {                }: Buffer.new(body)
     if body: conn.write("Content-Length: $(body.size)\r\n")
     conn.write("\r\n")
-    conn.write(body)
+    if body: conn.write(body)
     //conn.flush
 
     // TODO now we can just parse without "finding" first ...
