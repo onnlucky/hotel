@@ -114,12 +114,17 @@ Stream = {
                 if this.file.reader.isClosed: return null
                 this._readSome
 
+        /// buffer: start buffering of the connection, no bytes are actually written until {flush} is called
         buffer = ->
             this._buffering.set(true)
+        /// flush: actually write the buffered bytes, see {buffer} returns the number of bytes written
+        /// after calling {flush} to continue buffering {buffer} will have to be called again
+        /// calling flush without previously calling {buffer} is harmless and will always return 0 as no bytes will be written
         flush = ->
             this._buffering.set(false)
             this._write(null)
         /// write: many of Buffer, String, Binary, or byte (any number) or lists of those; nulls are ignored
+        /// returns bytes written, unless {buffer} has been called, will return null
         write = v ->
             if this._buffering.get: this.wbuf.write(args); return null
             if args.size == 1 and isBuffer(v): return this._write(v)

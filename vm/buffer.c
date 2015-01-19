@@ -364,8 +364,10 @@ INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) 
 }
 
 /// write(bytes*): write all passed in arguments as bytes
-/// bytes can be #String's or #Bin's or other #Buffer's or numbers
-/// Numbers are interpreted as a single byte by masking with `0xFF`.
+/// bytes can be {String}'s or {Bin}'s or other {Buffer}'s or numbers or chars.
+/// But also lists or arrays or args containing these. {null}s will be ignored.
+/// Numbers are interpreted as a single byte by masking with `0xFF`. Chars are
+/// interpreted as char.toString and all bytes of the utf8 encoding are added.
 INTERNAL tlHandle _buffer_write(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
