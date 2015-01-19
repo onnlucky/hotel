@@ -39,17 +39,18 @@ readFull = reader, buf ->
         _io.waitread(reader)
 
 writeFull = writer, buf ->
-    var $total = 0
+    var written = 0
     loop:
-        if buf.size == 0: return
+        if buf.size == 0: return written
         len = writer.write(buf)
-        if len == 0: return buf.size
+        if len == 0: return null // TODO throw exception instead?
+        if len: written += len
         if not len: _io.waitwrite(writer)
 
 /// object Stream: represents input and output of bytes, behaves much like a buffer
 Stream = {
     // TODO optimize the read/write buffer usage
-    new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new }
+    new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new, _buffering = Var.new(false) }
     class = {
         _readSome = buf ->
             buf = buf or this.rbuf
@@ -59,10 +60,10 @@ Stream = {
         _readFull = ->
             reader = this.file.reader
             _with_lock(reader, this.rbuf): readFull(reader, this.rbuf)
-        _writeOne = val ->
+        _write = val ->
             writer = this.file.writer
-            // TODO throw exception if not all could be written
             if isBuffer(val):
+                assert this.wbuf.size == 0 or val == this.wbuf
                 _with_lock(writer, val):
                     return writeFull(writer, val)
             _with_lock(writer, this.wbuf):
@@ -113,12 +114,18 @@ Stream = {
                 if this.file.reader.isClosed: return null
                 this._readSome
 
-        /// write: many of Buffer, String, Binary, or byte (any number); skipping nulls
+        buffer = ->
+            this._buffering.set(true)
+        flush = ->
+            this._buffering.set(false)
+            this._write(null)
+        /// write: many of Buffer, String, Binary, or byte (any number) or lists of those; nulls are ignored
         write = v ->
-            if args.size == 1 and isBuffer(v):
-                this._writeOne(v)
-            this._writeOne(args)
+            if this._buffering.get: this.wbuf.write(args); return null
+            if args.size == 1 and isBuffer(v): return this._write(v)
+            this._write(args)
         writeclose = ->
+            this.flush
             if this.file.isClosed: return
             writer = this.file.writer
             _with_lock(writer): writer.close

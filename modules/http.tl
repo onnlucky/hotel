@@ -1,19 +1,22 @@
-// hotel http library
+// hotel http library; this is a bit of a toy library
 
 HttpConnection = conn ->
     _Mutable_new {
-        _req = null, _didhead = false, _didend = false
-        _in = io.Buffer.new
-        _body = io.Buffer.new
+        _req = null,
+        _didhead = false,
+        _didend = false
+
+        _in = Buffer.new
+        _body = Buffer.new
         status = 200
         contentType = "text/plain"
-        setContentType = (type ->
+        setContentType = type ->
             if this._didhead: throw "Already send headers"
             this.contentType = type
-        )
-        req = (->
-            // read and parse until headers are complete
+
+        req = ->
             if this._req: return this._req
+            // read and parse until headers are complete
             loop:
                 if this._in.size > 2048: print this._in.readString; conn.close; throw "REQUEST TOO LONG"
                 if this._in.find("\r\n\r\n"): break
@@ -21,35 +24,38 @@ HttpConnection = conn ->
                 len = conn.readInto(this._in)
                 if len == 0: throw "IO ERROR"
             this._req = httpparser.request(this._in.readString)
-        )
-        end = -> this._didend = true; this.flush(true); conn.close
-        error = (->
+
+        error = ->
             this.status = 500
             this._didend = true
-            this._body.clear; this._body.write("500 internal error")
-            this.flush(true); conn.close
-        )
-        write = (text ->
-            if this._didend: throw "Already Ended Response"
-            this._body.write(text)
-        )
-        flush = (ending ->
+            this._body.clear
+            this._body.write("500 internal error")
+            this.flush(true)
+            conn.close
+
+        end = ->
+            this._didend = true
+            this.flush(true)
+            // TODO don't always close
+            conn.close
+
+        write = ->
+            if this._didend: Error("Already ended response").throw
+            if this._didhead: conn.write(args)
+            this._body.write(args)
+
+        flush = ending ->
             if not this._didhead: this._sendheaders(ending)
-            while this._body.size > 0:
-                len = conn.write(this._body)
-                //if len == 0: throw "IO ERROR"
-        )
-        _sendheaders = (ending ->
+            conn.write(this._body)
+            conn.flush
+
+        _sendheaders = ending ->
             this._didhead = true
-            headers = io.Buffer.new
-            headers.write("HTTP/1.0 $(this.status) Ok\r\n")
-            if this.contentType: headers.write("Content-Type: $(this.contentType)\r\n")
-            if ending: headers.write("Content-Length: $(this._body.size)\r\n")
-            headers.write("\r\n")
-            while headers.size > 0:
-                len = conn.write(headers)
-                //if len == 0: throw "IO ERROR"
-        )
+            conn.buffer
+            conn.write("HTTP/1.0 $(this.status) Ok\r\n")
+            if this.contentType: conn.write("Content-Type: $(this.contentType)\r\n")
+            if ending: conn.write("Content-Length: $(this._body.size)\r\n")
+            conn.write("\r\n")
     }
 
 Server = {
@@ -141,7 +147,7 @@ openstream = url ->
 send = method, url, body ->
     url = httpparser.url(url)
     conn = openstream(url)
-    //conn.buffer
+    conn.buffer
     conn.write(method + " " + url.request + " HTTP/1.0\r\n")
     conn.write("Host: " + url.host + "\r\n")
     conn.write("User-Agent: Mozilla/5.0\r\n")
@@ -150,8 +156,8 @@ send = method, url, body ->
            {                }: Buffer.new(body)
     if body: conn.write("Content-Length: $(body.size)\r\n")
     conn.write("\r\n")
-    if body: conn.write(body)
-    //conn.flush
+    conn.write(body)
+    conn.flush
 
     // TODO now we can just parse without "finding" first ...
     at = conn.find("\r\n\r\n", 0, 8000)

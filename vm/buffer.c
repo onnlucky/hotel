@@ -299,6 +299,9 @@ void write_utf8(int c, char buf[], int* len);
 INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
     trace("writing object: %s", tl_repr(v));
     assert(v);
+    if (tlNullIs(v)) {
+        return 0;
+    }
     if (tlCharIs(v)) {
         int c = tl_int(v);
         char* data = tlBufferWriteData(buf, 4);
