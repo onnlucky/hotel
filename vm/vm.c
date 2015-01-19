@@ -357,7 +357,7 @@ static tlHandle _pow(tlTask* task, tlArgs* args) {
         intptr_t p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
         if (p < 0) return tlFLOAT(pow(tl_double(l), p));
         if (p < 1000) return tlNumPow(tlNumTo(l), p);
-        TL_THROW("'**' out of range: %s ** %d", tl_str(l), p);
+        TL_THROW("'**' out of range: %s ** %zd", tl_str(l), p);
     }
     TL_THROW("'**' not implemented for: %s ** %s", tl_str(l), tl_str(r));
 }
