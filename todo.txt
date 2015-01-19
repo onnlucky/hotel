@@ -36,8 +36,6 @@ null > 1: throw undefined? or return undefined?
 graphics: turn into module, by registering a vm exit function and moving vm to alternative thread
 graphics: don't do the thread/blocking/reentrance dance, instead, have a single task driving native API
 
-streams: implement some form of hold/release like cork/uncork buffer/flush
-
 bytecode
 - in bytecode, we don't need argnames, we can calculate and store that map when we need it, als we can size the args list dynamically, saves space ...
 - implement classes in parser, compiler
@@ -58,7 +56,6 @@ add xml like things to language
 add a WeakMap, add a HashMap based on regular locked hashmap implementation
 
 add kind->resume for tlFrame and throw using frame.kind.name
-add kind->finalize for finalizers and do the automatically
 
 do class._name for error.toString: this.class._name ": " this.msg ...
 on error, if object, call toString on it ...
@@ -102,9 +99,6 @@ add methods vs functions, methods try to bind a this dynamically ... helps with 
 example: function = ( -> ); method = ( @, -> )
 
 implement `Point = { recurse: Point }` for as far as we can? do Point lazily?
-add task.stop to kill it by error? java ThreadDeath how do we do it safely?
-add finalizers to tasks: report errors if nobody else reads them
-add finalizers to opened files: closed the fds
 
 add default arguments using print = (sep=" ", end="\n")->{...} etc ...
 implement collector: x, *rest = multiple_return()
@@ -113,28 +107,17 @@ implement lvalue assignment: mutable.field = fn()
 
 implement defer (add defer[] to tlCodeRun) or something ...
 
-implement serializing tlValue's to disk
-
-optimize: compiler should add all local names to code->envnames and env should use this ...
-optimize: compiler can shortcut writing/referencing local names to just indexes into locals.
 optimize: remove tlHead in favor of just a tlClass ... use last 3 bits as flags
 optimize: tlFrame can use 3 bits from resumecb too ...
-optimize: tlArgs (and tlCall) can be reworked more lean and simpler
 
 # missing
 
 operators (well, the real ones)
 classes (well, syntax for them and super and such ...)
 class loaders for overriding/extending known classes
-modules
-c-based modules
 lazy evaluation (call by need)
 finalizers
 default arguments
 splays on either side
 complex lhs assigns
-
-# not so nice:
-
-@ is not a word ... for method(42, this=something)
 
