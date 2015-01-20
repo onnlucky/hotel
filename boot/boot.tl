@@ -422,12 +422,12 @@ _install_method(List, "sort", _sort)
 _install_method(List, "flatten", _flatten)
 _install_method(List, "join", _join)
 
-_install(Map._methods, "each", (each = (fn ->
+_install_method(Map, "each", (each = (fn ->
     block = args.block or fn
     if not block: throw "each expects a block or fn"
     this.keys.each: k, n -> block(k, this[k], n)
 )))
-_install(Map._methods, "map", (map = (fn ->
+_install_method(Map, "map", (map = (fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
     this.keys.map: k, n -> block(k, this[k], n)
@@ -454,7 +454,7 @@ _hashmap_map = (fn ->
     this.each(k, v, n -> res.add(block(k, v, n)))
     res.toList
 )
-_install(HashMap._methods, "map", _hashmap_map)
+_install_method(HashMap, "map", _hashmap_map)
 
 _install_method(Array, "addAll", _addAll)
 _install_method(Array, "random", _get_random)

@@ -5,7 +5,6 @@
 
 #include "trace-off.h"
 
-static tlKind _tlHashMapKind = { .name = "HashMap" };
 tlKind* tlHashMapKind;
 
 struct tlHashMap {
@@ -107,7 +106,7 @@ INTERNAL tlHandle _hashmap_clear(tlTask* task, tlArgs* args) {
     return tlHashMapClear(map);
 }
 INTERNAL tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
-    tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
+    TL_TARGET(tlHashMap, map);
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
     if (!tl_kind(key)->hash) TL_THROW("expected a hashable key");
@@ -224,10 +223,12 @@ INTERNAL tlHandle _hashmap_toObject(tlTask* task, tlArgs* args) {
 
 static tlObject* hashmapClass;
 void hashmap_init() {
-    _tlHashMapKind.klass = tlClassObjectFrom(
+    tlClass* cls = tlCLASS("HashMap", null,
+    tlMETHODS(
         "size", _hashmap_size,
         "clear", _hashmap_clear,
         "get", _hashmap_get,
+        "call", _hashmap_get,
         "set", _hashmap_set,
         "has", _hashmap_has,
         "del", _hashmap_del,
@@ -237,17 +238,16 @@ void hashmap_init() {
         "each", _hashmap_each,
         "map", null,
         null
-    );
-    hashmapClass = tlClassObjectFrom(
+    ), tlMETHODS(
         "new", _HashMap_new,
-        "_methods", null,
         null
-    );
-    tlObjectSet_(hashmapClass, s__methods, _tlHashMapKind.klass);
-
+    ));
+    tlKind _tlHashMapKind = {
+        .name = "HashMap",
+        .cls = cls,
+    };
     INIT_KIND(tlHashMapKind);
+
+    tl_register_global("HashMap", cls);
 }
 
-static void hashmap_vm_default(tlVm* vm) {
-   tlVmGlobalSet(vm, tlSYM("HashMap"), hashmapClass);
-}

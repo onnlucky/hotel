@@ -118,7 +118,7 @@ static tlHandle _Map_clone(tlTask* task, tlArgs* args) {
 }
 
 tlMap* tlHashMapToMap(tlHashMap*);
-static tlHandle _Map_from(tlTask* task, tlArgs* args) {
+static tlHandle _Map_call(tlTask* task, tlArgs* args) {
     tlHandle a1 = tlArgsGet(args, 0);
     if (tlHashMapIs(a1)) return tlHashMapToMap(a1);
     if (tlObjectIs(a1)) return tlMapFromObject(a1);
@@ -147,7 +147,7 @@ static tlHandle _map_values(tlTask* task, tlArgs* args) {
 }
 /// get(key): return the value for #key
 static tlHandle _map_get(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapAs(tlArgsTarget(args));
+    TL_TARGET(tlMap, map);
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
     tlHandle res = tlMapGet(map, key);
@@ -212,21 +212,12 @@ static tlHandle mapCmp(tlHandle _left, tlHandle _right) {
 /// Map.map([fn]): return a list with the results of calling the passed in block or #fn
 /// [block] block to call using `block(key, value, at)`
 static void map_init() {
-    tlKind _tlMapKind = {
-        .name = "Map",
-        .size = mapSize,
-        .hash = mapHash,
-        .equals = mapEquals,
-        .cmp = mapCmp,
-        .toString = maptoString,
-    };
-    INIT_KIND(tlMapKind);
-
-    _tl_emptyMap = tlMapNew(tlSetEmpty());
-    tlMapKind->klass = tlClassObjectFrom(
+    tlClass* cls = tlCLASS("Map", tlNATIVE(_Map_call, tlSYM("Map")),
+    tlMETHODS(
         "hash", _map_hash,
         "size", _map_size,
         "get", _map_get,
+        "call", _map_get,
         "set", _map_set,
         "keys", _map_keys,
         "values", _map_values,
@@ -234,13 +225,19 @@ static void map_init() {
         "each", null,
         "map", null,
         null
-    );
-    tlObject* constructor = tlClassObjectFrom(
-        "call", _Map_from,
-        "_methods", null,
-        null
-    );
-    tlObjectSet_(constructor, s__methods, tlMapKind->klass);
-    tl_register_global("Map", constructor);
+    ), null);
+    tlKind _tlMapKind = {
+        .name = "Map",
+        .size = mapSize,
+        .hash = mapHash,
+        .equals = mapEquals,
+        .cmp = mapCmp,
+        .toString = maptoString,
+        .cls = cls,
+    };
+    INIT_KIND(tlMapKind);
+
+    tl_register_global("Map", cls);
+    _tl_emptyMap = tlMapNew(tlSetEmpty());
 }
 

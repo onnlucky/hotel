@@ -581,8 +581,7 @@ INTERNAL tlHandle _string_cat(tlTask* task, tlArgs* args) {
 
 /// get: return character at args[1] characters are just #"Int"s
 INTERNAL tlHandle _string_get(tlTask* task, tlArgs* args) {
-    tlString* str = tlStringAs(tlArgsTarget(args));
-
+    TL_TARGET(tlString, str);
     tlHandle vat = tlArgsGet(args, 0);
     int at = at_offset(vat, tlStringChars(str));
     if (!vat || vat == tlNull) at = 0;
@@ -803,6 +802,7 @@ static void string_init() {
         "endsWith", _string_endsWith,
         "find", _string_find,
         "get", _string_get,
+        "call", _string_get,
         "lower", _string_lower,
         "upper", _string_upper,
         "slice", _string_slice,
