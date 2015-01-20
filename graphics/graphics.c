@@ -326,7 +326,7 @@ static tlHandle _rectangle(tlTask* task, tlArgs* args) {
     return g;
 };
 
-void charToUtf8(int c, char buf[], int* len);
+void write_utf8(int c, char buf[], int* len);
 static tlHandle _textPath(tlTask* task, tlArgs* args) {
     tlHandle in = tlArgsGet(args, 0);
     const char* utf8;
@@ -335,7 +335,7 @@ static tlHandle _textPath(tlTask* task, tlArgs* args) {
     } else if (tlNumberIs(in) || tlCharIs(in)) {
         int len;
         char buf[8];
-        charToUtf8(tl_int(in), buf, &len);
+        write_utf8(tl_int(in), buf, &len);
         buf[len] = 0;
         utf8 = buf;
     } else {
@@ -398,7 +398,7 @@ static tlHandle _fillText(tlTask* task, tlArgs* args) {
     } else if (tlNumberIs(in) || tlCharIs(in)) {
         int len;
         char buf[8];
-        charToUtf8(tl_int(in), buf, &len);
+        write_utf8(tl_int(in), buf, &len);
         buf[len] = 0;
         utf8 = buf;
     } else {
@@ -418,7 +418,7 @@ static tlHandle _measureText(tlTask* task, tlArgs* args) {
     } else if (tlNumberIs(in) || tlCharIs(in)) {
         int len;
         char buf[8];
-        charToUtf8(tl_int(in), buf, &len);
+        write_utf8(tl_int(in), buf, &len);
         buf[len] = 0;
         utf8 = buf;
     } else {
