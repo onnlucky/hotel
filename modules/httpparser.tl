@@ -168,6 +168,12 @@ createmap = ls ->
     ls.each: e -> map[e.key] = e.value
     return map
 
+parseFormData = in ->
+    keyval = pMany(parseQueryKeyVal)(in)
+    map = HashMap.new
+    keyval.value.each: o -> map.set(o.k, o.v)
+    keyval.set(map)
+
 parseHttpRequest = in ->
     method = pManyOne(pChars(upper))(in).do: v -> v.toChar
     trace(method, "METHOD: $(method.value)")
@@ -207,6 +213,7 @@ test "should parse urls":
 {
     request= text -> parse(parseHttpRequest, text)
     response= text -> parse(parseHttpResponse, text)
+    formdata = text -> parse(parseFormData, text)
     url= text -> parse(parseUrl, text)
 }
 
