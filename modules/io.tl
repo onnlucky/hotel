@@ -306,7 +306,7 @@ shell = cmd ->
 wait = s -> _io.wait(s)
 
 Terminal = {
-    new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new }
+    new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new, _buffering = Var.new(false) }
     class = {
         class = Stream.class
 
