@@ -46,10 +46,15 @@ INTERNAL tlHandle _var_set(tlTask* task, tlArgs* args) {
     return v?v : tlNull;
 }
 
+static tlHandle _isVar(tlTask* task, tlArgs* args) {
+    return tlBOOL(!!tlVarCast(tlArgsGet(args, 0)));
+}
+
 static const tlNativeCbs __var_natives[] = {
     { "_Var_new", _Var_new },
     { "_var_get", __var_get },
     { "_var_set", __var_set },
+    { "isVar", _isVar },
     { 0, 0 }
 };
 
