@@ -221,7 +221,6 @@ INTERNAL tlHandle _hashmap_toObject(tlTask* task, tlArgs* args) {
     return tlHashMapToObject(tlHashMapAs(tlArgsTarget(args)));
 }
 
-static tlObject* hashmapClass;
 void hashmap_init() {
     tlClass* cls = tlCLASS("HashMap", null,
     tlMETHODS(
