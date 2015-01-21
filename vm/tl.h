@@ -205,6 +205,8 @@ TL_REF_TYPE(tlDebugger);
 
 TL_REF_TYPE(tlBModule);
 
+TL_REF_TYPE(tlQueue);
+
 bool tlCallableIs(tlHandle v);
 
 // to and from primitive values
@@ -628,6 +630,13 @@ tlHandle tlHashMapGet(tlHashMap* map, tlHandle k);
 tlHandle tlHashMapSet(tlHashMap* map, tlHandle k, tlHandle v);
 tlObject* tlHashMapToObject(tlHashMap* map);
 tlMap* tlHashMapToMap(tlHashMap* map);
+
+tlQueue* tlQueueNew(int buffersize);
+void tlQueueClose(tlQueue* queue);
+// using these queue methods might put the passed in task to waiting, handle with care
+tlHandle tlQueueAdd(tlQueue* queue, tlTask* task, tlArgs* args);
+tlHandle tlQueueGet(tlQueue* queue, tlTask* task);
+tlHandle tlQueuePoll(tlQueue* queue, tlTask* task);
 
 // ** running code **
 

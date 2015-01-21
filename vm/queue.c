@@ -3,7 +3,6 @@
 
 #include "trace-off.h"
 
-TL_REF_TYPE(tlQueue);
 static tlKind _tlQueueKind = { .name = "Queue" };
 tlKind* tlQueueKind;
 
@@ -47,21 +46,30 @@ struct tlMessage {
     tlArgs* args;
 };
 
-
+// TODO actually implement the buffering
 tlQueue* tlQueueNew(int buffer) {
     tlQueue* queue = tlAlloc(tlQueueKind, sizeof(tlQueue));
     pthread_mutex_init(&queue->lock, null);
     assert(queue);
     return queue;
 }
-tlHandle _Queue_new(tlTask* task, tlArgs* args) {
-    int size = tl_int_or(tlArgsGet(args, 0), 0);
-    return tlQueueNew(size);
+
+// TODO mark as closed? for now this is used only in tlTask and they "close" themselves
+void tlQueueClose(tlQueue* queue) {
+    trace("queue close");
+    pthread_mutex_lock(&queue->lock);
+    while (true) {
+        tlTask* getter = tlTaskFromEntry(lqueue_get(&queue->get_q));
+        if (!getter) break;
+        getter->value = tlUndef();
+        trace("found an getter while closing... giving it values: %s", tl_str(getter->value));
+        tlTaskReady(getter);
+    }
+    pthread_mutex_unlock(&queue->lock);
 }
 
-tlHandle _queue_add(tlTask* task, tlArgs* args) {
-    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
-
+// add args to the queue, if it returns null, the task is suspended
+tlHandle tlQueueAdd(tlQueue* queue, tlTask* task, tlArgs* args) {
     pthread_mutex_lock(&queue->lock);
     if (!queue->add_q.head) {
         // we are first
@@ -84,9 +92,8 @@ tlHandle _queue_add(tlTask* task, tlArgs* args) {
     return null;
 }
 
-tlHandle _queue_get(tlTask* task, tlArgs* args) {
-    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
-
+// get a value from the queue, will return a tlResult if required, or suspend the task
+tlHandle tlQueueGet(tlQueue* queue, tlTask* task) {
     pthread_mutex_lock(&queue->lock);
     if (!queue->get_q.head) {
         // we are first
@@ -109,9 +116,7 @@ tlHandle _queue_get(tlTask* task, tlArgs* args) {
     return null;
 }
 
-tlHandle _queue_poll(tlTask* task, tlArgs* args) {
-    tlQueue* queue = tlQueueAs(tlArgsTarget(args));
-
+tlHandle tlQueuePoll(tlQueue* queue, tlTask* task) {
     pthread_mutex_lock(&queue->lock);
     if (!queue->get_q.head) {
         // we are first
@@ -129,6 +134,25 @@ tlHandle _queue_poll(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _Queue_new(tlTask* task, tlArgs* args) {
+    int size = tl_int_or(tlArgsGet(args, 0), 0);
+    return tlQueueNew(size);
+}
+
+static tlHandle _queue_add(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlQueue, queue);
+    return tlQueueAdd(queue, task, args);
+}
+
+static tlHandle _queue_get(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlQueue, queue);
+    return tlQueueGet(queue, task);
+}
+
+static tlHandle _queue_poll(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlQueue, queue);
+    return tlQueuePoll(queue, task);
+}
 
 // Message Queue
 

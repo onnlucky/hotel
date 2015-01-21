@@ -52,6 +52,7 @@ struct tlTask {
     tlFrame* stack;     // current frame (== top of stack or current continuation)
 
     tlDebugger* debugger; // current debugger
+    tlQueue* yields;      // for Task.add and Task.get
 
     // TODO remove these in favor a some flags
     tlTaskState state; // state it is currently in
@@ -401,6 +402,7 @@ INTERNAL tlHandle tlTaskDone(tlTask* task) {
     signalVm(task);
     if (tlBlockingTaskIs(task)) tlBlockingTaskDone(task);
     if (task->debugger) tlDebuggerTaskDone(task->debugger, task);
+    if (task->yields) tlQueueClose(task->yields);
     return tlTaskNotRunning;
 }
 
@@ -611,6 +613,43 @@ INTERNAL tlHandle _task_wait(tlTask* task, tlArgs* args) {
     return null;
 }
 
+static void ensureYieldQueue(tlTask* task) {
+    if (task->yields) return;
+
+    tlQueue* queue = tlQueueNew(0);
+    a_swap_if(A_VAR(task->yields), A_VAL(queue), 0);
+}
+
+static tlHandle _task_add(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlTask, other);
+    if (tlTaskIsDone(other)) return tlUndef();
+    ensureYieldQueue(other);
+    assert(other->yields);
+    return tlQueueAdd(other->yields, task, args);
+}
+
+static tlHandle _Task_add(tlTask* task, tlArgs* args) {
+    ensureYieldQueue(task);
+    assert(task->yields);
+    return tlQueueAdd(task->yields, task, args);
+}
+
+static tlHandle _task_get(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlTask, other);
+    if (tlTaskIsDone(other)) return tlUndef();
+    ensureYieldQueue(other);
+    assert(other->yields);
+    return tlQueueGet(other->yields, task);
+}
+
+static tlHandle _task_poll(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlTask, other);
+    if (tlTaskIsDone(other)) return tlUndef();
+    ensureYieldQueue(other);
+    assert(other->yields);
+    return tlQueuePoll(other->yields, task);
+}
+
 // ** blocking task support, for when external threads wish to wait on evaulations **
 typedef struct TaskBlocker {
     pthread_mutex_t lock;
@@ -703,6 +742,10 @@ static void task_init() {
         "wait", _task_wait,
         "value", _task_wait,
         "toString", _task_toString,
+        // queue
+        "add", _task_add,
+        "get", _task_get,
+        "poll", _task_poll,
         null
     );
     taskClass = tlClassObjectFrom(
@@ -713,6 +756,7 @@ static void task_init() {
         "yield", _Task_yield,
         "holdsLock", _Task_holdsLock,
         "bindToThread", _Task_bindToThread,
+        "add", _Task_add,
         null
     );
 
