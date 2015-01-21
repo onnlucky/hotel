@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Hotel
 " Author: Onne Gorter
-" Last Change: 2013
+" Last Change: 2015
 
 if version < 600
   syntax clear
@@ -16,36 +16,29 @@ syn match  tlTodo "[tT][oO][dD][oO]" contained
 syn match  tlLineComment "//.*" contains=tlTodo
 syn region tlComment start="/\*" end="\*/" contains=tlTodo
 
-syn match tlText "#\w\+"
-syn region tlText start=+"+ skip=+\\"+ end=+"+ contains=tlTextEsc
-syn match  tlTextEsc "&\d\+;" contained
-syn match  tlTextEsc "&0x\x\+;" contained
-syn match  tlTextEsc "\\[nrfvb\\\"]" contained
-syn match  tlTextEsc "$\w\+" contained
-syn match  tlTextEsc "$(.*)" contained
-
-syn match tlField "\\\w\+"
+syntax region tlString start=/"/ skip=/\\\\\|\\"/ end=/"/ contains=@tlInterpString
+syntax region tlInterpolation matchgroup=tlInterpDelim start=/\$(/ end=/)/ contained contains=TOP
+syntax match tlInterpolation /\$\w\+/
+syntax match tlEscape /\\\d\d\d\|\\x\x\{2\}\|\\u\x\{4\}\|\\./ contained
+syntax cluster tlSimpleString contains=@Spell,tlEscape
+syntax cluster tlInterpString contains=@tlSimpleString,tlInterpolation
 
 syn match tlSpecial "="
 syn match tlSpecial ":"
-syn match tlSpecial "|"
-syn match tlSpecial "=>"
 syn match tlSpecial "->"
 syn keyword tlBool     undefined null true false
 syn keyword tlOperator and or xor not
-syn keyword tlBuildin  print assert if while loop catch break continue return goto
+syn keyword tlBuildin  print assert if while loop catch break continue return goto throw
+
+syntax match tlDot /\.\@<!\.\i\+/ transparent contains=ALLBUT,tlBuildin,tlOperator
 
 hi link tlTodo        Todo
 hi link tlLineComment Comment
 hi link tlComment     Comment
 
-hi link tlSymbol   String
-hi link tlText     String
-hi link tlTextEsc  Special
-
-hi link tlArg      Identifier
-hi link tlDef      Special
-hi link tlField    Identifier
+hi link tlString   String
+hi link tlInterpDelim Delimiter
+hi link tlEscape SpecialChar
 
 hi link tlOperator Keyword
 hi link tlSpecial  Special

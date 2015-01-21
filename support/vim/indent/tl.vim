@@ -1,7 +1,7 @@
 " Vim indent file
 " Language: hotel
 " Author: Onne Gorter
-" Last Change: 2010
+" Last Change: 2015
 
 " Only load this indent file when no other was loaded.
 if exists("b:did_indent")
@@ -27,10 +27,10 @@ function! GetTlIndent()
   endif
 
   " Add a 'shiftwidth' after lines that start a block:
-  " '{', '[', '(', '->', '=>', ':' or '='
+  " '{', '[', '(', '->', ':' or '='
   let ind = indent(prevlnum)
   let prevline = getline(prevlnum)
-  let midx = match(prevline, '\({\|\[\|)\|->\|=>\|:\|=\)\s*$')
+  let midx = match(prevline, '\({\|\[\|)\|->\|:\|=\)\s*$')
   endif
   endif
 
