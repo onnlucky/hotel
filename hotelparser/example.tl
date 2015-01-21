@@ -2,6 +2,8 @@
 # single line comments ...
 (# nested multi (# line comments #) yay #)
 
+print.foo 42
+
 Shape = { x, y ->
   methods = {
     move = dx, dy -> this::copy({ x = x + dx, y = y + dy })
