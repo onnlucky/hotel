@@ -37,13 +37,14 @@ writeLine = prompt, left, right ->
     $last = {{cursor,lines}}
     term.write(buf)
 
+var externalenv = {}
 var env = true
 runcode = code ->
     term.restore
     print ""
     (
         catch: e -> print "error: $(toString(e))"
-        frame = code.eval(frame=env)
+        frame = code.eval(frame=env, externalenv)
         assert(isFrame(frame))
         res = frame.run
         env = frame
@@ -134,9 +135,9 @@ editor = {
 
 writeLine prompt, $left, $right
 
-commandline = _env ->
-    if _env: $env = _env
-
+// TODO make more generic, and have it work over telnet oid?
+commandline = env ->
+    externalenv = env or {}
     inbuf = Buffer.new
     var $running = true
     while $running:

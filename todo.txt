@@ -11,6 +11,8 @@ clean op operators and comments:
     (# ... #) nesting multiline comment
 
 think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
+fix/finish modules, should load them relative to current module, then Task.locals, then TL_MODULE_PATH; should be able to call them as functions, as well as get their results
+
 rework compile, all .c files should have .h file and compile to .o file
 
 allow tlEnv to have imports, so that before mod->links[global] we look up global against all scoped imports first
