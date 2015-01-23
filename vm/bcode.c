@@ -143,7 +143,7 @@ tlKind* tlBDebugInfoKind;
 static tlKind _tlBCodeKind = { .name = "BCode" };
 tlKind* tlBCodeKind;
 
-static tlKind _tlBClosureKind = { .name = "BClosure" };
+static tlKind _tlBClosureKind = { .name = "Function" };
 tlKind* tlBClosureKind;
 
 static tlKind _tlBLazyKind = { .name = "BLazy" };
@@ -2163,7 +2163,7 @@ INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
+static tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
     trace("bclosure.call");
     tlBClosure* fn = tlBClosureCast(tlArgsTarget(args));
     if (!fn) TL_THROW(".call expects a Function as this");
@@ -2191,25 +2191,35 @@ INTERNAL tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
     assert(tlBClosureIs(call->fn));
     return eval_args(task, call);
 }
-INTERNAL tlHandle runBClosure(tlTask* task, tlHandle _fn, tlArgs* args) {
+static tlHandle runBClosure(tlTask* task, tlHandle _fn, tlArgs* args) {
     trace("bclosure.run");
     //fatal("broken");
     args->fn = _fn;
     assert(tlBClosureIs(args->fn));
     return eval_args(task, args);
 }
-INTERNAL tlHandle _bclosure_file(tlTask* task, tlArgs* args) {
+static tlHandle _bclosure_name(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlBClosure, fn);
+    return tlOR_NULL(tlBCodeName(fn->code));
+}
+static tlHandle _bclosure_file(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlBClosure, fn);
+    tlBModule* mod = fn->code->mod;
+    return mod->name;
+}
+static tlHandle _bclosure_line(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlBClosure, fn);
+    if (fn->code->debuginfo) return fn->code->debuginfo->line;
     return tlNull;
 }
-INTERNAL tlHandle _bclosure_name(tlTask* task, tlArgs* args) {
-    tlBClosure* fn = tlBClosureAs(tlArgsTarget(args));
-    return tlVALUE_OR_NULL(tlBCodeName(fn->code));
+static tlHandle _bclosure_args(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlBClosure, fn);
+    return fn->code->argspec;
 }
-INTERNAL tlHandle _bclosure_line(tlTask* task, tlArgs* args) {
-    return tlNull;
-}
-INTERNAL tlHandle _bclosure_args(tlTask* task, tlArgs* args) {
-    return tlNull;
+
+static const char* bclosureToString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "<Function@%p %s>", v, tlStringData(tlBCodeName(tlBClosureAs(v)->code)));
+    return buf;
 }
 
 INTERNAL tlHandle _blazy_call(tlTask* task, tlArgs* args) {
@@ -2265,6 +2275,7 @@ void bcode_init() {
     _tlBLazyKind.run = runBLazy;
     _tlBLazyDataKind.run = runBLazyData;
 
+    _tlBClosureKind.toString = bclosureToString;
     _tlBClosureKind.run = runBClosure;
     _tlBClosureKind.klass = tlClassObjectFrom(
         "call", _bclosure_call,

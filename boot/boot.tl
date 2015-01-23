@@ -42,25 +42,6 @@ max = l, r ->
     if l >= r: return l
     return r
 
-//print "boot 1"
-_test = if true: "boot"
-assert _test
-
-_test = ->
-    assert args[1] == 42
-    assert args["name"] == "hello"
-    assert args[:][1] == 42
-    assert args.names.name == "hello"
-
-_test(name="hello", 42)
-//print "boot 2"
-_test(42, name="hello")
-//print "boot 3"
-_test(name="hello", 42)
-//print "boot 4"
-_test(foo="bar", 42, name="hello")
-//print "boot 5"
-
 /// List.random(): return a random element from the list
 _get_random = -> this.get(1 + random(this.size))
 
@@ -646,10 +627,10 @@ io = resolve("io")
 
 // TODO allow safe eval by not resolving modules and limited default env ...
 _eval = env/*env*/ ->
-    { args["frame"] and env }: compiler.load(this, name="<eval>", link=args["frame"], env, _env, (name -> resolve(name, null))).frame(link=args["frame"])
-    { args["frame"]         }: compiler.load(this, name="<eval>", link=args["frame"], _env, (name -> resolve(name, null))).frame(link=args["frame"])
-    { env                   }: compiler.load(this, name="<eval>", env, _env, (name -> resolve(name, null))).run()
-    {                       }: compiler.load(this, name="<eval>", _env, (name -> resolve(name, null))).run()
+    { args["frame"] and env }: compiler.load(this, name="<eval>", link=args["frame"], env, _env, (name -> resolve(name))).frame(link=args["frame"])
+    { args["frame"]         }: compiler.load(this, name="<eval>", link=args["frame"], _env, (name -> resolve(name))).frame(link=args["frame"])
+    { env                   }: compiler.load(this, name="<eval>", env, _env, (name -> resolve(name))).run()
+    {                       }: compiler.load(this, name="<eval>", _env, (name -> resolve(name))).run()
 
 /// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
 _install_method(String, "eval", _eval)
