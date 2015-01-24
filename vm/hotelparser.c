@@ -1554,6 +1554,9 @@ static State r_compare_2_1_1(Parser* _p, const int _start, int _rec, bool ignore
  _r = prim_text(_p, _pos, "!=", ignored);
  if (_r.ok) return parser_pass(_p, "compare_2_1_1", _start, _r, 0);
  if (_p->error_line) { /*print("expect: compare_2_1_1");*/ return _r; }
+ _r = prim_text(_p, _pos, "isa", ignored);
+ if (_r.ok) return parser_pass(_p, "compare_2_1_1", _start, _r, 0);
+ if (_p->error_line) { /*print("expect: compare_2_1_1");*/ return _r; }
  return parser_fail(_p, "compare_2_1_1", _start);
 }
 static State r_compare_2_1(Parser* _p, const int _start, int _rec, bool ignored) { // and
@@ -4395,6 +4398,9 @@ static State r_opname_2(Parser* _p, const int _start, int _rec, bool ignored) { 
  parser_enter(_p, "opname_2", _start);
  int _pos = _start;
  State _r;
+ _r = prim_text(_p, _pos, "isa", ignored);
+ if (_r.ok) return parser_pass(_p, "opname_2", _start, _r, 0);
+ if (_p->error_line) { /*print("expect: opname_2");*/ return _r; }
  _r = prim_text(_p, _pos, "not", ignored);
  if (_r.ok) return parser_pass(_p, "opname_2", _start, _r, 0);
  if (_p->error_line) { /*print("expect: opname_2");*/ return _r; }

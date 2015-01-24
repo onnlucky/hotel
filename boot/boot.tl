@@ -490,12 +490,11 @@ _install(DeadlockError, "class", {
         return ls.join
 })
 
-// TODO make an operator?
 isa = o, class ->
-    var $cls = o?class
+    var $cls = o.class
     while $cls:
-        if $cls?class?name == class.name: return true
-        $cls = Object.get($cls, "class")
+        if $cls == class: return true
+        $cls = $cls?super
     return false
 
 assert [1,[2,[]],"hello",[]].flatten == [1,2,"hello"]

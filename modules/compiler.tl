@@ -177,7 +177,9 @@ writeCode = mod, c, scope ->
 opname = op ->
     { op == "or"  }: op
     { op == "and" }: op
+    { op == "xor" }: op
     { op == "not" }: op
+    { op == "isa" }: op
 
     { op == "==" }: return "eq"
     { op == "!=" }: return "neq"

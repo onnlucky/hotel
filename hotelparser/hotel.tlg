@@ -107,7 +107,7 @@ mfunction: pos=pos as=fargs .arrow.. body=bodynl                                
 
 reserved: "else" !letter
 literal*: "true" | "false" | "null" | "undefined"
-  opname: ("not"|"and"|"or"|"xor") !letter
+  opname: ("isa"|"not"|"and"|"or"|"xor") !letter
     ref*: pos=pos !opname !reserved name=name type=<ref>
   vparen: "(".. e=mexpr ..")" -> e
         | "(".. pos=pos body=body ..")" type=<scope>
@@ -167,7 +167,7 @@ mcallarg: v=mcall
 
  logical: l=not rs=(..pos=pos op=("or"|"and"|"xor").. r=not)*                    -> process_expr(l, rs)
      not: pos=pos type="not".. rhs=not | compare
- compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!=").. r=bitwise)* -> process_expr(l, rs)
+ compare: l=bitwise rs=(..pos=pos op=("<="|"<"|">="|">"|"=="|"!="|"isa").. r=bitwise)* -> process_expr(l, rs)
  bitwise: l=shift rs=(..pos=pos op=("&"|"|"|"^").. r=shift)*                     -> process_expr(l, rs)
    shift: l=add rs=(..pos=pos op=("<<"|">>>"|">>").. r=add)*                     -> process_expr(l, rs)
      add: l=mul rs=(..pos=pos op=("+"|"-").. r=mul)*                             -> process_expr(l, rs)
