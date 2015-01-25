@@ -5,7 +5,6 @@
 
 static tlNative* g_goto_native;
 static tlNative* g_identity;
-static tlString* g_this;
 static void unwindForGoto(tlTask* task, int deep, tlHandle value);
 static tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw);
 
@@ -340,7 +339,7 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlSym name = tlSymCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
 
-    if (name == g_this) return tlMAYBE(tlArgsTarget(call));
+    if (name == s_this) return tlMAYBE(tlArgsTarget(call));
 
     tlList* names = tlArgsNames(call);
     if (names) {
@@ -1497,7 +1496,7 @@ again:;
                 env = env->parent;
                 if (env) v = tlArgsTarget(env->args);
             }
-            assert(v);
+            //assert(v);
             if (!v) v = tlNull;
             break;
         }
@@ -1510,7 +1509,7 @@ again:;
                 env = env->parent;
                 if (env) v = tlArgsTarget(env->args);
             }
-            assert(v);
+            //assert(v);
             if (!v) v = tlNull;
             trace("envthis[%d] -> %s", depth, tl_str(v));
             break;
@@ -2266,9 +2265,6 @@ void bcode_init() {
     tl_register_global("goto", g_goto_native);
     g_identity = tlNativeNew(_identity, tlSYM("identity"));
     tl_register_global("identity", g_identity);
-
-    // TODO make sure these are symbols all the way
-    g_this = tlSTR("this");
 
     _tlBLazyKind.klass = tlClassObjectFrom("call", _blazy_call, null);
     _tlBLazyDataKind.klass = tlClassObjectFrom("call", _blazydata_call, null);
