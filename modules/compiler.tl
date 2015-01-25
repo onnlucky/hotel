@@ -110,7 +110,7 @@ writeCode = mod, c, scope ->
     buf.write(mod.data(c.argspecs)) // TODO split up in 3 lists argnames, argdefaults, arglazy, null should be fine for any
     buf.write(mod.data(c.locals))
     { scope }:
-        buf.write(mod.data(scope.localvars)) // mutable or not, null is fine if no mutables
+        buf.write(mod.data(scope?localvars)) // mutable or not, null is fine if no mutables
     {       }:
         buf.write(mod.data(null))
     buf.write(mod.data(c.debuginfo))
