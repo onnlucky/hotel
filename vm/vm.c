@@ -771,27 +771,32 @@ void tlVmRun(tlVm* vm, tlTask* task) {
 }
 
 static tlHandle _print(tlTask* task, tlArgs* args) {
-    tlString* sep = tlSTR(" ");
+    const char* sep = " ";
     tlHandle v = tlArgsGetNamed(args, tlSYM("sep"));
-    if (v) sep = tltoString(v);
+    if (v) {
+        sep = tl_bool(v)? tl_str(v) : "";
+    }
 
-    tlString* begin = null;
+    const char* begin = "";
     v = tlArgsGetNamed(args, tlSYM("begin"));
-    if (v) begin = tltoString(v);
+    if (v) {
+        begin = tl_bool(v)? tl_str(v) : "";
+    }
 
-    tlString* end = null;
+    const char* end = "\n";
     v = tlArgsGetNamed(args, tlSYM("end"));
-    if (v) end = tltoString(v);
+    if (v) {
+        end = tl_bool(v)? tl_str(v) : "";
+    }
 
-    if (begin) printf("%s", tlStringData(begin));
+    if (begin) printf("%s", begin);
     for (int i = 0; i < 1000; i++) {
         tlHandle v = tlArgsGet(args, i);
         if (!v) break;
-        if (i > 0) printf("%s", tlStringData(sep));
-        printf("%s", tlStringData(tltoString(v)));
+        if (i > 0) printf("%s", sep);
+        printf("%s", tl_str(v));
     }
-    if (end) printf("%s", tlStringData(end));
-    printf("\n");
+    printf("%s", end);
     fflush(stdout);
     return tlNull;
 }
