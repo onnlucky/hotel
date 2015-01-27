@@ -4,7 +4,7 @@
 #include "platform.h"
 #include "tl.h"
 
-#include "boot/boot.tlb.h"
+#include "boot/init.tlb.h"
 #include "boot/compiler.tlb.h"
 
 #include "llib/lqueue.c"
@@ -639,9 +639,9 @@ tlObject* tlVmGlobals(tlVm* vm) {
     return vm->globals;
 }
 
-tlBuffer* tlVmGetBoot() {
+tlBuffer* tlVmGetInit() {
     tlBuffer* buf = tlBufferNew();
-    tlBufferWrite(buf, boot_boot, boot_boot_len);
+    tlBufferWrite(buf, modules_init, modules_init_len);
     return buf;
 }
 
@@ -651,24 +651,24 @@ tlBuffer* tlVmGetCompiler() {
     return buf;
 }
 
-extern tlBModule* g_boot_module;
+extern tlBModule* g_init_module;
 
-tlTask* tlVmEvalBootBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args) {
+tlTask* tlVmEvalInitBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args) {
     const char* error = null;
     tlBModule* mod = tlBModuleFromBuffer(buf, tlSTR(name), &error);
-    if (error) fatal("error booting: %s", error);
-    g_boot_module = mod;
+    if (error) fatal("error loading init: %s", error);
+    g_init_module = mod;
 
     tlBModuleLink(mod, tlVmGlobals(vm), &error);
-    if (error) fatal("error linking boot: %s", error);
+    if (error) fatal("error linking init: %s", error);
 
     tlTask* task = tlBModuleCreateTask(vm, mod, args);
     tlVmRun(vm, task);
     return task;
 }
 
-tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* args) {
-    return tlVmEvalBootBuffer(vm, tlVmGetBoot(), "<boot>", args);
+tlTask* tlVmEvalInit(tlVm* vm, tlArgs* args) {
+    return tlVmEvalInitBuffer(vm, tlVmGetInit(), "<init>", args);
 }
 
 static tlHandle _vm_get_compiler() {

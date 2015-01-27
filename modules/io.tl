@@ -3,7 +3,7 @@
 _io_queue = _io_init()
 _io = _io_queue.input
 
-// the boot task will call this, this is basically hotelvm's mainloop
+// the init task will call this, this is basically hotelvm's mainloop
 ioloop = ->
     loop:
         Task.yield

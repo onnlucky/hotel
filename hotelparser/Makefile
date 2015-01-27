@@ -22,7 +22,7 @@ clean:
 	rm -rf tlmeta.tl hotelparser.c jsonparser.c xmlparser.c main
 
 boot: hotelparser.c jsonparser.c xmlparser.c tlmeta.c
-	cat warning.c tlmeta.c > ../vm/tlmeta.c
-	cat warning.c hotelparser.c > ../vm/hotelparser.c
-	cat warning.c jsonparser.c > ../vm/jsonparser.c
-	cat warning.c xmlparser.c > ../vm/xmlparser.c
+	cat warning.c tlmeta.c > ../boot/tlmeta.c
+	cat warning.c hotelparser.c > ../boot/hotelparser.c
+	cat warning.c jsonparser.c > ../boot/jsonparser.c
+	cat warning.c xmlparser.c > ../boot/xmlparser.c

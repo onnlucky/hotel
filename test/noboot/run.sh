@@ -11,7 +11,7 @@ for i in *.tl; do
     ERR=${i/.tl/.err}
     #TL_MODULE_PATH=../../modules ../../tl ../../tlcompiler $i
     #../../tlcompiler $i
-    ../../tl --boot ${i}b 2>$ERR | diff $REF - >$LOG
+    ../../tl --init ${i}b 2>$ERR | diff $REF - >$LOG
 
     if (( $? == 0 )); then
         PASS=$((PASS+1))

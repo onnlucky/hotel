@@ -2,17 +2,17 @@
 #include "platform.h"
 #include "debug.h"
 
-extern tlBModule* g_boot_module;
+extern tlBModule* g_init_module;
 
 int main(int argc, char** argv) {
     tl_init();
 
-    const char* boot = null;
+    const char* init = null;
     tlArgs* args = null;
 
-    if (argc >= 2 && !strcmp(argv[1], "--boot")) {
-        if (argc < 3) fatal("no boot file");
-        boot = argv[2];
+    if (argc >= 2 && !strcmp(argv[1], "--init")) {
+        if (argc < 3) fatal("no init file");
+        init = argv[2];
 
         args = tlArgsNew(argc - 3);
         for (int i = 3; i < argc; i++) {
@@ -28,16 +28,16 @@ int main(int argc, char** argv) {
     tlVm* vm = tlVmNew();
     tlVmInitDefaultEnv(vm);
     tlBuffer* buf = null;
-    if (boot) {
-        buf = tlBufferFromFile(boot);
+    if (init) {
+        buf = tlBufferFromFile(init);
     } else {
-        boot = "<boot>";
-        buf = tlVmGetBoot();
+        init = "<init>";
+        buf = tlVmGetInit();
         assert(buf);
     }
-    if (!buf) fatal("unable to load: %s", boot);
+    if (!buf) fatal("unable to load: %s", init);
 
-    tlTask* task = tlVmEvalBootBuffer(vm, buf, boot, args);
+    tlTask* task = tlVmEvalInitBuffer(vm, buf, init, args);
     tlHandle h = tlTaskValue(task);
     if (tlTaskHasError(task)) {
         if (tlStringIs(h)) {

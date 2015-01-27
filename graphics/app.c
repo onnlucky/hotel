@@ -99,7 +99,7 @@ static void* tl_main(void* _args) {
     image_init(vm);
     window_init(vm);
 
-    tlVmEvalBoot(vm, tlArgsAs(_args));
+    tlVmEvalInit(vm, tlArgsAs(_args));
     tl_exit_code = tlVmExitCode(vm);
 
     if (should_start_toolkit) {

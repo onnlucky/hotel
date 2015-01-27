@@ -10,7 +10,7 @@ static tlString* _t_unknown;
 static tlString* _t_anon;
 static tlString* _t_native;
 
-tlBModule* g_boot_module;
+tlBModule* g_init_module;
 
 static tlKind _tlResultKind = { .name = "Result" };
 tlKind* tlResultKind;
@@ -212,8 +212,8 @@ INTERNAL tlHandle _install_global(tlTask* task, tlArgs* args) {
     if (!val) TL_THROW("expected a Value");
     tl_register_global(tlStringData(key), val);
 
-    if (g_boot_module) {
-        module_overwrite_(g_boot_module, key, val);
+    if (g_init_module) {
+        module_overwrite_(g_init_module, key, val);
     }
 
     return tlNull;

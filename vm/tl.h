@@ -357,7 +357,7 @@ void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
 void tl_init();
 
 tlVm* tlVmNew();
-tlBuffer* tlVmGetBoot();
+tlBuffer* tlVmGetInit();
 tlBuffer* tlVmGetCompiler();
 void tlVmInitDefaultEnv(tlVm* vm);
 void tlVmDelete(tlVm* vm);
@@ -380,8 +380,8 @@ tlFrame* tlTaskCurrentFrame(tlTask* task);
 // runs until all tasks are done
 tlTask* tlVmEval(tlVm* vm, tlHandle v);
 tlTask* tlVmEvalCall(tlVm* vm, tlHandle fn, ...);
-tlTask* tlVmEvalBoot(tlVm* vm, tlArgs* as);
-tlTask* tlVmEvalBootBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args);
+tlTask* tlVmEvalInit(tlVm* vm, tlArgs* as);
+tlTask* tlVmEvalInitBuffer(tlVm* vm, tlBuffer* buf, const char* name, tlArgs* args);
 tlTask* tlVmEvalCode(tlVm* vm, tlString* code, tlString* file, tlArgs* as);
 tlTask* tlVmEvalFile(tlVm* vm, tlString* file, tlArgs* as);
 
