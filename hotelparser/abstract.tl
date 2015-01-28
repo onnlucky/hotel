@@ -1,4 +1,4 @@
-abstract = grammar ->
+abstract = (grammar ->
 
 print "analyzing"
 
@@ -48,7 +48,7 @@ isterm2 = rule, seen ->
     { rule.type == "name" }: isterm(rule.term, seen)
     { rule.type == "or"   }:
         var $type = 2
-        rule.terms.each: term =>
+        rule.terms.each: term ->
             t = isterm(term, seen)
             if not t: return false
             if t == 1: $type = t
@@ -68,7 +68,7 @@ isterm2 = rule, seen ->
         isterm(rule.term, seen)
     { rule.type == "and"  }:
         var $type = 1
-        rule.terms.each: term =>
+        rule.terms.each: term ->
             t = isterm(term, seen)
             if not t: return false
             if t == 2: $type = t
@@ -101,11 +101,11 @@ trace = rule ->
         { rule.type == "plus" }: return step(rule.term, seen)
         { rule.type == "plussep" }: return step(rule.term, seen)
         { rule.type == "or"   }:
-            rule.terms.each: term =>
+            rule.terms.each: term ->
                 if not step(term, seen): return false
             return true
         { rule.type == "and"  }:
-            rule.terms.each: term =>
+            rule.terms.each: term ->
                 // handle type == "call" when it is direct left recursive
                 consumes, direct = step(term, seen)
                 if direct: continue
@@ -305,8 +305,8 @@ emit_rule = rule ->
                 lines.add " if (_r.ok) goto directs;"
             lines.add " return parser_pass(_p, \"$(rule.name)\", _start, _r2, $cache);"
     { rule.type == "and" }:
-        anchor = Var.new
-        indent = Var.new
+        var $anchor = null
+        var $indent = null
         names = Array.new
         lines.add " State _r;"
         rule.terms.each: term, n ->
@@ -316,29 +316,29 @@ emit_rule = rule ->
                 lines.add " const int __indent = 0;"
                 lines.add " const int _indent = _p->indent; _p->indent = __indent;"
                 $indent = true
-                return
+                continue
             if term.type == "addindent":
                 lines.add " const int __indent = parser_indent(_p, _pos);"
                 lines.add " if (_p->indent >= __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
                 lines.add " const int _indent = _p->indent; _p->indent = __indent;"
                 $indent = true
-                return
+                continue
             if term.type == "setindent":
                 lines.add " const int __indent = parser_indent(_p, _pos);"
                 lines.add " if (_p->indent > __indent) return parser_fail(_p, \"$(rule.name)\", _pos);"
                 lines.add " const int _indent = _p->indent; _p->indent = __indent;"
                 $indent = true
-                return
+                continue
             if term.type == "indent":
                 restore = { $indent }: "_p->indent = _indent; "
                           {         }: ""
                 lines.add " if (_p->indent != parser_indent(_p, _pos)) { $(restore)return parser_fail(_p, \"$(rule.name)\", _pos); }"
-                return
+                continue
             if term.type == "anchor":
                 { not $anchor }: lines.add " const char* _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
                 {             }: lines.add " _anchor = parser_set_anchor(_p, \"$(term.msg.escape(true))\");"
                 $anchor = true
-                return
+                continue
             ignored = { term.type == "name"  }: false
                       { n == rule.terms.size }: names.size > 0
                       {                      }: true
@@ -371,4 +371,4 @@ emit_rule = rule ->
 grammar.each(r -> emit_rule(r))
 
 return lines.join("\n")
-
+)

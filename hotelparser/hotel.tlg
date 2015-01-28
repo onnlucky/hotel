@@ -217,6 +217,7 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
      stm: pos=pos to=intro .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
         | to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
         | multi=(assign)+(.","..) .."="!"=".. @"a value" value=mexpr &endstm type=<multiassign>
+        | to=newvar &endstm type=<assign>
         | e=mexpr &endstm                                                    -> e
 
    stms*: t=stm ts=(.";".@"a statement after ';'" stm)* -> prepend(ts, t)
@@ -232,7 +233,7 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
 
 hashbang: "#!" (!nl _)*
  mustend: @"indent error" .. end
-   start: .. hashbang? .. pos=pos body=bodynl mustend type=<function>
+   start: .. hashbang? .. pos=pos body=body mustend type=<function>
 }
 
 #ifndef NO_VALUE
