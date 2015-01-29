@@ -106,6 +106,7 @@ mfunction: pos=pos as=fargs .arrow.. body=bodynl                                
 // ---- EXPRESSIONS ----
 
 reserved: "else" !letter
+        | "var" !letter
 literal*: "true" | "false" | "null" | "undefined"
   opname: ("isa"|"not"|"and"|"or"|"xor") !letter
     ref*: pos=pos !opname !reserved name=name type=<ref>
@@ -216,8 +217,8 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
         | expr
      stm: pos=pos to=intro .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
         | to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
-        | multi=(assign)+(.","..) .."="!"=".. @"a value" value=mexpr &endstm type=<multiassign>
-        | to=newvar &endstm type=<assign>
+        | multi=(assign)+(.",".) ."="!"=".. @"a value" value=mexpr &endstm type=<multiassign>
+        | to=(pos=pos name=newvar type=<newvar>) &endstm type=<assign>
         | e=mexpr &endstm                                                    -> e
 
    stms*: t=stm ts=(.";".@"a statement after ';'" stm)* -> prepend(ts, t)
@@ -232,7 +233,7 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
         | ""                                            -> tlListEmpty()
 
 hashbang: "#!" (!nl _)*
- mustend: @"indent error" .. end
+ mustend: .. end
    start: .. hashbang? .. pos=pos body=body mustend type=<function>
 }
 

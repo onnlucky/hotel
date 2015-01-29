@@ -447,7 +447,7 @@ compile = (text, ast ->
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
-                value = lex(scope, term.value)
+                value = lex(scope, term?value)
                 {type="vset",target=scope.ref(term.to.name),{value}}
             { term.to.type == "var"    }:
                 ref = scope.ref(term.to.name)
