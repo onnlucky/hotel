@@ -4,5 +4,5 @@ TARGETS:=$(SOURCES:.tl=.tlb)
 all: $(TARGETS)
 
 %.tlb: %.tl ../../tlcompiler Makefile $(SOURCES)
-	../../tlcompiler $<
+	TL_MODULE_PATH=../../modules ../../tl ../../tlcompiler $<
 

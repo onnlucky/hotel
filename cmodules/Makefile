@@ -20,7 +20,16 @@ ifeq ($(GCOV),1)
 	#LINK+=-fprofile-arcs -ftest-coverage
 endif
 
-all: openssl.mod zlib.mod audio.mod Image.mod
+ifndef NO_OPENSSL
+all: openssl.mod
+endif
+ifndef NO_PORTAUDIO
+all: audio.mod
+endif
+ifndef NO_CAIRO
+all: Image.mod
+endif
+all: zlib.mod
 
 openssl.mod: openssl.c Makefile ../vm/tl.h
 	$(CC) $(CFLAGS) -c openssl.c
