@@ -75,11 +75,12 @@ struct tlBModule {
 
 struct tlBDebugInfo {
     tlHead head;
-    tlString* name;
-    tlInt line;
+    tlString* name; // name of function
+    tlInt line; // line of function
     tlInt offset;
     tlString* text;
-    tlList* pos;
+    tlList* lines; // byte positions of newlines in source file
+    tlList* pos;   // byte positions of OP_GLOBAL and CALLs in source file
 };
 
 enum { kCodeHasLazy = 1 };
@@ -542,15 +543,18 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
         info->line = tlIntCast(tlObjectGet(debuginfo, tlSYM("line")));
         info->offset = tlIntCast(tlObjectGet(debuginfo, tlSYM("offset")));
         info->text = tlStringCast(tlObjectGet(debuginfo, tlSYM("text")));
+        info->lines = tlListCast(tlObjectGet(debuginfo, tlSYM("lines")));
         info->pos = tlListCast(tlObjectGet(debuginfo, tlSYM("pos")));
         if (!info->line) info->line = tlZero;
         if (!info->offset) info->offset = tlZero;
         if (!info->text) info->text = tlStringEmpty();
+        if (!info->lines) info->lines = tlListEmpty();
         if (!info->pos) info->pos = tlListEmpty();
     } else {
         info->line = tlZero;
         info->offset = tlZero;
         info->text = tlStringEmpty();
+        info->lines = tlListEmpty();
         info->pos = tlListEmpty();
     }
     bcode->debuginfo = info;
@@ -829,6 +833,18 @@ void bpprint(tlHandle v) {
         return;
     }
     print("%s", tl_str(v));
+}
+
+// for a given pc, find out how many CALLs or GLOBALs we have seen
+int tlBCodePosOpsForPc(tlBCode* code, int pc) {
+    int pos = 0;
+    for (int p = 0; p < pc && p < code->size; p++) {
+        uint8_t op = code->code[p];
+        if (op == OP_GLOBAL) pos++;
+        else if ((op & 0xE0) == 0xE0) pos++;
+    }
+    assert(pos <= (pc + 4) / 2); // not an exact science ... this might trip
+    return pos;
 }
 
 // verify and fill in call depth and balancing, and use of locals
@@ -1690,6 +1706,24 @@ void tlCodeFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, t
     *line = info->line;
     if (!(*file)) *file = _t_unknown;
     if (!(*function)) *function = _t_anon;
+
+    // figure out exact line from bytecode position
+    tlList* lines = mod->body->debuginfo->lines;
+    tlList* pos = info->pos;
+    int posops = tlBCodePosOpsForPc(code, frame->pc) - 1;
+    if (posops < 0) return;
+    tlHandle byte = tlListGet(pos, posops);
+    if (!byte) return;
+    if (!tlIntIs(byte)) return;
+    int l = 0;
+    int size = tlListSize(lines);
+    for (; l < size; l++) {
+        assert(tlIntIs(tlListGet(lines, l)));
+        if (tlListGet(lines, l) > byte) break;
+    }
+    if (l >= size) return;
+    trace("FOUND LINE: %d (%d, %s)", l, posops, tl_str(byte));
+    *line = tlINT(l + 1);
 }
 
 INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {

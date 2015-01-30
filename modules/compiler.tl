@@ -105,17 +105,8 @@ encodeMap = m ->
 
 writeCode = mod, c, scope ->
     buf = Buffer.new
-
-    buf.write(mod.data(c.name))
-    buf.write(mod.data(c.argspecs)) // TODO split up in 3 lists argnames, argdefaults, arglazy, null should be fine for any
-    buf.write(mod.data(c.locals))
-    { scope }:
-        buf.write(mod.data(scope?localvars)) // mutable or not, null is fine if no mutables
-    {       }:
-        buf.write(mod.data(null))
-    buf.write(mod.data(c.debuginfo))
-
     var $pc = 0
+    calls = Array.new
     loop:
         op = c.code[($pc += 1)]
         { op == "end"    }: // end
@@ -128,6 +119,7 @@ writeCode = mod, c, scope ->
             buf.write(0b1100_0000 + 6)
             buf.write(mod.data(c.code[($pc += 1)], true))
         { op == "global" }: // a reference to the linked list (a string)
+            calls.add(c.code[($pc += 1)])
             buf.write(0b1100_0000 + 7)
             buf.write(mod.global(c.code[($pc += 1)]))
         { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
@@ -159,20 +151,31 @@ writeCode = mod, c, scope ->
         { op == "evstore" }: buf.write(0b1100_0000 + 25); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "evrstore"}: buf.write(0b1100_0000 + 26); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
 
-        { op == "mcall"  }: buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "bcall"  }: buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "ccall"  }: buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "mcalln" }: buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
-        { op == "mcallns"}: buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
-        { op == "fcalln" }: buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
-        { op == "bcalln" }: buf.write(0b1111_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "mcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "mcalls" }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "fcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "bcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "ccall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "mcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "mcallns"}: calls.add(c.code[($pc += 1)]); buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "fcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "bcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
 
         {                }: throw "unknown op: $op $(repr(op))"
 
-    if buf.size < 32: return Bin(0b1010_0000 | buf.size, buf.read)
-    return Bin(0b1110_0101, encodeInt(buf.size), buf)
+    head = Buffer.new
+    head.write(mod.data(c.name))
+    head.write(mod.data(c.argspecs)) // TODO split up in 3 lists argnames, argdefaults, arglazy, null should be fine for any
+    head.write(mod.data(c.locals))
+    { scope }:
+        head.write(mod.data(scope?localvars)) // mutable or not, null is fine if no mutables
+    {       }:
+        head.write(mod.data(null))
+    debuginfo = Object.set(c.debuginfo or {}, {pos=calls.toList})
+    head.write(mod.data(debuginfo))
+
+    if head.size + buf.size < 32: return Bin(0b1010_0000 | (head.size + buf.size), head, buf)
+    return Bin(0b1110_0101, encodeInt(head.size + buf.size), head, buf)
 
 opname = op ->
     { op == "or"  }: op
@@ -260,7 +263,7 @@ compile = (text, ast ->
             if this.block: return parent.gcontinue(level + 1, ls.add(level))
             if this.parent: return parent.gcontinue(level + 1, ls)
             {type="continue",scope=ls}
-        ref = name, level ->
+        ref = name, level, pos ->
             if name == "return": return this.greturn(0)
             if name == "goto": return this.ggoto(0)
             if name == "break": return this.gbreak(0, [])
@@ -281,10 +284,10 @@ compile = (text, ast ->
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
             if parent:
-                if not level: return parent.ref(name, 1)
-                return parent.ref(name, level + 1)
+                if not level: return parent.ref(name, 1, pos)
+                return parent.ref(name, level + 1, pos)
             globals[name] = true
-            return {type="global",{name}}
+            return {type="global",{name,pos}}
     }
 
     ClassScope = { parent ->
@@ -324,14 +327,14 @@ compile = (text, ast ->
                 if functions[ref?fn]?open: closefn(ref.fn)
                 //if functions[ref?method]?open: closefn(ref.method)
             )
-        ref = name, level ->
+        ref = name, level, pos ->
             ref = this.names[name]
             if not this.open.get:
                 assert level
                 assert name != "this"
                 assert name != "args"
                 if ref: return {type="field",name=name,up=level,at=ref.at,id=ref.id,stype=ref?type}
-                return parent.ref(name, level)
+                return parent.ref(name, level, pos)
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
@@ -345,8 +348,8 @@ compile = (text, ast ->
                 assert false // TODO what to do here? should reference our (incomplete!) local here
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
-            if not level: return parent.ref(name, 1)
-            parent.ref(name, level + 1)
+            if not level: return parent.ref(name, 1, pos)
+            parent.ref(name, level + 1, pos)
     }
 
     closefn = n ->
@@ -490,35 +493,35 @@ compile = (text, ast ->
                 t = {type="global",name=target.type}
                 s = lex(scope, {type="list",data=target.scope})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
-            {type="call",{target,args,names,block}}
+            {type="call",{target,args,names,block},pos=term?pos}
         { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
             names = (term?args or []).map: stm -> stm?n
             args = (term?args or []).map: stm -> lex(scope, stm.v)
             block = { term?block }: lex(scope, term.block)
                     {            }: null
-            {type=term.type,method=term.method,{target,args,names,block}}
+            {type=term.type,method=term.method,{target,args,names,block},pos=term?pos}
         { term.type == "async" }:
             body = { term?body }: term.body
                    {           }: [term.rhs]
-            function = lextop(scope, {type="scope",{body},pos=term.pos})
+            function = lextop(scope, {type="scope",{body},pos=term?pos})
             _, fn = functions.add({name="",open=false,function=function})
             {type="async",body={type="function",function=fn}}
         { term.type == "not" }:
             rhs = lex(scope, term.rhs)
-            {type="not",{rhs}}
+            {type="not", {rhs}, pos=term?pos}
         { term.type == "~" }:
             rhs = lex(scope, term.rhs)
-            {type="~",{rhs}}
+            {type="~", {rhs}, pos=term?pos}
         { term.type == "-" }:
             rhs = lex(scope, term.rhs)
-            {type="-",{rhs}}
+            {type="-", {rhs}, pos=term?pos}
         { term.type == "op"  }:
             lhs = lex(scope, term.lhs)
             rhs = lex(scope, term.rhs)
-            {type="op",op=term.op,{lhs,rhs}}
+            {type="op", op=term.op, {lhs, rhs}, pos=term.pos}
         { term.type == "ref" }:
-            return scope.ref(term.name)
+            return scope.ref(term.name, pos=term?pos)
         { term.type == "varref" }:
             return scope.ref(term.name)
         { term.type == "setfieldop" }:
@@ -591,17 +594,17 @@ compile = (text, ast ->
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "field" }:
-            ["mcall", 0, "this", "data", term.name, "invoke"]
+            ["mcall", term?pos, 0, "this", "data", term.name, "invoke"]
         { term.type == "call" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["fcalln", args.size, {ns=names}] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=names}] + target + args + ["invoke"]
             if try(term.names.filter.size > 0):
-                return ["fcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
-            ["fcall", args.size] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=term.names}] + target + args + ["invoke"]
+            ["fcall", term?pos, args.size] + target + args + ["invoke"]
         { term.type == "method" or term.type == "safemethod" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
@@ -609,29 +612,29 @@ compile = (text, ast ->
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["mcalln$s", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
             if try(term.names.filter.size > 0):
-                return ["mcalln$s", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
-            ["mcall$s", args.size] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
+            ["mcall$s", term?pos, args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "async" }:
             body = emit(term.body)
-            ["fcall", 1, "global", "_Task_new", body, "invoke"]
+            ["fcall", term?pos, 1, "global", 0, "_Task_new", body, "invoke"]
         { term.type == "not" }:
             rhs = emit(term.rhs)
-            ["fcall", 1, "global", "not", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", 0, "not", rhs, "invoke"]
         { term.type == "~" }:
             rhs = emit(term.rhs)
-            ["fcall", 1, "global", "bnot", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", 0, "bnot", rhs, "invoke"]
         { term.type == "-" }:
             rhs = emit(term.rhs)
-            ["fcall", 1, "global", "neg", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", 0, "neg", rhs, "invoke"]
         { term.type == "op"  }:
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
-            ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
+            ["bcall", term?pos, 2, "global", 0, opname(term.op), lhs, rhs, "invoke"]
         { term.type == "guards" }:
             term.guards.map(term ->
-                [emit(term.cond), "ccall", 0, emit(term.block), "invoke"]
+                [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke"]
             ).flatten + ["cerr"]
         { term.type == "local"  }:
             { term?var }: ["vget", term.at - 1]
@@ -641,22 +644,22 @@ compile = (text, ast ->
             { term?var }: ["evget", term.up - 1, term.at - 1]
             {          }: ["env", term.up - 1, term.at - 1]
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
-        { term.type == "global" }: ["global", term.name]
+        { term.type == "global" }: ["global", term?pos, term.name]
         { term.type == "args"   }: ["args"]
         { term.type == "envargs"}: ["envargs", term.up - 1]
         { term.type == "this"   }: ["this"]
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
-            ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
+            ["fcall", term?pos, elements.size, "global", 0, "__list"] + elements + ["invoke"]
         { term.type == "object" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", 1 + fill.size * 2, "global", "__object", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__object", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "map" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", 1 + fill.size * 2, "global", "__map", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__map", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "class" }:
-            ["fcall", 2, "global", "_bless", emit(term.methods), emit(term.class), "invoke"]
+            ["fcall", term?pos, 2, "global", 0, "_bless", emit(term.methods), emit(term.class), "invoke"]
         { }:
             print "ERROR"
             print repr(term)
@@ -690,7 +693,7 @@ compile = (text, ast ->
                 lines.add(text.size)
                 break
             if $at: lines.add($at)
-        lines
+        lines.toList
     )
 
     lineFromPos = pos ->
@@ -746,8 +749,8 @@ compile = (text, ast ->
             buf.write("tl01")
             buf.write(encodeInt(this.datas.size + 1))
             this.datas[:-2].each: v -> buf.write(v)
-            buf.write(encodeList(this.globals))
-            buf.write(this.datas[-1])
+            buf.write(encodeList(this.globals)) // then globals
+            buf.write(this.datas[-1]) // then main
             return buf
     }
 
@@ -759,7 +762,7 @@ compile = (text, ast ->
         pos = main?pos or []
 
         builder = builder_new(functions)
-        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]}, main?scope)
+        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[],lines=lines}, main?scope)
         builder.create
 
     main, functions2 = parseemit(text, ast, args["link"])
