@@ -117,6 +117,7 @@ modules/%.tlb: modules/%.tl
 clean:
 	rm -rf tl *.o *.a *.so *.dylib tl.dSYM test/noboot/*.log
 	rm -f modules/sizzle.tl
+	rm -f modules/*.tlb
 	rm -f tlmeta
 	rm -rf gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno boot/*.gcda boot/*.gcno
 	$(MAKE) -C graphics clean
