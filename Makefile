@@ -32,9 +32,11 @@ LIBGC:=libgc/.libs/objs/libgc.a
 LIBMP:=libmp/libtommath.a
 
 TLG_MODULES=modules/sizzle.tl
+MODULES:=$(shell echo modules/*.tl) $(TLG_MODULES)
+BIN_MODULES:=$(MODULES:.tl=.tlb)
 C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
-all: tl $(C_MODULES) $(TLG_MODULES)
+all: tl $(C_MODULES) $(TLG_MODULES) $(BIN_MODULES)
 
 # all these boot things require a working hotel installed
 boot: boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c
@@ -108,6 +110,10 @@ tlmeta: tlmeta.tlg tl tlmeta-base.tl boot-tlmeta.tl
 modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
 	TL_MODULE_PATH=./modules ./tl tlmeta modules/sizzle.tlg modules/sizzle.tl
 
+modules/sizzle.tlb: modules/sizzle.tl
+modules/%.tlb: modules/%.tl
+	TL_MODULE_PATH=modules:cmodules ./tl ./tlcompiler $^ $@
+
 clean:
 	rm -rf tl *.o *.a *.so *.dylib tl.dSYM test/noboot/*.log
 	rm -f modules/sizzle.tl
@@ -131,7 +137,7 @@ BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib
 INCDIR:=$(DESTDIR)$(PREFIX)/include
 MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
-install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES)
+install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES) $(BIN_MODULES)
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
 	mkdir -p $(INCDIR)
@@ -140,8 +146,9 @@ install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES)
 	cp tl $(BINDIR)/
 	cp libtl.a $(LIBDIR)/
 	cp vm/tl.h $(INCDIR)/tl.h
-	cp -r modules/*.tl $(MODDIR)/
-	cp -r cmodules/*.mod $(MODDIR)/
+	cp modules/*.tl $(MODDIR)/
+	cp modules/*.tlb $(MODDIR)/
+	cp cmodules/*.mod $(MODDIR)/
 	cp tlmeta $(BINDIR)/
 	cp tlmeta-base.tl $(MODDIR)/
 	$(MAKE) -C graphics install

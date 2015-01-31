@@ -10,6 +10,8 @@ clean op operators and comments:
     ### multi line comment, only if at beginning of line
     (# ... #) nesting multiline comment
 
+think about "if x = findSomeX(): print x", instead of "x = findSomeX(); if x: print x"
+
 think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
 fix/finish modules, should load them relative to current module, then Task.locals, then TL_MODULE_PATH; should be able to call them as functions, as well as get their results
 

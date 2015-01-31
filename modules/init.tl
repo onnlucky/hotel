@@ -548,10 +548,10 @@ _modules = HashMap.new
 fileFromModulePath = name, path ->
     if path:
         file = "$path/$name"
-        if _Path_stat(file).ino != 0: return file
+        stat = _Path_stat(file); if stat.ino != 0: return file, stat
     _module_paths.each: p ->
         file = "$p/$name"
-        if _Path_stat(file).ino != 0: return file
+        stat = _Path_stat(file); if stat.ino != 0: return file, stat
     return null
 
 assert [3000, 19, 10, 99].sort[1] == 10
@@ -588,8 +588,8 @@ resolve2 = name, path ->
     if isDefined res: return res
     //print("RESOLVING 2: $name ($path)")
     catch: e -> return null, "Unable to read module '$name': $(e.msg)"
-    file = fileFromModulePath("$name.tlb", path)
-    if file:
+    file, stat = fileFromModulePath("$name.tlb", path)
+    if file and _Path_stat(file[:-2]).mtime <= stat.mtime: // only load binary if not older then source
         //print("loading binary module", file)
         catch: e -> return null, "Unable to load module '$name': $(e.toString)"
         path = dirname(file)
