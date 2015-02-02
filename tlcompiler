@@ -8,9 +8,11 @@ print(args[1] + "b", "written:", bytes.size, "bytes", "time:", (time() - start))
 if args[2] == "-c":
     start = time()
     name = args[1][:-4].replace("/", "_").replace(".", "_")
-    str = bytes.map(b, n -> "0x" + b.toString(16)).join(",")
-    str = "const char $(name)[] = { $str };\n"
-    str = str + "const int $(name)_len = $(bytes.size);\n"
-    io.File(args[1] + "b.h").write(str)
-    print(args[1] + "b.h", "written:", str.size, "bytes", "time:", (time() - start))
+    buf = Buffer.new
+    buf.write "const char $(name)[] = {"
+    bytes.each: b -> buf.write "0x", b.toString(16), ","
+    buf.write "};\n"
+    buf.write "const int ", name, "_len = ", bytes.size.toString, ";\n"
+    len = io.File(args[1] + "b.h").write(buf)
+    print(args[1] + "b.h", "written:", len, "bytes", "time:", (time() - start))
 
