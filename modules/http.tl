@@ -216,5 +216,5 @@ get = url ->
 post = url, data ->
     send("POST", url, data)
 
-{{ Server, get, post }}
+{{ Server, get, post, send }}
 
