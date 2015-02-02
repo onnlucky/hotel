@@ -449,13 +449,13 @@ compile = (text, ast ->
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
-                local, id = scope.add(term.to.name, term.to.pos, type="var")
                 value = lex(scope, term?value)
+                local, id = scope.add(term.to.name, term.to.pos, type="var")
                 {type="vset",target=scope.ref(term.to.name),{value}}
             { term.to.type == "var"    }:
+                value = lex(scope, term.value)
                 ref = scope.ref(term.to.name)
                 assert ids[ref.id].type == "var"
-                value = lex(scope, term.value)
                 {type="vset",target=ref,{value}}
         { term.type == "multiassign" }:
             // TODO perhaps function defined this way must stay open?
