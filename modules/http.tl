@@ -191,7 +191,10 @@ send = method, url, body ->
     conn.buffer
     conn.write(method + " " + url.request + " HTTP/1.0\r\n")
     conn.write("Host: " + url.host + "\r\n")
-    conn.write("User-Agent: Mozilla/5.0\r\n")
+    if args["userAgent"]: conn.write("User-Agent: $(args["userAgent"])\r\n")
+    if args["userAgent"] == null: conn.write("User-Agent: Mozilla/5.0\r\n")
+    if args["contentType"]: conn.write("Content-Type: $(args["contentType"])\r\n")
+    if args["accept"]: conn.write("Accept: $(args["accept"])\r\n")
     body = { not body       }: body
            { isBuffer(body) }: body
            {                }: Buffer.new(body)
