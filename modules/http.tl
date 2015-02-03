@@ -65,7 +65,7 @@ InflateStream = stream, gzip ->
 
 // TODO read text encoding and not assume utf8
 // TODO allow more control over decoding of type
-bodyFromConnection = conn, headers, stream, raw ->
+bodyFromConnection = conn, headers, stream, expect ->
     length = headers["Content-Length"]
     transfer = headers["Transfer-Encoding"]
     encoding = headers["Content-Encoding"]
@@ -73,8 +73,8 @@ bodyFromConnection = conn, headers, stream, raw ->
     body = { length                }: SizedStream(conn, length.eval)
            { transfer == "chunked" }: ChuckedStream(conn)
            { transfer              }: assert false, "unknown transfer encoding", transfer
-           { raw                   }: conn
-           {                       }: Buffer.new
+           { not expect            }: Buffer.new
+           {                       }: conn
     body = { encoding == "gzip"    }: InflateStream(body, true)
            { encoding == "deflate" }: InflateStream(body)
            { encoding              }: assert false, "unknown encoding", encoding
@@ -210,7 +210,7 @@ send = method, url, body ->
         Error("No headers received").throw
     header = conn.readString(at + 4 - 1)
     res = httpparser.response(header)
-    body = bodyFromConnection(conn, res.headers, args["stream"])
+    body = bodyFromConnection(conn, res.headers, args["stream"], method != "HEAD")
     return body, res
 
 get = url ->
