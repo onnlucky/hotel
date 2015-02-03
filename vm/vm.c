@@ -49,8 +49,12 @@
 #include "time.c"
 #include "regex.c"
 #include "serialize.c"
+
 #include "idset.h"
+#include "weakmap.h"
+
 #include "idset.c"
+#include "weakmap.c"
 
 //#include "storage.c"
 
@@ -556,6 +560,7 @@ void tl_init() {
     serialize_init();
 
     idset_init();
+    weakmap_init();
 
     assert(!tlArgsIs(0));
     assert(tlArgsAs(0) == 0);

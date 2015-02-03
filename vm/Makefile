@@ -5,7 +5,7 @@ LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
-	CFLAGS+=-g -O
+	CFLAGS+=-ggdb -O0
 endif
 ifeq ($(GCOV),1)
 	CFLAGS+=-fprofile-arcs -ftest-coverage
@@ -20,11 +20,12 @@ TESTS:=$(TEST_SOURCES:.c=)
 run: test
 
 test: $(TESTS)
-#	./env_test
+	./env_test
 	./args_test
 	./number_test
 	./hashmap_test
 	./idset_test
+	./weakmap_test
 
 %_test: %_test.c ../libtl.a Makefile *.h
 	$(CC) $< ../libtl.a $(CFLAGS) $(LDFLAGS) -o $@

@@ -212,6 +212,7 @@ void idset_init() {
         "size", _idset_size,
         "has", _idset_has,
         "get", _idset_get,
+        "call", _idset_get,
         "add", _idset_add,
         "del", _idset_del,
         null
