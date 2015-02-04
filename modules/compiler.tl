@@ -222,9 +222,15 @@ compile = (text, ast ->
         args = Array.new
         // TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
         addOpen = function, name, pos ->
-            type = "local"
             _, fn = functions.add({name=name or "",open=function,scope=this})
             if name:
+                // check name, and if var, assign that
+                ref = this.ref(name, peek=true)
+                type = ids[ref?id]
+                if type?type == "var" or type?stype == "var": return fn
+
+                // otherwise create the name now
+                type = "local"
                 _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.locals.add(name)
                 this.names[name] = {arg=false,{at,id,fn,type}}
