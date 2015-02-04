@@ -1,2 +1,5 @@
-comp.load(io.File("bad.tl").readString, _env).run
-
+var fuut
+test = -> assert isFunction fuut
+print {{ test }}
+fuut = -> print "OK"
+test()
