@@ -220,14 +220,14 @@ INTERNAL tlHandle resumeWithLock(tlTask* task, tlFrame* _frame, tlHandle value, 
     return resumeWithUnlock(task, _frame, res, null);
 }
 
-INTERNAL tlHandle _with_lock(tlTask* task, tlArgs* args) {
+static tlHandle _with_lock(tlTask* task, tlArgs* args) {
     trace("");
     tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("with expects a block");
 
     tlArray* locks = tlArrayNew();
 
-    for (int i = 0; i < tlArgsSize(args); i++) {
+    for (int i = 0, l = tlArgsSize(args); i < l; i++) {
         tlLock* lock = tlLockCast(tlArgsGet(args, i));
         if (!lock) TL_THROW("expect lock values");
         if (tlLockIsOwner(lock, task)) continue;
@@ -241,5 +241,15 @@ INTERNAL tlHandle _with_lock(tlTask* task, tlArgs* args) {
     frame->block = block;
     tlTaskPushFrame(task, (tlFrame*)frame);
     return resumeWithLock(task, (tlFrame*)frame, tlNull, null);
+}
+
+static tlHandle _has_lock(tlTask* task, tlArgs* args) {
+    for (int i = 0, l = tlArgsSize(args); i < l; i++) {
+        tlLock* lock = tlLockCast(tlArgsGet(args, i));
+        if (!lock) TL_THROW("expect lock values");
+        if (tlLockIsOwner(lock, task)) continue;
+        return tlFalse;
+    }
+    return tlTrue;
 }
 

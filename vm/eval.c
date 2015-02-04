@@ -245,6 +245,7 @@ static const tlNativeCbs __eval_natives[] = {
     { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
     { "_with_lock", _with_lock },
+    { "_has_lock", _has_lock },
 
     { "_String_cat", _String_cat },
 
