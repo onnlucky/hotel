@@ -69,8 +69,7 @@ tlObject* tlHashMapToObject(tlHashMap* map) {
     return tlObjectFromMap_(tlHashMapToMap(map));
 }
 
-INTERNAL tlHandle _HashMap_new(tlTask* task, tlArgs* args) {
-    tlHashMap* hash = tlHashMapNew();
+static tlHandle addAllToMap(tlHashMap* hash, tlTask* task, tlArgs* args) {
     for (int i = 0; i < 1000; i++) {
         tlHandle h = tlArgsGet(args, i);
         if (!h) break;
@@ -97,6 +96,18 @@ INTERNAL tlHandle _HashMap_new(tlTask* task, tlArgs* args) {
     }
     return hash;
 }
+
+static tlHandle _HashMap_new(tlTask* task, tlArgs* args) {
+    tlHashMap* hash = tlHashMapNew();
+    return addAllToMap(hash, task, args);
+}
+
+static tlHandle _hashmap_setAll(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlHashMap, hash);
+    return addAllToMap(hash, task, args);
+}
+
+
 INTERNAL tlHandle _hashmap_size(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     return tlINT(tlHashMapSize(map));
@@ -229,6 +240,7 @@ void hashmap_init() {
         "get", _hashmap_get,
         "call", _hashmap_get,
         "set", _hashmap_set,
+        "setAll", _hashmap_setAll,
         "has", _hashmap_has,
         "del", _hashmap_del,
         "keys", _hashmap_keys,
