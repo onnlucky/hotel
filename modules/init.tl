@@ -437,6 +437,7 @@ _hashmap_map = (fn ->
 )
 _install_method(HashMap, "map", _hashmap_map)
 
+// TODO perhaps these methods must lock the array?
 _install_method(Array, "addAll", _addAll)
 _install_method(Array, "random", _get_random)
 _install_method(Array, "each", _each)
@@ -452,6 +453,10 @@ _install_method(Array, "median", _median)
 _install_method(Array, "sort", _sort)
 _install_method(Array, "flatten", _flatten)
 _install_method(Array, "join", _join)
+
+_install_method(IdentitySet, "each", _each)
+_install_method(IdentitySet, "map", _map)
+_install_method(IdentitySet, "reduce", _reduce)
 
 _errorConstructor = msg ->
     stack = Task.stacktrace(1)

@@ -1,5 +1,7 @@
 # TODO
 
+fix filter for minial confusion, it now works opposite of Haskell and friends
+
 clean op operators and comments:
     pow: 2**2 = 4
     xor: 2 ^ 2 == 0

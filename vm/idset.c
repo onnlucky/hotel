@@ -101,6 +101,11 @@ tlIdSet* tlIdSetNew() {
     return set;
 }
 
+void tlIdSetClear(tlIdSet* map) {
+    bzero(map->data, sizeof(tlHandle) * map->len);
+    map->size = 0;
+}
+
 void tlIdSetResize(tlIdSet* map, uint32_t newlen) {
     trace("resize: %d (len=%d, size=%d)", newlen, map->len, map->size);
     tlHandle* olddata = map->data;
@@ -176,9 +181,10 @@ static tlHandle _idset_has(tlTask* task, tlArgs* args) {
 
 static tlHandle _idset_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlIdSet, set);
-    tlHandle at = tlNumberCast(tlArgsGet(args, 0));
-    if (!at) TL_THROW("expected a number");
-    return tlMAYBE(tlIdSetGet(set, tl_int(at)));
+    tlHandle v = tlNumberCast(tlArgsGet(args, 0));
+    if (!v) TL_THROW("expected a number");
+    int at = at_offset(v, tlIdSetSize(set));
+    return tlMAYBE(tlIdSetGet(set, at));
 }
 
 static tlHandle _idset_add(tlTask* task, tlArgs* args) {
@@ -193,6 +199,12 @@ static tlHandle _idset_del(tlTask* task, tlArgs* args) {
     tlHandle value = tlArgsGet(args, 0);
     if (!tlRefIs(value) || !tlSymIs(value)) return false;
     return tlBOOL(tlIdSetDel(set, value));
+}
+
+static tlHandle _idset_clear(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlIdSet, set);
+    tlIdSetClear(set);
+    return tlNull;
 }
 
 static tlHandle _IdSet_new(tlTask* task, tlArgs* args) {
@@ -215,6 +227,10 @@ void idset_init() {
         "call", _idset_get,
         "add", _idset_add,
         "del", _idset_del,
+        "clear", _idset_clear,
+        "each", null,
+        "map", null,
+        "reduce", null,
         null
     ), tlMETHODS(
         "new", _IdSet_new,
