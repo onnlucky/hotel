@@ -58,6 +58,7 @@ struct tlTask {
     tlTaskState state; // state it is currently in
     bool hasError;
     bool read; // check if the task.value has been seen, if not, we log a message
+    bool background; // if running will it hold off exit? like unix daemon processes
     void* data;
     long ticks; // tasks will suspend/resume every now and then
     long limit; // tasks can have a tick limit
@@ -329,14 +330,14 @@ void tlTaskReady(tlTask* task) {
 
 tlTask* tlTaskWaitExternal(tlTask* task) {
     tlVm* vm = tlTaskGetVm(task);
-    a_inc(&vm->waitevent);
+    if (!task->background) a_inc(&vm->waitevent);
     tlTaskWaitFor(task, null);
     return task;
 }
 
 void tlTaskReadyExternal(tlTask* task) {
     tlVm* vm = tlTaskGetVm(task);
-    a_dec(&vm->waitevent);
+    if (!task->background) a_dec(&vm->waitevent);
     tlTaskReady(task);
     if (vm->signalcb) vm->signalcb();
 }
@@ -650,6 +651,20 @@ static tlHandle _task_poll(tlTask* task, tlArgs* args) {
     return tlQueuePoll(other->yields, task);
 }
 
+/// returns true if task is a background task, that is, not hold off the vm from exiting
+/// set by calling with a boolean, `Task.current.background(true)`
+// TODO will likely need a lock, for now we work around that, by not allowing outside changes
+static tlHandle _task_background(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlTask, other);
+    if (tlArgsSize(args) == 0) return tlBOOL(other->background);
+    bool background = tl_bool(tlArgsGet(args, 0));
+    if (other != task) {
+        if (other->state >= TL_STATE_READY) TL_THROW("cannot change a running task from the outside");
+    }
+    other->background = background;
+    return tlBOOL(background);
+}
+
 // ** blocking task support, for when external threads wish to wait on evaulations **
 typedef struct TaskBlocker {
     pthread_mutex_t lock;
@@ -742,10 +757,11 @@ static void task_init() {
         "wait", _task_wait,
         "value", _task_wait,
         "toString", _task_toString,
-        // queue
+        // queue, implements a kind of yield from python/es6
         "add", _task_add,
         "get", _task_get,
         "poll", _task_poll,
+        "background", _task_background, // TODO allow Task.current.background = true
         null
     );
     taskClass = tlClassObjectFrom(

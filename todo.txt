@@ -47,7 +47,6 @@ bytecode
 - implement classes in parser, compiler
 - ensure debugger works
 - have a coverage tool
-- do simple optimizations in compiler, like (x + 1) * 2 does not require a body for x + 1
 
 guarded expressions: think about a better syntax?
 

@@ -824,14 +824,11 @@ static void child_cb(ev_child *ev, int revents) {
     ev_child_stop(ev);
     child->res = tlINT(WEXITSTATUS(child->ev.rstatus));
 
-    tlVm* vm = null;
     while (true) {
         tlTask* task = tlTaskFromEntry(lqueue_get(&child->wait_q));
         if (!task) return;
-        if (!vm) vm = tlTaskGetVm(task);
-        vm->waitevent -= 1;
         task->value = child->res;
-        tlTaskReady(task);
+        tlTaskReadyExternal(task);
     }
 }
 
@@ -853,11 +850,7 @@ static tlHandle _child_wait(tlTask* task, tlArgs* args) {
     // TODO use a_var and this will be thread safe ... (child_cb)
     if (child->res) return child->res;
 
-    // TODO not thread save ... needs mutex ...
-    tlVm* vm = tlTaskGetVm(task);
-    vm->waitevent += 1;
-
-    tlTaskWaitFor(task, null);
+    tlTaskWaitExternal(task);
     lqueue_put(&child->wait_q, &task->entry);
     return null;
 }
@@ -1008,9 +1001,10 @@ static void io_cb(ev_io *ev, int revents) {
         trace("CANREAD: %d", ev->fd);
         assert(file->reader);
         assert(file->reader->lock.owner);
+        tlTask* task = file->reader->lock.owner;
         tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
         tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
-        vm->waitevent -= 1;
+        if (!task->background) a_dec(&vm->waitevent);
         ev->events &= ~EV_READ;
         tlMessageReply(msg, null);
     }
@@ -1018,9 +1012,10 @@ static void io_cb(ev_io *ev, int revents) {
         trace("CANWRITE: %d", ev->fd);
         assert(file->writer);
         assert(file->writer->lock.owner);
+        tlTask* task = file->writer->lock.owner;
         tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
         tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
-        vm->waitevent -= 1;
+        if (!task->background) a_dec(&vm->waitevent);
         ev->events &= ~EV_WRITE;
         tlMessageReply(msg, null);
     }
@@ -1046,8 +1041,9 @@ static tlHandle _io_close(tlTask* task, tlArgs* args) {
         assert(file->reader);
         assert(file->reader->lock.owner);
         tlMessage* msg = tlMessageAs(file->reader->lock.owner->value);
-        tlVm* vm = tlTaskGetVm(file->reader->lock.owner);
-        vm->waitevent -= 1;
+        tlTask* task = file->reader->lock.owner;
+        tlVm* vm = tlVmCurrent(task);
+        if (!task->background) a_dec(&vm->waitevent);
         file->ev.events &= ~EV_READ;
         tlMessageReply(msg, null);
     }
@@ -1056,8 +1052,9 @@ static tlHandle _io_close(tlTask* task, tlArgs* args) {
         assert(file->writer);
         assert(file->writer->lock.owner);
         tlMessage* msg = tlMessageAs(file->writer->lock.owner->value);
-        tlVm* vm = tlTaskGetVm(tlMessageGetSender(msg));
-        vm->waitevent -= 1;
+        tlTask* task = file->writer->lock.owner;
+        tlVm* vm = tlVmCurrent(task);
+        if (!task->background) a_dec(&vm->waitevent);
         file->ev.events &= ~EV_WRITE;
         tlMessageReply(msg, null);
     }
@@ -1084,7 +1081,7 @@ static tlHandle _io_waitread(tlTask* task, tlArgs* args) {
 
     file->ev.events |= EV_READ;
     ev_io_start(&file->ev);
-    vm->waitevent += 1;
+    if (!sender->background) a_inc(&vm->waitevent);
 
     return tlNull;
 }
@@ -1109,23 +1106,25 @@ static tlHandle _io_waitwrite(tlTask* task, tlArgs* args) {
 
     file->ev.events |= EV_WRITE;
     ev_io_start(&file->ev);
-    vm->waitevent += 1;
+    if (!sender->background) a_inc(&vm->waitevent);
 
     return tlNull;
 }
 
 static void timer_cb(ev_timer* timer, int revents) {
     trace("timer_cb: %p", timer);
-    tlVm* vm = tlTaskGetVm(tlMessageGetSender(tlMessageAs(timer->data)));
     ev_timer_stop(timer);
-    vm->waitevent -= 1;
-    tlMessageReply(tlMessageAs(timer->data), null);
+    tlMessage* msg = tlMessageAs(timer->data);
+    tlTask* sender = tlMessageGetSender(msg);
+    tlVm* vm = tlVmCurrent(sender);
+    if (!sender->background) a_dec(&vm->waitevent);
+    tlMessageReply(msg, null);
     free(timer);
 }
+
 static tlHandle _io_wait(tlTask* task, tlArgs* args) {
-    tlVm* vm = tlTaskGetVm(task);
     tlMessage* msg = tlMessageCast(tlArgsGet(args, 1));
-    if (!msg) TL_THROW("expect a Msg");
+    if (!msg) TL_THROW("expect a Message");
 
     double s = tl_double_or(tlArgsGet(args, 0), 1);
     trace("sleep: %f", s);
@@ -1134,11 +1133,13 @@ static tlHandle _io_wait(tlTask* task, tlArgs* args) {
     timer->data = msg;
     ev_timer_init(timer, timer_cb, s, 0);
     ev_timer_start(timer);
-    vm->waitevent += 1;
+
+    tlTask* sender = tlMessageGetSender(msg);
+    tlVm* vm = tlVmCurrent(sender);
+    if (!sender->background) a_inc(&vm->waitevent);
 
     return tlNull;
 }
-
 
 static ev_async loop_interrupt;
 static void async_cb(ev_async* async, int revents) { }
