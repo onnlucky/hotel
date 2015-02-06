@@ -1,7 +1,7 @@
-// a DOM like api with named nodes and anonymous text nodes
-// TODO add a Document too, for some meta stuff like doctype and such
+# a DOM like api with named nodes and anonymous text nodes
+# TODO add a Document too, for some meta stuff like doctype and such
 
-// TODO use a set instead ...
+# TODO use a set instead ...
 selfclosing = [img=1,meta=1,link=1]
 isSelfClosing = name -> return selfclosing[name] or false
 
@@ -96,7 +96,7 @@ DomNode = {
     add = node ->
         if not node: return this
         if isString(node): this._add(Text.new(node)); return this
-        // TODO if node"has"("each"): ...
+        # TODO if node"has"("each"): ...
         if isList(node): node.each(n -> this.add(n)); return this
         this._add(node)
         return this
@@ -112,7 +112,7 @@ DomNode = {
         return this
 
     toString = mode ->
-        // TODO hotel should provide a StringBuilder or such ... but this works
+        # TODO hotel should provide a StringBuilder or such ... but this works
         sb = Array.new
         if mode != "children":
             sb.add("<$(this.name)")
@@ -135,7 +135,7 @@ DomNode = {
 
         sb.join
 
-    // think Element.textContent
+    # think Element.textContent
     text = ->
         sb = Array.new
         iter(this): n -> if n.class == DomText: sb.add(n.text)

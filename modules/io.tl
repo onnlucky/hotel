@@ -1,9 +1,9 @@
-// io library
+# io library
 
 _io_queue = _io_init()
 _io = _io_queue.input
 
-// the init task will call this, this is basically hotelvm's mainloop
+# the init task will call this, this is basically hotelvm's mainloop
 ioloop = ->
     loop:
         Task.yield
@@ -23,7 +23,7 @@ ioloop = ->
                 ))
         if _io_block(_io_queue): break
 
-// reader/writer utils
+# reader/writer utils
 readSome = reader, buf ->
     loop:
         len = reader.read(buf)
@@ -43,13 +43,13 @@ writeFull = writer, buf ->
     loop:
         if buf.size == 0: return written
         len = writer.write(buf)
-        if len == 0: return null // TODO throw exception instead?
+        if len == 0: return null # TODO throw exception instead?
         if len: written += len
         if not len: _io.waitwrite(writer)
 
-/// object Stream: represents input and output of bytes, behaves much like a buffer
+#. object Stream: represents input and output of bytes, behaves much like a buffer
 Stream = {
-    // TODO optimize the read/write buffer usage
+    # TODO optimize the read/write buffer usage
     new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new, _buffering = Var.new(false) }
     class = {
         _readSome = buf ->
@@ -83,9 +83,9 @@ Stream = {
                 return this.rbuf.readString(len)
             this._readFull
             return this.rbuf.readString
-        /// readLine: reads or waits until a newline character '\n' is seen, returns a String including the newline
-        /// also returns a string at end of stream, possibly without a '\n'
-        /// returns null if stream cannot be read, or is passed end
+        #. readLine: reads or waits until a newline character '\n' is seen, returns a String including the newline
+        #. also returns a string at end of stream, possibly without a '\n'
+        #. returns null if stream cannot be read, or is passed end
         readLine = ->
             len = this.find("\n")
             if not len:
@@ -114,17 +114,17 @@ Stream = {
                 if this.file.reader.isClosed: return null
                 this._readSome
 
-        /// buffer: start buffering of the connection, no bytes are actually written until {flush} is called
+        #. buffer: start buffering of the connection, no bytes are actually written until {flush} is called
         buffer = ->
             this._buffering.set(true)
-        /// flush: actually write the buffered bytes, see {buffer} returns the number of bytes written
-        /// after calling {flush} to continue buffering {buffer} will have to be called again
-        /// calling flush without previously calling {buffer} is harmless and will always return 0 as no bytes will be written
+        #. flush: actually write the buffered bytes, see {buffer} returns the number of bytes written
+        #. after calling {flush} to continue buffering {buffer} will have to be called again
+        #. calling flush without previously calling {buffer} is harmless and will always return 0 as no bytes will be written
         flush = ->
             this._buffering.set(false)
             this._write(null)
-        /// write: many of Buffer, String, Binary, or byte (any number) or lists of those; nulls are ignored
-        /// returns bytes written, unless {buffer} has been called, will return null
+        #. write: many of Buffer, String, Binary, or byte (any number) or lists of those; nulls are ignored
+        #. returns bytes written, unless {buffer} has been called, will return null
         write = v ->
             if this._buffering.get: this.wbuf.write(args); return null
             if args.size == 1 and isBuffer(v): return this._write(v)
@@ -274,31 +274,31 @@ Socket = {
 }
 
 _run = arglist, env, check ->
-    // no stdin, no stdin, no stderr, joined stdin/stderr
+    # no stdin, no stdin, no stderr, joined stdin/stderr
     child = _io.launch(Task.locals.cwd, arglist, false, true, false, true, env, false)
     output = Stream.new(child.out).readString
     r = child.wait
     if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=output).throw
     return output, r
 
-/// package
+#. package
 
-/// run(cmdline, args*):
-/// [env=null] a custom environment
-/// [allowerror=false] supress the exception thrown if command results in nonzero status
-/// execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[2:] + args as arguments
-/// will throw an error when command returns nonzero status
-/// will return output of stdin and stderr combined
+#. run(cmdline, args*):
+#. [env=null] a custom environment
+#. [allowerror=false] supress the exception thrown if command results in nonzero status
+#. execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[2:] + args as arguments
+#. will throw an error when command returns nonzero status
+#. will return output of stdin and stderr combined
 run = cmd ->
     arglist = cmd.toString.split.cat(args[2:].map(a -> a.toString))
     _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
 
-/// shell(cmd, args*):
-/// [env=null] a custom environment
-/// [allowerror=false] supress the exception thrown if command results in nonzero status
-/// execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
-/// will throw an error when command returns nonzero status
-/// will return output of stdin and stderr combined
+#. shell(cmd, args*):
+#. [env=null] a custom environment
+#. [allowerror=false] supress the exception thrown if command results in nonzero status
+#. execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
+#. will throw an error when command returns nonzero status
+#. will return output of stdin and stderr combined
 shell = cmd ->
     arglist = ["sh", "-c", cmd.toString].cat(args[2:].map(a -> a.toString))
     _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
@@ -311,7 +311,7 @@ Terminal = {
         class = Stream.class
 
         isTTY = -> _tty_is(this.file)
-        // TODO does not work, size conflicts with stream.size
+        # TODO does not work, size conflicts with stream.size
         setRaw = -> _tty_setRaw(this.file)
         restore = -> _tty_restore(this.file)
         measure = -> _tty_size(this.file)

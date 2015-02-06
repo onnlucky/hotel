@@ -91,7 +91,7 @@ pPlus = in, nr, parser ->
 
 pOr = in, nr, name ->
     var $i = 4
-    // TODO instead of just the last one, collect all alternatives
+    # TODO instead of just the last one, collect all alternatives
     loop:
         parser = args[$i]
         if not parser: break
@@ -123,7 +123,7 @@ colFromPos = text, pos ->
         $col += 1
 
 lineFromPos = text, pos ->
-    // TODO bit inefficient ... but works
+    # TODO bit inefficient ... but works
     lines = text[:pos].split("\n")
     var $last = lines.size
     loop:
@@ -135,12 +135,12 @@ lineFromPos = text, pos ->
 _tllookup = oop, name, pos ->
     hit = oop._cache["$name-$pos"]
     if hit:
-        //print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'"
+        #print "HIT: $name $pos -> $(hit.in.pos) '$(hit.v)'"
         return hit
     return
 
 _tlcache = oop, name, pos, in, v ->
-    //print "CACHE: $name $pos -> $(in.pos) '$v'"
+    #print "CACHE: $name $pos -> $(in.pos) '$v'"
     oop._cache.set("$name-$pos", {in = in, v = v})
     return in, v
 

@@ -1,4 +1,4 @@
-/* PROPOSAL:
+(# PROPOSAL:
 Point = class {x, y ->
     move = dx, dy -> this.{ x = x + dx, y = y + dy }
 }
@@ -7,8 +7,8 @@ Square = class {x, y, width, height ->
     area = -> width * height
     static Null = Square(0, 0, 0, 0)
 }
-*/
-// DESUGARS TO:
+#)
+# DESUGARS TO:
 Point = {
     call = x, y -> { x = x, y = y, class = this.class }
     class = {
@@ -23,7 +23,7 @@ Square = {
         area = -> this.width * this.height
         class = Point.class
     }
-    //Null = (->Square(0, 0, 0, 0)).lazy
+    #Null = (->Square(0, 0, 0, 0)).lazy
 }
 s1 = Square(10, 20, 42, 10)
 out s1.x, " ", s1.y, " ", s1.width, " ", s1.height, " area: ", s1.area, "\n"

@@ -13,7 +13,7 @@ test "basic compare":
     assert "foo" > "alan"
 
 test "cannot compare unrelated values":
-    // TODO one day, would like undefined to throw if used for anything but comparing
+    # TODO one day, would like undefined to throw if used for anything but comparing
     assert isUndefined(null < 1)
     assert isUndefined(null <= 1)
     assert isUndefined(null > 1)
@@ -27,15 +27,15 @@ test "cannot compare unrelated values":
 test "total ordering":
     assert compare(1, 2) == -1
     assert compare(2, 1) == 1
-    assert compare(null, 1) == -1 // smaller
-    assert compare(1, "foo") == -1 // smaller
+    assert compare(null, 1) == -1 # smaller
+    assert compare(1, "foo") == -1 # smaller
     assert compare("foo", 1) == 1
     assert compare("foo", "fo"+"o") == 0
 
 test "sort on mixed array":
-    // NOTE the exact order is undefined, it depends on the kind pointers ... should perhaps fix that one day
+    # NOTE the exact order is undefined, it depends on the kind pointers ... should perhaps fix that one day
     res = ["hello", 1, 2, 3, "world", {a=1},{b=1}].sort
-    //print repr res
+    #print repr res
     assert res.find(1) + 1 == res.find(2)
     assert res.find(2) + 1 == res.find(3)
     assert res.find("hello") + 1 == res.find("world")

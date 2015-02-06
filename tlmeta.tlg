@@ -60,7 +60,7 @@ slcomment: "//" (!nl _)*
           a=_*                            -> { before = b.toChar, after = a.toChar, rules = p.rs, name = p.n }
 }
 
-// emitting
+# emitting
 emit = r, buf, ind, name ->
     { r.type == "Or"  }: goto emitOr r, buf, ind
     { r.type == "And" }: goto emitAnd r, buf, ind
@@ -110,7 +110,7 @@ emitPlus = r, buf, ind ->
 
 emitAnd = r, buf, ind ->
     var $n = 0
-    // TODO maybe collect all binds, and "call" r.act
+    # TODO maybe collect all binds, and "call" r.act
     r.terms.each: r -> emit r, buf, ind
     if r.act: buf.write("$ind  _in, _v = pAct(_in, ($(r.act)))\n")
 
@@ -153,16 +153,16 @@ ast = parserParser(io.File(args[1]).readString)
 
 buf = io.Buffer.new
 buf.write(ast.before)
-buf.write("\n// --- tlmeta-base.tl ---\n")
+buf.write("\n# --- tlmeta-base.tl ---\n")
 buf.write(base)
-buf.write("\n// --- parser ---\n")
+buf.write("\n# --- parser ---\n")
 var $hasstart = false
 ast.rules.each: r ->
     if r.name == "start": $hasstart = true
     emitRule r, buf
 start = (if $hasstart: "start") or ast.rules[1].name
 buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
-buf.write("\n// ---\n")
+buf.write("\n# ---\n")
 buf.write(ast.after)
 
 io.File(args[2]).write(buf)

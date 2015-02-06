@@ -7,10 +7,10 @@ out(y["bar"], " == 2\n")
 out(y["foo"], " == 1\n")
 out(y["not"], " == undefined\n")
 
-//z = %set_new("foo", 1, 2, 3, "baz")
-//out(%set_has(z, "foo"))
-//out(%set_has(z, 1))
-//out(%set_has(z, 4), "\n")
+#z = %set_new("foo", 1, 2, 3, "baz")
+#out(%set_has(z, "foo"))
+#out(%set_has(z, 1))
+#out(%set_has(z, 4), "\n")
 
 test = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9,

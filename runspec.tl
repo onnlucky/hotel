@@ -27,7 +27,7 @@ test = title ->
             _results.add({pass=false,{name,msg}})
         size = _results.size
         args.block.call
-        if _results.size == size: // no sub tests were done, assuming this was the test
+        if _results.size == size: # no sub tests were done, assuming this was the test
             _results.add({pass=true, {name}})
     )
     $_test = old

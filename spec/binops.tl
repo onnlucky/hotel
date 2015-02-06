@@ -41,7 +41,7 @@ test "negation":
     assert(-x == -4)
     assert((-x) == -4)
 
-// shifting works on arbitrary precision numbers
+# shifting works on arbitrary precision numbers
 test "basic shifting":
     assert 1 >> 0 == 1
     assert 1 >> 1 == 0
@@ -79,10 +79,10 @@ test "left shift large":
     assert 1 << 32 == 2**32
     assert 1 << 33 == 2**33
     assert 1 << 60 == 2**60
-    //assert 1 << 70 == (2**70) // TODO arbitrary precision
+    #assert 1 << 70 == (2**70) # TODO arbitrary precision
     assert -1 << 30 == -(2**30)
     assert -1 << 60 == -(2**60)
-    //assert -1 << 70 == -(2**70) // TODO arbitrary precision
+    #assert -1 << 70 == -(2**70) # TODO arbitrary precision
 
 test "right shift large":
     assert -16 >> 2 == -4
@@ -91,10 +91,10 @@ test "right shift large":
     assert -65535 >> 8 == -(2**8)
     assert 2**60 >> 50 == 2**10
     assert -(2**60) >> 50 == -(2**10)
-    //assert 2**70 >> 50 == 2**20
-    //assert -(2**70) >> 50 == -(2**20)
+    #assert 2**70 >> 50 == 2**20
+    #assert -(2**70) >> 50 == -(2**20)
 
-// except for unsigned right shift, it works on 32 bit unsigned numbers, and thus shifts in zeros
+# except for unsigned right shift, it works on 32 bit unsigned numbers, and thus shifts in zeros
 test "unsigned right shift":
     assert 16 >>> 2 == 16 >> 2
     assert -16 >>> 2 == (-16 & 0xFFFF_FFFF) >> 2

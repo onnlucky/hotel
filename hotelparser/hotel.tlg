@@ -3,9 +3,9 @@ parser = parser {
       sp: " " | "\t"
       nl: "\r\n" | "\n\r" | "\n" | "\r"
 
-slcomment*: ("#"|"//") (!nl _)* (nl|end)
+slcomment*: "#"!"##" (!nl _)* (nl|end)
+mlcomment*: "###" (!(nl sp* "###") _)* (nl sp* "###"|end)
   comment*: "(#" (!"#)" (comment|_))* ("#)"|end)
-          | "/*" (!"*/" (comment|_))* ("*/"|end)
 
    postif*: ("if"|"unless") !letter
 
@@ -58,11 +58,11 @@ slcomment*: ("#"|"//") (!nl _)* (nl|end)
     binn: n=([01]+)+("_"+) !"_" -> flatten(n)
     hexn: n=([0123456789ABCDEFGabcdefg]+)+("_"+) !"_" -> flatten(n)
     decn: n=([0123456789]+)+("_"+) !"_" -> flatten(n)
-    num*: "0x" w=hexn              -> Number(null, w, 16)
-        | "0b" w=binn              -> Number(null, w, 2)
-        | s=sign w=decn "." f=decn -> Float(s, w, f, 10)
-        | s=sign        "." f=decn -> Float(s, null, f, 10)
-        | s=sign w=decn            -> Number(s, w, 10)
+    num*: "0x" w=hexn "f"?              -> Number(null, w, 16)
+        | "0b" w=binn "f"?              -> Number(null, w, 2)
+        | s=sign w=decn "." f=decn "f"? -> Float(s, w, f, 10)
+        | s=sign        "." f=decn "f"? -> Float(s, null, f, 10)
+        | s=sign w=decn "f"?            -> Number(s, w, 10)
 
 // ---- OBJECT, MAP AND LIST ----
 
@@ -162,7 +162,7 @@ mcallarg: v=mcall
         | pos=pos value=ref block=block                                          -> process_add_block(value, block, pos)
         | pos=pos value=call block=block?                                        -> process_add_block(value, block, pos)
 
-      op: "+" | "-" | "**" | "*" | "/." | "/" | "%" | "~" | "|" | "&" | "^"
+      op: "+" | "-" | "**" | "*" | "//" | "/." | "/" | "%" | "~" | "|" | "&" | "^"
     expr: "!". pos=pos rhs=logical &eoexpr type=<async>
         | e=logical &eoexpr                                                      -> e
 
@@ -172,7 +172,7 @@ mcallarg: v=mcall
  bitwise: l=shift rs=(..pos=pos op=("&"|"|"|"^").. r=shift)*                     -> process_expr(l, rs)
    shift: l=add rs=(..pos=pos op=("<<"|">>>"|">>").. r=add)*                     -> process_expr(l, rs)
      add: l=mul rs=(..pos=pos op=("+"|"-").. r=mul)*                             -> process_expr(l, rs)
-     mul: l=pow rs=(..pos=pos op=("*"|"/."|"/"|"%").. r=pow)*                    -> process_expr(l, rs)
+     mul: l=pow rs=(..pos=pos op=("*"|"//"|"/."|"/"|"%").. r=pow)*               -> process_expr(l, rs)
      pow: l=paren rs=(..pos=pos op=("**").. r=paren)*                            -> process_expr(l, rs)
    paren: &"(" function
         //| "("..@"a closing ')'" pos=pos body=body ..")" type=<scope>
@@ -221,8 +221,10 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
         | to=(pos=pos name=newvar type=<newvar>) &endstm type=<assign>
         | e=mexpr &endstm                                                    -> e
 
-   stms*: t=stm ts=(.";".@"a statement after ';'" stm)* -> prepend(ts, t)
-   mstms: @"a statement" stms
+   stms*: mlcomment -> tlListEmpty()
+        | t=stm ts=(.";".@"a statement after ';'" stm)* -> prepend(ts, t)
+   mstms: mlcomment -> tlListEmpty()
+        | @"a statement" stms
 
 // ---- BLOCKS ----
 

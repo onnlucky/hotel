@@ -1,4 +1,4 @@
-// validate numbers according to luhns checksum, for creditcards and such
+# validate numbers according to luhns checksum, for creditcards and such
 luhn = digits ->
     normalized = digits.map(l -> Number(l)).filter.reverse
 

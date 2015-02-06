@@ -5,7 +5,7 @@
 
 catch: e -> print "init exception: $(e.toString)"
 
-// TODO use args["block", else=t]
+# TODO use args["block", else=t]
 if = cond, &t, &f -> bool(cond, args.get("block", t), args.get("else", f))()
 
 _or = left, &right ->
@@ -24,7 +24,7 @@ while = &cond ->
         if not cond(): break
         block()
 
-// TODO otherwise syntax is useful in object?(else=42)test
+# TODO otherwise syntax is useful in object?(else=42)test
 try = &test, &otherwise ->
     catch: return otherwise()
     if args.block: return args.block.call
@@ -42,13 +42,13 @@ max = l, r ->
     if l >= r: return l
     return r
 
-/// List.random(): return a random element from the list
+#. List.random(): return a random element from the list
 _get_random = -> this.get(1 + random(this.size))
 
-/// List.each([fn]): apply a function to all elements, returns nothing
-/// [block] the block to call, it is passed in the element and the position as `block(e, at)`
-/// if no block is given, #fn will be called, but without the position, `fn(e)`
-/// > [1,2,3].each(e -> print(e)) == null // will print 1, 2 and 3 each on their own line
+#. List.each([fn]): apply a function to all elements, returns nothing
+#. [block] the block to call, it is passed in the element and the position as `block(e, at)`
+#. if no block is given, #fn will be called, but without the position, `fn(e)`
+#. > [1,2,3].each(e -> print(e)) == null # will print 1, 2 and 3 each on their own line
 _each = fn ->
     block = args.block
     if not (block or fn): throw "each expects a block or fn"
@@ -60,10 +60,10 @@ _each = fn ->
         if block: block(this[$at], $at)
         if not block: fn(this[$at])
 
-/// List.map([fn]): apply a function to all elements, return a list of the results
-/// [block] the block to call, it is passed in the element and position as `block(e, at)`
-/// if no block is given, #fn will be called, but without the position, `fn(e)`
-/// > [1,2,3].map(e -> e * 3) == [3,6,9]
+#. List.map([fn]): apply a function to all elements, return a list of the results
+#. [block] the block to call, it is passed in the element and position as `block(e, at)`
+#. if no block is given, #fn will be called, but without the position, `fn(e)`
+#. > [1,2,3].map(e -> e * 3) == [3,6,9]
 _map = fn ->
     block = args.block
     if not (block or fn): throw "map expects a block or fn"
@@ -79,37 +79,37 @@ _map = fn ->
         goto(loop(at + 1))
     loop(1)
 
-/// List.find(element): find #element, return its position or #null if not found
-/// [from] start searching from here instead
-/// [block] if not given an element but a block, returns first element for which `block(e, at)` is true
-/// > [1,2,3,4].find(4) == 4
-/// > [1,2,3,4].find(e -> e > 2) == 3
-_find = element /*, [Number from=0]*/ ->
+#. List.find(element): find #element, return its position or #null if not found
+#. [from] start searching from here instead
+#. [block] if not given an element but a block, returns first element for which `block(e, at)` is true
+#. > [1,2,3,4].find(4) == 4
+#. > [1,2,3,4].find(e -> e > 2) == 3
+_find = element (#, [Number from=0] #) ->
     size = this.size
     if size == 0: return
     var $at = args["from"] or 1
     if $at < 0: $at = size + 1 + $at
     if $at < 1: $at = 1
     if args.size == 0:
-        // passed in a block
+        # passed in a block
         block = args.block
         if not block: throw "find expects an element or a block"
         while $at <= this.size:
             if block(this[$at], $at): return $at
             $at += 1
         return
-    // passed in an element
+    # passed in an element
     while $at <= this.size:
         if this[$at] == element: return $at
         $at += 1
     return
 
-/// List.filter(elements*): remove all elements given
-/// [block] if given a block, also remove all elements for which `block(e, at)` is true
-/// if called without arguments and without a block, it filters out all falsy values
-/// > [1,2,3,4].filter(3,1) == [2,4]
-/// > [1,2,3,4].filter(e -> e % 3 == 0) == [1,2,4]
-/// > ["hello",null].filter == ["hello"]
+#. List.filter(elements*): remove all elements given
+#. [block] if given a block, also remove all elements for which `block(e, at)` is true
+#. if called without arguments and without a block, it filters out all falsy values
+#. > [1,2,3,4].filter(3,1) == [2,4]
+#. > [1,2,3,4].filter(e -> e % 3 == 0) == [1,2,4]
+#. > ["hello",null].filter == ["hello"]
 _filter = ->
     len = this.size
     if len == 0: return []
@@ -125,15 +125,15 @@ _filter = ->
         goto(loop(at + 1))
     loop(1)
 
-/// List.reduce([fn]): reduce a list to a single value using a function
-/// [block] either using the passed in block or #fn
-/// [initial] the initial value, will be the first value if not given
-/// the function is called with two arguments, an intermediate result, and the next element
-/// the result of the call is the next intermediate result
-/// reducing an empty list returns null (nothing)
-/// reducing a list with a single element returns that element
-/// > [1,2,3].reduce(tmp, next -> tmp + next) == 6
-// TODO allow passing in the initial value
+#. List.reduce([fn]): reduce a list to a single value using a function
+#. [block] either using the passed in block or #fn
+#. [initial] the initial value, will be the first value if not given
+#. the function is called with two arguments, an intermediate result, and the next element
+#. the result of the call is the next intermediate result
+#. reducing an empty list returns null (nothing)
+#. reducing a list with a single element returns that element
+#. > [1,2,3].reduce(tmp, next -> tmp + next) == 6
+# TODO allow passing in the initial value
 _reduce = fn ->
     block = args.block or fn
     if not block: throw "reduce expects a block or fn"
@@ -148,13 +148,13 @@ _reduce = fn ->
         $i += 1
     return $res
 
-/// List.sum: return the addition of all elements using '+'
+#. List.sum: return the addition of all elements using '+'
 _sum = ->
     var $sum = 0
     this.each: e -> $sum += e
     return $sum
 
-/// List.min: return the smallest element
+#. List.min: return the smallest element
 _min = default ->
     if this.size == 0: return args[1]
     if this.size == 1: return this[1]
@@ -162,7 +162,7 @@ _min = default ->
     this.each: e -> if compare(e, $min) == -1: $min = e
     return $min
 
-/// List.max: return the largest element
+#. List.max: return the largest element
 _max = default ->
     if this.size == 0: return args[1]
     if this.size == 1: return this[1]
@@ -170,12 +170,12 @@ _max = default ->
     this.each: e -> if compare(e, $max) == 1: $max = e
     return $max
 
-/// List.mean: return the sum divided by size (the average)
+#. List.mean: return the sum divided by size (the average)
 _mean = default ->
     if this.size == 0: return args[1]
     this.sum / this.size
 
-/// List.median: return the middle element
+#. List.median: return the middle element
 _median = default ->
     if this.size == 0: return args[1]
     if this.size == 1: return this[1]
@@ -205,21 +205,21 @@ qsort = list, smallerfn ->
     innerqsort(list, smallerfn, 1, list.size)
     return list.toList
 
-/// List.sort: return a sorted list
-/// [block] use passed in block as comparison function, otherwise sort small to large
+#. List.sort: return a sorted list
+#. [block] use passed in block as comparison function, otherwise sort small to large
 _sort = fn -> qsort(this, args.block or fn or isSmaller)
 
-/// Number: given a string, it parses it to a number or returns null
-/// given a number it returns the number
-/// returns null otherwise
+#. Number: given a string, it parses it to a number or returns null
+#. given a number it returns the number
+#. returns null otherwise
 Number = s ->
     if isNumber(s): return s
-    // TODO regex for [0-9_-+]
+    # TODO regex for [0-9_-+]
     v = try(_json_parse(s.toString))
     if isNumber(v): return v
     return null
 
-// TODO only flatten one level, unless asked?
+# TODO only flatten one level, unless asked?
 _flatten2 = ls, arr ->
     ls.each(e ->
         if isList(e): _flatten2(e, arr); return
@@ -227,16 +227,16 @@ _flatten2 = ls, arr ->
         arr.add(e)
     )
 
-/// List.flatten: return a single list where all elements that are lists themselves have been merged
-/// at the moment, flatten will merge all such lists before merging their elements
-/// > [[1,2],3,[4,5]].flatten == [1,2,3,4,5]
+#. List.flatten: return a single list where all elements that are lists themselves have been merged
+#. at the moment, flatten will merge all such lists before merging their elements
+#. > [[1,2],3,[4,5]].flatten == [1,2,3,4,5]
 _flatten = ->
     arr = Array.new
     _flatten2(this, arr)
     return arr.toList
 
-/// List.join(sep=""): return a #String separated by #sep
-/// > ["hello", "world"].join(" ") == "hello world"
+#. List.join(sep=""): return a #String separated by #sep
+#. > ["hello", "world"].join(" ") == "hello world"
 _join = sep ->
     if this.size == 0: return ""
     sep = sep or ""
@@ -250,17 +250,17 @@ _join = sep ->
 
 _addAll = ls -> ls.each(e -> this.add(e))
 
-/// String.split(on): return a #List with the #String broken up at every occurance of #on
-/// [keepempty] option to keep empty results
-/// [trim] trim the results
-/// [limit] limit how many times to break up the string
-/// > "hello world".split == ["hello","world"]
-/// > "a, b, , d, e".split(",",trim=true) == ["a", "b", "d", "e"]
-// TODO add from, add backward
-// TODO optimize both find and process, the conditions are static
+#. String.split(on): return a #List with the #String broken up at every occurance of #on
+#. [keepempty] option to keep empty results
+#. [trim] trim the results
+#. [limit] limit how many times to break up the string
+#. > "hello world".split == ["hello","world"]
+#. > "a, b, , d, e".split(",",trim=true) == ["a", "b", "d", "e"]
+# TODO add from, add backward
+# TODO optimize both find and process, the conditions are static
 _split = on ->
-    // TODO on should support a regex and default to breaking whitespace
-    on = on or " " // TODO Regex("\\s+")
+    # TODO on should support a regex and default to breaking whitespace
+    on = on or " " # TODO Regex("\\s+")
     empty = bool(args.has("keepempty"),  args["keepempty"], true)
     trim = args["trim"]
     limit = args["limit"]
@@ -294,8 +294,8 @@ _split = on ->
     loop(1)
     return res.toList
 
-/// Number.times([fn]): call a block or #fn so many times
-/// > 10.times: print "hello" /// will print hello ten times
+#. Number.times([fn]): call a block or #fn so many times
+#. > 10.times: print "hello" #. will print hello ten times
 _times = fn ->
     if this <= 0: return
     block = args.block or fn
@@ -307,8 +307,8 @@ _times = fn ->
         $at += 1
         block($at)
 
-/// Number.to(to, [fn]): call a block or #fn by counting upto #to
-/// > 10.to(15): print "hello" /// wil print hello 5 times
+#. Number.to(to, [fn]): call a block or #fn by counting upto #to
+#. > 10.to(15): print "hello" #. wil print hello 5 times
 _to = to, fn ->
     if not isNumber(to): throw "to expects a number"
     block = args.block or fn
@@ -340,10 +340,10 @@ toString = o ->
     if s: return s
     repr(o)
 
-/// String():
-/// call with numbers, interprets them as letters (unicode points)
-/// call with binaries or buffers, interprets them as utf8 letters
-/// TODO allow configuration on what to do for invalid utf8 and/or invalid unicode points
+#. String():
+#. call with numbers, interprets them as letters (unicode points)
+#. call with binaries or buffers, interprets them as utf8 letters
+#. TODO allow configuration on what to do for invalid utf8 and/or invalid unicode points
 _install_constructor(String, (String = (->
     if args.size == 0: return ""
     if args.size == 1: return _str(args[1])
@@ -352,8 +352,8 @@ _install_constructor(String, (String = (->
     arr.join
 )))
 
-// TODO should have special boot places for string, list and such
-/// String.each: for ever character run block or function given
+# TODO should have special boot places for string, list and such
+#. String.each: for ever character run block or function given
 _install_method(String, "times", (times = (n ->
     arr = Array.new
     n.times: arr.add(this)
@@ -368,9 +368,9 @@ _install(Bin._methods, "each", _each)
 _install(Bin._methods, "map", _map)
 _install(Bin._methods, "random", _get_random)
 
-/// String.split: split the string wherever args[1] occurs, returns a list of string fragments
+#. String.split: split the string wherever args[1] occurs, returns a list of string fragments
 _install_method(String, "split", _split)
-/// String.replace: replace all occurances of args[1] with args[2], returns a new "String"
+#. String.replace: replace all occurances of args[1] with args[2], returns a new "String"
 _install_method(String, "replace", (replace = (from, to ->
     if from.size == 0: return this
     if not this.find(from): return this
@@ -437,7 +437,7 @@ _hashmap_map = (fn ->
 )
 _install_method(HashMap, "map", _hashmap_map)
 
-// TODO perhaps these methods must lock the array?
+# TODO perhaps these methods must lock the array?
 _install_method(Array, "addAll", _addAll)
 _install_method(Array, "random", _get_random)
 _install_method(Array, "each", _each)
@@ -540,16 +540,16 @@ test "split":
     sp = "hello world".split
     assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
 
-// TODO should be immutable
+# TODO should be immutable
 _module_paths = Array.new
 
-// default module path
+# default module path
 (_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
 
-// TODO should be keyed on start env?
+# TODO should be keyed on start env?
 _modules = HashMap.new
 
-// resolve the first file from a certain module path
+# resolve the first file from a certain module path
 fileFromModulePath = name, path ->
     if path:
         file = "$path/$name"
@@ -566,20 +566,20 @@ compiler = (
     assert _env["Array"]
     assert _env["Arra" + "y"]
     bcode = _vm_get_compiler()
-    // TODO somehow this name leaks into the global env below ... that must not be!
+    # TODO somehow this name leaks into the global env below ... that must not be!
     _mod = _Module_new(bcode, "<compiler>")
     links = _module_links(_mod)
     linked = links.map(name -> _env[name])
     compiler = _module_run(_module_link(_mod, linked))
 )
 
-// TODO Env.current
+# TODO Env.current
 _env = _env_current()
 _env = _env_current()
 
-// TODO when this works, move capturing the env up
-//_env["fileFromModulePath"] = fileFromModulePath;
-//_env["compiler"] = compiler
+# TODO when this works, move capturing the env up
+#_env["fileFromModulePath"] = fileFromModulePath;
+#_env["compiler"] = compiler
 
 _x = (
     catch: e -> "got it"
@@ -591,11 +591,11 @@ assert _x == "got it"
 resolve2 = name, path ->
     res = _modules[name]
     if isDefined res: return res
-    //print("RESOLVING 2: $name ($path)")
+    #print("RESOLVING 2: $name ($path)")
     catch: e -> return null, "Unable to read module '$name': $(e.msg)"
     file, stat = fileFromModulePath("$name.tlb", path)
-    if file and _Path_stat(file[:-2]).mtime <= stat.mtime: // only load binary if not older then source
-        //print("loading binary module", file)
+    if file and _Path_stat(file[:-2]).mtime <= stat.mtime: # only load binary if not older then source
+        #print("loading binary module", file)
         catch: e -> return null, "Unable to load module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_bufferFromFile(file), name=file[:-2], _env, (name -> resolve(name, path)))
@@ -604,7 +604,7 @@ resolve2 = name, path ->
         return _modules.set(name, res)
     file = fileFromModulePath("$name.tl", path)
     if file:
-        //print("loading module", file)
+        #print("loading module", file)
         catch: e -> return null, "Unable to compile module '$name': $(e.toString)"
         path = dirname(file)
         mod = compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path)))
@@ -613,7 +613,7 @@ resolve2 = name, path ->
         return _modules.set(name, res)
     file = fileFromModulePath("$name.mod", path)
     if file:
-        //print("loading native module", file)
+        #print("loading native module", file)
         catch: e -> return null, "Unable to load compiled module '$name': $(e.msg)"
         res = dlopen(file)
         return _modules.set(name, res)
@@ -629,25 +629,25 @@ resolve = name, path ->
 
 io = resolve("io")
 
-// TODO allow safe eval by not resolving modules and limited default env ...
-_eval = env/*env*/ ->
+# TODO allow safe eval by not resolving modules and limited default env ...
+_eval = env (#env#) ->
     { args["frame"] and env }: compiler.load(this, name="<eval>", link=args["frame"], env, _env, (name -> resolve(name))).frame(link=args["frame"])
     { args["frame"]         }: compiler.load(this, name="<eval>", link=args["frame"], _env, (name -> resolve(name))).frame(link=args["frame"])
     { env                   }: compiler.load(this, name="<eval>", env, _env, (name -> resolve(name))).run()
     {                       }: compiler.load(this, name="<eval>", _env, (name -> resolve(name))).run()
 
-/// String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
+#. String.eval(Env env): evalute the string as a script to run in the passed in scope, or a default scope
 _install_method(String, "eval", _eval)
 
 test "eval":
     "x = 42\nreturn x".eval == 42
 
-// run a repl, or every argument as a file
+# run a repl, or every argument as a file
 runmain = as ->
     catch: e -> print "uncaught error:", toString(e); _set_exitcode(1)
 
     if as.size == 0: resolve("commandline")()
-    //if as[1] == "snippets": return snippets.run
+    #if as[1] == "snippets": return snippets.run
 
     file = as[1]
     path = dirname(file)
@@ -655,9 +655,9 @@ runmain = as ->
 
 main = !runmain(args)
 
-// this will only return when there are no more tasks to run
+# this will only return when there are no more tasks to run
 io.ioloop
 
-// we are done, print the results, if any, error has already been printed
+# we are done, print the results, if any, error has already been printed
 if main.value: print toString(main.value)
 null

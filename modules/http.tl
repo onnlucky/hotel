@@ -1,4 +1,4 @@
-// hotel http library; this is a bit of a toy library
+# hotel http library; this is a bit of a toy library
 
 MAX_HEADERS = 50 * 1024 + 1
 
@@ -63,8 +63,8 @@ InflateStream = stream, gzip ->
             this.read.toString
     }
 
-// TODO read text encoding and not assume utf8
-// TODO allow more control over decoding of type
+# TODO read text encoding and not assume utf8
+# TODO allow more control over decoding of type
 bodyFromConnection = conn, headers, stream, expect ->
     length = headers["Content-Length"]
     transfer = headers["Transfer-Encoding"]
@@ -113,7 +113,7 @@ HttpConnection = conn ->
         req = ->
             if this._req: return this._req
 
-            // TODO now we can just parse without "finding" first ...
+            # TODO now we can just parse without "finding" first ...
             at = conn.find("\r\n\r\n", 0, MAX_HEADERS)
             if not at:
                 if conn.size >= MAX_HEADERS: Error("Headers too long").throw
@@ -137,7 +137,7 @@ HttpConnection = conn ->
         end = ->
             this._didend = true
             this.flush(true)
-            // TODO don't always close
+            # TODO don't always close
             conn.close
 
         write = ->
@@ -184,7 +184,7 @@ openstream = url ->
         return ssl.Stream.new(io.Socket.open(url.host, url.port or 443))
     return io.Socket.open(url.host, url.port or 80)
 
-// TODO take back the stream after body is done ...
+# TODO take back the stream after body is done ...
 send = method, url, body ->
     url = httpparser.url(url)
     conn = openstream(url)
@@ -203,7 +203,7 @@ send = method, url, body ->
     conn.write(body)
     conn.flush
 
-    // TODO now we can just parse without "finding" first ...
+    # TODO now we can just parse without "finding" first ...
     at = conn.find("\r\n\r\n", 0, MAX_HEADERS)
     if not at:
         if conn.size >= MAX_HEADERS: Error("Headers too long").throw

@@ -21,7 +21,7 @@ test "find":
     assert buf.find(Bin("world")) == 7
     assert buf.find(Buffer.new("world")) == 7
 
-    // bytes are 0-255 by forcing int and masking bits
+    # bytes are 0-255 by forcing int and masking bits
     assert buf.find('w') == 7
     assert buf.find(119) == 7
     assert buf.find(119.0) == 7
@@ -54,7 +54,7 @@ test "boundaries of from":
     buf = Buffer.new("hello aaa")
     -10.to(20): n ->
         r = buf.find("aaa", from=n)
-        // "aaa" is located at 7 and from is inclusive, so -2 and -1 fail
+        # "aaa" is located at 7 and from is inclusive, so -2 and -1 fail
         { n == -2 }: assert not r
         { n == -1 }: assert not r
         { n <= 7  }: assert r
@@ -64,7 +64,7 @@ test "boundaries of upto":
     buf = Buffer.new("hello aaa")
     -10.to(20): n ->
         r = buf.find("aaa", upto=n)
-        // upto is inclusive (like slice) so -1 and 9 are good
+        # upto is inclusive (like slice) so -1 and 9 are good
         { n == -1 }: assert r
         { n >= 9  }: assert r
         {         }: assert not r

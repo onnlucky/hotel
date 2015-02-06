@@ -9,7 +9,7 @@ runcode = code ->
     frame = current
     if not frame.allStored and isDefined(res) and res != null: print(toString(res))
 
-// storing values doesn't output anything
+# storing values doesn't output anything
 runcode "var x = 10"
 runcode "foo = -> print x"
 runcode "foo()"
@@ -32,7 +32,7 @@ test "frame.get":
 
     assert frame[2].name == "foo"
 
-// TODO better test this at some core semantics test
+# TODO better test this at some core semantics test
 test "frame.get undefined is all undefined":
     value, name, type, pos, foobar = frame.get(100)
     assert isUndefined(value)

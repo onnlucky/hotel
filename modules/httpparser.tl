@@ -1,4 +1,4 @@
-// http request and url parser
+# http request and url parser
 DEBUG=false
 trace = in, &msg -> if DEBUG: print in.pos, msg()
 
@@ -6,7 +6,7 @@ lower = "abcdefghijklmnopqrstuvwxyz"
 upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 numbers = "0123456789"
 
-// TODO should be a class/object but class needs constructor and constructor needs class ...
+# TODO should be a class/object but class needs constructor and constructor needs class ...
 input = text, pos, value -> {
         text= text
         pos= pos
@@ -69,7 +69,7 @@ pText = rule(in, text ->
     in.error(text)
 )
 
-// URL PARSING
+# URL PARSING
 parseType = in ->
     type = pManyOne(pNotChars(":/?# \n\r"))(in).do: v -> v.toChar
     pChar(":".get)(type).set(type.value)
@@ -77,7 +77,7 @@ parseType = in ->
 parseHost = in ->
     in = pOptional(pText("//"))(in)
     if not in.value:
-        // TODO this is cheating ... just a bit ...
+        # TODO this is cheating ... just a bit ...
         colon = in.text.find(":", in.pos)
         slash = in.text.find("/", in.pos)
         if not colon: return in
@@ -127,7 +127,7 @@ parseUrl = in ->
     host = pOptional(parseHost)(type)
     port = pOptional(parsePort)(host)
     path = parsePath(port)
-    reqpath = parseRequestPath(port) // not a mistake!
+    reqpath = parseRequestPath(port) # not a mistake!
     query = pOptional(parseQuery)(path)
     fragment = pOptional(parseFragment)(query)
     fragment.set({

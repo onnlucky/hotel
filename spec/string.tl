@@ -12,13 +12,13 @@ test "basic":
     assert "hello" == "h" +"ello"
 
 test "get with weird index":
-    // TODO maybe remove this?
+    # TODO maybe remove this?
     assert "hello".get == 'h'
     assert "hello".get() == 'h'
     assert "hello".get(null) == 'h'
 
     assert isUndefined("hello"[0])
-    //assert isUndefined("hello"[null])
+    #assert isUndefined("hello"[null])
     assert isUndefined("hello"["1"])
     assert isUndefined("hello"[10000])
     assert isUndefined("hello"[-10000])

@@ -11,7 +11,7 @@ io.Dir(".").each: file ->
         print "FAIL:", file, "ERR:", e.toString
         $fail += 1
 
-    // TODO overwrite stdout ...
+    # TODO overwrite stdout ...
     print "TEST: $(file)"
     io.File(file).readString.eval
     $pass += 1

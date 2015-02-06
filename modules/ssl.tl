@@ -1,4 +1,4 @@
-// a stream interface writing through openssl, onto a lower level stream, like a socket
+# a stream interface writing through openssl, onto a lower level stream, like a socket
 
 Stream = {
     new= stream -> { stream= stream, ssl= openssl.newCodec, class= this.class }
@@ -35,7 +35,7 @@ Stream = {
                     this.stream.write(ssl.wbuf)
                     if mustread:
                         res = this.stream.read(ssl.rbuf)
-                        if not res: return 1 // TODO figure out how much was written ...
+                        if not res: return 1 # TODO figure out how much was written ...
                         continue
                     if from.size == 0 and ssl.wbuf.size == 0: return
         )

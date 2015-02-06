@@ -2,7 +2,7 @@ parse = s ->
     { isBuffer(s) }: return _json_parse(s.readString())
     {             }: return _json_parse(s.toString)
 
-// TODO add pretty printing and such ...
+# TODO add pretty printing and such ...
 into_buf = buf, x, d, set ->
     if d > 1000: Error("json is circular or too deep").throw
     { isBool(x)   }: buf.write(x.toString)

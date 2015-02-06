@@ -5,7 +5,7 @@ ls = Array.new
 var $x = 0
 out "starting: ", $x, "\n"
 
-// while is in boot.tl
+# while is in boot.tl
 loop:
     if $x >= max: break
     ls.add($x)

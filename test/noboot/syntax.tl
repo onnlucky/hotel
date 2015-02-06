@@ -1,6 +1,6 @@
 testblock = -> out bool(args.block,"block","no block"), "\n"
 
-// blocks
+# blocks
 testblock: 42
 testblock: -> 42
 testblock: a1, a2 -> 42
@@ -11,12 +11,12 @@ testblock(block = a1, a2 -> 42)
 fn = a1, a2 -> 42
 testblock(block=fn)
 
-// no blocks
+# no blocks
 testblock(fn)
 testblock((fn))
 testblock((a1, a2 -> 42))
 
-// optional commas
+# optional commas
 
 out("maps\n")
 res = {x = 4, y = 2}

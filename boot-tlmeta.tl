@@ -11,7 +11,7 @@ letters = lower.cat(upper)
 numbers = "0123456789"
 
 Input = { foo = true }
-// TODO should be a class/object but class needs constructor and constructor needs class ...
+# TODO should be a class/object but class needs constructor and constructor needs class ...
 input = text, pos, value -> {
         text = text
         pos = pos
@@ -25,7 +25,7 @@ input = text, pos, value -> {
         class = Input
     }
 
-// TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
+# TODO this is crappy, use args.slice and .call ... but cannot quite do that yet?
 rule = fn -> fn = args.block or fn; (a1, a2, a3, a4, a5, a6 -> (in -> in = args.block or in; fn(in, a1, a2, a3, a4, a5, a6)))
 
 parse = parser, text ->
@@ -56,7 +56,7 @@ pOptional = rule(in, parser ->
         throw e
     in = parser(in)
 )
-// returns only last result; make subrule if semantic actions are needed
+# returns only last result; make subrule if semantic actions are needed
 pAnd = rule(in ->
     var $res = in
     var $i = 2
@@ -138,12 +138,12 @@ parseNewline = in ->
     try: return pText("\n")(in)
     pText("\r")(in)
 
-// PARSER PARSER
+# PARSER PARSER
 
-// . parser . end
-//start: b=(!(name ."="."parser"."{") _)*
-//       p=parser
-//       a=_*                         -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
+# . parser . end
+#start: b=(!(name ."="."parser"."{") _)*
+#       p=parser
+#       a=_*                         -> { before: b.toChar, after: a.toChar, rules: p.rs, name: p.n }
 parseStart = in ->
     trace2(in, "start")
     before = pMany(pAnd(
@@ -167,9 +167,9 @@ parseStart = in ->
         after = after.value
     })
 
-//parser: n=name ."="."parser"."{"
-//        rs=rule*
-//        ."}".                        -> { n: n, rs: rs }
+#parser: n=name ."="."parser"."{"
+#        rs=rule*
+#        ."}".                        -> { n: n, rs: rs }
 parseParser = in ->
     trace2(in, "parser")
     name = parseName(in)
@@ -185,7 +185,7 @@ parseParser = in ->
     in = pText("}")(in).set({ n = name.value, rs = rules.value })
     trace2(in, "<< parser: $(rules.value.size)")
 
-//rule: n=name .":". t=or               -> { type: "Rule", name: n, term: t }
+#rule: n=name .":". t=or               -> { type: "Rule", name: n, term: t }
 parseRule = in ->
     trace2(in, ">> rule")
     name = parseName(in)
@@ -196,7 +196,7 @@ parseRule = in ->
     in = parseWs(term).set({ type = "Rule", name = name.value, term = term.value })
     trace2(in, "<< rule: $(name.value)")
 
-//act: "->". (!"\n" _)*
+#act: "->". (!"\n" _)*
 parseAct = in ->
     trace2(in, ">> action")
     in = parseWs(in)
@@ -205,7 +205,7 @@ parseAct = in ->
     cs = pMany(pNotChars("\n\r"))(in).do: v -> v.toChar
     trace2(cs, "<< action")
 
-//or: h=and rs=(."|". and)*           -> { type: "Or", terms: [h].cat(rs) }
+#or: h=and rs=(."|". and)*           -> { type: "Or", terms: [h].cat(rs) }
 parseOr = in ->
     trace2(in, ">> or")
     h = parseAnd(in)
@@ -213,7 +213,7 @@ parseOr = in ->
     in = rs.set({ type = "Or", terms = [h.value].cat(rs.value) })
     trace2(in, "<< or")
 
-//and: h=named rs=(" ". named)* .a=act -> { type: "And", terms: [h].cat(rs), act: a }
+#and: h=named rs=(" ". named)* .a=act -> { type: "And", terms: [h].cat(rs), act: a }
 parseAnd = in ->
     trace2(in, ">> AND >> AND >> AND >>")
     h = parseNamed(in)
@@ -222,9 +222,9 @@ parseAnd = in ->
     in = a.set({ type = "And", terms = [h.value].cat(rs.value), act = a.value })
     trace2(in, "<< AND << AND << AND <<")
 
-//named: n=name "=" t=post             -> { type: "Bind", name: n, term: t }
-//     | "@" t=text                    -> { type: "NoReturn", msg: t }
-//     | post
+#named: n=name "=" t=post             -> { type: "Bind", name: n, term: t }
+#     | "@" t=text                    -> { type: "NoReturn", msg: t }
+#     | post
 parseNamed = in ->
     trace2(in, ">> named")
     a1 = in ->
@@ -237,11 +237,11 @@ parseNamed = in ->
     in = pOr(a1, a2, parsePost)(in)
     trace2(in, "<< named")
 
-//post: "!" t=term                      -> { type: "Not", term: t }
-//    | t=term "*"                      -> { type: "Star", term: t }
-//    | t=term "+"                      -> { type: "Plus", term: t }
-//    | t=term "?"                      -> { type: "Opt", term: t }
-//    | term
+#post: "!" t=term                      -> { type: "Not", term: t }
+#    | t=term "*"                      -> { type: "Star", term: t }
+#    | t=term "+"                      -> { type: "Plus", term: t }
+#    | t=term "?"                      -> { type: "Opt", term: t }
+#    | term
 parsePost = in ->
     trace2(in, ">> post")
     a1 = in -> in = pText("!")(in); parseTerm(in).do: v -> { type = "Not", term = v }
@@ -251,11 +251,11 @@ parsePost = in ->
     in = pOr(a1, a2, a3, a4, parseTerm)(in)
     trace2(in, "<< post: $(in.value)")
 
-//term: "(". t=or .")"                  -> { type: "Sub", term: t }
-//    | "."                             -> { type: "Ws" }
-//    | "_"                             -> { type: "Any" }
-//    | n=name !":"                     -> { type: "Call", rule: n }
-//    | t=text                          -> { type: "Text", text: t }
+#term: "(". t=or .")"                  -> { type: "Sub", term: t }
+#    | "."                             -> { type: "Ws" }
+#    | "_"                             -> { type: "Any" }
+#    | n=name !":"                     -> { type: "Call", rule: n }
+#    | t=text                          -> { type: "Text", text: t }
 parseTerm = in ->
     trace2(in, ">> term")
     a1 = in ->
@@ -275,14 +275,14 @@ parseTerm = in ->
     in = pOr(a1, a2, a3, a4, a5)(in)
     trace2(in, "<< term: $(in.value)")
 
-//text: "\"" escape* "\""
+#text: "\"" escape* "\""
 parseText = in ->
     trace2(in, "text")
     in = pText("\"")(in)
     cs = pMany(parseEscape)(in).do: v -> v.join
     pText("\"")(cs).set(cs.value)
 
-//escape: "\\\"" | "\\n" | "\\r" | "\\t" | "\\\\" | !"\"" _
+#escape: "\\\"" | "\\n" | "\\r" | "\\t" | "\\\\" | !"\"" _
 parseEscape = in ->
     trace2(in, "escape")
     a1 = in -> pText("\\\"")(in).set("\"")
@@ -293,7 +293,7 @@ parseEscape = in ->
     a6 = in -> pNotChars("\"")(in).do: v -> v.toChar
     pOr(a1, a2, a3, a4, a5, a6)(in)
 
-//name: ls=letters+ -> ls.join
+#name: ls=letters+ -> ls.join
 parseName = in ->
     trace2(in, ">> name")
     in = pManyOne(pChars(letters))(in).do: v -> v.toChar
@@ -302,9 +302,9 @@ parseName = in ->
 
 text = io.File("tlmeta.tlg").readString
 ast = parse(parseStart, text)
-//print inspect(ast)
+#print inspect(ast)
 
-// ** emitting a new parser **
+# ** emitting a new parser **
 emit = r, buf, ind ->
     { r.type == "Or"  }: goto emitOr r, buf, ind
     { r.type == "And" }: goto emitAnd r, buf, ind
@@ -343,7 +343,7 @@ emitPlus = r, buf, ind ->
     buf.write("$ind  ))\n")
 
 emitAnd = r, buf, ind ->
-    // TODO maybe collect all binds, and "call" r.act
+    # TODO maybe collect all binds, and "call" r.act
     r.terms.each: r -> emit r, buf, ind
     if r.act: buf.write("$ind  _in, _v = pAct(_in, ($(r.act)))\n")
 
@@ -381,16 +381,16 @@ emitRule = r, buf ->
 
 buf = io.Buffer.new
 buf.write(ast.before)
-buf.write("\n// --- tlmeta-base.tl ---\n")
+buf.write("\n# --- tlmeta-base.tl ---\n")
 buf.write(io.File("tlmeta-base.tl").readString)
-buf.write("\n// --- parser ---\n")
+buf.write("\n# --- parser ---\n")
 var $hasstart = false
 ast.rules.each: r ->
     if r.name == "start": $hasstart = true
     emitRule r, buf
 start = (if $hasstart: "start") or ast.rules[1].name
 buf.write("$(ast.name)$("") = text -> pStart(rule_$start, text)\n")
-buf.write("\n// ---\n")
+buf.write("\n# ---\n")
 buf.write(ast.after)
 
 io.File("tlmeta").write(buf)

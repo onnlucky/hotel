@@ -8,7 +8,7 @@ Point = (
     zero = call(0, 0)
     Env.localObject
 )
-// perhaps not a good idea to test sqrt ...
+# perhaps not a good idea to test sqrt ...
 out Point(10, 10).distance.round, "\n"
 out Point.zero.distance.round, "\n"
 

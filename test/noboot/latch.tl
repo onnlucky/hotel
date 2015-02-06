@@ -26,17 +26,17 @@ Latch = max ->
 latch = Latch(2)
 
 doTheFoo = ->
-    //print "STARTING..."
-    //var $count = random(10)
-    //loop: Task.yield; $count -= 1; if $count <= 0: break
-    //print "ENTERING..."
+    #print "STARTING..."
+    #var $count = random(10)
+    #loop: Task.yield; $count -= 1; if $count <= 0: break
+    #print "ENTERING..."
     latch.enter
-    //print "WORKING..."
-    //var $count = random(100)
-    //loop: Task.yield; $count -= 1; if $count <= 0: break
-    //print "WORK ALMOST DONE..."
+    #print "WORKING..."
+    #var $count = random(100)
+    #loop: Task.yield; $count -= 1; if $count <= 0: break
+    #print "WORK ALMOST DONE..."
     latch.exit
-    //print "DONE..."
+    #print "DONE..."
 
 !doTheFoo()
 !doTheFoo()

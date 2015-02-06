@@ -41,7 +41,7 @@ query = node, match ->
 select = node, match ->
     return walk(node, match)
 
-// TODO add a local cache for sel -> parseSel(sel) mappings
+# TODO add a local cache for sel -> parseSel(sel) mappings
 find = sel, node ->
     match = parseSel(sel)
     select(node, match)

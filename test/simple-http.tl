@@ -5,7 +5,7 @@ server = http.Server.new(18080)
     $hits += 1
     client.write("hello world!")
 
-// ensure failing tests still close server ...
+# ensure failing tests still close server ...
 catch: e -> server.close; throw e
 
 out, status = io.run("curl -s http://localhost:18080/")

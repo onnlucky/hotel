@@ -45,8 +45,8 @@ test "upto":
             { n % 5 == 0                }: "buzz"
             {                           }: continue
         res.add(r)
-    assert res[1] == "buzz" // 10
-    assert res[2] == "fizz" // 12
-    assert res[3] == "fizz buzz" // 15
-    assert res[-1] == "buzz" // 50
+    assert res[1] == "buzz" # 10
+    assert res[2] == "fizz" # 12
+    assert res[3] == "fizz buzz" # 15
+    assert res[-1] == "buzz" # 50
     assert res.size < 20

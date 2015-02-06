@@ -40,6 +40,7 @@ static tlKind _tlTaskKind;
 tlKind* tlTaskKind;
 
 // TODO slim this one down ...
+// TODO do we want tasks to know their "parent" for exceptions and such?
 struct tlTask {
     tlHead head;
     tlWorker* worker;  // current worker that is working on this task

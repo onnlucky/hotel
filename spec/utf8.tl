@@ -36,7 +36,7 @@ test "find":
     assert s.bytes == 11 + 4 * 2
     assert s[1] == 0x20AC
     assert s.find('h')
-    assert s.find(104) // 'h'
+    assert s.find(104) # 'h'
     assert s.find(104) == 4
     assert s.find(0x20AC) == 1
     assert s.find(104, backward=true)

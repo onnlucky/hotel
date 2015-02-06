@@ -7,7 +7,7 @@ obj.TESTING = "hello world!"
 list = db.List.get("foobar")
 list.add("hello world!")
 list.add("the end")
-// db.close or db.flush ??
+# db.close or db.flush ??
 
 assert io.File(FILE).readString.find("TESTING")
 

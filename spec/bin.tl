@@ -44,7 +44,7 @@ test "bin uses bytes in constructor, string uses chars":
     assert Bin(97) == Bin('a')
 
     assert Bin('€') == String(8364)
-    // Bin constructor takes numbers as bytes, String sees numbers as chars (unicodepoints)
+    # Bin constructor takes numbers as bytes, String sees numbers as chars (unicodepoints)
     assert Bin(8364) != String(8364)
     assert Bin(8364) != Bin('€')
 

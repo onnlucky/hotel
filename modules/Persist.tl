@@ -18,7 +18,7 @@ new = name ->
         set = i, v -> this._back.set(i, v); record {set=true,id=this._id,k=i,v=v}; return v
         remove = at -> r = this._back.remove(at); record {del=true,id=this._id,k=at}; return r
 
-        // notice these are "delegates" to the _black-ing store
+        # notice these are "delegates" to the _black-ing store
         size= -> this._back.size
         get = i -> this._back.get(i)
         each= fn -> this._back.each(args.block or fn)
@@ -87,7 +87,7 @@ new = name ->
                     return list
                 list_new(name)
         }
-        /*
+        (#
         Var= {
             new= -> var_new()
             get= (name ->
@@ -98,7 +98,7 @@ new = name ->
                 var_new(name)
             )
         }
-        */
+        #)
     }
 {{ new }}
 
