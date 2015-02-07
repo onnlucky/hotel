@@ -1,11 +1,11 @@
-// get current cursor position
+# get current cursor position
 cursorPosition = term ->
     term.write(27, "[6n")
     len = term.find("R")
     size = term.readString(len)[3:-2].split(";")
     return Number(size[2]), Number(size[1])
 
-// TODO listen for signal WINCH
+# TODO listen for signal WINCH
 
 term = io.stdin
 if not term.isTTY: return
@@ -15,25 +15,25 @@ var $last = { cursor=0, lines=0 }
 writeLine = prompt, left, right ->
     width, height = term.measure
     len = prompt.size + left.size + right.size
-    lines = (len / width).floor
-    cursor = ((prompt.size + left.size) / width).floor
+    lines = len // width
+    cursor = (prompt.size + left.size) // width
     curcol = prompt.size + left.size + 1 - width * cursor
 
-    // ensure we are at first line
+    # ensure we are at first line
     buf = Buffer.new
     trail = $last.lines - lines
     up = $last.cursor
-    if up > 0: buf.write(27, "[$(up)A") // "
-    // output line
+    if up > 0: buf.write(27, "[$(up)A")
+    # output line
     buf.write(27, "[0G", prompt, left, right, 27, "[0K")
-    // clear trailing lines from previous long entry
+    # clear trailing lines from previous long entry
     if trail > 0:
         buf.write(27, "[0G")
         trail.times: buf.write(27, "[1B", 27, "[0K")
         trail.times: buf.write(27, "[1A")
-    // move cursor back up to cursor position line and col
-    if lines - cursor > 0: buf.write(27, "[$(lines - cursor)A") // "
-    buf.write(27, "[$(curcol)G") // "
+    # move cursor back up to cursor position line and col
+    if lines - cursor > 0: buf.write(27, "[$(lines - cursor)A")
+    buf.write(27, "[$(curcol)G")
     $last = {{cursor,lines}}
     term.write(buf)
 
@@ -50,11 +50,11 @@ runcode = code ->
         env = frame
         if not frame.allStored and isDefined(res) and res != null: print(toString(res))
     )
-    term.write(" ") // seems needed to flush print's and such
+    term.write(" ") # seems needed to flush print's and such
     term.setRaw
 
-//width, height = term.measure
-//x, y = cursorPosition(term)
+#width, height = term.measure
+#x, y = cursorPosition(term)
 
 older = Array.new
 newer = Array.new
@@ -125,7 +125,7 @@ editor = {
         { byte == 18 }: this.debug("RUN!")
         {            }: this.debug("$byte")
 
-    debug = str -> null //term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
+    debug = str -> null #term.write 27, "[s", 27, "[1;1H", 27, "[2K", str, 27, "[u"
     newline = ->
         line = $left + $right
         addHistory(line)
@@ -135,7 +135,7 @@ editor = {
 
 writeLine prompt, $left, $right
 
-// TODO make more generic, and have it work over telnet oid?
+# TODO make more generic, and have it work over telnet oid?
 commandline = env ->
     externalenv = env or {}
     inbuf = Buffer.new
@@ -144,15 +144,15 @@ commandline = env ->
         term.readInto(inbuf)
         while inbuf.size > 0:
             c = inbuf.readByte
-            editor.debug("in: $(c)") // "
+            editor.debug("in: $(c)")
             { c == 4   }: $running = false
             { c == 3   }: $running = false
             { c == 13  }: editor.newline
             { c == 127 }: editor.deleteleft
-            { c == 27  }: // esc
-                c2 = inbuf.readByte // [
-                c3 = inbuf.readByte // A for up, etc
-                editor.debug("esc: $(c) $(c2) $(c3)") // "
+            { c == 27  }: # esc
+                c2 = inbuf.readByte # [
+                c3 = inbuf.readByte # A for up, etc
+                editor.debug("esc: $(c) $(c2) $(c3)")
                 if not c2: editor.special(c)
                 if c2 == 91:
                     if c3 == 68: editor.moveleft
@@ -161,7 +161,7 @@ commandline = env ->
                     if c3 == 66: editor.movedown
                     if c3 == 70: editor.movelineend
                     if c3 == 72: editor.movelinestart
-                    // these end with a ~ (always, or maybe they take params?)
+                    # these end with a ~ (always, or maybe they take params?)
                     if c3 == 51: inbuf.readByte; editor.deleteright
                     if c3 == 53: inbuf.readByte; editor.movepageup
                     if c3 == 54: inbuf.readByte; editor.movepagedown

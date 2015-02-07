@@ -170,7 +170,7 @@ static tlHandle _neq(tlTask* task, tlArgs* args) {
 static tlHandle _compare(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     tlHandle cmp = tlHandleCompare(left, right);
-    if (!cmp) {
+    if (!cmp || tlUndefinedIs(cmp)) {
         tlKind* lk = tl_kind(left);
         tlKind* rk = tl_kind(right);
         if (lk->index != rk->index) return tlCOMPARE(rk->index - lk->index); // inverse ...
@@ -179,12 +179,14 @@ static tlHandle _compare(tlTask* task, tlArgs* args) {
         // ultimate fallback, will depend on runtime pointers
         return tlCOMPARE(tl_kind(left) - tl_kind(right));
     }
+    assert(cmp == tlSmaller || cmp == tlEqual || cmp == tlLarger);
     return cmp;
 }
 static tlHandle _lt(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s < %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
+    if (tlUndefinedIs(res)) return res;
     if (!res) TL_UNDEF("cannot compare %s < %s", tl_str(left),  tl_str(right));
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res == tlSmaller);
@@ -193,6 +195,7 @@ static tlHandle _lte(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s <= %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
+    if (tlUndefinedIs(res)) return res;
     if (!res) TL_UNDEF("cannot compare %s <= %s", tl_str(left),  tl_str(right));
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res != tlLarger);
@@ -201,6 +204,7 @@ static tlHandle _gt(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s > %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
+    if (tlUndefinedIs(res)) return res;
     if (!res) TL_UNDEF("cannot compare %s > %s", tl_str(left),  tl_str(right));
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res == tlLarger);
@@ -209,6 +213,7 @@ static tlHandle _gte(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     trace("%s >= %s", tl_str(left), tl_str(right));
     tlHandle res = tlHandleCompare(left, right);
+    if (tlUndefinedIs(res)) return res;
     if (!res) TL_UNDEF("cannot compare %s >= %s", tl_str(left),  tl_str(right));
     assert(res == tlSmaller || res == tlEqual || res == tlLarger);
     return tlBOOL(res != tlSmaller);

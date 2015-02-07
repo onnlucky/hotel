@@ -1,4 +1,4 @@
-// snippets editor support
+# snippets editor support
 
 _env = Env.current
 evalCode = code ->

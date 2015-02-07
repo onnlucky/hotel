@@ -1,5 +1,5 @@
-// hotel repl
-// example: io.Socket.listen(2222).serve: c -> repl.run(c)
+# hotel repl
+# example: io.Socket.listen(2222).serve: c -> repl.run(c)
 
 run = stream ->
     _env = Env.current
