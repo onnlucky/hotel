@@ -15,69 +15,24 @@
     <key>patterns</key>
     <array>
         <dict>
-            <key>begin</key>
-            <string>(?&lt;!#)###(?!#)</string>
-            <key>captures</key>
-            <dict>
-                <key>0</key>
-                <dict>
-                    <key>name</key>
-                    <string>punctuation.definition.comment.hotel</string>
-                </dict>
-            </dict>
-            <key>end</key>
-            <string>###(?:[ \t]*\n)</string>
-            <key>name</key>
-            <string>comment.block.hotel</string>
-            <key>patterns</key>
-            <array>
-                <dict>
-                    <key>match</key>
-                    <string>@\w*</string>
-                    <key>name</key>
-                    <string>storage.type.annotation.hotelscript</string>
-                </dict>
-            </array>
+            <key>include</key>
+            <string>#nestingcomment</string>
         </dict>
         <dict>
-            <key>captures</key>
-            <dict>
-                <key>1</key>
-                <dict>
-                    <key>name</key>
-                    <string>punctuation.definition.comment.hotel</string>
-                </dict>
-            </dict>
+            <key>begin</key>
+            <string>^\s*###</string>
+            <key>end</key>
+            <string>^\s*###</string>
+            <key>name</key>
+            <string>comment.block.hotel</string>
+        </dict>
+        <dict>
             <key>match</key>
-            <string>(#)(?!\{).*$\n?</string>
+            <string>#.*$\n?</string>
             <key>name</key>
             <string>comment.line.number-sign.hotel</string>
         </dict>
-        <dict>
-            <key>begin</key>
-            <string>/{3}</string>
-            <key>end</key>
-            <string>/{3}[imgy]{0,4}</string>
-            <key>name</key>
-            <string>string.regexp.hotel</string>
-            <key>patterns</key>
-            <array>
-                <dict>
-                    <key>include</key>
-                    <string>#interpolated_hotel</string>
-                </dict>
-                <dict>
-                    <key>include</key>
-                    <string>#embedded_comment</string>
-                </dict>
-            </array>
-        </dict>
-        <dict>
-            <key>match</key>
-            <string>/(?![\s=/*+{}?]).*?[^\\]/[igmy]{0,4}(?![a-zA-Z0-9])</string>
-            <key>name</key>
-            <string>string.regexp.hotel</string>
-        </dict>
+
         <dict>
             <key>match</key>
             <string>(?x)
@@ -288,6 +243,22 @@
     </array>
     <key>repository</key>
     <dict>
+        <key>nestingcomment</key>
+        <dict>
+            <key>begin</key>
+            <string>\(#</string>
+            <key>end</key>
+            <string>#\)</string>
+            <key>name</key>
+            <string>comment.block.hotel</string>
+            <key>patterns</key>
+            <array>
+                <dict>
+                    <key>include</key>
+                    <string>#nestingcomment</string>
+                </dict>
+            </array>
+        </dict>
         <key>double_quoted_string</key>
         <dict>
             <key>patterns</key>
