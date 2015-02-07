@@ -4,7 +4,7 @@ luhn = digits ->
 
     var $sum = 0
     normalized.each: e, n ->
-        { n % 2 == 0 }: $sum += (e * 2) /. 10 + (e * 2) % 10
+        { n % 2 == 0 }: $sum += (e * 2) // 10 + (e * 2) % 10
         {            }: $sum += e
     return $sum % 10 == 0
 

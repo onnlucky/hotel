@@ -337,6 +337,7 @@ static tlHandle _mul(tlTask* task, tlArgs* args) {
     TL_THROW("'*' not implemented for: %s * %s", tl_str(l), tl_str(r));
 }
 static tlHandle _div(tlTask* task, tlArgs* args) {
+    // TODO normal div should return a big decimal
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
@@ -345,6 +346,11 @@ static tlHandle _idiv(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) / tl_int(r)); // TODO return remainder as well?
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumDiv(tlNumTo(l), tlNumTo(r));
+    TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
+}
+static tlHandle _fdiv(tlTask* task, tlArgs* args) {
+    tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
 static tlHandle _mod(tlTask* task, tlArgs* args) {
@@ -709,6 +715,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "mul",  _mul },
     { "div",  _div },
     { "idiv",  _idiv },
+    { "fdiv",  _fdiv },
     { "mod",  _mod },
     { "pow", _pow },
 

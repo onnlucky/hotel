@@ -204,8 +204,8 @@ opname = op ->
     { op == "-" }: return "sub"
     { op == "*" }: return "mul"
     { op == "/" }: return "div"
-    { op == "/."}: return "idiv" # TODO fdiv
-    { op == "#"}: return "idiv"
+    { op == "//"}: return "idiv"
+    { op == "/."}: return "fdiv"
     { op == "%" }: return "mod"
     { op == "**" }: return "pow"
 
@@ -706,7 +706,7 @@ compile = (text, ast ->
         var $min = 1
         var $max = lines.size
         while $min < $max:
-            mid = ($min + $max) /. 2
+            mid = ($min + $max) // 2
             { lines[mid] < pos }: $min = mid + 1
             {                  }: $max = mid
         return $min, pos - $min

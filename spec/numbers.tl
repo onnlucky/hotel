@@ -15,8 +15,8 @@ test "large numbers":
 
 test "stay int dispite operations":
     big = 8543688244379927653322881
-    assert isInt(10 /. 2)
-    assert isBignum(big /. 2)
+    assert isInt(10 // 2)
+    assert isBignum(big // 2)
     assert isInt(2**31)
     assert isBignum(2**64)
 
