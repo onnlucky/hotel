@@ -104,26 +104,24 @@ _find = element (#, [Number from=0] #) ->
         $at += 1
     return
 
-#. List.filter(elements*): remove all elements given
-#. [block] if given a block, also remove all elements for which `block(e, at)` is true
-#. if called without arguments and without a block, it filters out all falsy values
-#. > [1,2,3,4].filter(3,1) == [2,4]
-#. > [1,2,3,4].filter(e -> e % 3 == 0) == [1,2,4]
+#. List.filter(predicate): return a list with only elements for which the predicate returns true
+#. [block] the predicate
+#. if called without arguments and without a block, all falsy values are removed
+#. > [1,2,3,4,5,6].filter(e -> e % 3 == 0) == [3,6]
 #. > ["hello",null].filter == ["hello"]
-_filter = ->
+_filter = predicate ->
+    block = args.block or predicate or asBool
+
     len = this.size
     if len == 0: return []
-    block = { args.block     }: args.block
-            { args.size == 0 }: asBoolInv
-            {                }: null
+
     arr = Array.new
-    _args = args
-    loop = at ->
+    var at = 0
+    loop:
+        at += 1
         if at > len: return arr.toList
         e = this[at]
-        if not _args.find(e) and (not block or not block(e, at)): arr.add(e)
-        goto(loop(at + 1))
-    loop(1)
+        if block(e): arr.add(e)
 
 #. List.reduce([fn]): reduce a list to a single value using a function
 #. [block] either using the passed in block or #fn

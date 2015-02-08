@@ -425,9 +425,9 @@ compile = (text, ast ->
             ).filter
             scope.close
             m = HashMap.new
-            methods = body.filter(stm -> not (stm?type == "assign" and stm.value?type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
+            methods = body.filter(stm -> stm?type == "assign" and stm.value?type == "function").map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
             m["class"] = null
-            constructor = body.filter(stm -> stm?type == "assign" and stm.value?type == "function")
+            constructor = body.filter(stm -> stm?type != "assign" or stm.value?type != "function")
             fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
             class = [name=name, call=null, methods=null]
             (#

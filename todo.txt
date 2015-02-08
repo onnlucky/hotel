@@ -1,7 +1,6 @@
 # TODO
 
 implement real operators, finally
-fix filter for minial confusion, it now works opposite of Haskell and friends
 
 think about "if x = findSomeX(): print x", instead of "x = findSomeX(); if x: print x"
 
