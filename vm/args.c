@@ -290,7 +290,7 @@ static tlHandle _args_slice(tlTask* task, tlArgs* args) {
     return tlListSub(list, offset, len);
 }
 
-static tlHandle _Args_from(tlTask* task, tlArgs* args) {
+static tlHandle _Args_call(tlTask* task, tlArgs* args) {
     return args;
 }
 
@@ -304,44 +304,40 @@ static size_t argsSize(tlHandle v) {
 }
 
 static void args_init() {
+    tlClass* cls = tlCLASS("Args", tlNATIVE(_Args_call, "Args"),
+    tlMETHODS(
+        "this", _args_this,
+        "msg", _args_msg,
+        "block", _args_block,
+        "names", _args_names,
+        "namesmap", _args_namesmap,
+        //"raw", _args_raw,
+
+        //"hash", _args_hash,
+        "size", _args_size,
+        "has", _args_has,
+        "get", _args_get,
+        "first", _args_first,
+        "last", _args_last,
+        "slice", _args_slice,
+        "each", null,
+        "map", null,
+        "find", null,
+        "reduce", null,
+        "filter", null,
+        "flatten", null,
+        "join", null,
+        null
+    ), null);
     tlKind _tlArgsKind = {
         .name = "Args",
         .toString = _ArgstoString,
         .size = argsSize,
+        .cls = cls,
     };
     INIT_KIND(tlArgsKind);
+    tl_register_global("Args", cls);
 
     _tl_emptyArgs = tlArgsNew(0);
-    tlArgsKind->klass = tlClassObjectFrom(
-            "this", _args_this,
-            "msg", _args_msg,
-            "block", _args_block,
-            "names", _args_names,
-            "namesmap", _args_namesmap,
-            //"raw", _args_raw,
-
-            //"hash", _args_hash,
-            "size", _args_size,
-            "has", _args_has,
-            "get", _args_get,
-            "first", _args_first,
-            "last", _args_last,
-            "slice", _args_slice,
-            "each", null,
-            "map", null,
-            "find", null,
-            "reduce", null,
-            "filter", null,
-            "flatten", null,
-            "join", null,
-            null
-    );
-    tlObject* constructor = tlClassObjectFrom(
-        "call", _Args_from,
-        "_methods", null,
-        null
-    );
-    tlObjectSet_(constructor, s__methods, tlArgsKind->klass);
-    tl_register_global("Args", constructor);
 }
 
