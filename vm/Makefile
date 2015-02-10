@@ -26,6 +26,7 @@ test: $(TESTS)
 	./hashmap_test
 	./idset_test
 	./weakmap_test
+	./pmap_test
 
 %_test: %_test.c ../libtl.a Makefile *.h
 	$(CC) $< ../libtl.a $(CFLAGS) $(LDFLAGS) -o $@
