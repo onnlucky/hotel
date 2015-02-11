@@ -4,7 +4,7 @@
 /h1: Overview
 
 Hotel is a dynamic programming languages, it borrows from functional languages
-and has concurrency build in. Language wise, it is inspired a lot by javascript
+and has concurrency built in. Language wise, it is inspired a lot by javascript
 and ruby and a little bit by erlang and ocaml.
 
 /h1: High Level
@@ -17,7 +17,7 @@ back: global effects. Hotel simply does not have them.
 Why is this important? Any kind of global effect cannot be isolated. You can
 use them inside of functions or objects, but that does not hide them (they are
 global after all). It might be convenient, but it is not an abstraction, and
-therefor it does not create a higher level. You still have to document the
+therefore it does not create a higher level. You still have to document the
 effect, and handle that function or object as special. Effectively you must
 create usage patterns around the global effects.
 
@@ -32,7 +32,7 @@ global effects:
 2. blocking a computation waiting for the outside world (io).
 The first is assumed to be available in abundance, and thus not a problem in
 the common case. The second is a tradeoff, not allowing blocking is also a
-global effect. But blocking makes io the same as a computational heavy
+global effect. But blocking makes io the same as a computationally heavy
 algorithm, you document that fact, and allow the programmer to choose its
 impact by making it easy to do the io (or heavy computation) in the background.
 
