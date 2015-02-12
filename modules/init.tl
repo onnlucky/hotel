@@ -54,11 +54,11 @@ _each = fn ->
     if not (block or fn): throw "each expects a block or fn"
 
     size = this.size
-    var $at = 0
-    while $at < size:
-        $at += 1
-        if block: block(this[$at], $at)
-        if not block: fn(this[$at])
+    var at = 0
+    while at < size:
+        at += 1
+        { block }: block(this[at], at)
+        {       }: fn(this[at])
 
 #. List.map([fn]): apply a function to all elements, return a list of the results
 #. [block] the block to call, it is passed in the element and position as `block(e, at)`
@@ -69,15 +69,15 @@ _map = fn ->
     if not (block or fn): throw "map expects a block or fn"
 
     size = this.size
-    if size == 0: return []
+    var at = 0
 
-    res = _List_unsafe(size)
-    loop = at ->
-        if at > size: return res
-        if block: _list_set_(res, at, block(this[at], at))
-        if not block: _list_set_(res, at, fn(this[at]))
-        goto(loop(at + 1))
-    loop(1)
+    res = Array.new
+    while at < size:
+        at += 1
+        e = { block }: block(this[at], at)
+            {       }: fn(this[at])
+        res.add(e)
+    return res.toList
 
 #. List.find(element): find #element, return its position or #null if not found
 #. [from] start searching from here instead
