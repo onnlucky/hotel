@@ -1,5 +1,1 @@
-var fuut
-test = -> assert isFunction fuut
-print {{ test }}
-fuut = -> print "OK"
-test()
+testcompiler.load("_disasm(); 10 + 12", _env_current()).run

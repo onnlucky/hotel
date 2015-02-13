@@ -237,6 +237,13 @@ static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
     return tlBinFromCopy(bytes, 4);
 }
 
+static tlHandle _int_add(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+
+    return tlINT(tl_int(tlArgsGet(args, 0)) + tl_int(tlArgsGet(args, 1)));
+}
+
 static tlHandle _isUndefined(tlTask* task, tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
 static tlHandle _isDefined(tlTask* task, tlArgs* args) { return tlBOOL(!tlUndefinedIs(tlArgsGet(args, 0))); }
 static tlHandle _isNull(tlTask* task, tlArgs* args) { return tlBOOL(tlNull == tlArgsGet(args, 0)); }
@@ -314,6 +321,7 @@ static void value_init() {
         "ceil", _int_self,
         "times", null,
         "to", null,
+        "+", _int_add,
         null
     );
     tlObject* intStatic= tlClassObjectFrom(

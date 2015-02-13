@@ -106,15 +106,17 @@ struct tlBClosure {
     tlEnv* env;
 };
 
-typedef struct CallEntry { bool safe; bool ccall; int at; tlArgs* call; } CallEntry;
+typedef struct CallEntry { bool safe; bool ccall; bool bcall; int at; tlArgs* call; } CallEntry;
 struct tlCodeFrame {
     tlFrame frame;    // TODO move resumecb into tlCodeFrameKind
     tlEnv* locals;    // locals->args
     tlHandle handler; // stack unwind handler
 
     // save/restore
-    bool lazy;
+    bool lazy;    // if this frame is evaluating a lazy invoke
+    int8_t bcall; // if this frame is evaluating part of a operator invoke
     int pc;
+    tlArgs* invoke; // current invoke, here for bcalls, TODO remove by optimizing
     CallEntry calls[];
 };
 
@@ -1006,6 +1008,22 @@ INTERNAL tlHandle afterYieldQuota(tlTask* task, tlFrame* frame, tlHandle res, tl
     return tlInvoke(task, tlArgsAs(res));
 }
 
+tlHandle tlInvokeBinop(tlTask* task, tlArgs* call, bool lhs) {
+    tlSym name = tlArgsFn(call);
+    assert(tlSymIs_(name));
+
+    tlHandle target = lhs? tlArgsGet(call, 0) : tlArgsGet(call, 1);
+    if (!target) target = tlNull;
+    tlHandle fn = null;
+
+    tlKind* kind = tl_kind(target);
+    if (kind->klass) fn = tlObjectGet(kind->klass, name);
+    if (!fn && kind->cls) fn = classResolve(kind->cls, name);
+    if (!fn) return tlUndef();
+
+    return tlInvoke(task, tlArgsFrom(call, fn, name, target));
+}
+
 tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     assert(!tlTaskHasError(task));
     if (!tlTaskTick(task)) {
@@ -1349,6 +1367,7 @@ again:;
         frame->calls[calltop].at = 0;
         frame->calls[calltop].call = call;
         frame->calls[calltop].safe = false;
+        frame->calls[calltop].bcall = false;
         frame->calls[calltop].ccall = op == OP_CCALL;
 
         // load names if it is a named call
@@ -1371,6 +1390,11 @@ again:;
         if (op & 0x08) {
             trace("safe method call");
             frame->calls[calltop].safe = true;
+        }
+        // bcall, mark as such
+        if (op == OP_BCALL) {
+            trace("binary call");
+            frame->calls[calltop].bcall = true;
         }
         goto again;
     }
@@ -1395,6 +1419,8 @@ again:;
             // pop the frame's local callstack
             frame->calls[calltop].at = 0;
             frame->calls[calltop].call = null;
+            assert(!frame->bcall);
+            frame->bcall = frame->calls[calltop].bcall;
             calltop--;
             if (calltop >= 0) {
                 call = frame->calls[calltop].call;
@@ -1419,7 +1445,21 @@ again:;
                 return null;
             }
 
-            v = tlInvoke(task, invoke);
+            if (frame->bcall) {
+                // for compat, only do this if ArgsFn is an actual operator string; TODO remove this
+                if (!tlSymIs_(tlArgsFn(invoke))) {
+                    frame->bcall = 0;
+                    v = tlInvoke(task, invoke);
+                } else {
+                    // we invoke binops twice, if lhs returns undefined, but have to be prepared to suspend
+                    // this is part one, below is part two
+                    v = tlInvokeBinop(task, invoke, true);
+                    frame->invoke = invoke;
+                    assert(frame->bcall == 1);
+                }
+            } else {
+                v = tlInvoke(task, invoke);
+            }
             if (!v) return null;
             trace("%p after: %d", frame, pc);
             assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
@@ -1620,6 +1660,33 @@ again:;
 
 resume:;
     assert(v);
+
+    // check if we are in a operator (binary call)
+    if (frame->bcall) {
+        trace("after bcall: %d", frame->bcall);
+        tlArgs* invoke = frame->invoke;
+        assert(invoke && tlSymIs_(tlArgsFn(invoke)));
+        if (frame->bcall == 1 && tlUndefinedIs(v)) {
+            // lhs.operator(lhs, rhs) returned undefined, we try again for rhs
+            frame->bcall = 2;
+            v = tlInvokeBinop(task, invoke, false);
+            if (!v) return null;
+        }
+        if (frame->bcall == 2 && tlUndefinedIs(v)) {
+            // both sides returned undefined, we throw
+            frame->bcall = 0;
+            TL_THROW("operator not defined for '%s %s %s'",
+                tl_str(tlArgsGet(invoke, 0)), tl_str(tlArgsFn(invoke)), tl_str(tlArgsGet(invoke, 1)));
+        }
+        if (frame->bcall) {
+            // either lhs, or rhs returned a result, reset the state and fall into normal processing
+            assert(!tlUndefinedIs(v));
+            frame->invoke = null;
+            frame->bcall = 0;
+        }
+    }
+    assert(!frame->bcall);
+
     if (!call) {
         if (frame->lazy) {
             tlTaskPopFrame(task, (tlFrame*)frame);

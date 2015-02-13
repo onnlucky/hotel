@@ -1,40 +1,40 @@
-// hotel bytecode
-//         8 |  7 |  6 |  5 |  4 |  3 |  2 |  1
-// bytes: 128| 64 | 32 | 16 |  8 |  4 |  2 |  1
-// TODO add -1.0 0.0 1.0 NaN -Inf +Inf ?
-// format: tl01 ref [literals]*ref -> only a list of literals if ref is not a direct literal itself, last literal is root
-// literal: number | string | list | map | set | binary | bytecode
+# hotel bytecode
+#         8 |  7 |  6 |  5 |  4 |  3 |  2 |  1
+# bytes: 128| 64 | 32 | 16 |  8 |  4 |  2 |  1
+# TODO add -1.0 0.0 1.0 NaN -Inf +Inf ?
+# format: tl01 ref [literals]*ref -> only a list of literals if ref is not a direct literal itself, last literal is root
+# literal: number | string | list | map | set | binary | bytecode
 
-// string: 000. .... byte*size       -> 5 bits size, utf8 encoded (1-32)
-// list:   001. .... [ref]*size      -> 5 bits size (1-32)
-// set:    010. .... [ref]*size      -> 5 bits size (1-32)
-// map:    011. .... [ref,ref]*size  -> 5 bits size (1-32)
-// raw:    100. .... byte*size       -> 5 bits size, raw bytes (1-32)
-// bcode:  101. .... byte*size       -> 5 bits size, bytecode (1-32)
+# string: 000. .... byte*size       -> 5 bits size, utf8 encoded (1-32)
+# list:   001. .... [ref]*size      -> 5 bits size (1-32)
+# set:    010. .... [ref]*size      -> 5 bits size (1-32)
+# map:    011. .... [ref,ref]*size  -> 5 bits size (1-32)
+# raw:    100. .... byte*size       -> 5 bits size, raw bytes (1-32)
+# bcode:  101. .... byte*size       -> 5 bits size, bytecode (1-32)
 
-// number  1100 0... bytes*size      -> 1-8 byte signed int
-// number  1100 1000 bytes*4         -> 4 byte float
-// number  1100 1001 bytes*8         -> 8 byte float
-// number  1100 1... bytes*size      -> (12,16,20,24,28,32,36,40) bytes bignum encoded number, not used?
+# number  1100 0... bytes*size      -> 1-8 byte signed int
+# number  1100 1000 bytes*4         -> 4 byte float
+# number  1100 1001 bytes*8         -> 8 byte float
+# number  1100 1... bytes*size      -> (12,16,20,24,28,32,36,40) bytes bignum encoded number, not used?
 
-// string  1110 0000 size byte*size  -> string, utf8 encoded
-// list    1110 0001 size [ref]*size
-// set     1110 0010 size [ref]*size
-// map     1110 0011 size [ref,ref]*size
-// raw     1110 0100 size byte*size  -> raw bytes
-// bcode   1110 0101 size byte*size  -> byte code
-// number  1110 0110 size byte*size  -> bignum encoded number
+# string  1110 0000 size byte*size  -> string, utf8 encoded
+# list    1110 0001 size [ref]*size
+# set     1110 0010 size [ref]*size
+# map     1110 0011 size [ref,ref]*size
+# raw     1110 0100 size byte*size  -> raw bytes
+# bcode   1110 0101 size byte*size  -> byte code
+# number  1110 0110 size byte*size  -> bignum encoded number
 
-// references, direct literals, lengths   0     1      2     3   4   5   6   7   8
-// 11.. .... -> 6 bits literals, indexed [null, false, true, "", [], {}, -2, -1, 0, 1, ...]
-// 11.. .... -> in bytecode, an instruction, replaces literals
-// 0... ....                               -> 7
-// 10.. .... 0... ....                     -> 13
-// 10.. .... 10.. .... 0... ....           -> 19
-// 10.. .... 10.. .... 10.. .... 0... .... -> 25
-// notice, there is madness in there: 111. .... is the mask for all CALL opcodes, and 1100 1011 is
-// INVOKE, when opcode reference module data, they can still reference the empty list using
-// 1100 0100 oeps ;) it will work, but maybe better have instructions to load those?
+# references, direct literals, lengths   0     1      2     3   4   5   6   7   8
+# 11.. .... -> 6 bits literals, indexed [null, false, true, "", [], {}, -2, -1, 0, 1, ...]
+# 11.. .... -> in bytecode, an instruction, replaces literals
+# 0... ....                               -> 7
+# 10.. .... 0... ....                     -> 13
+# 10.. .... 10.. .... 0... ....           -> 19
+# 10.. .... 10.. .... 10.. .... 0... .... -> 25
+# notice, there is madness in there: 111. .... is the mask for all CALL opcodes, and 1100 1011 is
+# INVOKE, when opcode reference module data, they can still reference the empty list using
+# 1100 0100 oeps ;) it will work, but maybe better have instructions to load those?
 
 encodeLiteral = v ->
     { v == null  }: return 0b1100_0000 | 0
@@ -80,8 +80,8 @@ encodeNumber = num ->
 
 encodeString = s ->
     assert isString s
-    if s.size < 32: return Bin(0b0000_0000 | s.size, s)
-    return Bin(0b1110_0000, encodeInt(s.size), s)
+    if s.bytes < 32: return Bin(0b0000_0000 | s.bytes, s)
+    return Bin(0b1110_0000, encodeInt(s.bytes), s)
 
 encodeList = l ->
     if l.size < 32:
@@ -103,30 +103,26 @@ encodeMap = m ->
     m.each: e -> buf.write(e)
     return buf.read
 
-writeCode = mod, c ->
+writeCode = mod, c, scope ->
     buf = Buffer.new
-
-    buf.write(mod.data(c.name))
-    buf.write(mod.data(c.argspecs))
-    buf.write(mod.data(c.locals))
-    buf.write(mod.data(c.debuginfo))
-
     var $pc = 0
+    calls = Array.new
     loop:
         op = c.code[($pc += 1)]
-        { op == "end"    }: // end
+        { op == "end"    }: # end
             buf.write(0)
             break
-        { op == "system" }: // system call, references a string
+        { op == "system" }: # system call, references a string
             buf.write(0b1100_0000 + 5)
             buf.write(mod.data(c.code[($pc += 1)]))
-        { op == "data"   }: // a reference module data
+        { op == "data"   }: # a reference module data
             buf.write(0b1100_0000 + 6)
             buf.write(mod.data(c.code[($pc += 1)], true))
-        { op == "global" }: // a reference to the linked list (a string)
+        { op == "global" }: # a reference to the linked list (a string)
+            calls.add(c.code[($pc += 1)])
             buf.write(0b1100_0000 + 7)
             buf.write(mod.global(c.code[($pc += 1)]))
-        { op == "bind"   }: // bind a body into a closure, references bytecode stored in module data
+        { op == "bind"   }: # bind a body into a closure, references bytecode stored in module data
             buf.write(0b1100_0000 + 16)
             buf.write(mod.code(c.code[($pc += 1)]))
         { op == "true"   }: buf.write(0b1100_0000 + 0)
@@ -155,25 +151,38 @@ writeCode = mod, c ->
         { op == "evstore" }: buf.write(0b1100_0000 + 25); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "evrstore"}: buf.write(0b1100_0000 + 26); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
 
-        { op == "mcall"  }: buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "mcalls" }: buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "fcall"  }: buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "bcall"  }: buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "ccall"  }: buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "mcalln" }: buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
-        { op == "mcallns"}: buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
-        { op == "fcalln" }: buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
-        { op == "bcalln" }: buf.write(0b1111_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "mcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "mcalls" }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "fcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "bcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "ccall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "mcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "mcallns"}: calls.add(c.code[($pc += 1)]); buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "fcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
+        { op == "bcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
 
         {                }: throw "unknown op: $op $(repr(op))"
 
-    if buf.size < 32: return Bin(0b1010_0000 | buf.size, buf.read)
-    return Bin(0b1110_0101, encodeInt(buf.size), buf)
+    head = Buffer.new
+    head.write(mod.data(c.name))
+    head.write(mod.data(c.argspecs)) # TODO split up in 3 lists argnames, argdefaults, arglazy, null should be fine for any
+    head.write(mod.data(c.locals))
+    { scope }:
+        head.write(mod.data(scope?localvars)) # mutable or not, null is fine if no mutables
+    {       }:
+        head.write(mod.data(null))
+    debuginfo = Object.set(c.debuginfo or {}, {pos=calls.toList})
+    head.write(mod.data(debuginfo))
+
+    if head.size + buf.size < 32: return Bin(0b1010_0000 | (head.size + buf.size), head, buf)
+    return Bin(0b1110_0101, encodeInt(head.size + buf.size), head, buf)
 
 opname = op ->
     { op == "or"  }: op
     { op == "and" }: op
+    { op == "xor" }: op
     { op == "not" }: op
+    { op == "isa" }: op
 
     { op == "==" }: return "eq"
     { op == "!=" }: return "neq"
@@ -183,18 +192,22 @@ opname = op ->
     { op == "<" }: return "lt"
     { op == "<=" }: return "lte"
 
-    { op == "|" }: return "bor"
+    { op == "~" }: return "bnot"
     { op == "&" }: return "band"
+    { op == "|" }: return "bor"
+    { op == "^" }: return "bxor"
     { op == "<<" }: return "lsh"
     { op == ">>" }: return "rsh"
+    { op == ">>>" }: return "rrsh"
 
     { op == "+" }: return "add"
     { op == "-" }: return "sub"
     { op == "*" }: return "mul"
     { op == "/" }: return "div"
-    { op == "/."}: return "idiv"
+    { op == "//"}: return "idiv"
+    { op == "/."}: return "fdiv"
     { op == "%" }: return "mod"
-    { op == "^" }: return "pow"
+    { op == "**" }: return "pow"
 
 compile = (text, ast ->
     globals = HashMap.new
@@ -207,11 +220,17 @@ compile = (text, ast ->
         names = HashMap.new
         locals = Array.new
         args = Array.new
-        // TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
+        # TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
         addOpen = function, name, pos ->
-            type = "local"
             _, fn = functions.add({name=name or "",open=function,scope=this})
             if name:
+                # check name, and if var, assign that
+                ref = this.ref(name, peek=true)
+                type = ids[ref?id]
+                if type?type == "var" or type?stype == "var": return fn
+
+                # otherwise create the name now
+                type = "local"
                 _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.locals.add(name)
                 this.names[name] = {arg=false,{at,id,fn,type}}
@@ -229,6 +248,8 @@ compile = (text, ast ->
             this.names.each(name, ref ->
                 if functions[ref?fn]?open: closefn(ref.fn)
             )
+        localvars = ->
+            this.locals.map(name -> this.names[name]?type == "var")
         addarg = name, pos ->
             _, id = ids.add({{name},at=Array.new([pos])})
             _, at = this.args.add(name)
@@ -248,7 +269,7 @@ compile = (text, ast ->
             if this.block: return parent.gcontinue(level + 1, ls.add(level))
             if this.parent: return parent.gcontinue(level + 1, ls)
             {type="continue",scope=ls}
-        ref = name, level ->
+        ref = name, level, pos ->
             if name == "return": return this.greturn(0)
             if name == "goto": return this.ggoto(0)
             if name == "break": return this.gbreak(0, [])
@@ -269,10 +290,10 @@ compile = (text, ast ->
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
             if parent:
-                if not level: return parent.ref(name, 1)
-                return parent.ref(name, level + 1)
+                if not level: return parent.ref(name, 1, pos)
+                return parent.ref(name, level + 1, pos)
             globals[name] = true
-            return {type="global",{name}}
+            return {type="global",{name,pos}}
     }
 
     ClassScope = { parent ->
@@ -282,19 +303,19 @@ compile = (text, ast ->
         locals = Array.new
         args = Array.new
         methods = Array.new
-        open = Var.new(true) // methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
+        open = Var.new(true) # methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
         addOpen = function, name, pos ->
             type = "local"
             _, method = functions.add({name=name or "",open=function,scope=this})
             if name:
-                // TODO perhaps change type="function" to type="method"
+                # TODO perhaps change type="function" to type="method"
                 _, id = ids.add({{name,type},at=Array.new([pos])})
                 _, at = this.methods.add(name)
                 this.names[name] = {arg=false,{at,id,method,type}}
             return method
         add = name, pos, type ->
             type = type or "local"
-            if this.methods[-1] == name: // TODO not entirely correct ...
+            if this.methods[-1] == name: # TODO not entirely correct ...
                 ref = this.names[name]
                 return ref.at, ref.id
             _, id = ids.add({{name,type},at=Array.new([pos])})
@@ -310,16 +331,16 @@ compile = (text, ast ->
             this.open.set(false)
             this.names.each(name, ref ->
                 if functions[ref?fn]?open: closefn(ref.fn)
-                //if functions[ref?method]?open: closefn(ref.method)
+                #if functions[ref?method]?open: closefn(ref.method)
             )
-        ref = name, level ->
+        ref = name, level, pos ->
             ref = this.names[name]
             if not this.open.get:
                 assert level
                 assert name != "this"
                 assert name != "args"
                 if ref: return {type="field",name=name,up=level,at=ref.at,id=ref.id,stype=ref?type}
-                return parent.ref(name, level)
+                return parent.ref(name, level, pos)
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
@@ -330,11 +351,11 @@ compile = (text, ast ->
                 if not level: return {type="args"}
                 return {type="envargs",up=level}
             if name == "this":
-                assert false // TODO what to do here? should reference our (incomplete!) local here
+                assert false # TODO what to do here? should reference our (incomplete!) local here
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
-            if not level: return parent.ref(name, 1)
-            parent.ref(name, level + 1)
+            if not level: return parent.ref(name, 1, pos)
+            parent.ref(name, level + 1, pos)
     }
 
     closefn = n ->
@@ -348,25 +369,29 @@ compile = (text, ast ->
         if arg.d: return [arg.name, arg.d]
         [arg.name]
 
-    lextop = scope, term ->
+    lextop = scope, term, linkframe ->
+        scope = Scope(scope, term.type != "function")
+        if isFrame(linkframe):
+            var $at = 0
+            loop:
+                _, name, type, pos = linkframe.get(($at += 1))
+                if not name: break
+                scope.add(name, pos, type=type)
         { term.type == "function" }:
-            scope = Scope(scope)
             args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
-            {type="function",{args,body},locals=scope.locals.toList,pos=term.pos}
+            {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "block" }:
-            scope = Scope(scope, true)
             args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
-            {type="block",{args,body},locals=scope.locals.toList,pos=term.pos}
+            {type="block",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
         { term.type == "scope" }:
-            scope = Scope(scope, true)
             args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
             body = term.body.map(stm -> lex(scope, stm))
             scope.close
-            {type="scope",{args,body},locals=scope.locals.toList,pos=term.pos}
+            {type="scope",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
 
     lex = scope, term, name, pos ->
         { term == null              }: "null"
@@ -400,12 +425,12 @@ compile = (text, ast ->
             ).filter
             scope.close
             m = HashMap.new
-            methods = body.filter(stm -> not (stm?type == "assign" and stm.value?type == "function")).map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
+            methods = body.filter(stm -> stm?type == "assign" and stm.value?type == "function").map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
             m["class"] = null
-            constructor = body.filter(stm -> stm?type == "assign" and stm.value?type == "function")
+            constructor = body.filter(stm -> stm?type != "assign" or stm.value?type != "function")
             fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
             class = [name=name, call=null, methods=null]
-            /*
+            (#
             print "---- class: $class ----"
             print "constructor", repr(constructor)
             print "fields", repr(fields)
@@ -413,8 +438,8 @@ compile = (text, ast ->
             print "class", repr(class), "extends", $extend
             print "---- class: $class ----"
             print repr(functions[1])
-            */
-            constructor = {type="function",{args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
+            #)
+            constructor = {type="function",{scope,args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
             _, fn = functions.add({name="",open=false,function=constructor})
             c = { $extend }: {type="object", fill=[["call", {type="function",function=fn}],["class",lex(scope.parent,$extend)]], map=(class["class"]=null)}
                 {         }: {type="object", fill=[["call", {type="function",function=fn}]], map=class}
@@ -430,26 +455,26 @@ compile = (text, ast ->
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
+                value = lex(scope, term?value)
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
-                value = lex(scope, term.value)
                 {type="vset",target=scope.ref(term.to.name),{value}}
             { term.to.type == "var"    }:
+                value = lex(scope, term.value)
                 ref = scope.ref(term.to.name)
                 assert ids[ref.id].type == "var"
-                value = lex(scope, term.value)
                 {type="vset",target=ref,{value}}
         { term.type == "multiassign" }:
-            // TODO perhaps function defined this way must stay open?
-            // TODO fixup for new var stuff
+            # TODO perhaps function defined this way must stay open?
+            # TODO fixup for new var stuff
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
                 { to.type == "local" }: scope.add(to.name, to.pos)
-                {                    }: scope.add("", to.pos) // anonymous locals for Var.new and var.set
+                {                    }: scope.add("", to.pos) # anonymous locals for Var.new and var.set
                                         assert false
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
-                { to.type == "local" }: null // nothing to do
+                { to.type == "local" }: null # nothing to do
                 { to.type == "newvar" }:
                     at, id = scope.add(to.name, to.pos)
                     value = {type="method",target={type="global",name="Var"},method="new",args=[{type="local",at=l.at,id=l.id}]}
@@ -474,29 +499,35 @@ compile = (text, ast ->
                 t = {type="global",name=target.type}
                 s = lex(scope, {type="list",data=target.scope})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
-            {type="call",{target,args,names,block}}
+            {type="call",{target,args,names,block},pos=term?pos}
         { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
             names = (term?args or []).map: stm -> stm?n
             args = (term?args or []).map: stm -> lex(scope, stm.v)
             block = { term?block }: lex(scope, term.block)
                     {            }: null
-            {type=term.type,method=term.method,{target,args,names,block}}
+            {type=term.type,method=term.method,{target,args,names,block},pos=term?pos}
         { term.type == "async" }:
             body = { term?body }: term.body
                    {           }: [term.rhs]
-            function = lextop(scope, {type="scope",{body},pos=term.pos})
+            function = lextop(scope, {type="scope",{body},pos=term?pos})
             _, fn = functions.add({name="",open=false,function=function})
             {type="async",body={type="function",function=fn}}
         { term.type == "not" }:
             rhs = lex(scope, term.rhs)
-            {type="not",{rhs}}
+            {type="not", {rhs}, pos=term?pos}
+        { term.type == "~" }:
+            rhs = lex(scope, term.rhs)
+            {type="~", {rhs}, pos=term?pos}
+        { term.type == "-" }:
+            rhs = lex(scope, term.rhs)
+            {type="-", {rhs}, pos=term?pos}
         { term.type == "op"  }:
             lhs = lex(scope, term.lhs)
             rhs = lex(scope, term.rhs)
-            {type="op",op=term.op,{lhs,rhs}}
+            {type="op", op=term.op, {lhs, rhs}, pos=term.pos}
         { term.type == "ref" }:
-            return scope.ref(term.name)
+            return scope.ref(term.name, pos=term?pos)
         { term.type == "varref" }:
             return scope.ref(term.name)
         { term.type == "setfieldop" }:
@@ -508,7 +539,7 @@ compile = (text, ast ->
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
             if ref.type == "global" or ref?stype != "var":
-                // hehe, a first type error ... hmm
+                # hehe, a first type error ... hmm
                 line, char = lineFromPos(term.pos)
                 throw "'$(term.to)' on line $line is not a mutable"
             rhs = lex(scope, term.value)
@@ -529,7 +560,7 @@ compile = (text, ast ->
                         map[term.name] = null
                         fill.add([term.name, lex(scope, term)])
                     )
-            //if fill.size == 0: return {type="data", data=map.toObject}, true
+            #if fill.size == 0: return {type="data", data=map.toObject}, true
             {type=term.type, {fill}, map=map.toMap}
         { term.type == "guards" }:
             gs = term.guards.map(guard ->
@@ -569,17 +600,17 @@ compile = (text, ast ->
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "field" }:
-            ["mcall", 0, "this", "data", term.name, "invoke"]
+            ["mcall", term?pos, 0, "this", "data", term.name, "invoke"]
         { term.type == "call" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["fcalln", args.size, {ns=names}] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=names}] + target + args + ["invoke"]
             if try(term.names.filter.size > 0):
-                return ["fcalln", args.size, {ns=term.names}] + target + args + ["invoke"]
-            ["fcall", args.size] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=term.names}] + target + args + ["invoke"]
+            ["fcall", term?pos, args.size] + target + args + ["invoke"]
         { term.type == "method" or term.type == "safemethod" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
@@ -587,23 +618,29 @@ compile = (text, ast ->
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["mcalln$s", args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
             if try(term.names.filter.size > 0):
-                return ["mcalln$s", args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
-            ["mcall$s", args.size] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
+            ["mcall$s", term?pos, args.size] + target + ["data", term.method] + args + ["invoke"]
         { term.type == "async" }:
             body = emit(term.body)
-            ["fcall", 1, "global", "_Task_new", body, "invoke"]
+            ["fcall", term?pos, 1, "global", 0, "_Task_new", body, "invoke"]
         { term.type == "not" }:
             rhs = emit(term.rhs)
-            ["fcall", 1, "global", "not", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", 0, "not", rhs, "invoke"]
+        { term.type == "~" }:
+            rhs = emit(term.rhs)
+            ["fcall", term?pos, 1, "global", 0, "bnot", rhs, "invoke"]
+        { term.type == "-" }:
+            rhs = emit(term.rhs)
+            ["fcall", term?pos, 1, "global", 0, "neg", rhs, "invoke"]
         { term.type == "op"  }:
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
-            ["bcall", 2, "global", opname(term.op), lhs, rhs, "invoke"]
+            ["bcall", term?pos, 2, "data", term.op, lhs, rhs, "invoke"]
         { term.type == "guards" }:
             term.guards.map(term ->
-                [emit(term.cond), "ccall", 0, emit(term.block), "invoke"]
+                [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke"]
             ).flatten + ["cerr"]
         { term.type == "local"  }:
             { term?var }: ["vget", term.at - 1]
@@ -613,22 +650,22 @@ compile = (text, ast ->
             { term?var }: ["evget", term.up - 1, term.at - 1]
             {          }: ["env", term.up - 1, term.at - 1]
         { term.type == "envarg" }: ["envarg", term.up - 1, term.at - 1]
-        { term.type == "global" }: ["global", term.name]
+        { term.type == "global" }: ["global", term?pos, term.name]
         { term.type == "args"   }: ["args"]
         { term.type == "envargs"}: ["envargs", term.up - 1]
         { term.type == "this"   }: ["this"]
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
-            ["fcall", elements.size, "global", "__list"] + elements + ["invoke"]
+            ["fcall", term?pos, elements.size, "global", 0, "__list"] + elements + ["invoke"]
         { term.type == "object" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", 1 + fill.size * 2, "global", "__object", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__object", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "map" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", 1 + fill.size * 2, "global", "__map", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__map", "data", term.map.toObject] + fill + ["invoke"]
         { term.type == "class" }:
-            ["fcall", 2, "global", "_bless", emit(term.methods), emit(term.class), "invoke"]
+            ["fcall", term?pos, 2, "global", 0, "_bless", emit(term.methods), emit(term.class), "invoke"]
         { }:
             print "ERROR"
             print repr(term)
@@ -636,23 +673,23 @@ compile = (text, ast ->
 
     emittop = fn, name ->
         code = fn.body.map(term -> emit(term)).flatten
-        {{code},name=(fn?name or name or ""),locals=fn.locals,args=fn.args,pos=fn.pos}
+        {{code},name=(fn?name or name or ""),locals=fn.locals,args=fn.args,pos=fn.pos,scope=fn?scope}
 
-    parseemit = text, ast ->
+    parseemit = text, ast, linkframe ->
         ast = { ast }: ast
               {     }: parse(text)
-        ast = lextop(Scope(null), ast)
-        // TODO wait until stable? as closing functions might produce new functions ...
+        ast = lextop(Scope(null), ast, linkframe)
+        # TODO wait until stable? as closing functions might produce new functions ...
         functions.each: fn, n -> if fn.open: closefn(n)
         functions.each: fn, n -> if fn.open: closefn(n)
         functions.each: fn, n -> if fn.open: closefn(n)
-        //functions.each: fn, n -> print "fn $n:", repr(fn)
-        //print "fn 0:", repr(ast)
+        #functions.each: fn, n -> print "fn $n:", repr(fn)
+        #print "fn 0:", repr(ast)
         functions.each: fn, n -> functions[n] = emittop(fn.function, fn.name)
         main = emittop(ast, "<main>")
         return main, functions
 
-    // cache the position to line information for a little bit
+    # cache the position to line information for a little bit
     lines = (
         var $at = 0
         lines = Array.new
@@ -662,14 +699,14 @@ compile = (text, ast ->
                 lines.add(text.size)
                 break
             if $at: lines.add($at)
-        lines
+        lines.toList
     )
 
     lineFromPos = pos ->
         var $min = 1
         var $max = lines.size
         while $min < $max:
-            mid = ($min + $max) /. 2
+            mid = ($min + $max) // 2
             { lines[mid] < pos }: $min = mid + 1
             {                  }: $max = mid
         return $min, pos - $min
@@ -694,7 +731,7 @@ compile = (text, ast ->
                   { isNumber(v) }: encodeNumber(v)
                   {             }: Error("don't know how to encode: $(repr(v))").throw
             _, at = this.datas.add(bin)
-            //print "data", at, repr(v)
+            #print "data", at, repr(v)
             this.dataIndex[v] = encodeInt(at - 1)
         global = v ->
             assert isString(v)
@@ -703,23 +740,23 @@ compile = (text, ast ->
             ref = this.data(v)
             _, at = this.globals.add(ref)
             this.globalsIndex[v] = encodeInt(at - 1)
-        function = name, code, locals, argspecs, debuginfo ->
+        function = name, code, locals, argspecs, debuginfo, scope ->
             code = code.add("end")
-            //print "code:", name, debuginfo.line, repr(code)[:20]
-            bin = writeCode(this, {{name, locals, argspecs, code, debuginfo}})
+            #print "code:", name, debuginfo.line, repr(code)[:20]
+            bin = writeCode(this, {{name, locals, argspecs, code, debuginfo}}, scope)
             _, at = this.datas.add(bin)
-            //print "function", at, name
+            #print "function", at, name
             this.functions[name] = encodeInt(at - 1)
         code = v ->
             fn = functions[v]
-            return this.function(fn.name, fn.code, fn.locals, fn.args, {line=lineFromPos(fn.pos),text="",offset=0,pos=[]})
+            return this.function(fn.name, fn.code, fn.locals, fn.args, {line=lineFromPos(fn.pos),text="",offset=0,pos=[]}, fn?scope)
         create = ->
             buf = Buffer.new
             buf.write("tl01")
             buf.write(encodeInt(this.datas.size + 1))
             this.datas[:-2].each: v -> buf.write(v)
-            buf.write(encodeList(this.globals))
-            buf.write(this.datas[-1])
+            buf.write(encodeList(this.globals)) # then globals
+            buf.write(this.datas[-1]) # then main
             return buf
     }
 
@@ -731,10 +768,10 @@ compile = (text, ast ->
         pos = main?pos or []
 
         builder = builder_new(functions)
-        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[]})
+        builder.function(name, main.code, locals, argspec, {line=lineFromPos(main.pos),text=text,offset=0,pos=[],lines=lines}, main?scope)
         builder.create
 
-    main, functions2 = parseemit(text, ast)
+    main, functions2 = parseemit(text, ast, args["link"])
     buf = compilemain(main, functions2)
     if args["buffer"]: return buf
     return buf.read
@@ -750,7 +787,7 @@ print_pos = debugger, stream ->
 
 SimpleDebugger = debugger, stream ->
     loop:
-        //catch: e -> print "oeps", e.toString
+        #catch: e -> print "oeps", e.toString
         stream.write("INPUT>\n")
         at = stream.find("\n")
         cmd = stream.readString(at).trim
@@ -771,13 +808,15 @@ SimpleDebugger = debugger, stream ->
 Module = m -> {
         links = -> _module_links(m)
         link = ls -> Module(_module_link(m, ls))
-        run = as, am, task ->
-            _module_run(m, task, as, am)
-        debug = stream, as, am ->
+        frame = as ->
+            _module_frame(m, as, args["link"])
+        run = as, task, frame ->
+            _module_run(m, as, task, frame)
+        debug = stream, as, frame ->
             debugger = Debugger.new
             task = Task.new
             debugger.attach(task)
-            _module_run(m, task, as, am)
+            _module_run(m, as, task, frame)
             return SimpleDebugger(debugger, stream)
     }
 
@@ -794,9 +833,9 @@ load = bytes ->
     bytes = { isBin(bytes)    }: Buffer.new(bytes)
             { isBuffer(bytes) }: bytes
             {                 }: ast = parse(bytes)
-                                 //print "parse", args["name"], (time() - start)
-                                 buf = compile(bytes, ast, buffer=true)
-                                 //print "compiled", args["name"], (time() - start)
+                                 #print "parse", args["name"], (time() - start)
+                                 buf = compile(bytes, ast, buffer=true, link=args["link"])
+                                 #print "compiled", args["name"], (time() - start)
                                  buf
     m = _Module_new(bytes, args["name"] or "")
 
@@ -805,7 +844,7 @@ load = bytes ->
                            _module_link(m, links)
         {               }: m
 
-    //print "loaded", args["name"], "took", (time() - start).round, "seconds"
+    #print "loaded", args["name"], "took", (time() - start).round, "seconds"
     Module(m)
 
 _parse = text -> parse(text)
