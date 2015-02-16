@@ -29,7 +29,8 @@ tlKind* tlAudioKind = &_tlAudioKind;
 static tlBuffer* nextbuffer(tlAudio* audio) {
     while (true) {
         if (audio->current) {
-            tlBuffer* buf = tlBufferAs(tlArgsGet(tlArgsAs(tlTaskGetValue(audio->current)), 0));
+            tlBuffer* buf = tlBufferAs(tlTaskGetValue(audio->current));
+            assert(buf);
             if (tlBufferSize(buf) > 0) return buf;
 
             tlTaskSetValue(audio->current, buf);
@@ -122,6 +123,7 @@ static tlHandle _audio_write(tlTask* task, tlArgs* args) {
     if (!buf) TL_THROW("require a buffer");
 
     tlTaskWaitExternal(task);
+    tlTaskSetValue(task, buf);
     lqueue_put(&audio->wait_q, tlTaskGetEntry(task));
 
     if (!Pa_IsStreamActive(audio->stream)) {
@@ -141,12 +143,20 @@ tlHandle tl_load() {
     }
     tlObject* AudioStatic = tlClassObjectFrom(
         "open", _Audio_open,
-        "byte8", null,
-        "byte16", null,
+        "uint8", null,
+        "int8", null,
+        "int16", null,
+        "int24", null,
+        "int32", null,
+        "float32", null,
         null
     );
-    tlObjectSet_(AudioStatic, tlSYM("byte8"), tlINT(paUInt8));
-    tlObjectSet_(AudioStatic, tlSYM("byte16"), tlINT(paInt16));
+    tlObjectSet_(AudioStatic, tlSYM("uint8"), tlINT(paUInt8));
+    tlObjectSet_(AudioStatic, tlSYM("int8"), tlINT(paUInt8));
+    tlObjectSet_(AudioStatic, tlSYM("int16"), tlINT(paInt16));
+    tlObjectSet_(AudioStatic, tlSYM("int24"), tlINT(paInt24));
+    tlObjectSet_(AudioStatic, tlSYM("int32"), tlINT(paInt32));
+    tlObjectSet_(AudioStatic, tlSYM("float32"), tlINT(paFloat32));
     return AudioStatic;
 }
 
