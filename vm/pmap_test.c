@@ -3,6 +3,13 @@
 #include "platform.h"
 #include "tl.h"
 
+static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
+static inline bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) & flag; }
+static inline void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
+static inline void tlflag_set(tlHandle v, unsigned flag) { assert(flag <= 0x7); set_kptr(v, get_kptr(v) | flag); }
+
+enum { kTransient = 1 };
+
 typedef struct Entry {
     tlHandle key;
     tlHandle value;
@@ -11,11 +18,12 @@ typedef struct Entry {
 TL_REF_TYPE(BitmapEntries);
 TL_REF_TYPE(SamehashEntries);
 TL_REF_TYPE(tlPersistentMap);
+TL_REF_TYPE(tlTransientMap);
 
 struct BitmapEntries {
     tlHead head;
-    uint32_t bitmap; // size == popcount(bitmap)
-    Entry data[];
+    uint32_t bitmap; // size == popcount(bitmap) + 1 if tlflag_isset(kTransient)
+    Entry data[];    // data[size] = tlTransientMap if tlflag_isset(kTransient)
 };
 
 struct SamehashEntries {
@@ -31,41 +39,89 @@ struct tlPersistentMap {
     BitmapEntries* sub;
 };
 
-SamehashEntries* SamehashEntriesNew2(tlHandle key, tlHandle value, tlHandle key2, tlHandle value2) {
+struct tlTransientMap {
+    tlHead head;
+    int size;
+    BitmapEntries* sub;
+};
+
+// update context, passed on to most methods for transients and to account for size changes
+typedef struct Context {
+    int delta; // -1 deleted, 0 updated, 1 added
+    tlTransientMap* transient;
+} Context;
+
+static int transientSizeof(Context* cx) { return cx->transient? sizeof(tlHandle) : 0; }
+static int BitmapSize(BitmapEntries* s) { return __builtin_popcount(s->bitmap); }
+
+static bool isBitmapTransient(Context* cx, BitmapEntries* s) {
+    return false;
+    return tlflag_isset(s, kTransient) && s->data[BitmapSize(s)].key == cx->transient;
+}
+static bool isSamehashTransient(Context* cx, SamehashEntries* s) {
+    return false;
+    return tlflag_isset(s, kTransient) && s->data[s->size].key == cx->transient;
+}
+static void ensureBitmapTransient(Context* cx, BitmapEntries* s) {
+    if (cx->transient) {
+        tlflag_set(s, kTransient);
+        s->data[BitmapSize(s)].key = cx->transient;
+    }
+}
+static void ensureSamehashTransient(Context* cx, SamehashEntries* s) {
+    if (cx->transient) {
+        tlflag_set(s, kTransient);
+        s->data[s->size].key = cx->transient;
+    }
+}
+
+
+SamehashEntries* SamehashEntriesNew2(Context* cx, tlHandle key, tlHandle value, tlHandle key2, tlHandle value2) {
     assert(!tlHandleEquals(key, key2));
-    SamehashEntries* sub = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * 2);
+    SamehashEntries* sub = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * 2 + transientSizeof(cx));
     sub->size = 2;
+    cx->delta += 1;
+    ensureSamehashTransient(cx, sub);
     sub->data[0] = (Entry){key, value};
     sub->data[1] = (Entry){key2, value2};
     return sub;
 }
 
-SamehashEntries* SamehashEntriesAdd(SamehashEntries* sub, tlHandle key, tlHandle value) {
+SamehashEntries* SamehashEntriesAdd(Context* cx, SamehashEntries* sub, tlHandle key, tlHandle value) {
     for (int i = 0; i < sub->size; i++) {
         if (tlHandleEquals(key, sub->data[i].key)) {
-            SamehashEntries* sub2 = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * (sub->size));
+            if (isSamehashTransient(cx, sub)) {
+                sub->data[1] = (Entry){key, value};
+                return sub;
+            }
+            SamehashEntries* sub2 = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * (sub->size) + transientSizeof(cx));
             sub2->size = sub->size;
+            ensureSamehashTransient(cx, sub2);
             for (int i = 0; i < sub->size; i++) sub2->data[i] = sub->data[i];
             sub2->data[i] = (Entry){key, value};
             return sub2;
         }
     }
 
-    SamehashEntries* sub2 = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * (sub->size + 1));
+    SamehashEntries* sub2 = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * (sub->size + 1) + transientSizeof(cx));
     sub2->size = sub->size + 1;
+    ensureSamehashTransient(cx, sub2);
+    cx->delta += 1;
     for (int i = 0; i < sub->size; i++) sub2->data[i] = sub->data[i];
     sub2->data[sub->size] = (Entry){key, value};
     return sub2;
 }
 
-Entry SamehashEntriesDel(SamehashEntries* sub, tlHandle key) {
+Entry SamehashEntriesDel(Context* cx, SamehashEntries* sub, tlHandle key) {
     assert(sub->size >= 2);
 
     if (sub->size == 2) {
         // if we find the key, we can demote the SamehashEntries back to a normal entry
         if (tlHandleEquals(key, sub->data[0].key)) {
+            cx->delta -= 1;
             return sub->data[1];
         } else if (tlHandleEquals(key, sub->data[1].key)) {
+            cx->delta -= 1;
             return sub->data[0];
         }
 
@@ -75,9 +131,12 @@ Entry SamehashEntriesDel(SamehashEntries* sub, tlHandle key) {
 
     for (int i = 0; i < sub->size; i++) {
         if (tlHandleEquals(key, sub->data[i].key)) {
+            // notice even if isSamehashTransient(cx, sub), we are not mutating it for deletions
             // remove one and return a SamehashEntries
-            SamehashEntries* sub2 = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * (sub->size - 1));
+            SamehashEntries* sub2 = tlAlloc(SamehashEntriesKind, sizeof(SamehashEntries) + sizeof(Entry) * (sub->size - 1) + transientSizeof(cx));
             sub2->size = sub->size - 1;
+            ensureSamehashTransient(cx, sub2);
+            cx->delta -= 1;
             int j = 0;
             for (; j < i; j++) sub2->data[j] = sub->data[j];
             j++;
@@ -97,16 +156,17 @@ tlHandle SamehashEntriesGet(SamehashEntries* sub, tlHandle key) {
     return null;
 }
 
-BitmapEntries* BitmapEntriesNew(int size) {
-    BitmapEntries* sub = tlAlloc(BitmapEntriesKind, sizeof(BitmapEntries) + sizeof(Entry) * size);
+BitmapEntries* BitmapEntriesNew(Context* cx, int size) {
+    BitmapEntries* sub = tlAlloc(BitmapEntriesKind, sizeof(BitmapEntries) + sizeof(Entry) * size + transientSizeof(cx));
     return sub;
 }
 
-BitmapEntries* BitmapEntriesNewReplace(BitmapEntries* sub, int size, int pos, tlHandle key, tlHandle value) {
+BitmapEntries* BitmapEntriesNewReplace(Context* cx, BitmapEntries* sub, int size, int pos, tlHandle key, tlHandle value) {
     assert(size == __builtin_popcount(sub->bitmap));
     assert(pos < size);
-    BitmapEntries* sub2 = BitmapEntriesNew(size);
+    BitmapEntries* sub2 = BitmapEntriesNew(cx, size);
     sub2->bitmap = sub->bitmap;
+    ensureBitmapTransient(cx, sub);
     for (int i = 0; i < size; i++) {
         sub2->data[i] = sub->data[i];
     }
@@ -123,13 +183,13 @@ static int posForBitmap(uint32_t bitmap, int bit) {
     return __builtin_popcount(bitmap & (bit - 1));
 }
 
-tlHandle BitmapEntriesNew2(int level, uint32_t hash, tlHandle key, tlHandle value, uint32_t hash2, tlHandle key2, tlHandle value2) {
+tlHandle BitmapEntriesNew2(Context* cx, int level, uint32_t hash, tlHandle key, tlHandle value, uint32_t hash2, tlHandle key2, tlHandle value2) {
     if (hash == hash2) {
         // TODO mask off last 2 bits?
         if (SamehashEntriesIs(value2)) {
-            return SamehashEntriesAdd(SamehashEntriesAs(value2), key, value);
+            return SamehashEntriesAdd(cx, SamehashEntriesAs(value2), key, value);
         }
-        return SamehashEntriesNew2(key, value, key2, value2);
+        return SamehashEntriesNew2(cx, key, value, key2, value2);
     }
     int bit = bitForLevel(hash, level);
     int bit2 = bitForLevel(hash2, level);
@@ -138,64 +198,64 @@ tlHandle BitmapEntriesNew2(int level, uint32_t hash, tlHandle key, tlHandle valu
 
     if (bit == bit2) {
         assert(level < 7);
-        BitmapEntries* sub = BitmapEntriesNew(1);
+        BitmapEntries* sub = BitmapEntriesNew(cx, 1);
         sub->bitmap = bit;
-        sub->data[0].value = BitmapEntriesNew2(level + 1, hash, key, value, hash2, key2, value2);
+        ensureBitmapTransient(cx, sub);
+        sub->data[0].value = BitmapEntriesNew2(cx, level + 1, hash, key, value, hash2, key2, value2);
         return sub;
     }
-    BitmapEntries* sub = BitmapEntriesNew(2);
+    BitmapEntries* sub = BitmapEntriesNew(cx, 2);
     sub->bitmap = bit | bit2;
+    cx->delta += 1;
+    ensureBitmapTransient(cx, sub);
     sub->data[posForBitmap(sub->bitmap, bit)] = (Entry){key, value};
     sub->data[posForBitmap(sub->bitmap, bit2)] = (Entry){key2, value2};
     return sub;
 }
 
-tlHandle BitmapEntriesSet(BitmapEntries* sub, uint32_t hash, tlHandle key, tlHandle value, int level) {
+tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle key, tlHandle value, int level) {
     int bit = bitForLevel(hash, level);
     int pos = posForBitmap(sub->bitmap, bit);
     int size = __builtin_popcount(sub->bitmap);
     if ((sub->bitmap & bit) == 0) { // not found in the trie
-        BitmapEntries* sub2 = BitmapEntriesNew(size + 1);
+        BitmapEntries* sub2 = BitmapEntriesNew(cx, size + 1);
         sub2->bitmap = sub->bitmap | bit;
+        cx->delta += 1;
+        ensureBitmapTransient(cx, sub);
         int i = 0;
         for (; i < pos; i++) sub2->data[i] = sub->data[i];
-        sub2->data[pos].key = key;
-        sub2->data[pos].value = value;
+        sub2->data[pos] = (Entry){key, value};
         for (; i < size; i++) sub2->data[i + 1] = sub->data[i];
-
-        for (int i = 0; i < size + 1; i++) {
-            if (BitmapEntriesIs(sub2->data[i].value)) assert(!sub2->data[i].key);
-        }
         return sub2;
     }
     tlHandle otherkey = sub->data[pos].key;
     tlHandle othervalue = sub->data[pos].value;
     if (BitmapEntriesIs(othervalue)) {
         // found a sub trie
-        BitmapEntries* subsub = BitmapEntriesSet(othervalue, hash, key, value, level + 1);
-        return BitmapEntriesNewReplace(sub, size, pos, null, subsub);
+        BitmapEntries* subsub = BitmapEntriesSet(cx, othervalue, hash, key, value, level + 1);
+        return BitmapEntriesNewReplace(cx, sub, size, pos, null, subsub);
     }
     assert(otherkey);
     if (SamehashEntriesIs(othervalue)) {
         // found a series of values under a shared hash
-        tlHandle subsub = BitmapEntriesNew2(level + 1, hash, key, value,
+        tlHandle subsub = BitmapEntriesNew2(cx, level + 1, hash, key, value,
                 tlHandleHash(otherkey), otherkey, othervalue);
         key = SamehashEntriesIs(subsub)? key : null;
-        return BitmapEntriesNewReplace(sub, size, pos, key, subsub);
+        return BitmapEntriesNewReplace(cx, sub, size, pos, key, subsub);
     }
     if (tlHandleEquals(key, otherkey)) {
         // found an old value under same key
         if (othervalue == value) return sub; // no mutation if value is identity same
-        return BitmapEntriesNewReplace(sub, size, pos, key, value);
+        return BitmapEntriesNewReplace(cx, sub, size, pos, key, value);
     }
     // upgrade single entry to trie
-    BitmapEntries* subsub = BitmapEntriesNew2(level + 1, hash, key, value,
+    BitmapEntries* subsub = BitmapEntriesNew2(cx, level + 1, hash, key, value,
             tlHandleHash(otherkey), otherkey, othervalue);
     key = SamehashEntriesIs(subsub)? key : null;
-    return BitmapEntriesNewReplace(sub, size, pos, key, subsub);
+    return BitmapEntriesNewReplace(cx, sub, size, pos, key, subsub);
 }
 
-Entry BitmapEntriesDel(BitmapEntries* sub, uint32_t hash, tlHandle key, int level) {
+Entry BitmapEntriesDel(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle key, int level) {
     int bit = bitForLevel(hash, level);
     if ((sub->bitmap & bit) == 0) return (Entry){null, null}; // no change
 
@@ -204,10 +264,11 @@ Entry BitmapEntriesDel(BitmapEntries* sub, uint32_t hash, tlHandle key, int leve
     tlHandle othervalue = sub->data[pos].value;
     Entry entry;
     if (BitmapEntriesIs(othervalue)) {
-        entry = BitmapEntriesDel(othervalue, hash, key, level + 1);
+        entry = BitmapEntriesDel(cx, othervalue, hash, key, level + 1);
     } else if (SamehashEntriesIs(othervalue)) {
-        entry = SamehashEntriesDel(othervalue, key);
+        entry = SamehashEntriesDel(cx, othervalue, key);
     } else if (tlHandleEquals(key, otherkey)) {
+        cx->delta -= 1;
         entry = (Entry){null, null}; // signal a delete
     } else {
         return (Entry){null, sub}; // no change
@@ -219,7 +280,7 @@ Entry BitmapEntriesDel(BitmapEntries* sub, uint32_t hash, tlHandle key, int leve
 
     int size = __builtin_popcount(sub->bitmap);
     if (entry.value) { // a change
-        tlHandle sub2 = BitmapEntriesNewReplace(sub, size, pos, entry.key, entry.value);
+        tlHandle sub2 = BitmapEntriesNewReplace(cx, sub, size, pos, entry.key, entry.value);
         return (Entry){null, sub2}; // return changed
     }
 
@@ -230,8 +291,9 @@ Entry BitmapEntriesDel(BitmapEntries* sub, uint32_t hash, tlHandle key, int leve
     }
 
     // remove one entry
-    BitmapEntries* sub2 = BitmapEntriesNew(size - 1);
+    BitmapEntries* sub2 = BitmapEntriesNew(cx, size - 1);
     sub2->bitmap = sub->bitmap & ~bit;
+    ensureBitmapTransient(cx, sub);
     assert(__builtin_popcount(sub2->bitmap) == size - 1);
     int i = 0;
     for (; i < pos; i++) sub2->data[i] = sub->data[i];
@@ -256,33 +318,37 @@ tlPersistentMap* tlPersistentMapNew() {
     return tlAlloc(tlPersistentMapKind, sizeof(tlPersistentMap));
 }
 
-tlPersistentMap* tlPersistentMapFrom(tlHandle value) {
+tlPersistentMap* tlPersistentMapFrom(tlHandle value, int size) {
     tlPersistentMap* map = tlAlloc(tlPersistentMapKind, sizeof(tlPersistentMap));
     map->sub = value;
+    map->size = size;
     return map;
 }
 
 tlHandle tlPersistentMapSet(tlPersistentMap* map, tlHandle key, tlHandle value) {
     uint32_t hash = tlHandleHash(key);
+    Context cx = {0};
     if (map->sub) {
-        tlHandle sub = BitmapEntriesSet(map->sub, hash, key, value, 0);
+        tlHandle sub = BitmapEntriesSet(&cx, map->sub, hash, key, value, 0);
         if (sub == map->sub) return map;
-        return tlPersistentMapFrom(sub);
+        return tlPersistentMapFrom(sub, map->size + cx.delta);
     } else {
-        BitmapEntries* sub = BitmapEntriesNew(1);
+        BitmapEntries* sub = BitmapEntriesNew(&cx, 1);
         sub->bitmap = bitForLevel(hash, 0);
-        sub->data[0].key = key;
-        sub->data[0].value = value;
-        return tlPersistentMapFrom(sub);
+        cx.delta += 1;
+        ensureBitmapTransient(&cx, sub);
+        sub->data[0] = (Entry){key, value};
+        return tlPersistentMapFrom(sub, map->size + cx.delta);
     }
 }
 
 tlHandle tlPersistentMapDel(tlPersistentMap* map, tlHandle key) {
     uint32_t hash = tlHandleHash(key);
     if (map->sub) {
-        Entry entry = BitmapEntriesDel(map->sub, hash, key, 0);
+        Context cx = {0};
+        Entry entry = BitmapEntriesDel(&cx, map->sub, hash, key, 0);
         if (entry.value == map->sub) return map; // no change
-        return tlPersistentMapFrom(entry.value);
+        return tlPersistentMapFrom(entry.value, map->size + cx.delta);
     }
     return map;
 }
@@ -291,6 +357,10 @@ tlHandle tlPersistentMapGet(tlPersistentMap* map, tlHandle key) {
     uint32_t hash = tlHandleHash(key);
     if (map->sub) return BitmapEntriesGet(map->sub, hash, key, 0);
     return null;
+}
+
+int tlPersistentMapSize(tlPersistentMap* map) {
+    return map->size;
 }
 
 static tlKind tlPersistentMapKind_ = {
@@ -319,13 +389,16 @@ TEST(setandget) {
     tlHandle value = tlSTR("hello world!");
     map = tlPersistentMapSet(map, tlINT(42), value);
     REQUIRE(tlPersistentMapGet(map, tlINT(42)) == value);
+    REQUIRE(tlPersistentMapSize(map) == 1);
 
     map = tlPersistentMapSet(map, tlINT(42), value);
     REQUIRE(tlPersistentMapGet(map, tlINT(42)) == value);
+    REQUIRE(tlPersistentMapSize(map) == 1);
 
     tlHandle value2 = tlSTR("bye bye");
     map = tlPersistentMapSet(map, tlINT(42), value2);
     REQUIRE(tlPersistentMapGet(map, tlINT(42)) == value2);
+    REQUIRE(tlPersistentMapSize(map) == 1);
 
     uint32_t targethash = tlHandleHash(tlINT(42));
 
@@ -420,7 +493,8 @@ TEST(grow_shrink) {
         //print("%s %s == %s", tl_repr(key), tl_repr(value), tl_repr(got));
         REQUIRE(tlHandleEquals(got, value));
     }
-    //REQUIRE(tlHashSize(map) == TESTSIZE);
+    print("size: %d", tlPersistentMapSize(map));
+    REQUIRE(tlPersistentMapSize(map) == TESTSIZE);
 
     while (true) {
         int i = GC_collect_a_little();
@@ -437,7 +511,8 @@ TEST(grow_shrink) {
         map = tlPersistentMapDel(map, key);
         REQUIRE(!tlPersistentMapGet(map, key));
     }
-    //REQUIRE(tlHashSize(map) <= TESTSIZE / 7 * 6);
+    print("size: %d", tlPersistentMapSize(map));
+    REQUIRE(tlPersistentMapSize(map) <= TESTSIZE / 7 * 6);
 
     for (int i = 0; i < TESTSIZE / 7 * 6; i++) {
         len = snprintf(buf, sizeof(buf), "key-%d", i);
@@ -445,6 +520,8 @@ TEST(grow_shrink) {
         map = tlPersistentMapDel(map, key);
         REQUIRE(!tlPersistentMapGet(map, key));
     }
+    print("size: %d", tlPersistentMapSize(map));
+    REQUIRE(tlPersistentMapSize(map) <= TESTSIZE / 7 * 6);
 
     for (int i = 0; i < TESTSIZE; i++) {
         len = snprintf(buf, sizeof(buf), "key-%d", i);
@@ -453,6 +530,8 @@ TEST(grow_shrink) {
         tlString* value = tlStringFromCopy(buf, len);
         map = tlPersistentMapSet(map, key, value);
     }
+    print("size: %d (added again)", tlPersistentMapSize(map));
+    REQUIRE(tlPersistentMapSize(map) == TESTSIZE);
 
     for (int i = 0; i < TESTSIZE; i++) {
         len = snprintf(buf, sizeof(buf), "key-%d", i);
@@ -463,7 +542,8 @@ TEST(grow_shrink) {
         //print("%s %s == %s", tl_repr(key), tl_repr(value), tl_repr(got));
         REQUIRE(tlHandleEquals(got, value));
     }
-    //REQUIRE(tlHashSize(map) == TESTSIZE);
+    print("size: %d", tlPersistentMapSize(map));
+    REQUIRE(tlPersistentMapSize(map) == TESTSIZE);
 
     for (int i = 0; i < 100; i++) {
         len = snprintf(buf, sizeof(buf), "nokey-%d", i);
@@ -472,6 +552,8 @@ TEST(grow_shrink) {
         REQUIRE(!got);
         map = tlPersistentMapDel(map, key);
     }
+    print("size: %d", tlPersistentMapSize(map));
+    REQUIRE(tlPersistentMapSize(map) == TESTSIZE);
 }
 
 int main(int argc, char** argv) {
