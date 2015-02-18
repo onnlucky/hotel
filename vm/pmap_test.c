@@ -257,7 +257,9 @@ tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHand
 
 Entry BitmapEntriesDel(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle key, int level) {
     int bit = bitForLevel(hash, level);
-    if ((sub->bitmap & bit) == 0) return (Entry){null, null}; // no change
+    if ((sub->bitmap & bit) == 0) {
+        return (Entry){null, sub}; // no change
+    }
 
     int pos = posForBitmap(sub->bitmap, bit);
     tlHandle otherkey = sub->data[pos].key;
