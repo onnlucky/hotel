@@ -8,7 +8,7 @@ static inline bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) 
 static inline void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
 static inline void tlflag_set(tlHandle v, unsigned flag) { assert(flag <= 0x7); set_kptr(v, get_kptr(v) | flag); }
 
-enum { kTransient = 1 };
+enum { kTransient = 1, kPersisted = 2, };
 
 typedef struct Entry {
     tlHandle key;
@@ -40,7 +40,7 @@ struct tlPersistentMap {
 };
 
 struct tlTransientMap {
-    tlHead head;
+    tlLock lock;
     int size;
     BitmapEntries* sub;
 };
@@ -55,12 +55,10 @@ static int transientSizeof(Context* cx) { return cx->transient? sizeof(tlHandle)
 static int BitmapSize(BitmapEntries* s) { return __builtin_popcount(s->bitmap); }
 
 static bool isBitmapTransient(Context* cx, BitmapEntries* s) {
-    return false;
-    return tlflag_isset(s, kTransient) && s->data[BitmapSize(s)].key == cx->transient;
+    return cx->transient && tlflag_isset(s, kTransient) && s->data[BitmapSize(s)].key == cx->transient;
 }
 static bool isSamehashTransient(Context* cx, SamehashEntries* s) {
-    return false;
-    return tlflag_isset(s, kTransient) && s->data[s->size].key == cx->transient;
+    return cx->transient && tlflag_isset(s, kTransient) && s->data[s->size].key == cx->transient;
 }
 static void ensureBitmapTransient(Context* cx, BitmapEntries* s) {
     if (cx->transient) {
@@ -162,8 +160,12 @@ BitmapEntries* BitmapEntriesNew(Context* cx, int size) {
 }
 
 BitmapEntries* BitmapEntriesNewReplace(Context* cx, BitmapEntries* sub, int size, int pos, tlHandle key, tlHandle value) {
-    assert(size == __builtin_popcount(sub->bitmap));
+    assert(size == BitmapSize(sub));
     assert(pos < size);
+    if (isBitmapTransient(cx, sub)) {
+        sub->data[pos] = (Entry){key, value};
+        return sub;
+    }
     BitmapEntries* sub2 = BitmapEntriesNew(cx, size);
     sub2->bitmap = sub->bitmap;
     ensureBitmapTransient(cx, sub);
@@ -206,22 +208,32 @@ tlHandle BitmapEntriesNew2(Context* cx, int level, uint32_t hash, tlHandle key, 
     }
     BitmapEntries* sub = BitmapEntriesNew(cx, 2);
     sub->bitmap = bit | bit2;
-    cx->delta += 1;
     ensureBitmapTransient(cx, sub);
+    cx->delta += 1;
     sub->data[posForBitmap(sub->bitmap, bit)] = (Entry){key, value};
     sub->data[posForBitmap(sub->bitmap, bit2)] = (Entry){key2, value2};
     return sub;
 }
 
 tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle key, tlHandle value, int level) {
+    if (!sub) {
+        assert(level == 0);
+        BitmapEntries* sub = BitmapEntriesNew(cx, 1);
+        sub->bitmap = bitForLevel(hash, 0);
+        ensureBitmapTransient(cx, sub);
+        cx->delta += 1;
+        sub->data[0] = (Entry){key, value};
+        return sub;
+    }
+
     int bit = bitForLevel(hash, level);
     int pos = posForBitmap(sub->bitmap, bit);
-    int size = __builtin_popcount(sub->bitmap);
+    int size = BitmapSize(sub);
     if ((sub->bitmap & bit) == 0) { // not found in the trie
         BitmapEntries* sub2 = BitmapEntriesNew(cx, size + 1);
         sub2->bitmap = sub->bitmap | bit;
-        cx->delta += 1;
         ensureBitmapTransient(cx, sub);
+        cx->delta += 1;
         int i = 0;
         for (; i < pos; i++) sub2->data[i] = sub->data[i];
         sub2->data[pos] = (Entry){key, value};
@@ -246,6 +258,10 @@ tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHand
     if (tlHandleEquals(key, otherkey)) {
         // found an old value under same key
         if (othervalue == value) return sub; // no mutation if value is identity same
+        if (isBitmapTransient(cx, sub)) {
+            sub->data[pos].value = value;
+            return sub;
+        }
         return BitmapEntriesNewReplace(cx, sub, size, pos, key, value);
     }
     // upgrade single entry to trie
@@ -256,6 +272,10 @@ tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHand
 }
 
 Entry BitmapEntriesDel(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle key, int level) {
+    if (!sub) {
+        assert(level == 0);
+        return (Entry){null, null};
+    }
     int bit = bitForLevel(hash, level);
     if ((sub->bitmap & bit) == 0) {
         return (Entry){null, sub}; // no change
@@ -280,7 +300,7 @@ Entry BitmapEntriesDel(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle 
         return (Entry){null, sub}; // no change
     }
 
-    int size = __builtin_popcount(sub->bitmap);
+    int size = BitmapSize(sub);
     if (entry.value) { // a change
         tlHandle sub2 = BitmapEntriesNewReplace(cx, sub, size, pos, entry.key, entry.value);
         return (Entry){null, sub2}; // return changed
@@ -296,7 +316,7 @@ Entry BitmapEntriesDel(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle 
     BitmapEntries* sub2 = BitmapEntriesNew(cx, size - 1);
     sub2->bitmap = sub->bitmap & ~bit;
     ensureBitmapTransient(cx, sub);
-    assert(__builtin_popcount(sub2->bitmap) == size - 1);
+    assert(BitmapSize(sub2) == size - 1);
     int i = 0;
     for (; i < pos; i++) sub2->data[i] = sub->data[i];
     i++;
@@ -305,6 +325,10 @@ Entry BitmapEntriesDel(Context* cx, BitmapEntries* sub, uint32_t hash, tlHandle 
 }
 
 tlHandle BitmapEntriesGet(BitmapEntries* sub, uint32_t hash, tlHandle key, int level) {
+    if (!sub) {
+        assert(level == 0);
+        return null;
+    }
     int bit = bitForLevel(hash, level);
     if ((sub->bitmap & bit) == 0) return null;
     int pos = posForBitmap(sub->bitmap, bit);
@@ -330,38 +354,71 @@ tlPersistentMap* tlPersistentMapFrom(tlHandle value, int size) {
 tlHandle tlPersistentMapSet(tlPersistentMap* map, tlHandle key, tlHandle value) {
     uint32_t hash = tlHandleHash(key);
     Context cx = {0};
-    if (map->sub) {
-        tlHandle sub = BitmapEntriesSet(&cx, map->sub, hash, key, value, 0);
-        if (sub == map->sub) return map;
-        return tlPersistentMapFrom(sub, map->size + cx.delta);
-    } else {
-        BitmapEntries* sub = BitmapEntriesNew(&cx, 1);
-        sub->bitmap = bitForLevel(hash, 0);
-        cx.delta += 1;
-        ensureBitmapTransient(&cx, sub);
-        sub->data[0] = (Entry){key, value};
-        return tlPersistentMapFrom(sub, map->size + cx.delta);
-    }
+    tlHandle sub = BitmapEntriesSet(&cx, map->sub, hash, key, value, 0);
+    if (sub == map->sub) return map;
+    return tlPersistentMapFrom(sub, map->size + cx.delta);
 }
 
 tlHandle tlPersistentMapDel(tlPersistentMap* map, tlHandle key) {
     uint32_t hash = tlHandleHash(key);
-    if (map->sub) {
-        Context cx = {0};
-        Entry entry = BitmapEntriesDel(&cx, map->sub, hash, key, 0);
-        if (entry.value == map->sub) return map; // no change
-        return tlPersistentMapFrom(entry.value, map->size + cx.delta);
-    }
-    return map;
+    Context cx = {0};
+    Entry entry = BitmapEntriesDel(&cx, map->sub, hash, key, 0);
+    if (entry.value == map->sub) return map; // no change
+    return tlPersistentMapFrom(entry.value, map->size + cx.delta);
 }
 
 tlHandle tlPersistentMapGet(tlPersistentMap* map, tlHandle key) {
     uint32_t hash = tlHandleHash(key);
-    if (map->sub) return BitmapEntriesGet(map->sub, hash, key, 0);
-    return null;
+    return BitmapEntriesGet(map->sub, hash, key, 0);
 }
 
 int tlPersistentMapSize(tlPersistentMap* map) {
+    return map->size;
+}
+
+tlTransientMap* tlPersistentMapMakeTransient(tlPersistentMap* map) {
+    tlTransientMap* trans = tlAlloc(tlTransientMapKind, sizeof(tlTransientMap));
+    trans->sub = map->sub;
+    trans->size = map->size;
+    return trans;
+}
+
+tlTransientMap* tlTransientMapNew() {
+    return tlAlloc(tlTransientMapKind, sizeof(tlTransientMap));
+}
+
+bool tlTransientMapChangable(tlTransientMap* map) {
+    return !tlflag_isset(map, kPersisted);
+}
+
+tlPersistentMap* tlTransientMapPersist(tlTransientMap* map) {
+    tlflag_set(map, kPersisted);
+    return tlPersistentMapFrom(map->sub, map->size);
+}
+
+void tlTransientMapSet(tlTransientMap* map, tlHandle key, tlHandle value) {
+    assert(!tlflag_isset(map, kPersisted));
+    uint32_t hash = tlHandleHash(key);
+    Context cx = {.transient = map};
+    map->sub = BitmapEntriesSet(&cx, map->sub, hash, key, value, 0);
+    map->size += cx.delta;
+}
+
+void TransientMapDel(tlTransientMap* map, tlHandle key) {
+    assert(!tlflag_isset(map, kPersisted));
+    uint32_t hash = tlHandleHash(key);
+    Context cx = {0};
+    Entry entry = BitmapEntriesDel(&cx, map->sub, hash, key, 0);
+    map->sub = entry.value;
+    map->size += cx.delta;
+}
+
+tlHandle tlTransientMapGet(tlTransientMap* map, tlHandle key) {
+    uint32_t hash = tlHandleHash(key);
+    return BitmapEntriesGet(map->sub, hash, key, 0);
+}
+
+int tlTransientMapSize(tlTransientMap* map) {
     return map->size;
 }
 
@@ -369,6 +426,12 @@ static tlKind tlPersistentMapKind_ = {
     .name = "PersistentMap",
 };
 tlKind* tlPersistentMapKind = &tlPersistentMapKind_;
+
+static tlKind tlTransientMapKind_ = {
+    .name = "TransientMap",
+    .locked = true,
+};
+tlKind* tlTransientMapKind = &tlTransientMapKind_;
 
 static tlKind BitmapEntriesKind_ = {
     .name = "PersistentMapEntries",
@@ -379,6 +442,10 @@ static tlKind SamehashEntriesKind_ = {
     .name = "SamehashEntries",
 };
 tlKind* SamehashEntriesKind = &SamehashEntriesKind_;
+
+
+
+// **** tests ****
 
 typedef struct Breaker {
     tlHead head;
@@ -558,9 +625,47 @@ TEST(grow_shrink) {
     REQUIRE(tlPersistentMapSize(map) == TESTSIZE);
 }
 
+TEST(transient_setandget) {
+    tlTransientMap* map = tlTransientMapNew();
+    tlHandle value = tlSTR("hello world!");
+    tlTransientMapSet(map, tlINT(42), value);
+    REQUIRE(tlTransientMapGet(map, tlINT(42)) == value);
+    REQUIRE(tlTransientMapSize(map) == 1);
+    BitmapEntries* sub = map->sub; // total implementation detail, might change in future
+
+    tlTransientMapSet(map, tlINT(42), value);
+    REQUIRE(tlTransientMapGet(map, tlINT(42)) == value);
+    REQUIRE(tlTransientMapSize(map) == 1);
+    REQUIRE(sub == map->sub);
+
+    tlHandle value2 = tlSTR("bye bye");
+    tlTransientMapSet(map, tlINT(42), value2);
+    REQUIRE(tlTransientMapGet(map, tlINT(42)) == value2);
+    REQUIRE(tlTransientMapSize(map) == 1);
+    REQUIRE(sub == map->sub);
+
+    tlPersistentMap* pmap = tlTransientMapPersist(map);
+    REQUIRE(!tlTransientMapChangable(map));
+    REQUIRE(tlPersistentMapGet(pmap, tlINT(42)) == value2);
+    REQUIRE(tlPersistentMapSize(pmap) == 1);
+
+    map = tlPersistentMapMakeTransient(pmap);
+    REQUIRE(tlTransientMapGet(map, tlINT(42)) == value2);
+    REQUIRE(tlTransientMapSize(map) == 1);
+    REQUIRE(sub == map->sub); // lucky ... sub still "owned" by previous map
+    REQUIRE(tlTransientMapChangable(map)); // but we are changable not, the old map
+
+    tlTransientMapSet(map, tlINT(42), value);
+    REQUIRE(sub != map->sub); // sub was "owned" by previous map, not this new one
+    REQUIRE(tlTransientMapGet(map, tlINT(42)) == value);
+    REQUIRE(tlTransientMapSize(map) == 1);
+}
+
 int main(int argc, char** argv) {
     tl_init();
     RUN(setandget);
     RUN(grow_shrink);
+
+    RUN(transient_setandget);
 }
 
