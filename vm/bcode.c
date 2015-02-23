@@ -114,6 +114,7 @@ struct tlCodeFrame {
 
     // save/restore
     bool lazy;    // if this frame is evaluating a lazy invoke
+    int8_t stepping; // if we are stepping
     int8_t bcall; // if this frame is evaluating part of a operator invoke
     int pc;
     tlArgs* invoke; // current invoke, here for bcalls, TODO remove by optimizing
@@ -1254,6 +1255,9 @@ tlHandle eval_args(tlTask* task, tlArgs* args) {
     trace("%s", tl_str(args));
     tlCodeFrame* frame = tlCodeFrameNew(args, null);
 
+    // init debugger state if needed
+    if (tlDebuggerFor(task)) frame->stepping = 1;
+
     tlTaskPushFrame(task, (tlFrame*)frame);
     return beval(task, frame, null);
 }
@@ -1270,6 +1274,10 @@ tlHandle eval_lazy(tlTask* task, tlBLazy* lazy) {
 tlHandle beval(tlTask* task, tlCodeFrame* frame, tlHandle resuming) {
     assert(task);
     assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
+
+    // get current attached debugger, if any
+    tlDebugger* debugger = tlDebuggerFor(task);
+
     trace("task=%p frame=%p pc=%d (lazy:%d) resuming=%s", task, frame, frame->pc, frame->lazy, tl_repr(resuming));
 
     tlArgs* args = frame->locals->args;
@@ -1292,37 +1300,41 @@ tlHandle beval(tlTask* task, tlCodeFrame* frame, tlHandle resuming) {
     uint8_t op = 0; // current opcode
     tlHandle v = resuming? resuming : tlNull; // tmp result register
 
-    // get current attached debugger, if any
-    tlDebugger* debugger = tlDebuggerFor(task);
-
     // we did an invoke, and paused the task, but now the result is ready; see OP_INVOKE
     // or we did a resolve, which paused
-    if (resuming) {
+    if (resuming || frame->stepping == 2) {
         // we need to find the current calltop/call/arg
-        for (int i = 0; i < bcode->calldepth; i++) {
-            if (!frame->calls[i].call) {
-                calltop = i - 1;
-                break;
-            }
+        calltop = 0;
+        while (calltop < bcode->calldepth) {
+            if (!frame->calls[calltop].call) break;
+            calltop += 1;
         }
+        calltop -= 1; // compensate
         if (calltop >= 0) {
             call = frame->calls[calltop].call;
             arg = frame->calls[calltop].at;
             assert(call);
         }
+        trace("resuming: %p -- %d(%d) %p", frame, calltop, bcode->calldepth, call);
+        if (frame->stepping) {
+            frame->stepping = 0;
+            goto again;
+        }
         goto resume;
     }
 
 again:;
-    if (debugger && frame->pc != pc) {
+    if (debugger && frame->stepping == 1) {
         frame->pc = pc;
+        frame->calls[calltop].at = arg;
         task->value = v;
-        if (calltop >= 0) frame->calls[calltop].at = arg;
         if (!tlDebuggerStep(debugger, task, frame)) {
+            frame->stepping = 2;
             trace("pausing for debugger");
             return null;
         }
     }
+    if (debugger && !frame->stepping) frame->stepping = 1;
 
     if (tlBCallIsLazy(call, arg)) {
         trace("LAZY %d[%d]", calltop, arg - 2);

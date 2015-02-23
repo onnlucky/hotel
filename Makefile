@@ -5,7 +5,7 @@ LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
-	CFLAGS+=-ggdb -O
+	CFLAGS+=-ggdb -O0
 endif
 ifeq ($(GCOV),1)
 	CFLAGS+=-fprofile-arcs -ftest-coverage

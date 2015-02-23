@@ -53,12 +53,12 @@ bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlCodeFrame* frame) {
     return false;
 }
 
-INTERNAL tlHandle _Debugger_new(tlTask* task, tlArgs* args) {
+static tlHandle _Debugger_new(tlTask* task, tlArgs* args) {
     return tlDebuggerNew();
 }
 
-INTERNAL tlHandle _debugger_attach(tlTask* task, tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_attach(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     tlTask* other = tlTaskCast(tlArgsGet(args, 0));
     if (!other) TL_THROW("require a task");
     if (other->debugger) TL_THROW("task already has a debugger set");
@@ -66,8 +66,8 @@ INTERNAL tlHandle _debugger_attach(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _debugger_detach(tlTask* task, tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_detach(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     tlTask* other = tlTaskCast(tlArgsGet(args, 0));
     if (!other) TL_THROW("require a task");
     if (!other->debugger) TL_THROW("task has no debugger set");
@@ -75,11 +75,14 @@ INTERNAL tlHandle _debugger_detach(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle returnStep(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
+    if (throw) return null;
+    tlTaskPopFrame(task, frame);
 
-INTERNAL tlHandle returnStep(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
     tlDebugger* debugger = tlDebuggerCast(res);
     if (debugger && debugger->subject) {
         tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
+        assert(frame);
         if (frame) {
             tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
             const uint8_t* ops = closure->code->code;
@@ -89,19 +92,22 @@ INTERNAL tlHandle returnStep(tlTask* task, tlFrame* frame, tlHandle res, tlHandl
     return tlNull;
 }
 
-INTERNAL tlHandle _debugger_step(tlTask* task, tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_step(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
+    tlTaskWaitExternal(task);
+
+    debugger->waiter = task;
+    tlTaskPushResume(task, returnStep, debugger);
+
     if (debugger->subject) {
         tlTaskReadyExternal(debugger->subject);
         debugger->subject = null;
     }
-    tlTaskWaitExternal(task);
-    tlTaskPushResume(task, returnStep, debugger);
     return null;
 }
 
-INTERNAL tlHandle _debugger_continue(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_continue(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     debugger->running = true;
     if (debugger->subject) {
         if (!debugger->subject->value) debugger->subject->value = tlNull;
@@ -111,14 +117,13 @@ INTERNAL tlHandle _debugger_continue(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _debugger_current(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
-    if (!debugger->subject) return tlNull;
-    return debugger->subject;
+static tlHandle _debugger_current(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
+    return tlOR_NULL(debugger->subject);
 }
 
-INTERNAL tlHandle _debugger_pos(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_pos(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     if (!debugger->subject) return tlNull;
 
     tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
@@ -134,8 +139,8 @@ INTERNAL tlHandle _debugger_pos(tlArgs* args) {
     return tlResultFrom(v, info->text, null);
 }
 
-INTERNAL tlHandle _debugger_op(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_op(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     if (!debugger->subject) return tlNull;
 
     tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
@@ -163,8 +168,8 @@ INTERNAL tlHandle _debugger_op(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _debugger_call(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_call(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     if (!debugger->subject) return tlNull;
 
     tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
@@ -192,8 +197,8 @@ INTERNAL tlHandle _debugger_call(tlArgs* args) {
     return list;
 }
 
-INTERNAL tlHandle _debugger_locals(tlArgs* args) {
-    tlDebugger* debugger = tlDebuggerAs(tlArgsTarget(args));
+static tlHandle _debugger_locals(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlDebugger, debugger);
     if (!debugger->subject) return tlNull;
 
     tlCodeFrame* frame = tlCodeFrameCast(debugger->subject->stack);
