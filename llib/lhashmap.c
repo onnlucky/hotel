@@ -110,7 +110,6 @@ struct LHashMapIter {
 };
 
 #define INITIAL_SIZE 4
-#define REPROBE_LIMIT 17
 #define BLOCK_SIZE (1024 * 8)
 
 void *LHASHMAP_IGNORE = "__IGNORE__";  // marker to indicate old map value is to be ignored
@@ -481,8 +480,8 @@ static void * _putif(LHashMap *map, int resizing, header *kvs, void *key, const 
             }
         }
 
-        // if no map, we are in a resize; never return _resize when already resizing
-        if (!resizing && ++reprobe_try >= REPROBE_LIMIT) return _resize(map, kvs);
+        // if no place in the map, resize; we have to do it like this, as we might need to deal with bad hash functions
+        if (++reprobe_try >= len) return _resize(map, kvs);
         idx = (idx + 1) & (len - 1);   // try next stot
     }
 
