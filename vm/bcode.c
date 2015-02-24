@@ -844,6 +844,7 @@ int tlBCodePosOpsForPc(tlBCode* code, int pc) {
     for (int p = 0; p < pc && p < code->size; p++) {
         uint8_t op = code->code[p];
         if (op == OP_GLOBAL) pos++;
+        else if (op == OP_INVOKE) pos++;
         else if ((op & 0xE0) == 0xE0) pos++;
     }
     assert(pos <= (pc + 4) / 2); // not an exact science ... this might trip
@@ -2330,6 +2331,32 @@ static tlHandle _bclosure_args(tlTask* task, tlArgs* args) {
     TL_TARGET(tlBClosure, fn);
     return fn->code->argspec;
 }
+static tlHandle _bclosure_postable(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlBClosure, fn);
+    return tlOR_NULL(fn->code->debuginfo->pos);
+}
+static tlHandle _bclosure_bytecode(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlBClosure, fn);
+    int opcount = 0;
+    const uint8_t* ops = fn->code->code;
+    assert(ops);
+    for (int i = 0; i < fn->code->size; i++) {
+        uint8_t op = ops[i];
+        if ((op & 0xC0) != 0xC0) continue;
+        opcount += 1;
+    }
+
+    int at = 0;
+    tlList* list = tlListNew(opcount);
+    for (int i = 0; i < fn->code->size; i++) {
+        uint8_t op = ops[i];
+        if ((op & 0xC0) != 0xC0) continue;
+        tlListSet_(list, at, tlSYM(op_name(op)));
+        at += 1;
+    }
+    assert(tlListGet(list, opcount - 1));
+    return list;
+}
 
 static const char* bclosureToString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Function@%p %s>", v, tlStringData(tlBCodeName(tlBClosureAs(v)->code)));
@@ -2394,6 +2421,8 @@ void bcode_init() {
         "name", _bclosure_name,
         "line", _bclosure_line,
         "args", _bclosure_args,
+        "postable", _bclosure_postable,
+        "bytecode", _bclosure_bytecode,
     null);
 
     tlFrameKind->klass = tlClassObjectFrom(

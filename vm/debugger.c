@@ -85,8 +85,9 @@ static tlHandle returnStep(tlTask* task, tlFrame* frame, tlHandle res, tlHandle 
         assert(frame);
         if (frame) {
             tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
+            assert(closure);
             const uint8_t* ops = closure->code->code;
-            return tlResultFrom(tlSTR(op_name(ops[frame->pc])), tlINT(frame->pc));
+            return tlResultFrom(tlSYM(op_name(ops[frame->pc])), tlINT(frame->pc), closure, null);
         }
     }
     return tlNull;
@@ -130,13 +131,8 @@ static tlHandle _debugger_pos(tlTask* task, tlArgs* args) {
     if (!frame) return tlNull;
 
     tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
-
-    tlBDebugInfo* info = closure->code->debuginfo;
-    if (!info) return tlNull;
-
-    tlHandle v = tlListGet(info->pos, frame->pc);
-    if (!v) v = tlNull;
-    return tlResultFrom(v, info->text, null);
+    int posindex = tlBCodePosOpsForPc(closure->code, frame->pc);
+    return tlOR_NULL(tlListGet(closure->code->debuginfo->pos, posindex));
 }
 
 static tlHandle _debugger_op(tlTask* task, tlArgs* args) {
@@ -150,7 +146,7 @@ static tlHandle _debugger_op(tlTask* task, tlArgs* args) {
     const uint8_t* ops = closure->code->code;
     int pc = frame->pc;
     int op = ops[pc++];
-    tlHandle name = tlSTR(op_name(op));
+    tlHandle name = tlSYM(op_name(op));
     switch (op) {
         case OP_END:
         case OP_TRUE: case OP_FALSE: case OP_NULL: case OP_UNDEF:

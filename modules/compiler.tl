@@ -141,7 +141,7 @@ writeCode = mod, c, scope ->
 
         { op == "store"  }: buf.write(0b1100_0000 + 17); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "rstore" }: buf.write(0b1100_0000 + 18); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "invoke" }: buf.write(0b1100_0000 + 19)
+        { op == "invoke" }: buf.write(0b1100_0000 + 19); calls.add(c.code[($pc += 1)])
         { op == "cerr"   }: buf.write(0b1100_0000 + 20)
 
         { op == "vget"    }: buf.write(0b1100_0000 + 21); buf.write(encodeInt(c.code[($pc += 1)]))
@@ -600,17 +600,17 @@ compile = (text, ast ->
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "field" }:
-            ["mcall", term?pos, 0, "this", "data", term.name, "invoke"]
+            ["mcall", term?pos, 0, "this", "data", term.name, "invoke", term?pos]
         { term.type == "call" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["fcalln", term?pos, args.size, {ns=names}] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=names}] + target + args + ["invoke", term?pos]
             if try(term.names.filter.size > 0):
-                return ["fcalln", term?pos, args.size, {ns=term.names}] + target + args + ["invoke"]
-            ["fcall", term?pos, args.size] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=term.names}] + target + args + ["invoke", term?pos]
+            ["fcall", term?pos, args.size] + target + args + ["invoke", term?pos]
         { term.type == "method" or term.type == "safemethod" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
@@ -618,29 +618,29 @@ compile = (text, ast ->
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["mcalln$s", term?pos, args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke", term?pos]
             if try(term.names.filter.size > 0):
-                return ["mcalln$s", term?pos, args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
-            ["mcall$s", term?pos, args.size] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke", term?pos]
+            ["mcall$s", term?pos, args.size] + target + ["data", term.method] + args + ["invoke", term?pos]
         { term.type == "async" }:
             body = emit(term.body)
-            ["fcall", term?pos, 1, "global", 0, "_Task_new", body, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "_Task_new", body, "invoke", term?pos]
         { term.type == "not" }:
             rhs = emit(term.rhs)
-            ["fcall", term?pos, 1, "global", 0, "not", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "not", rhs, "invoke", term?pos]
         { term.type == "~" }:
             rhs = emit(term.rhs)
-            ["fcall", term?pos, 1, "global", 0, "bnot", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "bnot", rhs, "invoke", term?pos]
         { term.type == "-" }:
             rhs = emit(term.rhs)
-            ["fcall", term?pos, 1, "global", 0, "neg", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "neg", rhs, "invoke", term?pos]
         { term.type == "op"  }:
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
-            ["bcall", term?pos, 2, "global", 0, opname(term.op), lhs, rhs, "invoke"]
+            ["bcall", term?pos, 2, "global", term?pos, opname(term.op), lhs, rhs, "invoke", term?pos]
         { term.type == "guards" }:
             term.guards.map(term ->
-                [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke"]
+                [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke", term?pos]
             ).flatten + ["cerr"]
         { term.type == "local"  }:
             { term?var }: ["vget", term.at - 1]
@@ -657,15 +657,15 @@ compile = (text, ast ->
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
-            ["fcall", term?pos, elements.size, "global", 0, "__list"] + elements + ["invoke"]
+            ["fcall", term?pos, elements.size, "global", 0, "__list"] + elements + ["invoke", term?pos]
         { term.type == "object" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__object", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__object", "data", term.map.toObject] + fill + ["invoke", term?pos]
         { term.type == "map" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__map", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__map", "data", term.map.toObject] + fill + ["invoke", term?pos]
         { term.type == "class" }:
-            ["fcall", term?pos, 2, "global", 0, "_bless", emit(term.methods), emit(term.class), "invoke"]
+            ["fcall", term?pos, 2, "global", 0, "_bless", emit(term.methods), emit(term.class), "invoke", term?pos]
         { }:
             print "ERROR"
             print repr(term)
