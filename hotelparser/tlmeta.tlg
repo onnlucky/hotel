@@ -1,12 +1,12 @@
 #!/usr/bin/env tl
 
-/*
-  TODO
+###
+TODO
 add parser known "braces" open/close to expect the matching brace
 process rules for shared prefix, and rewrite rules to branch from there
 process rules until cycle without progress is found, cut and grow recursion from there
 allow backtracking and process alternatives, until no parse is found, then report all disallowed backtracks
-*/
+###
 
 no_value = false
 
@@ -163,7 +163,7 @@ ast.rules.each: rule ->
     if rules[rule.name]: throw "rule already defined '$(rule.name)'"
     rules[rule.name] = rule
 
-// add some default rules if they don't exist
+# add some default rules if they don't exist
 if not rules["ws"]:
     rules["ws"] = { name="ws", term={ type="and", terms=[{ type="prim", target="ws" }]}, spec=null}
 if not rules["wsnl"]:

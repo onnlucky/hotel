@@ -66,10 +66,10 @@ mlcomment*: "###" (!(nl sp* "###") _)* (nl sp* "###"|end)
 
 // ---- OBJECT, MAP AND LIST ----
 
-  object: "{".. CI data=items @"a closing '}'" .."}"    type=<object>
-        | "{"..@"a closing '}'" "}"                     type=<object>
-     map: "[".. CI data=mapitems @"a closing ']'" .."]" type=<map>
-        | "[".."=" @"a closing ']'" .."]"               type=<map>
+  object: pos=pos "{".. CI data=items @"a closing '}'" .."}"    type=<object>
+        | pos=pos "{"..@"a closing '}'" "}"                     type=<object>
+     map: pos=pos "[".. CI data=mapitems @"a closing ']'" .."]" type=<map>
+        | pos=pos "[".."=" @"a closing ']'" .."]"               type=<map>
    items: i=item is=(eov.. item)*                             -> prepend(is, i)
 mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     key*: name
@@ -77,8 +77,8 @@ mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     item: "{"..@"a closing '}'" names=dkey+(eov ..) .."}"
         | n=key .@"a '='" "="..@"a value" v=mexpr
 
-    list: "[".. CI data=litems @"a closing ']'" .."]" type=<list>
-        | "["..@"a closing ']'" "]"                   type=<list>
+    list: pos=pos "[".. CI data=litems @"a closing ']'" .."]" type=<list>
+        | pos=pos "["..@"a closing ']'" "]"                   type=<list>
   litems: i=mexpr !"=" is=(eov.. mexpr)*          -> prepend(is, i)
 
 // ---- FUNCTION DEFINITION ----

@@ -4083,10 +4083,14 @@ static State r_list_1(Parser* _p, const int _start, int _rec, bool ignored) { //
  parser_enter(_p, "list_1", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "list_1", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
  _r = prim_text(_p, _pos, "[", true);
  if (!_r.ok) { return parser_fail(_p, "list_1", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "list_1", 1);
+ parser_commit(_p, _pos, "list_1", 2);
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "list_1", _pos); }
  _pos = _r.pos;
@@ -4096,7 +4100,7 @@ static State r_list_1(Parser* _p, const int _start, int _rec, bool ignored) { //
  if (!_r.ok) { _p->indent = _indent; return parser_fail(_p, "list_1", _pos); }
  tlHandle data = _r.value;
  _pos = _r.pos;
- parser_commit(_p, _pos, "list_1", 4);
+ parser_commit(_p, _pos, "list_1", 5);
  const char* _anchor = parser_set_anchor(_p, "a closing ']'");
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "list_1", _start, _pos); }
@@ -4104,12 +4108,12 @@ static State r_list_1(Parser* _p, const int _start, int _rec, bool ignored) { //
  _r = prim_text(_p, _pos, "]", true);
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "list_1", _start, _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "list_1", 7);
+ parser_commit(_p, _pos, "list_1", 8);
  _r = state_ok(_pos, ignored?tlNull:tlSTR("list"));
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "list_1", _start, _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
- tlHandle _v = tlObjectFrom("data", data, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "data", data, "type", type, null);
  _p->anchor = _anchor;
  _p->indent = _indent;
  return parser_pass(_p, "list_1", _start, state_ok(_pos, _v), 0);
@@ -4118,10 +4122,14 @@ static State r_list_2(Parser* _p, const int _start, int _rec, bool ignored) { //
  parser_enter(_p, "list_2", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "list_2", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
  _r = prim_text(_p, _pos, "[", true);
  if (!_r.ok) { return parser_fail(_p, "list_2", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "list_2", 1);
+ parser_commit(_p, _pos, "list_2", 2);
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "list_2", _pos); }
  _pos = _r.pos;
@@ -4129,12 +4137,12 @@ static State r_list_2(Parser* _p, const int _start, int _rec, bool ignored) { //
  _r = prim_text(_p, _pos, "]", true);
  if (!_r.ok) { return parser_error(_p, "list_2", _start, _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "list_2", 4);
+ parser_commit(_p, _pos, "list_2", 5);
  _r = state_ok(_pos, ignored?tlNull:tlSTR("list"));
  if (!_r.ok) { return parser_error(_p, "list_2", _start, _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
- tlHandle _v = tlObjectFrom("type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "type", type, null);
  _p->anchor = _anchor;
  return parser_pass(_p, "list_2", _start, state_ok(_pos, _v), 0);
 }
@@ -4182,10 +4190,14 @@ static State r_map_1(Parser* _p, const int _start, int _rec, bool ignored) { // 
  parser_enter(_p, "map_1", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "map_1", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
  _r = prim_text(_p, _pos, "[", true);
  if (!_r.ok) { return parser_fail(_p, "map_1", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "map_1", 1);
+ parser_commit(_p, _pos, "map_1", 2);
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "map_1", _pos); }
  _pos = _r.pos;
@@ -4195,7 +4207,7 @@ static State r_map_1(Parser* _p, const int _start, int _rec, bool ignored) { // 
  if (!_r.ok) { _p->indent = _indent; return parser_fail(_p, "map_1", _pos); }
  tlHandle data = _r.value;
  _pos = _r.pos;
- parser_commit(_p, _pos, "map_1", 4);
+ parser_commit(_p, _pos, "map_1", 5);
  const char* _anchor = parser_set_anchor(_p, "a closing ']'");
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "map_1", _start, _pos); }
@@ -4203,12 +4215,12 @@ static State r_map_1(Parser* _p, const int _start, int _rec, bool ignored) { // 
  _r = prim_text(_p, _pos, "]", true);
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "map_1", _start, _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "map_1", 7);
+ parser_commit(_p, _pos, "map_1", 8);
  _r = state_ok(_pos, ignored?tlNull:tlSTR("map"));
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "map_1", _start, _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
- tlHandle _v = tlObjectFrom("data", data, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "data", data, "type", type, null);
  _p->anchor = _anchor;
  _p->indent = _indent;
  return parser_pass(_p, "map_1", _start, state_ok(_pos, _v), 0);
@@ -4217,17 +4229,21 @@ static State r_map_2(Parser* _p, const int _start, int _rec, bool ignored) { // 
  parser_enter(_p, "map_2", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "map_2", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
  _r = prim_text(_p, _pos, "[", true);
  if (!_r.ok) { return parser_fail(_p, "map_2", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "map_2", 1);
+ parser_commit(_p, _pos, "map_2", 2);
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "map_2", _pos); }
  _pos = _r.pos;
  _r = prim_text(_p, _pos, "=", true);
  if (!_r.ok) { return parser_fail(_p, "map_2", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "map_2", 3);
+ parser_commit(_p, _pos, "map_2", 4);
  const char* _anchor = parser_set_anchor(_p, "a closing ']'");
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_error(_p, "map_2", _start, _pos); }
@@ -4235,12 +4251,12 @@ static State r_map_2(Parser* _p, const int _start, int _rec, bool ignored) { // 
  _r = prim_text(_p, _pos, "]", true);
  if (!_r.ok) { return parser_error(_p, "map_2", _start, _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "map_2", 6);
+ parser_commit(_p, _pos, "map_2", 7);
  _r = state_ok(_pos, ignored?tlNull:tlSTR("map"));
  if (!_r.ok) { return parser_error(_p, "map_2", _start, _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
- tlHandle _v = tlObjectFrom("type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "type", type, null);
  _p->anchor = _anchor;
  return parser_pass(_p, "map_2", _start, state_ok(_pos, _v), 0);
 }
@@ -4273,10 +4289,14 @@ static State r_object_1(Parser* _p, const int _start, int _rec, bool ignored) { 
  parser_enter(_p, "object_1", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "object_1", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
  _r = prim_text(_p, _pos, "{", true);
  if (!_r.ok) { return parser_fail(_p, "object_1", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "object_1", 1);
+ parser_commit(_p, _pos, "object_1", 2);
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "object_1", _pos); }
  _pos = _r.pos;
@@ -4286,7 +4306,7 @@ static State r_object_1(Parser* _p, const int _start, int _rec, bool ignored) { 
  if (!_r.ok) { _p->indent = _indent; return parser_fail(_p, "object_1", _pos); }
  tlHandle data = _r.value;
  _pos = _r.pos;
- parser_commit(_p, _pos, "object_1", 4);
+ parser_commit(_p, _pos, "object_1", 5);
  const char* _anchor = parser_set_anchor(_p, "a closing '}'");
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "object_1", _start, _pos); }
@@ -4294,12 +4314,12 @@ static State r_object_1(Parser* _p, const int _start, int _rec, bool ignored) { 
  _r = prim_text(_p, _pos, "}", true);
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "object_1", _start, _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "object_1", 7);
+ parser_commit(_p, _pos, "object_1", 8);
  _r = state_ok(_pos, ignored?tlNull:tlSTR("object"));
  if (!_r.ok) { _p->indent = _indent; return parser_error(_p, "object_1", _start, _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
- tlHandle _v = tlObjectFrom("data", data, "type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "data", data, "type", type, null);
  _p->anchor = _anchor;
  _p->indent = _indent;
  return parser_pass(_p, "object_1", _start, state_ok(_pos, _v), 0);
@@ -4308,10 +4328,14 @@ static State r_object_2(Parser* _p, const int _start, int _rec, bool ignored) { 
  parser_enter(_p, "object_2", _start);
  int _pos = _start;
  State _r;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "object_2", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
  _r = prim_text(_p, _pos, "{", true);
  if (!_r.ok) { return parser_fail(_p, "object_2", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "object_2", 1);
+ parser_commit(_p, _pos, "object_2", 2);
  _r = r_wsnl(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "object_2", _pos); }
  _pos = _r.pos;
@@ -4319,12 +4343,12 @@ static State r_object_2(Parser* _p, const int _start, int _rec, bool ignored) { 
  _r = prim_text(_p, _pos, "}", true);
  if (!_r.ok) { return parser_error(_p, "object_2", _start, _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "object_2", 4);
+ parser_commit(_p, _pos, "object_2", 5);
  _r = state_ok(_pos, ignored?tlNull:tlSTR("object"));
  if (!_r.ok) { return parser_error(_p, "object_2", _start, _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
- tlHandle _v = tlObjectFrom("type", type, null);
+ tlHandle _v = tlObjectFrom("pos", pos, "type", type, null);
  _p->anchor = _anchor;
  return parser_pass(_p, "object_2", _start, state_ok(_pos, _v), 0);
 }

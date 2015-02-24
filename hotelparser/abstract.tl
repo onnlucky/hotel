@@ -29,17 +29,17 @@ grammar.each: rule -> callers(rule, rule.name)
 
 consumers = HashMap.new
 
-// TODO fold this in with tracing??
-// 2 == terminal
-// 1 == maybe but might not consume tokens
-// false == not terminal
+# TODO fold this in with tracing??
+# 2 == terminal
+# 1 == maybe but might not consume tokens
+# false == not terminal
 isterm2 = rule, seen ->
     assert seen
     name = try(rule.name)
     seen = { not name        }: seen
            { seen.find(name) }: return false
            {                 }: seen.add(name)
-    //print "seen:", try(rule.name), repr(seen)
+    #print "seen:", try(rule.name), repr(seen)
     { rule.type == "prim" and try(rule.text) }: 2
     { TERMS[rule.type]    }: 1
     { rule.type == "call" }: isterm(names[rule.target], seen)
@@ -81,7 +81,7 @@ isterm = rule, seen ->
     term = isterm2(rule, seen)
     consumers[rule] = term
 
-// TODO cache as well, or merge with above??
+# TODO cache as well, or merge with above??
 directleft = HashMap.new
 trace = rule ->
     step = rule, seen ->
@@ -106,7 +106,7 @@ trace = rule ->
             return true
         { rule.type == "and"  }:
             rule.terms.each: term ->
-                // handle type == "call" when it is direct left recursive
+                # handle type == "call" when it is direct left recursive
                 consumes, direct = step(term, seen)
                 if direct: continue
                 if consumes: return true
@@ -158,7 +158,7 @@ directterm = term ->
     if rule.type != "and": return
     rule.terms.first
 
-// returns true if this parse always consumes input if successful
+# returns true if this parse always consumes input if successful
 consumes = term ->
     { term.type == "call" }: return names[term.target].consumes
     { term.type == "prim" }: return try(term.text) != null
@@ -310,7 +310,7 @@ emit_rule = rule ->
         names = Array.new
         lines.add " State _r;"
         rule.terms.each: term, n ->
-            // skip first term if directleft recursive, or parent will take care of it
+            # skip first term if directleft recursive, or parent will take care of it
             if n == 1 and directleft[rule.name]: continue
             if term.type == "resetindent":
                 lines.add " const int __indent = 0;"
