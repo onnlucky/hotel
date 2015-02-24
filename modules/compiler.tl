@@ -255,25 +255,25 @@ compile = (text, ast ->
             _, at = this.args.add(name)
             this.names[name] = {arg=true,{at,id}}
             return id
-        greturn = level ->
-            if this.block: return parent.greturn(level + 1)
-            {type="return",scope=level}
-        ggoto = level ->
-            if this.block: return parent.ggoto(level + 1)
-            {type="goto",scope=level}
-        gbreak = level, ls ->
-            if this.block: return parent.gbreak(level + 1, ls.add(level))
-            if this.parent: return parent.gbreak(level + 1, ls)
-            {type="break",scope=ls}
-        gcontinue = level, ls ->
-            if this.block: return parent.gcontinue(level + 1, ls.add(level))
-            if this.parent: return parent.gcontinue(level + 1, ls)
-            {type="continue",scope=ls}
+        greturn = level, pos ->
+            if this.block: return parent.greturn(level + 1, pos)
+            {type="return",scope=level, pos=pos}
+        ggoto = level, pos ->
+            if this.block: return parent.ggoto(level + 1, pos)
+            {type="goto",scope=level, pos=pos}
+        gbreak = level, pos, ls ->
+            if this.block: return parent.gbreak(level + 1, pos, ls.add(level))
+            if this.parent: return parent.gbreak(level + 1, pos, ls)
+            {type="break",scope=ls, pos=pos}
+        gcontinue = level, pos, ls ->
+            if this.block: return parent.gcontinue(level + 1, pos, ls.add(level))
+            if this.parent: return parent.gcontinue(level + 1, pos, ls)
+            {type="continue",scope=ls, pos=pos}
         ref = name, level, pos ->
-            if name == "return": return this.greturn(0)
-            if name == "goto": return this.ggoto(0)
-            if name == "break": return this.gbreak(0, [])
-            if name == "continue": return this.gcontinue(0, [])
+            if name == "return": return this.greturn(0, pos)
+            if name == "goto": return this.ggoto(0, pos)
+            if name == "break": return this.gbreak(0, pos, [])
+            if name == "continue": return this.gcontinue(0, pos, [])
             ref = this.names[name]
             if ref?fn and not args["peek"]:
                 if functions[ref.fn].open: closefn(ref.fn)
@@ -395,7 +395,7 @@ compile = (text, ast ->
 
     lex = scope, term, name, pos ->
         { term == null              }: "null"
-        { isChar(term)              }: {type="call",target={type="global",name="Char"},args=[term.toNumber]}
+        { isChar(term)              }: {type="call",target={type="global",name="Char", pos=term?pos},args=[term.toNumber], pos=term?pos}
         { not term?type             }: term
         { term.type == "string"     }: term
         { term.type == "stringlist" }:
@@ -403,7 +403,7 @@ compile = (text, ast ->
                 { isString(s) }: {type="string",data=s}
                 {             }: lex(scope, s)
             )
-            {type="call",target={type="global",name="_String_cat"},args=data}
+            {type="call",target={type="global",name="_String_cat", pos=term?pos},args=data, pos=term?pos}
         { term.type == "scope" }:
             function = lextop(scope, term)
             _, fn = functions.add({name="",open=false,function=function})
@@ -477,13 +477,13 @@ compile = (text, ast ->
                 { to.type == "local" }: null # nothing to do
                 { to.type == "newvar" }:
                     at, id = scope.add(to.name, to.pos)
-                    value = {type="method",target={type="global",name="Var"},method="new",args=[{type="local",at=l.at,id=l.id}]}
+                    value = {type="method",target={type="global",name="Var", pos=to.pos},method="new",args=[{type="local",at=l.at,id=l.id}],pos=to.pos}
                     to={type="local",name=to.name,pos=to.pos,{at,id}}
-                    {type="asign",{to,value}}
+                    {type="asign",{to,value},pos=to.pos}
                 { to.type == "var" }:
                     ref = scope.ref(to.name)
                     value = {type="local",at=l.at,id=l.id}
-                    {type="method",target=ref,method="set",args=[value]}
+                    {type="method",target=ref,method="set",args=[value],pos=to?pos}
             )
             {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
@@ -493,12 +493,12 @@ compile = (text, ast ->
             block = { term?block }: lex(scope, term.block)
                     {            }: null
             if target?type == "return" or target?type == "goto":
-                t = {type="global",name=target.type}
-                return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block}}
+                t = {type="global",name=target.type,pos=term?pos}
+                return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block},pos=term?pos}
             if target?type == "break" or target?type == "continue":
-                t = {type="global",name=target.type}
-                s = lex(scope, {type="list",data=target.scope})
-                return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
+                t = {type="global",name=target.type, pos=term?pos}
+                s = lex(scope, {type="list",data=target.scope, pos=term?pos})
+                return {type="call",target=t,args=[s]+args,names=[null]+names,{block}, pos=term?pos}
             {type="call",{target,args,names,block},pos=term?pos}
         { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
@@ -547,7 +547,7 @@ compile = (text, ast ->
             {type="vset",target=ref,{value}}
         { term.type == "list" }:
             data = (term?data or []).map(term -> lex(scope, term))
-            {type="list",{data}}
+            {type="list",{data}, pos=term?pos}
         { term.type == "object" or term.type == "map" }:
             map = HashMap.new
             fill = Array.new
@@ -657,15 +657,15 @@ compile = (text, ast ->
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
-            ["fcall", term?pos, elements.size, "global", 0, "__list"] + elements + ["invoke", term?pos]
+            ["fcall", term?pos, elements.size, "global", term?pos, "__list"] + elements + ["invoke", term?pos]
         { term.type == "object" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__object", "data", term.map.toObject] + fill + ["invoke", term?pos]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", term?pos, "__object", "data", term.map.toObject] + fill + ["invoke", term?pos]
         { term.type == "map" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__map", "data", term.map.toObject] + fill + ["invoke", term?pos]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", term?pos, "__map", "data", term.map.toObject] + fill + ["invoke", term?pos]
         { term.type == "class" }:
-            ["fcall", term?pos, 2, "global", 0, "_bless", emit(term.methods), emit(term.class), "invoke", term?pos]
+            ["fcall", term?pos, 2, "global", term?pos, "_bless", emit(term.methods), emit(term.class), "invoke", term?pos]
         { }:
             print "ERROR"
             print repr(term)
