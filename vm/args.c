@@ -310,6 +310,8 @@ static void args_init() {
         "msg", _args_msg,
         "block", _args_block,
         "names", _args_names,
+        "toObject", _args_names,
+        "toList", _args_slice,
         "namesmap", _args_namesmap,
         //"raw", _args_raw,
 
