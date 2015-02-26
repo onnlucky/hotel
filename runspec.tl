@@ -6,7 +6,7 @@ starttest = title ->
 
 endtest = ->
     title = $_test
-    pass = _results.filter(r -> not r.pass).size
+    pass = _results.filter(r -> r.pass).size
     total = _results.size
     _results.each: r ->
         if not r.pass: print "FAIL:", r.name, r.msg

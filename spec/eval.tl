@@ -40,3 +40,17 @@ test "frame.get undefined is all undefined":
     assert isUndefined(type)
     assert isUndefined(pos)
     assert isUndefined(foobar)
+
+test "debugger":
+    debugger = Debugger.new
+    task = Task.new
+    debugger.attach(task)
+    task.run(-> 1 + 2)
+    var upto = 0
+    10.times: n ->
+        op = debugger.step
+        if not op: break
+        upto = n
+    assert upto >= 5
+    assert task.value == 3
+
