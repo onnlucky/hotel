@@ -1,5 +1,7 @@
 // a object implementation
 
+#include "args.h"
+
 #include "trace-off.h"
 
 tlKind* tlClassKind;
@@ -610,6 +612,78 @@ static tlKind _tlObjectKind = {
     .run = objectRun,
 };
 
+TL_REF_TYPE(tlUserClass);
+TL_REF_TYPE(tlUserObject);
+
+tlKind* tlUserClassKind;
+tlKind* tlUserObjectKind;
+
+struct tlUserClass {
+    tlHead head;
+    tlSym name;
+    tlHandle constructor;
+    tlObject* fields;
+    tlObject* methods;
+};
+
+struct tlUserObject {
+    tlHead head;
+    tlUserClass* cls;
+    tlHandle fields[];
+};
+
+static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
+    tlSym name = tlSymCast_(tlArgsGet(args, 0));
+    tlHandle constructor = tlArgsGet(args, 1);
+    tlObject* fields = tlObjectCast(tlArgsGet(args, 2));
+    tlObject* methods = tlObjectCast(tlArgsGet(args, 3));
+    assert(constructor);
+    assert(fields);
+    assert(methods);
+
+    tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
+    cls->name = name;
+    cls->constructor = constructor;
+    cls->fields = fields;
+    cls->methods = methods;
+
+    return cls;
+}
+
+static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlUserClass, cls);
+    return cls->name;
+}
+
+static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlUserClass, cls);
+    assert(cls->fields);
+    int fields = tlObjectSize(cls->fields);
+    assert(fields >= 0);
+    tlUserObject* target = tlAlloc(tlUserObjectKind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
+    target->cls = cls;
+    for (int i = 0; i < fields; i++) {
+        target->fields[i] = tlOR_NULL(tlArgsGet(args, i));
+    }
+    return target;
+    //return tlInvoke(task, tlArgsFrom(args, cls->constructor, cls->name, target));
+}
+
+// resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
+tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
+    tlUserClass* cls = oop->cls;
+    tlUserClass* super = cls;
+    print("USER OBJECT RESOLVE: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
+    while (super) {
+        tlHandle v = tlObjectGet(super->methods, name);
+        if (v) return v;
+        super = null; //super->super;
+    }
+    tlHandle field = tlObjectGet(cls->fields, name);
+    if (field) return tlOR_NULL(oop->fields[tl_int(field)]);
+    return null;
+}
+
 static void object_init() {
     s_methods = tlSYM("methods");
     _tl_emptyObject = tlObjectNew(tlSetEmpty());
@@ -630,5 +704,24 @@ static void object_init() {
         null
     );
     tl_register_global("Object", constructor);
+
+
+    tlClass* cls = tlCLASS("UserClass", tlNATIVE(_UserClass_call, "UserClass"),
+    tlMETHODS(
+        "name", _userclass_name,
+        "call", _userclass_call,
+        null
+    ), null);
+    tlKind _tlUserClassKind = {
+        .name = "UserClass",
+        .cls = cls,
+    };
+    INIT_KIND(tlUserClassKind);
+    tl_register_global("UserClass", cls);
+
+    tlKind _tlUserObjectKind = {
+        .name = "UserObject",
+    };
+    INIT_KIND(tlUserObjectKind);
 }
 

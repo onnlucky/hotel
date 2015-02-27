@@ -1090,6 +1090,15 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
             return tlInvoke(task, tlArgsFrom(call, fn, s_call, target));
         }
     }
+    /*
+    tlUserClass* cls2 = tlUserClassFor(fn);
+    if (cls2) {
+        fn = userclassResolve(cls2, s_call);
+        if (fn) {
+            return tlInvoke(task, tlArgsFrom(call, fn, s_call, target));
+        }
+    }
+    */
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
@@ -1178,6 +1187,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     trace("resolve method: %s.%s", tl_str(target), tl_str(method));
     if (tlObjectIs(target)) return objectResolve(target, method);
     if (tlClassIs(target)) return classResolveStatic(tlClassAs(target), method);
+    if (tlUserObjectIs(target)) return userobjectResolve(tlUserObjectAs(target), method);
     assert(target);
     assert(tl_kind(target));
     tlKind* kind = tl_kind(target);
