@@ -537,12 +537,13 @@ void tl_init() {
 
     sym_string_init();
 
-    bin_init();
-    list_init();
     set_init();
     object_init();
+    list_init();
+
     class_init();
     map_init();
+    bin_init();
 
 
     value_init();

@@ -6,12 +6,10 @@ methods = {
     area = -> this.width * this.height
 }
 constructor = width, height ->
-    print "constructor"
-    this.width = width
-    this.height = height
+    UserClass.setField(this, "width", width)
+    UserClass.setField(this, "height", height)
+    return this
 
 Rect = UserClass("Rect", constructor, fields, methods)
-print Rect
-print Rect.name
 Rect(20, 30).area
 

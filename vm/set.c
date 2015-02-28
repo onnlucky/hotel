@@ -9,6 +9,7 @@ struct tlSet {
 static tlSet* _tl_set_empty;
 
 tlSet* tlSetEmpty() {
+    assert(_tl_set_empty);
     return _tl_set_empty;
 }
 

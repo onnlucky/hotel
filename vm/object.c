@@ -22,8 +22,8 @@ tlClass* tlCLASS(const char* name, tlNative* ctor, tlObject* methods, tlObject* 
     tlClass* cls = tlAlloc(tlClassKind, sizeof(tlClass));
     cls->name = tlSYM(name);
     cls->constructor = ctor;
-    cls->methods = methods;
-    cls->statics = statics;
+    cls->methods = methods? methods : tlObjectEmpty();
+    cls->statics = statics? statics : tlObjectEmpty();
     return cls;
 }
 
@@ -108,10 +108,16 @@ struct tlObject {
 
 static tlObject* _tl_emptyObject;
 
-tlObject* tlObjectEmpty() { return tlObjectNew(null); }
+tlObject* tlObjectEmpty() {
+    assert(_tl_emptyObject);
+    assert(tlObjectIs(_tl_emptyObject));
+    //return _tl_emptyObject;
+    // TODO remove this, but we sometimes transform an fresh object into a Map
+    return tlObjectNew(tlSetEmpty());
+}
 
 tlObject* tlObjectNew(tlSet* keys) {
-    if (!keys) keys = _tl_set_empty;
+    assert(keys);
     tlObject* object = tlAlloc(tlObjectKind, sizeof(tlObject) + sizeof(tlHandle) * keys->size);
     object->keys = keys;
     assert(tlObjectSize(object) == tlSetSize(keys));
@@ -650,6 +656,21 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     return cls;
 }
 
+static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
+    tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 0));
+    assert(oop);
+    assert(oop->cls);
+    assert(tlObjectIs(oop->cls->fields));
+    tlSym name = tlSymAs_(tlArgsGet(args, 1));
+    tlHandle v = tlOR_NULL(tlArgsGet(args, 2));
+
+    tlUserClass* cls = oop->cls;
+    trace("setField: %s.%s = %s", tl_str(oop), tl_str(name), tl_str(v));
+    tlHandle field = tlObjectGet(cls->fields, name);
+    if (field) oop->fields[tl_int(field)] = v;
+    return v;
+}
+
 static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     return cls->name;
@@ -665,15 +686,14 @@ static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
     for (int i = 0; i < fields; i++) {
         target->fields[i] = tlOR_NULL(tlArgsGet(args, i));
     }
-    return target;
-    //return tlInvoke(task, tlArgsFrom(args, cls->constructor, cls->name, target));
+    return tlInvoke(task, tlArgsFrom(args, cls->constructor, cls->name, target));
 }
 
 // resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
 tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     tlUserClass* cls = oop->cls;
     tlUserClass* super = cls;
-    print("USER OBJECT RESOLVE: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
+    trace("USER OBJECT RESOLVE: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
     while (super) {
         tlHandle v = tlObjectGet(super->methods, name);
         if (v) return v;
@@ -686,7 +706,6 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
 
 static void object_init() {
     s_methods = tlSYM("methods");
-    _tl_emptyObject = tlObjectNew(tlSetEmpty());
     tlObject* constructor = tlClassObjectFrom(
         "call", _Object_from,
         "hash", _Object_hash,
@@ -704,6 +723,9 @@ static void object_init() {
         null
     );
     tl_register_global("Object", constructor);
+    _tl_emptyObject = tlObjectNew(tlSetEmpty());
+    assert(tlSetIs(tlSetEmpty()));
+    assert(tlObjectIs(tlObjectEmpty()));
 
 
     tlClass* cls = tlCLASS("UserClass", tlNATIVE(_UserClass_call, "UserClass"),
@@ -711,7 +733,10 @@ static void object_init() {
         "name", _userclass_name,
         "call", _userclass_call,
         null
-    ), null);
+    ), tlMETHODS(
+        "setField", _UserClass_setField,
+        null
+    ));
     tlKind _tlUserClassKind = {
         .name = "UserClass",
         .cls = cls,

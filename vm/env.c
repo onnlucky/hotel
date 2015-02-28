@@ -44,7 +44,7 @@ void tlEnvImport_(tlEnv* env, tlObject* names) {
 tlObject* tlEnvLocalObject(tlFrame* frame) {
     tlEnv* env = tlCodeFrameEnv(frame);
     tlList* names = env->names;
-    tlObject* map = tlObjectNew(0);
+    tlObject* map = tlObjectEmpty();
     for (int i = 0; i < tlListSize(names); i++) {
         if (!names) continue;
         tlHandle name = tlListGet(names, i);
