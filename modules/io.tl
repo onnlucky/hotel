@@ -313,6 +313,7 @@ Terminal = {
         isTTY = -> _tty_is(this.file)
         # TODO does not work, size conflicts with stream.size
         setRaw = -> _tty_setRaw(this.file)
+        setup = rate, bytesize, parity, stopbits -> _tty_setup(this.file, rate, bytesize, parity, stopbits)
         restore = -> _tty_restore(this.file)
         measure = -> _tty_size(this.file)
         width = -> _tty_size(this.file)

@@ -1206,13 +1206,14 @@ static tlHandle _tty_is(tlTask* task, tlArgs* args) {
     if (!isatty(file->ev.fd)) return tlFalse;
     return tlTrue;
 }
+
 static tlHandle _tty_setRaw(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
     int fd = file->ev.fd;
     if (!isatty(fd)) return tlFalse;
 
-    struct termios raw;
+    struct termios raw = {0};
     if (tcgetattr(fd, &tty_orig) == -1) goto fatal;
 
     raw = tty_orig;
@@ -1229,9 +1230,51 @@ static tlHandle _tty_setRaw(tlTask* task, tlArgs* args) {
         atexit(tty_restore);
     }
     return tlTrue;
+
 fatal:
     return tlFalse;
 }
+
+static tlHandle _tty_setup(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    int fd = file->ev.fd;
+
+    int rate = tl_int_or(tlArgsGet(args, 1), 19200);
+    int baud = B19200;
+    switch (rate) {
+        case  1200: baud = B1200; break;
+        case  2400: baud = B2400; break;
+        case  4800: baud = B4800; break;
+        case  9600: baud = B9600; break;
+        case 19200: baud = B19200; break;
+        case 38400: baud = B38400; break;
+        default: TL_THROW("not a valid baud rate");
+    }
+    struct termios tty = {0};
+
+    int bytesize = tl_int_or(tlArgsGet(args, 2), 8);
+    switch (bytesize) {
+        case 5: tty.c_cflag = CS5; break;
+        case 6: tty.c_cflag = CS6; break;
+        case 7: tty.c_cflag = CS7; break;
+        case 8: tty.c_cflag = CS8; break;
+        default: TL_THROW("not a valid byte size");
+    }
+
+    // TODO parity and stop bits
+
+    cfsetospeed(&tty, baud);
+    cfsetispeed(&tty, baud);
+    tty.c_cc[VMIN] = 0;
+    tty.c_cc[VTIME] = 0;
+    if (tcsetattr(fd, TCSANOW, &tty) < 0) goto fatal;
+    return tlTrue;
+
+fatal:
+    return tlFalse;
+}
+
 static tlHandle _tty_restore(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
@@ -1278,6 +1321,7 @@ static const tlNativeCbs __evio_natives[] = {
 
     { "_tty_is", _tty_is },
     { "_tty_setRaw", _tty_setRaw },
+    { "_tty_setup", _tty_setup },
     { "_tty_restore", _tty_restore },
     { "_tty_size", _tty_size },
 
