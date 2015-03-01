@@ -158,8 +158,21 @@ static tlHandle _float_ceil(tlTask* task, tlArgs* args) {
 }
 static tlHandle _float_toString(tlTask* task, tlArgs* args) {
     double c = tl_double(tlArgsTarget(args));
+    int base = 10;
     char buf[255];
-    int len = snprintf(buf, sizeof(buf), "%.17g", c);
+    int len = 0;
+    if (tlArgsSize(args) == 1) {
+        if (!tlNumberIs(tlArgsGet(args, 0))) TL_THROW("Float.toString(base=10) base must be a number");
+        base = tl_int(tlArgsGet(args, 0));
+    }
+
+    if (base == 10) {
+        len = snprintf(buf, sizeof(buf), "%.17g", c);
+    } else if (base == 16) {
+        len = snprintf(buf, sizeof(buf), "%a", c);
+    } else {
+        TL_THROW("Float.toString() does not support a base of %d", base);
+    }
     return tlStringFromCopy(buf, len);
 }
 
