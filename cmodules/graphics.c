@@ -467,10 +467,12 @@ static tlHandle _image(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _Graphics_new(tlTask* task, tlArgs* args) {
+    static tlSym s_alpha; if (!s_alpha) s_alpha = tlSYM("alpha");
     int width = tl_int_or(tlArgsGet(args, 0), 250);
     int height = tl_int_or(tlArgsGet(args, 1), width);
+    bool alpha = tl_bool_or(tlArgsGetNamed(args, s_alpha), true);
 
-    Image* image = ImageNew(width, height);
+    Image* image = ImageNew(width, height, alpha);
     return imageGetGraphics(image);
 }
 

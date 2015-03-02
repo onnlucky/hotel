@@ -107,9 +107,10 @@ void imageFinalizer(tlHandle handle) {
     if (img->cairo) cairo_destroy(img->cairo);
 }
 
-Image* ImageNew(int width, int height) {
+Image* ImageNew(int width, int height, bool alpha) {
     Image* img = tlAlloc(ImageKind, sizeof(Image));
-    img->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_format_t format = alpha? CAIRO_FORMAT_ARGB32 : CAIRO_FORMAT_RGB24;
+    img->surface = cairo_image_surface_create(format, width, height);
     return img;
 }
 
@@ -144,12 +145,14 @@ int imageHeight(Image* img) {
 cairo_surface_t* imageSurface(Image* img) { return img->surface; }
 
 static tlHandle _Image_new(tlTask* task, tlArgs* args) {
+    static tlSym s_alpha; if (!s_alpha) s_alpha = tlSYM("alpha");
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (buf) return ImageFromBuffer(buf);
 
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
-    if (width > 0 && height > 0) return ImageNew(width, height);
+    int alpha = tl_bool_or(tlArgsGetNamed(args, s_alpha), true);
+    if (width > 0 && height > 0) return ImageNew(width, height, alpha);
 
     tlString* path = tlStringCast(tlArgsGet(args, 0));
     if (path) {

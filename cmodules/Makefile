@@ -12,7 +12,7 @@ endif
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
-	CFLAGS+=-ggdb -O
+	CFLAGS+=-ggdb -O0
 endif
 # doesn't work with coverage tool
 ifeq ($(GCOV),1)
