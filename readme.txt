@@ -1,13 +1,14 @@
-/title: Hotel - A Programming language
-/author: Onne Gorter
+Hotel - A Programming language
+------------------------------
 
-/h1: Overview
+author: Onne Gorter
 
 Hotel is a dynamic programming languages, it borrows from functional languages
 and has concurrency built in. Language wise, it is inspired a lot by javascript
 and ruby and a little bit by erlang and ocaml.
 
-/h1: High Level
+High Level
+----------
 
 Hotel's main goal is to enable high level programming. Hotel is itself a high
 level language, but it also enables creating "more higher" levels. It can claim
@@ -43,7 +44,50 @@ definitely is a good thing. But it disallows creating abstractions around side
 effects, the best you can get is create conveniences.
 
 
-/h1: Hotel - The Name
+Mini Tutorial
+------------
+```
+a = "hello"
+b = "world"
+print(a, b)
+```
+Outputs "hello world" on the console, `a` and `b` are not so much variables, but
+immutable name bindings. Hotel supports mutations, but you have to ask.
+
+```
+var x = 0
+"hello world".split.each: word ->
+  x += word.size
+print x
+```
+Outputs 10. While not a bad solution, it can also be written without:
+```
+"hello world".split.map(word -> word.size).sum
+```
+The choice is yours. But hotels default choices are immutable. Like in this
+example, `String.split` returns a `List` which is an immutable. Much like
+`Strings` in most languages.
+
+As a last example:
+```
+page = html.parse(http.get("http://en.wikipedia.org/wiki/Hotel"))
+print(page.find("p").text)
+```
+Which will print the first page of the wikipedia article on hotels. (Not this
+language, haha).
+
+
+Status
+------
+
+Hotel is in early stages. It is still missing real classes (can be simulated),
+and many other features and things you'd expect.
+
+Also hotel has no illusion of being fast.
+
+
+Hotel - The Name
+----------------
 
 It is called hotel for a reason. You came here to solve your problem. Hotel,
 the programming language, does the chores and housekeeping for you. So you can
@@ -57,155 +101,3 @@ noun
 3. a programming language providing many services for programmers and
    developers.
 
-
-# syntax design
-
-Must be able to not type parens all the time. So you can skip them for the "primary" expressions and for blocks. Especially for the primary expressions, you should be able to insert a primary expression to the left of it and it should mean the same thing:
-
-all run the initial statement unchanged
-  fac 10
-  print fac 10
-  sometimes print fact 10
-
-same for:
-  if true: print "foo"
-  timed if true: print "foo"
-
-# selfapplication
-
-If a name appears all by itself in single statement, it selfactivates ... the only other use for such a statement would be if it is at the end of an code block to return that value. In that case you can use return name instead.
-
-so:
-    print
-would actually print a newline ...
-
-implications, any bare statement is executed, so returning last value only works by typing:
-  return value
-not
-  value
-the latter will translate to
-  value()
-and fail
-
-# about continuations and flow control
-
-There are three fundamental control flow functions. return, goto and continuation. These always have a tRunCode as reference. Because we try to be very lazy when to materialise tRun's the host (c) stack implies the native caller flow. But non linear flow by these functions makes this a delicate situation.
-
-# macros
-
-Before any optimisation, macros may run. Basically after parsing, but before optimising/compiling, macros may run. As we see a macro definitions, we take it out of the source, compile it and have it defined for the current scope. As we see symbols in apply position, if they refer to a macro, we apply the macro, the arguments are unevaluated syntax tree elements.
-
-macro repeat = () {
-    if args.size > 0: throw "repeat expects a single block"
-    if !args.block: throw "repeat expects a block"
-    args.block.add-first parse "again=continuation"
-}
-
-buffer = Buffer.new
-file = Path("index.html").open
-repeat:
-    len = file.read buffer
-    if len > 0: again
-
-# how does the evaluator work
-
-Basically the only thing the "bytecode" does is call functions, bind functions and collect return values.
-
-# native functions
-
-When you wish to extend hotel with c level function, you have four options:
-1. implement primitive functions
-2. implement functions that can re-enter the evaluator before being done
-3. implement an actor
-
-## primitive functions
-
-Primitive functions may only return hotel values, or exceptions. They cannot
-call the evaluator. But they are by far the easiest to understand.
-
-In any scope, you register a tPRIM under a name, the tPRIM will need a function
-pointer. Optionally you can add more data elements.
-
-The function prototype looks as follows: `void name(tlFun* fn, tlMap* args)`. Receiving the current task, a pointer back to the tlPRIM you created (from which you can retrieve the extra data elements), and a tlMap containing the arguments. You return values by tltask_return(), or tltask_throw().
-
-There are some rules to adhere:
-* don't call tlcall_call() or friends
-* don't modify tlTask, tlFun or tlMap
-* hotel may run using many threads concurrently, and your functions might be called on any thread, even simultaneously, even this excact same call might run concurrently (all receiving the same tlMap*).
-
-Return only hotel values. Anything primitive can be placed under tlPointer or
-others. When using your own structures, ensure to be thread safe and fully
-reentrant.
-
-Notice only true/false/null/undefined and float values are guaranteed
-primitives. Especially tlNumber and tlString are tricky. They might be tlInt and
-tlString*, but they might also be higher level values that act as these. So when
-calling primitives you need to know they are, and force numbers and texts to be
-normalised (call toPrimitive on them).
-
-## full functions
-
-Full functions may re-enter the evaluator. But the hotel language supports full
-continuations and forks and other such constructs, and cannot therefor be
-evaluated on a simple stack. So your full functions cannot use the c-level
-stack, only as temporary space. Full functions must implement continuations
-manually. Basically your function will get called many more times, and you have
-to figure out what to do each time you are called.
-
-to support this, your function receives and returns an extra tvalue. this value
-can be anything, including your own type, as long as it adheres to how hotel
-values should behave. This value is never visible at hotel level, unless you
-pass it there. The first time you are passed null (not tNull).
-
-a "simple" log function:
-  tValue _log(tlFun* fn, tlMap* args, tlValue current) {
-      int i = 0;
-      if (current) {
-          i = tl_int(current);
-          // there was a continuation, so we called the evaluator, and it returned to us
-          // the return value always lives in the value "register" of the current task
-          tlValue v = tltask_value(task);
-          tlString* s = tlString_cast(v);
-          printf("%s", s?tlString_data(s):"<null>");
-      }
-      for (; true; i++) {
-          // the iterator will return null when done
-          tlValue v = tlmap_value_iter(map, i);
-          if (!v) break;
-
-          // tlvalue_toString will return null when it setup a call to the evaluator
-          tlValue v = tlvalue_toString(v);
-          if (!v) return tlINT(i); // return our current state
-      }
-      // our function returns null
-      tltask_return(tlNull);
-      // we return null to indicate we are fully done
-      return null;
-  }
-
-Notice, these sort of functions are likely a lot easier when done as follows:
-
-hotel:
-  log = => args.map(n -> n.toString).join(" ").add("\n").toPrimitive |> output.write
-
-## c-level task
-
-Hotel is build using the actor model, light weight threads called a task. A task is a share nothing thread, and you push messages onto its queue, it will respond at its own leisure.
-
-Funny thing is, this is much like an event loop, except that you write a
-response back to the event. This is exactly how you implement a c level task.
-Your choice is to "sacrifice" a os level thread.
-
-The idea is simple, whenever messages became available, a callback is invoked.
-This callback may signal your thread, or may run your message queue. If you
-don't use your own thread, don't use any blocking calls.
-
-# requirements
-
-$ apt-get install ssl-dev portaudio19-dev
-
-probably in the future
-
-$ apt-get install libgc-dev
-
-but for now libgc is bundled together with libatomic
