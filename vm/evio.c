@@ -61,7 +61,11 @@ static tlHandle _io_getrusage(tlTask* task, tlArgs* args) {
     tlObjectSet_(res, _s_mem, tlINT(use.ru_maxrss));
     tlObjectSet_(res, _s_pid, tlINT(getpid()));
 #ifdef HAVE_BOEHMGC
+#if GC_VERSION_MAJOR >= 7 && GC_VERSION_MINOR <= 3
+    tlObjectSet_(res, _s_gcs, tlINT(GC_gc_no));
+#else
     tlObjectSet_(res, _s_gcs, tlINT(GC_get_gc_no()));
+#endif
     tlObjectSet_(res, _s_gcmem, tlINT(GC_get_heap_size()));
 #endif
     return res;

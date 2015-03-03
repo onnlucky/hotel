@@ -507,8 +507,10 @@ void tl_init() {
 
 
 #ifdef HAVE_BOEHMGC
+#if GC_VERSION_MAJOR >= 7 && GC_VERSION_MINOR >= 4
     GC_set_handle_fork(0);
     GC_set_dont_expand(0);
+#endif
     GC_set_free_space_divisor(1); // default is 3; space vs collections, lower is more space
     GC_init();
 #endif
