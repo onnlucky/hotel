@@ -105,6 +105,11 @@ mfunction: pos=pos as=fargs .arrow.. body=bodynl                                
 
 // ---- EXPRESSIONS ----
 
+   sized: value=(v=num | v=chr | v=text) pos=pos name=ref -> process_tail(name, process_call(tlListFrom1(value), tlNull, pos))
+        | num
+        | chr
+        | text
+
 reserved: "else" !letter
         | "var" !letter
 literal*: "true" | "false" | "null" | "undefined"
@@ -116,7 +121,7 @@ literal*: "true" | "false" | "null" | "undefined"
         | object
         | map
         | list
-        | num | chr | text
+        | sized
         | function
         | literal
         | ref
