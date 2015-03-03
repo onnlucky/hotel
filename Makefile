@@ -124,7 +124,9 @@ clean:
 	rm -rf gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno boot/*.gcda boot/*.gcno
 	$(MAKE) -C vm clean
 	$(MAKE) -C cmodules clean
+ifndef NO_GRAPHICS
 	$(MAKE) -C graphics clean
+endif
 	rm -rf boot/*.tlb boot/*.tl boot/*.o
 distclean: clean
 	rm -f $(LIBMP) libmp/*.o
@@ -155,14 +157,18 @@ install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES) $(BIN_MODULES)
 	cp cmodules/*.mod $(MODDIR)/
 	cp tlmeta $(BINDIR)/
 	cp tlmeta-base.tl $(MODDIR)/
+ifndef NO_GRAPHICS
 	$(MAKE) -C graphics install
+endif
 uninstall:
 	rm -rf $(BINDIR)/tl
 	rm -rf $(BINDIR)/tlmeta
 	rm -rf $(LIBDIR)/libtl.a
 	rm -rf $(INCDIR)/tl.h
 	rm -rf $(MODDIR)
+ifndef NO_GRAPHICS
 	$(MAKE) -C graphics uninstall
+endif
 
 .PHONY: run test clean distclean install uninstall
 
