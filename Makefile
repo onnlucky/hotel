@@ -2,6 +2,8 @@ CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arg
 CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
+BOOT:=$(shell tl --version | grep hotel)
+
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
@@ -36,6 +38,7 @@ C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
 all: tl $(C_MODULES) $(TLG_MODULES) $(BIN_MODULES)
 
+ifneq ($(BOOT),)
 # all these boot things require a working hotel installed
 boot: boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c
 boot/init.tlb boot/init.tlb.h: modules/init.tl tlcompiler
@@ -55,8 +58,10 @@ boot/jsonparser.o: vm/tl.h config.h boot/jsonparser.c boot/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/jsonparser.c -o boot/jsonparser.o
 boot/xmlparser.o: vm/tl.h config.h boot/xmlparser.c boot/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/xmlparser.c -o boot/xmlparser.o
+endif
 
 run: tl
+	echo $(BOOT)
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
 	#./tlcompiler run.tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --init run.tlb
