@@ -106,19 +106,25 @@ Building
 --------
 
 requires libgc (aka boehmgc or bdw-gc)
-optionally libopenssl, portaudio, cairo
-and for graphics environment, either gtk or cocoa
+optionally libopenssl, portaudio, cairo + libjpeg
+and for a graphics environment, either gtk or cocoa
 
 ```
 make
 sudo make PREFIX=/usr install
 ```
 
-make can take `NO_PORTAUDIO=1` or `NO_CAIRO=1` or `NO_OPENSSL=1` to disable building those
+That will install a `tl` command, the main interpreter. Also a `gtl` command,
+that last one is for opening windows in a desktop environemnt.
 
+
+Options to make are: `NO_PORTAUDIO=1`, `NO_CAIRO=1`,  `NO_OPENSSL=1`,
+`NO_GRAPHICS=1` to disable building/installing modules.
+
+a headless install:
 ```
-make NO_PORTAUDIO=1
-sudo make NO_PORTAUDIO=1 PREFIX=/usr install
+make NO_PORTAUDIO=1 NO_GRAPHICS=1
+sudo make NO_PORTAUDIO=1 NO_GRAPHICS=1 PREFIX=/usr install
 ```
 
 
