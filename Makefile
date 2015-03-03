@@ -122,8 +122,9 @@ clean:
 	rm -f modules/*.tlb
 	rm -f tlmeta
 	rm -rf gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno boot/*.gcda boot/*.gcno
-	$(MAKE) -C graphics clean
+	$(MAKE) -C vm clean
 	$(MAKE) -C cmodules clean
+	$(MAKE) -C graphics clean
 	rm -rf boot/*.tlb boot/*.tl boot/*.o
 distclean: clean
 	rm -f $(LIBMP) libmp/*.o

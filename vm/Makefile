@@ -35,5 +35,6 @@ test: $(TESTS)
 	cd .. && make libtl.a
 
 clean:
-	rm -rf *.o *.mod
+	rm -rf *.o
+	rm -f *_test
 
