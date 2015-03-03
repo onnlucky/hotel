@@ -1,6 +1,6 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
-LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS)
+LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3

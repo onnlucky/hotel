@@ -1,6 +1,6 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. $(CLANGUNWARN) $(CFLAGS)
-LDFLAGS:=-lm -lpthread -ldl $(LDFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
+LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
@@ -27,8 +27,6 @@ ifeq ($(DDD),1)
 	TOOL=ddd --args
 endif
 
-BOEHM:=$(shell grep "^.define.*HAVE_BOEHMGC" config.h)
-LIBGC:=libgc/.libs/objs/libgc.a
 LIBMP:=libmp/libtommath.a
 
 TLG_MODULES=modules/sizzle.tl
@@ -72,29 +70,20 @@ test: unit-test test-noboot $(TLG_MODULES) $(C_MODULES)
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl runspec.tl
 	cd test/ && TL_MODULE_PATH=../modules:../cmodules $(TOOL) ../tl tester.tl
 
-$(LIBGC):
-	./libgc.sh
-
 $(LIBMP):
 	cd libmp && make
 
-greg/greg:
-	cd greg && make
-
-ev.o: ev/*.c ev/*.h config.h $(LIBGC)
+ev.o: ev/*.c ev/*.h config.h
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
-libtl.a: $(LIBGC) $(LIBMP) ev.o vm.o boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
+libtl.a: $(LIBMP) ev.o vm.o boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
 	rm -f libtl.a
 	ar -q libtl.a ev.o vm.o boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
 	ar -q libtl.a libmp/*.o
-ifneq ($(BOEHM),)
-	ar -q libtl.a libgc/.libs/objs/*.o
-endif
-	ar -s libtl.a 2>&1 | fgrep -v 'has no symbols' || true
+	ar -s libtl.a
 
-vm.o: vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBGC) $(LIBMP) boot/init.tlb.h boot/compiler.tlb.h
-	$(CC) $(CFLAGS) -Ilibmp -Ilibgc/libatomic_ops/src -c vm/vm.c -o vm.o
+vm.o: vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBMP) boot/init.tlb.h boot/compiler.tlb.h
+	$(CC) $(CFLAGS) -Ilibmp -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c Makefile
 	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a $(LDFLAGS)
@@ -125,7 +114,7 @@ clean:
 	rm -rf boot/*.tlb boot/*.tl boot/*.o
 distclean: clean
 	rm -f $(LIBMP) libmp/*.o
-	rm -rf greg/ libgc/ libatomic_ops/
+	rm -rf libatomic_ops/
 dist-clean: distclean
 
 docgen.tl: docgen.tlg

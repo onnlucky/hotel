@@ -10,14 +10,14 @@ app.setView(view)
 
 w.onkey(event ->
     catch: e -> print e.toString
-    //print repr event
+    #print repr event
     if event.key == 81 and event.modifiers == 2: w.close; return
     app.onkey(event)
 )
 
 w.onmouse(x, y, buttons, clicks ->
     catch: e -> print e.toString
-    //print x, y, buttons, clicks
+    #print x, y, buttons, clicks
     view.onmouse({{x,y,buttons,clicks}}, x, y)
 )
 
@@ -44,7 +44,7 @@ colors = {
 
 var running = null
 
-// TODO run each div in a task, cancel those and reflect it in the output
+# TODO run each div in a task, cancel those and reflect it in the output
 stop = ->
     if not running: return
     running.abort
@@ -70,9 +70,9 @@ DivClass = {
         code = this.editor.text.trim
         output = this.output
         output.color = colors.light
-        // returns a function, so that we release "this" and allow rendering of the ui
+        # returns a function, so that we release "this" and allow rendering of the ui
         scope ->
-            // use cached result if possible
+            # use cached result if possible
             if scope == this.inscope and this.code == code and this.outscope:
                 output.color = colors.output
                 return this.outscope
@@ -81,7 +81,7 @@ DivClass = {
             output.background = colors.normalbg
             output.color = colors.output
 
-            // exit if error
+            # exit if error
             if not scope: return null
 
             this.inscope = scope
@@ -105,7 +105,7 @@ DivClass = {
                                       view.remove(this.editor)
                                       view.remove(this.output)
                                       divs[at]?focus or divs[at - 1]?focus
-        { cmd and event.key == 'R' }: this.code = null // clear at least our cache
+        { cmd and event.key == 'R' }: this.code = null # clear at least our cache
                                       run(divs.map(div -> div.preprun))
                                       true
         { cmd and event.key == 'S' }: stop(); true

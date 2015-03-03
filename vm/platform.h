@@ -38,7 +38,7 @@
 #ifdef HAVE_BOEHMGC
 #define GC_THREADS 1
 #define GC_PTHREADS 1
-#include "../libgc/include/gc.h"
+#include <gc.h>
 #define malloc(n) GC_MALLOC(n)
 #define malloc_atomic(n) GC_MALLOC_ATOMIC(n)
 #define calloc(m,n) GC_MALLOC((m)*(n))

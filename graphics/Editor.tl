@@ -5,7 +5,7 @@ FWIDTH = 8
 FSIZE = 14
 
 Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
-    // to be a "widget"
+    # to be a "widget"
     class = widget.widget_class
     parent = null
     visible = true
@@ -14,7 +14,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
     width = 0
     height = 0
 
-    // editor
+    # editor
     error = null
     errormsg = null
 
@@ -36,7 +36,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
     _sx = null
     _sy = null
 
-    // UTILS
+    # UTILS
     _debug = Array.new
     debug = l -> this._debug.add(l)
 
@@ -46,7 +46,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         if this._left: return
         line = this._lines[this._y] or ""
 
-        // when moving along tip of lines, we normalize it here
+        # when moving along tip of lines, we normalize it here
         if this._x > line.size + 1: this._x = line.size + 1
         this._left = line[:this._x - 1]
         this._right = line[this._x:]
@@ -64,7 +64,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
             this._lines[-1] = line
             return
         this._lines.add(line)
-        // TODO if not on ui thread, do in background
+        # TODO if not on ui thread, do in background
         !this.parent.dirty
 
     addLines = lines ->
@@ -72,18 +72,18 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         if this._lines[-1] == "":
             this._lines.remove(-1)
         lines.each: l -> this._lines.add(l)
-        // TODO if not on ui thread, do in background
+        # TODO if not on ui thread, do in background
         !this.parent.dirty
 
     currentLine = -> return this._y
 
-    // QUERING
+    # QUERING
     currentline = ->
         if this._left: return this._left + this._right
         this._lines[this._y] or ""
 
-    // EDITING
-    // TODO allow input to take "\n" and make lines from that
+    # EDITING
+    # TODO allow input to take "\n" and make lines from that
     input = s ->
         assert this._x > 0
         assert this._y > 0
@@ -109,9 +109,9 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
             this._left += s
             this._x += s.size
 
-        null // TODO needed due to syntax "bug", two truth tables, but recognized as one ...
+        null # TODO needed due to syntax "bug", two truth tables, but recognized as one ...
 
-        // post processing ...
+        # post processing ...
         { s == "("                             }: this._right = ")"+ this._right
         { s == ")" and this._right[1] == ')'   }: this._right = this._right[2:]
         { s == "\"" and this._right[1] == '"'  }: this._right = this._right[2:]
@@ -131,12 +131,12 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         this._lines.insert(this._y, this._right)
         up = this._left
 
-        // figure out indentation of previous line and follow that
+        # figure out indentation of previous line and follow that
         var $indent = 1
         while $indent <= up.size and up[$indent] <= 32: $indent += 1
         this._left = up[:$indent - 1]
         this._x = $indent
-        this.debug("line: $(this._y) offset: $(this._offset)") //"
+        this.debug("line: $(this._y) offset: $(this._offset)")
 
     deleteleft = ->
         if this._sx: this.replaceselection(""); return
@@ -167,7 +167,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
 
         this._right = this._right[2:]
 
-    // SELECTION
+    # SELECTION
     selection = ->
         if not this._sx: return null
         by, ey = { this._sy < this._y }: multi(this._sy, this._y)
@@ -176,7 +176,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
                  {                    }: multi(this._x, this._sx)
         return bx, by, ex, ey
 
-    // TODO this is incorrect ... but almost
+    # TODO this is incorrect ... but almost
     setselection = select ->
         { select and this._sx }: null
         { select              }: this._sx = this._x; this._sy = this._y
@@ -254,10 +254,10 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         if this._sx: this.replaceselection(this.app.clipboardGet()); return
         this.input(this.app.clipboardGet())
 
-    // TODO implement undo of sorts ...
+    # TODO implement undo of sorts ...
     undo = -> null
 
-    // MOVING
+    # MOVING
     moveleft = select ->
         this.setselection(select)
         if this._x <= 1: return
@@ -296,7 +296,7 @@ Editor = text, readonly, singleline, zeroheight -> _Mutable_new {
         this.clearLeftRight
         this._y = min(this._y + 20, this._lines.size)
 
-    // QUERYING
+    # QUERYING
     size = g, bwidth, bheight ->
         this.clearLeftRight
         width = this._lines.map(l, n ->

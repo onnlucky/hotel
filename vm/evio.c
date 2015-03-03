@@ -34,6 +34,7 @@ static tlSym _s_cpu;
 static tlSym _s_mem;
 static tlSym _s_pid;
 static tlSym _s_gcs;
+static tlSym _s_gcmem;
 
 tlString* tl_cwd;
 
@@ -60,7 +61,8 @@ static tlHandle _io_getrusage(tlTask* task, tlArgs* args) {
     tlObjectSet_(res, _s_mem, tlINT(use.ru_maxrss));
     tlObjectSet_(res, _s_pid, tlINT(getpid()));
 #ifdef HAVE_BOEHMGC
-    tlObjectSet_(res, _s_gcs, tlINT(GC_gc_no));
+    tlObjectSet_(res, _s_gcs, tlINT(GC_get_gc_no()));
+    tlObjectSet_(res, _s_gcmem, tlINT(GC_get_heap_size()));
 #endif
     return res;
 }
@@ -1410,11 +1412,12 @@ void evio_init() {
     tlObjectToObject_(_statMap);
 
     // for rusage syscall
-    keys = tlSetNew(4);
+    keys = tlSetNew(5);
     _s_cpu = tlSYM("cpu"); tlSetAdd_(keys, _s_cpu);
     _s_mem = tlSYM("mem"); tlSetAdd_(keys, _s_mem);
     _s_pid = tlSYM("pid"); tlSetAdd_(keys, _s_pid);
     _s_gcs = tlSYM("gcs"); tlSetAdd_(keys, _s_gcs);
+    _s_gcmem = tlSYM("gcmem"); tlSetAdd_(keys, _s_gcmem);
     _usageMap = tlObjectNew(keys);
     tlObjectToObject_(_usageMap);
 

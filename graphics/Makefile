@@ -18,10 +18,10 @@ run: gtl
 
 ifeq ($(UNAME),Darwin)
 gtl: mac.m graphics.o window.o app.o image.o ../libtl.a
-	$(CC) $(CFLAGS) mac.m -o gtl graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz
+	$(CC) $(CFLAGS) mac.m -o gtl graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz -lgc
 else
 gtl: gtk.c graphics.o window.o app.o image.o ../libtl.a
-	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -o gtl
+	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -lgc -o gtl
 endif
 
 graphics.o: graphics.h graphics.c

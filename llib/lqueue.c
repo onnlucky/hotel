@@ -31,7 +31,7 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 
-#include "atomic_ops.h"
+#include <atomic_ops.h>
 #include "lqueue.h"
 
 static int lqueue_cas(void* addr, const void* nval, const void* oval) {
