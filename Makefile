@@ -28,6 +28,7 @@ ifeq ($(DDD),1)
 endif
 
 LIBMP:=libmp/libtommath.a
+LIBATOMIC:=libatomic_ops/src/atomic_ops.h
 
 TLG_MODULES=modules/sizzle.tl
 MODULES:=$(shell echo modules/*.tl) $(TLG_MODULES)
@@ -82,6 +83,9 @@ test: unit-test test-noboot $(TLG_MODULES) $(C_MODULES)
 $(LIBMP):
 	cd libmp && make
 
+$(LIBATOMIC):
+	git submodule update --init
+
 ev.o: ev/*.c ev/*.h config.h Makefile
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
@@ -91,7 +95,7 @@ libtl.a: $(LIBMP) Makefile ev.o vm.o boot
 	ar -q libtl.a libmp/*.o
 	ar -s libtl.a
 
-vm.o: Makefile boot vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBMP)
+vm.o: Makefile boot vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBMP) $(LIBATOMIC)
 	$(CC) $(CFLAGS) -Ilibmp -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c Makefile
