@@ -60,7 +60,11 @@ static tlKind _GraphicsKind = {
 tlKind* GraphicsKind = &_GraphicsKind;
 
 Graphics* GraphicsNew(cairo_t* cairo) {
+#if CAIRO_VERSION_MAJOR >= 1 && CAIRO_VERSION_MINOR >= 12
     cairo_set_antialias(cairo, CAIRO_ANTIALIAS_BEST);
+#else
+    cairo_set_antialias(cairo, CAIRO_ANTIALIAS_DEFAULT);
+#endif
     trace("new graphics; width: %d, height: %d", width, height);
     Graphics* g = tlAlloc(GraphicsKind, sizeof(Graphics));
     g->cairo = cairo;
@@ -164,6 +168,7 @@ static tlHandle _setOperator(tlTask* task, tlArgs* args) {
         op = CAIRO_OPERATOR_ADD;
     } else if (h == s_saturate) {
         op = CAIRO_OPERATOR_SATURATE;
+#if CAIRO_VERSION_MAJOR >= 1 && CAIRO_VERSION_MINOR >= 10
     } else if (h == s_overlay) {
         op = CAIRO_OPERATOR_OVERLAY;
     } else if (h == s_darken) {
@@ -190,6 +195,7 @@ static tlHandle _setOperator(tlTask* task, tlArgs* args) {
         op = CAIRO_OPERATOR_HSL_COLOR;
     } else if (h == s_hsl_luminosity) {
         op = CAIRO_OPERATOR_HSL_LUMINOSITY;
+#endif
     }
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_operator(g->cairo, op);
