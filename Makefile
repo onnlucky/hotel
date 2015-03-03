@@ -2,8 +2,6 @@ CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arg
 CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
-BOOT:=$(shell tl --version | grep hotel)
-
 ifeq ($(BUILD),release)
 	CFLAGS+=-O3
 else
@@ -38,9 +36,12 @@ C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 
 all: tl $(C_MODULES) $(TLG_MODULES) $(BIN_MODULES)
 
+# these targets require a working language
+boot: boot/init.tlb.h boot/compiler.tlb.h boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
+
+# so we check it and either copy pre generated (perhaps older) versions, or build them
+BOOT?=$(shell tl --version | grep hotel)
 ifneq ($(BOOT),)
-# all these boot things require a working hotel installed
-boot: boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c
 boot/init.tlb boot/init.tlb.h: modules/init.tl tlcompiler
 	./tlcompiler modules/init.tl -c
 	mv modules/init.tlb boot/init.tlb
@@ -51,14 +52,17 @@ boot/compiler.tlb boot/compiler.tlb.h: modules/compiler.tl tlcompiler
 	mv modules/compiler.tlb.h boot/compiler.tlb.h
 boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c:
 	$(MAKE) -C hotelparser boot
-
-boot/hotelparser.o: vm/tl.h config.h boot/hotelparser.c boot/tlmeta.c
-	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/hotelparser.c -o boot/hotelparser.o
-boot/jsonparser.o: vm/tl.h config.h boot/jsonparser.c boot/tlmeta.c
-	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/jsonparser.c -o boot/jsonparser.o
-boot/xmlparser.o: vm/tl.h config.h boot/xmlparser.c boot/tlmeta.c
-	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/xmlparser.c -o boot/xmlparser.o
+else
+boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c: boot/pregen/*
+	cp boot/pregen/* boot/
 endif
+
+boot/hotelparser.o: Makefile vm/tl.h config.h boot/hotelparser.c boot/tlmeta.c
+	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/hotelparser.c -o boot/hotelparser.o
+boot/jsonparser.o: Makefile vm/tl.h config.h boot/jsonparser.c boot/tlmeta.c
+	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/jsonparser.c -o boot/jsonparser.o
+boot/xmlparser.o: Makefile vm/tl.h config.h boot/xmlparser.c boot/tlmeta.c
+	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/xmlparser.c -o boot/xmlparser.o
 
 run: tl
 	echo $(BOOT)
@@ -78,16 +82,16 @@ test: unit-test test-noboot $(TLG_MODULES) $(C_MODULES)
 $(LIBMP):
 	cd libmp && make
 
-ev.o: ev/*.c ev/*.h config.h
+ev.o: ev/*.c ev/*.h config.h Makefile
 	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
 
-libtl.a: $(LIBMP) ev.o vm.o boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
+libtl.a: $(LIBMP) Makefile ev.o vm.o boot
 	rm -f libtl.a
 	ar -q libtl.a ev.o vm.o boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
 	ar -q libtl.a libmp/*.o
 	ar -s libtl.a
 
-vm.o: vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBMP) boot/init.tlb.h boot/compiler.tlb.h
+vm.o: Makefile boot vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBMP)
 	$(CC) $(CFLAGS) -Ilibmp -c vm/vm.c -o vm.o
 
 tl: libtl.a vm/tl.c Makefile
