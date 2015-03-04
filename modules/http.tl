@@ -96,6 +96,11 @@ bodyFromConnection = conn, headers, stream, expect ->
 
 HttpConnection = conn ->
     _Mutable_new {
+        port = -> conn.port
+        ip = -> conn.ip
+        local_port = -> conn.local_port
+        local_ip = -> conn.local_ip
+
         _req = null,
         _in = Buffer.new
         _length = 0
@@ -163,6 +168,7 @@ Server = {
     new = port -> { sock = io.Socket.listen(port), class = this.class }
     class = {
         port = -> this.sock.port
+        ip = -> this.sock.ip
         close = -> this.sock.close
         serve = ( ->
             block = args.block; if not block: throw "expect a block"
@@ -219,5 +225,6 @@ get = url ->
 post = url, data ->
     send("POST", url, data)
 
-{{ Server, get, post, send }}
+listen = port -> Server.new(port)
+{{ Server, listen, get, post, send }}
 
