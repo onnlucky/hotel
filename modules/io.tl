@@ -52,6 +52,10 @@ Stream = {
     # TODO optimize the read/write buffer usage
     new = file -> { file = file, class = this.class, rbuf = Buffer.new, wbuf = Buffer.new, _buffering = Var.new(false) }
     class = {
+        port = -> this.file.peer_port
+        ip = -> this.file.peer_ip
+        local_port = -> this.file.port
+        local_ip = -> this.file.ip
         _readSome = buf ->
             buf = buf or this.rbuf
             reader = this.file.reader
@@ -144,6 +148,7 @@ Server = {
     new = file -> { file = file, class = this.class }
     class = {
         port = -> this.file.port
+        ip = -> this.file.ip
         accept = (->
             reader = this.file.reader
             _with_lock(reader):

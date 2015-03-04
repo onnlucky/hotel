@@ -264,6 +264,42 @@ static tlHandle _file_port(tlTask* task, tlArgs* args) {
     if (r < 0) TL_THROW("file.port: %s", strerror(errno));
     return tlINT(ntohs(sockaddr.sin_port));
 }
+
+static tlHandle _file_ip(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileAs(tlArgsTarget(args));
+
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    socklen_t len = sizeof(sockaddr);
+    int r = getsockname(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    if (r < 0) TL_THROW("file.ip: %s", strerror(errno));
+    return tlStringFromCopy(inet_ntoa(sockaddr.sin_addr), 0);
+}
+
+static tlHandle _file_peer_port(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileAs(tlArgsTarget(args));
+
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    socklen_t len = sizeof(sockaddr);
+    int r = getpeername(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    if (r < 0) TL_THROW("file.port: %s", strerror(errno));
+    return tlINT(ntohs(sockaddr.sin_port));
+}
+
+static tlHandle _file_peer_ip(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileAs(tlArgsTarget(args));
+
+    struct sockaddr_in sockaddr;
+    bzero(&sockaddr, sizeof(sockaddr));
+    socklen_t len = sizeof(sockaddr);
+    int r = getpeername(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    if (r < 0) TL_THROW("file.peer_ip: %s", strerror(errno));
+    return tlStringFromCopy(inet_ntoa(sockaddr.sin_addr), 0);
+}
+
+
+
 static tlHandle _file_isClosed(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
     return tlBOOL(file->ev.fd < 0);
@@ -1361,6 +1397,9 @@ void evio_init() {
     _tlFileKind.toString = filetoString;
     _tlFileKind.klass = tlClassObjectFrom(
         "port", _file_port,
+        "ip", _file_ip,
+        "peer_port", _file_peer_port,
+        "peer_ip", _file_peer_ip,
         "isClosed", _file_isClosed,
         "close", _file_close,
         "reader", _file_reader,
