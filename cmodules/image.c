@@ -214,7 +214,9 @@ static tlHandle _image_graphics(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
-    Image* img = ImageAs(tlArgsTarget(args));
+    TL_TARGET(Image, img);
+    if (img->surface && img->cairo) cairo_surface_flush(img->surface);
+
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (buf) {
         cairo_status_t s = writepngbuffer(img->surface, buf);
@@ -231,6 +233,7 @@ static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
 
 static tlHandle _image_data(tlTask* task, tlArgs* args) {
     TL_TARGET(Image, img);
+    if (img->surface && img->cairo) cairo_surface_flush(img->surface);
 
     unsigned char* data = cairo_image_surface_get_data(img->surface);
     int height = cairo_image_surface_get_height(img->surface);

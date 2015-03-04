@@ -435,6 +435,12 @@ static tlHandle _measureText(tlTask* task, tlArgs* args) {
     return tlResultFrom(tlFLOAT(max(extents.width,extents.x_advance)), tlFLOAT(max(extents.height,extents.y_advance)), null);
 }
 
+static tlHandle _flush(tlTask* task, tlArgs* args) {
+    TL_TARGET(Graphics, g);
+    cairo_surface_flush(cairo_get_target(g->cairo));
+    return tlNull;
+}
+
 // ** images **
 static tlHandle _image(tlTask* task, tlArgs* args) {
     Image* img = ImageCast(tlArgsGet(args, 0));
@@ -574,6 +580,7 @@ tlObject* graphics_init() {
         "fillText", _fillText,
         "measureText", _measureText,
 
+        "flush", _flush,
         "image", _image,
 
         null
