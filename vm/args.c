@@ -73,6 +73,13 @@ int tlArgsRawSize(tlArgs* args) {
     return args->size - (args->spec & 3);
 }
 
+enum { kIsSetter = 1 };
+void tlArgsMakeSetter(tlArgs* args) { tlflag_set(args, kIsSetter); }
+
+bool tlArgsIsSetter(tlArgs* args) {
+    return tlflag_isset(args, kIsSetter);
+}
+
 tlHandle tlArgsFn(tlArgs* args) { return args->fn; }
 
 tlHandle tlArgsTarget(tlArgs* args) {

@@ -42,6 +42,7 @@ const char* op_name(uint8_t op) {
         case OP_FCALL: return "FCALL";
         case OP_BCALL: return "BCALL";
         case OP_CCALL: return "CCALL";
+        case OP_SCALL: return "SCALL";
         case OP_MCALLN: return "MCALLN";
         case OP_FCALLN: return "FCALLN";
         case OP_BCALLN: return "BCALLN";
@@ -750,7 +751,7 @@ static void disasm(tlBCode* bcode) {
             case OP_INT:
             case OP_ENVTHIS:
             case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
-            case OP_CCALL:
+            case OP_CCALL: case OP_SCALL:
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
                 break;
@@ -957,6 +958,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_FCALL:
             case OP_BCALL:
             case OP_CCALL:
+            case OP_SCALL:
             case OP_MCALLS:
                 dreadsize(&code);
                 depth++;
@@ -1383,7 +1385,8 @@ again:;
             trace("push call: %d: %d %s", calltop, arg, tl_str(call));
         }
         arg = 0;
-        call = tlArgsNewNames(size, op & 0x10, (op & 0x7) == 0); // size, hasNames, isMethod
+        call = tlArgsNewNames(size, op & 0x10, (op & 0x7) == 0 || op == OP_SCALL); // size, hasNames, isMethod
+        if (op == OP_SCALL) tlArgsMakeSetter(call);
         calltop++;
         assert(calltop >= 0 && calltop < bcode->calldepth);
         assert(frame->calls[calltop].call == null);
@@ -1406,7 +1409,7 @@ again:;
 #endif
         }
         // for non methods, skip target
-        if (op & 0x07) {
+        if (op & 0x07 && op != OP_SCALL) {
             tlBCallAdd_(call, null, arg++);
         }
         // safe methods, mark as such

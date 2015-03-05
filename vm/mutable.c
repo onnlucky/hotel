@@ -46,6 +46,8 @@ INTERNAL tlHandle mutableSend(tlTask* task, tlArgs* args, bool safe) {
     tlHandle field = null;
     tlObject* cls;
 
+    if (tlArgsIsSetter(args)) print("SETTER: %s.%s = %s", tl_str(mut), tl_str(msg), tl_str(tlArgsGet(args, 0)));
+
     // search for field
     cls = mut->data;
     while (cls) {

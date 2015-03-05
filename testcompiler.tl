@@ -141,7 +141,7 @@ writeCode = mod, c, scope ->
 
         { op == "store"  }: buf.write(0b1100_0000 + 17); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "rstore" }: buf.write(0b1100_0000 + 18); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(encodeInt(c.code[($pc += 1)]))
-        { op == "invoke" }: buf.write(0b1100_0000 + 19)
+        { op == "invoke" }: buf.write(0b1100_0000 + 19); calls.add(c.code[($pc += 1)])
         { op == "cerr"   }: buf.write(0b1100_0000 + 20)
 
         { op == "vget"    }: buf.write(0b1100_0000 + 21); buf.write(encodeInt(c.code[($pc += 1)]))
@@ -156,6 +156,7 @@ writeCode = mod, c, scope ->
         { op == "fcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "bcall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "ccall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 3); buf.write(encodeInt(c.code[($pc += 1)]))
+        { op == "scall"  }: calls.add(c.code[($pc += 1)]); buf.write(0b1110_0000 + 4); buf.write(encodeInt(c.code[($pc += 1)]))
         { op == "mcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "mcallns"}: calls.add(c.code[($pc += 1)]); buf.write(0b1111_1000 + 0); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "fcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
@@ -255,25 +256,25 @@ compile = (text, ast ->
             _, at = this.args.add(name)
             this.names[name] = {arg=true,{at,id}}
             return id
-        greturn = level ->
-            if this.block: return parent.greturn(level + 1)
-            {type="return",scope=level}
-        ggoto = level ->
-            if this.block: return parent.ggoto(level + 1)
-            {type="goto",scope=level}
-        gbreak = level, ls ->
-            if this.block: return parent.gbreak(level + 1, ls.add(level))
-            if this.parent: return parent.gbreak(level + 1, ls)
-            {type="break",scope=ls}
-        gcontinue = level, ls ->
-            if this.block: return parent.gcontinue(level + 1, ls.add(level))
-            if this.parent: return parent.gcontinue(level + 1, ls)
-            {type="continue",scope=ls}
+        greturn = level, pos ->
+            if this.block: return parent.greturn(level + 1, pos)
+            {type="return",scope=level, pos=pos}
+        ggoto = level, pos ->
+            if this.block: return parent.ggoto(level + 1, pos)
+            {type="goto",scope=level, pos=pos}
+        gbreak = level, pos, ls ->
+            if this.block: return parent.gbreak(level + 1, pos, ls.add(level))
+            if this.parent: return parent.gbreak(level + 1, pos, ls)
+            {type="break",scope=ls, pos=pos}
+        gcontinue = level, pos, ls ->
+            if this.block: return parent.gcontinue(level + 1, pos, ls.add(level))
+            if this.parent: return parent.gcontinue(level + 1, pos, ls)
+            {type="continue",scope=ls, pos=pos}
         ref = name, level, pos ->
-            if name == "return": return this.greturn(0)
-            if name == "goto": return this.ggoto(0)
-            if name == "break": return this.gbreak(0, [])
-            if name == "continue": return this.gcontinue(0, [])
+            if name == "return": return this.greturn(0, pos)
+            if name == "goto": return this.ggoto(0, pos)
+            if name == "break": return this.gbreak(0, pos, [])
+            if name == "continue": return this.gcontinue(0, pos, [])
             ref = this.names[name]
             if ref?fn and not args["peek"]:
                 if functions[ref.fn].open: closefn(ref.fn)
@@ -395,7 +396,7 @@ compile = (text, ast ->
 
     lex = scope, term, name, pos ->
         { term == null              }: "null"
-        { isChar(term)              }: {type="call",target={type="global",name="Char"},args=[term.toNumber]}
+        { isChar(term)              }: {type="call",target={type="global",name="Char", pos=term?pos},args=[term.toNumber], pos=term?pos}
         { not term?type             }: term
         { term.type == "string"     }: term
         { term.type == "stringlist" }:
@@ -403,7 +404,7 @@ compile = (text, ast ->
                 { isString(s) }: {type="string",data=s}
                 {             }: lex(scope, s)
             )
-            {type="call",target={type="global",name="_String_cat"},args=data}
+            {type="call",target={type="global",name="_String_cat", pos=term?pos},args=data, pos=term?pos}
         { term.type == "scope" }:
             function = lextop(scope, term)
             _, fn = functions.add({name="",open=false,function=function})
@@ -477,13 +478,13 @@ compile = (text, ast ->
                 { to.type == "local" }: null # nothing to do
                 { to.type == "newvar" }:
                     at, id = scope.add(to.name, to.pos)
-                    value = {type="method",target={type="global",name="Var"},method="new",args=[{type="local",at=l.at,id=l.id}]}
+                    value = {type="method",target={type="global",name="Var", pos=to.pos},method="new",args=[{type="local",at=l.at,id=l.id}],pos=to.pos}
                     to={type="local",name=to.name,pos=to.pos,{at,id}}
-                    {type="asign",{to,value}}
+                    {type="asign",{to,value},pos=to.pos}
                 { to.type == "var" }:
                     ref = scope.ref(to.name)
                     value = {type="local",at=l.at,id=l.id}
-                    {type="method",target=ref,method="set",args=[value]}
+                    {type="method",target=ref,method="set",args=[value],pos=to?pos}
             )
             {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
@@ -493,13 +494,18 @@ compile = (text, ast ->
             block = { term?block }: lex(scope, term.block)
                     {            }: null
             if target?type == "return" or target?type == "goto":
-                t = {type="global",name=target.type}
-                return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block}}
+                t = {type="global",name=target.type,pos=term?pos}
+                return {type="call",target=t,args=[target.scope]+args,names=[null]+names,{block},pos=term?pos}
             if target?type == "break" or target?type == "continue":
-                t = {type="global",name=target.type}
-                s = lex(scope, {type="list",data=target.scope})
-                return {type="call",target=t,args=[s]+args,names=[null]+names,{block}}
+                t = {type="global",name=target.type, pos=term?pos}
+                s = lex(scope, {type="list",data=target.scope, pos=term?pos})
+                return {type="call",target=t,args=[s]+args,names=[null]+names,{block}, pos=term?pos}
             {type="call",{target,args,names,block},pos=term?pos}
+        { term.type == "method" and term.method == "_set" }:
+            target = lex(scope, term.target)
+            field = term.args[1].v.data
+            arg = lex(scope, term.args[2].v)
+            {type="setter",method=field,args=[arg],pos=term.pos,{target}}
         { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
             names = (term?args or []).map: stm -> stm?n
@@ -535,7 +541,7 @@ compile = (text, ast ->
             lhs = {type="method",method=term.field,{target}}
             rhs = lex(scope, term.rhs.v)
             op = {type="op",op=term.op,{lhs,rhs}}
-            {type="method",method="_set",args=[{type="string",data=term.field},op],pos=term.pos,{target}}
+            {type="setter",method=term.field,args=[op],pos=term.pos,{target}}
         { term.type == "assignop" }:
             ref = scope.ref(term.to)
             if ref.type == "global" or ref?stype != "var":
@@ -547,7 +553,7 @@ compile = (text, ast ->
             {type="vset",target=ref,{value}}
         { term.type == "list" }:
             data = (term?data or []).map(term -> lex(scope, term))
-            {type="list",{data}}
+            {type="list",{data}, pos=term?pos}
         { term.type == "object" or term.type == "map" }:
             map = HashMap.new
             fill = Array.new
@@ -600,17 +606,22 @@ compile = (text, ast ->
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "field" }:
-            ["mcall", term?pos, 0, "this", "data", term.name, "invoke"]
+            ["mcall", term?pos, 0, "this", "data", term.name, "invoke", term?pos]
         { term.type == "call" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["fcalln", term?pos, args.size, {ns=names}] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=names}] + target + args + ["invoke", term?pos]
             if try(term.names.filter.size > 0):
-                return ["fcalln", term?pos, args.size, {ns=term.names}] + target + args + ["invoke"]
-            ["fcall", term?pos, args.size] + target + args + ["invoke"]
+                return ["fcalln", term?pos, args.size, {ns=term.names}] + target + args + ["invoke", term?pos]
+            ["fcall", term?pos, args.size] + target + args + ["invoke", term?pos]
+        { term.type == "setter" }:
+            target = emit(term.target)
+            args = term.args.map(arg -> emit(arg))
+            assert args.size == 1
+            ["scall", term.pos, args.size] + target + ["data", term.method] + args + ["invoke", term.pos]
         { term.type == "method" or term.type == "safemethod" }:
             target = emit(term.target)
             args = (term?args or []).map(arg -> emit(arg))
@@ -618,29 +629,29 @@ compile = (text, ast ->
             if term?block:
                 names = term.names.add("block")
                 args = args.add(emit(term.block))
-                return ["mcalln$s", term?pos, args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=names}] + target + ["data", term.method] + args + ["invoke", term?pos]
             if try(term.names.filter.size > 0):
-                return ["mcalln$s", term?pos, args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke"]
-            ["mcall$s", term?pos, args.size] + target + ["data", term.method] + args + ["invoke"]
+                return ["mcalln$s", term?pos, args.size, {ns=term.names}] + target + ["data", term.method] + args + ["invoke", term?pos]
+            ["mcall$s", term?pos, args.size] + target + ["data", term.method] + args + ["invoke", term?pos]
         { term.type == "async" }:
             body = emit(term.body)
-            ["fcall", term?pos, 1, "global", 0, "_Task_new", body, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "_Task_new", body, "invoke", term?pos]
         { term.type == "not" }:
             rhs = emit(term.rhs)
-            ["fcall", term?pos, 1, "global", 0, "not", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "not", rhs, "invoke", term?pos]
         { term.type == "~" }:
             rhs = emit(term.rhs)
-            ["fcall", term?pos, 1, "global", 0, "bnot", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "bnot", rhs, "invoke", term?pos]
         { term.type == "-" }:
             rhs = emit(term.rhs)
-            ["fcall", term?pos, 1, "global", 0, "neg", rhs, "invoke"]
+            ["fcall", term?pos, 1, "global", term?pos, "neg", rhs, "invoke", term?pos]
         { term.type == "op"  }:
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
-            ["bcall", term?pos, 2, "data", term.op, lhs, rhs, "invoke"]
+            ["bcall", term?pos, 2, "data", term.op, lhs, rhs, "invoke", term?pos]
         { term.type == "guards" }:
             term.guards.map(term ->
-                [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke"]
+                [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke", term?pos]
             ).flatten + ["cerr"]
         { term.type == "local"  }:
             { term?var }: ["vget", term.at - 1]
@@ -657,15 +668,15 @@ compile = (text, ast ->
         { term.type == "envthis"}: ["envthis", term.up - 1]
         { term.type == "list" }:
             elements = term.data.map(entry -> emit(entry))
-            ["fcall", term?pos, elements.size, "global", 0, "__list"] + elements + ["invoke"]
+            ["fcall", term?pos, elements.size, "global", term?pos, "__list"] + elements + ["invoke", term?pos]
         { term.type == "object" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__object", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", term?pos, "__object", "data", term.map.toObject] + fill + ["invoke", term?pos]
         { term.type == "map" }:
             fill = term.fill.map(e -> ["data", e[1]] + emit(e[2]))
-            ["fcall", term?pos, 1 + fill.size * 2, "global", 0, "__map", "data", term.map.toObject] + fill + ["invoke"]
+            ["fcall", term?pos, 1 + fill.size * 2, "global", term?pos, "__map", "data", term.map.toObject] + fill + ["invoke", term?pos]
         { term.type == "class" }:
-            ["fcall", term?pos, 2, "global", 0, "_bless", emit(term.methods), emit(term.class), "invoke"]
+            ["fcall", term?pos, 2, "global", term?pos, "_bless", emit(term.methods), emit(term.class), "invoke", term?pos]
         { }:
             print "ERROR"
             print repr(term)
