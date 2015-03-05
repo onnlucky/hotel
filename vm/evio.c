@@ -78,6 +78,15 @@ static tlHandle _io_getenv(tlTask* task, tlArgs* args) {
     return tlStringFromCopy(s, 0);
 }
 
+static tlHandle _io_getpid(tlTask* task, tlArgs* args) {
+    return tlINT(getpid());
+}
+
+static tlHandle _io_procname(tlTask* task, tlArgs* args) {
+    tlVm* vm = tlVmCurrent(task);
+    return vm->procname;
+}
+
 // TODO normalize /../ and /./
 static tlString* path_join(tlString* lhs, tlString* rhs) {
     if (!lhs) return rhs;
@@ -1342,6 +1351,8 @@ static tlHandle _tty_size(tlTask* task, tlArgs* args) {
 static const tlNativeCbs __evio_natives[] = {
     { "_io_getrusage", _io_getrusage },
     { "_io_getenv", _io_getenv },
+    { "_io_getpid", _io_getpid },
+    { "_io_procname", _io_procname },
 
     { "_io_chdir", _io_chdir },
     { "_io_mkdir", _io_mkdir },

@@ -63,6 +63,7 @@ struct tlTask {
     void* data;
     long ticks; // tasks will suspend/resume every now and then
     long limit; // tasks can have a tick limit
+    long id; // task id
 };
 
 tlVm* tlVmCurrent(tlTask* task) {
@@ -193,6 +194,7 @@ static void taskFinalize(tlHandle handle) {
 tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     tlTask* task = tlAlloc(tlTaskKind, sizeof(tlTask));
     assert(task->state == TL_STATE_INIT);
+    task->id = a_inc(&vm->nexttaskid);
     task->worker = vm->waiter;
     task->locals = locals;
     task->ticks = START_TICKS;
@@ -530,6 +532,10 @@ INTERNAL tlHandle _Task_current(tlTask* task, tlArgs* args) {
     return task;
 }
 
+static tlHandle _Task_id(tlTask* task, tlArgs* args) {
+    return tlNUM(task->id);
+}
+
 INTERNAL tlHandle _Task_stacktrace(tlTask* task, tlArgs* args) {
     int skip = tl_int_or(tlArgsGet(args, 0), 0);
     return tlStackTraceNew(task, tlTaskCurrentFrame(task), skip);
@@ -556,8 +562,16 @@ INTERNAL tlHandle _Task_yield(tlTask* task, tlArgs* args) {
     return null;
 }
 
+// TODO really need use something different
 INTERNAL tlHandle _Task_locals(tlTask* task, tlArgs* args) {
     return task->locals;
+}
+
+INTERNAL tlHandle _Task_setLocals(tlTask* task, tlArgs* args) {
+    tlObject* locals = tlObjectCast(tlArgsGet(args, 0));
+    if (!locals) TL_THROW("Task.setLocals requires an object");
+    task->locals = locals;
+    return tlNull;
 }
 
 INTERNAL tlHandle _task_isDone(tlTask* task, tlArgs* args) {
@@ -568,6 +582,11 @@ INTERNAL tlHandle _task_isDone(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle _task_toString(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlStringFromCopy(tl_str(other), 0);
+}
+
+static tlHandle _task_id(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlTask, other);
+    return tlNUM(other->id);
 }
 
 // TODO this is not thread save, the task might be running and changing limit cannot be done this way
@@ -752,6 +771,7 @@ static tlObject* taskClass;
 static void task_init() {
     tl_register_natives(__task_natives);
     _tlTaskKind.klass = tlClassObjectFrom(
+        "id", _task_id,
         "run", _task_run,
         "isDone", _task_isDone,
         "abort", _task_abort,
@@ -767,8 +787,10 @@ static void task_init() {
     );
     taskClass = tlClassObjectFrom(
         "new", _Task_new_none,
+        "id", _Task_id,
         "current", _Task_current,
         "locals", _Task_locals,
+        "setLocals", _Task_setLocals,
         "stacktrace", _Task_stacktrace,
         "yield", _Task_yield,
         "holdsLock", _Task_holdsLock,

@@ -356,7 +356,7 @@ void tlMapValueIterSet_(tlMap* map, int i, tlHandle v);
 // ** creating and running vms **
 void tl_init();
 
-tlVm* tlVmNew();
+tlVm* tlVmNew(tlSym argv0, tlArgs* args);
 tlBuffer* tlVmGetInit();
 tlBuffer* tlVmGetCompiler();
 void tlVmInitDefaultEnv(tlVm* vm);

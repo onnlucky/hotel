@@ -91,9 +91,10 @@ void toolkit_started() {
 
 // most toolkits really prefer to "live" on the main thread
 // so create a new thread for hotel to live in
+static const char* argv0;
 static void* tl_main(void* _args) {
     trace(">>> tl starting <<<");
-    tlVm* vm = tlVmNew();
+    tlVm* vm = tlVmNew(tlSYM(argv0), tlArgsAs(_args));
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
     image_init(vm);
@@ -117,6 +118,7 @@ int main(int argc, char** argv) {
     toolkit_init(argc, argv);
     tl_init();
 
+    argv0 = argv[0];
     tlArgs* args = tlArgsNew(argc - 1);
     for (int i = 1; i < argc; i++) {
         tlArgsSet_(args, i - 1, tlSTR(argv[i]));

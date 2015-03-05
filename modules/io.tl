@@ -331,9 +331,12 @@ stdout = Stream.new(_File_from(1))
 stderr = Stream.new(_File_from(2))
 
 return {
+    pid = _io_getpid
     chdir = _io_chdir
     mkdir = _io_mkdir
     getenv = _io_getenv
+    procname = _io_procname
+
     {
         Buffer
         Stream

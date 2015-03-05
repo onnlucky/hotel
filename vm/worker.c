@@ -33,10 +33,13 @@ struct tlVm {
     tlTask* main;
 
     // task counts: total, runnable or waiting on a runloop event
+    a_val nexttaskid;
     a_val tasks;
     a_val runnable;
     a_val waitevent; // external events ...
 
+    tlSym* procname; // process name aka argv[0]
+    tlArgs* args; // startup arguments
     tlObject* globals; // all globals in the default env
     tlObject* locals; // default task locals
 

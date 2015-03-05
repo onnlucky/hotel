@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    tlVm* vm = tlVmNew();
+    tlVm* vm = tlVmNew(tlSYM(argv[0]), args);
     tlVmInitDefaultEnv(vm);
     tlBuffer* buf = null;
     if (init) {

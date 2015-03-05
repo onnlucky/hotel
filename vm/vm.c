@@ -584,11 +584,13 @@ void hotelparser_init();
 void jsonparser_init();
 void xmlparser_init();
 
-tlVm* tlVmNew() {
+tlVm* tlVmNew(tlSym procname, tlArgs* args) {
     srandom(time(NULL));
     tlVm* vm = tlAlloc(tlVmKind, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlObjectEmpty();
+    vm->procname = tlOR_NULL(procname);
+    vm->args = tlOR_NULL(args);
 
     error_vm_default(vm);
     env_vm_default(vm);
