@@ -5,6 +5,7 @@
 print.foo 42
 
 Shape = { x, y ->
+  var this.x = 42
   methods = {
     move = dx, dy -> this::copy({ x = x + dx, y = y + dy })
     string = -> "%x,%y"

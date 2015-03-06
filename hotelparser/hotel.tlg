@@ -204,10 +204,11 @@ elifexpr: .."else". pos=pos "if". c=expr . b=block &eostm els=elifexpr     -> pr
         | !(.."else" !letter)
 
   intro*: !reserved name
- newvar*: "var" sp. !opname !reserved name
+ newvar*: "var" sp. pos=pos "this".".".name=name type=<newvarfield>
+        | "var" sp. !opname !reserved pos=pos name=name type=<newvar>
 
 selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !letter type=<ref>
-  assign: pos=pos name=newvar type=<newvar>
+  assign: newvar
         | pos=pos name=intro type=<local>
    mexpr: guards
         | ifexpr
@@ -223,7 +224,7 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
      stm: pos=pos to=intro .op=op "="!"=".. @"a value" value=mexpr &endstm type=<assignop>
         | to=assign ."="!"=".. @"a value" value=mexpr &endstm type=<assign>
         | multi=(assign)+(.",".) ."="!"=".. @"a value" value=mexpr &endstm type=<multiassign>
-        | to=(pos=pos name=newvar type=<newvar>) &endstm type=<assign>
+        | to=newvar &endstm type=<assign>
         | e=mexpr &endstm                                                    -> e
 
    stms*: mlcomment -> tlListEmpty()
