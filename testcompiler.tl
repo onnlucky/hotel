@@ -829,6 +829,8 @@ Module = m -> {
             debugger.attach(task)
             _module_run(m, as, task, frame)
             return SimpleDebugger(debugger, stream)
+        disasm = ->
+            _disasm(m)
     }
 
 name_from = envs, name ->
@@ -844,9 +846,9 @@ load = bytes ->
     bytes = { isBin(bytes)    }: Buffer.new(bytes)
             { isBuffer(bytes) }: bytes
             {                 }: ast = parse(bytes)
-                                 #print "parse", args["name"], (time() - start)
+                                 log.debug "parse", args["name"], (time() - start)
                                  buf = compile(bytes, ast, buffer=true, link=args["link"])
-                                 #print "compiled", args["name"], (time() - start)
+                                 log.debug "compiled", args["name"], (time() - start)
                                  buf
     m = _Module_new(bytes, args["name"] or "")
 
@@ -855,7 +857,7 @@ load = bytes ->
                            _module_link(m, links)
         {               }: m
 
-    #print "loaded", args["name"], "took", (time() - start).round, "seconds"
+    log.debug "loaded", args["name"], "took", (time() - start).round, "seconds"
     Module(m)
 
 _parse = text -> parse(text)

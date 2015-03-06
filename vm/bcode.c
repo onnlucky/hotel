@@ -91,9 +91,9 @@ struct tlBCode {
     tlBModule* mod; // back reference to module it belongs
 
     tlBDebugInfo* debuginfo;
-    tlList* argspec;
-    tlList* localnames;
-    tlList* localvars;
+    tlList* argspec;    // a list representing how the arguments were defined [[name, default, @bool lazy]]
+    tlList* localnames; // a list of names for each local
+    tlList* localvars;  // if not null, contains true for for locals that are mutable
 
     int locals;
     int calldepth;
@@ -725,14 +725,15 @@ static void disasm(tlBCode* bcode) {
     for (int i = 0;; i++) {
         tlHandle spec = tlListGet(bcode->argspec, i);
         if (!spec) break;
-        print("   name=%s, default=%s, lazy=%s", tl_str(tlListGet(spec, 0)), tl_str(tlListGet(spec, 1)), tl_str(tlListGet(spec, 2)));
+        print("   name=%s, default=%s, lazy=%s", tl_str(tlListGet(spec, 0)), tl_repr(tlListGet(spec, 1)), tl_str(tlListGet(spec, 2)));
     }
     print(" </args>");
     print(" <locals>");
     for (int i = 0;; i++) {
         tlHandle name = tlListGet(bcode->localnames, i);
+        const char* v = (bcode->localvars && tl_bool(tlListGet(bcode->localvars, i)))? "var" : "";
         if (!name) break;
-        print("  %d: %s", i, tl_str(name));
+        print("  %d: %s %s", i, v, tl_str(name));
     }
     print(" </locals>");
     int pc = 0;
@@ -760,9 +761,13 @@ static void disasm(tlBCode* bcode) {
                 o = pcreadref(ops, &pc, data);
                 print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_repr(o));
                 break;
-            case OP_SYSTEM: case OP_MODULE:
+            case OP_SYSTEM:
                 o = pcreadref(ops, &pc, data);
                 print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
+                break;
+            case OP_MODULE:
+                o = pcreadref(ops, &pc, data);
+                print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_repr(o));
                 break;
             case OP_GLOBAL:
                 r = pcreadsize(ops, &pc);
@@ -1980,8 +1985,11 @@ INTERNAL tlHandle _Module_new(tlTask* task, tlArgs* args) {
 }
 
 INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
-    tlCodeFrame* frame = tlCodeFrameAs(tlTaskCurrentFrame(task));
-    tlBModule* mod = tlBClosureAs(frame->locals->args->fn)->code->mod;
+    tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    if (!mod) {
+        tlCodeFrame* frame = tlCodeFrameAs(tlTaskCurrentFrame(task));
+        mod = tlBClosureAs(frame->locals->args->fn)->code->mod;
+    }
     for (int i = 0;; i++) {
         tlHandle data = tlListGet(mod->data, i);
         if (!data) break;
