@@ -451,23 +451,23 @@ compile = (text, ast ->
                 ref = scope.ref(term.to.name, peek=true)
                 type = ids[ref?id]
                 if type?type == "var" or type?stype == "var":
-                    return {type="vset",target=ref,{value}}
+                    return {type="vset",target=ref,{value},name=term.to.name,pos=term.to.pos}
                 local, id = scope.add(term.to.name, term.to.pos)
                 to={type="local",name=term.to.name,pos=term.to.pos,at=local,{id}}
                 {type="assign",{to,value}}
             { term.to.type == "newvar" }:
                 value = lex(scope, term?value)
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
-                {type="vset",target=scope.ref(term.to.name),{value}}
+                {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
             { term.to.type == "newvarfield" }:
                 value = lex(scope, term?value)
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
-                {type="vset",target=scope.ref(term.to.name),{value}}
+                {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
             { term.to.type == "var"    }:
                 value = lex(scope, term.value)
                 ref = scope.ref(term.to.name)
                 assert ids[ref.id].type == "var"
-                {type="vset",target=ref,{value}}
+                {type="vset",target=ref,{value},name=term.to.name,pos=term.to.pos}
         { term.type == "multiassign" }:
             # TODO perhaps function defined this way must stay open?
             # TODO fixup for new var stuff
@@ -554,7 +554,7 @@ compile = (text, ast ->
                 throw "'$(term.to)' on line $line is not a mutable"
             rhs = lex(scope, term.value)
             value = {type="op",op=term.op,lhs=ref,{rhs}}
-            {type="vset",target=ref,{value}}
+            {type="vset",target=ref,{value},name=term.to,pos=term.pos}
         { term.type == "list" }:
             data = (term?data or []).map(term -> lex(scope, term))
             {type="list",{data}, pos=term?pos}
