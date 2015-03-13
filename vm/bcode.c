@@ -725,15 +725,17 @@ static void disasm(tlBCode* bcode) {
     for (int i = 0;; i++) {
         tlHandle spec = tlListGet(bcode->argspec, i);
         if (!spec) break;
-        print("   name=%s, default=%s, lazy=%s", tl_str(tlListGet(spec, 0)), tl_repr(tlListGet(spec, 1)), tl_str(tlListGet(spec, 2)));
+        tlHandle d = tlListGet(spec, 1);
+        if (!d) d = tlNull;
+        print("   name=%s, default=%s, lazy=%s", tl_str(tlListGet(spec, 0)), tl_repr(d), tl_bool(tlListGet(spec, 2))? "true":"false");
     }
     print(" </args>");
     print(" <locals>");
     for (int i = 0;; i++) {
         tlHandle name = tlListGet(bcode->localnames, i);
-        const char* v = (bcode->localvars && tl_bool(tlListGet(bcode->localvars, i)))? "var" : "";
+        const char* v = (bcode->localvars && tl_bool(tlListGet(bcode->localvars, i)))? "var " : "";
         if (!name) break;
-        print("  %d: %s %s", i, v, tl_str(name));
+        print("  %d: %s%s", i, v, tl_str(name));
     }
     print(" </locals>");
     int pc = 0;
@@ -779,9 +781,13 @@ static void disasm(tlBCode* bcode) {
                 print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
                 //if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
                 break;
-            case OP_LOCAL: case OP_ARG: case OP_VGET: // slot
+            case OP_LOCAL: case OP_VGET: // slot
                 r = pcreadsize(ops, &pc);
                 print(" % 3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
+                break;
+            case OP_ARG:
+                r = pcreadsize(ops, &pc);
+                print(" % 3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(tlListGet(bcode->argspec, r), 0)));
                 break;
             case OP_STORE: case OP_VSTORE: // slot
                 r = pcreadsize(ops, &pc);
