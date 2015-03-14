@@ -25,43 +25,10 @@ log.info("shuffled")
 
 rects.sort(l, r -> l.x < r.x or (l.x == r.x and l.y < r.y))
 log.info("sorted")
-log.info("total time", time() - start, "seconds")
+runtime = time() - start
+log.info("total time", runtime, "seconds")
 
-(#
-
-Square = {}
-
-in = "
-Test = { a ->
-    extend Square(a)
-    b = 1
-    var c = 2
-    print = -> print b
-    class DEFAULT = 3
-    class method = -> print this.DEFAULT
-}
-"
-testcompiler.load(in, _env_current()).disasm
-
-###
-_constructor = class, this, a ->
-    _inherit(class, 1, this, a)
-    _setfield(this, "b", 1)
-    _setfield(this, "c", 2)
-    return this
-mutable = true # Square.mutable or OtherInherit.mutable
-inherits = [Square]
-fields = Set(b, c) + Square.fields
-methods = {
-    print = -> print b
-}
-statics = {
-    DEFAULT = 3
-    method = print this.DEFAULT
-}
-Test = _class("Test", _constructor, mutable, inherits, fields, methods, statics)
-
-Test.DEFAULT
-Test.class.fields
-this.class.DEFAULT
+if args[1] == "--publish":
+    couchdb.open("rect_bench", "http://hotel.iriscouch.com", create=false).new(Object.set(system, {time=runtime, count=COUNT, ts=time().round}))
+    log.info("published to hotel.iriscouch.com")
 
