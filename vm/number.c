@@ -1,5 +1,12 @@
 #include <tommath.h>
 
+#include "number.h"
+#include "platform.h"
+#include "value.h"
+
+#include "string.h"
+#include "buffer.h"
+
 // ** char **
 
 struct tlChar {
@@ -226,38 +233,38 @@ intptr_t tlNumToInt(tlNum* num) {
 double tlNumToDouble(tlNum* num) {
     return (double)mp_get_int(&num->value);
 }
-static tlNum* tlNumNeg(tlNum* num) {
+tlNum* tlNumNeg(tlNum* num) {
     mp_int res; mp_init(&res);
     mp_neg(&num->value, &res);
     return tlNumberFrom(res);
 }
-static tlNum* tlNumAdd(tlNum* l, tlNum* r) {
+tlNum* tlNumAdd(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_add(&l->value, &r->value, &res);
     return tlNumberFrom(res);
 }
-static tlNum* tlNumSub(tlNum* l, tlNum* r) {
+tlNum* tlNumSub(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_sub(&l->value, &r->value, &res);
     return tlNumberFrom(res);
 }
-static tlNum* tlNumMul(tlNum* l, tlNum* r) {
+tlNum* tlNumMul(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_mul(&l->value, &r->value, &res);
     return tlNumberFrom(res);
 }
-static tlNum* tlNumDiv(tlNum* l, tlNum* r) {
+tlNum* tlNumDiv(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_int remainder; mp_init(&remainder);
     mp_div(&l->value, &r->value, &res, &remainder);
     return tlNumberFrom(res);
 }
-static tlNum* tlNumMod(tlNum* l, tlNum* r) {
+tlNum* tlNumMod(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_mod(&l->value, &r->value, &res);
     return tlNumberFrom(res);
 }
-static tlNum* tlNumPow(tlNum* l, intptr_t r) {
+tlNum* tlNumPow(tlNum* l, intptr_t r) {
     mp_int res; mp_init(&res);
     mp_expt_d(&l->value, r, &res);
     return tlNumberFrom(res);
@@ -451,7 +458,7 @@ double tl_double_or(tlHandle h, double d) {
     return d;
 }
 
-static void number_init() {
+void number_init() {
     mp_init(&MIN_INT_BIGNUM);
     mp_init(&MAX_INT_BIGNUM);
 

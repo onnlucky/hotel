@@ -1,20 +1,16 @@
 // a object implementation
 
+#include "object.h"
+
+#include "platform.h"
+#include "value.h"
+
+#include "set.h"
 #include "args.h"
 
 #include "trace-off.h"
 
 tlKind* tlClassKind;
-struct tlClass {
-    tlHead head;
-    tlSym name;
-    tlSet* fields;
-    tlClass* super;
-    tlList* mixins; // a list of tlClasses or objects, while they can extend the functionality, they cannot add state (fields)
-    tlObject* methods;
-    tlObject* statics;
-    tlHandle constructor; // when called as Example()
-};
 
 static tlClass* _tl_class;
 
@@ -97,14 +93,7 @@ tlHandle classResolve(tlClass* cls, tlSym name) {
     return null;
 }
 
-static tlSym s_methods;
-
 tlKind* tlObjectKind;
-struct tlObject {
-    tlHead head;
-    tlSet* keys;
-    tlHandle data[];
-};
 
 static tlObject* _tl_emptyObject;
 
@@ -118,7 +107,7 @@ tlObject* tlObjectEmpty() {
 
 tlObject* tlObjectNew(tlSet* keys) {
     assert(keys);
-    tlObject* object = tlAlloc(tlObjectKind, sizeof(tlObject) + sizeof(tlHandle) * keys->size);
+    tlObject* object = tlAlloc(tlObjectKind, sizeof(tlObject) + sizeof(tlHandle) * tlSetSize(keys));
     object->keys = keys;
     assert(tlObjectSize(object) == tlSetSize(keys));
     return object;
@@ -488,7 +477,7 @@ const char* objecttoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Object@%p %d>", v, tlObjectSize(tlObjectAs(v))); return buf;
 }
 
-INTERNAL tlHandle objectResolve(tlObject* object, tlSym msg) {
+tlHandle objectResolve(tlObject* object, tlSym msg) {
     tlHandle field = null;
     tlObject* cls;
 
@@ -595,7 +584,7 @@ static tlHandle objectCmp(tlHandle _left, tlHandle _right) {
     return tlCOMPARE(left->keys->size - right->keys->size);
 }
 
-static tlHandle _bless(tlTask* task, tlArgs* args) {
+tlHandle _bless(tlTask* task, tlArgs* args) {
     tlObject* methods = tlObjectCast(tlArgsGet(args, 0));
     if (!methods) TL_THROW("expected an object as arg[1]");
     tlHandle klass = tlArgsGet(args, 1);
@@ -618,25 +607,8 @@ static tlKind _tlObjectKind = {
     .run = objectRun,
 };
 
-TL_REF_TYPE(tlUserClass);
-TL_REF_TYPE(tlUserObject);
-
 tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
-
-struct tlUserClass {
-    tlHead head;
-    tlSym name;
-    tlHandle constructor;
-    tlObject* fields;
-    tlObject* methods;
-};
-
-struct tlUserObject {
-    tlHead head;
-    tlUserClass* cls;
-    tlHandle fields[];
-};
 
 static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     tlSym name = tlSymCast_(tlArgsGet(args, 0));
@@ -704,7 +676,12 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     return null;
 }
 
-static void object_init() {
+void class_init_first() {
+    INIT_KIND(tlClassKind);
+    INIT_KIND(tlObjectKind);
+}
+
+void object_init() {
     s_methods = tlSYM("methods");
     tlObject* constructor = tlClassObjectFrom(
         "call", _Object_from,

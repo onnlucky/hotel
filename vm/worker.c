@@ -8,53 +8,28 @@
 // We can also create a thread dedicated to running a single task, this task will never appear in
 // the vm->run_q, instead whenever it can run, we will signal the thread.
 
+#include "../llib/lqueue.h"
+
+#include "worker.h"
+#include "platform.h"
+#include "value.h"
+
+#include "vm.h"
+#include "task.h"
+
 #include "trace-off.h"
 
 tlTask* tlTaskFromEntry(lqentry* entry);
-INTERNAL void tlTaskRun(tlTask* task);
-INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task);
-INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task);
-INTERNAL bool tlVmIsRunning(tlVm* vm);
-INTERNAL void tlVmWaitSignal(tlVm* vm);
+void tlTaskRun(tlTask* task);
+void tlWorkerBind(tlWorker* worker, tlTask* task);
+void tlWorkerUnbind(tlWorker* worker, tlTask* task);
+bool tlVmIsRunning(tlVm* vm);
+void tlVmWaitSignal(tlVm* vm);
 
-typedef void(*tlVmSignalFn)(void);
-
-struct tlVm {
-    tlHead head;
-    // tasks ready to run
-    lqueue run_q;
-
-    // the waiter does not actually "work", it helps tasks keep reference back to the vm
-    tlWorker* waiter;
-
-    // the main task, if it exits, usually the vm is done
-    bool running;
-    int exitcode;
-    tlTask* main;
-
-    // task counts: total, runnable or waiting on a runloop event
-    a_val nexttaskid;
-    a_val tasks;
-    a_val runnable;
-    a_val waitevent; // external events ...
-
-    tlSym* procname; // process name aka argv[0]
-    tlArgs* args; // startup arguments
-    tlObject* globals; // all globals in the default env
-    tlObject* locals; // default task locals
-
-    // to wake up select
-    tlVmSignalFn signalcb;
-
-    // for when we run multithreaded
-    pthread_mutex_t* lock;
-    pthread_cond_t* signal;
-};
-
-INTERNAL bool tlVmIsRunning(tlVm* vm) {
+bool tlVmIsRunning(tlVm* vm) {
     return vm->running;
 }
-INTERNAL void tlVmStop(tlVm* vm) {
+void tlVmStop(tlVm* vm) {
     trace("!! VM STOPPING !!");
     // TODO needs to be a_var oid
     vm->running = false;
@@ -83,19 +58,6 @@ void tlVmDecExternal(tlVm* vm) {
     a_dec(&vm->waitevent);
     if (vm->signalcb) vm->signalcb();
 }
-
-struct tlWorker {
-    tlHead head;
-
-    // the vm this worker belongs to
-    tlVm* vm;
-    // the current task it is processing, null if none
-    tlTask* task;
-
-    // for bound tasks, when task is not running, thread will wait
-    pthread_mutex_t* lock;
-    pthread_cond_t* signal;
-};
 
 bool tlWorkerIsBound(tlWorker* worker) {
     return worker->lock != null;

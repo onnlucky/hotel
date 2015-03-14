@@ -10,13 +10,21 @@
 // TODO instead of jumping (return, goto, continuation), lets unwind the stack without values
 //      gives frames a change to release locks and run defers
 
+#include "controlflow.h"
+#include "platform.h"
+#include "value.h"
+
+#include "task.h"
+#include "frame.h"
+#include "eval.h"
+
 #include "trace-off.h"
 
-INTERNAL tlHandle _break(tlTask* task, tlArgs* args) {
+static tlHandle _break(tlTask* task, tlArgs* args) {
     return tlTaskError(task, s_break);
 }
 
-INTERNAL tlHandle _continue(tlTask* task, tlArgs* args) {
+static  tlHandle _continue(tlTask* task, tlArgs* args) {
     return tlTaskError(task, s_continue);
 }
 
@@ -78,7 +86,7 @@ static const tlNativeCbs __controlflow_natives[] = {
     { 0, 0 },
 };
 
-static void controlflow_init() {
+void controlflow_init() {
     tl_register_natives(__controlflow_natives);
 }
 

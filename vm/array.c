@@ -1,6 +1,10 @@
 // a mutable list implementation
 // manually inserting things at > size, will fill array with null's (not undefined values!)
 
+#include "array.h"
+#include "platform.h"
+#include "value.h"
+
 #include "trace-off.h"
 
 tlKind* tlArrayKind;
@@ -273,7 +277,7 @@ INTERNAL tlHandle _array_slice(tlTask* task, tlArgs* args) {
 // TODO taken from list.c ... duplicate code ... oeps
 /// toChar: return a string, formed from a array of numbers
 /// if the array contains numbers that are not valid characters, it throws an exception
-INTERNAL tlHandle _array_toChar(tlTask* task, tlArgs* args) {
+static tlHandle _array_toChar(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
 
     int size = tlArraySize(array);
@@ -292,7 +296,7 @@ INTERNAL tlHandle _array_toChar(tlTask* task, tlArgs* args) {
 }
 
 
-static void array_init() {
+void array_init() {
     tlClass* cls = tlCLASS("Array", null,
     tlMETHODS(
         "toList", _array_toList,

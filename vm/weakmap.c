@@ -1,6 +1,8 @@
 // a weak value map implementation
 
 #include "weakmap.h"
+#include "platform.h"
+
 #include "trace-off.h"
 
 #define INITIAL_LEN 4

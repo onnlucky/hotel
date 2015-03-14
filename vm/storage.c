@@ -1,3 +1,4 @@
+#if 0
 #include <db.h>
 
 // TODO properly close the db, and sync it every 500 ms after last mutation or so?
@@ -159,4 +160,5 @@ static void storage_init_vm(tlVm* vm) {
     );
     tlVmGlobalSet(vm, tlSYM("Storage"), StorageStatic);
 }
+#endif
 

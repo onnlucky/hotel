@@ -1,50 +1,28 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // a native and language level message queue
 
+#include "../llib/lqueue.h"
+
+#include "queue.h"
+#include "platform.h"
+#include "value.h"
+
+#include "task.h"
+#include "eval.h"
+
 #include "trace-off.h"
 
 static tlKind _tlQueueKind = { .name = "Queue" };
 tlKind* tlQueueKind;
 
-TL_REF_TYPE(tlMsgQueue);
 static tlKind _tlMsgQueueKind = { .name = "MsgQueue" };
 tlKind* tlMsgQueueKind;
 
-TL_REF_TYPE(tlMsgQueueInput);
 static tlKind _tlMsgQueueInputKind = { .name = "MsgQueueInput" };
 tlKind* tlMsgQueueInputKind;
 
-TL_REF_TYPE(tlMessage);
 static tlKind _tlMessageKind = { .name = "Message" };
 tlKind* tlMessageKind;
-
-
-typedef void(*tlMsgQueueSignalFn)(void);
-
-struct tlQueue {
-    tlHead head;
-    // TODO make more efficient? And we can also swap stuff ...
-    pthread_mutex_t lock;
-    lqueue add_q;
-    lqueue get_q;
-};
-
-struct tlMsgQueue {
-    tlHead head;
-    lqueue msg_q;
-    lqueue wait_q;
-    tlMsgQueueSignalFn signalcb;
-    tlMsgQueueInput* input;
-};
-struct tlMsgQueueInput {
-    tlHead head;
-    tlMsgQueue* queue;
-};
-struct tlMessage {
-    tlHead head;
-    tlTask* sender;
-    tlArgs* args;
-};
 
 // TODO actually implement the buffering
 tlQueue* tlQueueNew(int buffer) {
@@ -303,7 +281,8 @@ void queue_init() {
     INIT_KIND(tlMsgQueueInputKind);
     INIT_KIND(tlMessageKind);
 }
-static void queue_vm_default(tlVm* vm) {
+
+void queue_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Queue"), queueClass);
    tlVmGlobalSet(vm, tlSYM("MsgQueue"), msgQueueClass);
 }

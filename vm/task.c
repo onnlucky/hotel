@@ -9,14 +9,23 @@
 //
 // If a task is waiting, it records what is is waiting on, this is used for deadlock detection.
 
+#include "../llib/lqueue.h"
+
 #include "task.h"
+#include "platform.h"
+#include "value.h"
+
+#include "worker.h"
+#include "vm.h"
+#include "frame.h"
+#include "error.h"
 
 #include "trace-off.h"
 
 #define START_TICKS 2011
 
-INTERNAL tlHandle tlresult_get(tlHandle v, int at);
-INTERNAL void print_backtrace(tlFrame*);
+tlHandle tlresult_get(tlHandle v, int at);
+void print_backtrace(tlFrame*);
 
 tlResult* tlresult_new(tlArgs* args);
 tlResult* tlresult_new_skip(tlArgs* args);
@@ -27,44 +36,8 @@ tlLock* tlLockAs(tlHandle v);
 
 void tlDebuggerTaskDone(tlDebugger* debugger, tlTask* task);
 
-typedef enum {
-    TL_STATE_INIT = 0,  // only first time
-    TL_STATE_READY = 1, // ready to be run (usually in vm->run_q)
-    TL_STATE_RUN,       // running
-    TL_STATE_WAIT,      // waiting in a lock or task queue
-    TL_STATE_DONE,      // task is done, others can read its value
-    TL_STATE_ERROR,     // task is done, value is actually an throw
-} tlTaskState;
-
 static tlKind _tlTaskKind;
 tlKind* tlTaskKind;
-
-// TODO slim this one down ...
-// TODO do we want tasks to know their "parent" for exceptions and such?
-struct tlTask {
-    tlHead head;
-    tlWorker* worker;  // current worker that is working on this task
-    lqentry entry;     // how it gets linked into a queues
-    tlHandle waiting;   // a single tlTask* or a tlQueue* with many waiting tasks
-    tlHandle waitFor;   // what this task is blocked on
-
-    tlObject* locals;   // task local storage, for cwd, stdout etc ...
-    tlHandle value;     // current value
-    tlFrame* stack;     // current frame (== top of stack or current continuation)
-
-    tlDebugger* debugger; // current debugger
-    tlQueue* yields;      // for Task.add and Task.get
-
-    // TODO remove these in favor a some flags
-    tlTaskState state; // state it is currently in
-    bool hasError;
-    bool read; // check if the task.value has been seen, if not, we log a message
-    bool background; // if running will it hold off exit? like unix daemon processes
-    void* data;
-    long ticks; // tasks will suspend/resume every now and then
-    long limit; // tasks can have a tick limit
-    long id; // task id
-};
 
 tlVm* tlVmCurrent(tlTask* task) {
     return task->worker->vm;
@@ -117,15 +90,16 @@ void assert_backtrace(tlFrame* frame) {
     if (frame) fatal("STACK CORRUPTED");
 }
 
-INTERNAL tlHandle tlTaskDone(tlTask* task);
+static tlHandle tlTaskDone(tlTask* task);
 
-INTERNAL void tlWorkerBind(tlWorker* worker, tlTask* task) {
+void tlWorkerBind(tlWorker* worker, tlTask* task) {
     trace("BIND: %s", tl_str(task));
     assert(task);
     assert(task->worker != worker);
     task->worker = worker;
 }
-INTERNAL void tlWorkerUnbind(tlWorker* worker, tlTask* task) {
+
+void tlWorkerUnbind(tlWorker* worker, tlTask* task) {
     trace("UNBIND: %s", tl_str(task));
     assert(task);
     //assert(task->worker);
@@ -142,7 +116,7 @@ void print_backtrace(tlFrame* frame) {
 // after a worker has picked a task from the run queue, it will run it
 // that means sometimes when returning from resumecb, the task might be in other queues
 // at that point any other worker could aready have picked up this task
-INTERNAL void tlTaskRun(tlTask* task) {
+void tlTaskRun(tlTask* task) {
     trace(">>> running %s <<<", tl_str(task));
     assert(task->state == TL_STATE_READY);
     assert(task->worker);
@@ -768,7 +742,7 @@ static const tlNativeCbs __task_natives[] = {
 
 static tlObject* taskClass;
 
-static void task_init() {
+void task_init() {
     tl_register_natives(__task_natives);
     _tlTaskKind.klass = tlClassObjectFrom(
         "id", _task_id,
@@ -803,7 +777,7 @@ static void task_init() {
     INIT_KIND(tlWaitQueueKind);
 }
 
-static void task_vm_default(tlVm* vm) {
+void task_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Task"), taskClass);
 }
 

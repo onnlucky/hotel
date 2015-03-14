@@ -1,10 +1,9 @@
 // ** set **
 
-struct tlSet {
-    tlHead head;
-    intptr_t size;
-    tlHandle data[];
-};
+#include "set.h"
+
+#include "platform.h"
+#include "value.h"
 
 static tlSet* _tl_set_empty;
 
@@ -243,7 +242,11 @@ static tlKind _tlSetKind = {
 };
 tlKind* tlSetKind;
 
-static void set_init() {
+void set_init_first() {
+    INIT_KIND(tlSetKind);
+}
+
+void set_init() {
     _tl_set_empty = tlSetNew(0);
     tlSetKind->klass = tlClassObjectFrom(
         "size", _set_size,

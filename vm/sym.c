@@ -1,44 +1,55 @@
 // symbols and other per vm global resources
 
+#include "sym.h"
+#include "platform.h"
+#include "value.h"
+#include "string.h"
+
+#include "../llib/lhashmap.h"
+
 #include "trace-off.h"
 
+tlSym s_string;
+tlSym s_block;
+tlSym s_else;
 
-static tlSym s_string;
-static tlSym s_block;
-static tlSym s_else;
+tlSym s_this;
+tlSym s_class;
+tlSym s_method;
 
-static tlSym s_this;
-static tlSym s_method;
-static tlSym s_args;
-static tlSym s_continuation;
-static tlSym s_return;
-static tlSym s_goto;
-static tlSym s_continue;
-static tlSym s_break;
+tlSym s_args;
+tlSym s_continuation;
+tlSym s_return;
+tlSym s_goto;
+tlSym s_continue;
+tlSym s_break;
 
-static tlSym s_call;
-static tlSym s_send;
-static tlSym s_op;
-static tlSym s_var;
+tlSym s_call;
+tlSym s_send;
+tlSym s_op;
+tlSym s_var;
 
-static tlSym s__get;
-static tlSym s__set;
+tlSym s__methods;
+tlSym s__get;
+tlSym s__set;
 
-static tlSym s_String_cat;
-static tlSym s_List_clone;
-static tlSym s_Map_clone;
-static tlSym s_Map_update;
-static tlSym s_Map_inherit;
+tlSym s_String_cat;
+tlSym s_List_clone;
+tlSym s_Map_clone;
+tlSym s_Map_update;
+tlSym s_Map_inherit;
 
-static tlSym s_equal;
-static tlSym s_smaller;
-static tlSym s_larger;
+tlSym s_equal;
+tlSym s_smaller;
+tlSym s_larger;
+tlSym s_methods;
+
 tlHandle tlEqual;
 tlHandle tlSmaller;
 tlHandle tlLarger;
 
-static LHashMap *symbols = 0;
-static LHashMap *globals = 0;
+LHashMap *symbols = 0;
+LHashMap *globals = 0;
 
 static tlSym _SYM_FROM_STRING(tlString* v) { return (tlSym)((intptr_t)v | 4); }
 static tlString* _STRING_FROM_SYM(tlSym v) { return (tlString*)((intptr_t)v & ~7); }
@@ -124,7 +135,7 @@ void tl_register_natives(const tlNativeCbs* cbs) {
     }
 }
 
-static tlHandle tl_global(tlSym sym) {
+tlHandle tl_global(tlSym sym) {
     assert(tlSymIs_(sym));
     assert(globals);
     return lhashmap_get(globals, tlStringData(_STRING_FROM_SYM(sym)));
@@ -149,6 +160,7 @@ static tlHandle symCmp(tlHandle left, tlHandle right) {
     if (left == right) return tlEqual;
     return tlCOMPARE(tlStringCmp(_STRING_FROM_SYM(left), _STRING_FROM_SYM(right)));
 }
+
 static tlKind _tlSymKind = {
     .name = "String",
     .index = -10,
@@ -158,7 +170,11 @@ static tlKind _tlSymKind = {
     .cmp = symCmp,
 };
 
-static void sym_string_init() {
+void sym_init_first() {
+    INIT_KIND(tlSymKind);
+}
+
+void sym_string_init() {
     symbols  = lhashmap_new(strequals, strhash, strfree);
     globals = lhashmap_new(strequals, strhash, strfree);
 

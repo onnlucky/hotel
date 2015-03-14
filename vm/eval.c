@@ -1,14 +1,23 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 
+#include "eval.h"
+#include "platform.h"
+#include "value.h"
+
+#include "object.h"
+#include "args.h"
+#include "bcode.h"
+#include "buffer.h"
+
 #include "trace-off.h"
 
 // var.c
 tlHandle tlVarSet(tlVar*, tlHandle);
 tlHandle tlVarGet(tlVar*);
 
-static tlString* _t_unknown;
-static tlString* _t_anon;
-static tlString* _t_native;
+tlString* _t_unknown;
+tlString* _t_anon;
+tlString* _t_native;
 
 tlBModule* g_init_module;
 
@@ -83,7 +92,7 @@ tlHandle tlFirst(tlHandle v) {
 }
 
 void tlCodeFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
-INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line) {
+void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line) {
     assert(file); assert(function); assert(line);
     if (tlCodeFrameIs(frame)) {
         tlCodeFrameGetInfo(frame, file, function, line);
@@ -140,11 +149,11 @@ tlString* tltoString(tlHandle v) {
     return tlStringFromCopy(tl_str(v), 0);
 }
 
-INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args);
-INTERNAL void install_bcatch(tlFrame* frame, tlHandle handler);
+tlHandle _bcatch(tlTask* task, tlArgs* args);
+void install_bcatch(tlFrame* frame, tlHandle handler);
 bool tlCodeFrameIs(tlHandle);
 
-INTERNAL tlHandle _catch(tlTask* task, tlArgs* args) {
+tlHandle _catch(tlTask* task, tlArgs* args) {
     tlFrame* frame = tlTaskCurrentFrame(task);
     tlHandle handler = tlArgsBlock(args);
     trace("%p.handler = %s", frame, tl_str(handler));
@@ -166,7 +175,7 @@ bool tlCallableIs(tlHandle v) {
 
 // implement fn.call ... pretty generic
 // TODO cat all lists, join all maps, allow for this=foo msg=bar for sending?
-INTERNAL tlHandle _call(tlTask* task, tlArgs* args) {
+tlHandle _call(tlTask* task, tlArgs* args) {
     tlHandle* fn = tlArgsTarget(args);
     //tlArgs* nargs = tlArgsGet(args, 0);
     return tlEvalArgsFn(task, args, fn);
@@ -203,8 +212,8 @@ INTERNAL tlHandle _install(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value);
-INTERNAL tlHandle _install_global(tlTask* task, tlArgs* args) {
+void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value);
+static tlHandle _install_global(tlTask* task, tlArgs* args) {
     trace("install global: %s %s", tl_str(tlArgsGet(args, 0)), tl_str(tlArgsGet(args, 1)));
     tlString* key = tlStringCast(tlArgsGet(args, 0));
     if (!key) TL_THROW("expected a String");
@@ -241,6 +250,10 @@ static tlHandle _install_method(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+tlHandle _with_lock(tlTask* task, tlArgs* args);
+tlHandle _has_lock(tlTask* task, tlArgs* args);
+tlHandle _String_cat(tlTask* task, tlArgs* args);
+
 static const tlNativeCbs __eval_natives[] = {
     { "_bufferFromFile", _bufferFromFile },
     { "_stringFromFile", _stringFromFile },
@@ -259,9 +272,8 @@ static const tlNativeCbs __eval_natives[] = {
     { 0, 0 }
 };
 
-static void eval_init() {
+void eval_init() {
     INIT_KIND(tlResultKind);
-    INIT_KIND(tlFrameKind);
 
     _t_unknown = tlSTR("<unknown>");
     _t_anon = tlSTR("<anon>");

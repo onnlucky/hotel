@@ -1,16 +1,15 @@
 // hotel functions and calling them ...
+// TODO rename native.c
+
+#include "native.h"
+#include "platform.h"
+
+#include "args.h"
+#include "eval.h"
 
 #include "trace-off.h"
 
-INTERNAL tlHandle _call(tlTask* task, tlArgs* args);
-
 tlKind* tlNativeKind;
-
-struct tlNative {
-    tlHead head;
-    tlNativeCb native;
-    tlSym name;
-};
 
 tlNative* tlNativeNew(tlNativeCb native, tlSym name) {
     tlNative* fn = tlAlloc(tlNativeKind, sizeof(tlNative));
@@ -67,7 +66,12 @@ static tlKind _tlNativeKind = {
     .toString = nativetoString,
     .run = nativeRun,
 };
-static void call_init() {
+
+void native_init_first() {
+    INIT_KIND(tlNativeKind);
+}
+
+void native_init() {
     tlNativeKind->klass = tlClassObjectFrom(
         "call", _call,
         null

@@ -5,15 +5,16 @@
 // 1. in user land, objects are accessed using properties, maps using [] and .get() .slice() etc.
 // 2. keys in an object are limited to Symbols (interned Strings)
 
+#include "map.h"
+#include "set.h"
+#include "object.h"
+
+#include "platform.h"
+#include "value.h"
+
 #include "trace-off.h"
 
 tlKind* tlMapKind;
-
-struct tlMap {
-    tlHead head;
-    tlSet* keys;
-    tlHandle data[];
-};
 
 static tlMap* _tl_emptyMap;
 
@@ -21,7 +22,7 @@ tlMap* tlMapEmpty() { return _tl_emptyMap; }
 
 tlMap* tlMapNew(tlSet* keys) {
     if (!keys) keys = tlSetEmpty();
-    tlMap* map = tlAlloc(tlMapKind, sizeof(tlMap) + sizeof(tlHandle) * keys->size);
+    tlMap* map = tlAlloc(tlMapKind, sizeof(tlMap) + sizeof(tlHandle) * tlSetSize(keys));
     map->keys = keys;
     assert(tlMapSize(map) == tlSetSize(keys));
     return map;
@@ -211,7 +212,7 @@ static tlHandle mapCmp(tlHandle _left, tlHandle _right) {
 
 /// Map.map([fn]): return a list with the results of calling the passed in block or #fn
 /// [block] block to call using `block(key, value, at)`
-static void map_init() {
+void map_init() {
     tlClass* cls = tlCLASS("Map", tlNATIVE(_Map_call, tlSYM("Map")),
     tlMETHODS(
         "hash", _map_hash,

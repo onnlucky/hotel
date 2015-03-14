@@ -1,5 +1,12 @@
 // this is the value that wraps something that is thrown
 
+#include "error.h"
+#include "platform.h"
+#include "value.h"
+
+#include "frame.h"
+#include "object.h"
+
 #include "trace-off.h"
 
 static tlSet* _errorKeys;
@@ -11,16 +18,6 @@ static tlSym _s_stacks;
 static tlKind _tlStackTraceKind;
 tlKind* tlStackTraceKind;
 
-TL_REF_TYPE(tlStackTrace);
-
-struct tlStackTrace {
-    tlHead head;
-    intptr_t size;
-    tlTask* task;
-    tlHandle entries[];
-    // [tlString, tlString, tlInt, ...] so size * 3 is entries.length
-};
-
 struct tlUndefined {
     tlHead head;
     tlString* msg;
@@ -30,7 +27,7 @@ struct tlUndefined {
 bool tlCodeFrameIs(tlHandle);
 
 // TODO it would be nice if we can "hide" implementation details, like the [boot.tl:42 throw()]
-INTERNAL tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
+tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     if (skip < 0) skip = 0;
     if (!stack) stack = tlTaskCurrentFrame(task);
     trace("stack: %p, skip: %d, task: %s", stack, skip, tl_str(task));
@@ -114,7 +111,7 @@ tlUndefined* tlUndefinedNew(tlString* msg, tlStackTrace* trace) {
 tlHandle tlUndef() {
     return tlUndefinedNew(null, null/*tlStackTraceNew(null, null, 1)*/);
 }
-INTERNAL tlHandle _undefined(tlTask* task, tlArgs* args) {
+tlHandle _undefined(tlTask* task, tlArgs* args) {
     return tlUndefinedNew(null, null/*tlStackTraceNew(null, null, 1)*/);
 }
 tlHandle tlUndefMsg(tlString* msg) {
@@ -141,7 +138,7 @@ static tlObject* undefinedErrorClass;
 static tlObject* argumentErrorClass;
 static tlObject* deadlockErrorClass;
 
-INTERNAL void error_init() {
+void error_init() {
     tl_register_natives(__error_natives);
     _tlStackTraceKind.klass = tlClassObjectFrom(
         "size", _stackTrace_size,
@@ -185,7 +182,7 @@ INTERNAL void error_init() {
     INIT_KIND(tlStackTraceKind);
 }
 
-static void error_vm_default(tlVm* vm) {
+void error_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Error"), errorClass);
    tlVmGlobalSet(vm, tlSYM("UndefinedError"), undefinedErrorClass);
    tlVmGlobalSet(vm, tlSYM("ArgumentError"), argumentErrorClass);
@@ -196,21 +193,18 @@ tlHandle tlErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, errorClass);
-    tlObjectToObject_(err);
     return tlTaskError(task, err);
 }
 tlHandle tlUndefinedErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, undefinedErrorClass);
-    tlObjectToObject_(err);
     return tlTaskError(task, err);
 }
 tlHandle tlArgumentErrorThrow(tlTask* task, tlHandle msg) {
     tlObject* err = tlObjectNew(_errorKeys);
     tlObjectSet_(err, _s_msg, msg);
     tlObjectSet_(err, s_class, argumentErrorClass);
-    tlObjectToObject_(err);
     return tlTaskError(task, err);
 }
 tlHandle tlDeadlockErrorThrow(tlTask* task, tlArray* tasks) {

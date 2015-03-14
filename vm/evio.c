@@ -3,13 +3,28 @@
 // TODO use runloop mutex to protect open() like syscalls in order to do CLOEXEC if available
 // TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
 
+#include "../llib/lqueue.h"
+
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
-#include "ev/ev.h"
+#include "../ev/ev.h"
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
+#include "evio.h"
+#include "platform.h"
+#include "value.h"
+
+#include "task.h"
+#include "vm.h"
+#include "lock.h"
+#include "worker.h"
+#include "queue.h"
+#include "frame.h"
+
+#include "buffer.h"
 
 #include "trace-off.h"
 
@@ -1463,7 +1478,6 @@ void evio_init() {
     _s_atime = tlSYM("atime"); tlSetAdd_(keys, _s_atime);
     _s_mtime = tlSYM("mtime"); tlSetAdd_(keys, _s_mtime);
     _statMap = tlObjectNew(keys);
-    tlObjectToObject_(_statMap);
 
     // for rusage syscall
     keys = tlSetNew(5);
@@ -1473,7 +1487,6 @@ void evio_init() {
     _s_gcs = tlSYM("gcs"); tlSetAdd_(keys, _s_gcs);
     _s_gcmem = tlSYM("gcmem"); tlSetAdd_(keys, _s_gcmem);
     _usageMap = tlObjectNew(keys);
-    tlObjectToObject_(_usageMap);
 
     char buf[MAXPATHLEN + 1];
     char* cwd = getcwd(buf, sizeof(buf));

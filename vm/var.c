@@ -1,4 +1,9 @@
 // a mutable variable, basically a locked object but no queue since all operations are atomic
+// TODO remove, we now have local variables ...
+
+#include "var.h"
+#include "platform.h"
+#include "value.h"
 
 #include "trace-off.h"
 
@@ -59,7 +64,8 @@ static const tlNativeCbs __var_natives[] = {
 };
 
 static tlObject* varClass;
-static void var_init() {
+
+void var_init() {
     _tlVarKind.klass = tlClassObjectFrom(
         "get", _var_get,
         "set", _var_set,
@@ -75,7 +81,7 @@ static void var_init() {
     INIT_KIND(tlVarKind);
 }
 
-static void var_vm_default(tlVm* vm) {
+void var_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Var"), varClass);
 }
 

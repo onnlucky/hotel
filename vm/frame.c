@@ -1,5 +1,8 @@
 // evaluation can pause at any time, this is how we capture those pauses
 
+#include "frame.h"
+#include "platform.h"
+
 #include "trace-off.h"
 
 static tlKind _tlFrameKind = {
@@ -18,5 +21,8 @@ tlFrame* tlFrameSetResume(tlFrame* frame, tlResumeCb cb) {
     return frame;
 }
 
-INTERNAL void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt* line);
+void frame_init() {
+    INIT_KIND(tlFrameKind);
+}
+
 

@@ -1,7 +1,4 @@
-
-#ifndef HAVE_DEBUG
-#else
-#endif
+#include "platform.h"
 
 void tlDumpTaskTrace();
 

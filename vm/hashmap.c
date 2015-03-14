@@ -3,6 +3,19 @@
 
 // TODO this map is still purely tlSym based, it should not be ...
 
+#include "../llib/lhashmap.h"
+
+#include "hashmap.h"
+#include "platform.h"
+#include "value.h"
+
+#include "object.h"
+#include "map.h"
+#include "set.h"
+
+#include "frame.h"
+#include "task.h"
+
 #include "trace-off.h"
 
 tlKind* tlHashMapKind;

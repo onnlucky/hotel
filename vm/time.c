@@ -1,6 +1,10 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // a time module
 
+#include "time.h"
+#include "platform.h"
+#include "value.h"
+
 #include "trace-off.h"
 
 static tlSym _s_sec;
@@ -148,7 +152,7 @@ static tlHandle _strftime(tlTask* task, tlArgs* args) {
     return tlStringFromCopy(buf, size);
 }
 
-static void time_init() {
+void time_init() {
     _s_timestamp = tlSYM("timestamp");
 
     tlSet* keys = tlSetNew(11);
@@ -164,7 +168,6 @@ static void time_init() {
     _s_zone = tlSYM("zone"); tlSetAdd_(keys, _s_zone);
     _s_gmtoff = tlSYM("gmtoff"); tlSetAdd_(keys, _s_gmtoff);
     _timeMap = tlObjectNew(keys);
-    tlObjectToObject_(_timeMap);
 
     tl_register_global("time", tlNATIVE(_time, "time"));
     tl_register_global("localtime", tlNATIVE(_localtime, "localtime"));

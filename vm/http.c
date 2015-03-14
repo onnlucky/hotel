@@ -1,3 +1,4 @@
+#if 0
 #define HTTP_PARSER_ALLOW_REWIND
 #include "http-parser/http_parser.c"
 
@@ -71,4 +72,4 @@ static const tlNativeCbs __http_natives[] = {
 void http_init() {
     tl_register_natives(__http_natives);
 }
-
+#endif

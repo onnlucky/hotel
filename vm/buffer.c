@@ -1,35 +1,22 @@
 // a locked buffer, usable for io
 // a bytebuffer that where you can read/write from/to
 
-#include "trace-off.h"
+#include "buffer.h"
+#include "platform.h"
+#include "value.h"
 
-static int at_offset_min(tlHandle v, int size);
-static int at_offset_max(tlHandle v, int size);
+#include "string.h"
+
+#include "trace-off.h"
 
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)
 
-struct tlBuffer {
-    tlLock lock;
-    char* data;
-    int size;
-    int readpos;
-    int writepos;
-};
 static tlKind _tlBufferKind = {
     .name = "Buffer",
     .locked = true,
 };
 tlKind* tlBufferKind;
-
-#define check(buf) assert(buf->readpos <= buf->writepos && buf->writepos <= buf->size)
-
-#define readbuf(buf) ((const char*) (buf->data + buf->readpos))
-#define writebuf(buf) (buf->data + buf->writepos)
-#define didread(buf, len) (buf->readpos += len)
-#define didwrite(buf, len) (buf->writepos += len)
-#define canread(buf) (buf->writepos - buf->readpos)
-#define canwrite(buf) (buf->size - buf->writepos)
 
 tlBuffer* tlBufferNew() {
     tlBuffer* buf = tlAlloc(tlBufferKind, sizeof(tlBuffer));
@@ -69,7 +56,7 @@ INTERNAL void tlBufferCompact(tlBuffer* buf) {
     buf->writepos = len;
     check(buf);
 }
-INTERNAL void tlBufferBeforeWrite(tlBuffer* buf, int len) {
+void tlBufferBeforeWrite(tlBuffer* buf, int len) {
     assert(tlBufferIs(buf));
     assert(len >= 0 && len < 100 * 1024 * 1024);
 
@@ -266,7 +253,6 @@ INTERNAL tlHandle _buffer_read(tlTask* task, tlArgs* args) {
     return tlBinFromCopy(from, len);
 }
 
-static int process_utf8(const char* from, int len, char** into, int* intolen, int* intochars);
 INTERNAL tlHandle _buffer_readString(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -295,8 +281,7 @@ INTERNAL tlHandle _buffer_readByte(tlTask* task, tlArgs* args) {
     return tlINT(tlBufferReadByte(buf));
 }
 
-void write_utf8(int c, char buf[], int* len);
-INTERNAL int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
+int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
     trace("writing object: %s", tl_repr(v));
     assert(v);
     if (tlNullIs(v)) {
@@ -480,7 +465,7 @@ INTERNAL tlHandle _buffer_hexdump(tlTask* task, tlArgs* args) {
 }
 
 /// new(bytes*): create a new buffer filled with bytes
-INTERNAL tlHandle _Buffer_new(tlTask* task, tlArgs* args) {
+tlHandle _Buffer_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
     const char* error = null;
@@ -492,7 +477,7 @@ INTERNAL tlHandle _Buffer_new(tlTask* task, tlArgs* args) {
     }
 }
 
-static void buffer_init() {
+void buffer_init() {
     INIT_KIND(tlBufferKind);
     tlBufferKind->klass = tlClassObjectFrom(
             "size", _buffer_size,
@@ -511,7 +496,7 @@ static void buffer_init() {
     );
 }
 
-static void buffer_init_vm(tlVm* vm) {
+void buffer_init_vm(tlVm* vm) {
     tlObject* BufferStatic = tlClassObjectFrom(
         "new", _Buffer_new,
         null

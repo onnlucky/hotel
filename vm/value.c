@@ -1,22 +1,88 @@
 // this is how all tl values look in memory
 
-#include "code.h"
+#include "value.h"
+#include "platform.h"
+
+#include "bcode.h"
+#include "string.h"
+#include "tlregex.h"
 
 #include "trace-off.h"
 
-static tlSym s_class;
-static tlSym s__methods;
+// returns length of to be returned elements, and fills in (0-based!) offset on where to start
+// negative indexes means size - index
+// if first < 1 it is corrected to 1
+// if last > size it is corrected to size
+int sub_offset(int first, int last, int size, int* offset) {
+    trace("before: %d %d (%d): %d", first, last, size, last - first + 1);
+    if (first < 0) first = size + first + 1;
+    if (first <= 0) first = 1;
+    if (first > size) return 0;
 
-static unsigned int murmurhash2a(const void * key, int len);
+    if (last < 0) last = size + last + 1;
+    if (last < first) return 0;
+    if (last >= size) last = size;
 
-static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
-static inline void set_kind(tlHandle v, tlKind* kind) { ((tlHead*)v)->kind = (intptr_t)kind; } // TODO take care of flags?
+    trace("after: %d %d (%d): %d", first, last, size, last - first + 1);
+    if (offset) *offset = first - 1;
+    return last - first + 1;
+}
 
-INTERNAL bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) & flag; }
-INTERNAL void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
-INTERNAL void tlflag_set(tlHandle v, unsigned flag) {
-    assert(flag <= 0x7);
-    set_kptr(v, get_kptr(v) | flag);
+// returns offset from index based number
+int at_offset_raw(tlHandle v) {
+    if (tlIntIs(v)) return tl_int(v) - 1;
+    if (tlFloatIs(v)) return ((int)tl_double(v)) - 1;
+    return -1;
+}
+
+// returns offset from index based number or -1 if not a valid number or out of range
+int at_offset(tlHandle v, int size) {
+    trace("before: %s (%d)", tl_str(v), size);
+
+    int at;
+    if (tlIntIs(v)) at = tl_int(v);
+    else if (tlFloatIs(v)) at = (int)tl_double(v);
+    else return -1;
+
+    if (at < 0) at = size + at + 1;
+    if (at <= 0) return -1;
+    if (at > size) return -1;
+    trace("after: %s (%d)", tl_str(v), size);
+    return at - 1;
+}
+
+// like at_offset, but returns 0 if handle is null or tlNull or out of range
+int at_offset_min(tlHandle v, int size) {
+    trace("before: %s (%d)", tl_str(v), size);
+    if (!v || tlNullIs(v)) return 0;
+
+    int at;
+    if (tlIntIs(v)) at = tl_int(v);
+    else if (tlFloatIs(v)) at = (int)tl_double(v);
+    else return -1;
+
+    if (at < 0) at = size + at + 1;
+    if (at <= 0) return 0;
+    if (at > size) return size;
+    trace("after: %s (%d)", tl_str(v), size);
+    return at - 1;
+}
+
+// like at_offset, but returns size if handle is null or tlNull or out of range
+int at_offset_max(tlHandle v, int size) {
+    trace("before: %s (%d)", tl_str(v), size);
+    if (!v || tlNullIs(v)) return size;
+
+    int at;
+    if (tlIntIs(v)) at = tl_int(v);
+    else if (tlFloatIs(v)) at = (int)tl_double(v);
+    else return -1;
+
+    if (at < 0) at = size + at + 1;
+    if (at <= 0) return 0;
+    if (at > size) return size;
+    trace("after: %s (%d)", tl_str(v), size);
+    return at;
 }
 
 static tlString* _t_true;
@@ -267,10 +333,7 @@ static tlHandle _isBin(tlTask* task, tlArgs* args) { return tlBOOL(tlBinIs(tlArg
 static tlHandle _isArray(tlTask* task, tlArgs* args) { return tlBOOL(tlArrayIs(tlArgsGet(args, 0))); }
 static tlHandle _isHashMap(tlTask* task, tlArgs* args) { return tlBOOL(tlHashMapIs(tlArgsGet(args, 0))); }
 static tlHandle _isBuffer(tlTask* task, tlArgs* args) { return tlBOOL(tlBufferIs(tlArgsGet(args, 0))); }
-static tlHandle _isRegex(tlTask* task, tlArgs* args);
 
-static bool tlBClosureIs(tlHandle h);
-static bool tlCodeFrameIs(tlHandle h);
 static tlHandle _isFunction(tlTask* task, tlArgs* args) { return tlBOOL(tlBClosureIs(tlArgsGet(args, 0))); }
 static tlHandle _isFrame(tlTask* task, tlArgs* args) { return tlBOOL(tlCodeFrameIs(tlArgsGet(args, 0))); }
 
@@ -302,7 +365,7 @@ static const tlNativeCbs __value_natives[] = {
     { 0, 0 }
 };
 
-static void value_init() {
+void value_init() {
     _t_true = tlSTR("true");
     _t_false = tlSTR("false");
     tl_register_natives(__value_natives);

@@ -1,12 +1,11 @@
-#include <regex.h>
+#include "tlregex.h"
+#include "platform.h"
+#include "value.h"
+
+#include "string.h"
 
 #include "trace-off.h"
 
-TL_REF_TYPE(tlRegex);
-struct tlRegex {
-    tlHead head;
-    regex_t compiled;
-};
 static void regexFinalizer(tlHandle handle);
 static tlKind _tlRegexKind = {
     .name = "Regex",
@@ -149,7 +148,7 @@ static tlHandle _match_group(tlTask* task, tlArgs* args) {
     return tlResultFrom(tlINT(tlStringCharForByte(match->string, match->groups[at].rm_so) + 1), tlINT(tlStringCharForByte(match->string, match->groups[at].rm_eo)), null);
 }
 
-static tlHandle _isRegex(tlTask* task, tlArgs* args) { return tlBOOL(tlRegexIs(tlArgsGet(args, 0))); }
+tlHandle _isRegex(tlTask* task, tlArgs* args) { return tlBOOL(tlRegexIs(tlArgsGet(args, 0))); }
 
 void regex_init_vm(tlVm* vm) {
     if (!_tlRegexKind.klass) {

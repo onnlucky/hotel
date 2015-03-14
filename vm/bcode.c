@@ -1,6 +1,26 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
+// the bytecode interpreter, is in a bad need to be split up, but this is where most bytecode handling happens
+
+#include "../llib/lhashmap.h"
+
 #include "bcode.h"
+
+#include "platform.h"
+#include "value.h"
+
 #include "env.h"
 #include "task.h"
+#include "args.h"
+#include "frame.h"
+#include "sym.h"
+#include "object.h"
+#include "task.h"
+#include "lock.h"
+#include "eval.h"
+#include "vm.h"
+#include "map.h"
+
 #include "trace-off.h"
 
 static tlNative* g_goto_native;
@@ -52,16 +72,11 @@ const char* op_name(uint8_t op) {
     return "<error>";
 }
 
-TL_REF_TYPE(tlBDebugInfo);
-TL_REF_TYPE(tlBCode);
-TL_REF_TYPE(tlBClosure);
-TL_REF_TYPE(tlBLazy);
-TL_REF_TYPE(tlBLazyData);
-TL_REF_TYPE(tlBSendToken);
-
-INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw);
+static tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw);
 tlDebugger* tlDebuggerFor(tlTask* task);
 bool tlDebuggerStep(tlDebugger* debugger, tlTask* task, tlCodeFrame* frame);
+
+enum { kCodeHasLazy = 1 };
 
 // against better judgement, modules are linked by mutating
 struct tlBModule {
@@ -72,54 +87,6 @@ struct tlBModule {
     tlBCode* body;  // starting point; will reference linked and data
     tlList* linked; // when linked, resolved values for all globals
     // TODO add tlMap* globals as the visible env at load time
-};
-
-struct tlBDebugInfo {
-    tlHead head;
-    tlString* name; // name of function
-    tlInt line; // line of function
-    tlInt offset;
-    tlString* text;
-    tlList* lines; // byte positions of newlines in source file
-    tlList* pos;   // byte positions of OP_GLOBAL and CALLs in source file
-};
-
-enum { kCodeHasLazy = 1 };
-
-struct tlBCode {
-    tlHead head;
-    tlBModule* mod; // back reference to module it belongs
-
-    tlBDebugInfo* debuginfo;
-    tlList* argspec;    // a list representing how the arguments were defined [[name, default, @bool lazy]]
-    tlList* localnames; // a list of names for each local
-    tlList* localvars;  // if not null, contains true for for locals that are mutable
-
-    int locals;
-    int calldepth;
-    int size;
-    const uint8_t* code;
-};
-
-struct tlBClosure {
-    tlHead head;
-    tlBCode* code;
-    tlEnv* env;
-};
-
-typedef struct CallEntry { bool safe; bool ccall; bool bcall; int at; tlArgs* call; } CallEntry;
-struct tlCodeFrame {
-    tlFrame frame;    // TODO move resumecb into tlCodeFrameKind
-    tlEnv* locals;    // locals->args
-    tlHandle handler; // stack unwind handler
-
-    // save/restore
-    bool lazy;    // if this frame is evaluating a lazy invoke
-    int8_t stepping; // if we are stepping
-    int8_t bcall; // if this frame is evaluating part of a operator invoke
-    int pc;
-    tlArgs* invoke; // current invoke, here for bcalls, TODO remove by optimizing
-    CallEntry calls[];
 };
 
 struct tlBLazy {
@@ -996,6 +963,7 @@ exit:;
 }
 
 #include "trace-off.h"
+
 tlBModule* tlBModuleLink(tlBModule* mod, tlObject* env, const char** error) {
     trace("linking: %p", mod);
     mod->linked = tlListNew(tlListSize(mod->links));
@@ -1397,7 +1365,7 @@ again:;
         }
         arg = 0;
         call = tlArgsNewNames(size, op & 0x10, (op & 0x7) == 0 || op == OP_SCALL); // size, hasNames, isMethod
-        if (op == OP_SCALL) tlArgsMakeSetter(call);
+        if (op == OP_SCALL) tlArgsMakeSetter_(call);
         calltop++;
         assert(calltop >= 0 && calltop < bcode->calldepth);
         assert(frame->calls[calltop].call == null);
@@ -1855,7 +1823,7 @@ INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {
 }
 
 // TODO every env needs an indication of where its was "closed" compared to its parent
-INTERNAL tlHandle _env_current(tlTask* task, tlArgs* args) {
+tlHandle _env_current(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameAs(task->stack);
     tlHashMap* res = tlHashMapNew();
 
@@ -2171,7 +2139,7 @@ INTERNAL tlHandle _unknown(tlTask* task, tlArgs* args) {
 }
 
 // TODO use symbols
-INTERNAL void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
+void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
     tlList* links = mod->links;
     for (int i = 0; i < tlListSize(links); i++) {
         if (tlHandleEquals(key, tlListGet(links, i))) {
@@ -2286,16 +2254,17 @@ static tlHandle __goto(tlTask* task, tlArgs* args) {
     return null;
 }
 
-INTERNAL tlHandle _identity(tlTask* task, tlArgs* args) {
+static tlHandle _identity(tlTask* task, tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     return v? v: tlNull;
 }
 
-INTERNAL void install_bcatch(tlFrame* _frame, tlHandle handler) {
+void install_bcatch(tlFrame* _frame, tlHandle handler) {
     trace("installing exception handler: %s %s", tl_str(_frame), tl_str(handler));
     tlCodeFrameAs(_frame)->handler = handler;
 }
-INTERNAL tlHandle _bcatch(tlTask* task, tlArgs* args) {
+
+tlHandle _bcatch(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameAs(tlTaskCurrentFrame(task));
     tlHandle handler = tlArgsBlock(args);
     if (!handler) handler = tlArgsGet(args, 0);

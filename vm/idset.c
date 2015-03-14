@@ -1,4 +1,5 @@
 #include "idset.h"
+#include "platform.h"
 
 #define INITIAL_LEN 4
 #define GROW_FACTOR 0.9

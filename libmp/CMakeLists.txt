@@ -1,0 +1,5 @@
+project(libmp)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -rdynamic -std=c99")
+aux_source_directory(. MP_FILES)
+add_library(libmp ${MP_FILES})
+target_include_directories(libmp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -50,6 +50,7 @@
 // TODO for _get, we don't need do a full circle before return null; since _put will never put anything beyond reprobe limit
 
 #define _GNU_SOURCE
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <strings.h>
@@ -57,6 +58,7 @@
 
 #include "atomic_ops.h"
 #include "lhashmap.h"
+#include "debug.h"
 
 // threading primitives
 static void yield() { sched_yield(); }

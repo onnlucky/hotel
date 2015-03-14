@@ -1,6 +1,7 @@
 #ifndef _code_h_
 #define _code_h_
 
+#include "tl.h"
 #include "env.h"
 
 enum {
@@ -28,12 +29,70 @@ enum {
 
 const char* op_name(uint8_t op);
 
+TL_REF_TYPE(tlBDebugInfo);
+TL_REF_TYPE(tlBCode);
+TL_REF_TYPE(tlBClosure);
+TL_REF_TYPE(tlBLazy);
+TL_REF_TYPE(tlBLazyData);
+TL_REF_TYPE(tlBSendToken);
+
+struct tlBDebugInfo {
+    tlHead head;
+    tlString* name; // name of function
+    tlInt line; // line of function
+    tlInt offset;
+    tlString* text;
+    tlList* lines; // byte positions of newlines in source file
+    tlList* pos;   // byte positions of OP_GLOBAL and CALLs in source file
+};
+
+struct tlBCode {
+    tlHead head;
+    tlBModule* mod; // back reference to module it belongs
+
+    tlBDebugInfo* debuginfo;
+    tlList* argspec;    // a list representing how the arguments were defined [[name, default, @bool lazy]]
+    tlList* localnames; // a list of names for each local
+    tlList* localvars;  // if not null, contains true for for locals that are mutable
+
+    int locals;
+    int calldepth;
+    int size;
+    const uint8_t* code;
+};
+
+struct tlBClosure {
+    tlHead head;
+    tlBCode* code;
+    tlEnv* env;
+};
+
 typedef struct tlCodeFrame tlCodeFrame;
+
+typedef struct CallEntry { bool safe; bool ccall; bool bcall; int at; tlArgs* call; } CallEntry;
+struct tlCodeFrame {
+    tlFrame frame;    // TODO move resumecb into tlCodeFrameKind
+    tlEnv* locals;    // locals->args
+    tlHandle handler; // stack unwind handler
+
+    // save/restore
+    bool lazy;    // if this frame is evaluating a lazy invoke
+    int8_t stepping; // if we are stepping
+    int8_t bcall; // if this frame is evaluating part of a operator invoke
+    int pc;
+    tlArgs* invoke; // current invoke, here for bcalls, TODO remove by optimizing
+    CallEntry calls[];
+};
 
 bool tlCodeFrameIs(tlHandle v);
 tlCodeFrame* tlCodeFrameAs(tlHandle v);
 tlCodeFrame* tlCodeFrameCast(tlHandle v);
 
 tlEnv* tlCodeFrameEnv(tlFrame* frame);
+
+int tlBCodePosOpsForPc(tlBCode* code, int pc);
+tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code);
+
+void bcode_init();
 
 #endif

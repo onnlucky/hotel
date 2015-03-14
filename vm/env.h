@@ -1,6 +1,8 @@
 #ifndef _env_h_
 #define _env_h_
 
+#include "tl.h"
+
 TL_REF_TYPE(tlEnv);
 
 struct tlEnv {
@@ -30,5 +32,8 @@ tlHandle tlEnvGetVar(tlEnv* env, int at);
 tlHandle tlEnvSetVar_(tlEnv* env, int at, tlHandle value);
 
 tlObject* tlEnvLocalObject(tlFrame* frame);
+
+void env_init();
+void env_vm_default(tlVm* vm);
 
 #endif

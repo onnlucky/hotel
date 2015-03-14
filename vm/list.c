@@ -1,14 +1,12 @@
 // a list implementation
 
+#include "list.h"
+#include "platform.h"
+#include "value.h"
+
 #include "trace-off.h"
 
 tlKind* tlListKind;
-
-struct tlList {
-    tlHead head;
-    intptr_t size;
-    tlHandle data[];
-};
 
 static tlList* _tl_emptyList;
 tlList* tlListEmpty() { return _tl_emptyList; }
@@ -346,7 +344,7 @@ static tlHandle listCmp(tlHandle _left, tlHandle _right) {
 }
 
 
-static void list_init() {
+void list_init() {
     tlClass* cls = tlCLASS("List", null,
     tlMETHODS(
         "hash", _list_hash,

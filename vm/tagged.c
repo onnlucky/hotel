@@ -1,3 +1,4 @@
+#if 0
 // ** local **
 
 struct tlTagged {
@@ -30,4 +31,4 @@ void* tltagged_priv(tlTagged* tagged, int at) {
     assert(at >= 0 && at < tagged->head.size - 2);
     return tagged->data[at];
 }
-
+#endif

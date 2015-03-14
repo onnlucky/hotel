@@ -1,10 +1,29 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // a debugger for bytecode based interpreter
 
+#include "debugger.h"
+#include "platform.h"
+#include "value.h"
+
+#include "args.h"
+#include "task.h"
+#include "bcode.h"
+#include "list.h"
+
 #include "trace-off.h"
 
 static tlKind _tlDebuggerKind;
 tlKind* tlDebuggerKind;
+
+// TODO a copy paste
+static inline int pcreadsize(const uint8_t* ops, int* pc) {
+    int res = 0;
+    while (true) {
+        uint8_t b = ops[(*pc)++];
+        if (b < 0x80) { return (res << 7) | b; }
+        res = (res << 6) | (b & 0x3F);
+    }
+}
 
 struct tlDebugger {
     tlHead head;
@@ -216,7 +235,7 @@ static tlKind _tlDebuggerKind = {
     .name = "Debugger",
 };
 
-static void debugger_init() {
+void debugger_init() {
     _tlDebuggerKind.klass = tlClassObjectFrom(
         "attach", _debugger_attach,
         "detach", _debugger_detach,

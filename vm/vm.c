@@ -1,62 +1,58 @@
 // the vm itself, this is the library starting point
 
-#include "llib/lqueue.h"
+#include "../llib/lqueue.h"
+#include "../llib/lhashmap.h"
+#include "vm.h"
 #include "platform.h"
 #include "tl.h"
 
-#include "boot/init.tlb.h"
-#include "boot/compiler.tlb.h"
+#include "../boot/init.tlb.h"
+#include "../boot/compiler.tlb.h"
 
-#include "llib/lqueue.c"
-#include "llib/lhashmap.c"
-
+#include "../llib/lqueue.c"
+#include "../llib/lhashmap.c"
 #include "debug.c"
-#include "buffer.c"
 
-#include "value.c"
-#include "number.c"
-#include "string.c"
-#include "bin.c"
-#include "sym.c"
-#include "list.c"
-#include "set.c"
-#include "object.c"
-#include "map.c"
+#include "buffer.h"
+
+#include "value.h"
+#include "number.h"
+#include "string.h"
+#include "bin.h"
+#include "sym.h"
+#include "list.h"
+#include "set.h"
+#include "object.h"
+#include "map.h"
 
 // evaluator internals
-#include "frame.c"
-#include "error.c"
-#include "args.c"
-#include "call.c"
-#include "worker.c"
-#include "task.c"
+#include "frame.h"
+#include "error.h"
+#include "args.h"
+#include "native.h"
+#include "worker.h"
+#include "task.h"
 #include "lock.c"
-#include "mutable.c"
-#include "eval.c"
+#include "mutable.h"
+#include "eval.h"
 
-#include "bcode.c"
-#include "env.c"
-#include "debugger.c"
+#include "bcode.h"
+#include "env.h"
+#include "debugger.h"
 
-#include "var.c"
-#include "array.c"
-#include "hashmap.c"
-#include "controlflow.c"
-#include "queue.c"
+#include "var.h"
+#include "array.h"
+#include "hashmap.h"
+#include "controlflow.h"
+#include "queue.h"
 
 // extras
-#include "evio.c"
-#include "time.c"
-#include "regex.c"
-#include "serialize.c"
-
+#include "evio.h"
+#include "time.h"
+#include "tlregex.h"
+#include "serialize.h"
 #include "idset.h"
 #include "weakmap.h"
-
-#include "idset.c"
-#include "weakmap.c"
-
-//#include "storage.c"
 
 #include "trace-off.h"
 
@@ -84,8 +80,8 @@ bool tlHandleEquals(tlHandle left, tlHandle right) {
         if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->equals(left, right);
         if (kleft == tlBinKind && kright == tlStringKind) return tlBinKind->equals(left, right);
         if (kleft == tlStringKind && kright == tlBinKind) return tlBinKind->equals(left, right);
-        if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->equals(left, _STRING_FROM_SYM(right));
-        if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->equals(_STRING_FROM_SYM(left), right);
+        if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->equals(left, tlStringFromSym(right));
+        if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->equals(tlStringFromSym(left), right);
         return false;
     }
     if (!kleft->equals) return false;
@@ -124,8 +120,8 @@ tlHandle tlHandleCompare(tlHandle left, tlHandle right) {
         if (kleft == tlStringKind && kright == tlSymKind) return tlSymKind->cmp(left, right);
         if (kleft == tlBinKind && kright == tlStringKind) return tlBinKind->cmp(left, right);
         if (kleft == tlStringKind && kright == tlBinKind) return tlBinKind->cmp(left, right);
-        if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->cmp(left, _STRING_FROM_SYM(right));
-        if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->cmp(_STRING_FROM_SYM(left), right);
+        if (kleft == tlBinKind && kright == tlSymKind) return tlBinKind->cmp(left, tlStringFromSym(right));
+        if (kleft == tlSymKind && kright == tlBinKind) return tlBinKind->cmp(tlStringFromSym(left), right);
         return null;
         // TODO maybe return undefined because compare cannot be done here?
         // but actually, we need to let the interpreter execute user level code here
@@ -494,8 +490,6 @@ static tlHandle _urldecode(tlTask* task, tlArgs* args) {
     return tlStringFromTake(res, j);
 }
 
-static void vm_init();
-
 void tl_init() {
     static bool tl_inited;
     if (tl_inited) return;
@@ -518,12 +512,11 @@ void tl_init() {
     signal(SIGBUS, tlbacktrace_fatal);
     signal(SIGSYS, tlbacktrace_fatal);
 
-    INIT_KIND(tlClassKind);
-    INIT_KIND(tlSymKind);
-    INIT_KIND(tlStringKind);
-    INIT_KIND(tlSetKind);
-    INIT_KIND(tlObjectKind);
-    INIT_KIND(tlNativeKind);
+    class_init_first();
+    sym_init_first();
+    string_init_first();
+    set_init_first();
+    native_init_first();
 
     // assert assumptions on memory layout, pointer size etc
     //assert(sizeof(tlHead) <= sizeof(intptr_t));
@@ -551,10 +544,11 @@ void tl_init() {
     value_init();
     number_init();
     args_init();
-    call_init();
+    native_init();
 
     env_init();
     eval_init();
+    frame_init();
     bcode_init();
     task_init();
     error_init();
@@ -601,9 +595,6 @@ tlVm* tlVmNew(tlSym procname, tlArgs* args) {
     buffer_init_vm(vm);
     regex_init_vm(vm);
 
-    //openssl_init_vm(vm);
-    //audio_init_vm(vm);
-    //storage_init_vm(vm);
     hotelparser_init();
     jsonparser_init();
     xmlparser_init();
@@ -696,6 +687,10 @@ static tlHandle _vm_get_compiler() {
     return tlVmGetCompiler();
 }
 
+tlHandle _undefined(tlTask* task, tlArgs* args);
+tlHandle _bless(tlTask* task, tlArgs* args);
+tlHandle _Buffer_new(tlTask* task, tlArgs* args);
+
 static const tlNativeCbs __vm_natives[] = {
     { "_undefined", _undefined },
     { "out",  _out },
@@ -766,7 +761,7 @@ static tlKind _tlWorkerKind = {
 tlKind* tlVmKind;
 tlKind* tlWorkerKind;
 
-static void vm_init() {
+void vm_init() {
     tl_register_natives(__vm_natives);
     tlObject* system = tlObjectFrom(
             "version", tlSTR(TL_VERSION),

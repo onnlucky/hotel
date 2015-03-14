@@ -4,23 +4,18 @@
 
 // TODO the names list, can have a set as last element, to make args.object and args.map faster
 
+#include "platform.h"
+#include "value.h"
+
+#include "object.h"
+#include "map.h"
+
 #include "args.h"
+
 
 #include "trace-off.h"
 
 tlKind* tlArgsKind;
-
-struct tlArgs {
-    tlHead head;
-    uint32_t size; // total data size
-    uint32_t spec; // 0b...11 count of target/method/names, spec >> 2 = count of names
-    tlHandle fn;
-    tlHandle data[];
-    // first 3 items in data[] are:
-    // target; // if spec & 2
-    // method; // if spec & 2 (a tlSym)
-    // names;  // if spec & 1 (a tlList)
-};
 
 static tlArgs* _tl_emptyArgs;
 tlArgs* tlArgsEmpty() { return _tl_emptyArgs; }
@@ -74,7 +69,7 @@ int tlArgsRawSize(tlArgs* args) {
 }
 
 enum { kIsSetter = 1 };
-void tlArgsMakeSetter(tlArgs* args) { tlflag_set(args, kIsSetter); }
+void tlArgsMakeSetter_(tlArgs* args) { tlflag_set(args, kIsSetter); }
 
 bool tlArgsIsSetter(tlArgs* args) {
     return tlflag_isset(args, kIsSetter);
@@ -310,7 +305,7 @@ static size_t argsSize(tlHandle v) {
     return sizeof(tlArgs) + sizeof(tlHandle) * tlArgsAs(v)->size;
 }
 
-static void args_init() {
+void args_init() {
     tlClass* cls = tlCLASS("Args", tlNATIVE(_Args_call, "Args"),
     tlMETHODS(
         "this", _args_this,

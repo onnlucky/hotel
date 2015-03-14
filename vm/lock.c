@@ -2,6 +2,15 @@
 
 // TODO the "owner" part of this lock is not needed, the lqueue->head is perfectly good as the owner
 
+#include "../llib/lqueue.h"
+
+#include "lock.h"
+#include "platform.h"
+
+#include "task.h"
+#include "frame.h"
+#include "error.h"
+
 #include "trace-off.h"
 
 tlKind* tlHeavyLockKind;
@@ -220,7 +229,7 @@ INTERNAL tlHandle resumeWithLock(tlTask* task, tlFrame* _frame, tlHandle value, 
     return resumeWithUnlock(task, _frame, res, null);
 }
 
-static tlHandle _with_lock(tlTask* task, tlArgs* args) {
+tlHandle _with_lock(tlTask* task, tlArgs* args) {
     trace("");
     tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("with expects a block");
@@ -243,7 +252,7 @@ static tlHandle _with_lock(tlTask* task, tlArgs* args) {
     return resumeWithLock(task, (tlFrame*)frame, tlNull, null);
 }
 
-static tlHandle _has_lock(tlTask* task, tlArgs* args) {
+tlHandle _has_lock(tlTask* task, tlArgs* args) {
     for (int i = 0, l = tlArgsSize(args); i < l; i++) {
         tlLock* lock = tlLockCast(tlArgsGet(args, i));
         if (!lock) TL_THROW("expect lock values");

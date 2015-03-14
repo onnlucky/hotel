@@ -1,5 +1,13 @@
 // mutable type, a fully mutable map accessed like an mutable
 
+#include "mutable.h"
+#include "platform.h"
+#include "value.h"
+
+#include "set.h"
+#include "object.h"
+#include "args.h"
+
 #include "trace-off.h"
 
 static tlKind _tlMutableKind = { .name = "Mutable", .locked = true };
@@ -97,7 +105,7 @@ static const tlNativeCbs __mutable_nativecbs[] = {
     { 0, 0 }
 };
 
-static void mutable_init() {
+void mutable_init() {
     _tlMutableKind.send = mutableSend;
     tl_register_natives(__mutable_nativecbs);
 

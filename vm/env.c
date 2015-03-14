@@ -1,6 +1,10 @@
 // environment (scope) management for hotel
 
 #include "env.h"
+#include "platform.h"
+#include "value.h"
+
+#include "args.h"
 #include "bcode.h"
 
 #include "trace-off.h"
@@ -72,7 +76,6 @@ tlObject* tlEnvLocalObject(tlFrame* frame) {
     }
 
     assert(map != tlObjectEmpty());
-    map = tlObjectToObject_(map);
     assert(tlObjectIs(map));
     return map;
 }
@@ -165,10 +168,11 @@ static tlHandle _Env_localObject(tlTask* task, tlArgs* args) {
     return tlEnvLocalObject(tlTaskCurrentFrame(task));
 }
 
-static tlHandle _env_current(tlTask* task, tlArgs* args);
+tlHandle _env_current(tlTask* task, tlArgs* args);
 
 static tlObject* envClass;
-static void env_init() {
+
+void env_init() {
     envClass = tlClassObjectFrom(
         "current", _env_current,
         "localObject", _Env_localObject,
@@ -178,7 +182,7 @@ static void env_init() {
     INIT_KIND(tlEnvKind);
 }
 
-static void env_vm_default(tlVm* vm) {
+void env_vm_default(tlVm* vm) {
    tlVmGlobalSet(vm, tlSYM("Env"), envClass);
 }
 

@@ -1,19 +1,18 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // simple immutable binary buffer type
 
+#include "bin.h"
+#include "platform.h"
+#include "value.h"
+
+#include "string.h"
+#include "buffer.h"
+
 #include "trace-off.h"
 
 tlKind* tlBinKind;
 
 static tlBin* _tl_emptyBin;
-
-struct tlBin {
-    tlHead head;
-    bool interned; // same as string; TODO remove, but for binEquals
-    unsigned int hash;
-    unsigned int len;
-    const char* data;
-};
 
 tlBin* tlBinEmpty() { return _tl_emptyBin; }
 
@@ -206,7 +205,7 @@ static tlKind _tlBinKind = {
     .cmp = binCmp,
 };
 
-static void bin_init() {
+void bin_init() {
     INIT_KIND(tlBinKind);
 
     char buf[0];
