@@ -99,13 +99,17 @@ sync = db, aftercb ->
         if changes.size > 0 and aftercb: aftercb()
         changes.clear
 
-Database = dbname, host, port ->
+Database = dbname, host, port, create ->
     host = host or "localhost"
     port = Number(port) or 5984
-    base = "http://$host:$port/$dbname"
-    reply, err = query(base, "/", method="PUT")
+    base = { host.startsWith("http:")  }: "$host/$dbname"
+           { host.startsWith("https:") }: "$host/$dbname"
+           {                           }: "http://$host:$port/$dbname"
+    if DEBUG: print "couchdb: $base"
+    reply, err = query(base, "/", method=if(create, "PUT", "GET"))
     { reply?ok                     }: null
     { err?error == "file_exists"   }: null
+    { not err                      }: null
     {                              }: Error(repr(reply or err)).throw
 
     var afterChangeHandler
@@ -180,5 +184,5 @@ Database = dbname, host, port ->
     )
     return db
 
-open = name, host, port -> Database(name, host, port)
+open = name, host, port -> Database(name, host, port, args["create"])
 {{ open }}
