@@ -10,6 +10,11 @@ int main(int argc, char** argv) {
     const char* init = null;
     tlArgs* args = null;
 
+    if (argc >= 2 && !strcmp(argv[1], "--version")) {
+        printf("hotel language interpreter, version " TL_VERSION "\n");
+        return 0;
+    }
+
     if (argc >= 2 && !strcmp(argv[1], "--init")) {
         if (argc < 3) fatal("no init file");
         init = argv[2];
