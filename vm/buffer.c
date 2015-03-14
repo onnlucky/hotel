@@ -5,7 +5,7 @@
 #include "platform.h"
 #include "value.h"
 
-#include "string.h"
+#include "tlstring.h"
 
 #include "trace-off.h"
 

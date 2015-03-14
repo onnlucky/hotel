@@ -7,7 +7,7 @@
 
 #include "sym.h"
 #include "buffer.h"
-#include "string.h"
+#include "tlstring.h"
 
 #include "trace-off.h"
 

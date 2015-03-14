@@ -4,7 +4,7 @@
 #include "platform.h"
 
 #include "bcode.h"
-#include "string.h"
+#include "tlstring.h"
 #include "tlregex.h"
 
 #include "trace-off.h"

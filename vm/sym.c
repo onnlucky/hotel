@@ -3,7 +3,7 @@
 #include "sym.h"
 #include "platform.h"
 #include "value.h"
-#include "string.h"
+#include "tlstring.h"
 
 #include "../llib/lhashmap.h"
 

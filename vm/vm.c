@@ -11,13 +11,12 @@
 
 #include "../llib/lqueue.c"
 #include "../llib/lhashmap.c"
-#include "debug.c"
 
 #include "buffer.h"
 
 #include "value.h"
 #include "number.h"
-#include "string.h"
+#include "tlstring.h"
 #include "bin.h"
 #include "sym.h"
 #include "list.h"
@@ -32,7 +31,7 @@
 #include "native.h"
 #include "worker.h"
 #include "task.h"
-#include "lock.c"
+#include "lock.h"
 #include "mutable.h"
 #include "eval.h"
 
@@ -55,6 +54,40 @@
 #include "weakmap.h"
 
 #include "trace-off.h"
+
+void tlDumpTaskTrace();
+
+static bool didbacktrace = false;
+static bool doabort = true;
+void tlabort() {
+    if (didbacktrace) return;
+    didbacktrace = true;
+
+    void *bt[128];
+    char **strings;
+    size_t size;
+
+    size = backtrace(bt, 128);
+    strings = backtrace_symbols(bt, size);
+
+    fprintf(stderr, "\nfatal error; backtrace:\n");
+    for (int i = 0; i < size; i++) {
+        fprintf(stderr, "%s\n", strings[i]);
+    }
+    fflush(stderr);
+
+    tlDumpTaskTrace();
+
+    if (doabort) {
+        doabort = false;
+        abort();
+    }
+}
+
+void tlbacktrace_fatal(int x) {
+    doabort = false;
+    tlabort();
+}
 
 tlHandle _dlopen(tlTask* task, tlArgs* args);
 

@@ -1,7 +1,7 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 // simple str type, wraps a char array with size and tag
 
-#include "string.h"
+#include "tlstring.h"
 #include "platform.h"
 #include "value.h"
 

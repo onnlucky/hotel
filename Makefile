@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ivm/ -I. -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ilibmp/ -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
@@ -72,7 +72,7 @@ run: tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --init run.tlb
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
-unit-test: libtl.a
+unit-test: ev.o boot
 	$(MAKE) -C vm test
 test-noboot: tl
 	cd test/noboot/ && ./run.sh
@@ -87,19 +87,12 @@ $(LIBATOMIC):
 	git submodule update --init
 
 ev.o: ev/*.c ev/*.h config.h Makefile
-	$(CC) $(subst -Werror,,$(CFLAGS)) -c ev/ev.c -o ev.o
+	echo $(CC) $(subst -Wall,,$(CFLAGS)) -Wno-comment -c ev/ev.c -o ev.o
+	$(CC) $(CFLAGS) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
 
-libtl.a: $(LIBMP) Makefile ev.o vm.o boot
-	rm -f libtl.a
-	ar -q libtl.a ev.o vm.o boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
-	ar -q libtl.a libmp/*.o
-	ar -s libtl.a
-
-vm.o: Makefile boot vm/*.c vm/*.h config.h llib/lqueue.* llib/lhashmap.* $(LIBMP) $(LIBATOMIC)
-	$(CC) $(CFLAGS) -Ilibmp -c vm/vm.c -o vm.o
-
-tl: libtl.a vm/tl.c Makefile
-	$(CC) $(CFLAGS) vm/tl.c -o tl libtl.a $(LDFLAGS)
+tl: boot ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h Makefile
+	$(MAKE) -C vm tl
+	cp vm/tl tl
 
 $(C_MODULES): cmodules/*.c
 	$(MAKE) -C cmodules

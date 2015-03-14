@@ -12,23 +12,28 @@ set(EV_FILES
 )
 add_library(libev ${EV_FILES})
 
-set(LIBTL_FILES
+set(BOOT_FILES
     boot/pregen/compiler.tlb.h
     boot/pregen/hotelparser.c
     boot/pregen/init.tlb.h
     boot/pregen/jsonparser.c
     boot/pregen/tlmeta.c
     boot/pregen/xmlparser.c
+)
+add_library(libboot ${BOOT_FILES})
+target_include_directories(libboot PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vm/)
 
+set(LIBTL_FILES
     llib/lhashmap.c
     llib/lhashmap.h
     llib/lqueue.c
     llib/lqueue.h
 
-    vm/object.h vm/map.h vm/set.h vm/string.h vm/buffer.h vm/frame.h vm/sym.h vm/bin.h
+    vm/object.h vm/map.h vm/set.h vm/tlstring.h vm/buffer.h vm/frame.h vm/sym.h vm/bin.h
     vm/worker.h vm/vm.h vm/lock.h
     vm/error.h vm/native.h vm/eval.h vm/controlflow.h vm/debugger.h vm/list.h vm/evio.h
     vm/queue.h vm/hashmap.h vm/mutable.h vm/number.h vm/tlregex.h vm/serialize.h vm/time.h
+    vm/var.h
     vm/a_var.h
     vm/args.c
     vm/args.h
@@ -41,7 +46,6 @@ set(LIBTL_FILES
     vm/call.c
     vm/code.h
     vm/controlflow.c
-    vm/debug.c
     vm/debug.h
     vm/debugger.c
     vm/env.c
@@ -66,7 +70,7 @@ set(LIBTL_FILES
     vm/serialize.c
     vm/set.c
     vm/storage.c
-    vm/string.c
+    vm/tlstring.c
     vm/sym.c
     vm/tagged.c
     vm/task.c
@@ -95,8 +99,8 @@ SET(TEST_FILES
     vm/weakmap_test.c
 )
 
-add_library(libtl ${LIBTL_FILES} vm/var.h)
+add_library(libtl ${LIBTL_FILES})
 target_include_directories(libtl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libmp/)
 
 add_executable(tl vm/tl.c)
-target_link_libraries(tl GC libmp libev libtl)
+target_link_libraries(tl GC libmp libev libboot libtl)
