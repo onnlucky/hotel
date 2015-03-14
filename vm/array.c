@@ -323,6 +323,7 @@ static void array_init() {
         "mean", null,
         "median", null,
         "sort", null,
+        "randomize", null,
         "flatten", null,
         "join", null,
         null

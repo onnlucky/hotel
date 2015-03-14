@@ -378,6 +378,7 @@ static void list_init() {
         "mean", null,
         "median", null,
         "sort", null,
+        "randomize", null,
         null
     ), null);
     tlKind _tlListKind = {

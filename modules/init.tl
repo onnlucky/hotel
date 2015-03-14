@@ -207,6 +207,20 @@ qsort = list, smallerfn ->
 #. [block] use passed in block as comparison function, otherwise sort small to large
 _sort = fn -> qsort(this, args.block or fn or isSmaller)
 
+randomize = arr ->
+    size = arr.size
+    var at = 1
+    size.times: n ->
+        rnd = n + random(size - n + 1)
+        assert(rnd >= n and rnd <= size)
+        tmp = arr[rnd]
+        arr[rnd] = arr[n]
+        arr[n] = tmp
+    arr
+
+#. List.randomize: return a randomized list (shuffle the list)
+_randomize = -> randomize(Array.new(this)).toList
+
 #. Number: given a string, it parses it to a number or returns null
 #. given a number it returns the number
 #. returns null otherwise
@@ -398,6 +412,7 @@ _install_method(List, "sum", _sum)
 _install_method(List, "mean", _mean)
 _install_method(List, "median", _median)
 _install_method(List, "sort", _sort)
+_install_method(List, "randomize", _randomize)
 _install_method(List, "flatten", _flatten)
 _install_method(List, "join", _join)
 
@@ -449,6 +464,7 @@ _install_method(Array, "sum", _sum)
 _install_method(Array, "mean", _mean)
 _install_method(Array, "median", _median)
 _install_method(Array, "sort", _sort)
+_install_method(Array, "randomize", (-> randomize(this)))
 _install_method(Array, "flatten", _flatten)
 _install_method(Array, "join", _join)
 
