@@ -89,7 +89,7 @@ static tlString* _t_true;
 static tlString* _t_false;
 
 // creating tagged values
-tlHandle tlBOOL(unsigned c) { if (c) return tlTrue; return tlFalse; }
+tlHandle tlBOOL(int c) { if (c) return tlTrue; return tlFalse; }
 int tl_bool(tlHandle v) { return !(v == null || v == tlNull || v == tlFalse || tlUndefinedIs(v)); }
 int tl_bool_or(tlHandle v, bool d) { if (!v) return d; return tl_bool(v); }
 

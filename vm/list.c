@@ -193,15 +193,15 @@ INTERNAL tlHandle _list_hash(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle _list_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlList, list);
     int at = at_offset(tlArgsGet(args, 0), tlListSize(list));
-    return tlMAYBE(tlListGet(list, at));
+    return tlOR_UNDEF(tlListGet(list, at));
 }
 INTERNAL tlHandle _list_first(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
-    return tlMAYBE(tlListGet(list, 0));
+    return tlOR_UNDEF(tlListGet(list, 0));
 }
 INTERNAL tlHandle _list_last(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
-    return tlMAYBE(tlListGet(list, tlListSize(list) - 1));
+    return tlOR_UNDEF(tlListGet(list, tlListSize(list) - 1));
 }
 /// set(index, element): return a new list, replacing or adding element at index
 /// will pad the list with elements set to null index is beyond the end of the current list

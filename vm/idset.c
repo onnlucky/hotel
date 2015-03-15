@@ -185,7 +185,7 @@ static tlHandle _idset_get(tlTask* task, tlArgs* args) {
     tlHandle v = tlNumberCast(tlArgsGet(args, 0));
     if (!v) TL_THROW("expected a number");
     int at = at_offset(v, tlIdSetSize(set));
-    return tlMAYBE(tlIdSetGet(set, at));
+    return tlOR_UNDEF(tlIdSetGet(set, at));
 }
 
 static tlHandle _idset_add(tlTask* task, tlArgs* args) {

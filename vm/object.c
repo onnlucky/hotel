@@ -417,7 +417,7 @@ static tlHandle _Object_get(tlTask* task, tlArgs* args) {
     tlString* key = tlStringCast(tlArgsGet(args, 1));
     if (!key) TL_THROW("Expected a String");
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 static tlHandle _Object_set(tlTask* task, tlArgs* args) {
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");

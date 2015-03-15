@@ -211,11 +211,9 @@ bool tlCallableIs(tlHandle v);
 
 // to and from primitive values
 tlHandle tlUndef();
-static inline tlUndefined* tlMAYBE(tlHandle v) { return (v)? v : tlUndef(); }
-static inline tlHandle tlVALUE_OR_NULL(tlHandle v) { return (v)? v : tlNull; }
-static inline tlHandle tlOR_NULL(tlHandle v) { return (v)? v : tlNull; }
 static inline tlHandle tlOR_UNDEF(tlHandle v) { return (v)? v : tlUndef(); }
-tlHandle tlBOOL(unsigned c);
+static inline tlHandle tlOR_NULL(tlHandle v) { return (v)? v : tlNull; }
+tlHandle tlBOOL(int c);
 tlHandle tlINT(intptr_t i);
 tlHandle tlFLOAT(double d);
 tlHandle tlNUM(intptr_t n);
@@ -515,8 +513,6 @@ tlFrame* tlAllocFrame(tlResumeCb resume, size_t bytes);
 
 // create objects with only native functions (to use as classes)
 tlObject* tlClassObjectFrom(const char* n1, tlNativeCb fn1, ...);
-
-tlWorker* tlWorkerCurrent();
 
 tlWorker* tlWorkerNew(tlVm* vm);
 void tlWorkerDelete(tlWorker* worker);

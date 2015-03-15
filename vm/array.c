@@ -164,7 +164,7 @@ INTERNAL tlHandle _array_toList(tlTask* task, tlArgs* args) {
 INTERNAL tlHandle _array_get(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
-    return tlMAYBE(tlArrayGet(array, at));
+    return tlOR_UNDEF(tlArrayGet(array, at));
 }
 INTERNAL tlHandle _array_set(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
@@ -200,7 +200,7 @@ INTERNAL tlHandle _array_cat(tlTask* task, tlArgs* args) {
 }
 INTERNAL tlHandle _array_pop(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
-    return tlMAYBE(tlArrayPop(array));
+    return tlOR_UNDEF(tlArrayPop(array));
 }
 
 static tlHandle _array_reverse(tlTask* task, tlArgs* args) {
@@ -225,7 +225,7 @@ INTERNAL tlHandle _array_remove(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     if (at < 0) TL_THROW("index must be >= 1");
-    return tlMAYBE(tlArrayRemove(array, at));
+    return tlOR_UNDEF(tlArrayRemove(array, at));
 }
 INTERNAL tlHandle _array_splice(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));

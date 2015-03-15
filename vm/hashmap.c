@@ -137,7 +137,7 @@ INTERNAL tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
 
     tlHandle val = tlHashMapGet(map, key);
     trace("%s == %s", tl_str(key), tl_str(val));
-    return tlMAYBE(val);
+    return tlOR_UNDEF(val);
 }
 INTERNAL tlHandle _hashmap_set(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
@@ -169,7 +169,7 @@ INTERNAL tlHandle _hashmap_del(tlTask* task, tlArgs* args) {
 
     tlHandle val = lhashmap_putif(map->map, key, null, LHASHMAP_IGNORE);
     trace("%s == %s", tl_str(key), tl_str(val));
-    return tlMAYBE(val);
+    return tlOR_UNDEF(val);
 }
 // TODO should implement each instead, this is costly
 INTERNAL tlHandle _hashmap_keys(tlTask* task, tlArgs* args) {

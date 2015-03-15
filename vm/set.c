@@ -143,7 +143,7 @@ static tlHandle _set_get(tlTask* task, tlArgs* args) {
     tlSet* set = tlSetAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlSetSize(set));
     if (at < 0) return tlNull;
-    return tlMAYBE(tlSetGet(set, at));
+    return tlOR_UNDEF(tlSetGet(set, at));
 }
 
 static tlHandle _set_find(tlTask* task, tlArgs* args) {

@@ -152,7 +152,7 @@ static tlHandle _map_get(tlTask* task, tlArgs* args) {
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("Excpected a key");
     tlHandle res = tlMapGet(map, key);
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 /// set(key, value): return a new #Map with a new mapping from #key to #value
 static tlHandle _map_set(tlTask* task, tlArgs* args) {

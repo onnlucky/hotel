@@ -221,11 +221,11 @@ static tlHandle _args_size(tlTask* task, tlArgs* args) {
 }
 static tlHandle _args_first(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
-    return tlMAYBE(tlArgsGet(as, 0));
+    return tlOR_UNDEF(tlArgsGet(as, 0));
 }
 static tlHandle _args_last(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
-    return tlMAYBE(tlArgsGet(as, tlArgsSize(args) - 1));
+    return tlOR_UNDEF(tlArgsGet(as, tlArgsSize(args) - 1));
 }
 static tlHandle _args_has(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
@@ -246,39 +246,39 @@ static tlHandle _args_get(tlTask* task, tlArgs* args) {
         int at = at_offset(tlArgsGet(args, 0), tlArgsSize(as));
         tlHandle res = tlArgsGet(as, at);
         if (res) return res;
-        return tlMAYBE(tlArgsGet(args, 1));
+        return tlOR_UNDEF(tlArgsGet(args, 1));
     }
     if (tlSymIs(v)) {
         tlHandle res = tlArgsGetNamed(as, tlSymAs(v));
         if (res) return res;
-        return tlMAYBE(tlArgsGet(args, 1));
+        return tlOR_UNDEF(tlArgsGet(args, 1));
     }
     TL_THROW("Expected an index or name");
 }
 static tlHandle _args_this(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsTarget(as);
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 static tlHandle _args_msg(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsMethod(as);
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 static tlHandle _args_block(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsBlock(as);
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 static tlHandle _args_names(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsObject(as);
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 static tlHandle _args_namesmap(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsMap(as);
-    return tlMAYBE(res);
+    return tlOR_UNDEF(res);
 }
 // TODO optimize
 static tlHandle _args_slice(tlTask* task, tlArgs* args) {

@@ -244,7 +244,7 @@ INTERNAL tlHandle _message_get(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));
-    if (tlIntIs(key)) return tlMAYBE(tlArgsGet(msg->args, at_offset(key, tlArgsSize(msg->args))));
+    if (tlIntIs(key)) return tlOR_UNDEF(tlArgsGet(msg->args, at_offset(key, tlArgsSize(msg->args))));
     return tlArgsGetNamed(msg->args, key);
 }
 

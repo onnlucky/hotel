@@ -181,7 +181,7 @@ static tlHandle _bool(tlTask* task, tlArgs* args) {
     tlHandle c = tlArgsGet(args, 0);
     trace("bool(%s)", tl_bool(c)?"true":"false");
     tlHandle res = tlArgsGet(args, tl_bool(c)?1:2);
-    return tlVALUE_OR_NULL(res);
+    return tlOR_NULL(res);
 }
 static tlHandle _not(tlTask* task, tlArgs* args) {
     trace("!%s", tl_str(tlArgsGet(args, 0)));

@@ -311,7 +311,7 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlSym name = tlSymCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
 
-    if (name == s_this) return tlMAYBE(tlArgsTarget(call));
+    if (name == s_this) return tlOR_UNDEF(tlArgsTarget(call));
 
     tlList* names = tlArgsNames(call);
     if (names) {
