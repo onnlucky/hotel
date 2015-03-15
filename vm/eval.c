@@ -103,7 +103,7 @@ void tlFrameGetInfo(tlFrame* frame, tlString** file, tlString** function, tlInt*
     }
 }
 
-INTERNAL tlHandle evalArgs(tlTask* task, tlArgs* args) {
+static tlHandle evalArgs(tlTask* task, tlArgs* args) {
     assert(tlTaskIs(task));
     tlHandle fn = tlArgsFn(args);
     trace("%p %s -- %s", args, tl_str(args), tl_str(fn));
@@ -199,7 +199,7 @@ static tlHandle _stringFromFile(tlTask* task, tlArgs* args) {
     return tlStringFromTake(tlBufferTakeData(buf), 0);
 }
 
-INTERNAL tlHandle _install(tlTask* task, tlArgs* args) {
+static tlHandle _install(tlTask* task, tlArgs* args) {
     trace("install: %s", tl_str(tlArgsGet(args, 1)));
     tlObject* map = tlObjectCast(tlArgsGet(args, 0));
     if (!map) TL_THROW("expected a Map");

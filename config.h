@@ -12,5 +12,3 @@
 
 // if set use internal asserts
 #define HAVE_ASSERT
-
-#define INTERNAL static

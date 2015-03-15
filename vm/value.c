@@ -7,8 +7,6 @@
 #include "tlstring.h"
 #include "tlregex.h"
 
-#include "trace-off.h"
-
 // returns length of to be returned elements, and fills in (0-based!) offset on where to start
 // negative indexes means size - index
 // if first < 1 it is corrected to 1
@@ -180,7 +178,7 @@ static const char* undefinedtoString(tlHandle v, char* buf, int size) { return "
 static tlKind _tlUndefinedKind = { .name = "Undefined", .toString = undefinedtoString };
 
 static const char* nulltoString(tlHandle v, char* buf, int size) { return "null"; }
-static uint32_t nullHash(tlHandle v) { return 553626246; } // 0.hash + 1
+static uint32_t nullHash(tlHandle v) { return 553626246U; } // 0.hash + 1
 static tlKind _tlNullKind = {
     .name = "Null",
     .index = -1,
@@ -196,8 +194,8 @@ static const char* booltoString(tlHandle v, char* buf, int size) {
     }
 }
 static uint32_t boolHash(tlHandle v) {
-    if ((intptr_t)v == TL_FALSE) return 3132784305; // 1.hash + 1
-    return 3502067542; // 2.hash + 1
+    if ((intptr_t)v == TL_FALSE) return 3132784305U; // 1.hash + 1
+    return 3502067542U; // 2.hash + 1
 }
 static tlKind _tlBoolKind = {
     .name = "Bool",
@@ -298,9 +296,9 @@ static tlHandle _int_abs(tlTask* task, tlArgs* args) {
 }
 static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
     intptr_t n = tl_int(tlArgsTarget(args));
-    char bytes[4];
-    for (int i = 0; i < 4; i++) bytes[3 - i] = n >> (8 * i);
-    return tlBinFromCopy(bytes, 4);
+    uint8_t bytes[4];
+    for (int i = 0; i < 4; i++) bytes[3 - i] = (uint8_t)(n >> (8 * i));
+    return tlBinFromCopy((const char*)bytes, 4);
 }
 
 static tlHandle _int_add(tlTask* task, tlArgs* args) {

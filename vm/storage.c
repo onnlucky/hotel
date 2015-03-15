@@ -87,7 +87,7 @@ tlStorage* tlStorageNew(tlString* str) {
 
     return storage;
 }
-INTERNAL tlHandle _storage_get(tlArgs* args) {
+static tlHandle _storage_get(tlArgs* args) {
     tlStorage* storage = tlStorageAs(tlArgsTarget(args));
     int r;
 
@@ -104,7 +104,7 @@ INTERNAL tlHandle _storage_get(tlArgs* args) {
     if (r == 0) return decode(&val);
     return tlNull;
 }
-INTERNAL tlHandle _storage_set(tlArgs* args) {
+static tlHandle _storage_set(tlArgs* args) {
     tlStorage* storage = tlStorageAs(tlArgsTarget(args));
     int r;
 
@@ -123,7 +123,7 @@ INTERNAL tlHandle _storage_set(tlArgs* args) {
     if (r == -1) TL_THROW("StoreError: %s", strerror(errno));
     return tlArgsGet(args, 1);
 }
-INTERNAL tlHandle _storage_del(tlArgs* args) {
+static tlHandle _storage_del(tlArgs* args) {
     tlStorage* storage = tlStorageAs(tlArgsTarget(args));
     int r;
 
@@ -138,7 +138,7 @@ INTERNAL tlHandle _storage_del(tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _Storage_new(tlArgs* args) {
+static tlHandle _Storage_new(tlArgs* args) {
     tlHandle h = tlArgsGet(args, 0);
     if (h && !tlStringIs(h)) TL_THROW("first argument must be a file name or null for memory store");
     return tlStorageNew(tlStringAs(h));

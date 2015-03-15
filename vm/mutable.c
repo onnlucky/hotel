@@ -24,13 +24,13 @@ tlMutable* tlMutableNew(tlObject* from) {
     mut->data = tlClone(from);
     return mut;
 }
-INTERNAL tlHandle _Mutable_new(tlTask* task, tlArgs* args) {
+static tlHandle _Mutable_new(tlTask* task, tlArgs* args) {
     tlObject* map = (tlObject*)tlObjectCast(tlArgsGet(args, 0));
     if (!map) map = tlObjectEmpty();
     return tlMutableNew(map);
 }
 /*
-INTERNAL tlHandle _Mutable_new_shareLock(tlTask* task, tlArgs* args) {
+static tlHandle _Mutable_new_shareLock(tlTask* task, tlArgs* args) {
     tlHandle* share = tlArgsGet(args, 0);
     assert(tlLockIs(share));
 
@@ -43,7 +43,7 @@ INTERNAL tlHandle _Mutable_new_shareLock(tlTask* task, tlArgs* args) {
     return obj;
 }
 */
-INTERNAL tlHandle mutableSend(tlTask* task, tlArgs* args, bool safe) {
+static tlHandle mutableSend(tlTask* task, tlArgs* args, bool safe) {
     tlMutable* mut = tlMutableAs(tlArgsTarget(args));
     assert(tlLockOwner(tlLockAs(mut)) == task);
 

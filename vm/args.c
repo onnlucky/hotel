@@ -4,16 +4,12 @@
 
 // TODO the names list, can have a set as last element, to make args.object and args.map faster
 
+#include "args.h"
 #include "platform.h"
 #include "value.h"
 
 #include "object.h"
 #include "map.h"
-
-#include "args.h"
-
-
-#include "trace-off.h"
 
 tlKind* tlArgsKind;
 

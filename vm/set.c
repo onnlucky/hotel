@@ -123,7 +123,7 @@ int tlSetAdd_(tlSet* set, tlHandle key) {
     return at;
 }
 
-INTERNAL tlHandle _Set_from(tlTask* task, tlArgs* args) {
+static tlHandle _Set_from(tlTask* task, tlArgs* args) {
     int size = tlArgsSize(args);
     tlSet* set = tlSetNew(size);
     for (int i = 0; i < size; i++) {
@@ -231,7 +231,7 @@ static tlHandle runSet(tlTask* task, tlHandle _fn, tlArgs* args) {
     return tlINT(at + 1);
 }
 
-INTERNAL const char* settoString(tlHandle v, char* buf, int size) {
+static const char* settoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Set@%p %d>", v, tlSetSize(tlSetAs(v))); return buf;
 }
 

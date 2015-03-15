@@ -34,7 +34,7 @@ typedef struct LoopFrame {
     tlHandle block;
 } LoopFrame;
 
-INTERNAL tlHandle resumeLoop(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+static tlHandle resumeLoop(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
     if (error == s_continue) {
         tlTaskClearError(task, tlNull);
         tlTaskPushFrame(task, _frame);
@@ -63,7 +63,7 @@ again:;
     return tlNull;
 }
 
-INTERNAL tlHandle _loop(tlTask* task, tlArgs* args) {
+static tlHandle _loop(tlTask* task, tlArgs* args) {
     tlHandle block = tlArgsBlock(args);
     if (!block) TL_THROW("loop requires a block");
 
@@ -74,7 +74,7 @@ INTERNAL tlHandle _loop(tlTask* task, tlArgs* args) {
 }
 
 // temporary? solution to "x, y = y, x" -> "x, y = multi(y, x)"
-INTERNAL tlHandle _multiple_return(tlTask* task, tlArgs* args) {
+static tlHandle _multiple_return(tlTask* task, tlArgs* args) {
     return tlResultFromArgs(args);
 }
 

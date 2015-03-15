@@ -1049,7 +1049,7 @@ static tlHandle _io_launch(tlTask* task, tlArgs* args) {
     TL_THROW("oeps: %s", strerror(errno));
 }
 
-INTERNAL const char* filetoString(tlHandle v, char* buf, int size) {
+static const char* filetoString(tlHandle v, char* buf, int size) {
     tlFile* file = tlFileAs(v);
     tlKind* kind = tl_kind(file);
     snprintf(buf, size, "<%s@%d>", kind->name, file->ev.fd);

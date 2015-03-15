@@ -114,10 +114,10 @@ tlSym tlSymFromString(tlString* str) {
     return sym;
 }
 
-INTERNAL tlHandle _sym_toString(tlArgs* args) {
+static tlHandle _sym_toString(tlArgs* args) {
     return tlStringFromSym(tlArgsTarget(args));
 }
-INTERNAL tlHandle _sym_toSym(tlArgs* args) {
+static tlHandle _sym_toSym(tlArgs* args) {
     return tlArgsTarget(args);
 }
 

@@ -74,8 +74,7 @@
 #define null NULL
 #endif
 
-#define UNUSED(x) (x = x)
-#define PUBLIC
+#define UNUSED(x) (void)x
 
 #define min(l, r) (((l) <= (r))?(l):(r))
 #define max(l, r) (((l) >= (r))?(l):(r))

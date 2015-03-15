@@ -121,15 +121,15 @@ static tlHandle _hashmap_setAll(tlTask* task, tlArgs* args) {
 }
 
 
-INTERNAL tlHandle _hashmap_size(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_size(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     return tlINT(tlHashMapSize(map));
 }
-INTERNAL tlHandle _hashmap_clear(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_clear(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     return tlHashMapClear(map);
 }
-INTERNAL tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlHashMap, map);
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
@@ -139,7 +139,7 @@ INTERNAL tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
     trace("%s == %s", tl_str(key), tl_str(val));
     return tlOR_UNDEF(val);
 }
-INTERNAL tlHandle _hashmap_set(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_set(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
@@ -150,7 +150,7 @@ INTERNAL tlHandle _hashmap_set(tlTask* task, tlArgs* args) {
     tlHashMapSet(map, key, val);
     return val?val:tlNull;
 }
-INTERNAL tlHandle _hashmap_has(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_has(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
@@ -161,7 +161,7 @@ INTERNAL tlHandle _hashmap_has(tlTask* task, tlArgs* args) {
     if (!val) return tlFalse;
     return tlTrue;
 }
-INTERNAL tlHandle _hashmap_del(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_del(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     if (!key) TL_THROW("expected a key");
@@ -172,7 +172,7 @@ INTERNAL tlHandle _hashmap_del(tlTask* task, tlArgs* args) {
     return tlOR_UNDEF(val);
 }
 // TODO should implement each instead, this is costly
-INTERNAL tlHandle _hashmap_keys(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_keys(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
 
     tlArray* array = tlArrayNew();
@@ -225,7 +225,7 @@ again:;
     return tlNull;
 }
 
-INTERNAL tlHandle _hashmap_each(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_each(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle* block = tlArgsBlock(args);
     if (!block) block = tlArgsGet(args, 0);
@@ -238,10 +238,10 @@ INTERNAL tlHandle _hashmap_each(tlTask* task, tlArgs* args) {
     return resumeHashMapEach(task, (tlHandle)frame, tlNull, null);
 }
 
-INTERNAL tlHandle _hashmap_toMap(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_toMap(tlTask* task, tlArgs* args) {
     return tlHashMapToMap(tlHashMapAs(tlArgsTarget(args)));
 }
-INTERNAL tlHandle _hashmap_toObject(tlTask* task, tlArgs* args) {
+static tlHandle _hashmap_toObject(tlTask* task, tlArgs* args) {
     return tlHashMapToObject(tlHashMapAs(tlArgsTarget(args)));
 }
 

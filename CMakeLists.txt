@@ -44,7 +44,6 @@ set(LIBTL_FILES
     vm/buf.h
     vm/buffer.c
     vm/call.c
-    vm/code.h
     vm/controlflow.c
     vm/debug.h
     vm/debugger.c

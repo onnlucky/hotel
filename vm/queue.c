@@ -150,7 +150,7 @@ bool tlMsgQueueIsEmpty(tlMsgQueue* queue) {
     return lqueue_peek(&queue->msg_q) == null;
 }
 
-INTERNAL void queueSignal(tlMsgQueue* queue) {
+static void queueSignal(tlMsgQueue* queue) {
     if (queue->signalcb) queue->signalcb();
     tlTask* task = tlTaskFromEntry(lqueue_get(&queue->wait_q));
     if (!task) return;
@@ -181,7 +181,7 @@ tlTask* tlMessageGetSender(tlMessage* msg) {
     return msg->sender;
 }
 
-INTERNAL tlHandle queueInputReceive(tlTask* task, tlArgs* args, bool safe) {
+static tlHandle queueInputReceive(tlTask* task, tlArgs* args, bool safe) {
     tlMsgQueue* queue = tlMsgQueueInputAs(tlArgsTarget(args))->queue;
     tlMessage* msg = tlMessageNew(task, args);
     trace("queue.send: %s %s", tl_str(queue), tl_str(msg));
@@ -194,7 +194,7 @@ INTERNAL tlHandle queueInputReceive(tlTask* task, tlArgs* args, bool safe) {
     return null;
 }
 
-INTERNAL tlHandle _msg_queue_get(tlTask* task, tlArgs* args) {
+static tlHandle _msg_queue_get(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
@@ -208,7 +208,7 @@ INTERNAL tlHandle _msg_queue_get(tlTask* task, tlArgs* args) {
     return null;
 }
 
-INTERNAL tlHandle _msg_queue_poll(tlTask* task, tlArgs* args) {
+static tlHandle _msg_queue_poll(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     trace("queue.get: %s", tl_str(tlTaskCurrent()));
 
@@ -218,29 +218,29 @@ INTERNAL tlHandle _msg_queue_poll(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _msg_queue_input(tlTask* task, tlArgs* args) {
+static tlHandle _msg_queue_input(tlTask* task, tlArgs* args) {
     tlMsgQueue* queue = tlMsgQueueAs(tlArgsTarget(args));
     return queue->input;
 }
-INTERNAL tlHandle _MsgQueue_new(tlTask* task, tlArgs* args) {
+static tlHandle _MsgQueue_new(tlTask* task, tlArgs* args) {
     return tlMsgQueueNew();
 }
 
-INTERNAL tlHandle _message_reply(tlTask* task, tlArgs* args) {
+static tlHandle _message_reply(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     // TODO do multiple return ...
     return tlMessageReply(msg, tlArgsGet(args, 0));
 }
-INTERNAL tlHandle _message_throw(tlTask* task, tlArgs* args) {
+static tlHandle _message_throw(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     // TODO do multiple return ...
     return tlMessageThrow(msg, tlArgsGet(args, 0));
 }
-INTERNAL tlHandle _message_name(tlTask* task, tlArgs* args) {
+static tlHandle _message_name(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     return tlArgsMethod(msg->args);
 }
-INTERNAL tlHandle _message_get(tlTask* task, tlArgs* args) {
+static tlHandle _message_get(tlTask* task, tlArgs* args) {
     tlMessage* msg = tlMessageAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
     trace("msg.get: %s %s", tl_str(msg), tl_str(key));

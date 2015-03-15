@@ -73,11 +73,11 @@ tlStackTrace* tlStackTraceNew(tlTask* task, tlFrame* stack, int skip) {
     return trace;
 }
 
-INTERNAL tlHandle _stackTrace_size(tlTask* task, tlArgs* args) {
+static tlHandle _stackTrace_size(tlTask* task, tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     return tlINT(trace->size);
 }
-INTERNAL tlHandle _stackTrace_get(tlTask* task, tlArgs* args) {
+static tlHandle _stackTrace_get(tlTask* task, tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), trace->size);
     if (at < 0) return tlUndef();
@@ -89,12 +89,12 @@ INTERNAL tlHandle _stackTrace_get(tlTask* task, tlArgs* args) {
     assert(trace->entries[at + 2]);
     return tlResultFrom(trace->entries[at], trace->entries[at + 1], trace->entries[at + 2], null);
 }
-INTERNAL tlHandle _stackTrace_task(tlTask* task, tlArgs* args) {
+static tlHandle _stackTrace_task(tlTask* task, tlArgs* args) {
     tlStackTrace* trace = tlStackTraceAs(tlArgsTarget(args));
     return trace->task;
 }
 
-INTERNAL tlHandle _throw(tlTask* task, tlArgs* args) {
+static tlHandle _throw(tlTask* task, tlArgs* args) {
     tlHandle res = tlArgsGet(args, 0);
     if (!res) res = tlNull;
     trace("throwing: %s", tl_str(res));

@@ -69,6 +69,7 @@ struct tlBClosure {
 
 typedef struct tlCodeFrame tlCodeFrame;
 
+// TODO something here ... use a max call size, and then bitfields for the booleans
 typedef struct CallEntry { bool safe; bool ccall; bool bcall; int at; tlArgs* call; } CallEntry;
 struct tlCodeFrame {
     tlFrame frame;    // TODO move resumecb into tlCodeFrameKind

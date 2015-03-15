@@ -3,8 +3,6 @@
 #include "weakmap.h"
 #include "platform.h"
 
-#include "trace-off.h"
-
 #define INITIAL_LEN 4
 #define GROW_FACTOR 0.9
 #define SHRINK_FACTOR 0.3
@@ -34,16 +32,16 @@ static bool wmisDeleted(uint32_t hash) {
     return (hash >> 31) != 0;
 }
 
-static int wmgetPos(tlWeakMap* map, uint32_t hash) {
+static uint32_t wmgetPos(tlWeakMap* map, uint32_t hash) {
     return hash & map->mask;
 }
 
-static int wmgetDistance(tlWeakMap* map, uint32_t hash, uint32_t slot) {
+static uint32_t wmgetDistance(tlWeakMap* map, uint32_t hash, uint32_t slot) {
     return (slot + map->len - wmgetPos(map, hash)) & map->mask;
 }
 
 static int wmgetIndex(tlWeakMap* map, uint32_t hash, tlHandle key) {
-    int pos = wmgetPos(map, hash);
+    uint32_t pos = wmgetPos(map, hash);
     int dist = 0;
     for (;;) {
         if (map->hashes[pos] == 0) return -1;
@@ -61,7 +59,7 @@ static bool wmset(tlWeakMap* map, uint32_t hash, tlHandle key, tlHandle value, t
     assert(map->keys);
     assert(map->values);
 
-    int pos = wmgetPos(map, hash);
+    uint32_t pos = wmgetPos(map, hash);
     int dist = 0;
 
     // as we go around the loop swapping values, they might actually be null

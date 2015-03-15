@@ -1,13 +1,21 @@
-# TODO
+# LANGUAGE TODO
+
+implement real classes
+change and update "match" syntax, no more { ... }: instead something like "match x: 10 -> something ...\n      20 -> something ..."
+
+think about "if x = findSomeX(): print x", instead of "x = findSomeX(); if x: print x"
+switch "Object.each({key=value}): k, v, n -> ..." to ": v, k, n ->" to be inline with "[1, 2, 3].each: v, n -> ..."
+add "[1,2,3].get(4, or="not there")" or something like that
+think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
+
+
+# IMPLEMENTATION TODO
+
+unify tl_kind with tlClass with tlUserClass allow to inherit from host native objects
 
 implement real operators, finally
 
-think about "if x = findSomeX(): print x", instead of "x = findSomeX(); if x: print x"
-
-think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
 fix/finish modules, should load them relative to current module, then Task.locals, then TL_MODULE_PATH; should be able to call them as functions, as well as get their results
-
-rework compile, all .c files should have .h file and compile to .o file
 
 allow tlEnv to have imports, so that before mod->links[global] we look up global against all scoped imports first
 add tlClass with mixins and super and fields and methods, all primitives should have a tlClass

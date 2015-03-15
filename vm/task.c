@@ -176,7 +176,7 @@ tlTask* tlTaskNew(tlVm* vm, tlObject* locals) {
     return task;
 }
 
-INTERNAL tlHandle resumeTaskEval(tlTask* task, tlFrame* frame, tlHandle value, tlHandle error) {
+static tlHandle resumeTaskEval(tlTask* task, tlFrame* frame, tlHandle value, tlHandle error) {
     if (!value) return null;
     tlTaskPopFrame(task, frame);
     return tlEval(task, value);
@@ -225,14 +225,14 @@ tlTask* tlTaskDequeue(lqueue* q) {
 }
 
 // TODO all this deadlock checking needs to thread more carefully
-INTERNAL tlTask* taskForLocked(tlHandle on) {
+static tlTask* taskForLocked(tlHandle on) {
     if (!on) return null;
     if (tlTaskIs(on)) return tlTaskAs(on);
     if (tlLockIs(on)) return tlLockOwner(tlLockAs(on));
     fatal("not implemented yet: %s", tl_str(on));
     return null;
 }
-INTERNAL bool checkDeadlock(tlTask* task, tlHandle on) {
+static bool checkDeadlock(tlTask* task, tlHandle on) {
     tlTask* other = taskForLocked(on);
     if (other == task) { trace("DEADLOCK: %s", tl_str(other)); return true; }
     if (!other) return false;
@@ -240,7 +240,7 @@ INTERNAL bool checkDeadlock(tlTask* task, tlHandle on) {
     if (other->waitFor == on) return false; // if a task waits on an object or such ...
     return checkDeadlock(task, other->waitFor);
 }
-INTERNAL tlArray* deadlocked(tlTask* task, tlHandle on) {
+static tlArray* deadlocked(tlTask* task, tlHandle on) {
     tlArray* array = tlArrayNew();
     tlArrayAdd(array, task);
     while (true) {
@@ -340,7 +340,7 @@ void tlTaskCopyValue(tlTask* task, tlTask* other) {
     other->read = true;
 }
 
-INTERNAL void signalWaiters(tlTask* task) {
+static void signalWaiters(tlTask* task) {
     assert(tlTaskIsDone(task));
     while (true) {
         tlHandle waiting = A_PTR(a_swap(A_VAR(task->waiting), 0));
@@ -359,14 +359,14 @@ INTERNAL void signalWaiters(tlTask* task) {
         }
     }
 }
-INTERNAL void signalVm(tlTask* task) {
+static void signalVm(tlTask* task) {
     if (tlTaskGetVm(task)->main == task) tlVmStop(tlTaskGetVm(task));
 }
 
 bool tlBlockingTaskIs(tlTask* task);
 void tlBlockingTaskDone(tlTask* task);
 
-INTERNAL tlHandle tlTaskDone(tlTask* task) {
+static tlHandle tlTaskDone(tlTask* task) {
     trace("%p done: %s%s", task, tl_str(task->value), tlTaskHasError(task)? " (error)":"");
     assert(!task->stack);
     assert(task->value);
@@ -473,7 +473,7 @@ bool tlTaskTick(tlTask* task) {
 }
 
 // called by ! operator
-INTERNAL tlHandle _Task_new(tlTask* task, tlArgs* args) {
+static tlHandle _Task_new(tlTask* task, tlArgs* args) {
     assert(task->worker && task->worker->vm);
 
     tlHandle v = tlArgsBlock(args);
@@ -485,12 +485,12 @@ INTERNAL tlHandle _Task_new(tlTask* task, tlArgs* args) {
     tlTaskStart(ntask);
     return ntask;
 }
-INTERNAL tlHandle _Task_new_none(tlTask* task, tlArgs* args) {
+static tlHandle _Task_new_none(tlTask* task, tlArgs* args) {
     tlTask* ntask = tlTaskNew(tlVmCurrent(task), task->locals);
     ntask->limit = tl_int_or(tlArgsGet(args, 0), -1) + 1; // 0 means disabled, 1 means at limit, so off by one ...
     return ntask;
 }
-INTERNAL tlHandle _task_run(tlTask* task, tlArgs* args) {
+static tlHandle _task_run(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (other->state != TL_STATE_INIT) TL_THROW("cannot reuse tasks");
 
@@ -502,7 +502,7 @@ INTERNAL tlHandle _task_run(tlTask* task, tlArgs* args) {
     tlTaskStart(other);
     return other;
 }
-INTERNAL tlHandle _Task_current(tlTask* task, tlArgs* args) {
+static tlHandle _Task_current(tlTask* task, tlArgs* args) {
     return task;
 }
 
@@ -510,12 +510,12 @@ static tlHandle _Task_id(tlTask* task, tlArgs* args) {
     return tlNUM(task->id);
 }
 
-INTERNAL tlHandle _Task_stacktrace(tlTask* task, tlArgs* args) {
+static tlHandle _Task_stacktrace(tlTask* task, tlArgs* args) {
     int skip = tl_int_or(tlArgsGet(args, 0), 0);
     return tlStackTraceNew(task, tlTaskCurrentFrame(task), skip);
 }
 
-INTERNAL tlHandle _Task_bindToThread(tlTask* task, tlArgs* args) {
+static tlHandle _Task_bindToThread(tlTask* task, tlArgs* args) {
     tlTaskWaitFor(task, null);
     task->worker = tlWorkerNewBind(tlVmCurrent(task), task);
     assert(tlWorkerIsBound(task->worker));
@@ -525,11 +525,11 @@ INTERNAL tlHandle _Task_bindToThread(tlTask* task, tlArgs* args) {
 }
 
 bool tlLockIsOwner(tlLock* lock, tlTask* task);
-INTERNAL tlHandle _Task_holdsLock(tlTask* task, tlArgs* args) {
+static tlHandle _Task_holdsLock(tlTask* task, tlArgs* args) {
     return tlBOOL(tlLockIsOwner(tlArgsGet(args, 0), task));
 }
 
-INTERNAL tlHandle _Task_yield(tlTask* task, tlArgs* args) {
+static tlHandle _Task_yield(tlTask* task, tlArgs* args) {
     tlTaskWaitFor(task, null);
     // TODO move this to "post parking"
     tlTaskReady(task);
@@ -537,23 +537,23 @@ INTERNAL tlHandle _Task_yield(tlTask* task, tlArgs* args) {
 }
 
 // TODO really need use something different
-INTERNAL tlHandle _Task_locals(tlTask* task, tlArgs* args) {
+static tlHandle _Task_locals(tlTask* task, tlArgs* args) {
     return task->locals;
 }
 
-INTERNAL tlHandle _Task_setLocals(tlTask* task, tlArgs* args) {
+static tlHandle _Task_setLocals(tlTask* task, tlArgs* args) {
     tlObject* locals = tlObjectCast(tlArgsGet(args, 0));
     if (!locals) TL_THROW("Task.setLocals requires an object");
     task->locals = locals;
     return tlNull;
 }
 
-INTERNAL tlHandle _task_isDone(tlTask* task, tlArgs* args) {
+static tlHandle _task_isDone(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
 }
 
-INTERNAL tlHandle _task_toString(tlTask* task, tlArgs* args) {
+static tlHandle _task_toString(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlStringFromCopy(tl_str(other), 0);
 }
@@ -564,7 +564,7 @@ static tlHandle _task_id(tlTask* task, tlArgs* args) {
 }
 
 // TODO this is not thread save, the task might be running and changing limit cannot be done this way
-INTERNAL tlHandle _task_abort(tlTask* task, tlArgs* args) {
+static tlHandle _task_abort(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.abort: %s", tl_str(other));
@@ -573,7 +573,7 @@ INTERNAL tlHandle _task_abort(tlTask* task, tlArgs* args) {
 }
 
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
-INTERNAL tlHandle _task_wait(tlTask* task, tlArgs* args) {
+static tlHandle _task_wait(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
     trace("task.wait: %s", tl_str(other));
@@ -715,7 +715,7 @@ tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
     return res;
 }
 
-INTERNAL const char* _TasktoString(tlHandle v, char* buf, int size) {
+static const char* _TasktoString(tlHandle v, char* buf, int size) {
     const char* state = "unknown";
     switch (tlTaskAs(v)->state) {
         case TL_STATE_INIT: state = "init"; break;

@@ -86,13 +86,6 @@ static const tlHandle tlThunkNull =    (tlHead*)((50 << 3)|4);
 static const tlHandle tlCollectLazy =  (tlHead*)((51 << 3)|4);
 static const tlHandle tlCollectEager = (tlHead*)((52 << 3)|4);
 
-// for the attentive reader, where does 100 tag come into play?
-// internally this is called an "active" value, which is used in the interpreter
-
-// TODO remove ... a few defines
-#define TL_MAX_PRIV_SIZE 7
-#define TL_MAX_ARGS_SIZE 2000
-
 static inline bool tlRefIs(tlHandle v) { return v && ((intptr_t)v & 7) == 0; }
 static inline bool tlTagIs(tlHandle v) { return ((intptr_t)v & 7) == 4 && (intptr_t)v < 1024; }
 
@@ -105,6 +98,7 @@ static inline bool tlIntIs(tlHandle v) { return ((intptr_t)v & 1) == 1; }
 static inline tlInt tlIntAs(tlHandle v) { assert(tlIntIs(v)); return v; }
 static inline tlInt tlIntCast(tlHandle v) { return tlIntIs(v)?tlIntAs(v):0; }
 
+// TODO not used at the moment
 static inline bool tlMiniIs_(tlHandle v) { return ((intptr_t)v & 7) == 2; }
 static inline tlMini tlMiniAs_(tlHandle v) { assert(tlMiniIs_(v)); return v; }
 static inline tlMini tlMiniCast_(tlHandle v) { return tlMiniIs_(v)?tlMiniAs_(v):0; }
@@ -233,7 +227,7 @@ intptr_t tl_int(tlHandle v);
 intptr_t tl_int_or(tlHandle v, int d);
 double tl_double(tlHandle v);
 double tl_double_or(tlHandle v, double d);
-const char* tl_str(tlHandle v);
+const char* tl_str(tlHandle v); // returns a const char* from an internal static pool, only to be used for debugging
 char* tl_repr(tlHandle v);
 
 int at_offset(tlHandle v, int size);
@@ -583,9 +577,6 @@ struct tlFrame {
     tlFrame* caller;     // the frame below/after us
     tlResumeCb resumecb; // the resume function to be called when this frame is to resume
 };
-
-// force similar layout
-union _tl_0 { tlHead _tl_1; tlLock _tl_2; tlFrame _tl_3; };
 
 
 // ** buffer **

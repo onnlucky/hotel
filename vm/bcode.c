@@ -9,7 +9,6 @@
 #include "platform.h"
 #include "value.h"
 
-#include "env.h"
 #include "task.h"
 #include "args.h"
 #include "frame.h"
@@ -20,8 +19,6 @@
 #include "eval.h"
 #include "vm.h"
 #include "map.h"
-
-#include "trace-off.h"
 
 static tlNative* g_goto_native;
 static tlNative* g_identity;
@@ -68,8 +65,8 @@ const char* op_name(uint8_t op) {
         case OP_BCALLN: return "BCALLN";
         case OP_MCALLS: return "MCALLS";
         case OP_MCALLNS: return "MCALLNS";
+        default: return "<error>";
     }
-    return "<error>";
 }
 
 static tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle res, tlHandle throw);
@@ -306,6 +303,8 @@ int tlBCallNameIndex(tlList* names, tlSym name) {
     return -1;
 }
 
+// TODO this is way to expensive ...
+// get args[n] where n represents n'th original argument, incase names have to be matched
 tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlList* argspec = tlListAs(tlListGet(code->argspec, at));
     tlSym name = tlSymCast(tlListGet(argspec, 0));
@@ -315,16 +314,18 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
 
     tlList* names = tlArgsNames(call);
     if (names) {
+        // figure out if this argument was explicitly passed in as named param
         tlHandle v = tlArgsGetNamed(call, name);
         if (v) {
             trace("ARG(%d) name=%s value=%s", at, tl_str(name), tl_repr(v));
             return v;
         }
 
+        // this param was not named, figure out how many other unnamed arguments preceded us
         int skipped = 0;
         for (int i = 0; i < at; i++) {
-            tlHandle name = tlListGet(tlListGet(code->argspec, i), 0);
-            if (tlBCallNameIndex(names, name) < 0) skipped++;
+            tlHandle prevname = tlListGet(tlListGet(code->argspec, i), 0);
+            if (tlBCallNameIndex(names, prevname) < 0) skipped++;
         }
         at = skipped;
     }
@@ -340,8 +341,6 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     if (!v) return tlNull;
     return v;
 }
-
-#include "trace-off.h"
 
 #define FAIL(r) do{ *error = r; return null; }while(0)
 
@@ -394,8 +393,8 @@ static inline tlHandle decodelit(uint8_t b1) {
         case 3: return tlStringEmpty();
         case 4: return tlListEmpty();
         case 5: return tlObjectEmpty();
+        default: return tlINT(lit - 8);
     }
-    return tlINT(lit - 8);
 }
 
 // 0... ....
@@ -430,7 +429,7 @@ static int readsize(tlBuffer* buf) {
     return decoderef2(buf, tlBufferReadByte(buf));
 }
 
-tlSym readString(tlBuffer* buf, int size, const char** error, tlBModule* mod) {
+tlSym readString(tlBuffer* buf, int size, const char** error) {
     trace("string: %d", size);
     if (tlBufferSize(buf) < size) FAIL("not enough data");
     char *data = malloc_atomic(size + 1);
@@ -477,17 +476,12 @@ tlBCode* readbytecode(tlBuffer* buf, tlList* data, tlBModule* mod, int size, con
     tlHandle argspec = readref(buf, data, null);
     if (!tlListIs(argspec)) FAIL("code[2] must be the argspec (list)");
     bcode->argspec = tlListAs(argspec);
+
     // cache hasLazy
     for (int i = 0, l = tlListSize(bcode->argspec); i < l; i++) {
         tlList* spec = tlListAs(tlListGet(bcode->argspec, i));
         if (!tl_bool(tlListGet(spec, 2))) continue;
         tlflag_set(bcode, kCodeHasLazy);
-#ifdef HAVE_ASSERT
-        tlHandle name = tlListGet(spec, 0);
-        assert(name == tlNull || tlSymIs_(name));
-#else
-        break;
-#endif
     }
 
     tlHandle localnames = readref(buf, data, null);
@@ -559,7 +553,7 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1,
     assert(size > 0);
     if (size > 100000) FAIL("value too large");
     switch (b1) {
-        case 0xE0: return readString(buf, size, error, mod);
+        case 0xE0: return readString(buf, size, error);
         case 0xE1: return readList(buf, size, data, error);
         case 0xE2: // set
             trace("set %d", size);
@@ -582,11 +576,11 @@ tlHandle readsizedvalue(tlBuffer* buf, tlList* data, tlBModule* mod, uint8_t b1,
 tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** error) {
     if (tlBufferSize(buf) < 1) FAIL("not enough data");
     uint8_t b1 = tlBufferReadByte(buf);
-    uint8_t type = b1 & 0xE0;
-    uint8_t size = b1 & 0x1F;
+    uint8_t type = (uint8_t)(b1 & 0xE0);
+    uint8_t size = (uint8_t)(b1 & 0x1F);
 
     switch (type) {
-        case 0x00: return readString(buf, size, error, mod);
+        case 0x00: return readString(buf, size, error);
         case 0x20: return readList(buf, size, data, error);
         case 0x40: // short set
             trace("set %d", size);
@@ -706,7 +700,9 @@ static void disasm(tlBCode* bcode) {
     }
     print(" </locals>");
     int pc = 0;
-    int r = 0; int r2 = 0; int r3 = 0; tlHandle o = null;
+    int r = 0; int r2 = 0; int r3 = 0;
+    tlHandle o = null;
+    UNUSED(o);
     while (true) {
         int opc = pc;
         uint8_t op = ops[pc++];
@@ -716,69 +712,69 @@ static void disasm(tlBCode* bcode) {
             case OP_ARGS: case OP_THIS:
             case OP_INVOKE:
             case OP_CERR:
-                print(" % 3d 0x%X %s", opc, op, op_name(op));
+                print(" %3d 0x%X %s", opc, op, op_name(op));
                 break;
             case OP_INT:
             case OP_ENVTHIS:
             case OP_MCALL: case OP_FCALL: case OP_BCALL: case OP_MCALLS:
             case OP_CCALL: case OP_SCALL:
                 r = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d", opc, op, op_name(op), r);
+                print(" %3d 0x%X %s: %d", opc, op, op_name(op), r);
                 break;
             case OP_MCALLN: case OP_FCALLN: case OP_BCALLN: case OP_MCALLNS:
                 r = pcreadsize(ops, &pc);
                 o = pcreadref(ops, &pc, data);
-                print(" % 3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_repr(o));
+                print(" %3d 0x%X %s: %d n: %s", opc, op, op_name(op), r, tl_repr(o));
                 break;
             case OP_SYSTEM:
                 o = pcreadref(ops, &pc, data);
-                print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
+                print(" %3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
                 break;
             case OP_MODULE:
                 o = pcreadref(ops, &pc, data);
-                print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_repr(o));
+                print(" %3d 0x%X %s: %s", opc, op, op_name(op), tl_repr(o));
                 break;
             case OP_GLOBAL:
                 r = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %s(%s)", opc, op, op_name(op),
+                print(" %3d 0x%X %s: %s(%s)", opc, op, op_name(op),
                         tl_str(tlListGet(links, r)), tl_str(tlListGet(linked, r)));
                 break;
             case OP_BIND:
                 o = pcreadref(ops, &pc, data);
-                print(" % 3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
+                print(" %3d 0x%X %s: %s", opc, op, op_name(op), tl_str(o));
                 //if (tlBCodeIs(o)) disasm(tlBCodeAs(o));
                 break;
             case OP_LOCAL: case OP_VGET: // slot
                 r = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
+                print(" %3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
                 break;
             case OP_ARG:
                 r = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(tlListGet(bcode->argspec, r), 0)));
+                print(" %3d 0x%X %s: %d(%s)", opc, op, op_name(op), r, tl_str(tlListGet(tlListGet(bcode->argspec, r), 0)));
                 break;
             case OP_STORE: case OP_VSTORE: // slot
                 r = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d(%s) <-", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
+                print(" %3d 0x%X %s: %d(%s) <-", opc, op, op_name(op), r, tl_str(tlListGet(bcode->localnames, r)));
                 break;
             case OP_RSTORE: case OP_VRSTORE: // result, slot
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d(%s) <- %d", opc, op, op_name(op), r2, tl_str(tlListGet(bcode->localnames, r2)), r);
+                print(" %3d 0x%X %s: %d(%s) <- %d", opc, op, op_name(op), r2, tl_str(tlListGet(bcode->localnames, r2)), r);
                 break;
             case OP_ENV: case OP_ENVARG: case OP_EVGET: // parent, slot
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
+                print(" %3d 0x%X %s: %d %d", opc, op, op_name(op), r, r2);
                 break;
             case OP_EVSTORE: // parent, slot
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d %d <- ", opc, op, op_name(op), r, r2);
+                print(" %3d 0x%X %s: %d %d <- ", opc, op, op_name(op), r, r2);
                 break;
             case OP_EVRSTORE: // parent, result, slot
                 r = pcreadsize(ops, &pc); r2 = pcreadsize(ops, &pc); r3 = pcreadsize(ops, &pc);
-                print(" % 3d 0x%X %s: %d %d <- %d", opc, op, op_name(op), r, r3, r2);
+                print(" %3d 0x%X %s: %d %d <- %d", opc, op, op_name(op), r, r3, r2);
                 break;
             default: print("OEPS: %d 0x%X %s", opc, op, op_name(op));
         }
-        for (int i = opc + 1; i < pc; i++) print(" % 3d 0x%02X", i, ops[i]);
+        for (int i = opc + 1; i < pc; i++) print(" %3d 0x%02X", i, ops[i]);
     }
 exit:;
     print("</code>");
@@ -794,11 +790,11 @@ void bpprint(tlHandle v) {
         tlObject* map = tlObjectAs(v);
         print("{");
         for (int i = 0;; i++) {
-            tlHandle v = tlObjectValueIter(map, i);
-            if (!v) break;
+            tlHandle v2 = tlObjectValueIter(map, i);
+            if (!v2) break;
             tlHandle k = tlObjectKeyIter(map, i);
             print("%s:", tl_str(k));
-            bpprint(v);
+            bpprint(v2);
         }
         print("}");
         return;
@@ -807,9 +803,9 @@ void bpprint(tlHandle v) {
         tlList* list = tlListAs(v);
         print("[");
         for (int i = 0;; i++) {
-            tlHandle v = tlListGet(list, i);
-            if (!v) break;
-            bpprint(v);
+            tlHandle v2 = tlListGet(list, i);
+            if (!v2) break;
+            bpprint(v2);
         }
         print("]");
         return;
@@ -865,6 +861,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_EVGET:
                 parent = dreadsize(&code);
                 at = dreadsize(&code);
+                UNUSED(at);
                 // TODO check if parent locals actually support these
                 assert(parent >= 0);
                 assert(at >= 0);
@@ -873,6 +870,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_ENVARG:
                 parent = dreadsize(&code);
                 at = dreadsize(&code);
+                UNUSED(at);
                 // TODO check if parent locals actually support these
                 assert(parent >= 0);
                 assert(at >= 0);
@@ -913,6 +911,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_EVSTORE:
                 parent = dreadsize(&code);
                 at = dreadsize(&code);
+                UNUSED(at);
                 assert(parent >= 0);
                 assert(at >= 0);
                 if (parent > 200) FAIL("parent out of range");
@@ -921,6 +920,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
                 parent = dreadsize(&code);
                 dreadsize(&code);
                 at = dreadsize(&code);
+                UNUSED(at);
                 assert(parent >= 0);
                 assert(at >= 0);
                 if (parent > 200) FAIL("parent out of range");
@@ -947,6 +947,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_MCALLNS:
                 dreadsize(&code);
                 v = dreadref(&code, data);
+                UNUSED(v);
                 depth++;
                 break;
             default:
@@ -961,8 +962,6 @@ exit:;
      bcode->calldepth = maxdepth;
      return tlNull;
 }
-
-#include "trace-off.h"
 
 tlBModule* tlBModuleLink(tlBModule* mod, tlObject* env, const char** error) {
     trace("linking: %p", mod);
@@ -985,7 +984,7 @@ tlHandle eval_args(tlTask* task, tlArgs* args);
 tlHandle eval_lazy(tlTask* task, tlBLazy* lazy);
 tlHandle beval(tlTask* task, tlCodeFrame* frame, tlHandle resuming);
 
-INTERNAL tlHandle afterYieldQuota(tlTask* task, tlFrame* frame, tlHandle res, tlHandle throw) {
+static tlHandle afterYieldQuota(tlTask* task, tlFrame* frame, tlHandle res, tlHandle err) {
     if (!res) return null;
     tlTaskPopFrame(task, frame);
     return tlInvoke(task, tlArgsAs(res));
@@ -1065,10 +1064,10 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     }
     tlClass* cls = tlClassFor(fn);
     if (cls) {
-        tlHandle target = fn;
+        tlHandle newtarget = fn;
         fn = classResolve(cls, s_call);
         if (fn) {
-            return tlInvoke(task, tlArgsFrom(call, fn, s_call, target));
+            return tlInvoke(task, tlArgsFrom(call, fn, s_call, newtarget));
         }
     }
     /*
@@ -1233,7 +1232,7 @@ void tlCodeFrameDump(tlFrame* _frame) {
     }
 }
 
-INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle throw);
+static tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle throw);
 tlHandle eval_resume(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
     tlCodeFrame* frame = tlCodeFrameAs(_frame);
     //if (error) return tlCodeFrameHandleError(task, frame, error);
@@ -1478,12 +1477,15 @@ again:;
             return null;
         }
         case OP_SYSTEM: {
+            // TODO make useful or remove ...
             at = pcreadsize(ops, &pc);
+            UNUSED(at);
             //tlHandle n = tlListGet(data, at);
             //if (n == s_createobject) {
             v = tlEnvLocalObject((tlFrame*)frame);
             //}
             //fatal("syscall: %s", tl_str(n));
+            //v = tlNull;
             break;
         }
         case OP_MODULE:
@@ -1798,7 +1800,7 @@ void tlCodeFrameGetInfo(tlFrame* _frame, tlString** file, tlString** function, t
     *line = tlINT(l + 1);
 }
 
-INTERNAL tlHandle _env_locals(tlTask* task, tlArgs* args) {
+static tlHandle _env_locals(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameAs(task->stack);
     tlBCode* code = tlBClosureAs(frame->locals->args->fn)->code;
     tlHashMap* res = tlHashMapNew();
@@ -1871,7 +1873,7 @@ static tlHandle resumeBCall(tlTask* task, tlFrame* frame, tlHandle res, tlHandle
     return eval_args(task, call);
 }
 
-INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle error) {
+static tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle error) {
     assert(tlTaskCurrentFrame(task) != (tlFrame*)frame);
     assert(tlTaskHasError(task));
 
@@ -1900,7 +1902,7 @@ INTERNAL tlHandle handleBFrameThrow(tlTask* task, tlCodeFrame* frame, tlHandle e
     return tlTaskClearError(task, handler);
 }
 
-INTERNAL tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
+static tlHandle resumeBFrame(tlTask* task, tlFrame* _frame, tlHandle value, tlHandle error) {
     trace("running resuming from a frame: %s value=%s, error=%s", tl_str(_frame), tl_str(value), tl_str(error));
     tlCodeFrame* frame = tlCodeFrameAs(_frame);
     if (error) {
@@ -1948,7 +1950,7 @@ tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args) {
     return task;
 }
 
-INTERNAL tlHandle _Module_new(tlTask* task, tlArgs* args) {
+static tlHandle _Module_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     tlString* name = tlStringCast(tlArgsGet(args, 1));
 
@@ -1958,7 +1960,7 @@ INTERNAL tlHandle _Module_new(tlTask* task, tlArgs* args) {
     return mod;
 }
 
-INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
+static tlHandle _disasm(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) {
         tlCodeFrame* frame = tlCodeFrameAs(tlTaskCurrentFrame(task));
@@ -1972,7 +1974,7 @@ INTERNAL tlHandle _disasm(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _module_frame(tlTask* task, tlArgs* args) {
+static tlHandle _module_frame(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
     tlBClosure* fn = tlBClosureNew(mod->body, null);
@@ -2058,7 +2060,7 @@ static tlHandle _frame_get(tlTask* task, tlArgs* args) {
 
 /// allStored: a property set to true if the last statement of the code is an assignment
 /// > "x = 10".eval(frame=true).allStored == true
-INTERNAL tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
+static tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
     tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
     if (!frame) TL_THROW("run requires a frame");
 
@@ -2070,11 +2072,11 @@ INTERNAL tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
         case OP_STORE: case OP_RSTORE: return tlTrue;
         case OP_VSTORE: case OP_VRSTORE: return tlTrue;
         case OP_EVSTORE: case OP_EVRSTORE: return tlTrue;
+        default: return tlFalse;
     }
-    return tlFalse;
 }
 
-INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
+static tlHandle _module_run(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     if (!mod) TL_THROW("run requires a module");
 
@@ -2117,12 +2119,12 @@ INTERNAL tlHandle _module_run(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-INTERNAL tlHandle _module_links(tlTask* task, tlArgs* args) {
+static tlHandle _module_links(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     return mod->links;
 }
 
-INTERNAL tlHandle _module_link(tlTask* task, tlArgs* args) {
+static tlHandle _module_link(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
     tlList* links = tlListCast(tlArgsGet(args, 1));
     if (!mod) TL_THROW("expect a module as args[1]");
@@ -2134,7 +2136,7 @@ INTERNAL tlHandle _module_link(tlTask* task, tlArgs* args) {
     return mod;
 }
 
-INTERNAL tlHandle _unknown(tlTask* task, tlArgs* args) {
+static tlHandle _unknown(tlTask* task, tlArgs* args) {
     return tlUnknown;
 }
 
@@ -2150,7 +2152,7 @@ void module_overwrite_(tlBModule* mod, tlString* key, tlHandle value) {
     }
 }
 
-INTERNAL tlHandle __list(tlTask* task, tlArgs* args) {
+static tlHandle __list(tlTask* task, tlArgs* args) {
     tlList* list = tlListNew(tlArgsSize(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
         tlListSet_(list, i, tlArgsGet(args, i));
@@ -2159,7 +2161,7 @@ INTERNAL tlHandle __list(tlTask* task, tlArgs* args) {
     return list;
 }
 
-INTERNAL tlHandle __object(tlTask* task, tlArgs* args) {
+static tlHandle __object(tlTask* task, tlArgs* args) {
     tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
     for (int i = 1; i < tlArgsSize(args); i += 2) {
         tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
@@ -2168,7 +2170,7 @@ INTERNAL tlHandle __object(tlTask* task, tlArgs* args) {
     return object;
 }
 
-INTERNAL tlHandle __map(tlTask* task, tlArgs* args) {
+static tlHandle __map(tlTask* task, tlArgs* args) {
     tlObject* object = tlClone(tlObjectAs(tlArgsGet(args, 0)));
     for (int i = 1; i < tlArgsSize(args); i += 2) {
         tlObjectSet_(object, tlArgsGet(args, i), tlArgsGet(args, i + 1));
@@ -2177,7 +2179,7 @@ INTERNAL tlHandle __map(tlTask* task, tlArgs* args) {
     return tlMapFromObject_(object);
 }
 
-INTERNAL tlHandle __return(tlTask* task, tlArgs* args) {
+static tlHandle __return(tlTask* task, tlArgs* args) {
     int deep = tl_int(tlArgsGet(args, 0));
     trace("RETURN SCOPES: %d", deep);
 
@@ -2359,22 +2361,22 @@ static const char* bclosureToString(tlHandle v, char* buf, int size) {
     return buf;
 }
 
-INTERNAL tlHandle _blazy_call(tlTask* task, tlArgs* args) {
+static tlHandle _blazy_call(tlTask* task, tlArgs* args) {
     trace("blazy.call");
     tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
     return eval_lazy(task, lazy);
 }
-INTERNAL tlHandle runBLazy(tlTask* task, tlHandle fn, tlArgs* args) {
+static tlHandle runBLazy(tlTask* task, tlHandle fn, tlArgs* args) {
     trace("blazy.run");
     tlBLazy* lazy = tlBLazyAs(fn);
     return eval_lazy(task, lazy);
 }
 
-INTERNAL tlHandle _blazydata_call(tlTask* task, tlArgs* args) {
+static tlHandle _blazydata_call(tlTask* task, tlArgs* args) {
     trace("blazydata.call");
     return tlBLazyDataAs(tlArgsTarget(args))->data;
 }
-INTERNAL tlHandle runBLazyData(tlTask* task, tlHandle fn, tlArgs* args) {
+static tlHandle runBLazyData(tlTask* task, tlHandle fn, tlArgs* args) {
     trace("blazydata.run");
     return tlBLazyDataAs(fn)->data;
 }

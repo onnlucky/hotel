@@ -376,41 +376,41 @@ tlHandle _String_cat(tlTask* task, tlArgs* args) {
 
 /// object String: represents a series of characters
 /// toString: returns itself
-INTERNAL tlHandle _string_toString(tlTask* task, tlArgs* args) {
+static tlHandle _string_toString(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return str;
 }
-INTERNAL tlHandle _string_toSym(tlTask* task, tlArgs* args) {
+static tlHandle _string_toSym(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlSymFromString(str);
 }
-INTERNAL tlHandle _string_isInterned(tlTask* task, tlArgs* args) {
+static tlHandle _string_isInterned(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlBOOL(str->interned);
 }
-INTERNAL tlHandle _string_intern(tlTask* task, tlArgs* args) {
+static tlHandle _string_intern(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     if (str->len > 512) TL_THROW("can only intern strings < 512 bytes");
     return tlStringIntern(str);
 }
 /// size: return the amount of characters in the #String
-INTERNAL tlHandle _string_size(tlTask* task, tlArgs* args) {
+static tlHandle _string_size(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlINT(tlStringChars(str));
 }
 /// bytes: return the amount of bytes in the #String, bytes >= size due to multibyte characters
-INTERNAL tlHandle _string_bytes(tlTask* task, tlArgs* args) {
+static tlHandle _string_bytes(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlINT(tlStringSize(str));
 }
 /// hash: return the hashcode for this #String
-INTERNAL tlHandle _string_hash(tlTask* task, tlArgs* args) {
+static tlHandle _string_hash(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     // TODO this can overflow/underflow ... sometimes, need to fix
     return tlINT(tlStringHash(str));
 }
 
-INTERNAL tlHandle _string_find_backward(tlTask* task, tlArgs* args) {
+static tlHandle _string_find_backward(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
 
     int at = 1;
@@ -453,7 +453,7 @@ INTERNAL tlHandle _string_find_backward(tlTask* task, tlArgs* args) {
 /// when #s is a #Number or #Char it will return the first occurance of that letter
 /// > "hello world".find('o') == 5
 /// > "hello world".find("o", backward=true) == 8
-INTERNAL tlHandle _string_find(tlTask* task, tlArgs* args) {
+static tlHandle _string_find(tlTask* task, tlArgs* args) {
     if (tl_bool(tlArgsGetNamed(args, tlSYM("backward")))) return _string_find_backward(task, args);
 
     tlString* str = tlStringAs(tlArgsTarget(args));
@@ -488,7 +488,7 @@ INTERNAL tlHandle _string_find(tlTask* task, tlArgs* args) {
 }
 
 /// cat: concatenate multiple #"String"s together
-INTERNAL tlHandle _string_cat(tlTask* task, tlArgs* args) {
+static tlHandle _string_cat(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* add = tlStringCast(tlArgsGet(args, 0));
     if (!add) TL_THROW("arg must be a String");
@@ -497,7 +497,7 @@ INTERNAL tlHandle _string_cat(tlTask* task, tlArgs* args) {
 }
 
 /// get: return character at args[1] characters are just #"Int"s
-INTERNAL tlHandle _string_get(tlTask* task, tlArgs* args) {
+static tlHandle _string_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlString, str);
     tlHandle vat = tlArgsGet(args, 0);
     int at = at_offset(vat, tlStringChars(str));
@@ -507,7 +507,7 @@ INTERNAL tlHandle _string_get(tlTask* task, tlArgs* args) {
 }
 
 /// lower: return a new #String with only lower case characters, only works properly for ascii str
-INTERNAL tlHandle _string_lower(tlTask* task, tlArgs* args) {
+static tlHandle _string_lower(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
 
@@ -520,7 +520,7 @@ INTERNAL tlHandle _string_lower(tlTask* task, tlArgs* args) {
 }
 
 /// upper: return a new #String with all upper case characters, only works properly for ascii str
-INTERNAL tlHandle _string_upper(tlTask* task, tlArgs* args) {
+static tlHandle _string_upper(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
 
@@ -533,7 +533,7 @@ INTERNAL tlHandle _string_upper(tlTask* task, tlArgs* args) {
 }
 
 /// slice: return a subsection of the #String withing bounds of args[1], args[2]
-INTERNAL tlHandle _string_slice(tlTask* task, tlArgs* args) {
+static tlHandle _string_slice(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int first = tl_int_or(tlArgsGet(args, 0), 1);
     int last = tl_int_or(tlArgsGet(args, 1), -1);
@@ -586,7 +586,7 @@ tlString* tlStringEscape(tlString* str, bool cstr) {
 }
 
 /// escape: return a #String that has all special characters escaped by a '\'
-INTERNAL tlHandle _string_escape(tlTask* task, tlArgs* args) {
+static tlHandle _string_escape(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlStringEscape(str, tl_bool(tlArgsGet(args, 0)));
 }
@@ -599,7 +599,7 @@ static bool containsChar(tlString* chars, int c) {
 }
 /// trim([chars]): return a #String that has all leading and trailing whitespace removed
 /// when given optional #chars remove those characters instead
-INTERNAL tlHandle _string_trim(tlTask* task, tlArgs* args) {
+static tlHandle _string_trim(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* chars = tlStringCast(tlArgsGet(args, 0));
 
@@ -630,7 +630,7 @@ INTERNAL tlHandle _string_trim(tlTask* task, tlArgs* args) {
     return tlStringFromTake(ndata, size);
 }
 
-INTERNAL tlHandle _string_reverse(tlTask* task, tlArgs* args) {
+static tlHandle _string_reverse(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
     if (size <= 1) return str;
@@ -652,7 +652,7 @@ INTERNAL tlHandle _string_reverse(tlTask* task, tlArgs* args) {
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
 /// startsWith: return true when this #String begins with the #String in args[1]
-INTERNAL tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
+static tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");
@@ -671,7 +671,7 @@ INTERNAL tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
 }
 
 /// endsWith: return true when this #String ends with the #String in args[1]
-INTERNAL tlHandle _string_endsWith(tlTask* task, tlArgs* args) {
+static tlHandle _string_endsWith(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* start = tlStringCast(tlArgsGet(args, 0));
     if (!start) TL_THROW("arg must be a String");

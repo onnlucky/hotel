@@ -65,9 +65,8 @@ void tlabort() {
 
     void *bt[128];
     char **strings;
-    size_t size;
 
-    size = backtrace(bt, 128);
+    int size = backtrace(bt, 128);
     strings = backtrace_symbols(bt, size);
 
     fprintf(stderr, "\nfatal error; backtrace:\n");
@@ -661,7 +660,7 @@ void tlVmSetExitCode(tlVm* vm, int code) {
     vm->exitcode = code;
 }
 
-INTERNAL tlHandle _set_exitcode(tlTask* task, tlArgs* args) {
+static tlHandle _set_exitcode(tlTask* task, tlArgs* args) {
     int code = tl_int_or(tlArgsGet(args, 0), 1);
     tlVm* vm = tlVmCurrent(task);
     if (vm->exitcode >= 0) warning("exitcode already set: %d new: %d", vm->exitcode, code);
@@ -841,7 +840,7 @@ static tlHandle _print(tlTask* task, tlArgs* args) {
 
     if (begin) printf("%s", begin);
     for (int i = 0; i < 1000; i++) {
-        tlHandle v = tlArgsGet(args, i);
+        v = tlArgsGet(args, i);
         if (!v) break;
         if (i > 0) printf("%s", sep);
         printf("%s", tl_str(v));

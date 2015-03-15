@@ -85,7 +85,7 @@ tlHandle tlEnvGetFull(tlEnv* env, int depth, int at) {
     bool haveImports = !!env->imports;
     for (int i = 0; i < depth; i++) {
         env = env->parent;
-        assert(env);
+        if (!env) { assert(false); break; }
         if (env->imports) haveImports = true;
     }
 
