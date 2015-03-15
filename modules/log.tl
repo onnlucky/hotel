@@ -7,7 +7,7 @@ filelevels = HashMap.new
 
 loggertime = ->
     x = time()
-    millis = ((x - x.floor) * 1000).round
+    millis = ((x - x.floor) * 1000 + 1_000).round.toString[2:] # trick to format string as 001
     return strftime("%Y-%m-%d %H:%M:%S.$millis", x)
 
 outputlog = level, levelname, as ->
@@ -49,7 +49,7 @@ levelToNumber = level ->
     debug = -> outputlog(1, "DEBUG", args)
     info = -> outputlog(2, "INFO", args)
     notice = -> outputlog(3, "NOTICE", args)
-    warn = -> outputlog(4, "WARNING", args)
+    warning = -> outputlog(4, "WARNING", args)
     error = -> outputlog(5, "ERROR", args)
 }
 
