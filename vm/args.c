@@ -211,18 +211,27 @@ void tlArgsSet_(tlArgs* args, int at, tlHandle v) {
     args->data[(args->spec & 3) + at] = v;
 }
 
+//. object Args
+
+//. size: returns how many arguments were passed in, count does not inlude named params
 static tlHandle _args_size(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     return tlINT(tlArgsSize(as));
 }
+
+//. first: returns the first argument, does not include named params
 static tlHandle _args_first(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     return tlOR_UNDEF(tlArgsGet(as, 0));
 }
+
+//. last: returns the last argument, does not include named params
 static tlHandle _args_last(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     return tlOR_UNDEF(tlArgsGet(as, tlArgsSize(args) - 1));
 }
+
+//. has[at|name]: returns true if there is an argument at position #at or with name #name
 static tlHandle _args_has(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle v = tlArgsGet(args, 0);
@@ -235,6 +244,8 @@ static tlHandle _args_has(tlTask* task, tlArgs* args) {
     }
     TL_THROW("Expected an index or name");
 }
+
+//. get(at|name): returns the argument at position #at or with name #name
 static tlHandle _args_get(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle v = tlArgsGet(args, 0);
@@ -251,32 +262,45 @@ static tlHandle _args_get(tlTask* task, tlArgs* args) {
     }
     TL_THROW("Expected an index or name");
 }
+
+//. this: returns the target of these arguments
 static tlHandle _args_this(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsTarget(as);
     return tlOR_UNDEF(res);
 }
+
+//. msg: returns the message (the method) name of these arguments
 static tlHandle _args_msg(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsMethod(as);
     return tlOR_UNDEF(res);
 }
+
+//. block: returns the block passed into these arguments, will not invoke the block, equivalent to
+//. `args["block"]` or `args.get("block")`
 static tlHandle _args_block(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsBlock(as);
     return tlOR_UNDEF(res);
 }
+
+//. names: return all the named arguments as an #Object
 static tlHandle _args_names(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsObject(as);
     return tlOR_UNDEF(res);
 }
+
+//. namesmap: return all the named arguments as a #Map
 static tlHandle _args_namesmap(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
     tlHandle res = tlArgsMap(as);
     return tlOR_UNDEF(res);
 }
-// TODO optimize
+
+//. slice(begin, end): return a range of the unnamed arguments in a list, equivalent to
+//. `args.toList[begin:end]`
 static tlHandle _args_slice(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
 
@@ -288,8 +312,41 @@ static tlHandle _args_slice(tlTask* task, tlArgs* args) {
     return tlListSub(list, offset, len);
 }
 
+//. Args(): returns an new arguments object representing what you passed in
 static tlHandle _Args_call(tlTask* task, tlArgs* args) {
     return args;
+}
+
+//. Args.from(list, object): returns an new arguments object, created from the list and object you
+//. passed in
+// TODO object or map, list or array, etc...
+static tlHandle _Args_from(tlTask* task, tlArgs* args) {
+    tlHandle a1 = tlArgsGet(args, 0);
+    tlHandle a2 = tlArgsGet(args, 1);
+    if (a1 && !tlListIs(a1)) TL_THROW("args[1] must be a list, not '%s'", tl_str(a1));
+    if (a2 && !tlObjectIs(a1)) TL_THROW("args[2] must be an object, not '%s'", tl_str(a2));
+
+    tlList* list = tlListAs(a1);
+    int lsize = list? tlListSize(list) : 0;
+    tlObject* obj = tlObjectAs(a2);
+    int osize = obj? tlObjectSize(a2) : 0;
+    bool hasNames = osize > 0;
+    tlList* named = hasNames? tlListNew(lsize + osize) : null;
+
+    tlArgs* call = tlArgsNewNames(lsize + osize, hasNames, false);
+    for (int i = 0; i < lsize; i++) {
+        tlArgsSet_(call, i, tlListGet(list, i));
+        if (hasNames) tlListSet_(named, i, tlNull);
+    }
+    for (int i = 0; i < osize; i++) {
+        tlSym key;
+        tlHandle value;
+        tlObjectKeyValueIter(obj, i, &key, &value);
+        tlListSet_(named, lsize + i, key);
+        tlArgsSet_(call, lsize + i, value);
+    }
+    if (hasNames) tlArgsSetNames_(call, named, osize);
+    return call;
 }
 
 const char* _ArgstoString(tlHandle v, char* buf, int size) {
@@ -328,7 +385,10 @@ void args_init() {
         "flatten", null,
         "join", null,
         null
-    ), null);
+    ), tlMETHODS(
+        "from", _Args_from,
+        null
+    ));
     tlKind _tlArgsKind = {
         .name = "Args",
         .toString = _ArgstoString,

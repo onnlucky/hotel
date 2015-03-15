@@ -136,14 +136,13 @@ BINDIR:=$(DESTDIR)$(PREFIX)/bin
 LIBDIR:=$(DESTDIR)$(PREFIX)/lib
 INCDIR:=$(DESTDIR)$(PREFIX)/include
 MODDIR:=$(DESTDIR)$(PREFIX)/lib/tl
-install: libtl.a tl tlmeta $(TLG_MODULES) $(C_MODULES) $(BIN_MODULES)
+install: tl tlmeta $(TLG_MODULES) $(C_MODULES) $(BIN_MODULES)
 	mkdir -p $(BINDIR)
 	mkdir -p $(LIBDIR)
 	mkdir -p $(INCDIR)
 	rm -rf $(MODDIR)
 	mkdir -p $(MODDIR)
 	cp tl $(BINDIR)/
-	cp libtl.a $(LIBDIR)/
 	cp vm/tl.h $(INCDIR)/tl.h
 	cp modules/*.tl $(MODDIR)/
 	cp modules/*.tlb $(MODDIR)/
