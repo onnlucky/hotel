@@ -11,6 +11,7 @@ set(EV_FILES
     ev/ev.h
 )
 add_library(libev ${EV_FILES})
+target_include_directories(libev PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 set(BOOT_FILES
     boot/pregen/compiler.tlb.h
@@ -21,9 +22,16 @@ set(BOOT_FILES
     boot/pregen/xmlparser.c
 )
 add_library(libboot ${BOOT_FILES})
-target_include_directories(libboot PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vm/)
+target_include_directories(libboot PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 set(LIBTL_FILES
+    config.h
+    include/tl.h
+    include/platform.h
+    include/a_var.h
+    include/debug.h
+    include/trace-off.h
+
     llib/lhashmap.c
     llib/lhashmap.h
     llib/lqueue.c
@@ -34,7 +42,6 @@ set(LIBTL_FILES
     vm/error.h vm/native.h vm/eval.h vm/controlflow.h vm/debugger.h vm/list.h vm/evio.h
     vm/queue.h vm/hashmap.h vm/mutable.h vm/number.h vm/tlregex.h vm/serialize.h vm/time.h
     vm/var.h
-    vm/a_var.h
     vm/args.c
     vm/args.h
     vm/array.c
@@ -45,7 +52,6 @@ set(LIBTL_FILES
     vm/buffer.c
     vm/call.c
     vm/controlflow.c
-    vm/debug.h
     vm/debugger.c
     vm/env.c
     vm/env.h
@@ -54,7 +60,6 @@ set(LIBTL_FILES
     vm/evio.c
     vm/frame.c
     vm/hashmap.c
-    vm/http.c
     vm/idset.c
     vm/idset.h
     vm/list.c
@@ -63,29 +68,22 @@ set(LIBTL_FILES
     vm/mutable.c
     vm/number.c
     vm/object.c
-    vm/platform.h
     vm/queue.c
     vm/regex.c
     vm/serialize.c
     vm/set.c
-    vm/storage.c
     vm/tlstring.c
     vm/sym.c
-    vm/tagged.c
     vm/task.c
     vm/task.h
     vm/tests.h
     vm/time.c
-    vm/tl.h
-    vm/trace-off.h
-    vm/trace-on.h
     vm/value.c
     vm/var.c
     vm/vm.c
     vm/weakmap.c
     vm/weakmap.h
     vm/worker.c
-    config.h
     )
 
 SET(TEST_FILES
@@ -99,9 +97,10 @@ SET(TEST_FILES
 )
 
 add_library(libtl ${LIBTL_FILES})
+target_include_directories(libtl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 target_include_directories(libtl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libmp/)
 target_include_directories(libtl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libatomic_ops/src/)
 
-
 add_executable(tl vm/tl.c)
+target_include_directories(tl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 target_link_libraries(tl GC libmp libev libboot libtl)

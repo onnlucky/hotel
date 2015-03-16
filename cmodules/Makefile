@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../vm/
+CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../include/
 
 UNAME:=$(shell uname)
 ifneq ($(UNAME),Darwin)
@@ -31,22 +31,22 @@ all: Image.mod
 endif
 all: zlib.mod
 
-openssl.mod: openssl.c Makefile ../vm/tl.h
+openssl.mod: openssl.c Makefile ../include/tl.h
 	$(CC) $(CFLAGS) -c openssl.c
 	$(CC) $(LINK) openssl.o -o openssl.mod -lcrypto -lssl
 
-zlib.mod: zlib.c Makefile ../vm/tl.h
+zlib.mod: zlib.c Makefile ../include/tl.h
 	$(CC) $(CFLAGS) -c zlib.c
 	$(CC) $(LINK) zlib.o -o zlib.mod -lz
 
 LJACK:=$(shell if ls /usr/lib*/libjack.* /usr/lib/*/libjack.* 2>/dev/null ; then echo "-ljack"; fi)
 LAUDIO:=$(LJACK) -lportaudio
-audio.mod: audio.c Makefile ../vm/tl.h
+audio.mod: audio.c Makefile ../include/tl.h
 	$(CC) $(CFLAGS) -c audio.c
 	$(CC) $(LINK) audio.o -o audio.mod $(LAUDIO)
 
 LIMAGE:=-lcairo -lfreetype -lfontconfig -ljpeg
-Image.mod: image.c image.h graphics.c graphics.h Makefile ../vm/tl.h
+Image.mod: image.c image.h graphics.c graphics.h Makefile ../include/tl.h
 	$(CC) $(CFLAGS) -c graphics.c
 	$(CC) $(CFLAGS) -c image.c
 	$(CC) $(LINK) graphics.o image.o -o Image.mod $(LIMAGE)

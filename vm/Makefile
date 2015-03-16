@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -I../libmp/ -I../libatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -I../include/ -I../libmp/ -I../libatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)

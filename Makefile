@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ilibmp/ -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Iinclude/ -Ilibmp/ -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
@@ -58,11 +58,11 @@ boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonpa
 	cp boot/pregen/* boot/
 endif
 
-boot/hotelparser.o: Makefile vm/tl.h config.h boot/hotelparser.c boot/tlmeta.c
+boot/hotelparser.o: Makefile include/*.h config.h boot/hotelparser.c boot/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/hotelparser.c -o boot/hotelparser.o
-boot/jsonparser.o: Makefile vm/tl.h config.h boot/jsonparser.c boot/tlmeta.c
+boot/jsonparser.o: Makefile include/*.h config.h boot/jsonparser.c boot/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/jsonparser.c -o boot/jsonparser.o
-boot/xmlparser.o: Makefile vm/tl.h config.h boot/xmlparser.c boot/tlmeta.c
+boot/xmlparser.o: Makefile include/*.h config.h boot/xmlparser.c boot/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/xmlparser.c -o boot/xmlparser.o
 
 run: tl
@@ -89,7 +89,7 @@ $(LIBATOMIC):
 ev.o: ev/*.c ev/*.h config.h Makefile
 	$(CC) $(subst -Werror,,$(subst -Wall,,$(CFLAGS))) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
 
-tl: boot ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h Makefile
+tl: boot ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h include/*.h Makefile
 	$(MAKE) -C vm tl
 	cp vm/tl tl
 
@@ -142,7 +142,7 @@ install: tl tlmeta $(TLG_MODULES) $(C_MODULES) $(BIN_MODULES)
 	rm -rf $(MODDIR)
 	mkdir -p $(MODDIR)
 	cp tl $(BINDIR)/
-	cp vm/tl.h $(INCDIR)/tl.h
+	cp include/tl.h $(INCDIR)/tl.h
 	cp modules/*.tl $(MODDIR)/
 	cp modules/*.tlb $(MODDIR)/
 	cp cmodules/*.mod $(MODDIR)/
