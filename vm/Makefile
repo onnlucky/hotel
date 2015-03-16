@@ -28,6 +28,9 @@ test: $(TESTS)
 	./weakmap_test
 	./pmap_test
 
+evio.o: evio.c *.h Makefile
+	$(CC) -c $< $(CFLAGS) -fno-strict-aliasing
+
 %.o: %.c *.h Makefile
 	$(CC) -c $< $(CFLAGS)
 

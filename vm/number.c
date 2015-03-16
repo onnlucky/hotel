@@ -151,11 +151,10 @@ static tlHandle _float_hash(tlTask* task, tlArgs* args) {
     return tlINT(floatHash(tlArgsTarget(args)));
 }
 static tlHandle _float_bytes(tlTask* task, tlArgs* args) {
-    double d = tl_double(tlArgsTarget(args));
-    uint64_t n = *(uint64_t*)&d;
-    assert(d == *(double*)&n);
+    union { uint64_t n; double f; } u;
+    u.f = tl_double(tlArgsTarget(args));
     char bytes[8];
-    for (int i = 0; i < 8; i++) bytes[7 - i] = n >> (8 * i);
+    for (int i = 0; i < 8; i++) bytes[7 - i] = u.n >> (8 * i);
     return tlBinFromCopy(bytes, 8);
 }
 static tlHandle _float_abs(tlTask* task, tlArgs* args) {
