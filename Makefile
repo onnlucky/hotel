@@ -72,7 +72,7 @@ run: tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --init run.tlb
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
-unit-test: ev.o boot
+unit-test: tl boot
 	$(MAKE) -C vm test
 test-noboot: tl
 	cd test/noboot/ && ./run.sh
@@ -106,7 +106,7 @@ modules/sizzle.tl: modules/sizzle.tlg tl tlmeta
 	TL_MODULE_PATH=./modules ./tl tlmeta modules/sizzle.tlg modules/sizzle.tl
 
 modules/sizzle.tlb: modules/sizzle.tl
-modules/%.tlb: modules/%.tl
+modules/%.tlb: modules/%.tl tl
 	TL_MODULE_PATH=modules:cmodules ./tl ./tlcompiler $^ $@
 
 clean:
