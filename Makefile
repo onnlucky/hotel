@@ -3,7 +3,7 @@ CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Ilibmp/ -Ilibatom
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
-	CFLAGS+=-O3
+	CFLAGS+=-ggdb -O3
 else
 	CFLAGS+=-ggdb -O0
 endif
@@ -114,7 +114,7 @@ clean:
 	rm -f modules/sizzle.tl
 	rm -f modules/*.tlb
 	rm -f tlmeta
-	rm -rf gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno boot/*.gcda boot/*.gcno
+	rm -rf gcov*html vm/gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno boot/*.gcda boot/*.gcno
 	$(MAKE) -C vm clean
 	$(MAKE) -C cmodules clean
 ifndef NO_GRAPHICS

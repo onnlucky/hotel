@@ -58,9 +58,9 @@
 void tlDumpTaskTrace();
 
 static bool didbacktrace = false;
-static bool doabort = true;
+
 __attribute__((__noreturn__)) void tlabort() {
-    if (didbacktrace) return;
+    if (didbacktrace) abort();
     didbacktrace = true;
 
     void *bt[128];
@@ -77,14 +77,13 @@ __attribute__((__noreturn__)) void tlabort() {
 
     tlDumpTaskTrace();
 
-    if (doabort) {
-        doabort = false;
-        abort();
-    }
+    abort();
 }
 
+static bool didabort = false;
 void tlbacktrace_fatal(int x) {
-    doabort = false;
+    if (didabort) return;
+    didabort = true;
     tlabort();
 }
 

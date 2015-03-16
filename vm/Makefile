@@ -3,7 +3,7 @@ CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -I../libmp/ -I../l
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
-	CFLAGS+=-O3
+	CFLAGS+=-ggdb -O3
 else
 	CFLAGS+=-ggdb -O0
 endif

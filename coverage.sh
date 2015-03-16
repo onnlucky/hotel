@@ -3,7 +3,8 @@
 set -e
 make clean
 GCOV=1 make test || true
+cd vm
 gcovr -r . --html --html-details -o gcov.html -e '.*test.c'
-echo "open gcov.html"
+echo "create html report in vm/gcov.html"
 open gcov.html
 
