@@ -34,6 +34,10 @@
 #include <atomic_ops.h>
 #include "lqueue.h"
 
+#ifndef UNUSED
+#define UNUSED(x) (void)x
+#endif
+
 static int lqueue_cas(void* addr, const void* nval, const void* oval) {
     return AO_compare_and_swap(addr, (AO_t)oval, (AO_t)nval);
 }
@@ -92,10 +96,14 @@ lqentry* lqueue_get(lqueue* q) {
         lqentry* n = h->next;
         if (lqueue_cas(&h->next, 0, n)) {           // take ownership of head node
             if (n == owner(q)) {             // if it is a single element queue
-                assert(lqueue_cas(&q->head, 0, h)); // update head to zero; we have ownership so it must succeed
+                int res = lqueue_cas(&q->head, 0, h); // update head to zero; we have ownership so it must succeed
+                UNUSED(res);
+                assert(res);
                 q->tail = 0;                 // update tail to zero too
             } else {
-                assert(lqueue_cas(&q->head, n, h)); // advance head to next; we have ownership so it must succeed
+                int res = lqueue_cas(&q->head, n, h); // advance head to next; we have ownership so it must succeed
+                UNUSED(res);
+                assert(res);
             }
             return h;
         }
