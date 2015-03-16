@@ -1,6 +1,6 @@
 // author: Onne Gorter <onne@onnlucky.com>
 
-void tlabort();
+__attribute__((__noreturn__)) void tlabort();
 
 #ifndef _debug_h_
 #define _debug_h_

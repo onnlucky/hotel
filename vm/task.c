@@ -419,7 +419,7 @@ tlHandle tlTaskUnwindFrame(tlTask* task, tlFrame* upto, tlHandle value) {
     tlFrame* frame = task->stack;
     task->stack = null; // to assert more down
     while (frame != upto) {
-        assert(frame); // upto must be in our stack
+        if (!frame) fatal("error while unwinding frames");
         trace("%p forcefully unwinding: %p", task, frame);
         if (frame->resumecb) {
             tlHandle res = frame->resumecb(task, frame, null, null);

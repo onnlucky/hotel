@@ -59,7 +59,7 @@ void tlDumpTaskTrace();
 
 static bool didbacktrace = false;
 static bool doabort = true;
-void tlabort() {
+__attribute__((__noreturn__)) void tlabort() {
     if (didbacktrace) return;
     didbacktrace = true;
 
