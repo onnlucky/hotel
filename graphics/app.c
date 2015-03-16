@@ -1,5 +1,5 @@
 #include "debug.h"
-#include "../vm/platform.h"
+#include "platform.h"
 
 #include "graphics.h"
 #include "image.h"

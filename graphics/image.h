@@ -1,7 +1,7 @@
 #ifndef _image_h_
 #define _image_h_
 
-#include "vm/tl.h"
+#include "tl.h"
 #include "graphics.h"
 
 TL_REF_TYPE(Image);

@@ -3,7 +3,7 @@
 #include <cairo/cairo.h>
 #include <cairo/cairo-quartz.h>
 
-#include "vm/tl.h"
+#include "tl.h"
 #include "graphics.h"
 #include "image.h"
 #include "window.h"

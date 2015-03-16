@@ -1,7 +1,7 @@
 #ifndef _app_h_
 #define _app_h_
 
-#include "vm/tl.h"
+#include "tl.h"
 
 typedef struct {
     tlTask* task;

@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I..
+CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../include/
 
 UNAME:=$(shell uname)
 ifneq ($(UNAME),Darwin)
@@ -17,11 +17,11 @@ run: gtl
 	TL_MODULE_PATH=../modules:../cmodules ./gtl run.tl
 
 ifeq ($(UNAME),Darwin)
-gtl: mac.m graphics.o window.o app.o image.o ../libtl.a
-	$(CC) $(CFLAGS) mac.m -o gtl graphics.o window.o image.o app.o ../libtl.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz -lgc
+gtl: mac.m graphics.o window.o app.o image.o ../vm/libtl.a
+	$(CC) $(CFLAGS) mac.m -o gtl graphics.o window.o image.o app.o ../vm/libtl.a ../libmp/libtommath.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz -lgc
 else
-gtl: gtk.c graphics.o window.o app.o image.o ../libtl.a
-	$(CC) gtk.c ../libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -lgc -o gtl
+gtl: gtk.c graphics.o window.o app.o image.o ../vm/libtl.a
+	$(CC) gtk.c ../vm/libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -lgc -o gtl
 endif
 
 graphics.o: graphics.h graphics.c
@@ -36,8 +36,8 @@ image.o: image.h image.c
 app.o: app.h app.c
 	$(CC) $(CFLAGS) -c app.c
 
-../libtl.a: ../*.h ../vm/*.c ../vm/*.h
-	cd ..; $(MAKE) libtl.a
+../vm/libtl.a: ../*.h ../vm/*.c ../vm/*.h
+	cd ..; $(MAKE) vm/libtl.a
 
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin

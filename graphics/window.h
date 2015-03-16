@@ -1,7 +1,7 @@
 #ifndef _window_h_
 #define _window_h_
 
-#include "vm/tl.h"
+#include "tl.h"
 #include <cairo/cairo.h>
 
 TL_REF_TYPE(Box);
