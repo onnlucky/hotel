@@ -715,7 +715,7 @@ tlTask* tlVmEvalInit(tlVm* vm, tlArgs* args) {
     return tlVmEvalInitBuffer(vm, tlVmGetInit(), "<init>", args);
 }
 
-static tlHandle _vm_get_compiler() {
+static tlHandle _vm_get_compiler(tlTask* task, tlArgs* args) {
     return tlVmGetCompiler();
 }
 
