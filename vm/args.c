@@ -34,7 +34,7 @@ tlArgs* tlArgsNewNames(int size, bool hasNames, bool isMethod) {
 // create a new args, changing/adding function, method, target
 tlArgs* tlArgsFrom(tlArgs* call, tlHandle fn, tlSym method, tlHandle target) {
     uint32_t size = call->size;
-    tlList* names = tlArgsNames(call);
+    tlList* names = tlArgsNamesInline(call);
     tlArgs* args = tlArgsNewNames(size, !!names, method || target);
     int call_offset = call->spec & 3;
     int args_offset = args->spec & 3;
@@ -64,14 +64,17 @@ int tlArgsRawSize(tlArgs* args) {
     return args->size - (args->spec & 3);
 }
 
-enum { kIsSetter = 1 };
-void tlArgsMakeSetter_(tlArgs* args) { tlflag_set(args, kIsSetter); }
+void tlArgsMakeSetter_(tlArgs* args) {
+    tlflag_set(args, kIsSetter);
+}
 
 bool tlArgsIsSetter(tlArgs* args) {
     return tlflag_isset(args, kIsSetter);
 }
 
-tlHandle tlArgsFn(tlArgs* args) { return args->fn; }
+tlHandle tlArgsFn(tlArgs* args) {
+    return args->fn;
+}
 
 tlHandle tlArgsTarget(tlArgs* args) {
     if (args->spec & 2) return args->data[0];

@@ -3,6 +3,8 @@
 
 #include "tl.h"
 
+enum { kIsSetter = 1 };
+
 struct tlArgs {
     tlHead head;
     uint32_t size; // total data size
@@ -14,6 +16,37 @@ struct tlArgs {
     // method; // if spec & 2 (a tlSym)
     // names;  // if spec & 1 (a tlList)
 };
+
+static inline int tlArgsSizeInline(tlArgs* args) {
+    return args->size - (args->spec >> 2) - (args->spec & 3);
+}
+
+static inline int tlArgsNamedSizeInline(tlArgs* args) {
+    return args->spec >> 2;
+}
+
+static inline int tlArgsRawSizeInline(tlArgs* args) {
+    return args->size - (args->spec & 3);
+}
+
+static inline tlHandle tlArgsFnInline(tlArgs* args) {
+    return args->fn;
+}
+
+static inline tlHandle tlArgsTargetInline(tlArgs* args) {
+    if (args->spec & 2) return args->data[0];
+    return null;
+}
+
+static inline tlHandle tlArgsMethodInline(tlArgs* args) {
+    if (args->spec & 2) return args->data[1];
+    return null;
+}
+
+static inline tlList* tlArgsNamesInline(tlArgs* args) {
+    if (args->spec & 1) return args->data[args->spec & 2];
+    return null;
+}
 
 tlList* tlArgsList(tlArgs* args);
 

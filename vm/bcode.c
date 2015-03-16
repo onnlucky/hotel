@@ -237,15 +237,15 @@ static bool isNameInCall(tlBCode* code, tlList* names, int arg) {
 }
 
 // TODO this is dog slow ...
-bool tlBCallIsLazy(tlArgs* call, int arg) {
+static bool tlBCallIsLazy(tlArgs* call, int arg) {
     arg -= 2; // 0 == target; 1 == fn; 2 == arg[0]
-    if (arg < 0 || !call || arg >= tlArgsRawSize(call)) return false;
+    if (arg < 0 || !call || arg >= tlArgsRawSizeInline(call)) return false;
     if (!tlBClosureIs(call->fn)) return false;
 
     tlBCode* code = tlBClosureAs(call->fn)->code;
     if (!tlflag_isset(code, kCodeHasLazy)) return false;
 
-    tlList* names = tlArgsNames(call);
+    tlList* names = tlArgsNamesInline(call);
     if (names) {
         tlHandle name = tlListGet(names, arg);
         if (tlSymIs(name)) {
@@ -276,7 +276,7 @@ bool tlBCallIsLazy(tlArgs* call, int arg) {
 }
 
 // TODO we should actually make the bytecode use an exact "builder" pattern against call->data layout
-void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
+static void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
     assert(arg >= 0);
     if (arg == 0) {
         trace("%s.target <- %s", tl_str(call), tl_str(o));
@@ -295,7 +295,7 @@ void tlBCallAdd_(tlArgs* call, tlHandle o, int arg) {
     tlArgsSet_(call, arg, o);
 }
 
-int tlBCallNameIndex(tlList* names, tlSym name) {
+static int tlBCallNameIndex(tlList* names, tlSym name) {
     int size = tlListSize(names);
     for (int i = 0; i < size; i++) {
         if (name == tlListGet(names, i)) return i;
@@ -310,7 +310,7 @@ tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code) {
     tlSym name = tlSymCast(tlListGet(argspec, 0));
     trace("ARG(%d)=%s", at, tl_str(name));
 
-    if (name == s_this) return tlOR_UNDEF(tlArgsTarget(call));
+    if (name == s_this) return tlOR_UNDEF(tlArgsTargetInline(call));
 
     tlList* names = tlArgsNames(call);
     if (names) {
@@ -1019,8 +1019,8 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
     }
     assert(!tlTaskHasError(task));
 
-    tlHandle fn = tlArgsFn(call);
-    tlHandle target = tlArgsTarget(call);
+    tlHandle fn = tlArgsFnInline(call);
+    tlHandle target = tlArgsTargetInline(call);
     trace(" %s invoke %s.%s", tl_str(call), tl_str(target), tl_str(fn));
     if (target && tl_kind(target)->locked) {
         if (!tlLockIsOwner(tlLockAs(target), task)) return tlLockAndInvoke(task, call);
@@ -1028,7 +1028,7 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
 
     if (tlBSendTokenIs(fn) || tlNativeIs(fn)) {
         if (tlBSendTokenIs(fn)) {
-            assert(tlArgsMethod(call) == tlBSendTokenAs(fn)->method);
+            assert(tlArgsMethodInline(call) == tlBSendTokenAs(fn)->method);
             return tl_kind(target)->send(task, call, tlBSendTokenAs(fn)->safe);
         }
         return tlNativeKind->run(task, tlNativeAs(fn), call);
@@ -1411,7 +1411,7 @@ again:;
         case OP_INVOKE: {
             assert(tlTaskCurrentFrame(task) == (tlFrame*)frame);
             assert(call);
-            assert(arg - 2 == tlArgsRawSize(call)); // must be done with args here
+            assert(arg - 2 == tlArgsRawSizeInline(call)); // must be done with args here
 
             tlArgs* invoke = call;
             trace("%p invoke: %s %s", frame, tl_str(invoke), tl_str(invoke->fn));
@@ -1443,7 +1443,7 @@ again:;
                 // TODO perhaps leave one "goto" frame, to ensure return semantic:
                 // "return foo()" returns single value, "goto foo()" might return many values
                 // and to allow "goto 10, foo()", though those forms defeat goto's purpose
-                if (tlArgsRawSize(call) != 2) TL_THROW("goto requires a single argument");
+                if (tlArgsRawSizeInline(call) != 2) TL_THROW("goto requires a single argument");
                 unwindForGoto(task, tl_int(tlArgsGet(call, 0)), tlNull);
                 tlTaskPushResume(task, resumeBCall, invoke);
                 return null;
@@ -1451,7 +1451,7 @@ again:;
 
             if (frame->bcall) {
                 // for compat, only do this if ArgsFn is an actual operator string; TODO remove this
-                if (!tlSymIs_(tlArgsFn(invoke))) {
+                if (!tlSymIs_(tlArgsFnInline(invoke))) {
                     frame->bcall = 0;
                     v = tlInvoke(task, invoke);
                 } else {
@@ -1554,12 +1554,12 @@ again:;
         }
         case OP_THIS: {
             // TODO is this needed, compiler can figure out the exact this
-            v = tlArgsTarget(args);
+            v = tlArgsTargetInline(args);
             tlEnv* env = frame->locals;
             trace("this: %s (%s)", tl_str(args), tl_str(v));
             while (!v && env) {
                 env = env->parent;
-                if (env) v = tlArgsTarget(env->args);
+                if (env) v = tlArgsTargetInline(env->args);
             }
             //assert(v);
             if (!v) v = tlNull;
@@ -1568,11 +1568,11 @@ again:;
         case OP_ENVTHIS: {
             depth = pcreadsize(ops, &pc);
             tlEnv* env = tlEnvGetParentAt(closure->env, depth);
-            v = tlArgsTarget(env->args);
+            v = tlArgsTargetInline(env->args);
             trace("this: %s (%s)", tl_str(args), tl_str(v));
             while (!v && env) {
                 env = env->parent;
-                if (env) v = tlArgsTarget(env->args);
+                if (env) v = tlArgsTargetInline(env->args);
             }
             //assert(v);
             if (!v) v = tlNull;
@@ -1672,7 +1672,7 @@ resume:;
     if (frame->bcall) {
         trace("after bcall: %d", frame->bcall);
         tlArgs* invoke = frame->invoke;
-        assert(invoke && tlSymIs_(tlArgsFn(invoke)));
+        assert(invoke && tlSymIs_(tlArgsFnInline(invoke)));
         if (frame->bcall == 1 && tlUndefinedIs(v)) {
             // lhs.operator(lhs, rhs) returned undefined, we try again for rhs
             frame->bcall = 2;
@@ -1707,7 +1707,7 @@ resume:;
     tlBCallAdd_(call, tlFirst(v), arg++);
 
     // resolve method at object ...
-    tlHandle target = tlArgsTarget(call);
+    tlHandle target = tlArgsTargetInline(call);
     if (arg == 2 && target && tlStringIs(call->fn)) {
         tlSym mname = tlSymFromString(call->fn);
         bool safe = frame->calls[calltop].safe;
@@ -2061,7 +2061,7 @@ static tlHandle _frame_get(tlTask* task, tlArgs* args) {
 /// allStored: a property set to true if the last statement of the code is an assignment
 /// > "x = 10".eval(frame=true).allStored == true
 static tlHandle _frame_allStored(tlTask* task, tlArgs* args) {
-    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTarget(args));
+    tlCodeFrame* frame = tlCodeFrameCast(tlArgsTargetInline(args));
     if (!frame) TL_THROW("run requires a frame");
 
     tlBClosure* closure = tlBClosureAs(frame->locals->args->fn);
@@ -2278,7 +2278,7 @@ tlHandle _bcatch(tlTask* task, tlArgs* args) {
 
 static tlHandle _bclosure_call(tlTask* task, tlArgs* args) {
     trace("bclosure.call");
-    tlBClosure* fn = tlBClosureCast(tlArgsTarget(args));
+    tlBClosure* fn = tlBClosureCast(tlArgsTargetInline(args));
     if (!fn) TL_THROW(".call expects a Function as this");
 
     tlHandle a1 = tlArgsGet(args, 0);
@@ -2363,7 +2363,7 @@ static const char* bclosureToString(tlHandle v, char* buf, int size) {
 
 static tlHandle _blazy_call(tlTask* task, tlArgs* args) {
     trace("blazy.call");
-    tlBLazy* lazy = tlBLazyAs(tlArgsTarget(args));
+    tlBLazy* lazy = tlBLazyAs(tlArgsTargetInline(args));
     return eval_lazy(task, lazy);
 }
 static tlHandle runBLazy(tlTask* task, tlHandle fn, tlArgs* args) {
@@ -2374,7 +2374,7 @@ static tlHandle runBLazy(tlTask* task, tlHandle fn, tlArgs* args) {
 
 static tlHandle _blazydata_call(tlTask* task, tlArgs* args) {
     trace("blazydata.call");
-    return tlBLazyDataAs(tlArgsTarget(args))->data;
+    return tlBLazyDataAs(tlArgsTargetInline(args))->data;
 }
 static tlHandle runBLazyData(tlTask* task, tlHandle fn, tlArgs* args) {
     trace("blazydata.run");

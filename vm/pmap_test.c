@@ -3,11 +3,6 @@
 #include "platform.h"
 #include "tl.h"
 
-static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
-static inline bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) & flag; }
-static inline void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
-static inline void tlflag_set(tlHandle v, unsigned flag) { assert(flag <= 0x7); set_kptr(v, get_kptr(v) | flag); }
-
 enum { kTransient = 1, kPersisted = 2, };
 
 typedef struct Entry {

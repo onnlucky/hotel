@@ -632,5 +632,18 @@ tlBModule* tlBModuleLink(tlBModule* mod, tlObject* env, const char** error);
 tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args);
 void tlVmRun(tlVm* vm, tlTask* task);
 
+
+// ** not exactly public **
+
+static inline void set_kptr(tlHandle v, intptr_t kind) { ((tlHead*)v)->kind = kind; }
+static inline void set_kind(tlHandle v, tlKind* kind) { ((tlHead*)v)->kind = (intptr_t)kind; } // TODO take care of flags?
+
+static inline bool tlflag_isset(tlHandle v, unsigned flag) { return get_kptr(v) & flag; }
+static inline void tlflag_clear(tlHandle v, unsigned flag) { set_kptr(v, get_kptr(v) & ~flag); }
+static inline void tlflag_set(tlHandle v, unsigned flag) {
+    assert(flag <= 0x7);
+    set_kptr(v, get_kptr(v) | flag);
+}
+
 #endif // _tl_h_
 
