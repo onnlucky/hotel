@@ -100,6 +100,8 @@ SET(TEST_FILES
 
 add_library(libtl ${LIBTL_FILES})
 target_include_directories(libtl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libmp/)
+target_include_directories(libtl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/libatomic_ops/src/)
+
 
 add_executable(tl vm/tl.c)
 target_link_libraries(tl GC libmp libev libboot libtl)
