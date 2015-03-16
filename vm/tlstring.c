@@ -1,11 +1,11 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // simple str type, wraps a char array with size and tag
 
-#include "tlstring.h"
 #include "platform.h"
-#include "value.h"
+#include "tlstring.h"
 
-#include "trace-off.h"
+#include "value.h"
 
 tlKind* tlStringKind;
 static tlString* _tl_emptyString;

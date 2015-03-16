@@ -1,3 +1,5 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a map implementation
 // a map maps keys to values, much like a list maps numbers to values
 // Maps are not used often, usually object is used.
@@ -5,14 +7,12 @@
 // 1. in user land, objects are accessed using properties, maps using [] and .get() .slice() etc.
 // 2. keys in an object are limited to Symbols (interned Strings)
 
+#include "platform.h"
 #include "map.h"
+
+#include "value.h"
 #include "set.h"
 #include "object.h"
-
-#include "platform.h"
-#include "value.h"
-
-#include "trace-off.h"
 
 tlKind* tlMapKind;
 

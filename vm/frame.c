@@ -1,9 +1,9 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // evaluation can pause at any time, this is how we capture those pauses
 
-#include "frame.h"
 #include "platform.h"
-
-#include "trace-off.h"
+#include "frame.h"
 
 static tlKind _tlFrameKind = {
     .name = "Frame"

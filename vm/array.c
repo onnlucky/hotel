@@ -1,11 +1,12 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a mutable list implementation
 // manually inserting things at > size, will fill array with null's (not undefined values!)
 
-#include "array.h"
 #include "platform.h"
-#include "value.h"
+#include "array.h"
 
-#include "trace-off.h"
+#include "value.h"
 
 tlKind* tlArrayKind;
 

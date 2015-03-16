@@ -1,13 +1,13 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a locked buffer, usable for io
 // a bytebuffer that where you can read/write from/to
 
-#include "buffer.h"
 #include "platform.h"
+#include "buffer.h"
+
 #include "value.h"
-
 #include "tlstring.h"
-
-#include "trace-off.h"
 
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)

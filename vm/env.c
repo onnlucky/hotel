@@ -1,13 +1,13 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // environment (scope) management for hotel
 
-#include "env.h"
 #include "platform.h"
-#include "value.h"
+#include "env.h"
 
+#include "value.h"
 #include "args.h"
 #include "bcode.h"
-
-#include "trace-off.h"
 
 static tlKind _tlEnvKind = { .name = "Env" };
 tlKind* tlEnvKind;

@@ -87,8 +87,7 @@ $(LIBATOMIC):
 	git submodule update --init
 
 ev.o: ev/*.c ev/*.h config.h Makefile
-	echo $(CC) $(subst -Wall,,$(CFLAGS)) -Wno-comment -c ev/ev.c -o ev.o
-	$(CC) $(CFLAGS) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
+	$(CC) $(subst -Werror,,$(subst -Wall,,$(CFLAGS))) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
 
 tl: boot ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h Makefile
 	$(MAKE) -C vm tl

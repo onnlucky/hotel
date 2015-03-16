@@ -1,9 +1,16 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
+// most of the int/float/char/bignum implementations are here, for now bignum is libtommath based
+
+// TODO move *all* int and float related stuff here
+// TODO replace libtommath for a bigdecimal implementation, see number_test.c, slower, but 0.1 + 0.2 == 0.3
+
 #include <tommath.h>
 
-#include "number.h"
 #include "platform.h"
-#include "value.h"
+#include "number.h"
 
+#include "value.h"
 #include "tlstring.h"
 #include "buffer.h"
 

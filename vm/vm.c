@@ -1,19 +1,20 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // the vm itself, this is the library starting point
 
 #include "../llib/lqueue.h"
 #include "../llib/lhashmap.h"
-#include "vm.h"
-#include "platform.h"
-#include "tl.h"
 
-#include "../boot/init.tlb.h"
-#include "../boot/compiler.tlb.h"
+#include "platform.h"
+#include "vm.h"
 
 #include "../llib/lqueue.c"
 #include "../llib/lhashmap.c"
 
-#include "buffer.h"
+#include "../boot/init.tlb.h"
+#include "../boot/compiler.tlb.h"
 
+#include "buffer.h"
 #include "value.h"
 #include "number.h"
 #include "tlstring.h"
@@ -34,26 +35,22 @@
 #include "lock.h"
 #include "mutable.h"
 #include "eval.h"
-
 #include "bcode.h"
 #include "env.h"
 #include "debugger.h"
-
 #include "var.h"
 #include "array.h"
 #include "hashmap.h"
 #include "controlflow.h"
-#include "queue.h"
 
 // extras
+#include "queue.h"
 #include "evio.h"
 #include "time.h"
 #include "tlregex.h"
 #include "serialize.h"
 #include "idset.h"
 #include "weakmap.h"
-
-#include "trace-off.h"
 
 void tlDumpTaskTrace();
 

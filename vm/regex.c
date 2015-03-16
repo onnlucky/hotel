@@ -1,10 +1,12 @@
-#include "tlregex.h"
+// author: Onne Gorter, license: MIT (see license.txt)
+
+// a regex implementations for hotel, uses libc regex
+
 #include "platform.h"
+#include "tlregex.h"
+
 #include "value.h"
-
 #include "tlstring.h"
-
-#include "trace-off.h"
 
 static void regexFinalizer(tlHandle handle);
 static tlKind _tlRegexKind = {

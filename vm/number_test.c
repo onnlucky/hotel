@@ -1,3 +1,5 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 #include "tests.h"
 
 #include "platform.h"

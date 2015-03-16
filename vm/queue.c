@@ -1,16 +1,15 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // a native and language level message queue
 
 #include "../llib/lqueue.h"
 
-#include "queue.h"
 #include "platform.h"
-#include "value.h"
+#include "queue.h"
 
+#include "value.h"
 #include "task.h"
 #include "eval.h"
-
-#include "trace-off.h"
 
 static tlKind _tlQueueKind = { .name = "Queue" };
 tlKind* tlQueueKind;

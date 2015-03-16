@@ -2,13 +2,10 @@
 
 // the bytecode interpreter, is in a bad need to be split up, but this is where most bytecode handling happens
 
-#include "../llib/lhashmap.h"
-
+#include "platform.h"
 #include "bcode.h"
 
-#include "platform.h"
 #include "value.h"
-
 #include "task.h"
 #include "args.h"
 #include "frame.h"
@@ -19,6 +16,8 @@
 #include "eval.h"
 #include "vm.h"
 #include "map.h"
+
+#include "../llib/lhashmap.h"
 
 static tlNative* g_goto_native;
 static tlNative* g_identity;

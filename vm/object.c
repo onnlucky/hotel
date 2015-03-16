@@ -1,14 +1,13 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a object implementation
 
+#include "platform.h"
 #include "object.h"
 
-#include "platform.h"
 #include "value.h"
-
 #include "set.h"
 #include "args.h"
-
-#include "trace-off.h"
 
 tlKind* tlClassKind;
 

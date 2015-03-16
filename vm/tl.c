@@ -1,6 +1,12 @@
-#include "tl.h"
+// author: Onne Gorter, license: MIT (see license.txt)
+
+// the is the entrypoint that runs tl scripts
+
+// use TL_MODULE_PATH to change where it will look for modules, a ':' separated path
+// e.g. TL_MODULE_PATH=/usr/local/lib/tl:/home/username/.tlmodules/
+
 #include "platform.h"
-#include "debug.h"
+#include "tl.h"
 
 extern tlBModule* g_init_module;
 

@@ -1,8 +1,9 @@
-#include "tests.h"
+// author: Onne Gorter, license: MIT (see license.txt)
 
 #include "platform.h"
-#include "tl.h"
 #include "env.h"
+
+#include "tests.h"
 
 TEST(basic) {
     tlList* names = tlListFrom(tlSYM("hello"), tlSYM("x"), tlSYM("y"), null);

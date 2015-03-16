@@ -1,9 +1,23 @@
-// ** basic io functions in hotel **
+// author: Onne Gorter, license: MIT (see license.txt)
+
+// basic io functions in hotel
 
 // TODO use runloop mutex to protect open() like syscalls in order to do CLOEXEC if available
 // TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
 
 #include "../llib/lqueue.h"
+
+#include "platform.h"
+#include "evio.h"
+
+#include "value.h"
+#include "task.h"
+#include "vm.h"
+#include "lock.h"
+#include "worker.h"
+#include "queue.h"
+#include "frame.h"
+#include "buffer.h"
 
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
@@ -12,21 +26,6 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-
-#include "evio.h"
-#include "platform.h"
-#include "value.h"
-
-#include "task.h"
-#include "vm.h"
-#include "lock.h"
-#include "worker.h"
-#include "queue.h"
-#include "frame.h"
-
-#include "buffer.h"
-
-#include "trace-off.h"
 
 static tlSym _s_cwd;
 

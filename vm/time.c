@@ -1,11 +1,11 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // a time module
 
-#include "time.h"
 #include "platform.h"
-#include "value.h"
+#include "time.h"
 
-#include "trace-off.h"
+#include "value.h"
 
 static tlSym _s_sec;
 static tlSym _s_min;

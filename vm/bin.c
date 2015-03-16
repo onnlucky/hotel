@@ -1,10 +1,11 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // simple immutable binary buffer type
 
-#include "bin.h"
 #include "platform.h"
-#include "value.h"
+#include "bin.h"
 
+#include "value.h"
 #include "tlstring.h"
 #include "buffer.h"
 

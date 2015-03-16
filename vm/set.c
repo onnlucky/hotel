@@ -1,3 +1,5 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // ** set **
 
 #include "set.h"

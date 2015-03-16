@@ -1,16 +1,15 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // a debugger for bytecode based interpreter
 
-#include "debugger.h"
 #include "platform.h"
-#include "value.h"
+#include "debugger.h"
 
+#include "value.h"
 #include "args.h"
 #include "task.h"
 #include "bcode.h"
 #include "list.h"
-
-#include "trace-off.h"
 
 static tlKind _tlDebuggerKind;
 tlKind* tlDebuggerKind;

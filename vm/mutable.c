@@ -1,14 +1,14 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // mutable type, a fully mutable map accessed like an mutable
 
-#include "mutable.h"
 #include "platform.h"
-#include "value.h"
+#include "mutable.h"
 
+#include "value.h"
 #include "set.h"
 #include "object.h"
 #include "args.h"
-
-#include "trace-off.h"
 
 static tlKind _tlMutableKind = { .name = "Mutable", .locked = true };
 tlKind* tlMutableKind;

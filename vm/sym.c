@@ -1,13 +1,14 @@
-// symbols and other per vm global resources
+// author: Onne Gorter, license: MIT (see license.txt)
 
-#include "sym.h"
-#include "platform.h"
-#include "value.h"
-#include "tlstring.h"
+// symbols and other per vm global resources
 
 #include "../llib/lhashmap.h"
 
-#include "trace-off.h"
+#include "platform.h"
+#include "sym.h"
+
+#include "value.h"
+#include "tlstring.h"
 
 tlSym s_string;
 tlSym s_block;

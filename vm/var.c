@@ -1,11 +1,12 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a mutable variable, basically a locked object but no queue since all operations are atomic
 // TODO remove, we now have local variables ...
 
-#include "var.h"
 #include "platform.h"
-#include "value.h"
+#include "var.h"
 
-#include "trace-off.h"
+#include "value.h"
 
 static tlKind _tlVarKind = { .name = "Var" };
 tlKind* tlVarKind;

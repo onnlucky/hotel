@@ -1,15 +1,13 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 
-#include "eval.h"
 #include "platform.h"
-#include "value.h"
+#include "eval.h"
 
+#include "value.h"
 #include "object.h"
 #include "args.h"
 #include "bcode.h"
 #include "buffer.h"
-
-#include "trace-off.h"
 
 // var.c
 tlHandle tlVarSet(tlVar*, tlHandle);

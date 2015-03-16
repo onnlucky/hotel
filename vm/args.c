@@ -1,13 +1,13 @@
 // author: Onne Gorter, license: MIT (see license.txt)
-//
+
 // args, an argument object passed to all functions native and user level
 
 // TODO the names list, can have a set as last element, to make args.object and args.map faster
 
-#include "args.h"
 #include "platform.h"
-#include "value.h"
+#include "args.h"
 
+#include "value.h"
 #include "object.h"
 #include "map.h"
 

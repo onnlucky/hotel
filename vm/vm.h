@@ -1,8 +1,8 @@
 #ifndef _vm_h_
 #define _vm_h_
 
-#include "tl.h"
 #include "platform.h"
+#include "tl.h"
 
 typedef void(*tlVmSignalFn)(void);
 

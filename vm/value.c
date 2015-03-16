@@ -1,7 +1,9 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // this is how all tl values look in memory
 
-#include "value.h"
 #include "platform.h"
+#include "value.h"
 
 #include "bcode.h"
 #include "tlstring.h"

@@ -1,7 +1,9 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a weak value map implementation
 
-#include "weakmap.h"
 #include "platform.h"
+#include "weakmap.h"
 
 #define INITIAL_LEN 4
 #define GROW_FACTOR 0.9

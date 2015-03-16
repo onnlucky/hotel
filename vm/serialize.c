@@ -1,15 +1,15 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // TODO do something about classes and circles, mutable maps, mutable lists etc ...
 // TODO maybe allow hotel code to also serialize? requires giving up stack ...
 
-#include "serialize.h"
 #include "platform.h"
-#include "value.h"
+#include "serialize.h"
 
+#include "value.h"
 #include "sym.h"
 #include "buffer.h"
 #include "tlstring.h"
-
-#include "trace-off.h"
 
 static tlHandle parsestring(tlBuffer* buf, char quote) {
     tlBufferSkipByte(buf);

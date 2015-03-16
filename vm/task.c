@@ -1,4 +1,5 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // hotel lightweight tasks
 //
 // All execution happens in the context of a task, much like a thread, but much more light weight.
@@ -11,16 +12,14 @@
 
 #include "../llib/lqueue.h"
 
-#include "task.h"
 #include "platform.h"
-#include "value.h"
+#include "task.h"
 
+#include "value.h"
 #include "worker.h"
 #include "vm.h"
 #include "frame.h"
 #include "error.h"
-
-#include "trace-off.h"
 
 #define START_TICKS 2011
 

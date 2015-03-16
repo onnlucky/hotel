@@ -1,13 +1,13 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // this is the value that wraps something that is thrown
 
-#include "error.h"
 #include "platform.h"
-#include "value.h"
+#include "error.h"
 
+#include "value.h"
 #include "frame.h"
 #include "object.h"
-
-#include "trace-off.h"
 
 static tlSet* _errorKeys;
 static tlSet* _deadlockKeys;

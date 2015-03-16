@@ -1,13 +1,13 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // hotel functions and calling them ...
 // TODO rename native.c
 
-#include "native.h"
 #include "platform.h"
+#include "native.h"
 
 #include "args.h"
 #include "eval.h"
-
-#include "trace-off.h"
 
 tlKind* tlNativeKind;
 

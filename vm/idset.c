@@ -1,5 +1,7 @@
-#include "idset.h"
+// author: Onne Gorter, license: MIT (see license.txt)
+
 #include "platform.h"
+#include "idset.h"
 
 #define INITIAL_LEN 4
 #define GROW_FACTOR 0.9

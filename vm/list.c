@@ -1,10 +1,11 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // a list implementation
 
-#include "list.h"
 #include "platform.h"
-#include "value.h"
+#include "list.h"
 
-#include "trace-off.h"
+#include "value.h"
 
 tlKind* tlListKind;
 

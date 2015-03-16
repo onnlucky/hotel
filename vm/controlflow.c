@@ -1,4 +1,5 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // hotel control flow functions, if, loop, break, continue etc ...
 //
 // Notice these could have been implemented in the language. They are here for convenience and
@@ -10,15 +11,13 @@
 // TODO instead of jumping (return, goto, continuation), lets unwind the stack without values
 //      gives frames a change to release locks and run defers
 
-#include "controlflow.h"
 #include "platform.h"
-#include "value.h"
+#include "controlflow.h"
 
+#include "value.h"
 #include "task.h"
 #include "frame.h"
 #include "eval.h"
-
-#include "trace-off.h"
 
 static tlHandle _break(tlTask* task, tlArgs* args) {
     return tlTaskError(task, s_break);

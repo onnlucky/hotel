@@ -1,8 +1,9 @@
-#include "tests.h"
+// author: Onne Gorter, license: MIT (see license.txt)
 
 #include "platform.h"
-#include "tl.h"
 #include "idset.h"
+
+#include "tests.h"
 
 TEST(basic) {
     tlIdSet* map = tlIdSetNew();

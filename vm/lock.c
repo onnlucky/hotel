@@ -1,17 +1,17 @@
+// author: Onne Gorter, license: MIT (see license.txt)
+
 // lock is the "base" class for all mutable things, objects, files, buffers and more
 
 // TODO the "owner" part of this lock is not needed, the lqueue->head is perfectly good as the owner
 
 #include "../llib/lqueue.h"
 
-#include "lock.h"
 #include "platform.h"
+#include "lock.h"
 
 #include "task.h"
 #include "frame.h"
 #include "error.h"
-
-#include "trace-off.h"
 
 tlKind* tlHeavyLockKind;
 TL_REF_TYPE(tlHeavyLock);

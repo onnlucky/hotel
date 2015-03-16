@@ -1,4 +1,5 @@
 // author: Onne Gorter, license: MIT (see license.txt)
+
 // a worker is much like a cpu
 // a single vm has many workers, likely each running in an os level thread
 //
@@ -10,14 +11,12 @@
 
 #include "../llib/lqueue.h"
 
-#include "worker.h"
 #include "platform.h"
-#include "value.h"
+#include "worker.h"
 
+#include "value.h"
 #include "vm.h"
 #include "task.h"
-
-#include "trace-off.h"
 
 tlTask* tlTaskFromEntry(lqentry* entry);
 void tlTaskRun(tlTask* task);
