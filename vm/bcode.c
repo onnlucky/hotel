@@ -594,21 +594,23 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
         case 0xC0: { // short size number
             if (size == 8) {
                 trace("float size 4");
-                uint32_t n = 0;
+                union { uint32_t n; float f; } u;
+                u.n = 0;
                 for (int i = 0; i < 4; i++) {
-                    n = (n << 8) | tlBufferReadByte(buf);
+                    u.n = (u.n << 8) | tlBufferReadByte(buf);
                 }
-                trace("float: %x %f", n, *(float*)&n);
-                return tlFLOAT(*(float*)&n);
+                trace("float: %x %f", u.n, u.f);
+                return tlFLOAT(u.f);
             }
             if (size == 9) {
                 trace("float size 8");
-                uint64_t n = 0;
+                union { uint64_t n; double f; } u;
+                u.n = 0;
                 for (int i = 0; i < 8; i++) {
-                    n = (n << 8) | tlBufferReadByte(buf);
+                    u.n = (u.n << 8) | tlBufferReadByte(buf);
                 }
-                trace("float: %llx %f", n, *(double*)&n);
-                return tlFLOAT(*(double*)&n);
+                trace("float: %llx %f", u.n, u.f);
+                return tlFLOAT(u.f);
             }
             trace("int size %d", size + 1);
             if (size > 7) FAIL("bad number");
