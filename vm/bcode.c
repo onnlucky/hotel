@@ -1220,7 +1220,7 @@ void tlCodeFrameDump(tlFrame* _frame) {
     tlBClosure* closure = tlBClosureAs(args->fn);
     tlBCode* code = closure->code;
 
-    print("PC: %d", frame->pc);
+    print("PC: %d, CALLER: %p", frame->pc, frame->frame.caller);
     disasm(code);
     print("args: %d", tlArgsSize(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
