@@ -50,5 +50,7 @@ tl: tl.c libtl.a *.h Makefile ../libmp/libtommath.a
 
 clean:
 	rm -rf *.o
+	rm -rf *.dSYM
 	rm -f *_test
+	rm -f tl
 
