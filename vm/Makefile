@@ -40,10 +40,10 @@ libtl.a: $(OBJECTS) ../ev.o ../boot/*.o
 	ar -s libtl.a
 
 tl: tl.c libtl.a *.h Makefile ../libmp/libtommath.a
-	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@ libtl.a ../libmp/libtommath.a
+	$(CC) $< $(CFLAGS) -o $@ libtl.a ../libmp/libtommath.a $(LDFLAGS)
 
 %_test: %_test.c libtl.a *.h Makefile ../libmp/libtommath.a
-	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@ libtl.a ../libmp/libtommath.a
+	$(CC) $< $(CFLAGS) -o $@ libtl.a ../libmp/libtommath.a $(LDFLAGS)
 
 ../libtl.a: $(SOURCES) *.h ../*.h
 	cd .. && make libtl.a

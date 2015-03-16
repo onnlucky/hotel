@@ -17,11 +17,11 @@ run: gtl
 	TL_MODULE_PATH=../modules:../cmodules ./gtl run.tl
 
 ifeq ($(UNAME),Darwin)
-gtl: mac.m graphics.o window.o app.o image.o ../vm/libtl.a
+gtl: mac.m graphics.o window.o app.o image.o ../vm/libtl.a ../libmp/libtommath.a
 	$(CC) $(CFLAGS) mac.m -o gtl graphics.o window.o image.o app.o ../vm/libtl.a ../libmp/libtommath.a -framework Cocoa -lcairo -lfreetype -ljpeg -lssl -lcrypto -lz -lgc
 else
-gtl: gtk.c graphics.o window.o app.o image.o ../vm/libtl.a
-	$(CC) gtk.c ../vm/libtl.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -lgc -o gtl
+gtl: gtk.c graphics.o window.o app.o image.o ../vm/libtl.a ../libmp/libtommath.a
+	$(CC) gtk.c ../vm/libtl.a ../libmp/libtommath.a graphics.o image.o window.o app.o $(CFLAGS) -lcairo -ljpeg -lssl -lcrypto -lm -lz -lgc -o gtl
 endif
 
 graphics.o: graphics.h graphics.c
