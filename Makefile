@@ -128,7 +128,7 @@ dist-clean: distclean
 docgen.tl: docgen.tlg
 	TL_MODULE_PATH=./modules ./tl tlmeta docgen.tlg docgen.tl
 doc: all docgen.tl
-	TL_MODULE_PATH=./modules ./tl docgen.tl boot/boot.tl vm/array.c vm/bin.c vm/buffer.c vm/list.c vm/map.c vm/regex.c vm/string.c vm/time.c vm/vm.c modules/io.tl
+	TL_MODULE_PATH=./modules ./tl docgen.tl vm/array.c vm/bin.c vm/buffer.c vm/list.c vm/map.c vm/regex.c vm/string.c vm/time.c vm/vm.c modules/init.tl modules/io.tl
 
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin

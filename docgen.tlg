@@ -18,7 +18,7 @@ docPackage = path, doc ->
     $package = null
     $object = null
     if path and path != "global": $package = path
-    // TODO doc
+    # TODO doc
 
 docObject = path, doc ->
     print "object:", path, doc
@@ -27,7 +27,7 @@ docObject = path, doc ->
     if names.size > 1:
         $package = names[:-1].join(".")
         $object = names[names.size - 1]
-    // TODO doc
+    # TODO doc
 
 docMethod = path, doc ->
     print "method:", path, $package, $object, "--", doc
@@ -45,7 +45,7 @@ parseDocs = parser {
    textnl: t=text nl                 -> t
      name: ts=(![:\n\r] _)+          -> ts.toChar
 
-   bodynl: ."///". textnl
+   bodynl: .("//."|"#."). textnl
      body: ":" f=textnl bs=bodynl*   -> bs.prepend(f).join("\n")
          | bs=bodynl*                -> bs.join("\n")
       cmd: "package" .n=name .b=body -> docPackage(n, b)
@@ -53,7 +53,7 @@ parseDocs = parser {
          | "object" .n=name .b=body  -> docObject(n, b)
          | n=name .b=body            -> docMethod(n, b)
          | t=textnl                  -> print "WARNING:", t
-      doc: ."///". cmd
+      doc: .("//."|"#."). cmd
 
      line: doc | (!"\n" _)* nl
     start: line* . end
