@@ -6,7 +6,7 @@
 #include "bin.h"
 
 #include "value.h"
-#include "tlstring.h"
+#include "string.h"
 #include "buffer.h"
 
 tlKind* tlBinKind;

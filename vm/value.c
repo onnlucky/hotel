@@ -6,8 +6,8 @@
 #include "value.h"
 
 #include "bcode.h"
-#include "tlstring.h"
-#include "tlregex.h"
+#include "string.h"
+#include "regex.h"
 
 // returns length of to be returned elements, and fills in (0-based!) offset on where to start
 // negative indexes means size - index

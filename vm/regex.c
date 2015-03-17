@@ -3,10 +3,10 @@
 // a regex implementations for hotel, uses libc regex
 
 #include "platform.h"
-#include "tlregex.h"
+#include "regex.h"
 
 #include "value.h"
-#include "tlstring.h"
+#include "string.h"
 
 static void regexFinalizer(tlHandle handle);
 static tlKind _tlRegexKind = {

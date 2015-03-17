@@ -9,7 +9,7 @@
 #include "value.h"
 #include "sym.h"
 #include "buffer.h"
-#include "tlstring.h"
+#include "string.h"
 
 static tlHandle parsestring(tlBuffer* buf, char quote) {
     tlBufferSkipByte(buf);

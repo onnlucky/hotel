@@ -7,7 +7,7 @@
 #include "buffer.h"
 
 #include "value.h"
-#include "tlstring.h"
+#include "string.h"
 
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)

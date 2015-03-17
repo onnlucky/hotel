@@ -3,7 +3,7 @@
 // simple str type, wraps a char array with size and tag
 
 #include "platform.h"
-#include "tlstring.h"
+#include "string.h"
 
 #include "value.h"
 

@@ -37,10 +37,10 @@ set(LIBTL_FILES
     llib/lqueue.c
     llib/lqueue.h
 
-    vm/object.h vm/map.h vm/set.h vm/tlstring.h vm/buffer.h vm/frame.h vm/sym.h vm/bin.h
+    vm/object.h vm/map.h vm/set.h vm/string.h vm/buffer.h vm/frame.h vm/sym.h vm/bin.h
     vm/worker.h vm/vm.h vm/lock.h
     vm/error.h vm/native.h vm/eval.h vm/controlflow.h vm/debugger.h vm/list.h vm/evio.h
-    vm/queue.h vm/hashmap.h vm/mutable.h vm/number.h vm/tlregex.h vm/serialize.h vm/time.h
+    vm/queue.h vm/hashmap.h vm/mutable.h vm/number.h vm/regex.h vm/serialize.h vm/time.h
     vm/var.h
     vm/args.c
     vm/args.h
@@ -72,7 +72,7 @@ set(LIBTL_FILES
     vm/regex.c
     vm/serialize.c
     vm/set.c
-    vm/tlstring.c
+    vm/string.c
     vm/sym.c
     vm/task.c
     vm/task.h

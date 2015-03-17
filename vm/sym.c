@@ -8,7 +8,7 @@
 #include "sym.h"
 
 #include "value.h"
-#include "tlstring.h"
+#include "string.h"
 
 tlSym s_string;
 tlSym s_block;
