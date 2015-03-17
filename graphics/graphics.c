@@ -60,7 +60,11 @@ static tlKind _GraphicsKind = {
 tlKind* GraphicsKind = &_GraphicsKind;
 
 Graphics* GraphicsNew(cairo_t* cairo) {
+#if CAIRO_VERSION_MAJOR >= 1 && CAIRO_VERSION_MINOR >= 12
     cairo_set_antialias(cairo, CAIRO_ANTIALIAS_BEST);
+#else
+    cairo_set_antialias(cairo, CAIRO_ANTIALIAS_DEFAULT);
+#endif
     trace("new graphics; width: %d, height: %d", width, height);
     Graphics* g = tlAlloc(GraphicsKind, sizeof(Graphics));
     g->cairo = cairo;
@@ -164,6 +168,7 @@ static tlHandle _setOperator(tlTask* task, tlArgs* args) {
         op = CAIRO_OPERATOR_ADD;
     } else if (h == s_saturate) {
         op = CAIRO_OPERATOR_SATURATE;
+#if CAIRO_VERSION_MAJOR >= 1 && CAIRO_VERSION_MINOR >= 10
     } else if (h == s_overlay) {
         op = CAIRO_OPERATOR_OVERLAY;
     } else if (h == s_darken) {
@@ -190,6 +195,7 @@ static tlHandle _setOperator(tlTask* task, tlArgs* args) {
         op = CAIRO_OPERATOR_HSL_COLOR;
     } else if (h == s_hsl_luminosity) {
         op = CAIRO_OPERATOR_HSL_LUMINOSITY;
+#endif
     }
     Graphics* g = GraphicsAs(tlArgsTarget(args));
     cairo_set_operator(g->cairo, op);
@@ -429,7 +435,14 @@ static tlHandle _measureText(tlTask* task, tlArgs* args) {
     return tlResultFrom(tlFLOAT(max(extents.width,extents.x_advance)), tlFLOAT(max(extents.height,extents.y_advance)), null);
 }
 
+static tlHandle _flush(tlTask* task, tlArgs* args) {
+    TL_TARGET(Graphics, g);
+    cairo_surface_flush(cairo_get_target(g->cairo));
+    return tlNull;
+}
+
 // ** images **
+//. image(image, x=0, y=0, w=image.width, h=image.height]): render an image into the specified rectangle, scaling if needed
 static tlHandle _image(tlTask* task, tlArgs* args) {
     Image* img = ImageCast(tlArgsGet(args, 0));
     if (!img) {
@@ -564,6 +577,7 @@ void graphics_init(tlVm* vm) {
         "fillText", _fillText,
         "measureText", _measureText,
 
+        "flush", _flush,
         "image", _image,
 
         null
