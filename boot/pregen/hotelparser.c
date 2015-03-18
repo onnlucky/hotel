@@ -24,8 +24,10 @@ static State r_ifexpr_3(Parser*, int, int, bool);
 static State r_ifexpr_4_1(Parser*, int, int, bool);
 static State r_ifexpr_4(Parser*, int, int, bool);
 static State r_ifexpr(Parser*, int, int, bool);
+static State r_newvar_1(Parser*, int, int, bool);
+static State r_newvar_2_1(Parser*, int, int, bool);
+static State r_newvar_2_2(Parser*, int, int, bool);
 static State r_newvar_2(Parser*, int, int, bool);
-static State r_newvar_3(Parser*, int, int, bool);
 static State r_newvar(Parser*, int, int, bool);
 static State r_call(Parser*, int, int, bool);
 static State r_mexpr2_1_1(Parser*, int, int, bool);
@@ -195,7 +197,6 @@ static State r_mapitems_3_1(Parser*, int, int, bool);
 static State r_mapitems_3(Parser*, int, int, bool);
 static State r_mapitems(Parser*, int, int, bool);
 static State r_assign_1(Parser*, int, int, bool);
-static State r_assign_2(Parser*, int, int, bool);
 static State r_assign(Parser*, int, int, bool);
 static State r_mexpr_1_1(Parser*, int, int, bool);
 static State r_mexpr_1(Parser*, int, int, bool);
@@ -245,7 +246,6 @@ static State r_stm_3_2(Parser*, int, int, bool);
 static State r_stm_3_3(Parser*, int, int, bool);
 static State r_stm_3(Parser*, int, int, bool);
 static State r_stm_4_1(Parser*, int, int, bool);
-static State r_stm_4_2(Parser*, int, int, bool);
 static State r_stm_4(Parser*, int, int, bool);
 static State r_stm_5_1(Parser*, int, int, bool);
 static State r_stm_5(Parser*, int, int, bool);
@@ -722,49 +722,115 @@ static State r_ifexpr(Parser* _p, const int _start, int _rec, bool ignored) { //
  if (_p->error_line) { /*print("expect: ifexpr");*/ return _r; }
  return parser_fail(_p, "ifexpr", _start);
 }
-static State r_newvar_2(Parser* _p, const int _start, int _rec, bool ignored) { // not
- parser_enter(_p, "newvar_2", _start);
- int _pos = _start;
- State _r;
- _r = r_opname(_p, _pos, _start == _pos? _rec : 0, true);
- if (_r.ok) return parser_fail(_p, "newvar_2", _start);
- return parser_pass(_p, "newvar_2", _start, state_ok(_start, tlNull), 0);
-}
-static State r_newvar_3(Parser* _p, const int _start, int _rec, bool ignored) { // not
- parser_enter(_p, "newvar_3", _start);
- int _pos = _start;
- State _r;
- _r = r_reserved(_p, _pos, _start == _pos? _rec : 0, true);
- if (_r.ok) return parser_fail(_p, "newvar_3", _start);
- return parser_pass(_p, "newvar_3", _start, state_ok(_start, tlNull), 0);
-}
-static State r_newvar(Parser* _p, const int _start, int _rec, bool ignored) { // and
- parser_enter(_p, "newvar", _start);
+static State r_newvar_1(Parser* _p, const int _start, int _rec, bool ignored) { // and
+ parser_enter(_p, "newvar_1", _start);
  int _pos = _start;
  State _r;
  _r = prim_text(_p, _pos, "var", true);
- if (!_r.ok) { return parser_fail(_p, "newvar", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "newvar", 1);
+ parser_commit(_p, _pos, "newvar_1", 1);
  _r = r_sp(_p, _pos, _start == _pos? _rec : 0, true);
- if (!_r.ok) { return parser_fail(_p, "newvar", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
  _pos = _r.pos;
- parser_commit(_p, _pos, "newvar", 2);
+ parser_commit(_p, _pos, "newvar_1", 2);
  _r = r_ws(_p, _pos, _start == _pos? _rec : 0, true);
- if (!_r.ok) { return parser_fail(_p, "newvar", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
  _pos = _r.pos;
- _r = r_newvar_2(_p, _pos, _start == _pos? _rec : 0, true);
- if (!_r.ok) { return parser_fail(_p, "newvar", _pos); }
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
+ tlHandle pos = _r.value;
  _pos = _r.pos;
- _r = r_newvar_3(_p, _pos, _start == _pos? _rec : 0, true);
- if (!_r.ok) { return parser_fail(_p, "newvar", _pos); }
+ _r = prim_text(_p, _pos, "this", true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
+ _pos = _r.pos;
+ parser_commit(_p, _pos, "newvar_1", 5);
+ _r = r_ws(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
+ _pos = _r.pos;
+ _r = prim_text(_p, _pos, ".", true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
+ _pos = _r.pos;
+ parser_commit(_p, _pos, "newvar_1", 7);
+ _r = r_ws(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
  _pos = _r.pos;
  _r = r_name(_p, _pos, _start == _pos? _rec : 0, ignored);
- if (!_r.ok) { return parser_fail(_p, "newvar", _pos); }
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
+ tlHandle name = _r.value;
  _pos = _r.pos;
- parser_commit(_p, _pos, "newvar", 6);
- tlHandle _v = _r.value;
- return parser_pass(_p, "newvar", _start, state_ok(_pos, _v), 0);
+ parser_commit(_p, _pos, "newvar_1", 9);
+ _r = state_ok(_pos, ignored?tlNull:tlSTR("newvarfield"));
+ if (!_r.ok) { return parser_fail(_p, "newvar_1", _pos); }
+ tlHandle type = _r.value;
+ _pos = _r.pos;
+ tlHandle _v = tlObjectFrom("pos", pos, "name", name, "type", type, null);
+ return parser_pass(_p, "newvar_1", _start, state_ok(_pos, _v), 0);
+}
+static State r_newvar_2_1(Parser* _p, const int _start, int _rec, bool ignored) { // not
+ parser_enter(_p, "newvar_2_1", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_opname(_p, _pos, _start == _pos? _rec : 0, true);
+ if (_r.ok) return parser_fail(_p, "newvar_2_1", _start);
+ return parser_pass(_p, "newvar_2_1", _start, state_ok(_start, tlNull), 0);
+}
+static State r_newvar_2_2(Parser* _p, const int _start, int _rec, bool ignored) { // not
+ parser_enter(_p, "newvar_2_2", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_reserved(_p, _pos, _start == _pos? _rec : 0, true);
+ if (_r.ok) return parser_fail(_p, "newvar_2_2", _start);
+ return parser_pass(_p, "newvar_2_2", _start, state_ok(_start, tlNull), 0);
+}
+static State r_newvar_2(Parser* _p, const int _start, int _rec, bool ignored) { // and
+ parser_enter(_p, "newvar_2", _start);
+ int _pos = _start;
+ State _r;
+ _r = prim_text(_p, _pos, "var", true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ _pos = _r.pos;
+ parser_commit(_p, _pos, "newvar_2", 1);
+ _r = r_sp(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ _pos = _r.pos;
+ parser_commit(_p, _pos, "newvar_2", 2);
+ _r = r_ws(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ _pos = _r.pos;
+ _r = r_newvar_2_1(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ _pos = _r.pos;
+ _r = r_newvar_2_2(_p, _pos, _start == _pos? _rec : 0, true);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ _pos = _r.pos;
+ _r = prim_pos(_p, _pos, ignored);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ tlHandle pos = _r.value;
+ _pos = _r.pos;
+ _r = r_name(_p, _pos, _start == _pos? _rec : 0, ignored);
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ tlHandle name = _r.value;
+ _pos = _r.pos;
+ parser_commit(_p, _pos, "newvar_2", 7);
+ _r = state_ok(_pos, ignored?tlNull:tlSTR("newvar"));
+ if (!_r.ok) { return parser_fail(_p, "newvar_2", _pos); }
+ tlHandle type = _r.value;
+ _pos = _r.pos;
+ tlHandle _v = tlObjectFrom("pos", pos, "name", name, "type", type, null);
+ return parser_pass(_p, "newvar_2", _start, state_ok(_pos, _v), 0);
+}
+static State r_newvar(Parser* _p, const int _start, int _rec, bool ignored) { // or
+ parser_enter(_p, "newvar", _start);
+ int _pos = _start;
+ State _r;
+ _r = r_newvar_1(_p, _pos, _start == _pos? _rec : 0, ignored);
+ if (_r.ok) return parser_pass(_p, "newvar", _start, _r, 0);
+ if (_p->error_line) { /*print("expect: newvar");*/ return _r; }
+ _r = r_newvar_2(_p, _pos, _start == _pos? _rec : 0, ignored);
+ if (_r.ok) return parser_pass(_p, "newvar", _start, _r, 0);
+ if (_p->error_line) { /*print("expect: newvar");*/ return _r; }
+ return parser_fail(_p, "newvar", _start);
 }
 static State r_call(Parser* _p, const int _start, int _rec, bool ignored) { // and
  parser_enter(_p, "call", _start);
@@ -3998,46 +4064,26 @@ static State r_assign_1(Parser* _p, const int _start, int _rec, bool ignored) { 
  if (!_r.ok) { return parser_fail(_p, "assign_1", _pos); }
  tlHandle pos = _r.value;
  _pos = _r.pos;
- _r = r_newvar(_p, _pos, _start == _pos? _rec : 0, ignored);
+ _r = r_intro(_p, _pos, _start == _pos? _rec : 0, ignored);
  if (!_r.ok) { return parser_fail(_p, "assign_1", _pos); }
  tlHandle name = _r.value;
  _pos = _r.pos;
  parser_commit(_p, _pos, "assign_1", 2);
- _r = state_ok(_pos, ignored?tlNull:tlSTR("newvar"));
+ _r = state_ok(_pos, ignored?tlNull:tlSTR("local"));
  if (!_r.ok) { return parser_fail(_p, "assign_1", _pos); }
  tlHandle type = _r.value;
  _pos = _r.pos;
  tlHandle _v = tlObjectFrom("pos", pos, "name", name, "type", type, null);
  return parser_pass(_p, "assign_1", _start, state_ok(_pos, _v), 0);
 }
-static State r_assign_2(Parser* _p, const int _start, int _rec, bool ignored) { // and
- parser_enter(_p, "assign_2", _start);
- int _pos = _start;
- State _r;
- _r = prim_pos(_p, _pos, ignored);
- if (!_r.ok) { return parser_fail(_p, "assign_2", _pos); }
- tlHandle pos = _r.value;
- _pos = _r.pos;
- _r = r_intro(_p, _pos, _start == _pos? _rec : 0, ignored);
- if (!_r.ok) { return parser_fail(_p, "assign_2", _pos); }
- tlHandle name = _r.value;
- _pos = _r.pos;
- parser_commit(_p, _pos, "assign_2", 2);
- _r = state_ok(_pos, ignored?tlNull:tlSTR("local"));
- if (!_r.ok) { return parser_fail(_p, "assign_2", _pos); }
- tlHandle type = _r.value;
- _pos = _r.pos;
- tlHandle _v = tlObjectFrom("pos", pos, "name", name, "type", type, null);
- return parser_pass(_p, "assign_2", _start, state_ok(_pos, _v), 0);
-}
 static State r_assign(Parser* _p, const int _start, int _rec, bool ignored) { // or
  parser_enter(_p, "assign", _start);
  int _pos = _start;
  State _r;
- _r = r_assign_1(_p, _pos, _start == _pos? _rec : 0, ignored);
+ _r = r_newvar(_p, _pos, _start == _pos? _rec : 0, ignored);
  if (_r.ok) return parser_pass(_p, "assign", _start, _r, 0);
  if (_p->error_line) { /*print("expect: assign");*/ return _r; }
- _r = r_assign_2(_p, _pos, _start == _pos? _rec : 0, ignored);
+ _r = r_assign_1(_p, _pos, _start == _pos? _rec : 0, ignored);
  if (_r.ok) return parser_pass(_p, "assign", _start, _r, 0);
  if (_p->error_line) { /*print("expect: assign");*/ return _r; }
  return parser_fail(_p, "assign", _start);
@@ -4896,44 +4942,24 @@ static State r_stm_3(Parser* _p, const int _start, int _rec, bool ignored) { // 
  _p->anchor = _anchor;
  return parser_pass(_p, "stm_3", _start, state_ok(_pos, _v), 0);
 }
-static State r_stm_4_1(Parser* _p, const int _start, int _rec, bool ignored) { // and
+static State r_stm_4_1(Parser* _p, const int _start, int _rec, bool ignored) { // ahead
  parser_enter(_p, "stm_4_1", _start);
  int _pos = _start;
  State _r;
- _r = prim_pos(_p, _pos, ignored);
- if (!_r.ok) { return parser_fail(_p, "stm_4_1", _pos); }
- tlHandle pos = _r.value;
- _pos = _r.pos;
- _r = r_newvar(_p, _pos, _start == _pos? _rec : 0, ignored);
- if (!_r.ok) { return parser_fail(_p, "stm_4_1", _pos); }
- tlHandle name = _r.value;
- _pos = _r.pos;
- parser_commit(_p, _pos, "stm_4_1", 2);
- _r = state_ok(_pos, ignored?tlNull:tlSTR("newvar"));
- if (!_r.ok) { return parser_fail(_p, "stm_4_1", _pos); }
- tlHandle type = _r.value;
- _pos = _r.pos;
- tlHandle _v = tlObjectFrom("pos", pos, "name", name, "type", type, null);
- return parser_pass(_p, "stm_4_1", _start, state_ok(_pos, _v), 0);
-}
-static State r_stm_4_2(Parser* _p, const int _start, int _rec, bool ignored) { // ahead
- parser_enter(_p, "stm_4_2", _start);
- int _pos = _start;
- State _r;
  _r = r_endstm(_p, _pos, _start == _pos? _rec : 0, true);
- if (!_r.ok) return parser_fail(_p, "stm_4_2", _start);
- return parser_pass(_p, "stm_4_2", _start, state_ok(_start, tlNull), 0);
+ if (!_r.ok) return parser_fail(_p, "stm_4_1", _start);
+ return parser_pass(_p, "stm_4_1", _start, state_ok(_start, tlNull), 0);
 }
 static State r_stm_4(Parser* _p, const int _start, int _rec, bool ignored) { // and
  parser_enter(_p, "stm_4", _start);
  int _pos = _start;
  State _r;
- _r = r_stm_4_1(_p, _pos, _start == _pos? _rec : 0, ignored);
+ _r = r_newvar(_p, _pos, _start == _pos? _rec : 0, ignored);
  if (!_r.ok) { return parser_fail(_p, "stm_4", _pos); }
  tlHandle to = _r.value;
  _pos = _r.pos;
  parser_commit(_p, _pos, "stm_4", 1);
- _r = r_stm_4_2(_p, _pos, _start == _pos? _rec : 0, true);
+ _r = r_stm_4_1(_p, _pos, _start == _pos? _rec : 0, true);
  if (!_r.ok) { return parser_fail(_p, "stm_4", _pos); }
  _pos = _r.pos;
  _r = state_ok(_pos, ignored?tlNull:tlSTR("assign"));

@@ -40,18 +40,16 @@ all: tl $(C_MODULES) $(TLG_MODULES) $(BIN_MODULES)
 # these targets require a working language
 boot: boot/init.tlb.h boot/compiler.tlb.h boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
 
-# so we check it and either copy pre generated (perhaps older) versions, or build them
+# so we check if there is a working version installed and build them, or copy pre generated (perhaps older) versions
 BOOT?=$(shell tl --version | grep hotel)
 ifneq ($(BOOT),)
 boot/init.tlb boot/init.tlb.h: modules/init.tl tlcompiler
 	./tlcompiler modules/init.tl -c
-	mv modules/init.tlb boot/init.tlb
-	mv modules/init.tlb.h boot/init.tlb.h
+	cp modules/init.tlb.h boot/init.tlb.h
 boot/compiler.tlb boot/compiler.tlb.h: modules/compiler.tl tlcompiler
 	./tlcompiler modules/compiler.tl -c
-	mv modules/compiler.tlb boot/compiler.tlb
-	mv modules/compiler.tlb.h boot/compiler.tlb.h
-boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c:
+	cp modules/compiler.tlb.h boot/compiler.tlb.h
+boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c: hotelparser/*.tlg hotelparser/tlmeta.c
 	$(MAKE) -C hotelparser boot
 else
 boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c: boot/pregen/*
@@ -65,6 +63,23 @@ boot/jsonparser.o: Makefile include/*.h config.h boot/jsonparser.c boot/tlmeta.c
 boot/xmlparser.o: Makefile include/*.h config.h boot/xmlparser.c boot/tlmeta.c
 	$(CC) $(subst -Wall,,$(CFLAGS)) -c boot/xmlparser.c -o boot/xmlparser.o
 
+# regenerate the precompiled init and compiler module
+boot/pregen/init.tlb.h: modules/init.tl tl
+	TL_MODULE_PATH=./modules:./cmodules ./tl ./tlcompiler modules/init.tl -c
+	cp modules/init.tlb.h boot/pregen/init.tlb.h
+boot/pregen/compiler.tlb.h: modules/compiler.tl tl
+	TL_MODULE_PATH=./modules:./cmodules ./tl ./tlcompiler modules/compiler.tl -c
+	cp modules/compiler.tlb.h boot/pregen/compiler.tlb.h
+boot/pregen/tlmeta.c boot/pregen/hotelparser.c boot/pregen/jsonparser.c boot/pregen/xmlparser.c: hotelparser/*.tlg hotelparser/tlmeta.c
+	$(MAKE) -C hotelparser boot
+	cp boot/tlmeta.c boot/pregen/
+	cp boot/hotelparser.c boot/pregen/
+	cp boot/jsonparser.c boot/pregen/
+	cp boot/xmlparser.c boot/pregen/
+pregen: boot/pregen/init.tlb.h boot/pregen/compiler.tlb.h boot/pregen/tlmeta.c boot/pregen/hotelparser.c boot/pregen/jsonparser.c boot/pregen/xmlparser.c
+
+
+# handy start target
 run: tl
 	echo $(BOOT)
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
@@ -72,6 +87,7 @@ run: tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --init run.tlb
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
+# test targets
 unit-test: tl boot
 	$(MAKE) -C vm test
 test-noboot: tl
