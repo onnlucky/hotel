@@ -52,7 +52,7 @@ boot/compiler.tlb boot/compiler.tlb.h: modules/compiler.tl tlcompiler
 boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c: hotelparser/*.tlg hotelparser/tlmeta.c
 	$(MAKE) -C hotelparser boot
 else
-boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c: boot/pregen/*
+boot/init.tlb.h boot/compiler.tlb.h boot/tlmeta.c boot/hotelparser.c boot/jsonparser.c boot/xmlparser.c: boot/pregen/
 	cp boot/pregen/* boot/
 endif
 
