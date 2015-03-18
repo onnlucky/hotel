@@ -249,7 +249,7 @@ static tlHandle _bnot(tlTask* task, tlArgs* args) {
     if (tlNumberIs(v)) {
         uint32_t vs = tl_int(v);
         uint32_t res = ~vs;
-        return tlINT((uint32_t)res);
+        return tlNUM((uint32_t)res);
     }
     TL_THROW("'~' not implemented for: ~%s", tl_str(v));
 }
@@ -259,7 +259,7 @@ static tlHandle _band(tlTask* task, tlArgs* args) {
         uint32_t lhs = tl_int(l);
         uint32_t rhs = tl_int(r);
         uint32_t res = lhs & rhs;
-        return tlINT((uint32_t)res);
+        return tlNUM((uint32_t)res);
     }
     TL_THROW("'&' not implemented for: %s & %s", tl_str(l), tl_str(r));
 }
@@ -269,7 +269,7 @@ static tlHandle _bor(tlTask* task, tlArgs* args) {
         uint32_t lhs = tl_int(l);
         uint32_t rhs = tl_int(r);
         uint32_t res = lhs | rhs;
-        return tlINT((uint32_t)res);
+        return tlNUM((uint32_t)res);
     }
     TL_THROW("'|' not implemented for: %s | %s", tl_str(l), tl_str(r));
 }
@@ -279,7 +279,7 @@ static tlHandle _bxor(tlTask* task, tlArgs* args) {
         uint32_t lhs = tl_int(l);
         uint32_t rhs = tl_int(r);
         uint32_t res = lhs ^ rhs;
-        return tlINT((uint32_t)res);
+        return tlNUM((uint32_t)res);
     }
     TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
 }
@@ -291,7 +291,7 @@ static tlHandle _blshift(tlTask* task, tlArgs* args) {
         int rhs = tl_int(r);
         if (rhs <= -64 || rhs >= 64) return tlZero;
         uint64_t res = rhs >= 0? lhs << rhs : lhs >> -rhs;
-        return tlINT((intptr_t)res);
+        return tlNUM((intptr_t)res);
     }
     TL_THROW("'<<' not implemented for: %s << %s", tl_str(l), tl_str(r));
 }
@@ -302,7 +302,7 @@ static tlHandle _brshift(tlTask* task, tlArgs* args) {
         int rhs = tl_int(r);
         if (rhs <= -64 || rhs >= 64) return tlZero;
         uint64_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
-        return tlINT((intptr_t)res);
+        return tlNUM((intptr_t)res);
     }
     TL_THROW("'>>' not implemented for: %s >> %s", tl_str(l), tl_str(r));
 }
@@ -313,7 +313,7 @@ static tlHandle _brrshift(tlTask* task, tlArgs* args) {
         int rhs = tl_int(r);
         if (rhs < -64 || rhs > 64) return tlZero;
         uint32_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
-        return tlINT((uint32_t)res);
+        return tlNUM((uint32_t)res);
     }
     TL_THROW("'>>>' not implemented for: %s >>> %s", tl_str(l), tl_str(r));
 }
@@ -458,6 +458,7 @@ static tlHandle _tanh(tlTask* task, tlArgs* args) {
     return tlFLOAT(tanh(in));
 }
 
+// TODO remove and use tlNUMBER or such instead?
 static tlHandle _int_parse(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
@@ -467,8 +468,7 @@ static tlHandle _int_parse(tlTask* task, tlArgs* args) {
     char* end;
     long long res = strtol(begin, &end, base);
     if (end == begin) return tlNull;
-    if (res >= TL_MIN_INT && res <= TL_MAX_INT) return tlINT(res);
-    return tlNull;
+    return tlNUM(res);
 }
 
 static tlHandle _urldecode(tlTask* task, tlArgs* args) {

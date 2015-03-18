@@ -702,18 +702,18 @@ static tlHandle _Path_stat(tlTask* task, tlArgs* args) {
     }
 
     tlObject *res = tlClone(_statMap);
-    tlObjectSet_(res, _s_dev, tlINT(buf.st_dev));
-    tlObjectSet_(res, _s_ino, tlINT(buf.st_ino));
-    tlObjectSet_(res, _s_mode, tlINT(buf.st_mode));
-    tlObjectSet_(res, _s_nlink, tlINT(buf.st_nlink));
-    tlObjectSet_(res, _s_uid, tlINT(buf.st_uid));
-    tlObjectSet_(res, _s_gid, tlINT(buf.st_gid));
-    tlObjectSet_(res, _s_rdev, tlINT(buf.st_rdev));
-    tlObjectSet_(res, _s_size, tlINT(buf.st_size));
-    tlObjectSet_(res, _s_blksize, tlINT(buf.st_blksize));
-    tlObjectSet_(res, _s_blocks, tlINT(buf.st_blocks));
-    tlObjectSet_(res, _s_atime, tlINT(buf.st_atime));
-    tlObjectSet_(res, _s_mtime, tlINT(buf.st_mtime));
+    tlObjectSet_(res, _s_dev, tlNUM(buf.st_dev));
+    tlObjectSet_(res, _s_ino, tlNUM(buf.st_ino));
+    tlObjectSet_(res, _s_mode, tlNUM(buf.st_mode));
+    tlObjectSet_(res, _s_nlink, tlNUM(buf.st_nlink));
+    tlObjectSet_(res, _s_uid, tlNUM(buf.st_uid));
+    tlObjectSet_(res, _s_gid, tlNUM(buf.st_gid));
+    tlObjectSet_(res, _s_rdev, tlNUM(buf.st_rdev));
+    tlObjectSet_(res, _s_size, tlNUM(buf.st_size));
+    tlObjectSet_(res, _s_blksize, tlNUM(buf.st_blksize));
+    tlObjectSet_(res, _s_blocks, tlNUM(buf.st_blocks));
+    tlObjectSet_(res, _s_atime, tlNUM(buf.st_atime));
+    tlObjectSet_(res, _s_mtime, tlNUM(buf.st_mtime));
     return res;
 }
 

@@ -472,11 +472,18 @@ void number_init() {
     mp_set_signed(&MIN_INT_BIGNUM, TL_MIN_INT);
     mp_set_signed(&MAX_INT_BIGNUM, TL_MAX_INT);
 
-    assert(tlINT(TL_MAX_INT) == tlIntMax);
-    assert(tlINT(TL_MIN_INT) == tlIntMin);
+    assert(tl_int(tlINT(100)) == 100);
+    assert(tl_int(tlINT(-100)) == -100);
+    assert(tl_int(tlINT(123456)) == 123456);
+    assert(tl_int(tlINT(-123456)) == -123456);
     assert(tlINT(0) == tlZero);
     assert(tlINT(1) == tlOne);
     assert(tlINT(2) == tlTwo);
+
+    assert(tlINT(TL_MAX_INT) == tlIntMax);
+    assert(tlINT(TL_MIN_INT) == tlIntMin);
+    assert(tl_int(tlIntMax) == TL_MAX_INT);
+    assert(tl_int(tlIntMin) == TL_MIN_INT);
 
     mp_int ZERO; mp_init(&ZERO); mp_set(&ZERO, 0);
     assert(mp_cmp(&MIN_INT_BIGNUM, &ZERO) == -1);

@@ -11,7 +11,10 @@ think about array access as list(1) instead of list[1]?? and then list(1) = 10? 
 
 # IMPLEMENTATION TODO
 
-make tlInt use 31 bits, always
+make tlInt and hahsing (uint32_t) work together, simply fix the high byte to 0?
+make tlINT and tl_int 32/64 bit safe across the board
+likely more places require tlNUM instead of tlINT, when their range is beyond TL_MIN_INT32/TL_MAX_INT32
+
 unify tl_kind with tlClass with tlUserClass allow to inherit from host native objects
 
 implement real operators, finally

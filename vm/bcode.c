@@ -623,7 +623,7 @@ tlHandle readvalue(tlBuffer* buf, tlList* data, tlBModule* mod, const char** err
             val = (val << 7) | (last >> 1);
             if (last & 0x1) val = -val;
             trace("read int: %d", val);
-            return tlINT(val);
+            return tlNUM(val); // TODO make sure bytecode fits tlINT or not?
         }
         case 0xE0: // sized types
             return readsizedvalue(buf, data, mod, b1, error);

@@ -93,19 +93,16 @@ tlHandle tlBOOL(int c) { if (c) return tlTrue; return tlFalse; }
 int tl_bool(tlHandle v) { return !(v == null || v == tlNull || v == tlFalse || tlUndefinedIs(v)); }
 int tl_bool_or(tlHandle v, bool d) { if (!v) return d; return tl_bool(v); }
 
-tlHandle tlINT(intptr_t i) { return (tlHandle)(i << 2 | 1); }
+tlHandle tlINT(intptr_t i) {
+    assert(i >= TL_MIN_INT && i <= TL_MAX_INT);
+    return (tlHandle)(i << 1 | 1);
+}
+
 intptr_t tlIntToInt(tlHandle v) {
     assert(tlIntIs(v));
-    intptr_t i = (intptr_t)v;
-    if (i < 0) {
-#ifdef M32
-        return (i >> 2) | 0xC0000000;
-#else
-        return (i >> 2) | 0xC000000000000000;
-#endif
-    }
-    return i >> 2;
+    return (intptr_t)v >> 1;
 }
+
 double tlIntToDouble(tlHandle v) {
     return (double)tlIntToInt(v);
 }
