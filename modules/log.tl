@@ -1,5 +1,5 @@
-DEFAULT_LEVEL = 1
-levels = [TRACE=0,DEBUG=1,INFO=2,NOTICE=3,WARNING=3,ERROR=5,FATAL=6]
+DEFAULT_LEVEL = 7
+levels = [TRACE=8,DEBUG=7,INFO=6,NOTICE=5,WARNING=4,ERROR=3,FATAL=2]
 
 # global mutable state ...
 var loglevel = DEFAULT_LEVEL
@@ -21,17 +21,20 @@ loggertime = ->
     millis = ((x - ts) * 1000 + 1_000).round.toString[2:] # trick to format string as 001
     return strftime("%Y-%m-%dT%H:%M:%S.$millis%z", localtime(x)), ts
 
-# TODO output to syslog
+var facility = 16 # local0
+var logsocket = null
+sockets = { system.platform == "macosx" }: ["/var/run/syslog", "/dev/log", "/var/run/log"]
+          {                             }: ["/dev/log", "/var/run/syslog", "/var/run/log"]
 
 outputlog = level, levelname, as ->
     file, function, line = Task.stacktrace(2)[1]
     flevel = filelevels[file]
     tlevel = levels[Task.locals?loglevel]
-    low = { tlevel and flevel }: min(tlevel, flevel)
-          { tlevel            }: tlevel
-          { flevel            }: flevel
-          {                   }: loglevel
-    if level < low: return
+    high = { tlevel and flevel }: max(tlevel, flevel)
+           { tlevel            }: tlevel
+           { flevel            }: flevel
+           {                   }: loglevel
+    if level > high: return
 
     msg = as.map(toString).join(" ")
     time, ts = loggertime()
@@ -41,30 +44,58 @@ outputlog = level, levelname, as ->
     usercontext = Task.locals?logcontext
     context = { usercontext }: "[$(io.pid):$(Task.id):$(usercontext)]"
               {             }: "[$(io.pid):$(Task.id)]"
+
+    if logsocket:
+        pri = "<$(facility * 8 + min(7, level))>1"
+        logsocket.write pri, " ", host, " ", app, " ", context, " - ", msg, " - $file:$line $function"
+        return
     print time, host, app, context, "-", levelname, msg, "-", "$file:$line", function
+
+opensyslog = fac ->
+    var firsterror = null
+    if not logsocket:
+        sockets.each: sock ->
+            catch: e -> firsterror = e
+            logsocket = io.Socket.unix(sock, true)
+            facility = fac or 16
+            return
+    outputlog(4, "WARNING", ["unable to open syslog socket, tried:", repr(sockets), e])
 
 levelToNumber = level ->
     levels[level] or Error("unknown level '$level'").throw
 
+#. object log
 {
+    #. setOutput(backend, facility?): switch logger backend, either "syslog" or "stdout" (or "stderr", in the future)
+    setOutput = backend, facility ->
+        { backend == "syslog" }: opensyslog(facility)
+        {                     }: closesyslog()
+
+    #. setGlobalLevel(level): set a default global log level, messages below this priority will be ignored, unless locally overridden by file or task
     setGlobalLevel = level ->
         loglevel = levelToNumber(level)
 
+    #. setLevel(level): set a default level for the current module (filename based)
+    #. [file]: if explicitly given, set level for this file
     setLevel = level ->
         n = levelToNumber(level)
         file = { args["file"] }: args["file"]
                {              }: Task.stacktrace(2)[1]
         filelevels[file] = n
 
+    #. setTaskLevel(level): set a default level for the current task
+    #. if both a module level and task level are set, the lowest log level is used
+    #. e.g. if module level is INFO and task level is TRACE, logging will happen at TRACE
     setTaskLevel = level ->
         levelToNumber(level)
         Task.setLocals(Object.set(Task.locals, {loglevel=level}))
 
-    trace = -> outputlog(0, "TRACE", args)
-    debug = -> outputlog(1, "DEBUG", args)
-    info = -> outputlog(2, "INFO", args)
-    notice = -> outputlog(3, "NOTICE", args)
+    trace = -> outputlog(8, "TRACE", args)
+    debug = -> outputlog(7, "DEBUG", args)
+    info = -> outputlog(6, "INFO", args)
+    notice = -> outputlog(5, "NOTICE", args)
     warning = -> outputlog(4, "WARNING", args)
-    error = -> outputlog(5, "ERROR", args)
+    error = -> outputlog(3, "ERROR", args)
+    fatal = -> outputlog(2, "FATAL", args) # TODO actually kill the system here? or the task?
 }
 

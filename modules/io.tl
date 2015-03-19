@@ -265,17 +265,21 @@ UdpSocket = {
     }
 }
 
+#. object Socket: communicate over network or ipc
 Socket = {
-    open = (address, port ->
+    #. open(address, port): connect over tcp/ip
+    open = address, port ->
         ip = _Socket_resolve(address)
         Stream.new(_Socket_connect(ip, port))
-    )
-    listen = (port ->
+    #. listen(port?): listen on tcp/ip port, if no port is given, one is assigned
+    listen = port ->
         Server.new(_ServerSocket_listen(port))
-    )
-    udp = (port, broadcast ->
+    #. unix(name): connect to a unix domain socket (a special file, e.g. /dev/log)
+    unix = name, dgram ->
+        Stream.new(_Socket_connect_unix(name, dgram))
+    #. udp(port, broadcast=false): open a udp/ip socket, can be send or received from
+    udp = port, broadcast ->
         UdpSocket.new(_Socket_udp(port, broadcast))
-    )
 }
 
 _run = arglist, env, check ->

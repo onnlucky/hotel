@@ -632,6 +632,7 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
 static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     tlString* address = tlStringCast(tlArgsGet(args, 0));
     if (!address) TL_THROW("expected a unix path");
+    bool dgram = tl_bool(tlArgsGet(args, 1));
 
     trace("unix_open: %s", tl_str(address));
 
@@ -640,7 +641,7 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     sockaddr.sun_family = AF_UNIX;
     strcpy(sockaddr.sun_path, tlStringData(address));
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(AF_UNIX, dgram?SOCK_DGRAM:SOCK_STREAM, 0);
     if (fd < 0) TL_THROW("unix_connect: failed: %s", strerror(errno));
 
     if (nonblock(fd) < 0) TL_THROW("unix_connect: nonblock failed: %s", strerror(errno));
