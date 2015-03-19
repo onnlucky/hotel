@@ -8,6 +8,9 @@ switch "Object.each({key=value}): k, v, n -> ..." to ": v, k, n ->" to be inline
 add "[1,2,3].get(4, or="not there")" or something like that
 think about array access as list(1) instead of list[1]?? and then list(1) = 10? map("foo") = 10, Object.set(object, "foo") = 10
 
+implement default values, "near = in, value, range=3 -> ... "
+implement 3 way comparison: "value - range <= in <= value + range"
+
 
 # IMPLEMENTATION TODO
 
