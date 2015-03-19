@@ -1,5 +1,10 @@
 // various config
-#define TL_VERSION "0.3.0"
+#ifndef TL_VERSION_RAW
+#define TL_VERSION_RAW 0.3.0
+#endif
+
+#define TL_VERSION_STR(x) #x
+#define TL_VERSION TL_VERSION_STR(TL_VERSION_RAW)
 
 // if set use pthread library and run multi threaded (otherwise it doesn't work)
 #define HAVE_THREADS

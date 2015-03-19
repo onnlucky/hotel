@@ -2,6 +2,11 @@ CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arg
 CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -I../include/ -I../libmp/ -I../libatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
+VERSION:=$(shell git describe)
+ifneq ($(VERSION),)
+CFLAGS+=-DTL_VERSION_RAW=$(VERSION)
+endif
+
 ifeq ($(BUILD),release)
 	CFLAGS+=-ggdb -O3
 else
