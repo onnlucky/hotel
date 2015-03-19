@@ -94,7 +94,7 @@ void toolkit_started() {
 static const char* argv0;
 static void* tl_main(void* _args) {
     trace(">>> tl starting <<<");
-    tlVm* vm = tlVmNew(tlSYM(argv0), tlArgsAs(_args));
+    tlVm* vm = tlVmNew(tlSymFromCopy(basename(argv0)), tlArgsAs(_args));
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
     image_init(vm);
