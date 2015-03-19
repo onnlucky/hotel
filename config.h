@@ -3,7 +3,8 @@
 #define TL_VERSION_RAW 0.3.0
 #endif
 
-#define TL_VERSION_STR(x) #x
+#define TL_VERSION_STR_(x) #x
+#define TL_VERSION_STR(x) TL_VERSION_STR_(x)
 #define TL_VERSION TL_VERSION_STR(TL_VERSION_RAW)
 
 // if set use pthread library and run multi threaded (otherwise it doesn't work)
