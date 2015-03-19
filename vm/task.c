@@ -662,6 +662,7 @@ static tlHandle _task_background(tlTask* task, tlArgs* args) {
 typedef struct TaskBlocker {
     pthread_mutex_t lock;
     pthread_cond_t signal;
+    bool block;
 } TaskBlocker;
 
 bool tlBlockingTaskIs(tlTask* task) {
@@ -684,6 +685,7 @@ void tlBlockingTaskDone(tlTask* task) {
     assert(task->data);
     TaskBlocker* b = (TaskBlocker*)task->data;
 
+    b->block = false;
     pthread_mutex_lock(&b->lock);
     pthread_cond_signal(&b->signal);
     pthread_mutex_unlock(&b->lock);
@@ -698,9 +700,10 @@ tlHandle tlBlockingTaskEval(tlTask* task, tlHandle v) {
 
     // lock, schedule, signal vm, and wait until task is done ...
     pthread_mutex_lock(&b->lock);
+    b->block = true;
     tlTaskStart(task);
     if (vm->signalcb) vm->signalcb();
-    pthread_cond_wait(&b->signal, &b->lock);
+    while (b->block) pthread_cond_wait(&b->signal, &b->lock);
     pthread_mutex_unlock(&b->lock);
 
     assert(tlTaskIsDone(task));

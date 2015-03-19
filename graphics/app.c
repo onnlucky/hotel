@@ -23,12 +23,37 @@ static App* shared;
 static pthread_t toolkit_thread;
 static pthread_mutex_t toolkit_lock;
 static pthread_cond_t toolkit_signal;
+static pthread_cond_t vm_signal;
+
 static bool should_start_toolkit;
 static int tl_exit_code;
 
 static bool toolkit_blocked;
 void block_toolkit() { toolkit_blocked = true; }
 void unblock_toolkit() { toolkit_blocked = false; }
+
+// pause or signal vm (from toolkit thread); must hold toolkit_lock
+static bool vm_signalled = false;
+void waitfor_vm_signal() {
+    while (!vm_signalled) pthread_cond_wait(&vm_signal, &toolkit_lock);
+    vm_signalled = false;
+}
+void signal_vm() {
+    // must hold toolkit_lock
+    vm_signalled = true;
+    pthread_cond_signal(&vm_signal);
+}
+
+// pause or signal toolkit (from a vm thread); must hold toolkit_lock
+static bool toolkit_signalled = false;
+void waitfor_toolkit_signal() {
+    while (!toolkit_signalled) pthread_cond_wait(&toolkit_signal, &toolkit_lock);
+    toolkit_signalled = false;
+}
+void signal_toolkit() {
+    toolkit_signalled = true;
+    pthread_cond_signal(&toolkit_signal);
+}
 
 void toolkit_schedule_done(tlRunOnMain* onmain) {
     assert(onmain->result);
@@ -53,6 +78,7 @@ tlHandle tl_on_toolkit(tlTask* task, tlNativeCb cb, tlArgs* args) {
     pthread_mutex_unlock(&toolkit_lock);
     return onmain.result;
 }
+
 void tl_on_toolkit_async(tlTask* task, tlNativeCb cb, tlArgs* args) {
     tlRunOnMain* onmain = malloc(sizeof(tlRunOnMain));
     onmain->task = task;
@@ -69,8 +95,8 @@ void toolkit_launch() {
 
     pthread_mutex_lock(&toolkit_lock);
     should_start_toolkit = true;
-    pthread_cond_signal(&toolkit_signal); // signal start of toolkit
-    pthread_cond_wait(&toolkit_signal, &toolkit_lock); // and wait until toolkit signals back
+    signal_toolkit(); // signal toolkit to move
+    waitfor_vm_signal(); // wait for toolkit to signal back that we can move
     pthread_mutex_unlock(&toolkit_lock);
 
     shared = tlAlloc(AppKind, sizeof(App));
@@ -85,7 +111,7 @@ static tlHandle App_shared(tlTask* task, tlArgs* args) { return tl_on_toolkit(ta
 
 void toolkit_started() {
     assert(should_start_toolkit);
-    pthread_cond_signal(&toolkit_signal); // signal toolkit has started
+    signal_vm();
     trace(">> toolkit started <<");
 }
 
@@ -94,7 +120,7 @@ void toolkit_started() {
 static char* argv0;
 static void* tl_main(void* _args) {
     trace(">>> tl starting <<<");
-    tlVm* vm = tlVmNew(tlSymFromCopy(basename(argv0), 0), tlArgsAs(_args));
+    tlVm* vm = tlVmNew(tlSymFromCopy(argv0, 0), tlArgsAs(_args));
     tlVmInitDefaultEnv(vm);
     graphics_init(vm);
     image_init(vm);
@@ -106,7 +132,7 @@ static void* tl_main(void* _args) {
     if (should_start_toolkit) {
         toolkit_stop();
     } else {
-        pthread_cond_signal(&toolkit_signal);
+        signal_toolkit();
     }
     return null;
 }
@@ -127,10 +153,11 @@ int main(int argc, char** argv) {
     pthread_t tl_thread;
     pthread_mutex_init(&toolkit_lock, null);
     pthread_cond_init(&toolkit_signal, null);
+    pthread_cond_init(&vm_signal, null);
 
     pthread_mutex_lock(&toolkit_lock);
     pthread_create(&tl_thread, null, &tl_main, args); // create thread
-    pthread_cond_wait(&toolkit_signal, &toolkit_lock); // wait until signalled
+    waitfor_toolkit_signal(); // wait until vm wakes us up
     pthread_mutex_unlock(&toolkit_lock);
 
     if (should_start_toolkit) {
