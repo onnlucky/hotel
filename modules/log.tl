@@ -43,8 +43,8 @@ outputlog = level, levelname, as ->
     app = Task.locals?procname or io.procname
 
     usercontext = Task.locals?logcontext
-    context = { usercontext }: "[$(io.pid),$(Task.id),$(usercontext)]"
-              {             }: "[$(io.pid),$(Task.id)]"
+    context = { usercontext }: "[$(io.pid).$(Task.id).$(usercontext)]"
+              {             }: "[$(io.pid).$(Task.id)]"
 
     if logsocket and rfc5424:
         pri = "<$(facility * 8 + min(7, level))>1 "
