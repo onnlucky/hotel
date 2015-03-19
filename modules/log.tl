@@ -22,6 +22,7 @@ loggertime = ->
     return strftime("%Y-%m-%dT%H:%M:%S.$millis%z", localtime(x)), ts
 
 var facility = 16 # local0
+var rfc5424 = false
 var logsocket = null
 sockets = { system.platform == "macosx" }: ["/var/run/syslog", "/dev/log", "/var/run/log"]
           {                             }: ["/dev/log", "/var/run/syslog", "/var/run/log"]
@@ -45,21 +46,26 @@ outputlog = level, levelname, as ->
     context = { usercontext }: "[$(io.pid):$(Task.id):$(usercontext)]"
               {             }: "[$(io.pid):$(Task.id)]"
 
+    if logsocket and rfc5424:
+        pri = "<$(facility * 8 + min(7, level))>1 "
+        logsocket.write pri, time, " ", host, " ", app, " ", context, " - - ", msg, " - $file:$line $function"
+        return
     if logsocket:
-        pri = "<$(facility * 8 + min(7, level))>1"
-        logsocket.write pri, " ", host, " ", app, " ", context, " - ", msg, " - $file:$line $function"
+        pri = "<$(facility * 8 + min(7, level))>"
+        logsocket.write pri, context, " ", app, ": ", msg, " - $file:$line $function"
         return
     print time, host, app, context, "-", levelname, msg, "-", "$file:$line", function
 
-opensyslog = fac ->
+opensyslog = fac, rfc ->
     var firsterror = null
     if not logsocket:
         sockets.each: sock ->
             catch: e -> firsterror = e
             logsocket = io.Socket.unix(sock, true)
             facility = fac or 16
+            rfc5424 = rfc
             return
-    outputlog(4, "WARNING", ["unable to open syslog socket, tried:", repr(sockets), e])
+    outputlog(4, "WARNING", ["unable to open syslog socket, tried:", repr(sockets), "reason:", firsterror])
 
 levelToNumber = level ->
     levels[level] or Error("unknown level '$level'").throw
@@ -67,8 +73,8 @@ levelToNumber = level ->
 #. object log
 {
     #. setOutput(backend, facility?): switch logger backend, either "syslog" or "stdout" (or "stderr", in the future)
-    setOutput = backend, facility ->
-        { backend == "syslog" }: opensyslog(facility)
+    setOutput = backend, facility, rfc5424 ->
+        { backend == "syslog" }: opensyslog(facility, rfc5424)
         {                     }: closesyslog()
 
     #. setGlobalLevel(level): set a default global log level, messages below this priority will be ignored, unless locally overridden by file or task
