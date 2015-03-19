@@ -646,7 +646,12 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
 
     if (nonblock(fd) < 0) TL_THROW("unix_connect: nonblock failed: %s", strerror(errno));
 
-    int r = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr.sun_family) + strlen(sockaddr.sun_path));
+#ifndef PLATFORM_MACOSX
+    size_t len = sizeof(sockaddr.sun_family) + strlen(sockaddr.sun_path);
+#else
+    size_t len = sizeof(sockaddr) + strlen(sockaddr.sun_path);
+#endif
+    int r = connect(fd, (struct sockaddr *)&sockaddr, len);
     if (r < 0 && errno != EINPROGRESS) TL_THROW("unix_connect: connect failed: %s", strerror(errno));
 
     if (errno == EINPROGRESS) trace("unix_connect: EINPROGRESS");

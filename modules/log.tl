@@ -43,8 +43,8 @@ outputlog = level, levelname, as ->
     app = Task.locals?procname or io.procname
 
     usercontext = Task.locals?logcontext
-    context = { usercontext }: "[$(io.pid):$(Task.id):$(usercontext)]"
-              {             }: "[$(io.pid):$(Task.id)]"
+    context = { usercontext }: "[$(io.pid),$(Task.id),$(usercontext)]"
+              {             }: "[$(io.pid),$(Task.id)]"
 
     if logsocket and rfc5424:
         pri = "<$(facility * 8 + min(7, level))>1 "
@@ -52,9 +52,9 @@ outputlog = level, levelname, as ->
         return
     if logsocket:
         pri = "<$(facility * 8 + min(7, level))>"
-        logsocket.write pri, context, " ", app, ": ", msg, " - $file:$line $function"
+        logsocket.write pri, app, context, ": ", msg, " - $file:$line $function"
         return
-    print time, host, app, context, "-", levelname, msg, "-", "$file:$line", function
+    print time, host, levelname, "$(app)$(context):", msg, "-", "$file:$line", function
 
 opensyslog = fac, rfc ->
     var firsterror = null
