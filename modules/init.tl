@@ -79,11 +79,12 @@ _map = fn ->
         res.add(e)
     return res.toList
 
-#. List.find(element): find #element, return its position or #null if not found
+#. List.find(element): find #element, return its position and itself or #null if not found
 #. [from] start searching from here instead
 #. [block] if not given an element but a block, returns first element for which `block(e, at)` is true
 #. > [1,2,3,4].find(4) == 4
 #. > [1,2,3,4].find(e -> e > 2) == 3
+#. > pos, e = [1,2,4,8].find(e -> e > 2); assert pos == 3 and e == 4
 _find = element (#, [Number from=0] #) ->
     size = this.size
     if size == 0: return
@@ -95,12 +96,13 @@ _find = element (#, [Number from=0] #) ->
         block = args.block
         if not block: throw "find expects an element or a block"
         while $at <= this.size:
-            if block(this[$at], $at): return $at
+            e = this[$at]
+            if block(e, $at): return $at, e
             $at += 1
         return
     # passed in an element
     while $at <= this.size:
-        if this[$at] == element: return $at
+        if this[$at] == element: return $at, element
         $at += 1
     return
 
