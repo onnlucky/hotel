@@ -282,9 +282,9 @@ Socket = {
         UdpSocket.new(_Socket_udp(port, broadcast))
 }
 
-_run = arglist, env, check ->
+_run = arglist, env, check, dir ->
     # no stdin, no stdin, no stderr, joined stdin/stderr
-    child = _io.launch(Task.locals.cwd, arglist, false, true, false, true, env, false)
+    child = _io.launch(dir, arglist, false, true, false, true, env, false)
     output = Stream.new(child.out).readString
     r = child.wait
     if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=output).throw
@@ -293,24 +293,26 @@ _run = arglist, env, check ->
 #. package
 
 #. run(cmdline, args*):
-#. [env=null] a custom environment
+#. [env?] a custom environment
 #. [allowerror=false] supress the exception thrown if command results in nonzero status
+#. [dir?] execute command in directory other then current
 #. execute cmdline.split.first as found in PATH environment variable, passing cmdline.split[2:] + args as arguments
 #. will throw an error when command returns nonzero status
 #. will return output of stdin and stderr combined
 run = cmd ->
     arglist = cmd.toString.split.cat(args[2:].map(a -> a.toString))
-    _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
+    _run(arglist, args["env"], not args["allowerror"], args["dir"] or Task.locals.cwd)
 
 #. shell(cmd, args*):
-#. [env=null] a custom environment
+#. [env?] a custom environment
 #. [allowerror=false] supress the exception thrown if command results in nonzero status
+#. [dir?] execute command in directory other then current
 #. execute cmd in a unix compatible shell, extra arguments will become positional arguments $0, $1 ...
 #. will throw an error when command returns nonzero status
 #. will return output of stdin and stderr combined
 shell = cmd ->
     arglist = ["sh", "-c", cmd.toString].cat(args[2:].map(a -> a.toString))
-    _run(arglist, args.namesmap["env"], not args.namesmap["allowerror"])
+    _run(arglist, args["env"], not args["allowerror"], args["dir"] or Task.locals.cwd)
 
 wait = s -> _io.wait(s)
 
