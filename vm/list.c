@@ -172,25 +172,25 @@ tlList* tlListSet(tlList* list, int at, tlHandle value) {
     return nlist;
 }
 
-/// object List: a list containing elements, immutable
+//. object List: a list containing elements, immutable
 
 static tlHandle _list_toList(tlTask* task, tlArgs* args) {
     return tlListAs(tlArgsTarget(args));
 }
 
-/// size: returns amount of elements in the list
+//. size: returns amount of elements in the list
 static tlHandle _list_size(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     return tlINT(tlListSize(list));
 }
 static uint32_t listHash(tlHandle v);
-/// hash: traverse all elements for a hash, then calculate a final hash
-/// throws an exception if elements could not be hashed
+//. hash: traverse all elements for a hash, then calculate a final hash
+//. throws an exception if elements could not be hashed
 static tlHandle _list_hash(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     return tlINT(listHash(list));
 }
-/// get(index): return the element from the list at index
+//. get(index): return the element from the list at index
 static tlHandle _list_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlList, list);
     int at = at_offset(tlArgsGet(args, 0), tlListSize(list));
@@ -204,8 +204,8 @@ static tlHandle _list_last(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     return tlOR_UNDEF(tlListGet(list, tlListSize(list) - 1));
 }
-/// set(index, element): return a new list, replacing or adding element at index
-/// will pad the list with elements set to null index is beyond the end of the current list
+//. set(index, element): return a new list, replacing or adding element at index
+//. will pad the list with elements set to null index is beyond the end of the current list
 static tlHandle _list_set(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     int at = at_offset_raw(tlArgsGet(args, 0));
@@ -214,28 +214,28 @@ static tlHandle _list_set(tlTask* task, tlArgs* args) {
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListSet(list, at, val);
 }
-/// add(element): return a new list, with element added to the end
+//. add(element): return a new list, with element added to the end
 static tlHandle _list_add(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     tlHandle val = tlArgsGet(args, 0);
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListAppend(list, val);
 }
-/// prepend(element): return a new list, with element added to the front of the list
+//. prepend(element): return a new list, with element added to the front of the list
 static tlHandle _list_prepend(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     tlHandle val = tlArgsGet(args, 0);
     if (!val || tlUndefinedIs(val)) val = tlNull;
     return tlListPrepend(list, val);
 }
-/// cat(list): return a new list, concatenating this with list
+//. cat(list): return a new list, concatenating this with list
 static tlHandle _list_cat(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     tlList* l1 = tlListCast(tlArgsGet(args, 0));
     if (!l1) TL_THROW("Expected a list");
     return tlListCat(list, l1);
 }
-/// slice(left, right): return a new list, from the range between left and right
+//. slice(left, right): return a new list, from the range between left and right
 static tlHandle _list_slice(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
 
@@ -248,8 +248,8 @@ static tlHandle _list_slice(tlTask* task, tlArgs* args) {
 }
 
 // TODO by lack of better name; akin to int.toChar ...
-/// toChar: return a string, formed from a list of numbers
-/// if the list contains numbers that are not valid characters, it throws an exception
+//. toChar: return a string, formed from a list of numbers
+//. if the list contains numbers that are not valid characters, it throws an exception
 static tlHandle _list_toChar(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
 
@@ -280,6 +280,18 @@ static tlHandle _list_reverse(tlTask* task, tlArgs* args) {
     return nlist;
 }
 
+//. contains(element): returns true if element is found in the list, false otherwise
+static tlHandle _list_contains(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlList, list);
+    tlHandle needle = tlArgsGet(args, 0);
+    if (!needle) TL_THROW("contains expects an element");
+    int size = tlListSize(list);
+    for (int i = 0; i < size; i++) {
+        if (tlHandleEquals(needle, tlListGet(list, i))) return tlTrue;
+    }
+    return tlFalse;
+}
+
 static tlHandle _List_unsafe(tlTask* task, tlArgs* args) {
     int size = tl_int_or(tlArgsGet(args, 0), -1);
     if (size < 0) TL_THROW("Expected a size");
@@ -296,7 +308,7 @@ static tlHandle _list_set_(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-/// remove(at): return a new list with the item at index #at removed
+//. remove(at): return a new list with the item at index #at removed
 static tlHandle _list_remove(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     int size = tlListSize(list);
@@ -363,6 +375,7 @@ void list_init() {
         "remove", _list_remove,
         "toChar", _list_toChar,
         "reverse", _list_reverse,
+        "contains", _list_contains,
         "flatten", null,
         "join", null,
         "random", null,
