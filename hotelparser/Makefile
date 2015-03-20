@@ -13,7 +13,7 @@ tlmeta.tl: tlmeta.tlg
 	tlmeta tlmeta.tlg tlmeta.tl
 
 main: tlmeta.c xmlparser.c jsonparser.c hotelparser.c main.c
-	cc -std=c99 -g -O2 -I../vm -I../ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -ldl -lgc
+	cc -std=c99 -g -O2 -I../include/ -L../ -L/usr/local/lib -Wall -Wno-unused-function main.c -o main -ltl -lm -lpthread -ldl -lgc
 
 run: main
 	./main example.tl
