@@ -108,25 +108,34 @@ static tlHandle addAllToMap(tlHashMap* hash, tlTask* task, tlArgs* args) {
     return hash;
 }
 
+//. object HashMap: a mutable mapping of keys to values
+
+//. HashMap.new: create a new hashmap
 static tlHandle _HashMap_new(tlTask* task, tlArgs* args) {
     tlHashMap* hash = tlHashMapNew();
     return addAllToMap(hash, task, args);
 }
 
+//. setAll: set many keys at once, takes in a any amount of #Objects #Maps or #HashMaps
 static tlHandle _hashmap_setAll(tlTask* task, tlArgs* args) {
     TL_TARGET(tlHashMap, hash);
     return addAllToMap(hash, task, args);
 }
 
-
+//. size: return a count of how many mappings this hashmap has
 static tlHandle _hashmap_size(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     return tlINT(tlHashMapSize(map));
 }
+
+//. clear: clear all entries from this hashmap
 static tlHandle _hashmap_clear(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     return tlHashMapClear(map);
 }
+
+//. get(key): get a value from the map
+//. will return undefined if the key is not in the hashmap
 static tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlHashMap, map);
     tlHandle key = tlArgsGet(args, 0);
@@ -137,6 +146,11 @@ static tlHandle _hashmap_get(tlTask* task, tlArgs* args) {
     trace("%s == %s", tl_str(key), tl_str(val));
     return tlOR_UNDEF(val);
 }
+
+//. set(key, value): set a key in the map to a certain value
+//. if the key already exists, its mapping is simply overwritten
+//. the key must be hashable
+//. the value may not be undefined
 static tlHandle _hashmap_set(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
@@ -148,6 +162,9 @@ static tlHandle _hashmap_set(tlTask* task, tlArgs* args) {
     tlHashMapSet(map, key, val);
     return val?val:tlNull;
 }
+
+//. has(key): check if a key exist in the map
+//. will return true even if the value is null or false
 static tlHandle _hashmap_has(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
@@ -159,6 +176,8 @@ static tlHandle _hashmap_has(tlTask* task, tlArgs* args) {
     if (!val) return tlFalse;
     return tlTrue;
 }
+
+//. del(key): delete (remote) a key from this map
 static tlHandle _hashmap_del(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
     tlHandle key = tlArgsGet(args, 0);
@@ -169,7 +188,8 @@ static tlHandle _hashmap_del(tlTask* task, tlArgs* args) {
     trace("%s == %s", tl_str(key), tl_str(val));
     return tlOR_UNDEF(val);
 }
-// TODO should implement each instead, this is costly
+
+//. keys: get a list of all keys in the map
 static tlHandle _hashmap_keys(tlTask* task, tlArgs* args) {
     tlHashMap* map = tlHashMapAs(tlArgsTarget(args));
 
@@ -259,6 +279,7 @@ void hashmap_init() {
         "toObject", _hashmap_toObject,
         "each", _hashmap_each,
         "map", null,
+        "filter", null,
         null
     ), tlMETHODS(
         "new", _HashMap_new,

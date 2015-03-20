@@ -352,6 +352,17 @@ static tlHandle _Args_from(tlTask* task, tlArgs* args) {
     return call;
 }
 
+//. args.invoke(fn): invoke the function with these arguments
+//. these two are the same: `print(1, 2)` and `Args(1, 2).invoke(print)`
+static tlHandle _args_invoke(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlArgs, call);
+    tlHandle fn = tlArgsGet(args, 0);
+    if (!fn) TL_THROW("invoke require a function to call");
+
+    tlArgs* call2 = tlArgsFrom(call, fn, null, null);
+    return tlInvoke(task, call2);
+}
+
 const char* _ArgstoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "<Args@%p %d %d>", v, tlArgsSize(tlArgsAs(v)), tlArgsNamedSize(tlArgsAs(v)));
     return buf;
@@ -387,6 +398,8 @@ void args_init() {
         "filter", null,
         "flatten", null,
         "join", null,
+
+        "invoke", _args_invoke,
         null
     ), tlMETHODS(
         "from", _Args_from,

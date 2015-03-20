@@ -38,7 +38,7 @@ C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
 all: tl $(C_MODULES) $(TLG_MODULES) $(BIN_MODULES)
 
 # these targets require a working language
-boot: boot/init.tlb.h boot/compiler.tlb.h boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
+BOOTFILES:=boot/init.tlb.h boot/compiler.tlb.h boot/hotelparser.o boot/jsonparser.o boot/xmlparser.o
 
 # so we check if there is a working version installed and build them, or copy pre generated (perhaps older) versions
 BOOT?=$(shell tl --version | grep hotel)
@@ -81,14 +81,13 @@ pregen: boot/pregen/init.tlb.h boot/pregen/compiler.tlb.h boot/pregen/tlmeta.c b
 
 # handy start target
 run: tl
-	echo $(BOOT)
 	TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl run.tl
 	#./tlcompiler run.tl
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl --init run.tlb
 	#TL_MODULE_PATH=./modules:./cmodules $(TOOL) ./tl
 
 # test targets
-unit-test: tl boot
+unit-test: tl $(BOOTFILES)
 	$(MAKE) -C vm test
 test-noboot: tl
 	cd test/noboot/ && ./run.sh
@@ -105,7 +104,7 @@ $(LIBATOMIC):
 ev.o: ev/*.c ev/*.h config.h Makefile
 	$(CC) $(subst -Werror,,$(subst -Wall,,$(CFLAGS))) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
 
-tl: boot ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h include/*.h Makefile
+tl: $(BOOTFILES) ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h include/*.h Makefile
 	$(MAKE) -C vm tl
 	cp vm/tl tl
 
@@ -144,7 +143,7 @@ dist-clean: distclean
 docgen.tl: docgen.tlg
 	TL_MODULE_PATH=./modules ./tl tlmeta docgen.tlg docgen.tl
 doc: all docgen.tl
-	TL_MODULE_PATH=./modules ./tl docgen.tl vm/array.c vm/bin.c vm/buffer.c vm/list.c vm/map.c vm/regex.c vm/string.c vm/time.c vm/vm.c modules/init.tl modules/io.tl
+	TL_MODULE_PATH=./modules ./tl docgen.tl vm/hashmap.c vm/array.c vm/bin.c vm/buffer.c vm/list.c vm/map.c vm/regex.c vm/string.c vm/time.c vm/vm.c modules/init.tl modules/io.tl
 
 PREFIX?=/usr/local
 BINDIR:=$(DESTDIR)$(PREFIX)/bin
@@ -177,5 +176,5 @@ ifndef NO_GRAPHICS
 	$(MAKE) -C graphics uninstall
 endif
 
-.PHONY: run test clean distclean install uninstall
+.PHONY: run test clean distclean install uninstall all boot
 

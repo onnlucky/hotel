@@ -36,6 +36,7 @@ test: $(TESTS)
 evio.o: evio.c *.h Makefile
 	$(CC) -c $< $(CFLAGS) -fno-strict-aliasing
 
+vm.o: vm.c ../boot/*.h ../boot/*.c
 %.o: %.c *.h Makefile
 	$(CC) -c $< $(CFLAGS)
 

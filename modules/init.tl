@@ -441,6 +441,7 @@ _object_map = (m, fn ->
 _install(Object, "each", _object_each)
 _install(Object, "map", _object_map)
 
+#. HashMap.map(transform|block): return a list of all elements, with transform applied to them
 _hashmap_map = (fn ->
     block = args.block or fn
     if not block: throw "map expects a block or fn"
@@ -448,7 +449,16 @@ _hashmap_map = (fn ->
     this.each(k, v, n -> res.add(block(k, v, n)))
     res.toList
 )
+
+#. HashMap.filter(predicate|block): keep only those elements for which the predicate returns true
+_hashmap_filter = (fn ->
+    block = args.block or fn
+    if not block: throw "filter expects a block or fn"
+    this.each(k, v, n -> if not block(k, v, n): this.del(k))
+)
+
 _install_method(HashMap, "map", _hashmap_map)
+_install_method(HashMap, "filter", _hashmap_filter)
 
 # TODO perhaps these methods must lock the array?
 _install_method(Array, "addAll", _addAll)

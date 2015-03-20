@@ -15,12 +15,12 @@ implement 3 way comparison: "value - range <= in <= value + range"
 # IMPLEMENTATION TODO
 
 make tlInt and hahsing (uint32_t) work together, simply fix the high byte to 0?
-make tlINT and tl_int 32/64 bit safe across the board
-likely more places require tlNUM instead of tlINT, when their range is beyond TL_MIN_INT32/TL_MAX_INT32
 
 unify tl_kind with tlClass with tlUserClass allow to inherit from host native objects
 
 implement real operators, finally
+
+tlSet (set.c) is not really any good, it is a SymbolSet and should be treated as such
 
 fix/finish modules, should load them relative to current module, then Task.locals, then TL_MODULE_PATH; should be able to call them as functions, as well as get their results
 

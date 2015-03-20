@@ -1,6 +1,8 @@
 // author: Onne Gorter, license: MIT (see license.txt)
 
-// ** set **
+// a set for symbols
+
+// TODO either upgrade to anything that is hashable or remove
 
 #include "set.h"
 

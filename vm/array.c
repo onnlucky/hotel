@@ -116,6 +116,7 @@ tlArray* tlArraySet(tlArray* array, int i, tlHandle v) {
     array->data[i] = v;
     return array;
 }
+
 tlList* tlArrayToList(tlArray* array) {
     tlList* list = tlListNew(array->size);
     for (int i = 0; i < array->size; i++) {
@@ -126,7 +127,8 @@ tlList* tlArrayToList(tlArray* array) {
     return list;
 }
 
- tlHandle _Array_new(tlTask* task, tlArgs* args) {
+// TODO actually ... using tlArrayIs and then iterating it like this is not thread safe ... should holds its lock
+tlHandle _Array_new(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayNew();
     for (int i = 0; i < 1000; i++) {
         tlHandle h = tlArgsGet(args, i);
@@ -150,7 +152,8 @@ tlList* tlArrayToList(tlArray* array) {
     }
     return array;
 }
- tlHandle _array_size(tlTask* task, tlArgs* args) {
+
+tlHandle _array_size(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlINT(tlArraySize(array));
 }
