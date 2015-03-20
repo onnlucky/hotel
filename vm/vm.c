@@ -190,7 +190,7 @@ static tlHandle _neq(tlTask* task, tlArgs* args) {
     trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(!tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-/// compare: compare two values, and always return a ordering, order will be runtime dependend sometimes
+/// compare: compare two values, and always return a ordering, order will be runtime dependent sometimes
 static tlHandle _compare(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     tlHandle cmp = tlHandleCompare(left, right);
@@ -200,8 +200,10 @@ static tlHandle _compare(tlTask* task, tlArgs* args) {
         if (lk->index != rk->index) return tlCOMPARE(rk->index - lk->index); // inverse ...
         int r = strcmp(lk->name, rk->name);
         if (r) return tlCOMPARE(r);
-        // ultimate fallback, will depend on runtime pointers
-        return tlCOMPARE(tl_kind(left) - tl_kind(right));
+
+        // ultimate fallback, will depend on runtime pointers, cannot be equals
+        if (tl_kind(left) < tl_kind(right)) return tlSmaller;
+        return tlLarger;
     }
     assert(cmp == tlSmaller || cmp == tlEqual || cmp == tlLarger);
     return cmp;
@@ -247,39 +249,39 @@ static tlHandle _gte(tlTask* task, tlArgs* args) {
 static tlHandle _bnot(tlTask* task, tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
     if (tlNumberIs(v)) {
-        uint32_t vs = tl_int(v);
+        uint32_t vs = (uint32_t)tlNumberToInt64(v);
         uint32_t res = ~vs;
-        return tlNUM((uint32_t)res);
+        return tlNUM((intptr_t)res);
     }
     TL_THROW("'~' not implemented for: ~%s", tl_str(v));
 }
 static tlHandle _band(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        uint32_t lhs = tl_int(l);
-        uint32_t rhs = tl_int(r);
+        uint32_t lhs = (uint32_t)tlNumberToInt64(l);
+        uint32_t rhs = (uint32_t)tlNumberToInt64(r);
         uint32_t res = lhs & rhs;
-        return tlNUM((uint32_t)res);
+        return tlNUM((intptr_t)res);
     }
     TL_THROW("'&' not implemented for: %s & %s", tl_str(l), tl_str(r));
 }
 static tlHandle _bor(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        uint32_t lhs = tl_int(l);
-        uint32_t rhs = tl_int(r);
+        uint32_t lhs = (uint32_t)tlNumberToInt64(l);
+        uint32_t rhs = (uint32_t)tlNumberToInt64(r);
         uint32_t res = lhs | rhs;
-        return tlNUM((uint32_t)res);
+        return tlNUM((intptr_t)res);
     }
     TL_THROW("'|' not implemented for: %s | %s", tl_str(l), tl_str(r));
 }
 static tlHandle _bxor(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        uint32_t lhs = tl_int(l);
-        uint32_t rhs = tl_int(r);
+        uint32_t lhs = (uint32_t)tlNumberToInt64(l);
+        uint32_t rhs = (uint32_t)tlNumberToInt64(r);
         uint32_t res = lhs ^ rhs;
-        return tlNUM((uint32_t)res);
+        return tlNUM((intptr_t)res);
     }
     TL_THROW("'^' not implemented for: %s ^ %s", tl_str(l), tl_str(r));
 }
@@ -287,7 +289,7 @@ static tlHandle _bxor(tlTask* task, tlArgs* args) {
 static tlHandle _blshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        int64_t lhs = tl_int(l);
+        int64_t lhs = tlNumberToInt64(l);
         int rhs = tl_int(r);
         if (rhs <= -64 || rhs >= 64) return tlZero;
         uint64_t res = rhs >= 0? lhs << rhs : lhs >> -rhs;
@@ -298,7 +300,7 @@ static tlHandle _blshift(tlTask* task, tlArgs* args) {
 static tlHandle _brshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        int64_t lhs = tl_int(l);
+        int64_t lhs = tlNumberToInt64(l);
         int rhs = tl_int(r);
         if (rhs <= -64 || rhs >= 64) return tlZero;
         uint64_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
@@ -309,7 +311,7 @@ static tlHandle _brshift(tlTask* task, tlArgs* args) {
 static tlHandle _brrshift(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        uint32_t lhs = tl_int(l);
+        uint32_t lhs = tlNumberToInt64(l);
         int rhs = tl_int(r);
         if (rhs < -64 || rhs > 64) return tlZero;
         uint32_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
@@ -321,14 +323,14 @@ static tlHandle _brrshift(tlTask* task, tlArgs* args) {
 // int/float/bigint
 static tlHandle _neg(tlTask* task, tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
-    if (tlIntIs(v)) return tlINT(-tl_int(v));
+    if (tlIntIs(v)) return tlINT(-tlIntToInt(v));
     if (tlFloatIs(v)) return tlFLOAT(-tl_double(v));
     if (tlNumberIs(v)) return tlNumNeg(tlNumTo(v));
     TL_THROW("'-' not implemented for: -%s", tl_str(v));
 }
 static tlHandle _add(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) + tl_int(r));
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) + tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) + tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumAdd(tlNumTo(l), tlNumTo(r));
     if (tlBinIs(l) && tlBinIs(r)) return tlBinCat(tlBinAs(l), tlBinAs(r));
@@ -348,7 +350,7 @@ static tlHandle _add(tlTask* task, tlArgs* args) {
 }
 static tlHandle _sub(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) - tl_int(r));
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) - tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) - tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumSub(tlNumTo(l), tlNumTo(r));
     TL_THROW("'-' not implemented for: %s - %s", tl_str(l), tl_str(r));
@@ -373,7 +375,7 @@ static tlHandle _div(tlTask* task, tlArgs* args) {
 }
 static tlHandle _idiv(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) / tl_int(r)); // TODO return remainder as well?
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) / tlIntToInt(r)); // TODO return remainder as well?
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumDiv(tlNumTo(l), tlNumTo(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
@@ -384,7 +386,7 @@ static tlHandle _fdiv(tlTask* task, tlArgs* args) {
 }
 static tlHandle _mod(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
-    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tl_int(l) % tl_int(r));
+    if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) % tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
     TL_THROW("'%%' not implemented for: %s %% %s", tl_str(l), tl_str(r));
@@ -393,7 +395,7 @@ static tlHandle _pow(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(pow(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) {
-        intptr_t p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
+        int p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
         if (p < 0) return tlFLOAT(pow(tl_double(l), p));
         if (p < 1000) return tlNumPow(tlNumTo(l), p);
         TL_THROW("'**' out of range: %s ** %zd", tl_str(l), p);
@@ -815,6 +817,7 @@ void tlVmRun(tlVm* vm, tlTask* task) {
     tlWorkerRun(worker);
 }
 
+// TODO tl_str is for debugging, and this should all be done in language
 static tlHandle _print(tlTask* task, tlArgs* args) {
     const char* sep = " ";
     tlHandle v = tlArgsGetNamed(args, tlSYM("sep"));

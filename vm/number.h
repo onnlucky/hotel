@@ -12,6 +12,9 @@ tlNum* tlNumDiv(tlNum* l, tlNum* r);
 tlNum* tlNumMod(tlNum* l, tlNum* r);
 tlNum* tlNumPow(tlNum* l, intptr_t r);
 
+int64_t tlNumberToInt64(tlHandle h);
+tlHandle tlNumberFromDouble(double d);
+
 void number_init();
 
 #endif

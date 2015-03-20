@@ -297,7 +297,7 @@ int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
         return len;
     }
     if (tlIntIs(v)) {
-        return tlBufferWriteByte(buf, tl_int(v));
+        return tlBufferWriteByte(buf, tlIntToInt(v));
     }
     if (tlNumberIs(v)) {
         return tlBufferWriteByte(buf, (int)tl_double(v));

@@ -1203,8 +1203,9 @@ void tlDumpTraceEvent(int event) {
     if (!g_trace_task[event]) return;
     int npc = g_trace_frame[event]? g_trace_frame[event]->pc : -1;
     tlBClosure* fn = tlBClosureAs(tlArgsFn(g_trace_args[event]));
-    print("task=%p frame=%p pc=%d(%d) function: %s(%d) args=%s", g_trace_task[event],
-            g_trace_frame[event], g_trace_pc[event], npc, tl_str(fn->code->debuginfo->name), fn->code->size,
+    print("task=%p frame=%p pc=%d(%d) function: %s:%s (%d) args=%s", g_trace_task[event],
+            g_trace_frame[event], g_trace_pc[event], npc, tl_str(fn->code->mod->name),
+            tl_str(fn->code->debuginfo->name), fn->code->size,
             tl_str(g_trace_args[event]));
 }
 

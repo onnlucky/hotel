@@ -221,16 +221,22 @@ static inline tlHandle tlNumberCast(tlHandle v) { return tlNumberIs(v)? v : null
 #define tlSTR(x) tlStringFromStatic(x, strlen(x))
 #define tlSYM(x) tlSymFromStatic(x, strlen(x))
 
+/// return a bool (0 or 1) based on use value, false is null, tlNull, tlFalse, tlUndef()
 int tl_bool(tlHandle v);
 int tl_bool_or(tlHandle v, bool d);
-intptr_t tl_int(tlHandle v);
-intptr_t tl_int_or(tlHandle v, int d);
+
+/// return a int from any number value, will simply cast to int
+/// TODO return MIN or MAX on over/underflow
+int tl_int(tlHandle v);
+int tl_int_or(tlHandle v, int d);
+
 double tl_double(tlHandle v);
 double tl_double_or(tlHandle v, double d);
-const char* tl_str(tlHandle v); // returns a const char* from an internal static pool, only to be used for debugging
+
+/// returns a const char* from an internal static pool, only to be used for debugging
+const char* tl_str(tlHandle v);
 char* tl_repr(tlHandle v);
 
-int at_offset(tlHandle v, int size);
 
 // ** main api for values in runtime **
 

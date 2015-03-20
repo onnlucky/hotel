@@ -3,6 +3,8 @@
 #include "platform.h"
 #include "idset.h"
 
+#include "value.h"
+
 #define INITIAL_LEN 4
 #define GROW_FACTOR 0.9
 #define SHRINK_FACTOR 0.3

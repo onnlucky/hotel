@@ -204,17 +204,17 @@ static tlKind _tlBoolKind = {
 };
 
 static const char* inttoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "%zd", tl_int(v)); return buf;
+    snprintf(buf, size, "%zd", tlIntToInt(v)); return buf;
 }
 static unsigned int intHash(tlHandle v) {
-    intptr_t i = tl_int(v);
+    intptr_t i = tlIntToInt(v);
     return murmurhash2a(&i, sizeof(i));
 }
 static bool intEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
 static tlHandle intCmp(tlHandle left, tlHandle right) {
-    intptr_t l = tl_int(left); intptr_t r = tl_int(right);
+    intptr_t l = tlIntToInt(left); intptr_t r = tlIntToInt(right);
     if (l < r) return tlSmaller;
     if (l > r) return tlLarger;
     return tlEqual;
@@ -242,7 +242,7 @@ static tlHandle _int_hash(tlTask* task, tlArgs* args) {
     return tlINT(intHash(tlArgsTarget(args)));
 }
 static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
-    intptr_t c = tl_int(tlArgsTarget(args));
+    intptr_t c = tlIntToInt(tlArgsTarget(args));
     if (c < 0) c = 32;
     if (c > 255) c = 32;
     if (c < 0) TL_THROW("negative numbers cannot be a char");
@@ -251,7 +251,7 @@ static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
     return tlStringFromCopy(buf, 1);
 }
 static tlHandle _int_toString(tlTask* task, tlArgs* args) {
-    intptr_t c = tl_int(tlArgsTarget(args));
+    intptr_t c = tlIntToInt(tlArgsTarget(args));
     int base = tl_int_or(tlArgsGet(args, 0), 10);
     char buf[128];
     int len = 0;
@@ -289,12 +289,12 @@ static tlHandle _int_self(tlTask* task, tlArgs* args) {
     return tlArgsTarget(args);
 }
 static tlHandle _int_abs(tlTask* task, tlArgs* args) {
-    intptr_t i = tl_int(tlArgsTarget(args));
+    intptr_t i = tlIntToInt(tlArgsTarget(args));
     if (i < 0) return tlINT(-i);
     return tlArgsTarget(args);
 }
 static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
-    intptr_t n = tl_int(tlArgsTarget(args));
+    intptr_t n = tlIntToInt(tlArgsTarget(args));
     uint8_t bytes[4];
     for (int i = 0; i < 4; i++) bytes[3 - i] = (uint8_t)(n >> (8 * i));
     return tlBinFromCopy((const char*)bytes, 4);

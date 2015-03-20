@@ -158,16 +158,16 @@ static tlHandle _float_bytes(tlTask* task, tlArgs* args) {
     return tlBinFromCopy(bytes, 8);
 }
 static tlHandle _float_abs(tlTask* task, tlArgs* args) {
-    return tlFLOAT(abs(tl_double(tlArgsTarget(args))));
+    return tlFLOAT(fabs(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_floor(tlTask* task, tlArgs* args) {
-    return tlNUM(floor(tl_double(tlArgsTarget(args))));
+    return tlNumberFromDouble(floor(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_round(tlTask* task, tlArgs* args) {
-    return tlNUM(round(tl_double(tlArgsTarget(args))));
+    return tlNumberFromDouble(round(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_ceil(tlTask* task, tlArgs* args) {
-    return tlNUM(ceil(tl_double(tlArgsTarget(args))));
+    return tlNumberFromDouble(ceil(tl_double(tlArgsTarget(args))));
 }
 static tlHandle _float_toString(tlTask* task, tlArgs* args) {
     double c = tl_double(tlArgsTarget(args));
@@ -227,6 +227,12 @@ tlHandle tlNumberFrom(mp_int n) {
     return tlNumFrom(n);
 }
 
+tlHandle tlNumberFromDouble(double d) {
+    if (d >= TL_MIN_INT && d <= TL_MAX_INT) return tlINT((intptr_t)d);
+    warning("might be an incorrect number conversion: %f == %lld", d, (int64_t)d);
+    return tlNumNew((int64_t)d);
+}
+
 tlNum* tlNumTo(tlHandle h) {
     assert(tlNumberIs(h));
     if (tlNumIs(h)) return tlNumAs(h);
@@ -234,7 +240,7 @@ tlNum* tlNumTo(tlHandle h) {
 }
 
 intptr_t tlNumToInt(tlNum* num) {
-    return mp_get_int(&num->value);
+    return mp_get_signed(&num->value);
 }
 double tlNumToDouble(tlNum* num) {
     return (double)mp_get_int(&num->value);
@@ -393,12 +399,12 @@ static tlHandle numCmp(tlHandle left, tlHandle right) {
     if (!tlNumIs(left)) {
         mp_int nleft; mp_init(&nleft);
         if (tlFloatIs(left)) mp_set_double(&nleft, tl_double(left));
-        else mp_set_signed(&nleft, tl_int(left));
+        else mp_set_signed(&nleft, tlIntToInt(left));
         cmp = mp_cmp(&nleft, &tlNumAs(right)->value);
     } else if (!tlNumIs(right)) {
         mp_int nright; mp_init(&nright);
         if (tlFloatIs(right)) mp_set_double(&nright, tl_double(right));
-        else mp_set_signed(&nright, tl_int(right));
+        else mp_set_signed(&nright, tlIntToInt(right));
         cmp = mp_cmp(&tlNumAs(left)->value, &nright);
     } else {
         cmp = mp_cmp(&tlNumAs(left)->value, &tlNumAs(right)->value);
@@ -433,21 +439,42 @@ tlHandle tlNUM(intptr_t l) {
     return tlNumNew(l);
 }
 
-intptr_t tl_int(tlHandle h) {
+int64_t tlNumberToInt64(tlHandle h) {
     if (tlIntIs(h)) return tlIntToInt(h);
-    if (tlFloatIs(h)) return (intptr_t)tlFloatAs(h)->value;
+    if (tlFloatIs(h)) return (int64_t)tlFloatAs(h)->value;
     if (tlNumIs(h)) return tlNumToInt(tlNumAs(h));
     if (tlCharIs(h)) return tlCharAs(h)->value;
-    assert(false);
-    return 0;
+    return INT64_MIN;
 }
-intptr_t tl_int_or(tlHandle h, int d) {
-    if (tlIntIs(h)) return tlIntToInt(h);
-    if (tlFloatIs(h)) return (intptr_t)tlFloatAs(h)->value;
-    if (tlNumIs(h)) return tlNumToInt(tlNumAs(h));
-    if (tlCharIs(h)) return tlCharAs(h)->value;
-    return d;
+
+int tl_int(tlHandle h) {
+    int64_t i;
+    if (tlIntIs(h)) i = tlIntToInt(h);
+    else if (tlFloatIs(h)) i = (int64_t)tlFloatAs(h)->value;
+    else if (tlNumIs(h)) i = tlNumToInt(tlNumAs(h));
+    else if (tlCharIs(h)) i = tlCharAs(h)->value;
+    else { assert(false); return INT_MIN; }
+
+    //if (!(i > INT_MIN && i < INT_MAX)) fatal("bad number: %s %lld", tl_str(h), i);
+    if (i < INT_MIN) return INT_MIN;
+    if (i > INT_MAX) return INT_MAX;
+    return (int)i;
 }
+
+int tl_int_or(tlHandle h, int d) {
+    int64_t i;
+    if (tlIntIs(h)) i = tlIntToInt(h);
+    else if (tlFloatIs(h)) i = (int64_t)tlFloatAs(h)->value;
+    else if (tlNumIs(h)) i = tlNumToInt(tlNumAs(h));
+    else if (tlCharIs(h)) i = tlCharAs(h)->value;
+    else return d;
+
+    //if (!(i > INT_MIN && i < INT_MAX)) fatal("bad number: %s %lld", tl_str(h), i);
+    if (i < INT_MIN) return INT_MIN;
+    if (i > INT_MAX) return INT_MAX;
+    return (int)i;
+}
+
 double tl_double(tlHandle h) {
     if (tlFloatIs(h)) return tlFloatAs(h)->value;
     if (tlIntIs(h)) return tlIntToDouble(h);
@@ -456,6 +483,7 @@ double tl_double(tlHandle h) {
     assert(false);
     return NAN;
 }
+
 double tl_double_or(tlHandle h, double d) {
     if (tlFloatIs(h)) return tlFloatAs(h)->value;
     if (tlIntIs(h)) return tlIntToDouble(h);
@@ -482,8 +510,8 @@ void number_init() {
 
     assert(tlINT(TL_MAX_INT) == tlIntMax);
     assert(tlINT(TL_MIN_INT) == tlIntMin);
-    assert(tl_int(tlIntMax) == TL_MAX_INT);
-    assert(tl_int(tlIntMin) == TL_MIN_INT);
+    assert(tlIntToInt(tlIntMax) == TL_MAX_INT);
+    assert(tlIntToInt(tlIntMin) == TL_MIN_INT);
 
     mp_int ZERO; mp_init(&ZERO); mp_set(&ZERO, 0);
     assert(mp_cmp(&MIN_INT_BIGNUM, &ZERO) == -1);
