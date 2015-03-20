@@ -17,11 +17,9 @@ normalizename = name ->
     { htmlelement(lower) }: lower
     {                    }: name
 
-normalizews = text -> text.trim.replace("\t"," ").split(" ").join(" ")
-
 process = node, cmd ->
     if not cmd: return node
-    if isString(cmd): node.add(normalizews(cmd)); return node
+    if isString(cmd): node.add(cmd); return node
     name = normalizename(cmd.name)
     { cmd.type == "open"      }:
         { selfclosing(name) }: create_node(node, name, cmd.attrs); node
@@ -49,5 +47,13 @@ parse = s ->
     stream.each: cmd -> $node = process($node, cmd)
     return root
 
-{{ parse }}
+# TODO properly ...
+escape = text ->
+    text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+# TODO properly ...
+unescape = text ->
+    text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&bnsp;", " ")
+
+{{ parse, escape, unescape }}
 

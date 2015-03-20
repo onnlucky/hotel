@@ -13,6 +13,26 @@ isBlock = name -> return blocks[name] or false
 containers = [html=1,body=1,div=1,article=1,section=1,header=1,footer=1,nav=1,table=1]
 isContainer = name -> return containers[name] or false
 
+normalizews = text ->
+    step1 = text.replace("\t", " ").replace("\n", " ").replace("\r", " ")
+    step2 = step1.split(" ", keepempty=false).join(" ")
+    l = { step1[1] <= ' '  }: step1[1]
+        {                  }: ""
+    r = { step1[-1] <= ' ' }: step1[-1]
+        {                  }: ""
+    [l, step2, r].join
+
+# TODO properly ...
+# TODO is only here, because we cannot do html.unescape, that would make a circly out of the dependencies ... sigh should be supported
+unescape = text ->
+    text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&bnsp;", " ")
+
+
+test "normalize whitespace":
+    assert normalizews("\n\n\nhello\n\n\n") == " hello "
+    assert normalizews(" hello    ") == " hello "
+    assert normalizews("hello\nworld\nbye\n") == "hello world bye "
+
 iter2 = node, fn ->
     fn(node)
     var $n = node.firstChild
@@ -63,7 +83,7 @@ DomEntry = {
 
 DomText = {
     class = DomEntry
-    toString = -> return this.text or ""
+    toString = -> this.text or ""
     firstChild = null
     lastChild = null
     attrs = null
@@ -138,7 +158,7 @@ DomNode = {
     # think Element.textContent
     text = ->
         sb = Array.new
-        iter(this): n -> if n.class == DomText: sb.add(n.text)
+        iter(this): n -> if n.class == DomText: sb.add(unescape(normalizews(n.text)))
         sb.join
 
     each = fn ->
