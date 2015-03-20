@@ -1,5 +1,6 @@
 tl
 
+*.tlb
 *.o
 *.lo
 *.a
@@ -10,8 +11,8 @@ tl
 boot/*.c
 boot/*.h
 
-test/noboot/*.tlb
 test/noboot/*.log
 test/noboot/*.err
 cmodules/*.mod
 hotelparser/*parser.c
+modules/*.h
