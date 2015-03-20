@@ -229,7 +229,7 @@ tlHandle tlNumberFrom(mp_int n) {
 
 tlHandle tlNumberFromDouble(double d) {
     if (d >= TL_MIN_INT && d <= TL_MAX_INT) return tlINT((intptr_t)d);
-    warning("might be an incorrect number conversion: %f == %lld", d, (int64_t)d);
+    warning("might be an incorrect number conversion: %f == %lld", d, (long long)d);
     return tlNumNew((int64_t)d);
 }
 

@@ -252,7 +252,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print, int depth)
         return false;
     }
     if (kind == tlIntKind) {
-        n = snprintf(b, sizeof(b) - 1, "%zd", tl_int(h));
+        n = snprintf(b, sizeof(b) - 1, "%lld", (long long)tlIntToInt(h));
         tlBufferWrite(buf, b, n);
         return false;
     }
