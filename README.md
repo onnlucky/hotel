@@ -95,6 +95,7 @@ focus on the problem at hand.
 
 hotel |hōˈtel|
 noun
+
 1. an establishment providing accommodations, meals, and other services for
    travellers and tourists.
 2. a code word representing the letter H, used in radio communication.
@@ -113,13 +114,11 @@ and for a graphics environment, either gtk or cocoa
 make
 sudo make PREFIX=/usr install
 ```
-
 That will install a `tl` command, the main interpreter. Also a `gtl` command,
 that last one is for opening windows in a desktop environemnt.
 
-
-Options to make are: `NO_PORTAUDIO=1`, `NO_CAIRO=1`,  `NO_OPENSSL=1`,
-`NO_GRAPHICS=1` to disable building/installing modules.
+To disable building certain parts, you can use: `NO_PORTAUDIO=1`, `NO_CAIRO=1`,
+`NO_OPENSSL=1`, `NO_GRAPHICS=1`.
 
 a headless install:
 ```
@@ -152,4 +151,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
