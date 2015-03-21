@@ -127,7 +127,10 @@ tlList* tlArrayToList(tlArray* array) {
     return list;
 }
 
+//. object Array: a mutable list
+
 // TODO actually ... using tlArrayIs and then iterating it like this is not thread safe ... should holds its lock
+//. Array.new(...ls): create a new array, filled with the all elements from the lists given
 tlHandle _Array_new(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayNew();
     for (int i = 0; i < 1000; i++) {
@@ -153,23 +156,35 @@ tlHandle _Array_new(tlTask* task, tlArgs* args) {
     return array;
 }
 
+//. size: return the count of the elements in this array
 tlHandle _array_size(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlINT(tlArraySize(array));
 }
+
+//. clear: remove all elements from this array
 tlHandle _array_clear(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlArrayClear(array);
 }
+
+//. toList: turn this array into an immutable #List
 static tlHandle _array_toList(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlArrayToList(array);
 }
+
+//. get(at): return the element at index at, will return #undefined if at is
+//. outside of the size of the array
 static tlHandle _array_get(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     return tlOR_UNDEF(tlArrayGet(array, at));
 }
+
+//. set(at, value): set the element at index at to a certain value
+//. if the array is currently too small, it will grow to include at, all new
+//. elements will be set to #null
 static tlHandle _array_set(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset_raw(tlArgsGet(args, 0));
@@ -177,6 +192,8 @@ static tlHandle _array_set(tlTask* task, tlArgs* args) {
     if (at < 0) TL_THROW("index must be >= 1");
     return tlArraySet(array, at, tlArgsGet(args, 1));
 }
+
+//. add(value): add a value at the end of the array, growing it by 1
 static tlHandle _array_add(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     tlHandle v = tlNull;
@@ -186,6 +203,8 @@ static tlHandle _array_add(tlTask* task, tlArgs* args) {
     }
     return tlResultFrom(v, tlINT(array->size), null);
 }
+
+//. cat(...ls): add all contents of all lists or arrays to this array
 static tlHandle _array_cat(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
@@ -202,11 +221,14 @@ static tlHandle _array_cat(tlTask* task, tlArgs* args) {
     }
     return array;
 }
+
+//. pop: remove the last value of the array and return that
 static tlHandle _array_pop(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     return tlOR_UNDEF(tlArrayPop(array));
 }
 
+//. reverse: change the order in the array, such that the first elements are the last elements
 static tlHandle _array_reverse(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int size = tlArraySize(array);
@@ -218,6 +240,7 @@ static tlHandle _array_reverse(tlTask* task, tlArgs* args) {
     return array;
 }
 
+//. insert(at, value): insert a value at a certain position, the element there and after will move by one spot
 static tlHandle _array_insert(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset_raw(tlArgsGet(args, 0));
@@ -225,12 +248,17 @@ static tlHandle _array_insert(tlTask* task, tlArgs* args) {
     if (at < 0) TL_THROW("index must be >= 1");
     return tlArrayInsert(array, at, tlArgsGet(args, 1));
 }
+
+//. remove(at): remove a value at a certain position, all elements after will move back by one spot
 static tlHandle _array_remove(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlArraySize(array));
     if (at < 0) TL_THROW("index must be >= 1");
     return tlOR_UNDEF(tlArrayRemove(array, at));
 }
+
+//. splice(from, to, ...ls): cut out a range in this array, replacing it by all elements in lists given
+//. when no lists are given, the elements are simply removed
 static tlHandle _array_splice(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     int from = at_offset_min(tlArgsGet(args, 0), tlArraySize(array));
@@ -265,7 +293,7 @@ static tlHandle _array_splice(tlTask* task, tlArgs* args) {
     return array;
 }
 
-/// slice(left, right): return a new list, from the range between left and right
+//. slice(left, right): return a new list, from the range between left and right
 static tlHandle _array_slice(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
 
@@ -279,8 +307,8 @@ static tlHandle _array_slice(tlTask* task, tlArgs* args) {
 
 // TODO by lack of better name; akin to int.toChar ...
 // TODO taken from list.c ... duplicate code ... oeps
-/// toChar: return a string, formed from a array of numbers
-/// if the array contains numbers that are not valid characters, it throws an exception
+//. toChar: return a string, formed from a array of numbers
+//. if the array contains numbers that are not valid characters, it throws an exception
 static tlHandle _array_toChar(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
 
@@ -298,7 +326,6 @@ static tlHandle _array_toChar(tlTask* task, tlArgs* args) {
     buf[size] = 0;
     return tlStringFromTake(buf, size);
 }
-
 
 void array_init() {
     tlClass* cls = tlCLASS("Array", null,
