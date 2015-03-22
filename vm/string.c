@@ -374,8 +374,8 @@ tlHandle _String_cat(tlTask* task, tlArgs* args) {
     return tlStringFromTake(data, size);
 }
 
-/// object String: represents a series of characters
-/// toString: returns itself
+//. object String: represents a series of characters
+//. toString: returns itself
 static tlHandle _string_toString(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return str;
@@ -393,17 +393,17 @@ static tlHandle _string_intern(tlTask* task, tlArgs* args) {
     if (str->len > 512) TL_THROW("can only intern strings < 512 bytes");
     return tlStringIntern(str);
 }
-/// size: return the amount of characters in the #String
+//. size: return the amount of characters in the #String
 static tlHandle _string_size(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlINT(tlStringChars(str));
 }
-/// bytes: return the amount of bytes in the #String, bytes >= size due to multibyte characters
+//. bytes: return the amount of bytes in the #String, bytes >= size due to multibyte characters
 static tlHandle _string_bytes(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlINT(tlStringSize(str));
 }
-/// hash: return the hashcode for this #String
+//. hash: return the hashcode for this #String
 static tlHandle _string_hash(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     // TODO this can overflow/underflow ... sometimes, need to fix
@@ -445,14 +445,14 @@ static tlHandle _string_find_backward(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-/// find(s): find #s in #String, returns the position or #null if nothing was found
-/// [from] start searching from this position
-/// [upto] stop searching when reaching this position
-/// [backward] if backward is true, search from the end of the #String
-/// when #s is a #String find will return the first occurance of that string
-/// when #s is a #Number or #Char it will return the first occurance of that letter
-/// > "hello world".find('o') == 5
-/// > "hello world".find("o", backward=true) == 8
+//. find(s): find #s in #String, returns the position or #null if nothing was found
+//. [from] start searching from this position
+//. [upto] stop searching when reaching this position
+//. [backward] if backward is true, search from the end of the #String
+//. when #s is a #String find will return the first occurance of that string
+//. when #s is a #Number or #Char it will return the first occurance of that letter
+//. > "hello world".find('o') == 5
+//. > "hello world".find("o", backward=true) == 8
 static tlHandle _string_find(tlTask* task, tlArgs* args) {
     if (tl_bool(tlArgsGetNamed(args, tlSYM("backward")))) return _string_find_backward(task, args);
 
@@ -487,7 +487,7 @@ static tlHandle _string_find(tlTask* task, tlArgs* args) {
     return tlINT(1 + tlStringCharForByte(str, byte));
 }
 
-/// cat: concatenate multiple #"String"s together
+//. cat: concatenate multiple #"String"s together
 static tlHandle _string_cat(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* add = tlStringCast(tlArgsGet(args, 0));
@@ -496,7 +496,7 @@ static tlHandle _string_cat(tlTask* task, tlArgs* args) {
     return tlStringCat(str, add);
 }
 
-/// get: return character at args[1] characters are just #"Int"s
+//. get: return character at args[1] characters are just #"Int"s
 static tlHandle _string_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlString, str);
     tlHandle vat = tlArgsGet(args, 0);
@@ -506,7 +506,7 @@ static tlHandle _string_get(tlTask* task, tlArgs* args) {
     return tlCHAR(tlStringGet(str, at));
 }
 
-/// lower: return a new #String with only lower case characters, only works properly for ascii str
+//. lower: return a new #String with only lower case characters, only works properly for ascii str
 static tlHandle _string_lower(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
@@ -519,7 +519,7 @@ static tlHandle _string_lower(tlTask* task, tlArgs* args) {
     return res;
 }
 
-/// upper: return a new #String with all upper case characters, only works properly for ascii str
+//. upper: return a new #String with all upper case characters, only works properly for ascii str
 static tlHandle _string_upper(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int size = tlStringSize(str);
@@ -532,7 +532,7 @@ static tlHandle _string_upper(tlTask* task, tlArgs* args) {
     return res;
 }
 
-/// slice: return a subsection of the #String withing bounds of args[1], args[2]
+//. slice: return a subsection of the #String withing bounds of args[1], args[2]
 static tlHandle _string_slice(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     int first = tl_int_or(tlArgsGet(args, 0), 1);
@@ -585,7 +585,7 @@ tlString* tlStringEscape(tlString* str, bool cstr) {
     return tlStringFromTake(ndata, j);
 }
 
-/// escape: return a #String that has all special characters escaped by a '\'
+//. escape: return a #String that has all special characters escaped by a '\'
 static tlHandle _string_escape(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     return tlStringEscape(str, tl_bool(tlArgsGet(args, 0)));
@@ -597,8 +597,8 @@ static bool containsChar(tlString* chars, int c) {
     }
     return false;
 }
-/// trim([chars]): return a #String that has all leading and trailing whitespace removed
-/// when given optional #chars remove those characters instead
+//. trim([chars]): return a #String that has all leading and trailing whitespace removed
+//. when given optional #chars remove those characters instead
 static tlHandle _string_trim(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* chars = tlStringCast(tlArgsGet(args, 0));
@@ -651,7 +651,7 @@ static tlHandle _string_reverse(tlTask* task, tlArgs* args) {
 
 static int intmin(int left, int right) { return (left<right)?left:right; }
 
-/// startsWith: return true when this #String begins with the #String in args[1]
+//. startsWith: return true when this #String begins with the #String in args[1]
 static tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* start = tlStringCast(tlArgsGet(args, 0));
@@ -670,7 +670,7 @@ static tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
     return tlBOOL(r == 0);
 }
 
-/// endsWith: return true when this #String ends with the #String in args[1]
+//. endsWith: return true when this #String ends with the #String in args[1]
 static tlHandle _string_endsWith(tlTask* task, tlArgs* args) {
     tlString* str = tlStringAs(tlArgsTarget(args));
     tlString* start = tlStringCast(tlArgsGet(args, 0));

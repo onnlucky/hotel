@@ -27,15 +27,15 @@ static tlKind _tlMatchKind = {
 };
 tlKind* tlMatchKind = &_tlMatchKind;
 
-/// object Regex: create posix compatible regular expressions to match strings
+//. object Regex: create posix compatible regular expressions to match strings
 
 static void regexFinalizer(tlHandle handle) {
     tlRegex* regex = tlRegexAs(handle);
     regfree(&regex->compiled);
 }
 
-/// call(pattern): create a regex using #pattern
-/// > Regex("[^ ]+")
+//. call(pattern): create a regex using #pattern
+//. > Regex("[^ ]+")
 // TODO expose flags
 static tlHandle _Regex_new(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
@@ -52,9 +52,9 @@ static tlHandle _Regex_new(tlTask* task, tlArgs* args) {
     return regex;
 }
 
-/// find(input): match a regex against #input and return the begin position and end position of the pattern, or null if not found
-/// > s, e = Regex("[^ ]+").find("test more")
-/// > assert s == 1 and e == 4
+//. find(input): match a regex against #input and return the begin position and end position of the pattern, or null if not found
+//. > s, e = Regex("[^ ]+").find("test more")
+//. > assert s == 1 and e == 4
 // TODO expose flags
 static tlHandle _regex_find(tlTask* task, tlArgs* args) {
     tlRegex* regex = tlRegexAs(tlArgsTarget(args));
@@ -76,8 +76,8 @@ static tlHandle _regex_find(tlTask* task, tlArgs* args) {
     return tlResultFrom(tlINT(tlStringCharForByte(str, m[0].rm_so + from) + 1), tlINT(tlStringCharForByte(str, m[0].rm_eo + from)), null);
 }
 
-/// match(string): match a regex against an input returns a #Match object or null if not a match
-/// > Regex("[^ ]+").match("test more").main == "test"
+//. match(string): match a regex against an input returns a #Match object or null if not a match
+//. > Regex("[^ ]+").match("test more").main == "test"
 // TODO expose flags
 static tlHandle _regex_match(tlTask* task, tlArgs* args) {
     tlRegex* regex = tlRegexAs(tlArgsTarget(args));
@@ -112,24 +112,24 @@ static tlHandle _regex_match(tlTask* task, tlArgs* args) {
     return match;
 }
 
-/// object Match: a #Regex result
+//. object Match: a #Regex result
 
-/// main: the main result of the match, the part of the input string that actually matched the #Regex
+//. main: the main result of the match, the part of the input string that actually matched the #Regex
 static tlHandle _match_main(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     return tlStringFromCopy(tlStringData(match->string) + match->groups[0].rm_so, match->groups[0].rm_eo - match->groups[0].rm_so);
 }
 
-/// size: the amount of regex subexpressions matched
+//. size: the amount of regex subexpressions matched
 static tlHandle _match_size(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     return tlINT(match->size);
 }
 
-/// get(at): get a subexpression
-/// > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
-/// > m[1] == "2014-01-01"
-/// > m[2] == "hello world"
+//. get(at): get a subexpression
+//. > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
+//. > m[1] == "2014-01-01"
+//. > m[2] == "hello world"
 static tlHandle _match_get(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), match->size);
@@ -138,10 +138,10 @@ static tlHandle _match_get(tlTask* task, tlArgs* args) {
     return tlStringFromCopy(tlStringData(match->string) + match->groups[at].rm_so, match->groups[at].rm_eo - match->groups[at].rm_so);
 }
 
-/// group(at): get begin and end of a subexpression
-/// > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
-/// > b, e = m.group(1)
-/// > assert b == 2 and e == 11
+//. group(at): get begin and end of a subexpression
+//. > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
+//. > b, e = m.group(1)
+//. > assert b == 2 and e == 11
 static tlHandle _match_group(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), match->size);

@@ -190,7 +190,7 @@ static tlHandle _neq(tlTask* task, tlArgs* args) {
     trace("%p != %p", tlArgsGet(args, 0), tlArgsGet(args, 1));
     return tlBOOL(!tlHandleEquals(tlArgsGet(args, 0), tlArgsGet(args, 1)));
 }
-/// compare: compare two values, and always return a ordering, order will be runtime dependent sometimes
+//. compare: compare two values, and always return a ordering, order will be runtime dependent sometimes
 static tlHandle _compare(tlTask* task, tlArgs* args) {
     tlHandle left = tlArgsGet(args, 0); tlHandle right = tlArgsGet(args, 1);
     tlHandle cmp = tlHandleCompare(left, right);
@@ -408,8 +408,8 @@ static tlHandle _sqrt(tlTask* task, tlArgs* args) {
     return tlFLOAT(res);
 }
 
-/// random(n):
-/// return number between 0 upto n (including 0, but not including n)
+//. random(n):
+//. return number between 0 upto n (including 0, but not including n)
 static tlHandle _random(tlTask* task, tlArgs* args) {
     // TODO fix this when we have floating point ...
     int upto = tl_int_or(tlArgsGet(args, 0), 0x3FFFFFFF);

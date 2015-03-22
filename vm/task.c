@@ -644,8 +644,8 @@ static tlHandle _task_poll(tlTask* task, tlArgs* args) {
     return tlQueuePoll(other->yields, task);
 }
 
-/// returns true if task is a background task, that is, not hold off the vm from exiting
-/// set by calling with a boolean, `Task.current.background(true)`
+//. returns true if task is a background task, that is, not hold off the vm from exiting
+//. set by calling with a boolean, `Task.current.background(true)`
 // TODO will likely need a lock, for now we work around that, by not allowing outside changes
 static tlHandle _task_background(tlTask* task, tlArgs* args) {
     TL_TARGET(tlTask, other);

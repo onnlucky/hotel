@@ -134,7 +134,7 @@ static tlHandle _bin_get(tlTask* task, tlArgs* args) {
     if (at < 0) return tlUndef();
     return tlINT(tlBinGet(bin, at));
 }
-/// slice: return a subsection of the binary withing bounds of args[1], args[2]
+//. slice: return a subsection of the binary withing bounds of args[1], args[2]
 static tlHandle _bin_slice(tlTask* task, tlArgs* args) {
     tlBin* str = tlBinAs(tlArgsTarget(args));
     int first = tl_int_or(tlArgsGet(args, 0), 1);

@@ -212,34 +212,34 @@ tlBuffer* tlBufferFromFile(const char* file) {
     return buf;
 }
 
-/// object Buffer: a mutable object containing bytes to which you can write and read from
-/// while reading the buffer temporarily keeps the read bytes until any write operation
+//. object Buffer: a mutable object containing bytes to which you can write and read from
+//. while reading the buffer temporarily keeps the read bytes until any write operation
 
-/// size: return the current amount of bytes that can be read
+//. size: return the current amount of bytes that can be read
 static tlHandle _buffer_size(tlTask* task, tlArgs* args) {
     return tlINT(canread(tlBufferAs(tlArgsTarget(args))));
 }
 
-/// compact: discard any temporarily bytes already read
+//. compact: discard any temporarily bytes already read
 static tlHandle _buffer_compact(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferCompact(buf);
     return buf;
 }
-/// clear: reset the buffer, discarding any read and unread bytes
+//. clear: reset the buffer, discarding any read and unread bytes
 static tlHandle _buffer_clear(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferClear(buf);
     return buf;
 }
-/// rewind: undo the read operations by rewinding the read position back to the bytes already read
+//. rewind: undo the read operations by rewinding the read position back to the bytes already read
 static tlHandle _buffer_rewind(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     tlBufferRewind(buf, -1);
     return buf;
 }
-/// read(max): read #max bytes from the buffer returning them as a #Bin (binary list)
-/// if no #max is not given, read all bytes from the buffer
+//. read(max): read #max bytes from the buffer returning them as a #Bin (binary list)
+//. if no #max is not given, read all bytes from the buffer
 static tlHandle _buffer_read(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -274,7 +274,7 @@ static tlHandle _buffer_readString(tlTask* task, tlArgs* args) {
     return tlStringFromTake(into, written);
 }
 
-/// readByte: read a single byte from the buffer, returns a number between 0-255
+//. readByte: read a single byte from the buffer, returns a number between 0-255
 static tlHandle _buffer_readByte(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     if (canread(buf) == 0) return tlNull;
@@ -348,11 +348,11 @@ int buffer_write_object(tlBuffer* buf, tlHandle v, const char** error) {
     return 0;
 }
 
-/// write(bytes*): write all passed in arguments as bytes
-/// bytes can be {String}'s or {Bin}'s or other {Buffer}'s or numbers or chars.
-/// But also lists or arrays or args containing these. {null}s will be ignored.
-/// Numbers are interpreted as a single byte by masking with `0xFF`. Chars are
-/// interpreted as char.toString and all bytes of the utf8 encoding are added.
+//. write(bytes*): write all passed in arguments as bytes
+//. bytes can be {String}'s or {Bin}'s or other {Buffer}'s or numbers or chars.
+//. But also lists or arrays or args containing these. {null}s will be ignored.
+//. Numbers are interpreted as a single byte by masking with `0xFF`. Chars are
+//. interpreted as char.toString and all bytes of the utf8 encoding are added.
 static tlHandle _buffer_write(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -367,9 +367,9 @@ static tlHandle _buffer_write(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-/// find(bytes): find the position of the bytes passed in, or null if no matching sequence is found
-/// [from] start here instead of beginning
-/// [upto] search no further than this posision
+//. find(bytes): find the position of the bytes passed in, or null if no matching sequence is found
+//. [from] start here instead of beginning
+//. [upto] search no further than this posision
 static tlHandle _buffer_find(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
     int size = tlBufferSize(buf);
@@ -418,7 +418,7 @@ static tlHandle _buffer_find(tlTask* task, tlArgs* args) {
     TL_THROW("expected a String or Number");
 }
 
-/// startsWith(bytes): returns true if buffer starts with this sequence of bytes
+//. startsWith(bytes): returns true if buffer starts with this sequence of bytes
 static tlHandle _buffer_startsWith(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferAs(tlArgsTarget(args));
 
@@ -464,7 +464,7 @@ static tlHandle _buffer_hexdump(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
-/// new(bytes*): create a new buffer filled with bytes
+//. new(bytes*): create a new buffer filled with bytes
 tlHandle _Buffer_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
