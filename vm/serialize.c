@@ -71,6 +71,7 @@ static tlHandle parsesym(tlBuffer* buf) {
 static tlHandle parsenum(tlBuffer* buf) {
     int i;
     bool f = false;
+    // check if all the chars are valid for numbers
     for (i = 0;; i++) {
         char c = tlBufferReadByte(buf);
         if (c >= '0' && c <= '9') continue;
@@ -78,8 +79,11 @@ static tlHandle parsenum(tlBuffer* buf) {
         if (c == '.' && !f) { f = true; continue; }
         break;
     }
-    if (i == 0 || i > 20) { warning("no number: %d", i); return null; }
-    char b[20];
+
+    // too many or none, no number
+    if (i == 0 || i > 31) { warning("no number: %d", i); return null; }
+
+    char b[32];
     tlBufferRewind(buf, i + 1);
     tlBufferRead(buf, b, i); b[i] = 0;
     trace("number: %s (len: %d)", b, i);
