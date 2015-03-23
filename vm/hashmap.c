@@ -85,7 +85,7 @@ static tlHandle addAllToMap(tlHashMap* hash, tlTask* task, tlArgs* args) {
         tlHandle h = tlArgsGet(args, i);
         if (!h) break;
         if (tlObjectIs(h)) {
-            tlObject* map = tlObjectCast(h);
+            tlObject* map = tlObjectAs(h);
             for (int i = 0; i < tlObjectSize(map); i++) {
                 tlHashMapSet(hash, map->keys->data[i], map->data[i]);
             }
