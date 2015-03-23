@@ -164,7 +164,6 @@ endif
 uninstall:
 	rm -rf $(BINDIR)/tl
 	rm -rf $(BINDIR)/tlmeta
-	rm -rf $(LIBDIR)/libtl.a
 	rm -rf $(INCDIR)/tl.h
 	rm -rf $(MODDIR)
 ifndef NO_GRAPHICS

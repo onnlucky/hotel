@@ -794,6 +794,7 @@ tlKind* tlWorkerKind;
 void vm_init() {
     tl_register_natives(__vm_natives);
     tlObject* system = tlObjectFrom(
+            "prefix", tlSTR(TL_PREFIX),
             "version", tlSTR(TL_VERSION),
             "platform", tlSTR(PLATFORM),
             "cpu", tlSTR(CPU),

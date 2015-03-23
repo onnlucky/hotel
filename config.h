@@ -1,8 +1,14 @@
 // various config
+#ifndef TL_PREFIX_RAW
+#define TL_PREFIX_RAW /usr/local
+#endif
 #ifndef TL_VERSION_RAW
 #define TL_VERSION_RAW 0.3.0
 #endif
 
+#define TL_PREFIX_STR_(x) #x
+#define TL_PREFIX_STR(x) TL_PREFIX_STR_(x)
+#define TL_PREFIX TL_PREFIX_STR(TL_PREFIX_RAW)
 #define TL_VERSION_STR_(x) #x
 #define TL_VERSION_STR(x) TL_VERSION_STR_(x)
 #define TL_VERSION TL_VERSION_STR(TL_VERSION_RAW)

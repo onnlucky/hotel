@@ -570,7 +570,7 @@ test "split":
 _module_paths = Array.new
 
 # default module path
-(_io_getenv("TL_MODULE_PATH") or "/usr/local/lib/tl").split(":").each(p -> _module_paths.add(p))
+(_io_getenv("TL_MODULE_PATH") or "$(system.prefix)/lib/tl").split(":").each(p -> _module_paths.add(p))
 
 # TODO should be keyed on start env?
 _modules = HashMap.new
