@@ -2,7 +2,7 @@ CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arg
 CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -I../include/ -I../libmp/ -I../atomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
-VERSION:=$(shell git describe)
+VERSION:=$(shell git describe || echo $$VERSION)
 ifneq ($(VERSION),)
 CFLAGS+=-DTL_VERSION_RAW=$(VERSION)
 endif
