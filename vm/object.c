@@ -118,7 +118,7 @@ tlObject* tlObjectToObject_(tlObject* object) {
 uint32_t tlObjectHash(tlObject* object) {
     // if (object->hash) return object->hash;
     uint32_t hash = 212601863; // 11.hash + 1
-    for (int i = 0; i < object->keys->size; i++) {
+    for (uint32_t i = 0; i < object->keys->size; i++) {
         uint32_t k = tlHandleHash(tlSetGet(object->keys, i));
         uint32_t v = tlHandleHash(object->data[i]);
         hash ^= k << (i & 32) | k >> (32 - (i & 32));

@@ -324,7 +324,7 @@ static uint32_t listHash(tlHandle v) {
     tlList* list = tlListAs(v);
     // if (list->hash) return list->hash;
     uint32_t hash = 3615000021; // 10.hash + 1
-    for (int i = 0; i < list->size; i++) {
+    for (uint32_t i = 0; i < list->size; i++) {
         uint32_t h = tlHandleHash(tlListGet(list, i));
         h = h << (i & 32) | h >> (32 - (i & 32));
         hash ^= h;
