@@ -339,6 +339,7 @@ tlHandle _String_cat(tlTask* task, tlArgs* args) {
     trace("%d", argc);
     tlList* list = null;
     int size = 0;
+    // pre pass, to calculate the total size of string
     for (int i = 0; i < argc; i++) {
         tlHandle v = tlArgsGet(args, i);
         trace("%d: %s", i, tl_str(v));
@@ -354,6 +355,8 @@ tlHandle _String_cat(tlTask* task, tlArgs* args) {
 
     char* data = malloc_atomic(size + 1);
     if (!data) return null;
+
+    // second pass, the actual work
     size = 0;
     for (int i = 0; i < argc; i++) {
         const char* s;
@@ -363,6 +366,7 @@ tlHandle _String_cat(tlTask* task, tlArgs* args) {
             s = tlStringAs(v)->data;
             len = tlStringAs(v)->len;
         } else {
+            assert(list); // matches above loop, so it must exist
             tlString* str = tlStringAs(tlListGet(list, i));
             s = str->data;
             len = str->len;
