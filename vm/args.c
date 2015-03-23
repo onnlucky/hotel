@@ -327,7 +327,7 @@ static tlHandle _Args_from(tlTask* task, tlArgs* args) {
     tlHandle a1 = tlArgsGet(args, 0);
     tlHandle a2 = tlArgsGet(args, 1);
     if (a1 && !tlListIs(a1)) TL_THROW("args[1] must be a list, not '%s'", tl_str(a1));
-    if (a2 && !tlObjectIs(a1)) TL_THROW("args[2] must be an object, not '%s'", tl_str(a2));
+    if (a2 && !tlObjectIs(a2)) TL_THROW("args[2] must be an object, not '%s'", tl_str(a2));
 
     tlList* list = tlListAs(a1);
     int lsize = list? tlListSize(list) : 0;
