@@ -89,7 +89,7 @@ int tlSetIndexof2(tlSet* set, tlHandle key) {
 int tlSetIndexof(tlSet* set, tlHandle key) {
     if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof2(set, key);
-    if (set->data[at] != key) return -1;
+    if (at < 0 || set->data[at] != key) return -1;
     return at;
 }
 
