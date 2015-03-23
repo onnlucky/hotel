@@ -685,8 +685,8 @@ void tlBlockingTaskDone(tlTask* task) {
     assert(task->data);
     TaskBlocker* b = (TaskBlocker*)task->data;
 
-    b->block = false;
     pthread_mutex_lock(&b->lock);
+    b->block = false;
     pthread_cond_signal(&b->signal);
     pthread_mutex_unlock(&b->lock);
 }
