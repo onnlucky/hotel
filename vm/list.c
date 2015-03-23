@@ -6,6 +6,7 @@
 #include "list.h"
 
 #include "value.h"
+#include "string.h"
 
 tlKind* tlListKind;
 
@@ -320,17 +321,23 @@ static tlHandle _list_remove(tlTask* task, tlArgs* args) {
 static size_t listSize(tlHandle v) {
     return sizeof(tlList) + sizeof(tlHandle) * tlListAs(v)->size;
 }
+
 static uint32_t listHash(tlHandle v) {
     tlList* list = tlListAs(v);
     // if (list->hash) return list->hash;
     uint32_t hash = 3615000021; // 10.hash + 1
-    for (uint32_t i = 0; i < list->size; i++) {
+    uint32_t size = list->size;
+    for (uint32_t i = 0; i < size; i++) {
         uint32_t h = tlHandleHash(tlListGet(list, i));
-        h = h << (i & 32) | h >> (32 - (i & 32));
+        // rotate shift the hash then mix in the value hash
+        hash = hash << 1 | hash >> 31;
         hash ^= h;
     }
+    // and mix in the list size after a murmur
+    hash ^= murmurhash2a(&size, sizeof(size));
     return hash;
 }
+
 static bool listEquals(tlHandle _left, tlHandle _right) {
     if (_left == _right) return true;
 

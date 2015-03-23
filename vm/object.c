@@ -8,6 +8,7 @@
 #include "value.h"
 #include "set.h"
 #include "args.h"
+#include "string.h"
 
 tlKind* tlClassKind;
 
@@ -115,17 +116,25 @@ tlObject* tlObjectToObject_(tlObject* object) {
     assert((object->head.kind & 0x7) == 0);
     object->head.kind = (intptr_t)tlObjectKind; return object;
 }
+
 uint32_t tlObjectHash(tlObject* object) {
     // if (object->hash) return object->hash;
     uint32_t hash = 212601863; // 11.hash + 1
-    for (uint32_t i = 0; i < object->keys->size; i++) {
+    uint32_t size = object->keys->size;
+    for (uint32_t i = 0; i < size; i++) {
         uint32_t k = tlHandleHash(tlSetGet(object->keys, i));
         uint32_t v = tlHandleHash(object->data[i]);
-        hash ^= k << (i & 32) | k >> (32 - (i & 32));
-        hash ^= v << (i & 32) | v >> (32 - (i & 32));
+        // rotate shift the hash then mix in the key, rotate, then value
+        hash = hash << 1 | hash >> 31;
+        hash ^= k;
+        hash = hash << 1 | hash >> 31;
+        hash ^= v;
     }
+    // and mix in the list size after a murmur
+    hash ^= murmurhash2a(&size, sizeof(size));
     return hash;
 }
+
 int tlObjectSize(const tlObject* object) {
     return object->keys->size;
 }
