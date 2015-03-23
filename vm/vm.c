@@ -877,11 +877,16 @@ tlHandle _dlopen(tlTask* task, tlArgs* args) {
     if (!lib) TL_THROW("dlopen: %s", dlerror());
 
     void* tl_load = dlsym(lib, "tl_load");
-    if (!tl_load) TL_THROW("dlopen: %s", dlerror());
+    if (!tl_load) {
+        dlclose(lib);
+        TL_THROW("dlopen: %s", dlerror());
+    }
 
     tlHandle res = ((tlCModuleLoad)tl_load)();
-    if (!res) TL_THROW("dlopen: unable to initialize lib");
-    if (!tl_kind(res)->name) TL_THROW("dlopen: unable to initialize lib");
+    if (!res || !tl_kind(res)->name) {
+        dlclose(lib);
+        TL_THROW("dlopen: unable to initialize lib");
+    }
     return res;
 }
 
