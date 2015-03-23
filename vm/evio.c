@@ -639,7 +639,9 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     struct sockaddr_un sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
     sockaddr.sun_family = AF_UNIX;
-    strcpy(sockaddr.sun_path, tlStringData(address));
+
+    if (tlStringSize(address) >= sizeof(sockaddr.sun_path)) TL_THROW("unix path too long, max=%zd", sizeof(sockaddr.sun_path));
+    strncpy(sockaddr.sun_path, tlStringData(address), sizeof(sockaddr.sun_path) - 1);
 
     int fd = socket(AF_UNIX, dgram?SOCK_DGRAM:SOCK_STREAM, 0);
     if (fd < 0) TL_THROW("unix_connect: failed: %s", strerror(errno));
