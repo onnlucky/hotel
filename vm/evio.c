@@ -473,7 +473,10 @@ static tlHandle _reader_accept(tlTask* task, tlArgs* args) {
         TL_THROW("%d: accept: failed: %s", file->ev.fd, strerror(errno));
     }
 
-    if (nonblock(fd) < 0) TL_THROW("accept: nonblock failed: %s", strerror(errno));
+    if (nonblock(fd) < 0) {
+        close(fd);
+        TL_THROW("accept: nonblock failed: %s", strerror(errno));
+    }
     trace("accept: %d %d", file->ev.fd, fd);
     return tlFileNew(fd);
 }
@@ -533,15 +536,24 @@ static tlHandle _Socket_udp(tlTask* task, tlArgs* args) {
         sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
         sockaddr.sin_port = htons(port);
         int r = bind(fd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
-        if (r < 0) TL_THROW("udp bind failed: %s", strerror(errno));
+        if (r < 0) {
+            close(fd);
+            TL_THROW("udp bind failed: %s", strerror(errno));
+        }
     }
 
     if (broadcast) {
         int r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
-        if (r < 0) TL_THROW("udp set broadcast failed: %s", strerror(errno));
+        if (r < 0) {
+            close(fd);
+            TL_THROW("udp set broadcast failed: %s", strerror(errno));
+        }
     }
 
-    if (nonblock(fd) < 0) TL_THROW("udp nonblock failed: %s", strerror(errno));
+    if (nonblock(fd) < 0) {
+        close(fd);
+        TL_THROW("udp nonblock failed: %s", strerror(errno));
+    }
     return tlFileNew(fd);
 }
 
@@ -620,10 +632,16 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) TL_THROW("tcp_connect: failed: %s", strerror(errno));
 
-    if (nonblock(fd) < 0) TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
+    if (nonblock(fd) < 0) {
+        close(fd);
+        TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
+    }
 
     int r = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
-    if (r < 0 && errno != EINPROGRESS) TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
+    if (r < 0 && errno != EINPROGRESS) {
+        close(fd);
+        TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
+    }
 
     if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
     return tlFileNew(fd);
@@ -646,7 +664,10 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     int fd = socket(AF_UNIX, dgram?SOCK_DGRAM:SOCK_STREAM, 0);
     if (fd < 0) TL_THROW("unix_connect: failed: %s", strerror(errno));
 
-    if (nonblock(fd) < 0) TL_THROW("unix_connect: nonblock failed: %s", strerror(errno));
+    if (nonblock(fd) < 0) {
+        close(fd);
+        TL_THROW("unix_connect: nonblock failed: %s", strerror(errno));
+    }
 
 #ifndef PLATFORM_MACOSX
     size_t len = sizeof(sockaddr.sun_family) + strlen(sockaddr.sun_path);
@@ -654,7 +675,10 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     size_t len = sizeof(sockaddr) + strlen(sockaddr.sun_path);
 #endif
     int r = connect(fd, (struct sockaddr *)&sockaddr, len);
-    if (r < 0 && errno != EINPROGRESS) TL_THROW("unix_connect: connect failed: %s", strerror(errno));
+    if (r < 0 && errno != EINPROGRESS) {
+        close(fd);
+        TL_THROW("unix_connect: connect failed: %s", strerror(errno));
+    }
 
     if (errno == EINPROGRESS) trace("unix_connect: EINPROGRESS");
     return tlFileNew(fd);
@@ -674,15 +698,23 @@ static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) TL_THROW("tcp_listen: failed: %s", strerror(errno));
 
-    if (nonblock(fd) < 0) TL_THROW("tcp_listen: nonblock failed: %s", strerror(errno));
+    if (nonblock(fd) < 0) {
+        close(fd);
+        TL_THROW("tcp_listen: nonblock failed: %s", strerror(errno));
+    }
 
     int flags = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags)) < 0) {
+    int r = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
+    if (r < 0) {
+        close(fd);
         TL_THROW("tcp_listen: so_reuseaddr failed: %s", strerror(errno));
     }
 
-    int r = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
-    if (r < 0) TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
+    r = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    if (r < 0) {
+        close(fd);
+        TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
+    }
 
     listen(fd, 1024); // backlog, configurable?
     return tlFileNew(fd);
