@@ -50,7 +50,6 @@ tlObject* tlEnvLocalObject(tlFrame* frame) {
     tlList* names = env->names;
     tlObject* map = tlObjectEmpty();
     for (int i = 0; i < tlListSize(names); i++) {
-        if (!names) continue;
         tlHandle name = tlListGet(names, i);
         tlHandle v = env->data[i];
         trace("env locals: %s=%s", tl_str(name), tl_str(v));
