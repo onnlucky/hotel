@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Iinclude/ -Ilibmp/ -Ilibatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
+CFLAGS:=-rdynamic -std=c99 -Wall -Werror -Wno-unused-function -Iinclude/ -Ilibmp/ -Iatomic_ops/src/ $(CLANGUNWARN) $(CFLAGS)
 LDFLAGS:=-lm -lpthread -ldl -lgc $(LDFLAGS)
 
 ifeq ($(BUILD),release)
@@ -28,7 +28,6 @@ ifeq ($(DDD),1)
 endif
 
 LIBMP:=libmp/libtommath.a
-LIBATOMIC:=libatomic_ops/src/atomic_ops.h
 
 TLG_MODULES=modules/sizzle.tl
 MODULES:=$(shell echo modules/*.tl) $(TLG_MODULES)
@@ -98,13 +97,10 @@ test: unit-test test-noboot $(TLG_MODULES) $(C_MODULES)
 $(LIBMP):
 	cd libmp && make
 
-$(LIBATOMIC):
-	git submodule update --init
-
 ev.o: ev/*.c ev/*.h config.h Makefile
 	$(CC) $(subst -Werror,,$(subst -Wall,,$(CFLAGS))) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
 
-tl: $(BOOTFILES) ev.o $(LIBMP) $(LIBATOMIC) llib/*.h llib/*.c vm/*.c vm/*.h include/*.h Makefile
+tl: $(BOOTFILES) ev.o $(LIBMP) llib/*.h llib/*.c vm/*.c vm/*.h include/*.h Makefile
 	$(MAKE) -C vm tl
 	cp vm/tl tl
 
@@ -137,7 +133,6 @@ endif
 	rm -rf boot/*.tlb boot/*.tl boot/*.o
 distclean: clean
 	rm -f $(LIBMP) libmp/*.o
-	rm -rf libatomic_ops/
 dist-clean: distclean
 
 docgen.tl: docgen.tlg
