@@ -369,7 +369,7 @@ static tlHandle tlTaskDone(tlTask* task) {
     trace("%p done: %s%s", task, tl_str(task->value), tlTaskHasError(task)? " (error)":"");
     assert(!task->stack);
     assert(task->value);
-    assert(task->state = TL_STATE_RUN);
+    assert(task->state == TL_STATE_RUN);
     task->state = tlTaskHasError(task)? TL_STATE_ERROR : TL_STATE_DONE;
     tlVm* vm = tlTaskGetVm(task);
     a_dec(&vm->tasks);
