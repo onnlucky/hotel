@@ -1954,6 +1954,7 @@ tlTask* tlBModuleCreateTask(tlVm* vm, tlBModule* mod, tlArgs* args) {
 
 static tlHandle _Module_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    if (!buf) TL_THROW("require a buffer as args[1]");
     tlString* name = tlStringCast(tlArgsGet(args, 1));
 
     const char* error = null;
@@ -2123,6 +2124,7 @@ static tlHandle _module_run(tlTask* task, tlArgs* args) {
 
 static tlHandle _module_links(tlTask* task, tlArgs* args) {
     tlBModule* mod = tlBModuleCast(tlArgsGet(args, 0));
+    if (!mod) TL_THROW("require a module");
     return mod->links;
 }
 
