@@ -1,3 +1,7 @@
+# TODO
+# should probably remove the addClosed abstraction, and instead yield a closable item to assign
+# make constructor closable, and when closed, it closes the methods and class methods
+
 # hotel bytecode
 #         8 |  7 |  6 |  5 |  4 |  3 |  2 |  1
 # bytes: 128| 64 | 32 | 16 |  8 |  4 |  2 |  1
@@ -162,7 +166,7 @@ writeCode = mod, c, scope ->
         { op == "fcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 1); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
         { op == "bcalln" }: calls.add(c.code[($pc += 1)]); buf.write(0b1111_0000 + 2); buf.write(encodeInt(c.code[($pc += 1)])); buf.write(mod.data(c.code[($pc += 1)].ns))
 
-        {                }: throw "unknown op: $op $(repr(op))"
+        {                }: Error("unknown op: $op $(repr(op))").throw
 
     head = Buffer.new
     head.write(mod.data(c.name))
@@ -366,8 +370,8 @@ compile = (text, ast ->
         functions[n] = {name=ref.name,open=false,function=fn}
 
     argspec = arg ->
-        if arg.type == "lazy": return [arg.name, arg.d, true]
-        if arg.d: return [arg.name, arg.d]
+        if arg?type == "lazy": return [arg.name, arg.d, true]
+        if arg?d: return [arg.name, arg.d]
         [arg.name]
 
     lextop = scope, term, linkframe ->
@@ -415,36 +419,107 @@ compile = (text, ast ->
             {type="function",{function}}
         { term.type == "class" }:
             outerscope = scope
-            scope = ClassScope(scope)
-            args = (term?as or []).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
-            var $extend = null
-            body = term.body.map(stm ->
-                if stm?type == "call" and stm.target.name == "extend":
-                    $extend = {type="method",target=stm.args[1].v,method="methods"}
-                    return null
-                lex(scope, stm)
-            ).filter
-            scope.close
-            m = HashMap.new
-            methods = body.filter(stm -> stm?type == "assign" and stm.value?type == "function").map(stm -> m[stm.to.name] = null; [stm.to.name,stm.value])
-            m["class"] = null
-            constructor = body.filter(stm -> stm?type != "assign" or stm.value?type != "function")
-            fields = scope.locals.map(name -> name) + scope.args.map(name -> name)
-            class = [name=name, call=null, methods=null]
-            (#
-            print "---- class: $class ----"
-            print "constructor", repr(constructor)
-            print "fields", repr(fields)
-            print "methods", repr(methods)
-            print "class", repr(class), "extends", $extend
-            print "---- class: $class ----"
-            print repr(functions[1])
-            #)
-            constructor = {type="function",{scope,args},locals=scope.locals.toList,pos=term.pos,body=constructor + [{type="system",name="createobject"}]}
-            _, fn = functions.add({name="",open=false,function=constructor})
-            c = { $extend }: {type="object", fill=[["call", {type="function",function=fn}],["class",lex(scope.parent,$extend)]], map=(class["class"]=null)}
-                {         }: {type="object", fill=[["call", {type="function",function=fn}]], map=class}
-            {type="class", class=c, methods={type="object", fill=methods, map=m.toMap}}
+            scope = Scope(scope)
+            args = ([{name="class",pos=term.pos}, {name="this",pos=term.pos}] + (term?as or [])).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+
+            # object properties
+            var mutable = false
+            fields = Array.new
+            methods = HashMap.new
+
+            # class properties
+            var classmutable = false
+            extends = Array.new
+            classfields = HashMap.new
+
+            body = term.body.map(stm, n ->
+                print "--", n, "--"
+                print json.toString(stm)
+                # split in object properties, class properties, and what is left over is constructor
+                # before lexing
+                { stm.type == "assign" and stm.value?type == "function" }:
+                    _, fn = functions.add({name=stm.to.name, open=stm.value, scope=outerscope})
+                    methods[stm.to.name] = fn
+                    continue
+                { stm.type == "assign" and stm.to.type == "local" }:
+                    field = stm.to.name
+                    value = lex(scope, stm.value)
+                    #_setfield(this, "a", v)
+                    fields.add(field)
+                    return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
+                { stm.type == "assign" and stm.to.type == "newvar" }:
+                    mutable = true
+                    field = stm.to.name
+                    value = lex(scope, stm.value)
+                    #_setfield(this, "a", v)
+                    fields.add(field)
+                    return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
+                { stm.type == "assign" and stm.to.type == "newvarfield" }:
+                    mutable = true
+                    field = stm.to.name
+                    value = lex(scope, stm.value)
+                    #_setfield(this, "a", v)
+                    fields.add(field)
+                    return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
+                { stm.type == "method" and stm.method == "_set" and stm.target?name == "this" }:
+                    field = stm.args[1].v.data
+                    value = lex(scope, stm.args[2].v)
+                    #_setfield(this, "a", v)
+                    fields.add(field)
+                    return {type="call",target={type="global",pos=stm.target.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.target.pos}
+                { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "class" }:
+                    field = stm.args[1].n
+                    value = lex(scope, stm.args[1].v)
+                    classfields[field] = value
+                { }: null
+
+                stm = lex(scope, stm)
+                print json.toString(stm)
+                # after lexing
+                { stm.type == "call" and stm.target.type == "global" and stm.target.name == "extend" }:
+                    # TODO warn/error when inherit is not a class, or in local scope ... oeps
+                    extends.add(stm.args[1].target)
+                    #_extend(class, 1, this, a)
+                    cls = lex(scope, {type="ref",pos=stm.pos,name="class"})
+                    ths = lex(scope, {type="ref",pos=stm.pos,name="this"})
+                    as = stm.args[1].args
+                    {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + as,pos=stm.pos}
+                { stm.type == "call" and stm.target.type == "global" and stm.target.name == "class" }:
+                    classfields[stm.names[1]] = stm.args[1]
+                    continue
+                { }: stm
+            ).add(lex(scope, {type="ref",pos=term.pos,name="this"}))
+            print "class:", name, "mutable:", mutable
+            print "constructor", json.toString(body)
+            print "fields", json.toString(fields)
+            print "methods", json.toString(methods)
+            print "extends", json.toString(extends)
+            print "classfields", json.toString(classfields)
+
+            constructor = {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
+            _, fn = functions.add({name="_constructor",open=false,function=constructor})
+            constructor = {type="function",function=fn}
+            methods.each: k, v -> closefn(v)
+
+            mfill = methods.map(k, v -> [k, {type="function", function=1}])
+            methods.each(k, v -> methods[k] = null)
+
+            cfill = classfields.map(k, v -> [k, v])
+            classfields.each(k, v -> classfields[k] = null)
+
+            methods = {type="object", fill=mfill, map=methods.toMap}
+            classfields = {type="object", fill=cfill, map=classfields.toMap}
+
+            #Test = _class("Test", mutable, _constructor, extends, fields, methods, classfields)
+            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="_class"},args=[
+                {type="string",data=(name or "<Anon>")}
+                bool(mutable,"true","false")
+                constructor
+                {type="list",data=extends.map(n -> {type="data",data=n})}
+                {type="list",data=fields.map(n -> {type="data",data=n})}
+                methods
+                classfields
+            ]}
         { term.type == "assign" }:
             { term.to.type == "local" }:
                 value = lex(scope, term.value, term.to.name, term.to.pos)

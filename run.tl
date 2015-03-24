@@ -1,5 +1,10 @@
-print "hello world!"
+in = "
+Test = { ->
+    x = 10
+    print = -> print this.x
+    extend String(\"hello\")
 
-###
-oop = _Mutable_new({x=42})
-testcompiler.load("{-> var this.x = 10; this.y = 10}", _env_current()).disasm
+    class TEST = 100
+}
+"
+testcompiler.load(in, _env_current()).disasm
