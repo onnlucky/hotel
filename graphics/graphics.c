@@ -465,15 +465,17 @@ static tlHandle _image(tlTask* task, tlArgs* args) {
 
     cairo_save(g->cairo);
     cairo_translate(g->cairo, dx, dy);
-    cairo_rectangle(g->cairo, 0.5, 0.5, dw, dh);
+    cairo_rectangle(g->cairo, 0, 0, dw, dh);
     cairo_clip(g->cairo);
 
     if (dw != width || dh != height) {
         cairo_scale(g->cairo, dw/width, dh/height);
     }
-    cairo_set_source_surface(g->cairo, imageSurface(img), 0, 0);
-    //cairo_set_source_rgba(g->cairo, 0, 0, 0, 0.2);
+    cairo_pattern_t* p = cairo_pattern_create_for_surface(imageSurface(img));
+    cairo_pattern_set_extend(p, CAIRO_EXTEND_PAD);
+    cairo_set_source(g->cairo, p);
     cairo_paint(g->cairo);
+    cairo_pattern_destroy(p);
     cairo_restore(g->cairo);
     CAIRO_STATUS(g->cairo);
     return g;
