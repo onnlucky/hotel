@@ -1,3 +1,4 @@
+# this cmake project is here for CLion IDE and perhaps others, please use the regular Makefiles to build
 cmake_minimum_required(VERSION 3.1)
 project(hotel)
 
