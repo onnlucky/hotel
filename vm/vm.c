@@ -172,12 +172,17 @@ static tlHandle _out(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+//. bool(v, t=true, f=false): return #t unless v is null or false or undefined
 static tlHandle _bool(tlTask* task, tlArgs* args) {
     tlHandle c = tlArgsGet(args, 0);
-    trace("bool(%s)", tl_bool(c)?"true":"false");
-    tlHandle res = tlArgsGet(args, tl_bool(c)?1:2);
-    return tlOR_NULL(res);
+    if (tl_bool(c)) {
+        tlHandle res = tlArgsGet(args, 1);
+        return res? res : tlTrue;
+    }
+    tlHandle res = tlArgsGet(args, 2);
+    return res? res : tlFalse;
 }
+
 static tlHandle _not(tlTask* task, tlArgs* args) {
     trace("!%s", tl_str(tlArgsGet(args, 0)));
     return tlBOOL(!tl_bool(tlArgsGet(args, 0)));

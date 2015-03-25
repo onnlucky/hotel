@@ -11,6 +11,7 @@ think about array access as list(1) instead of list[1]?? and then list(1) = 10? 
 implement default values, "near = in, value, range=3 -> ... "
 implement 3 way comparison: "value - range <= in <= value + range"
 
+pretty print very pretty: do classes nicely, like Vector{x=1, y=1, z=1}, cut off long things
 
 # IMPLEMENTATION TODO
 
