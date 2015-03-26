@@ -457,10 +457,12 @@ static tlHandle _image(tlTask* task, tlArgs* args) {
 
     double width = imageWidth(img);
     double height = imageHeight(img);
+
     double dx = tl_double_or(tlArgsGet(args, 1), 0);
     double dy = tl_double_or(tlArgsGet(args, 2), 0);
     double dw = tl_double_or(tlArgsGet(args, 3), width);
     double dh = tl_double_or(tlArgsGet(args, 4), height);
+    if (dw <= 0 || dh <= 0) return g;
 
     double ix = tl_double_or(tlArgsGet(args, 5), 0);
     double iy = tl_double_or(tlArgsGet(args, 6), 0);
