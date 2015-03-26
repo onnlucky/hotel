@@ -1,5 +1,7 @@
 # LANGUAGE TODO
 
+make "this.x, this.y = (-> return 10, 10)" work
+
 implement real classes
 change and update "match" syntax, no more { ... }: instead something like "match x: 10 -> something ...\n      20 -> something ..."
 

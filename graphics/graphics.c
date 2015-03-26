@@ -458,10 +458,16 @@ static tlHandle _image(tlTask* task, tlArgs* args) {
 
     double width = imageWidth(img);
     double height = imageHeight(img);
+
     double dx = tl_double_or(tlArgsGet(args, 1), 0);
     double dy = tl_double_or(tlArgsGet(args, 2), 0);
     double dw = tl_double_or(tlArgsGet(args, 3), width);
     double dh = tl_double_or(tlArgsGet(args, 4), height);
+
+    double ix = tl_double_or(tlArgsGet(args, 5), 0);
+    double iy = tl_double_or(tlArgsGet(args, 6), 0);
+    double iw = tl_double_or(tlArgsGet(args, 7), width - ix);
+    double ih = tl_double_or(tlArgsGet(args, 8), height - iy);
 
     cairo_save(g->cairo);
     cairo_translate(g->cairo, dx, dy);
@@ -473,6 +479,14 @@ static tlHandle _image(tlTask* task, tlArgs* args) {
     }
     cairo_pattern_t* p = cairo_pattern_create_for_surface(imageSurface(img));
     cairo_pattern_set_extend(p, CAIRO_EXTEND_PAD);
+
+    if (ix != 0 || iy != 0 || iw != width - ix || ih != height - iy) {
+        cairo_matrix_t matrix;
+        cairo_matrix_init_translate(&matrix, ix, iy);
+        cairo_matrix_scale(&matrix, iw / width, ih / height);
+        cairo_pattern_set_matrix(p, &matrix);
+    }
+
     cairo_set_source(g->cairo, p);
     cairo_paint(g->cairo);
     cairo_pattern_destroy(p);
