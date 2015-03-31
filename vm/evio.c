@@ -206,6 +206,27 @@ static tlHandle _io_unlink(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+//. readlink(path, otherwise?): see man 2 readlink, will return the target file of a symbolic link
+//. if not a link, will return otherwise (null if not passed in)
+//. if errors occur, will throw that error
+static tlHandle _io_readlink(tlTask* task, tlArgs* args) {
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expected a String");
+
+    tlString* path = cwd_join(task, str);
+    const char *p = tlStringData(path);
+    if (p[0] != '/') TL_THROW("unlink: invalid cwd");
+
+    char buf[PATH_MAX];
+    ssize_t len = readlink(p, buf, sizeof(buf));
+    if (len == -1) {
+        if (errno == EINVAL) return tlOR_NULL(tlArgsGet(args, 1)); // not a link
+        TL_THROW("unlink: %s", strerror(errno));
+    }
+
+    return tlStringFromCopy(buf, len);
+}
+
 TL_REF_TYPE(tlFile);
 TL_REF_TYPE(tlReader);
 TL_REF_TYPE(tlWriter);
@@ -1413,6 +1434,7 @@ static const tlNativeCbs __evio_natives[] = {
     { "_io_rmdir", _io_rmdir },
     { "_io_rename", _io_rename },
     { "_io_unlink", _io_unlink },
+    { "_io_readlink", _io_readlink },
 
     { "_File_open", _File_open },
     { "_File_from", _File_from },

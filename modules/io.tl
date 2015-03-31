@@ -340,6 +340,7 @@ return {
     pid = _io_getpid
     chdir = _io_chdir
     mkdir = _io_mkdir
+    readlink = _io_readlink
     getenv = _io_getenv
     procname = _io_procname
 

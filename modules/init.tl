@@ -676,7 +676,7 @@ runmain = as ->
     #if as[1] == "snippets": return snippets.run
 
     file = as[1]
-    path = dirname(file)
+    path = dirname(io.readlink(file, file))
     return compiler.load(_stringFromFile(file), name=file, _env, (name -> resolve(name, path))).run(as[2:])
 
 main = !runmain(args)
