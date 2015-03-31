@@ -359,8 +359,12 @@ static tlHandle _Object_clone(tlTask* task, tlArgs* args) {
     return o;
 }
 
+//. object Object: contains some utility methods to deal with value objects
+
 tlObject* tlObjectFromMap(tlMap* map);
 tlObject* tlHashMapToObject(tlHashMap*);
+
+//. call(in): turn #in into an object
 static tlHandle _Object_from(tlTask* task, tlArgs* args) {
     tlHandle a1 = tlArgsGet(args, 0);
     if (tlHashMapIs(a1)) return tlHashMapToObject(a1);
@@ -384,31 +388,44 @@ static tlHandle _Object_inherit(tlTask* task, tlArgs* args) {
     if (oclass) o = tlObjectSet(o, s_class, oclass);
     return o;
 }
+
+//. hash(object): return the hash of the object
 static tlHandle _Object_hash(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlINT(tlObjectHash(object));
 }
+
+//. size(object): return the size of the object (the count of key/value pairs)
 static tlHandle _Object_size(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlINT(tlObjectSize(object));
 }
+
+//. keys(object): return a set of its keys
 static tlHandle _Object_keys(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlObjectKeys(object);
 }
+
+//. values(object): return a list of its values
 static tlHandle _Object_values(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlObjectValues(object);
 }
+
+//. toMap(object): turn an object into a #Map
 static tlHandle _Object_toMap(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
     return tlMapFromObject(object);
 }
+
+// TODO add many keys
+//. has(object, key): returns true if an object contains a key
 static tlHandle _Object_has(tlTask* task, tlArgs* args) {
     trace("");
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
@@ -418,6 +435,8 @@ static tlHandle _Object_has(tlTask* task, tlArgs* args) {
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
     return tlBOOL(res != null);
 }
+
+//. get(object, key): returns the value set under the key, undefined if it doesn't have such a mapping
 static tlHandle _Object_get(tlTask* task, tlArgs* args) {
     trace("");
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
@@ -427,6 +446,10 @@ static tlHandle _Object_get(tlTask* task, tlArgs* args) {
     tlHandle res = tlObjectGetSym(object, tlSymFromString(key));
     return tlOR_UNDEF(res);
 }
+
+//. set(object, key, value): set key to value, returns a new #Object
+//. can also pass in one or more #Objects, they will all be merged into a final #Object
+//. > Object.set({x=10,y=10},{x=42},{x=100}) #> {x=100,y=10}
 static tlHandle _Object_set(tlTask* task, tlArgs* args) {
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
