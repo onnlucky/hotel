@@ -94,6 +94,10 @@ tlEnv* tlCodeFrameEnv(tlFrame* frame);
 int tlBCodePosOpsForPc(tlBCode* code, int pc);
 tlHandle tlBCallGetExtra(tlArgs* call, int at, tlBCode* code);
 
+void tlCodeFrameDump(tlFrame* frame);
+void tlDumpTraceEvents(int count);
+tlTask* tlDumpTraceGetTask(int count);
+
 void bcode_init();
 
 #endif

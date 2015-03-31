@@ -1215,6 +1215,10 @@ void tlDumpTraceEvents(int count) {
     }
 }
 
+tlTask* tlDumpTraceGetTask(int count) {
+    return g_trace_task[(g_trace_event - count) & TRACE_EVENT_MASK];
+}
+
 void tlCodeFrameDump(tlFrame* _frame) {
     tlCodeFrame* frame = (tlCodeFrame*)_frame;
     tlArgs* args = frame->locals->args;

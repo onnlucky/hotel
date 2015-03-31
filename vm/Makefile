@@ -24,7 +24,8 @@ OBJECTS:=$(SOURCES:.c=.o)
 TEST_SOURCES:=$(filter-out number_test.c,$(shell echo *_test.c))
 TESTS:=$(TEST_SOURCES:.c=)
 
-run: test
+run: tl
+	TL_MODULE_PATH=../modules:../cmodules ./tl ../run.tl
 
 test: $(TESTS)
 	./env_test
