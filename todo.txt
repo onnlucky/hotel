@@ -17,6 +17,7 @@ pretty print very pretty: do classes nicely, like Vector{x=1, y=1, z=1}, cut off
 
 # IMPLEMENTATION TODO
 
+fix {x=(->null)}.hash, it shouldn't crash, it should throw an exception
 make tlInt and hahsing (uint32_t) work together, simply fix the high byte to 0?
 
 unify tl_kind with tlClass with tlUserClass allow to inherit from host native objects
