@@ -250,7 +250,9 @@ extern tlHandle tlSmaller;
 extern tlHandle tlLarger;
 tlHandle tlCOMPARE(intptr_t); // returns one of tlEqual, tlSmaller, tlLarger
 
-uint32_t tlHandleHash(tlHandle v);
+/// hash a value, all values must be host and not contain any non hashable/non host values
+/// hashes will never be 0, zero means error, on error, unhashable handle will be set, unless NULL
+uint32_t tlHandleHash(tlHandle v, tlHandle* unhashable);
 bool tlHandleEquals(tlHandle left, tlHandle right);
 tlHandle tlHandleCompare(tlHandle left, tlHandle right);
 
@@ -532,7 +534,8 @@ tlLock* tlLockCast(tlHandle v);
 tlTask* tlLockOwner(tlLock* lock);
 
 typedef const char*(*tltoStringFn)(tlHandle v, char* buf, int size);
-typedef uint32_t(*tlHashFn)(tlHandle from);
+/// type used as hash callback for host values, if encoutering any unashable values, return 0 and set unhashable if not NULL
+typedef uint32_t(*tlHashFn)(tlHandle from, tlHandle* unhashable);
 typedef int(*tlEqualsFn)(tlHandle left, tlHandle right);
 typedef tlHandle(*tlCompareFn)(tlHandle left, tlHandle right);
 typedef size_t(*tlByteSizeFn)(tlHandle value);

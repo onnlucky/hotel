@@ -184,13 +184,18 @@ static tlHandle _list_size(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
     return tlINT(tlListSize(list));
 }
-static uint32_t listHash(tlHandle v);
+static uint32_t listHash(tlHandle v, tlHandle* unhashable);
+
 //. hash: traverse all elements for a hash, then calculate a final hash
 //. throws an exception if elements could not be hashed
 static tlHandle _list_hash(tlTask* task, tlArgs* args) {
     tlList* list = tlListAs(tlArgsTarget(args));
-    return tlINT(listHash(list));
+    tlHandle unhashable = null;
+    uint32_t hash = listHash(list, &unhashable);
+    if (!hash) TL_THROW("cannot hash '%s'", tl_repr(unhashable));
+    return tlINT(hash);
 }
+
 //. get(index): return the element from the list at index
 static tlHandle _list_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlList, list);
@@ -322,20 +327,21 @@ static size_t listSize(tlHandle v) {
     return sizeof(tlList) + sizeof(tlHandle) * tlListAs(v)->size;
 }
 
-static uint32_t listHash(tlHandle v) {
+static uint32_t listHash(tlHandle v, tlHandle* unhashable) {
     tlList* list = tlListAs(v);
     // if (list->hash) return list->hash;
     uint32_t hash = 3615000021; // 10.hash + 1
     uint32_t size = list->size;
     for (uint32_t i = 0; i < size; i++) {
-        uint32_t h = tlHandleHash(tlListGet(list, i));
+        uint32_t h = tlHandleHash(tlListGet(list, i), unhashable);
+        if (!h) return 0;
         // rotate shift the hash then mix in the value hash
         hash = hash << 1 | hash >> 31;
         hash ^= h;
     }
     // and mix in the list size after a murmur
     hash ^= murmurhash2a(&size, sizeof(size));
-    return hash;
+    return hash | !hash;
 }
 
 static bool listEquals(tlHandle _left, tlHandle _right) {

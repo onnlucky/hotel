@@ -692,7 +692,7 @@ const char* stringtoString(tlHandle v, char* buf, int size) {
     return tlStringData(tlStringAs(v));
 }
 
-uint32_t stringHash(tlHandle v) {
+uint32_t stringHash(tlHandle v, tlHandle* unhashable) {
     return tlStringHash(tlStringAs(v));
 }
 

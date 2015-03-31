@@ -60,7 +60,7 @@ static const char* chartoString(tlHandle v, char* buf, int size) {
     buf[len] = 0;
     return buf;
 }
-static uint32_t charHash(tlHandle h) {
+static uint32_t charHash(tlHandle h, tlHandle* unhashable) {
     return murmurhash2a((uint8_t*)&tlCharAs(h)->value, sizeof(int)) + 2;
 }
 static bool charEquals(tlHandle left, tlHandle right) {
@@ -91,7 +91,7 @@ static tlHandle _Char(tlTask* task, tlArgs* args) {
     return tlCHAR(tl_int(tlArgsGet(args, 0)));
 }
 static tlHandle _char_hash(tlTask* task, tlArgs* args) {
-    return tlINT(charHash(tlArgsTarget(args)));
+    return tlINT(charHash(tlArgsTarget(args), null));
 }
 static tlHandle _char_toString(tlTask* task, tlArgs* args) {
     int c = tl_int(tlArgsTarget(args));
@@ -121,7 +121,7 @@ tlHandle tlFLOAT(double d) {
 static const char* floattoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "%.17g", tl_double(v)); return buf;
 }
-static uint32_t floatHash(tlHandle h) {
+static uint32_t floatHash(tlHandle h, tlHandle* unhashable) {
     return murmurhash2a((uint8_t*)&tlFloatAs(h)->value, sizeof(double)) + 3;
 }
 static bool floatEquals(tlHandle left, tlHandle right) {
@@ -148,7 +148,7 @@ static tlKind _tlFloatKind = {
 tlKind* tlFloatKind;
 
 static tlHandle _float_hash(tlTask* task, tlArgs* args) {
-    return tlINT(floatHash(tlArgsTarget(args)));
+    return tlINT(floatHash(tlArgsTarget(args), null));
 }
 static tlHandle _float_bytes(tlTask* task, tlArgs* args) {
     union { uint64_t n; double f; } u;
@@ -387,7 +387,7 @@ static tlHandle _Num_fromBytes(tlTask* task, tlArgs* args) {
 static const char* numtoString(tlHandle v, char* buf, int size) {
     mp_toradix_n(&tlNumAs(v)->value, buf, 10, size); return buf;
 }
-static uint32_t numHash(tlHandle h) {
+static uint32_t numHash(tlHandle h, tlHandle* unhashable) {
     // TODO this is broken
     return murmurhash2a((uint8_t*)&tlNumAs(h)->value, sizeof(double));
 }

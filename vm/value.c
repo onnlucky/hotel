@@ -177,7 +177,7 @@ static const char* undefinedtoString(tlHandle v, char* buf, int size) { return "
 static tlKind _tlUndefinedKind = { .name = "Undefined", .toString = undefinedtoString };
 
 static const char* nulltoString(tlHandle v, char* buf, int size) { return "null"; }
-static uint32_t nullHash(tlHandle v) { return 553626246U; } // 0.hash + 1
+static uint32_t nullHash(tlHandle v, tlHandle* unhashable) { return 553626246U; } // 0.hash + 1
 static tlKind _tlNullKind = {
     .name = "Null",
     .index = -1,
@@ -192,7 +192,7 @@ static const char* booltoString(tlHandle v, char* buf, int size) {
         default: return "<!! error !!>";
     }
 }
-static uint32_t boolHash(tlHandle v) {
+static uint32_t boolHash(tlHandle v, tlHandle* unhashable) {
     if ((intptr_t)v == TL_FALSE) return 3132784305U; // 1.hash + 1
     return 3502067542U; // 2.hash + 1
 }
@@ -206,7 +206,7 @@ static tlKind _tlBoolKind = {
 static const char* inttoString(tlHandle v, char* buf, int size) {
     snprintf(buf, size, "%zd", tlIntToInt(v)); return buf;
 }
-static unsigned int intHash(tlHandle v) {
+static unsigned int intHash(tlHandle v, tlHandle* unhashable) {
     intptr_t i = tlIntToInt(v);
     return murmurhash2a(&i, sizeof(i));
 }
@@ -239,7 +239,7 @@ static tlHandle _bool_toString(tlTask* task, tlArgs* args) {
     return _t_false;
 }
 static tlHandle _int_hash(tlTask* task, tlArgs* args) {
-    return tlINT(intHash(tlArgsTarget(args)));
+    return tlINT(intHash(tlArgsTarget(args), null));
 }
 static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
     intptr_t c = tlIntToInt(tlArgsTarget(args));

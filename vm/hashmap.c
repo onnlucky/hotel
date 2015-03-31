@@ -30,7 +30,7 @@ static unsigned int map_hash(void* key) {
     trace("map_hash: %s", tl_str(key));
     tlKind* kind = tl_kind(key);
     assert(kind->hash);
-    return kind->hash(key);
+    return kind->hash(key, null);
 }
 
 static void map_free(void* key) { }

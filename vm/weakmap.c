@@ -23,7 +23,7 @@ struct tlWeakMap {
 };
 
 static uint32_t wmgetHash(tlHandle key) {
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     // we tag deleted hashes, and we cannot have zero hash
     hash &= 0x7FFFFFFF;
     hash |= hash == 0;

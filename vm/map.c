@@ -50,9 +50,11 @@ tlObject* tlObjectFromMap(tlMap* map) {
     assert(tlObjectIs(o));
     return o;
 }
-int tlMapHash(tlMap* map) {
-    return tlObjectHash((tlObject*)map);
+
+int tlMapHash(tlMap* map, tlHandle* unhashable) {
+    return tlObjectHash((tlObject*)map, unhashable);
 }
+
 int tlMapSize(tlMap* map) {
     return map->keys->size;
 }
@@ -128,9 +130,13 @@ static tlHandle _Map_call(tlTask* task, tlArgs* args) {
 
 //. hash: return the hash value of this #Map
 static tlHandle _map_hash(tlTask* task, tlArgs* args) {
-    tlMap* map = tlMapAs(tlArgsTarget(args));
-    return tlINT(tlMapHash(map));
+    TL_TARGET(tlMap, map);
+    tlHandle unhashable = null;
+    uint32_t hash = tlMapHash(map, &unhashable);
+    if (!hash) TL_THROW("cannot hash '%s'", tl_repr(unhashable));
+    return tlINT(hash);
 }
+
 //. size: return the size of this #Map
 static tlHandle _map_size(tlTask* task, tlArgs* args) {
     tlMap* map = tlMapAs(tlArgsTarget(args));
@@ -175,10 +181,12 @@ const char* maptoString(tlHandle v, char* buf, int size) {
 static size_t mapSize(tlHandle v) {
     return sizeof(tlMap) + sizeof(tlHandle) * tlMapAs(v)->keys->size;
 }
-static unsigned int mapHash(tlHandle v) {
+
+static unsigned int mapHash(tlHandle v, tlHandle* unhashable) {
     tlMap* map = tlMapAs(v);
-    return tlMapHash(map);
+    return tlMapHash(map, unhashable);
 }
+
 static bool mapEquals(tlHandle _left, tlHandle _right) {
     if (_left == _right) return true;
 

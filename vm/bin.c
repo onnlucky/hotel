@@ -187,7 +187,7 @@ static const char* bintoString(tlHandle v, char* buf, int size) {
     else snprintf(buf + 4 + 5 * i - 5, 5, "...)");
     return buf;
 }
-static unsigned int binHash(tlHandle v) {
+static unsigned int binHash(tlHandle v, tlHandle* unhashable) {
     return tlStringHash((tlString*)v);
 }
 static int binEquals(tlHandle left, tlHandle right) {

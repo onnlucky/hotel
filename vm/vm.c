@@ -87,10 +87,14 @@ void tlbacktrace_fatal(int x) {
 tlHandle _dlopen(tlTask* task, tlArgs* args);
 
 // return a hash
-unsigned tlHandleHash(tlHandle v) {
+uint32_t tlHandleHash(tlHandle v, tlHandle* unhashable) {
     tlKind* kind = tl_kind(v);
-    if (!kind->hash) fatal("no hash for kind: %s", kind->name);
-    return kind->hash(v);
+    if (!kind->hash) {
+        if (unhashable) *unhashable = v;
+        if (!unhashable) warning("no hash for kind: %s", kind->name);
+        return 0;
+    }
+    return kind->hash(v, unhashable);
 }
 // return true if equal, false otherwise
 bool tlHandleEquals(tlHandle left, tlHandle right) {
@@ -614,7 +618,7 @@ void jsonparser_init();
 void xmlparser_init();
 
 tlVm* tlVmNew(tlSym procname, tlArgs* args) {
-    srandom(time(NULL));
+    srandom(time(0));
     tlVm* vm = tlAlloc(tlVmKind, sizeof(tlVm));
     vm->waiter = tlWorkerNew(vm);
     vm->globals = tlObjectEmpty();

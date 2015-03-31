@@ -248,7 +248,7 @@ tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHand
     if (SamehashEntriesIs(othervalue)) {
         // found a series of values under a shared hash
         tlHandle subsub = BitmapEntriesNew2(cx, level + 1, hash, key, value,
-                tlHandleHash(otherkey), otherkey, othervalue);
+                tlHandleHash(otherkey, null), otherkey, othervalue);
         key = SamehashEntriesIs(subsub)? key : null;
         return BitmapEntriesNewReplace(cx, sub, size, pos, key, subsub);
     }
@@ -263,7 +263,7 @@ tlHandle BitmapEntriesSet(Context* cx, BitmapEntries* sub, uint32_t hash, tlHand
     }
     // upgrade single entry to trie
     BitmapEntries* subsub = BitmapEntriesNew2(cx, level + 1, hash, key, value,
-            tlHandleHash(otherkey), otherkey, othervalue);
+            tlHandleHash(otherkey, null), otherkey, othervalue);
     key = SamehashEntriesIs(subsub)? key : null;
     return BitmapEntriesNewReplace(cx, sub, size, pos, key, subsub);
 }
@@ -349,7 +349,7 @@ tlPersistentMap* tlPersistentMapFrom(tlHandle value, int size) {
 }
 
 tlHandle tlPersistentMapSet(tlPersistentMap* map, tlHandle key, tlHandle value) {
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     Context cx = {0};
     tlHandle sub = BitmapEntriesSet(&cx, map->sub, hash, key, value, 0);
     if (sub == map->sub) return map;
@@ -357,7 +357,7 @@ tlHandle tlPersistentMapSet(tlPersistentMap* map, tlHandle key, tlHandle value) 
 }
 
 tlHandle tlPersistentMapDel(tlPersistentMap* map, tlHandle key) {
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     Context cx = {0};
     Entry entry = BitmapEntriesDel(&cx, map->sub, hash, key, 0);
     if (entry.value == map->sub) return map; // no change
@@ -365,7 +365,7 @@ tlHandle tlPersistentMapDel(tlPersistentMap* map, tlHandle key) {
 }
 
 tlHandle tlPersistentMapGet(tlPersistentMap* map, tlHandle key) {
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     return BitmapEntriesGet(map->sub, hash, key, 0);
 }
 
@@ -395,7 +395,7 @@ tlPersistentMap* tlTransientMapPersist(tlTransientMap* map) {
 
 void tlTransientMapSet(tlTransientMap* map, tlHandle key, tlHandle value) {
     assert(!tlflag_isset(map, kPersisted));
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     Context cx = {.transient = map};
     map->sub = BitmapEntriesSet(&cx, map->sub, hash, key, value, 0);
     map->size += cx.delta;
@@ -403,7 +403,7 @@ void tlTransientMapSet(tlTransientMap* map, tlHandle key, tlHandle value) {
 
 void TransientMapDel(tlTransientMap* map, tlHandle key) {
     assert(!tlflag_isset(map, kPersisted));
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     Context cx = {0};
     Entry entry = BitmapEntriesDel(&cx, map->sub, hash, key, 0);
     map->sub = entry.value;
@@ -411,7 +411,7 @@ void TransientMapDel(tlTransientMap* map, tlHandle key) {
 }
 
 tlHandle tlTransientMapGet(tlTransientMap* map, tlHandle key) {
-    uint32_t hash = tlHandleHash(key);
+    uint32_t hash = tlHandleHash(key, null);
     return BitmapEntriesGet(map->sub, hash, key, 0);
 }
 
@@ -466,7 +466,7 @@ TEST(setandget) {
     REQUIRE(tlPersistentMapGet(map, tlINT(42)) == value2);
     REQUIRE(tlPersistentMapSize(map) == 1);
 
-    uint32_t targethash = tlHandleHash(tlINT(42));
+    uint32_t targethash = tlHandleHash(tlINT(42), null);
 
     tlHandle key = null;
 
@@ -474,7 +474,7 @@ TEST(setandget) {
     for (int i =  17583933; i < 20*1000*1000; i++) {
         int len = snprintf(buf, sizeof(buf), "%dx", i);
         tlString* str = tlStringFromCopy(buf, len);
-        uint32_t hash = tlHandleHash(str);
+        uint32_t hash = tlHandleHash(str, null);
         if ((hash & 0x000FFFFF) == (targethash & 0x000FFFFF)) {
             key = str;
         }
@@ -494,7 +494,7 @@ TEST(setandget) {
     ((Breaker*)break2)->hash = ((Breaker*)key)->hash;
     ((Breaker*)break3)->hash = ((Breaker*)key)->hash;
     ((Breaker*)break4)->hash = ((Breaker*)key)->hash;
-    REQUIRE(tlHandleHash(break1) == tlHandleHash(break2));
+    REQUIRE(tlHandleHash(break1, null) == tlHandleHash(break2, null));
     REQUIRE(!tlHandleEquals(break1, break2));
 
     map = tlPersistentMapSet(map, break1, tlINT(1));

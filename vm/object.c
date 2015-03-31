@@ -117,13 +117,14 @@ tlObject* tlObjectToObject_(tlObject* object) {
     object->head.kind = (intptr_t)tlObjectKind; return object;
 }
 
-uint32_t tlObjectHash(tlObject* object) {
+uint32_t tlObjectHash(tlObject* object, tlHandle* unhashable) {
     // if (object->hash) return object->hash;
     uint32_t hash = 212601863; // 11.hash + 1
     uint32_t size = object->keys->size;
     for (uint32_t i = 0; i < size; i++) {
-        uint32_t k = tlHandleHash(tlSetGet(object->keys, i));
-        uint32_t v = tlHandleHash(object->data[i]);
+        uint32_t k = tlHandleHash(tlSetGet(object->keys, i), unhashable);
+        uint32_t v = tlHandleHash(object->data[i], unhashable);
+        if (!k || !v) return 0;
         // rotate shift the hash then mix in the key, rotate, then value
         hash = hash << 1 | hash >> 31;
         hash ^= k;
@@ -132,7 +133,7 @@ uint32_t tlObjectHash(tlObject* object) {
     }
     // and mix in the list size after a murmur
     hash ^= murmurhash2a(&size, sizeof(size));
-    return hash;
+    return hash | !hash;
 }
 
 int tlObjectSize(const tlObject* object) {
@@ -393,7 +394,10 @@ static tlHandle _Object_inherit(tlTask* task, tlArgs* args) {
 static tlHandle _Object_hash(tlTask* task, tlArgs* args) {
     tlObject* object = tlObjectCast(tlArgsGet(args, 0));
     if (!object) TL_THROW("Expected an Object");
-    return tlINT(tlObjectHash(object));
+    tlHandle unhashable = null;
+    uint32_t hash = tlObjectHash(object, &unhashable);
+    if (!hash) TL_THROW("cannot hash '%s'", tl_repr(unhashable));
+    return tlINT(hash);
 }
 
 //. size(object): return the size of the object (the count of key/value pairs)
@@ -447,27 +451,38 @@ static tlHandle _Object_get(tlTask* task, tlArgs* args) {
     return tlOR_UNDEF(res);
 }
 
-//. set(object, key, value): set key to value, returns a new #Object
+// TODO optimize, no need for the intermediate values ...
+//. set(object, ((key, value)|object)*): set keys to values, returns a new #Object
 //. can also pass in one or more #Objects, they will all be merged into a final #Object
 //. > Object.set({x=10,y=10},{x=42},{x=100}) #> {x=100,y=10}
 static tlHandle _Object_set(tlTask* task, tlArgs* args) {
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
     tlObject* object = tlArgsGet(args, 0);
-    if (tlObjectIs(tlArgsGet(args, 1))) {
-        tlObject* from = tlArgsGet(args, 1);
-        for (int i = 0; i < 1000; i++) {
-            tlHandle key = tlObjectKeyIter(from, i);
-            if (!key) return tlObjectToObject_(object);
-            tlHandle val = tlObjectValueIter(from, i);
-            assert(val);
-            object = tlObjectSet(object, key, val);
+
+    int size = tlArgsSize(args);
+    for (int i = 1; i < size; i++) {
+        tlHandle a = tlArgsGet(args, i);
+        assert(a);
+        tlObject* from = tlObjectCast(a);
+        if (from) {
+            for (int j = 0; j < 1000; j++) {
+                tlHandle key = tlObjectKeyIter(from, j);
+                if (!key) break;
+                tlHandle val = tlObjectValueIter(from, j);
+                assert(val);
+                object = tlObjectSet(object, key, val);
+            }
+            continue;
         }
+
+        tlString* key = tlStringCast(a);
+        if (!key) TL_THROW("Expected an Object or key/value pair, not '%s'", tl_repr(a));
+        i += 1;
+        tlHandle val = tlArgsGet(args, i);
+        if (!val) TL_THROW("Expected a value for key '%s'", tl_str(key));
+        object = tlObjectToObject_(tlObjectSet(object, tlSymFromString(key), val));
     }
-    tlString* key = tlStringCast(tlArgsGet(args, 1));
-    if (!key) TL_THROW("Expected a String");
-    tlHandle val = tlArgsGet(args, 2);
-    if (!val) TL_THROW("Expected a value");
-    return tlObjectToObject_(tlObjectSet(object, tlSymFromString(key), val));
+    return object;
 }
 
 static tlHandle _Object_merge(tlTask* task, tlArgs* args) {
@@ -583,9 +598,9 @@ static tlHandle objectRun(tlTask* task, tlHandle fn, tlArgs* args) {
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
-static uint32_t objectHash(tlHandle v) {
+static uint32_t objectHash(tlHandle v, tlHandle* unhashable) {
     tlObject* object = tlObjectAs(v);
-    return tlObjectHash(object);
+    return tlObjectHash(object, unhashable);
 }
 static bool objectEquals(tlHandle _left, tlHandle _right) {
     if (_left == _right) return true;

@@ -29,7 +29,7 @@ int process_utf8(const char* from, int len, char** into, int* intolen, int* into
 void write_utf8(int c, char buf[], int* len);
 
 const char* stringtoString(tlHandle v, char* buf, int size);
-uint32_t stringHash(tlHandle v);
+uint32_t stringHash(tlHandle v, tlHandle* unhashable);
 
 void string_init_first();
 void string_init();
