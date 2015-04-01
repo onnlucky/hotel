@@ -468,9 +468,17 @@ compile = (text, ast ->
             # TODO fixup for new var stuff
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
-                { to.type == "local" }: scope.add(to.name, to.pos)
-                {                    }: scope.add("", to.pos) # anonymous locals for Var.new and var.set
-                                        assert false
+                { to.type == "local" }:
+                    ref = scope.ref(to.name, peek=true)
+                    type = ids[ref?id]
+                    if type?type == "var" or type?stype == "var":
+                        line, char = lineFromPos(to.pos)
+                        throw "assigning to '$(to.name)' is not yet supported"
+                    scope.add(to.name, to.pos)
+                {                    }:
+                    line, char = lineFromPos(to.pos)
+                    throw "assigning to '$(to.name)' is not yet supported"
+                    scope.add("", to.pos) # anonymous locals for Var.new and var.set
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
