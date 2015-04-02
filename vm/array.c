@@ -130,7 +130,7 @@ tlList* tlArrayToList(tlArray* array) {
 //. object Array: a mutable list
 
 // TODO actually ... using tlArrayIs and then iterating it like this is not thread safe ... should holds its lock
-//. Array.new(...ls): create a new array, filled with the all elements from the lists given
+//. Array.new(*ls): create a new array, filled with the all elements from the lists given
 tlHandle _Array_new(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayNew();
     for (int i = 0; i < 1000; i++) {
@@ -204,7 +204,7 @@ static tlHandle _array_add(tlTask* task, tlArgs* args) {
     return tlResultFrom(v, tlINT(array->size), null);
 }
 
-//. cat(...ls): add all contents of all lists or arrays to this array
+//. cat(*ls): add all contents of all lists or arrays to this array
 static tlHandle _array_cat(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
     for (int i = 0; i < tlArgsSize(args); i++) {
@@ -257,7 +257,7 @@ static tlHandle _array_remove(tlTask* task, tlArgs* args) {
     return tlOR_UNDEF(tlArrayRemove(array, at));
 }
 
-//. splice(from, to, ...ls): cut out a range in this array, replacing it by all elements in lists given
+//. splice(from, to, *ls): cut out a range in this array, replacing it by all elements in lists given
 //. when no lists are given, the elements are simply removed
 static tlHandle _array_splice(tlTask* task, tlArgs* args) {
     tlArray* array = tlArrayAs(tlArgsTarget(args));
