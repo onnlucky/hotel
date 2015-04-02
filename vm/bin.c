@@ -112,6 +112,11 @@ tlBin* tlBinSub(tlBin* from, int offset, int len) {
     return tlBinFromTake(data, len);
 }
 
+//. object Bin: a immutable list of bytes
+
+//. Bin.new(*ls): returns a bin by turning all passed in objects to a byte sequence
+//. #Lists are flattened. #nulls are ignored. The lower 8 bytes of numbers are a byte.
+//. #Chars turned to their utf8 byte sequence, as are #Strings.
 static tlHandle _Bin_new(tlTask* task, tlArgs* args) {
     tlBuffer* buf = tlBufferNew();
 
@@ -125,15 +130,19 @@ static tlHandle _Bin_new(tlTask* task, tlArgs* args) {
     return tlBinFromCopy(tlBufferData(buf), tlBufferSize(buf));
 }
 
+//. size: the bytes held by this binary object
 static tlHandle _bin_size(tlTask* task, tlArgs* args) {
     return tlINT(tlBinAs(tlArgsTarget(args))->len);
 }
+
+//. get(pos): return the byte at #pos, will result in a number from 0-255
 static tlHandle _bin_get(tlTask* task, tlArgs* args) {
     tlBin* bin = tlBinAs(tlArgsTarget(args));
     int at = at_offset(tlArgsGet(args, 0), tlBinSize(bin));
     if (at < 0) return tlUndef();
     return tlINT(tlBinGet(bin, at));
 }
+
 //. slice: return a subsection of the binary withing bounds of args[1], args[2]
 static tlHandle _bin_slice(tlTask* task, tlArgs* args) {
     tlBin* str = tlBinAs(tlArgsTarget(args));
@@ -144,6 +153,8 @@ static tlHandle _bin_slice(tlTask* task, tlArgs* args) {
     int len = sub_offset(first, last, tlBinSize(str), &offset);
     return tlBinSub(str, offset, len);
 }
+
+//. toHex: return a #String with a hex (base 16) representation of this binary
 static tlHandle _bin_toHex(tlTask* task, tlArgs* args) {
     static const char hexchars[] =
         {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
@@ -159,6 +170,7 @@ static tlHandle _bin_toHex(tlTask* task, tlArgs* args) {
     return tlStringFromTake(buf, len);
 }
 
+//. toString: return a #String from the bytes, as if they are utf8 encoded text, will skip invalid sequences
 static tlHandle _bin_toString(tlTask* task, tlArgs* args) {
     tlBin* bin = tlBinAs(tlArgsTarget(args));
 
