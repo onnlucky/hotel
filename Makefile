@@ -125,6 +125,7 @@ clean:
 	rm -f modules/*.tlb
 	rm -f tlmeta
 	rm -rf gcov*html vm/gcov*html *.gcda *.gcno vm/*.gcda vm/*.gcno boot/*.gcda boot/*.gcno
+	rm -f docgen.tl doc.html
 	$(MAKE) -C vm clean
 	$(MAKE) -C cmodules clean
 ifndef NO_GRAPHICS
