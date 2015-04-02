@@ -39,9 +39,9 @@ static tlHandle _Class_class(tlTask* task, tlArgs* args) {
 
 tlKind _tlClassKind = {
     .name = "Class",
-    //.hash = classHash,
-    //.equals = classEquals,
-    //.cmp = classCmp,
+    // .hash = classHash,
+    // .equals = classEquals,
+    // .cmp = classCmp,
 };
 
 void class_init() {
