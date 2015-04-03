@@ -1,10 +1,13 @@
 in = "
 Test = { ->
-    x = 10
+    x = 42
     print = -> print this.x
-    extend String(\"hello\")
-
-    class TEST = 100
 }
+
+o = Test()
+o.print
+o.print
 "
-testcompiler.load(in, _env_current()).disasm
+m = testcompiler.load(in, _env_current())
+m.disasm
+m.run

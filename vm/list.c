@@ -81,6 +81,14 @@ tlHandle tlListGet(const tlList* list, int at) {
     return list->data[at];
 }
 
+/// search a list by identity
+int tlListIndexOf(const tlList* list, tlHandle needle) {
+    for (int i = 0; i < list->size; i++) {
+        if (list->data[i] == needle) return i;
+    }
+    return -1;
+}
+
 tlList* tlListCopy(tlList* list, int size) {
     assert(tlListIs(list));
     assert(size >= 0 || size == -1);

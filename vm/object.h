@@ -32,8 +32,10 @@ struct tlUserClass {
     tlHead head;
     tlSym name;
     tlHandle constructor;
-    tlObject* fields;
+    tlList* inherits;
+    tlList* fields;
     tlObject* methods;
+    tlObject* classfields;
 };
 
 struct tlUserObject {

@@ -9,6 +9,7 @@
 #include "set.h"
 #include "args.h"
 #include "string.h"
+#include "list.h"
 
 tlKind* tlClassKind;
 
@@ -656,15 +657,32 @@ static tlKind _tlObjectKind = {
 tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
 
+void tlArgsDump(tlArgs* args) {
+    print("args: %d named=%d", tlArgsSize(args), tlArgsNamedSize(args));
+    for (int i = 0;; i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (!v) return;
+        print("args: %s", tl_repr(v));
+    }
+}
+
 static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
+    tlArgsDump(args);
     tlSym name = tlSymCast_(tlArgsGet(args, 0));
-    tlHandle constructor = tlArgsGet(args, 1);
-    tlObject* fields = tlObjectCast(tlArgsGet(args, 2));
-    tlObject* methods = tlObjectCast(tlArgsGet(args, 3));
+    bool mutable = tl_bool(tlArgsGet(args, 1));
+    UNUSED(mutable);
+    tlHandle constructor = tlArgsGet(args, 2);
+    tlList* extends = tlListCast(tlArgsGet(args, 3));
+    tlList* fields = tlListCast(tlArgsGet(args, 4));
+    tlObject* methods = tlObjectCast(tlArgsGet(args, 5));
+    tlObject* classfields = tlObjectCast(tlArgsGet(args, 6));
     assert(constructor);
+    assert(extends);
     assert(fields);
     assert(methods);
+    assert(classfields);
 
+    // TODO fields should be the concat of all extended object fields, and then handle non tlUserClasses differently
     tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
     cls->name = name;
     cls->constructor = constructor;
@@ -674,18 +692,30 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     return cls;
 }
 
+static tlHandle _UserClass_extend(tlTask* task, tlArgs* args) {
+    tlHandle extend = tlArgsGet(args, 0);
+    UNUSED(extend);
+    tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 1));
+    UNUSED(oop);
+    assert(oop);
+    // TODO call constructor of extend with args
+    return tlNull;
+}
+
 static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 0));
     assert(oop);
     assert(oop->cls);
-    assert(tlObjectIs(oop->cls->fields));
+    assert(tlListIs(oop->cls->fields));
     tlSym name = tlSymAs_(tlArgsGet(args, 1));
     tlHandle v = tlOR_NULL(tlArgsGet(args, 2));
 
     tlUserClass* cls = oop->cls;
     trace("setField: %s.%s = %s", tl_str(oop), tl_str(name), tl_str(v));
-    tlHandle field = tlObjectGet(cls->fields, name);
-    if (field) oop->fields[tl_int(field)] = v;
+    int field = tlListIndexOf(cls->fields, name);
+    if (field < 0) TL_THROW("not a field: '%s'", tl_str(name));
+    assert(field < tlListSize(cls->fields));
+    oop->fields[field] = v;
     return v;
 }
 
@@ -697,7 +727,7 @@ static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
 static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     assert(cls->fields);
-    int fields = tlObjectSize(cls->fields);
+    int fields = tlListSize(cls->fields);
     assert(fields >= 0);
     tlUserObject* target = tlAlloc(tlUserObjectKind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
     target->cls = cls;
@@ -717,9 +747,10 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
         if (v) return v;
         super = null; //super->super;
     }
-    tlHandle field = tlObjectGet(cls->fields, name);
-    if (field) return tlOR_NULL(oop->fields[tl_int(field)]);
-    return null;
+    int field = tlListIndexOf(cls->fields, name);
+    if (field < 0) return tlNull;
+    assert(field < tlListSize(cls->fields));
+    return tlOR_NULL(oop->fields[field]);
 }
 
 void class_init_first() {
@@ -771,5 +802,9 @@ void object_init() {
         .name = "UserObject",
     };
     INIT_KIND(tlUserObjectKind);
+
+    tl_register_global("_class", tlNativeNew(_UserClass_call, tlSYM("_class")));
+    tl_register_global("_setfield", tlNativeNew(_UserClass_setField, tlSYM("_setfield")));
+    tl_register_global("_extend", tlNativeNew(_UserClass_extend, tlSYM("_extend")));
 }
 

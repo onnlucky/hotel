@@ -511,11 +511,11 @@ compile = (text, ast ->
             classfields = {type="object", fill=cfill, map=classfields.toMap}
 
             #Test = _class("Test", mutable, _constructor, extends, fields, methods, classfields)
-            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="_class"},args=[
+            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="UserClass"},args=[
                 {type="string",data=(name or "<Anon>")}
                 bool(mutable,"true","false")
                 constructor
-                {type="list",data=extends.map(n -> {type="data",data=n})}
+                {type="list",data=extends.toList}
                 {type="list",data=fields.map(n -> {type="data",data=n})}
                 methods
                 classfields
