@@ -32,7 +32,7 @@ struct tlUserClass {
     tlHead head;
     tlSym name;
     tlHandle constructor;
-    tlList* inherits;
+    tlList* extends;
     tlList* fields;
     tlObject* methods;
     tlObject* classfields;

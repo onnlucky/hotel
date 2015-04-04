@@ -658,7 +658,7 @@ tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
 
 void tlArgsDump(tlArgs* args) {
-    print("args: %d named=%d", tlArgsSize(args), tlArgsNamedSize(args));
+    print("--- args dump: %d named=%d", tlArgsSize(args), tlArgsNamedSize(args));
     for (int i = 0;; i++) {
         tlHandle v = tlArgsGet(args, i);
         if (!v) return;
@@ -686,20 +686,28 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
     cls->name = name;
     cls->constructor = constructor;
+    cls->extends = extends;
     cls->fields = fields;
     cls->methods = methods;
+    cls->classfields = classfields;
 
     return cls;
 }
 
 static tlHandle _UserClass_extend(tlTask* task, tlArgs* args) {
-    tlHandle extend = tlArgsGet(args, 0);
-    UNUSED(extend);
-    tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 1));
-    UNUSED(oop);
-    assert(oop);
-    // TODO call constructor of extend with args
-    return tlNull;
+    tlArgsDump(args);
+    tlUserClass* cls = tlUserClassCast(tlArgsGet(args, 0));
+    tlUserObject* target = tlUserObjectCast(tlArgsGet(args, 1));
+    assert(target);
+    if (!cls) cls = target->cls; // TODO for now
+    assert(cls);
+    int super = tl_int_or(tlArgsGet(args, 2), -1);
+    assert(super >= 0);
+    assert(tlListIs(cls->extends));
+    tlUserClass* extend = tlListGet(cls->extends, super);
+    assert(extend);
+    // TODO call constructor of extend with args (extend, this, a1, a2, ...) not (cls, argc, a1, a2, ...)
+    return tlInvoke(task, tlArgsFrom(args, extend->constructor, extend->name, target));
 }
 
 static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
@@ -745,10 +753,10 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     while (super) {
         tlHandle v = tlObjectGet(super->methods, name);
         if (v) return v;
-        super = null; //super->super;
+        super = tlUserClassCast(tlListGet(super->extends, 0));
     }
     int field = tlListIndexOf(cls->fields, name);
-    if (field < 0) return tlNull;
+    if (field < 0) return null;
     assert(field < tlListSize(cls->fields));
     return tlOR_NULL(oop->fields[field]);
 }

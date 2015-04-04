@@ -468,26 +468,33 @@ compile = (text, ast ->
                     fields.add(field)
                     return {type="call",target={type="global",pos=stm.target.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.target.pos}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "class" }:
+                    if stm.args.size != 1 or not stm.args[1]?n:
+                        line, char = lineFromPos(stm.pos)
+                        throw "class specifier without a 'name = value' on line $line"
                     field = stm.args[1].n
-                    value = lex(scope, stm.args[1].v)
+                    value = lex(outerscope, stm.args[1].v)
                     classfields[field] = value
+                    continue
+                # {"target":{"type":"ref","pos":102,"name":"extend"},"type":"call","pos":108,"args":[{"v":{"target":{"type":"ref","pos":109,"name":"Shape"},"type":"call","pos":114,"args":[]}}]}
+                { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "extend" }:
+                    if stm.args.size != 1 or stm.args[1]?n:
+                        line, char = lineFromPos(stm.pos)
+                        throw "invalid extend specifier on line $line"
+                    t = stm.args[1].v
+                    target = { t.type == "call" }: lex(outerscope, t.target)
+                             { t.type == "ref"  }: lex(outerscope, t)
+                             {                  }: line, char = lineFromPos(stm.pos)
+                                                   throw "invalid extend specifier on line $line"
+                    extends.add(target)
+                    cls = lex(scope, {type="ref",pos=stm.pos,name="class"})
+                    ths = lex(scope, {type="ref",pos=stm.pos,name="this"})
+                    as = t?args or []
+                    return {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + as,pos=stm.pos}
                 { }: null
 
                 stm = lex(scope, stm)
                 print json.toString(stm)
-                # after lexing
-                { stm.type == "call" and stm.target.type == "global" and stm.target.name == "extend" }:
-                    # TODO warn/error when inherit is not a class, or in local scope ... oeps
-                    extends.add(stm.args[1].target)
-                    #_extend(class, 1, this, a)
-                    cls = lex(scope, {type="ref",pos=stm.pos,name="class"})
-                    ths = lex(scope, {type="ref",pos=stm.pos,name="this"})
-                    as = stm.args[1].args
-                    {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + as,pos=stm.pos}
-                { stm.type == "call" and stm.target.type == "global" and stm.target.name == "class" }:
-                    classfields[stm.names[1]] = stm.args[1]
-                    continue
-                { }: stm
+                stm
             ).add(lex(scope, {type="ref",pos=term.pos,name="this"}))
             print "class:", name, "mutable:", mutable
             print "constructor", json.toString(body)
