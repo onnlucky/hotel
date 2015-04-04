@@ -170,3 +170,4 @@ commandline = env ->
 
     term.restore
     term.write("\n")
+    null

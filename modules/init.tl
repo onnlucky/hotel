@@ -672,7 +672,7 @@ test "eval":
 runmain = as ->
     catch: e -> print "uncaught error:", toString(e); _set_exitcode(1)
 
-    if as.size == 0: resolve("commandline")()
+    if as.size == 0: return resolve("commandline")()
     #if as[1] == "snippets": return snippets.run
 
     file = as[1]
