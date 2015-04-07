@@ -470,7 +470,6 @@ compile = (text, ast ->
                     continue
                 # {"target":{"type":"ref","pos":102,"name":"extend"},"type":"call","pos":108,"args":[{"v":{"target":{"type":"ref","pos":109,"name":"Shape"},"type":"call","pos":114,"args":[]}}]}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "extend" }:
-                    # TODO allow names
                     if stm.args.size != 1 or stm.args[1]?n:
                         line, char = lineFromPos(stm.pos)
                         throw "invalid extend specifier on line $line"
@@ -482,8 +481,9 @@ compile = (text, ast ->
                     extends.add(target)
                     cls = lex(scope, {type="ref",pos=stm.pos,name="class"})
                     ths = lex(scope, {type="ref",pos=stm.pos,name="this"})
-                    as = t?args or []
-                    return {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + as,pos=stm.pos}
+                    names = ([null, null, null] + (t?args or [])).map: stm -> stm?n
+                    args = (t?args or []).map: stm -> lex(scope, stm.v)
+                    return {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + args,pos=stm.pos,names=names}
                 { }: null
 
                 # otherwise just a constructor statement
