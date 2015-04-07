@@ -657,17 +657,8 @@ static tlKind _tlObjectKind = {
 tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
 
-void tlArgsDump(tlArgs* args) {
-    print("--- args dump: %d named=%d", tlArgsSize(args), tlArgsNamedSize(args));
-    for (int i = 0;; i++) {
-        tlHandle v = tlArgsGet(args, i);
-        if (!v) return;
-        print("args: %s", tl_repr(v));
-    }
-}
-
+// build a class from compiler generated pieces, a constructor, the fields, the methods, the extended objects, etc.
 static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
-    tlArgsDump(args);
     tlSym name = tlSymCast_(tlArgsGet(args, 0));
     bool mutable = tl_bool(tlArgsGet(args, 1));
     UNUSED(mutable);
@@ -694,22 +685,47 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     return cls;
 }
 
-static tlHandle _UserClass_extend(tlTask* task, tlArgs* args) {
-    tlArgsDump(args);
-    tlUserClass* cls = tlUserClassCast(tlArgsGet(args, 0));
-    tlUserObject* target = tlUserObjectCast(tlArgsGet(args, 1));
-    assert(target);
-    if (!cls) cls = target->cls; // TODO for now
-    assert(cls);
-    int super = tl_int_or(tlArgsGet(args, 2), -1);
-    assert(super >= 0);
-    assert(tlListIs(cls->extends));
-    tlUserClass* extend = tlListGet(cls->extends, super);
-    assert(extend);
-    // TODO call constructor of extend with args (extend, this, a1, a2, ...) not (cls, argc, a1, a2, ...)
-    return tlInvoke(task, tlArgsFrom(args, extend->constructor, extend->name, target));
+// create a new class, by invoke the constructor
+static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlUserClass, cls);
+    assert(cls->fields);
+    int fields = tlListSize(cls->fields);
+    tlUserObject* target = tlAlloc(tlUserObjectKind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
+    target->cls = cls;
+
+    // constructors are invoke using args(class, ..., this=target)
+    return tlInvoke(task, tlArgsFromPrepend1(args, cls->constructor, cls->name, target, cls));
 }
 
+
+// called when a class extends a base class, in the constructor
+static tlHandle _UserClass_extend(tlTask* task, tlArgs* args) {
+    tlUserClass* cls = tlUserClassCast(tlArgsGet(args, 0));
+    tlUserObject* target = tlUserObjectCast(tlArgsGet(args, 1));
+    int super = tl_int_or(tlArgsGet(args, 2), -1);
+    assert(cls);
+    assert(tlListIs(cls->extends));
+    assert(target);
+    assert(super >= 0);
+    tlUserClass* extend = tlUserClassAs(tlListGet(cls->extends, super));
+    assert(extend);
+
+    // constructors are invoke using args(class, ..., this=target), notice this.cls != class, but this.extends(class)
+    tlList* names = tlArgsNames(args);
+    tlArgs* args2 = tlArgsNewNames(tlArgsRawSize(args) - 2, !!names, true);
+    tlArgsSetFn_(args2, extend->constructor);
+    tlArgsSetMethod_(args2, extend->name);
+    tlArgsSetTarget_(args2, target);
+    if (names) tlArgsSetNames_(args2, names, tlArgsNamedSize(args));
+    tlArgsSet_(args2, 0, extend);
+    for (int i = 3; i < tlArgsRawSize(args); i++) {
+        tlArgsSet_(args2, i - 2, tlArgsGetRaw(args, i));
+    }
+    tlArgsDump(args2);
+    return tlInvoke(task, args2);
+}
+
+// called when a constructor assigns a field
 static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 0));
     assert(oop);
@@ -744,19 +760,6 @@ static tlHandle _userobject__set(tlTask* task, tlArgs* args) {
 static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     return cls->name;
-}
-
-static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
-    TL_TARGET(tlUserClass, cls);
-    assert(cls->fields);
-    int fields = tlListSize(cls->fields);
-    assert(fields >= 0);
-    tlUserObject* target = tlAlloc(tlUserObjectKind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
-    target->cls = cls;
-    for (int i = 0; i < fields; i++) {
-        target->fields[i] = tlOR_NULL(tlArgsGet(args, i));
-    }
-    return tlInvoke(task, tlArgsFrom(args, cls->constructor, cls->name, target));
 }
 
 // resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods

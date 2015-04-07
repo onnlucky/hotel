@@ -48,11 +48,14 @@ static inline tlList* tlArgsNamesInline(tlArgs* args) {
     return null;
 }
 
+void tlArgsDump(tlArgs* args);
+
 tlList* tlArgsList(tlArgs* args);
 
 bool tlArgsIsSetter(tlArgs* args);
 tlList* tlArgsNames(tlArgs* args);
 tlArgs* tlArgsFrom(tlArgs* call, tlHandle fn, tlSym method, tlHandle target);
+tlArgs* tlArgsFromPrepend1(tlArgs* call, tlHandle fn, tlSym method, tlHandle target, tlHandle arg1);
 
 void tlArgsMakeSetter_(tlArgs* args);
 

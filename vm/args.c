@@ -33,7 +33,7 @@ tlArgs* tlArgsNewNames(int size, bool hasNames, bool isMethod) {
 
 // create a new args, changing/adding function, method, target
 tlArgs* tlArgsFrom(tlArgs* call, tlHandle fn, tlSym method, tlHandle target) {
-    uint32_t size = call->size;
+    uint32_t size = call->size - (call->spec & 3);
     tlList* names = tlArgsNamesInline(call);
     tlArgs* args = tlArgsNewNames(size, !!names, method || target);
     int call_offset = call->spec & 3;
@@ -50,6 +50,41 @@ tlArgs* tlArgsFrom(tlArgs* call, tlHandle fn, tlSym method, tlHandle target) {
         tlArgsSetTarget_(args, target);
     }
     return args;
+}
+
+// create a new args, changing/adding function, method, target, add prepending 1 arg in front
+tlArgs* tlArgsFromPrepend1(tlArgs* call, tlHandle fn, tlSym method, tlHandle target, tlHandle arg1) {
+    uint32_t size = call->size + 1 - (call->spec & 3);
+    tlList* names = tlArgsNamesInline(call);
+    tlArgs* args = tlArgsNewNames(size, !!names, method || target);
+    int call_offset = call->spec & 3;
+    int args_offset = args->spec & 3;
+    assert((args->spec & 3) == 2);
+
+    args->data[args_offset] = arg1;
+    for (int i = 0; i < size; i++) {
+        args->data[args_offset + i + 1] = call->data[call_offset + i];
+    }
+    tlArgsSetFn_(args, fn);
+    if (names) {
+        tlArgsSetNames_(args, tlListPrepend(names, null), 0);
+    }
+    if (method || target) {
+        tlArgsSetMethod_(args, method);
+        tlArgsSetTarget_(args, target);
+    }
+    return args;
+}
+
+
+// for debugging
+void tlArgsDump(tlArgs* args) {
+    print("--- args dump: %d named=%d", tlArgsSize(args), tlArgsNamedSize(args));
+    for (int i = 0;; i++) {
+        tlHandle v = tlArgsGet(args, i);
+        if (!v) return;
+        print("args: %s", tl_repr(v));
+    }
 }
 
 int tlArgsSize(tlArgs* args) {

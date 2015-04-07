@@ -365,8 +365,8 @@ compile = (text, ast ->
         functions[n] = {name=ref.name,open=false,function=fn}
 
     argspec = arg ->
-        if arg.type == "lazy": return [arg.name, arg.d, true]
-        if arg.d: return [arg.name, arg.d]
+        if arg?type == "lazy": return [arg.name, arg.d, true]
+        if arg?d: return [arg.name, arg.d]
         [arg.name]
 
     lextop = scope, term, linkframe ->
@@ -415,7 +415,7 @@ compile = (text, ast ->
         { term.type == "class" }:
             outerscope = scope
             scope = Scope(scope)
-            args = ([{name="class",pos=term.pos}, {name="this",pos=term.pos}] + (term?as or [])).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+            args = ([{name="class",pos=term.pos}] + (term?as or [])).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
 
             # object properties
             var mutable = false
@@ -470,6 +470,7 @@ compile = (text, ast ->
                     continue
                 # {"target":{"type":"ref","pos":102,"name":"extend"},"type":"call","pos":108,"args":[{"v":{"target":{"type":"ref","pos":109,"name":"Shape"},"type":"call","pos":114,"args":[]}}]}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "extend" }:
+                    # TODO allow names
                     if stm.args.size != 1 or stm.args[1]?n:
                         line, char = lineFromPos(stm.pos)
                         throw "invalid extend specifier on line $line"
