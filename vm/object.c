@@ -727,6 +727,20 @@ static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     return v;
 }
 
+static tlHandle g_userobject_set;
+static tlHandle _userobject__set(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlUserObject, oop);
+    tlUserClass* cls = oop->cls;
+    tlSym name = tlSymCast(tlArgsGet(args, 0));
+    tlHandle v = tlOR_NULL(tlArgsGet(args, 1));
+
+    int field = tlListIndexOf(cls->fields, name);
+    if (field < 0) TL_THROW("not a field: '%s'", tl_str(name));
+    assert(field < tlListSize(cls->fields));
+    oop->fields[field] = v;
+    return v;
+}
+
 static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     return cls->name;
@@ -756,7 +770,10 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
         super = tlUserClassCast(tlListGet(super->extends, 0));
     }
     int field = tlListIndexOf(cls->fields, name);
-    if (field < 0) return null;
+    if (field < 0) {
+        if (name != s__set) return null;
+        return g_userobject_set;
+    }
     assert(field < tlListSize(cls->fields));
     return tlOR_NULL(oop->fields[field]);
 }
@@ -811,6 +828,8 @@ void object_init() {
     };
     INIT_KIND(tlUserObjectKind);
 
+    assert(s__set);
+    g_userobject_set = tlNativeNew(_userobject__set, s__set);
     tl_register_global("_class", tlNativeNew(_UserClass_call, tlSYM("_class")));
     tl_register_global("_setfield", tlNativeNew(_UserClass_setField, tlSYM("_setfield")));
     tl_register_global("_extend", tlNativeNew(_UserClass_extend, tlSYM("_extend")));
