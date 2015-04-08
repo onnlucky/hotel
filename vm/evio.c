@@ -101,6 +101,20 @@ static tlHandle _io_procname(tlTask* task, tlArgs* args) {
     return vm->procname;
 }
 
+static tlHandle _io_gethostname(tlTask* task, tlArgs* args) {
+    char buf[MAXHOSTNAMELEN + 1];
+    int r = gethostname(buf, sizeof(buf));
+    if (r != 0) TL_THROW("gethostname '%s'", strerror(errno));
+    return tlStringFromCopy(buf, 0);
+}
+
+static tlHandle _io_getdomainname(tlTask* task, tlArgs* args) {
+    char buf[MAXHOSTNAMELEN + 1];
+    int r = getdomainname(buf, sizeof(buf));
+    if (r != 0) TL_THROW("getdomainname '%s'", strerror(errno));
+    return tlStringFromCopy(buf, 0);
+}
+
 // TODO normalize /../ and /./
 static tlString* path_join(tlString* lhs, tlString* rhs) {
     if (!lhs) return rhs;
@@ -1428,6 +1442,8 @@ static const tlNativeCbs __evio_natives[] = {
     { "_io_getenv", _io_getenv },
     { "_io_getpid", _io_getpid },
     { "_io_procname", _io_procname },
+    { "_io_gethostname", _io_gethostname },
+    { "_io_getdomainname", _io_getdomainname },
 
     { "_io_chdir", _io_chdir },
     { "_io_mkdir", _io_mkdir },
