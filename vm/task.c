@@ -22,7 +22,7 @@
 #include "error.h"
 #include "bcode.h"
 
-#define START_TICKS 2011
+#define START_TICKS 10000
 
 tlHandle tlresult_get(tlHandle v, int at);
 void print_backtrace(tlFrame*);

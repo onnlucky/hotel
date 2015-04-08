@@ -10,9 +10,9 @@ filelevels = HashMap.new
 var _hostname_set = 0
 var _hostname = null
 hostname = ts ->
-    # we cache a hostname for a minute
-    if _hostname and _hostname_set > ts - 60: return _hostname
-    _hostname_set = time
+    # we cache the hostname for five minutes
+    if _hostname and _hostname_set > ts - 300: return _hostname
+    _hostname_set = ts
     _hostname = try(io.run("uname", "-n"), "-").trim
 
 loggertime = ->
