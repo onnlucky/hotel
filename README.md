@@ -106,6 +106,8 @@ noun
 Building
 --------
 
+(Please ignore the CMakeFiles.txt, it is a project description for IDEs.)
+
 requires libgc (aka boehmgc or bdw-gc)
 optionally libopenssl, portaudio, cairo + libjpeg
 and for a graphics environment, either gtk or cocoa
@@ -124,6 +126,14 @@ a headless install:
 ```
 make NO_PORTAUDIO=1 NO_GRAPHICS=1
 sudo make NO_PORTAUDIO=1 NO_GRAPHICS=1 PREFIX=/usr install
+```
+
+OSX
+~~~
+```
+$ xcode-select --install
+$ brew install bdw-gc cairo portaudio
+$ make BUILD=release install
 ```
 
 
