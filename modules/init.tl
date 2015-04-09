@@ -294,6 +294,10 @@ _split = on ->
         if not empty and s.size == 0: return
         res.add(s)
 
+    if on == "":
+        process(this)
+        return res.toList
+
     loop = start ->
         end, len = find(start)
         if not end:
