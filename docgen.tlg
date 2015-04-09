@@ -85,9 +85,10 @@ args.slice.each: a ->
 
 f = io.File("doc.html").open(create=true,truncate=true)
 
-f.write("<style>h4 { margin: 0 0; }</style>\n")
+f.write("<style>h4{margin-bottom:0;} pre{margin-top:0;}</style>\n")
 
 abstractObject = object, path ->
+    if object.methods.size == 0: return
     f.write "<b><a href=\"#", path, "\">", path, "</a></b>"
     object.methods.each: name, m ->
         f.write " <a href=\"#", path, ".", name, "\">", name, "</a>"
@@ -95,11 +96,12 @@ abstractObject = object, path ->
 
 abstractModule = m, path ->
     abstractObject(m, path.join("."))
-    m.objects.each(name, sub -> abstractModule(sub, path + [name])
+    m.objects.each(name, sub -> abstractModule(sub, path + [name]))
 
 abstractModule(root, [])
 
 writeObject = object, path ->
+    if object.methods.size == 0: return
     f.write "<h2 id=\"", path, "\">", path, "</h2>\n"
     f.write "<pre>\n", html.escape(object.doc), "\n</pre>\n"
     object.methods.each: name, m ->
