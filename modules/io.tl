@@ -1,5 +1,7 @@
 # io library
 
+# Module for reading and writing streams, and opening sockets.
+
 _io_queue = _io_init()
 _io = _io_queue.input
 
@@ -290,7 +292,7 @@ _run = arglist, env, check, dir ->
     if r != 0 and check: Error("'$(arglist[1])' exit: $r", output=output).throw
     return output, r
 
-#. package
+#. module
 
 #. run(cmdline, args*):
 #. [env?] a custom environment

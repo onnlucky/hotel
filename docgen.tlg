@@ -1,42 +1,58 @@
-objects = HashMap.new
+Object = { name ->
+    print "Object:", name
+    name = name
+    var doc = ""
 
-var $package = null
-var $object = null
+    methods = HashMap.new
+    objects = HashMap.new
 
-makeName = ns ->
-    if ns.size == 0:
-        if not $object: return ""
-        if not $package: return $object
-        return "$($package).$($object)"
-    if ns.size == 1:
-        if not $package: return ns[1]
-        return "$($package).$(ns[1])"
-    return ns.join(".")
+    add = name, args, doc ->
+        print "Object:", this.name, "method:", name, args
+        this.methods[name] = {{ args, doc }}
+}
 
-docPackage = path, doc ->
-    print "package:", path, doc
-    $package = null
-    $object = null
-    if path and path != "global": $package = path
-    # TODO doc
+root = Object("")
+
+var currentmodule
+var currentobject
+
+objectFor = path ->
+    var o = root
+    path.each: s ->
+        old = o
+        o = root.objects[s]
+        if not o:
+            o = old.objects[s] = Object(s)
+    return o
+
+isValidModule = n ->
+    isString(n) and n.size > 1
+
+docModule = path, doc ->
+    p = { path }: currentmodule + path.split(".")
+        {      }: currentmodule
+    p.each(n -> if not isValidModule(n): Error("invalid module '$n' in '$path'").throw)
+    module = objectFor(p)
+    if doc: module.doc += doc
+    currentmodule = module
+    currentobject = module
 
 docObject = path, doc ->
-    print "object:", path, doc
-    names = path.split(".")
-    if names.size == 1: $object = names[1]
-    if names.size > 1:
-        $package = names[:-1].join(".")
-        $object = names[names.size - 1]
-    # TODO doc
+    p = currentmodule + path.split(".")
+    p.each(n -> if not isValidModule(n): Error("invalid object '$n' in '$path'").throw)
+    object = objectFor(p)
+    if doc: object.doc += doc
+    currentobject = object
 
 docMethod = path, doc ->
-    print "method:", path, $package, $object, "--", doc
-    names = path.split(".")
-    ns = makeName(names[:-2])
-    method = names[-1]
-    name = method.split("(")[1]
-    object = objects[ns] or (objects[ns] = Array.new)
-    object.add({{name, method, doc}})
+    pa = path.split("(", limit=1)
+    args = { pa[2] }: "(" + pa[2]
+           {       }: null
+    p = pa[1].split(".")
+    p.each(n -> if not isValidModule(n): Error("invalid method '$n' in '$path'").throw)
+
+    if p.size > 1: currentobject = objectFor(p[:-2])
+    currentobject.add(p.last, args, doc)
 
 parseDocs = parser {
        ws: [ \t]*
@@ -48,8 +64,8 @@ parseDocs = parser {
    bodynl: .("//."|"#."). textnl
      body: ":" f=textnl bs=bodynl*   -> bs.prepend(f).join("\n")
          | bs=bodynl*                -> bs.join("\n")
-      cmd: "package" .n=name .b=body -> docPackage(n, b)
-         | "package" .nl             -> docPackage()
+      cmd: "module" .n=name .b=body  -> docModule(n, b)
+         | "module" .nl              -> docModule()
          | "object" .n=name .b=body  -> docObject(n, b)
          | n=name .b=body            -> docMethod(n, b)
          | t=textnl                  -> print "WARNING:", t
@@ -61,23 +77,39 @@ parseDocs = parser {
 
 args.slice.each: a ->
     print "processing:", a
-    docPackage()
-    parseDocs io.File(a).readString
+    currentmodule = []
+    if a.endsWith(".tl"):
+        currentmodule = [a[:-4].split("/").last]
+    currentobject = objectFor(currentmodule)
+    parseDocs(io.File(a).readString)
 
 f = io.File("doc.html").open(create=true,truncate=true)
 
 f.write("<style>h4 { margin: 0 0; }</style>\n")
 
-objects.each: name, methods ->
-    f.write("<b><a href=\"#$name\">$name</a></b>")
-    methods.each: m ->
-        f.write(" <a href=\"#$name.$(m.name)\">$(m.name)</a>")
-    f.write("<br>")
+abstractObject = object, path ->
+    f.write "<b><a href=\"#", path, "\">", path, "</a></b>"
+    object.methods.each: name, m ->
+        f.write " <a href=\"#", path, ".", name, "\">", name, "</a>"
+    f.write "<br>\n"
 
-objects.each: name, methods ->
-    f.write("<h2 id=\"$name\">$name</h2>\n")
-    methods.each: m ->
-        f.write("<h4 id=\"$name.$(m.name)\">$(m.method)</h4>\n<pre>\n$(m.doc)\n</pre>\n")
+abstractModule = m, path ->
+    abstractObject(m, path.join("."))
+    m.objects.each(name, sub -> abstractModule(sub, path + [name])
+
+abstractModule(root, [])
+
+writeObject = object, path ->
+    f.write "<h2 id=\"", path, "\">", path, "</h2>\n"
+    f.write "<pre>\n", html.escape(object.doc), "\n</pre>\n"
+    object.methods.each: name, m ->
+        f.write "<h4 id=\"", path, ".", name, "\">", name, m.args, "</h4>\n<pre>\n", m.doc, "\n</pre>\n"
+
+writeModule = m, path ->
+    writeObject(m, path.join("."))
+    m.objects.each(name, sub -> writeModule(sub, path + [name]))
+
+writeModule(root, [])
 
 print "open doc.html"
 
