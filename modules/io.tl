@@ -1,6 +1,6 @@
 # io library
 
-# Module for reading and writing streams, and opening sockets.
+#. Module for reading and writing streams, and opening sockets.
 
 _io_queue = _io_init()
 _io = _io_queue.input

@@ -54,22 +54,25 @@ docMethod = path, doc ->
     if p.size > 1: currentobject = objectFor(p[:-2])
     currentobject.add(p.last, args, doc)
 
+addDoc = doc ->
+    currentobject.doc += doc
+
 parseDocs = parser {
        ws: [ \t]*
        nl: "\n" | "\r\n" | "\r"
      text: ts=(!"\n" _)*             -> ts.toChar.trim
    textnl: t=text nl                 -> t
-     name: ts=(![:\n\r] _)+          -> ts.toChar
+     name: ts=(![:\r\n] _)+ ":"      -> ts.toChar
 
    bodynl: .("//."|"#."). textnl
-     body: ":" f=textnl bs=bodynl*   -> bs.prepend(f).join("\n")
+     body: f=textnl bs=bodynl*       -> bs.prepend(f).join("\n")
          | bs=bodynl*                -> bs.join("\n")
       cmd: "module" .n=name .b=body  -> docModule(n, b)
          | "module" .nl              -> docModule()
          | "object" .n=name .b=body  -> docObject(n, b)
          | n=name .b=body            -> docMethod(n, b)
-         | t=textnl                  -> print "WARNING:", t
       doc: .("//."|"#."). cmd
+         | b=bodynl                  -> addDoc(b)
 
      line: doc | (!"\n" _)* nl
     start: line* . end
