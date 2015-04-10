@@ -220,6 +220,7 @@ compile = (text, ast ->
     ids = Array.new
 
     Scope = { parent, block ->
+        parent = parent
         parentVisible = parent?locals.size or 0
         block = block or false
         names = HashMap.new
@@ -261,18 +262,18 @@ compile = (text, ast ->
             this.names[name] = {arg=true,{at,id}}
             return id
         greturn = level, pos ->
-            if this.block: return parent.greturn(level + 1, pos)
+            if this.block: return this.parent.greturn(level + 1, pos)
             {type="return",scope=level, pos=pos}
         ggoto = level, pos ->
-            if this.block: return parent.ggoto(level + 1, pos)
+            if this.block: return this.parent.ggoto(level + 1, pos)
             {type="goto",scope=level, pos=pos}
         gbreak = level, pos, ls ->
-            if this.block: return parent.gbreak(level + 1, pos, ls.add(level))
-            if this.parent: return parent.gbreak(level + 1, pos, ls)
+            if this.block: return this.parent.gbreak(level + 1, pos, ls.add(level))
+            if this.parent: return this.parent.gbreak(level + 1, pos, ls)
             {type="break",scope=ls, pos=pos}
         gcontinue = level, pos, ls ->
-            if this.block: return parent.gcontinue(level + 1, pos, ls.add(level))
-            if this.parent: return parent.gcontinue(level + 1, pos, ls)
+            if this.block: return this.parent.gcontinue(level + 1, pos, ls.add(level))
+            if this.parent: return this.parent.gcontinue(level + 1, pos, ls)
             {type="continue",scope=ls, pos=pos}
         ref = name, level, pos ->
             if name == "return": return this.greturn(0, pos)
@@ -294,73 +295,11 @@ compile = (text, ast ->
             if name == "this" and not this.block:
                 if not level: return {type="this"}
                 return {type="envthis",up=level}
-            if parent:
-                if not level: return parent.ref(name, 1, pos)
-                return parent.ref(name, level + 1, pos)
+            if this.parent:
+                if not level: return this.parent.ref(name, 1, pos)
+                return this.parent.ref(name, level + 1, pos)
             globals[name] = true
             return {type="global",{name,pos}}
-    }
-
-    ClassScope = { parent ->
-        parentVisible = parent?locals.size or 0
-        block = false
-        names = HashMap.new
-        locals = Array.new
-        args = Array.new
-        methods = Array.new
-        open = Var.new(true) # methods are "closed" after constructor/statics are initialized, methods references over "this", other over locals
-        addOpen = function, name, pos ->
-            type = "local"
-            _, method = functions.add({name=name or "",open=function,scope=this})
-            if name:
-                # TODO perhaps change type="function" to type="method"
-                _, id = ids.add({{name,type},at=Array.new([pos])})
-                _, at = this.methods.add(name)
-                this.names[name] = {arg=false,{at,id,method,type}}
-            return method
-        add = name, pos, type ->
-            type = type or "local"
-            if this.methods[-1] == name: # TODO not entirely correct ...
-                ref = this.names[name]
-                return ref.at, ref.id
-            _, id = ids.add({{name,type},at=Array.new([pos])})
-            _, at = this.locals.add(name)
-            this.names[name] = {arg=false,{at,id,type}}
-            return at, id
-        addarg = name, pos ->
-            _, id = ids.add({{name},at=Array.new([pos])})
-            _, at = this.args.add(name)
-            this.names[name] = {arg=true,{at,id}}
-            return id
-        close = ->
-            this.open.set(false)
-            this.names.each(name, ref ->
-                if functions[ref?fn]?open: closefn(ref.fn)
-                #if functions[ref?method]?open: closefn(ref.method)
-            )
-        ref = name, level, pos ->
-            ref = this.names[name]
-            if not this.open.get:
-                assert level
-                assert name != "this"
-                assert name != "args"
-                if ref: return {type="field",name=name,up=level,at=ref.at,id=ref.id,stype=ref?type}
-                return parent.ref(name, level, pos)
-            if ref:
-                if ref.arg:
-                    if not level: return {type="arg",at=ref.at,id=ref.id}
-                    return {type="envarg",up=level,at=ref.at,id=ref.id}
-                if not level: return {type="local",at=ref.at,id=ref.id,stype=ref?type}
-                return {type="env",up=level,at=ref.at,id=ref.id,stype=ref?type}
-            if name == "args" and not this.block:
-                if not level: return {type="args"}
-                return {type="envargs",up=level}
-            if name == "this":
-                assert false # TODO what to do here? should reference our (incomplete!) local here
-                if not level: return {type="this"}
-                return {type="envthis",up=level}
-            if not level: return parent.ref(name, 1, pos)
-            parent.ref(name, level + 1, pos)
     }
 
     closefn = n ->
