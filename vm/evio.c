@@ -233,12 +233,13 @@ static tlHandle _io_readlink(tlTask* task, tlArgs* args) {
     const char *p = tlStringData(path);
     if (p[0] != '/') TL_THROW("unlink: invalid cwd");
 
-    char buf[PATH_MAX];
-    ssize_t len = readlink(p, buf, sizeof(buf));
+    char buf[PATH_MAX + 1];
+    ssize_t len = readlink(p, buf, sizeof(buf) - 1);
     if (len == -1) {
         if (errno == EINVAL) return tlOR_NULL(tlArgsGet(args, 1)); // not a link
         TL_THROW("unlink: %s", strerror(errno));
     }
+    buf[len] = 0;
 
     return tlStringFromCopy(buf, len);
 }
