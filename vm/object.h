@@ -27,10 +27,26 @@ struct tlClass {
 tlClass* tlClassFor(tlHandle value);
 
 TL_REF_TYPE(tlUserClass);
-TL_REF_TYPE(tlUserObject);
+
+//TL_REF_TYPE(tlUserObject); // cannot use this, as we want both mutable and immutable to work
+typedef struct tlUserObject tlUserObject;
+extern tlKind* tlUserObjectKind;
+extern tlKind* tlMutableUserObjectKind;
+
+static inline bool tlUserObjectIs(const tlHandle v) {
+    return tl_kind(v) == tlUserObjectKind || tl_kind(v) == tlMutableUserObjectKind;
+}
+static inline tlUserObject* tlUserObjectAs(tlHandle v) {
+    assert(tlUserObjectIs(v) || !v); return (tlUserObject*)v;
+}
+static inline tlUserObject* tlUserObjectCast(tlHandle v) {
+    return tlUserObjectIs(v)?(tlUserObject*)v:null;
+}
+
 struct tlUserClass {
     tlHead head;
     tlSym name;
+    bool mutable;
     tlHandle constructor;
     tlList* extends;
     tlList* fields;
@@ -38,8 +54,9 @@ struct tlUserClass {
     tlObject* classfields;
 };
 
+// for now, all user objects have locks, even though there are two kinds, mutable and immutable
 struct tlUserObject {
-    tlHead head;
+    tlLock lock;
     tlUserClass* cls;
     tlHandle fields[];
 };

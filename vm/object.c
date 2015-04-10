@@ -656,12 +656,12 @@ static tlKind _tlObjectKind = {
 
 tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
+tlKind* tlMutableUserObjectKind;
 
 // build a class from compiler generated pieces, a constructor, the fields, the methods, the extended objects, etc.
 static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     tlSym name = tlSymCast_(tlArgsGet(args, 0));
     bool mutable = tl_bool(tlArgsGet(args, 1));
-    UNUSED(mutable);
     tlHandle constructor = tlArgsGet(args, 2);
     tlList* extends = tlListCast(tlArgsGet(args, 3));
     tlList* fields = tlListCast(tlArgsGet(args, 4));
@@ -676,6 +676,7 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     // TODO fields should be the concat of all extended object fields, and then handle non tlUserClasses differently
     tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
     cls->name = name;
+    cls->mutable = mutable;
     cls->constructor = constructor;
     cls->extends = extends;
     cls->fields = fields;
@@ -690,7 +691,8 @@ static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     assert(cls->fields);
     int fields = tlListSize(cls->fields);
-    tlUserObject* target = tlAlloc(tlUserObjectKind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
+    tlKind* kind = cls->mutable? tlMutableUserObjectKind : tlUserObjectKind;
+    tlUserObject* target = tlAlloc(kind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
     target->cls = cls;
 
     // constructors are invoke using args(class, ..., this=target)
@@ -747,6 +749,7 @@ static tlHandle g_userobject_set;
 static tlHandle _userobject__set(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserObject, oop);
     tlUserClass* cls = oop->cls;
+    if (!cls->mutable) TL_THROW("not a mutable object: '%s'", tl_str(oop));
     tlSym name = tlSymCast(tlArgsGet(args, 0));
     tlHandle v = tlOR_NULL(tlArgsGet(args, 1));
 
@@ -760,6 +763,25 @@ static tlHandle _userobject__set(tlTask* task, tlArgs* args) {
 static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     return cls->name;
+}
+
+uint32_t tlUserObjectHash(tlUserObject* object, tlHandle* unhashable) {
+    // if (object->hash) return object->hash;
+    uint32_t hash = 4280703812; // 12.hash + 1
+    uint32_t size = tlListSize(object->cls->fields);
+    for (uint32_t i = 0; i < size; i++) {
+        uint32_t k = tlHandleHash(tlListGet(object->cls->fields, i), unhashable);
+        uint32_t v = tlHandleHash(object->fields[i], unhashable);
+        if (!k || !v) return 0;
+        // rotate shift the hash then mix in the key, rotate, then value
+        hash = hash << 1 | hash >> 31;
+        hash ^= k;
+        hash = hash << 1 | hash >> 31;
+        hash ^= v;
+    }
+    // and mix in the list size after a murmur
+    hash ^= murmurhash2a(&size, sizeof(size));
+    return hash | !hash;
 }
 
 // resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
@@ -779,6 +801,48 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     }
     assert(field < tlListSize(cls->fields));
     return tlOR_NULL(oop->fields[field]);
+}
+
+const char* userobjecttoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "<%s@%p>", tl_str(tlUserObjectAs(v)->cls->name), v); return buf;
+}
+
+static uint32_t userobjectHash(tlHandle v, tlHandle* unhashable) {
+    tlUserObject* object = tlUserObjectAs(v);
+    return tlUserObjectHash(object, unhashable);
+}
+static bool userobjectEquals(tlHandle _left, tlHandle _right) {
+    if (_left == _right) return true;
+
+    tlUserObject* left = tlUserObjectAs(_left);
+    tlUserObject* right = tlUserObjectAs(_right);
+    if (left->cls != right->cls) return false;
+
+    int size = tlListSize(left->cls->fields);
+    for (int i = 0; i < size; i++) {
+        if (!tlHandleEquals(left->fields[i], right->fields[i])) return false;
+    }
+    return true;
+}
+static tlHandle userobjectCmp(tlHandle _left, tlHandle _right) {
+    if (_left == _right) return tlEqual;
+
+    tlUserObject* left = tlUserObjectAs(_left);
+    tlUserObject* right = tlUserObjectAs(_right);
+
+    // TODO this is runtime dependent, doesn't have to be
+    if (left->cls < right->cls) return tlSmaller;
+    if (left->cls > right->cls) return tlLarger;
+
+    assert(left->cls == right->cls);
+
+    int size = tlListSize(left->cls->fields);
+    for (int i = 0; i < size; i++) {
+        tlHandle cmp = tlHandleCompare(left->fields[i], right->fields[i]);
+        if (cmp != tlEqual) return cmp;
+    }
+    assert(userobjectEquals(left, right));
+    return tlEqual;
 }
 
 void class_init_first() {
@@ -815,10 +879,7 @@ void object_init() {
         "name", _userclass_name,
         "call", _userclass_call,
         null
-    ), tlMETHODS(
-        "setField", _UserClass_setField,
-        null
-    ));
+    ), null);
     tlKind _tlUserClassKind = {
         .name = "UserClass",
         .cls = cls,
@@ -828,8 +889,18 @@ void object_init() {
 
     tlKind _tlUserObjectKind = {
         .name = "UserObject",
+        .toString = userobjecttoString,
+        .hash = userobjectHash,
+        .equals = userobjectEquals,
+        .cmp = userobjectCmp,
     };
     INIT_KIND(tlUserObjectKind);
+    tlKind _tlMutableUserObjectKind = {
+        .locked = true,
+        .name = "MutableUserObject",
+        .toString = userobjecttoString,
+    };
+    INIT_KIND(tlMutableUserObjectKind);
 
     assert(s__set);
     g_userobject_set = tlNativeNew(_userobject__set, s__set);
