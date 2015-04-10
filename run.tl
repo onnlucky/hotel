@@ -1,11 +1,12 @@
 Base = { y ->
     y = y
+    dump = -> print "Base{", this.y, "}"
 }
-Full = { x ->
+Full = { x, y ->
     x = x
-    extend Base(20)
+    extend Base(y)
+    dump = -> print "Full{", this.x, this.y, "}"
 }
 
-o = Full(100)
-print o.x
-print o.y
+o = Full(42, 43)
+o.dump

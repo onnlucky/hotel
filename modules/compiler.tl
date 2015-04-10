@@ -446,7 +446,7 @@ compile = (text, ast ->
             constructor = {type="function",function=fn}
             methods.each: k, v -> closefn(v)
 
-            mfill = methods.map(k, v -> [k, {type="function", function=1}])
+            mfill = methods.map(k, v -> [k, {type="function", function=v}])
             methods.each(k, v -> methods[k] = null)
 
             cfill = classfields.map(k, v -> [k, v])

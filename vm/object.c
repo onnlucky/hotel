@@ -809,9 +809,9 @@ uint32_t tlUserObjectHash(tlUserObject* object, tlHandle* unhashable) {
 tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     tlUserClass* cls = oop->cls;
     tlUserClass* super = cls;
-    trace("USER OBJECT RESOLVE: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
     while (super) {
         tlHandle v = tlObjectGet(super->methods, name);
+        trace("user object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
         if (v) return v;
         super = tlUserClassCast(tlListGet(super->extends, 0));
     }
@@ -822,6 +822,10 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     }
     assert(field < tlListSize(cls->fields));
     return tlOR_NULL(oop->fields[field]);
+}
+
+const char* userclasstoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "<Class@%p %s>", v, tl_str(tlUserClassAs(v)->name)); return buf;
 }
 
 const char* userobjecttoString(tlHandle v, char* buf, int size) {
@@ -904,6 +908,7 @@ void object_init() {
     tlKind _tlUserClassKind = {
         .name = "UserClass",
         .cls = cls,
+        .toString = userclasstoString,
     };
     INIT_KIND(tlUserClassKind);
     tl_register_global("UserClass", cls);
