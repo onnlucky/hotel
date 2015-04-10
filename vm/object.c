@@ -658,6 +658,23 @@ tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
 tlKind* tlMutableUserObjectKind;
 
+// merge base classes mutable and fields into a single class
+bool collectFieldsAndMutable(tlList* extends, tlList** fields) {
+    bool mutable = false;
+    for (int i = 0; i < tlListSize(extends); i++) {
+        tlUserClass* cls = tlUserClassCast(tlListGet(extends, i));
+        if (!cls) {
+            warning("not a class: %s", tl_str(tlListGet(extends, i)));
+            continue;
+        }
+
+        if (cls->mutable) mutable = true;
+        // TODO error if duplicate
+        *fields = tlListCat(*fields, cls->fields);
+    }
+    return mutable;
+}
+
 // build a class from compiler generated pieces, a constructor, the fields, the methods, the extended objects, etc.
 static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     tlSym name = tlSymCast_(tlArgsGet(args, 0));
@@ -673,13 +690,18 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     assert(methods);
     assert(classfields);
 
-    // TODO fields should be the concat of all extended object fields, and then handle non tlUserClasses differently
+    // ensure the class has all fields and mutability from extended classes
+    tlList* allfields = fields;
+    bool basemutable = collectFieldsAndMutable(extends, &allfields);
+    assert(tlListSize(allfields) >= tlListSize(fields));
+    trace("CLASS: %s fields=%s mutable=%d", tl_str(name), tl_repr(allfields), mutable || basemutable);
+
     tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
     cls->name = name;
-    cls->mutable = mutable;
+    cls->mutable = mutable || basemutable;
     cls->constructor = constructor;
     cls->extends = extends;
-    cls->fields = fields;
+    cls->fields = allfields;
     cls->methods = methods;
     cls->classfields = classfields;
 
@@ -723,7 +745,6 @@ static tlHandle _UserClass_extend(tlTask* task, tlArgs* args) {
     for (int i = 3; i < tlArgsRawSize(args); i++) {
         tlArgsSet_(args2, i - 2, tlArgsGetRaw(args, i));
     }
-    tlArgsDump(args2);
     return tlInvoke(task, args2);
 }
 
