@@ -5,6 +5,8 @@
 // TODO use runloop mutex to protect open() like syscalls in order to do CLOEXEC if available
 // TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
 
+//. module io:
+
 #include "../llib/lqueue.h"
 
 #include "platform.h"

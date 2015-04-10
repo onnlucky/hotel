@@ -81,8 +81,12 @@ parseDocs = parser {
 args.slice.each: a ->
     print "processing:", a
     currentmodule = []
+    # all tl modules are not globals
     if a.endsWith(".tl"):
         currentmodule = [a[:-4].split("/").last]
+    # except for "init"
+    if currentmodule == ["init"]:
+        currentmodule = []
     currentobject = objectFor(currentmodule)
     parseDocs(io.File(a).readString)
 
