@@ -112,7 +112,8 @@ _find = element (#, [Number from=0] #) ->
 #. > [1,2,3,4,5,6].filter(e -> e % 3 == 0) == [3,6]
 #. > ["hello",null].filter == ["hello"]
 _filter = predicate ->
-    block = args.block or predicate or asBool
+    block = args.block
+    fn = predicate or asBool
 
     len = this.size
     if len == 0: return []
@@ -123,7 +124,9 @@ _filter = predicate ->
         at += 1
         if at > len: return arr.toList
         e = this[at]
-        if block(e): arr.add(e)
+        c = { block }: block(e, at)
+            {       }: fn(e)
+        if c: arr.add(e)
 
 #. List.reduce([fn]): reduce a list to a single value using a function
 #. [block] either using the passed in block or #fn
