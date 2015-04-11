@@ -231,6 +231,9 @@ compile = (text, ast ->
                 _, at = this.locals.add(name)
                 this.names[name] = {arg=false,{at,id,fn,type}}
             return fn
+        addOpenClass = class, name ->
+            if this.open[name]: this.open[name].close
+            this.open[name] = class
         add = name, pos, type ->
             type = type or "local"
             if this.locals[-1] == name and this.names[name]?fn:
@@ -244,6 +247,7 @@ compile = (text, ast ->
             this.names.each(name, ref ->
                 if functions[ref?fn]?open: closefn(ref.fn)
             )
+            this.open.each(name, open -> open.close)
         localvars = ->
             this.locals.map(name -> this.names[name]?type == "var")
         addarg = name, pos ->
@@ -273,6 +277,8 @@ compile = (text, ast ->
             ref = this.names[name]
             if ref?fn and not args["peek"]:
                 if functions[ref.fn].open: closefn(ref.fn)
+            if ref and this.open[name] and not args["peek"]:
+                this.open.del(name).close
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
@@ -297,6 +303,7 @@ compile = (text, ast ->
         parentVisible = parent?locals.size or 0
         block = block or false
         names = HashMap.new
+        open = HashMap.new
         locals = Array.new
         args = Array.new
     }
@@ -444,7 +451,14 @@ compile = (text, ast ->
             constructor = {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
             _, fn = functions.add({name="_constructor",open=false,function=constructor})
             constructor = {type="function",function=fn}
-            methods.each: k, v -> closefn(v)
+            #methods.each: k, v -> closefn(v)
+
+            # TODO add classfields as well ...
+            outerscope.addOpenClass({
+                methods = methods.toMap
+                close = ->
+                    this.methods.each(k, v -> closefn(v))
+            }, name)
 
             mfill = methods.map(k, v -> [k, {type="function", function=v}])
             methods.each(k, v -> methods[k] = null)
@@ -456,7 +470,7 @@ compile = (text, ast ->
             classfields = {type="object", fill=cfill, map=classfields.toMap}
 
             #Test = _class("Test", mutable, _constructor, extends, fields, methods, classfields)
-            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="UserClass"},args=[
+            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="_class"},args=[
                 {type="string",data=(name or "<Anon>")}
                 bool(mutable,"true","false")
                 constructor
