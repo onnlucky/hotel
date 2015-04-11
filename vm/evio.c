@@ -23,7 +23,7 @@
 
 #define EV_STANDALONE 1
 #define EV_MULTIPLICITY 0
-#include "../ev/ev.h"
+#include "../libev/ev.h"
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>

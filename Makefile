@@ -97,8 +97,8 @@ test: unit-test test-noboot $(TLG_MODULES) $(C_MODULES)
 $(LIBMP):
 	cd libmp && make
 
-ev.o: ev/*.c ev/*.h config.h Makefile
-	$(CC) $(subst -Werror,,$(subst -Wall,,$(CFLAGS))) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c ev/ev.c -o ev.o
+ev.o: libev/*.c libev/*.h config.h Makefile
+	$(CC) $(subst -Werror,,$(subst -Wall,,$(CFLAGS))) -Wno-extern-initializer -Wno-bitwise-op-parentheses -Wno-unused -Wno-comment -c libev/ev.c -o ev.o
 
 tl: $(BOOTFILES) ev.o $(LIBMP) llib/*.h llib/*.c vm/*.c vm/*.h include/*.h Makefile
 	$(MAKE) -C vm tl
