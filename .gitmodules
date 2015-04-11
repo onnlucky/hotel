@@ -1,9 +1,0 @@
-[submodule "greg"]
-	path = greg
-	url = git://github.com/onnlucky/greg.git
-[submodule "libgc"]
-	path = libgc
-	url = git://github.com/ivmai/bdwgc.git
-[submodule "libatomic_ops"]
-	path = libatomic_ops
-	url = git://github.com/ivmai/libatomic_ops.git
