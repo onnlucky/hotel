@@ -204,8 +204,7 @@ elifexpr: .."else". pos=pos "if". c=expr . b=block &eostm els=elifexpr     -> pr
         | !(.."else" !letter)
 
   intro*: !reserved name
- newvar*: "var" sp. pos=pos "this".".".name=name type=<newvarfield>
-        | "var" sp. !opname !reserved pos=pos name=name type=<newvar>
+ newvar*: "var" sp. !opname !reserved pos=pos name=name type=<newvar>
 
 selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !letter type=<ref>
   assign: newvar
