@@ -198,6 +198,22 @@ static tlHandle _Image_new(tlTask* task, tlArgs* args) {
     TL_THROW("Image.new requires a Buffer or a width and height");
 }
 
+// TODO assuming CAIRO_FORMAT_ARGB32
+// TODO this takes ownership of the buffer ... but not really
+static tlHandle _Image_fromData(tlTask* task, tlArgs* args) {
+    tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
+    int width = tl_int_or(tlArgsGet(args, 1), -1);
+    int height = tl_int_or(tlArgsGet(args, 2), -1);
+    if (width < 0 || height < 0) TL_THROW("Image.fromData requires a width/height");
+
+    Image* img = tlAlloc(ImageKind, sizeof(Image));
+    cairo_format_t format = CAIRO_FORMAT_ARGB32;
+    const char* data = tlBufferData(buf);
+    assert(tlBufferSize(buf) == width * height * 4);
+    img->surface = cairo_image_surface_create_for_data((unsigned char*)data, format, width, height, width * 4);
+    return img;
+}
+
 static tlHandle _image_width(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageWidth(img));
@@ -255,6 +271,7 @@ void image_init(tlVm* vm) {
     );
     tlObject* ImageStatic = tlClassObjectFrom(
         "new", _Image_new,
+        "fromData", _Image_fromData,
         null
     );
     tlVmGlobalSet(vm, tlSYM("Image"), ImageStatic);
