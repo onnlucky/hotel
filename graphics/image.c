@@ -1,9 +1,44 @@
 #include "debug.h"
 #include "image.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <jpeglib.h>
+
+#if JPEG_LIB_VERSION < 80
+#include <jerror.h>
+// code from stackoverflow
+static void init_source(j_decompress_ptr cinfo) {}
+static boolean fill_input_buffer (j_decompress_ptr cinfo) {
+    ERREXIT(cinfo, JERR_INPUT_EMPTY);
+    return TRUE;
+}
+static void skip_input_data(j_decompress_ptr cinfo, long num_bytes) {
+    struct jpeg_source_mgr* src = (struct jpeg_source_mgr*) cinfo->src;
+    if (num_bytes > 0) {
+        src->next_input_byte += (size_t) num_bytes;
+        src->bytes_in_buffer -= (size_t) num_bytes;
+    }
+}
+static void term_source(j_decompress_ptr cinfo) {}
+static void jpeg_mem_src(j_decompress_ptr cinfo, void* buffer, long nbytes) {
+    struct jpeg_source_mgr* src;
+
+    if (cinfo->src == NULL) {   /* first time for this JPEG object? */
+        cinfo->src = (struct jpeg_source_mgr *)
+            (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
+            sizeof(struct jpeg_source_mgr));
+    }
+
+    src = (struct jpeg_source_mgr*) cinfo->src;
+    src->init_source = init_source;
+    src->fill_input_buffer = fill_input_buffer;
+    src->skip_input_data = skip_input_data;
+    src->resync_to_restart = jpeg_resync_to_restart; /* use default method */
+    src->term_source = term_source;
+    src->bytes_in_buffer = nbytes;
+    src->next_input_byte = (JOCTET*)buffer;
+}
+#endif
 
 struct Image {
     tlLock lock;
@@ -107,11 +142,13 @@ void imageFinalizer(tlHandle handle) {
     if (img->cairo) cairo_destroy(img->cairo);
 }
 
-Image* ImageNew(int width, int height) {
+Image* ImageNew(int width, int height, bool alpha) {
     Image* img = tlAlloc(ImageKind, sizeof(Image));
-    img->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_format_t format = alpha? CAIRO_FORMAT_ARGB32 : CAIRO_FORMAT_RGB24;
+    img->surface = cairo_image_surface_create(format, width, height);
     return img;
 }
+
 Image* ImageFromBuffer(tlBuffer* buf) {
     Image* img = tlAlloc(ImageKind, sizeof(Image));
     if (tlBufferFind(buf, "PNG", 3) == 1) {
@@ -143,12 +180,14 @@ int imageHeight(Image* img) {
 cairo_surface_t* imageSurface(Image* img) { return img->surface; }
 
 static tlHandle _Image_new(tlTask* task, tlArgs* args) {
+    static tlSym s_alpha; if (!s_alpha) s_alpha = tlSYM("alpha");
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (buf) return ImageFromBuffer(buf);
 
     int width = tl_int_or(tlArgsGet(args, 0), 0);
     int height = tl_int_or(tlArgsGet(args, 1), 0);
-    if (width > 0 && height > 0) return ImageNew(width, height);
+    int alpha = tl_bool_or(tlArgsGetNamed(args, s_alpha), true);
+    if (width > 0 && height > 0) return ImageNew(width, height, alpha);
 
     tlString* path = tlStringCast(tlArgsGet(args, 0));
     if (path) {
@@ -163,16 +202,21 @@ static tlHandle _image_width(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageWidth(img));
 }
+
 static tlHandle _image_height(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return tlINT(imageHeight(img));
 }
+
 static tlHandle _image_graphics(tlTask* task, tlArgs* args) {
     Image* img = ImageAs(tlArgsTarget(args));
     return imageGetGraphics(img);
 }
+
 static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
-    Image* img = ImageAs(tlArgsTarget(args));
+    TL_TARGET(Image, img);
+    if (img->surface && img->cairo) cairo_surface_flush(img->surface);
+
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
     if (buf) {
         cairo_status_t s = writepngbuffer(img->surface, buf);
@@ -187,12 +231,26 @@ static tlHandle _image_writePNG(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _image_data(tlTask* task, tlArgs* args) {
+    TL_TARGET(Image, img);
+    if (img->surface && img->cairo) cairo_surface_flush(img->surface);
+
+    unsigned char* data = cairo_image_surface_get_data(img->surface);
+    int height = cairo_image_surface_get_height(img->surface);
+    int scanline = cairo_image_surface_get_stride(img->surface);
+
+    tlBuffer* buf = tlBufferNew();
+    tlBufferWrite(buf, (const char*)data, scanline * height);
+    return buf;
+}
+
 void image_init(tlVm* vm) {
     _ImageKind.klass = tlClassObjectFrom(
         "width", _image_width,
         "height", _image_height,
         "graphics", _image_graphics,
         "writePNG", _image_writePNG,
+        "data", _image_data,
         null
     );
     tlObject* ImageStatic = tlClassObjectFrom(

@@ -500,7 +500,7 @@ static tlHandle _Graphics_new(tlTask* task, tlArgs* args) {
     int width = tl_int_or(tlArgsGet(args, 0), 250);
     int height = tl_int_or(tlArgsGet(args, 1), width);
 
-    Image* image = ImageNew(width, height);
+    Image* image = ImageNew(width, height, true);
     return imageGetGraphics(image);
 }
 
