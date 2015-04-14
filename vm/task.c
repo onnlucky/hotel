@@ -485,11 +485,18 @@ static tlHandle _Task_new(tlTask* task, tlArgs* args) {
     tlTaskStart(ntask);
     return ntask;
 }
+
+//. object Task: all code is executed on a task, you can get to this task by calling #Task.current
+
+//. new: create a new task
 static tlHandle _Task_new_none(tlTask* task, tlArgs* args) {
     tlTask* ntask = tlTaskNew(tlVmCurrent(task), task->locals);
     ntask->limit = tl_int_or(tlArgsGet(args, 0), -1) + 1; // 0 means disabled, 1 means at limit, so off by one ...
     return ntask;
 }
+
+//. run: run some code on a new task
+//. > Task.new.run: print "hello"
 static tlHandle _task_run(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (other->state != TL_STATE_INIT) TL_THROW("cannot reuse tasks");
@@ -502,14 +509,18 @@ static tlHandle _task_run(tlTask* task, tlArgs* args) {
     tlTaskStart(other);
     return other;
 }
+
+//. current: return the current #Task
 static tlHandle _Task_current(tlTask* task, tlArgs* args) {
     return task;
 }
 
+//. id: return the current #Task id
 static tlHandle _Task_id(tlTask* task, tlArgs* args) {
     return tlNUM(task->id);
 }
 
+//. stacktrace: return a #StackTrace representing the call stack of the current task
 static tlHandle _Task_stacktrace(tlTask* task, tlArgs* args) {
     int skip = tl_int_or(tlArgsGet(args, 0), 0);
     return tlStackTraceNew(task, tlTaskCurrentFrame(task), skip);
@@ -529,6 +540,7 @@ static tlHandle _Task_holdsLock(tlTask* task, tlArgs* args) {
     return tlBOOL(tlLockIsOwner(tlArgsGet(args, 0), task));
 }
 
+//. yield: put this task at the end of the scheduling queue
 static tlHandle _Task_yield(tlTask* task, tlArgs* args) {
     tlTaskWaitFor(task, null);
     // TODO move this to "post parking"
@@ -537,6 +549,7 @@ static tlHandle _Task_yield(tlTask* task, tlArgs* args) {
 }
 
 // TODO really need use something different
+//. locals: return an object with the task local state
 static tlHandle _Task_locals(tlTask* task, tlArgs* args) {
     return task->locals;
 }
@@ -548,6 +561,7 @@ static tlHandle _Task_setLocals(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+//. isDone: return true if the task is done
 static tlHandle _task_isDone(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     return tlBOOL(other->state == TL_STATE_DONE || other->state == TL_STATE_ERROR);
@@ -558,12 +572,15 @@ static tlHandle _task_toString(tlTask* task, tlArgs* args) {
     return tlStringFromCopy(tl_str(other), 0);
 }
 
+//. id: return the tasks id
 static tlHandle _task_id(tlTask* task, tlArgs* args) {
     TL_TARGET(tlTask, other);
     return tlNUM(other->id);
 }
 
 // TODO this is not thread save, the task might be running and changing limit cannot be done this way
+//. abort: immediately halt the task, it will unwind its stack and release all locks, but without calling any catch handlers
+//. quite unsafe to call from a data integrity point
 static tlHandle _task_abort(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
@@ -573,6 +590,7 @@ static tlHandle _task_abort(tlTask* task, tlArgs* args) {
 }
 
 // TODO this needs more work, must pause to be thread safe, factor out task->value = other->value
+//. wait: wait for a task to complete, will return its result or throw its error
 static tlHandle _task_wait(tlTask* task, tlArgs* args) {
     tlTask* other = tlTaskAs(tlArgsTarget(args));
     if (!other) TL_THROW("expected a Task");
@@ -615,6 +633,7 @@ static void ensureYieldQueue(tlTask* task) {
     a_swap_if(A_VAR(task->yields), A_VAL(queue), 0);
 }
 
+//. add: post a result to the task, will block until Task.get is called
 static tlHandle _task_add(tlTask* task, tlArgs* args) {
     TL_TARGET(tlTask, other);
     if (tlTaskIsDone(other)) return tlUndef();
@@ -623,12 +642,14 @@ static tlHandle _task_add(tlTask* task, tlArgs* args) {
     return tlQueueAdd(other->yields, task, args);
 }
 
+//TODO. static add:
 static tlHandle _Task_add(tlTask* task, tlArgs* args) {
     ensureYieldQueue(task);
     assert(task->yields);
     return tlQueueAdd(task->yields, task, args);
 }
 
+//. get: receive a value from the task, blocking for it until #Task.add is called
 static tlHandle _task_get(tlTask* task, tlArgs* args) {
     TL_TARGET(tlTask, other);
     if (tlTaskIsDone(other)) return tlUndef();
@@ -637,6 +658,7 @@ static tlHandle _task_get(tlTask* task, tlArgs* args) {
     return tlQueueGet(other->yields, task);
 }
 
+//. poll: receive a value from the task, returning null if no value is available
 static tlHandle _task_poll(tlTask* task, tlArgs* args) {
     TL_TARGET(tlTask, other);
     if (tlTaskIsDone(other)) return tlUndef();
@@ -645,6 +667,7 @@ static tlHandle _task_poll(tlTask* task, tlArgs* args) {
     return tlQueuePoll(other->yields, task);
 }
 
+//. background:
 //. returns true if task is a background task, that is, not hold off the vm from exiting
 //. set by calling with a boolean, `Task.current.background(true)`
 // TODO will likely need a lock, for now we work around that, by not allowing outside changes
