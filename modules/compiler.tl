@@ -379,8 +379,8 @@ compile = (text, ast ->
 
             body = term.body.map(stm, n ->
                 # split in object properties, class properties, and what is left over is constructor
-                # before lexing
-                { stm.type == "assign" and stm.value?type == "function" }:
+                # before lexing, check for class things, and _setfield etc
+                { stm.type == "assign" and stm?value?type == "function" }:
                     _, fn = functions.add({name=stm.to.name, open=stm.value, scope=outerscope})
                     methods[stm.to.name] = fn
                     continue
@@ -393,23 +393,10 @@ compile = (text, ast ->
                 { stm.type == "assign" and stm.to.type == "newvar" }:
                     mutable = true
                     field = stm.to.name
-                    value = lex(scope, stm.value)
+                    value = lex(scope, stm?value)
                     #_setfield(this, "a", v)
                     fields.add(field)
                     return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
-                { stm.type == "assign" and stm.to.type == "newvarfield" }:
-                    mutable = true
-                    field = stm.to.name
-                    value = lex(scope, stm.value)
-                    #_setfield(this, "a", v)
-                    fields.add(field)
-                    return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
-                { stm.type == "method" and stm.method == "_set" and stm.target?name == "this" }:
-                    field = stm.args[1].v.data
-                    value = lex(scope, stm.args[2].v)
-                    #_setfield(this, "a", v)
-                    fields.add(field)
-                    return {type="call",target={type="global",pos=stm.target.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.target.pos}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "class" }:
                     if stm.args.size != 1 or not stm.args[1]?n:
                         line, char = lineFromPos(stm.pos)
@@ -418,7 +405,6 @@ compile = (text, ast ->
                     value = lex(outerscope, stm.args[1].v)
                     classfields[field] = value
                     continue
-                # {"target":{"type":"ref","pos":102,"name":"extend"},"type":"call","pos":108,"args":[{"v":{"target":{"type":"ref","pos":109,"name":"Shape"},"type":"call","pos":114,"args":[]}}]}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "extend" }:
                     if stm.args.size != 1 or stm.args[1]?n:
                         line, char = lineFromPos(stm.pos)
