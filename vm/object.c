@@ -168,6 +168,7 @@ tlHandle tlObjectGet(tlObject* object, tlHandle key) {
     trace("keys get: %s = %s", tl_str(key), tl_str(object->data[at]));
     return object->data[at];
 }
+
 tlObject* tlObjectSet(tlObject* object, tlHandle key, tlHandle v) {
     assert(tlObjectIs(object) || tlMapIs(object));
     if (tlStringIs(key)) key = tlSymFromString(key);
@@ -195,6 +196,23 @@ tlObject* tlObjectSet(tlObject* object, tlHandle key, tlHandle v) {
         nobject->data[i] = object->data[i - 1];
     }
     set_kind(nobject, tl_kind(object));
+    return nobject;
+}
+
+tlObject* tlObjectDel(tlObject* object, tlSym key) {
+    int at = -1;
+    assert(tlSetIs(object->keys));
+    tlSet* nkeys = tlSetDel(object->keys, key, &at);
+    if (at < 0) return object;
+
+    int size = tlObjectSize(object);
+
+    tlObject* nobject = tlObjectNew(nkeys);
+    int i = 0;
+    for (; i < at; i++) nobject->data[i] = object->data[i];
+    i++;
+    for (; i < size; i++) nobject->data[i - 1] = object->data[i];
+    assert(tlSetIs(object->keys));
     return nobject;
 }
 
@@ -458,7 +476,7 @@ static tlHandle _Object_get(tlTask* task, tlArgs* args) {
 //. > Object.set({x=10,y=10},{x=42},{x=100}) #> {x=100,y=10}
 static tlHandle _Object_set(tlTask* task, tlArgs* args) {
     if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
-    tlObject* object = tlArgsGet(args, 0);
+    tlObject* object = tlObjectAs(tlArgsGet(args, 0));
 
     int size = tlArgsSize(args);
     for (int i = 1; i < size; i++) {
@@ -482,6 +500,24 @@ static tlHandle _Object_set(tlTask* task, tlArgs* args) {
         tlHandle val = tlArgsGet(args, i);
         if (!val) TL_THROW("Expected a value for key '%s'", tl_str(key));
         object = tlObjectToObject_(tlObjectSet(object, tlSymFromString(key), val));
+    }
+    return object;
+}
+
+//. del(*keys): delete all keys passed in and return a new object
+static tlHandle _Object_del(tlTask* task, tlArgs* args) {
+    if (!tlObjectIs(tlArgsGet(args, 0))) TL_THROW("Expected an Object");
+    tlObject* object = tlObjectAs(tlArgsGet(args, 0));
+
+    int size = tlArgsSize(args);
+    for (int i = 1; i < size; i++) {
+        tlHandle a = tlArgsGet(args, i);
+        tlString* key = tlStringCast(a);
+        if (!key) {
+            if (!tl_bool(a)) continue;
+            TL_THROW("Expected a String key or falsy value, not '%s'", tl_repr(a));
+        }
+        object = tlObjectDel(object, key);
     }
     return object;
 }
@@ -884,6 +920,7 @@ void object_init() {
         "has", _Object_has,
         "get", _Object_get,
         "set", _Object_set,
+        "del", _Object_del,
         "keys", _Object_keys,
         "values", _Object_values,
         "toMap", _Object_toMap,

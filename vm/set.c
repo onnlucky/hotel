@@ -113,6 +113,21 @@ tlSet* tlSetAdd(tlSet* set, tlHandle key, int* at) {
     return nset;
 }
 
+tlSet* tlSetDel(tlSet* set, tlSym key, int* at) {
+    *at = tlSetIndexof(set, key);
+    if (*at < 0) return set;
+
+    int size = tlSetSize(set);
+    tlSet* nset = tlSetNew(size - 1);
+
+    int i = 0;
+    for (; i < *at; i++) nset->data[i] = set->data[i];
+    i++;
+    for (; i < size; i++) nset->data[i - 1] = set->data[i];
+    //set_assert(nset);
+    return nset;
+}
+
 int tlSetAdd_(tlSet* set, tlHandle key) {
     int size = tlSetSize(set);
     if (tlStringIs(key)) key = tlSymFromString(key);
