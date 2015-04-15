@@ -216,6 +216,28 @@ tlObject* tlObjectDel(tlObject* object, tlSym key) {
     return nobject;
 }
 
+// merge two objects recursively, o2 takes precedence
+tlObject* tlObjectMerge(tlObject* o1, tlObject* o2) {
+    assert(tlObjectIs(o1));
+    assert(tlObjectIs(o2));
+
+    tlSet* nkeys = tlSetUnion(o1->keys, o2->keys);
+    assert(tlSetIs(nkeys));
+    int size = tlSetSize(nkeys);
+    tlObject* object = tlObjectNew(nkeys);
+    for (int i = 0; i < size; i++) {
+        tlSym k = tlSetGet(nkeys, i);
+        tlHandle v1 = tlObjectGet(o1, k);
+        tlHandle v2 = tlObjectGet(o2, k);
+        if (tlObjectIs(v1) && tlObjectIs(v2)) {
+            v2 = tlObjectMerge(v1, v2);
+        }
+        object->data[i] = v2? v2 : v1;
+    }
+    assert(tlObjectIs(object));
+    return object;
+}
+
 tlHandle tlObjectGetSym(const tlObject* object, tlHandle key) {
     if (tlStringIs(key)) key = tlSymFromString(key);
     int at = tlSetIndexof(object->keys, key);
@@ -522,35 +544,24 @@ static tlHandle _Object_del(tlTask* task, tlArgs* args) {
     return object;
 }
 
+//. merge(*objects): merge all the objects recursively
+//. > Object.merge({a={x=10}},{a={y=20}})
+//. >> {a={x=10,y=20}}
 static tlHandle _Object_merge(tlTask* task, tlArgs* args) {
-    tlHashMap* res = tlHashMapNew();
-    for (int i = 0;; i++) {
-        tlHandle arg = tlArgsGet(args, i);
-        if (!arg) break;
-        tlObject* o = tlObjectCast(arg);
-        if (o) {
-            for (int j = 0;; j++) {
-                tlHandle k = tlObjectKeyIter(o, j);
-                if (!k) break;
-                tlHandle v = tlObjectValueIter(o, j);
-                tlHashMapSet(res, k, v);
-            }
-            continue;
+    tlObject* object = tlObjectCast(tlArgsGet(args, 0));
+    if (!object) TL_THROW("Expected an Object");
+
+    int size = tlArgsSize(args);
+    for (int i = 1; i < size; i++) {
+        tlHandle a = tlArgsGet(args, i);
+        tlObject* other = tlObjectCast(a);
+        if (!other) {
+            if (!tl_bool(a)) continue;
+            TL_THROW("Expected a Object, not '%s'", tl_repr(a));
         }
-        tlMap* map = tlMapCast(arg);
-        if (map) {
-            for (int j = 0;; j++) {
-                tlHandle k = tlMapKeyIter(map, j);
-                if (!k) break;
-                tlHandle v = tlMapValueIter(map, j);
-                tlHashMapSet(res, k, v);
-            }
-            continue;
-        }
-        //tlHashMap* hash = tlHashMapCast(arg);
-        TL_THROW("Expected a Object or Map as arg[%d]", i);
+        object = tlObjectMerge(object, other);
     }
-    return tlHashMapToObject(res);
+    return object;
 }
 
 static size_t objectSize(tlHandle v) {

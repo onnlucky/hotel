@@ -19,11 +19,26 @@ test "objects are not hashable, if they contain a non hashable value":
     )
     assert haderror
 
-test "merge":
-    o = Object.merge({a=42},{b=100},{a=42})
-    assert o.a == 42
+test "Object.set takes all keys, and returns an object with those keys, and their last defining value":
+    o = Object.set({a=42}, {b=100}, {a=200})
+    assert o.a == 200
     assert o.b == 100
     assert Object.size(o) == 2
+
+test "Object.set also takes (key, value) pairs":
+    o = Object.set({a=42}, "b", 100, {a=200}, "z", 300)
+    assert o.a == 200
+    assert o.b == 100
+    assert o.z == 300
+    assert Object.size(o) == 3
+
+test "Object.merge is like Object.set, but recursively merges keys mapping to objects":
+    res = Object.merge({a=1,b={x=2}},{a=10,b={y=3}})
+    assert res == {a=10,b={x=2,y=3}}
+
+    # setting of the same testcase does not recurse into b
+    res = Object.set({a=1,b={x=2}},{a=10,b={y=3}})
+    assert res == {a=10,b={y=3}}
 
 test "we can delete from using Object.del":
     assert Object.del({a=10}, "a") == {}

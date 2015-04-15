@@ -11,6 +11,7 @@ struct tlSet {
 
 tlSet* tlSetCopy(tlSet* set, int size);
 tlSet* tlSetDel(tlSet* set, tlSym key, int* at);
+tlSet* tlSetUnion(tlSet* s1, tlSet* s2);
 
 int tlSetSize(tlSet* set);
 int tlSetIndexof(tlSet* set, tlHandle key);

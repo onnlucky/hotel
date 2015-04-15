@@ -219,16 +219,20 @@ static tlHandle _set_intersect(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _set_union(tlTask* task, tlArgs* args) {
-    tlSet* set = tlSetAs(tlArgsTarget(args));
+    TL_TARGET(tlSet, set);
     tlSet* set2 = tlSetCast(tlArgsGet(args, 0));
     if (!set2) TL_THROW("expect a set as arg[1]");
 
+    return tlSetUnion(set, set2);
+}
+
+tlSet* tlSetUnion(tlSet* s1, tlSet* s2) {
     tlArray* res = tlArrayNew();
     int i = 0;
     int j = 0;
     while (true) {
-        tlHandle k = i < set->size? set->data[i] : 0;
-        tlHandle l = j < set2->size? set2->data[j] : 0;
+        tlHandle k = i < s1->size? s1->data[i] : 0;
+        tlHandle l = j < s2->size? s2->data[j] : 0;
         if (k == l) {
             if (k == 0) return tlSetFromArrayOrdered(res);
             tlArrayAdd(res, k);
