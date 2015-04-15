@@ -80,3 +80,30 @@ test "number from bad things return null":
     assert Number("1,2,3") == null
     assert Number([1]) == null
 
+test "hashcodes for all primitives":
+    h1 = true.hash
+    h2 = false.hash
+    h3 = 0.hash
+    h4 = 1.hash
+    h5 = [true,42].hash
+    h6 = Object.hash({a=true,b=42})
+
+    assert h1 != h2
+    assert h1 != h3
+    assert h1 != h4
+    assert h1 != h5
+    assert h1 != h6
+
+    assert h2 != h3
+    assert h2 != h4
+    assert h2 != h5
+    assert h2 != h6
+
+    assert h3 != h4
+    assert h3 != h5
+    assert h3 != h6
+
+    assert h4 != h5
+    assert h4 != h6
+
+    assert h5 != h6

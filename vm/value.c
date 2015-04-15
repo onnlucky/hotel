@@ -238,6 +238,9 @@ static tlHandle _bool_toString(tlTask* task, tlArgs* args) {
     if (b) return _t_true;
     return _t_false;
 }
+static tlHandle _bool_hash(tlTask* task, tlArgs* args) {
+    return tlINT(boolHash(tlArgsTarget(args), null));
+}
 static tlHandle _int_hash(tlTask* task, tlArgs* args) {
     return tlINT(intHash(tlArgsTarget(args), null));
 }
@@ -367,6 +370,7 @@ void value_init() {
     _t_false = tlSTR("false");
     tl_register_natives(__value_natives);
     _tlBoolKind.klass = tlClassObjectFrom(
+        "hash", _bool_hash,
         "toString", _bool_toString,
         null
     );
