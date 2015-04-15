@@ -939,6 +939,7 @@ void object_init() {
         "inherit", _Object_inherit,
         "each", null,
         "map", null,
+        "filter", null,
         null
     );
     tl_register_global("Object", constructor);

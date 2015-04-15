@@ -447,8 +447,14 @@ _object_map = (m, fn ->
     keys = Object.keys(m)
     keys.map: k, n -> block(k, Object.get(m, k), n)
 )
+_object_filter = (m, fn ->
+    block = args.block or fn
+    if not block: throw "filter expects a block or fn"
+    HashMap.new(m).filter(fn).toObject
+)
 _install(Object, "each", _object_each)
 _install(Object, "map", _object_map)
+_install(Object, "filter", _object_filter)
 
 #. HashMap.map(transform|block): return a list of all elements, with transform applied to them
 _hashmap_map = (fn ->
@@ -464,6 +470,7 @@ _hashmap_filter = (fn ->
     block = args.block or fn
     if not block: throw "filter expects a block or fn"
     this.each(k, v, n -> if not block(k, v, n): this.del(k))
+    return this
 )
 
 _install_method(HashMap, "map", _hashmap_map)
