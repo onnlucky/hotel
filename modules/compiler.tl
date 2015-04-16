@@ -402,7 +402,12 @@ compile = (text, ast ->
                         line, char = lineFromPos(stm.pos)
                         throw "class specifier without a 'name = value' on line $line"
                     field = stm.args[1].n
-                    value = lex(outerscope, stm.args[1].v)
+                    value = stm.args[1].v
+                    if value.type == "function":
+                        _, fn = functions.add({name=field, open=value, scope=outerscope})
+                        classfields[field] = {type="function", function=fn}
+                        continue
+                    value = lex(outerscope, value)
                     classfields[field] = value
                     continue
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "extend" }:
@@ -437,13 +442,13 @@ compile = (text, ast ->
             constructor = {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
             _, fn = functions.add({name="_constructor",open=false,function=constructor})
             constructor = {type="function",function=fn}
-            #methods.each: k, v -> closefn(v)
 
-            # TODO add classfields as well ...
             outerscope.addOpenClass({
                 methods = methods.toMap
+                classfields = classfields.map(k, v -> v?function).filter
                 close = ->
                     this.methods.each(k, v -> closefn(v))
+                    this.classfields.each(v -> closefn(v))
             }, name)
 
             mfill = methods.map(k, v -> [k, {type="function", function=v}])

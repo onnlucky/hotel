@@ -1169,6 +1169,7 @@ static tlHandle bmethodResolve(tlHandle target, tlSym method, bool safe) {
     if (tlObjectIs(target)) return objectResolve(target, method);
     if (tlClassIs(target)) return classResolveStatic(tlClassAs(target), method);
     if (tlUserObjectIs(target)) return userobjectResolve(tlUserObjectAs(target), method);
+    if (tlUserClassIs(target)) return userclassResolveStatic(tlUserClassAs(target), method);
     assert(target);
     assert(tl_kind(target));
     tlKind* kind = tl_kind(target);

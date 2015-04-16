@@ -62,6 +62,7 @@ struct tlUserObject {
 };
 
 tlHandle userobjectResolve(tlUserObject* oop, tlSym name);
+tlHandle userclassResolveStatic(tlUserClass* cls, tlSym name);
 
 
 uint32_t tlObjectHash(tlObject* object, tlHandle* unhashable);

@@ -852,6 +852,11 @@ uint32_t tlUserObjectHash(tlUserObject* object, tlHandle* unhashable) {
     return hash | !hash;
 }
 
+tlHandle userclassResolveStatic(tlUserClass* cls, tlSym name) {
+    if (name == s_class) return _tl_class;
+    return tlObjectGet(cls->classfields, name);
+}
+
 // resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
 tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
     tlUserClass* cls = oop->cls;
