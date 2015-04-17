@@ -1,8 +1,8 @@
 # LANGUAGE TODO
 
+instanceof operator, like "42 isa Number" and "42 isa Int", including for the new tlUserClass
 make "this.x, this.y = (-> return 10, 10)" work
 
-implement real classes
 change and update "match" syntax, no more { ... }: instead something like "match x: 10 -> something ...\n      20 -> something ..."
 
 think about "if x = findSomeX(): print x", instead of "x = findSomeX(); if x: print x"
@@ -15,6 +15,10 @@ implement 3 way comparison: "value - range <= in <= value + range"
 
 pretty print very pretty: do classes nicely, like Vector{x=1, y=1, z=1}, cut off long things
 
+have two kinds of bytecodes: scripts and modules, scripts behave like functions, modules behave like classes
+
+perhaps add annotations, such that you can ask "function.annotations.foobar", might be used to do exports, setters, public/private?
+
 # IMPLEMENTATION TODO
 
 make tlInt and hahsing (uint32_t) work together, simply fix the high byte to 0?
@@ -24,6 +28,7 @@ unify tl_kind with tlClass with tlUserClass allow to inherit from host native ob
 implement real operators, finally
 
 tlSet (set.c) is not really any good, it is a SymbolSet and should be treated as such
+add intern() to tlSet? just like symbols, would be amazing for classes and objects
 
 fix/finish modules, should load them relative to current module, then Task.locals, then TL_MODULE_PATH; should be able to call them as functions, as well as get their results
 
@@ -36,6 +41,7 @@ add way to extend objects within the current scope
 optimize code->argspec
 optimize code->hasLazy
 perhaps add args->names.last as object that maps symbol to args->names index
+add inline caches for all lookups, like tlCode->hashes[x] could be an entry, and simply count all CALL opcodes
 
 add something for 'collection["key", otherwise]' but will be part of get interface then
 think about shared locks, so whole slew of items share single lock, especially helpful for Mutable objects
