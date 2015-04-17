@@ -503,7 +503,7 @@ compile = (text, ast ->
                     type = ids[ref?id]
                     if type?type == "var" or type?stype == "var":
                         line, char = lineFromPos(to.pos)
-                        throw "assigning to '$(to.name)' is not yet supported"
+                        return ref
                     scope.add(to.name, to.pos)
                 {                    }:
                     line, char = lineFromPos(to.pos)
@@ -634,7 +634,11 @@ compile = (text, ast ->
             {                           }: emit(term.value) + ["vstore", term.target.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
-            ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
+            ls = term.locals.map(l, n ->
+                { isNumber(l)     }: ["rstore", n - 1, l - 1]
+                { l.type == "env" }: ["evrstore", n - 1, l.up - 1, l.at - 1]
+                {                 }: ["vrstore", n - 1, l.at - 1]
+            ).flatten
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "field" }:
