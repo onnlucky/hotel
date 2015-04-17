@@ -484,44 +484,32 @@ compile = (text, ast ->
                 value = lex(scope, term?value)
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
                 {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
-            { term.to.type == "newvarfield" }:
-                value = lex(scope, term?value)
-                local, id = scope.add(term.to.name, term.to.pos, type="var")
-                {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
-            { term.to.type == "var"    }:
-                value = lex(scope, term.value)
-                ref = scope.ref(term.to.name)
-                assert ids[ref.id].type == "var"
-                {type="vset",target=ref,{value},name=term.to.name,pos=term.to.pos}
         { term.type == "multiassign" }:
             # TODO perhaps function defined this way must stay open?
-            # TODO fixup for new var stuff
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
                 { to.type == "local" }:
                     ref = scope.ref(to.name, peek=true)
                     type = ids[ref?id]
                     if type?type == "var" or type?stype == "var":
-                        line, char = lineFromPos(to.pos)
                         return ref
                     scope.add(to.name, to.pos)
-                {                    }:
+                { to.type == "newvar" }:
+                    scope.add(to.name, to.pos, type="var")
+                    ref = scope.ref(to.name, peek=true)
+                    type = ids[ref?id]
+                    assert type?type == "var"
+                    return ref
+                {                     }:
                     line, char = lineFromPos(to.pos)
                     throw "assigning to '$(to.name)' is not yet supported"
                     scope.add("", to.pos) # anonymous locals for Var.new and var.set
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
-                { to.type == "local" }: null # nothing to do
-                { to.type == "newvar" }:
-                    at, id = scope.add(to.name, to.pos)
-                    value = {type="method",target={type="global",name="Var", pos=to.pos},method="new",args=[{type="local",at=l.at,id=l.id}],pos=to.pos}
-                    to={type="local",name=to.name,pos=to.pos,{at,id}}
-                    {type="asign",{to,value},pos=to.pos}
-                { to.type == "var" }:
-                    ref = scope.ref(to.name)
-                    value = {type="local",at=l.at,id=l.id}
-                    {type="method",target=ref,method="set",args=[value],pos=to?pos}
+                { to.type == "local"  }: null
+                { to.type == "newvar" }: null
+                {                     }: assert false # TODO this.x, this.y = ...
             )
             {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
