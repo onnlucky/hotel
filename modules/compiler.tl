@@ -484,6 +484,11 @@ compile = (text, ast ->
                 value = lex(scope, term?value)
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
                 {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
+            { term.to.type == "field" }:
+                target = lex(scope, term.to.target)
+                value = lex(scope, term?value)
+                name = {type="string",data=term.to.name}
+                {type="method",target=target,method="_set",args=[name,value],pos=term.to?pos}
         { term.type == "multiassign" }:
             # TODO perhaps function defined this way must stay open?
             value = lex(scope, term.value)
@@ -500,15 +505,21 @@ compile = (text, ast ->
                     type = ids[ref?id]
                     assert type?type == "var"
                     return ref
+                { to.type == "field"  }:
+                    scope.add("", to.pos) # anonymous local
                 {                     }:
                     line, char = lineFromPos(to.pos)
                     throw "assigning to '$(to.name)' is not yet supported"
-                    scope.add("", to.pos) # anonymous locals for Var.new and var.set
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
                 { to.type == "local"  }: null
                 { to.type == "newvar" }: null
+                { to.type == "field"  }:
+                    target = lex(scope, to.target)
+                    value = {type="local", at=locals[n]}
+                    name = {type="string",data=to.name}
+                    {type="method",target=target,method="_set",args=[name,value],pos=to?pos}
                 {                     }: assert false # TODO this.x, this.y = ...
             )
             {type="multiassign",{value,locals,assigns}}
