@@ -506,7 +506,7 @@ compile = (text, ast ->
                     assert type?type == "var"
                     return ref
                 { to.type == "field"  }:
-                    scope.add("", to.pos) # anonymous local
+                    scope.add(".$(to.name)", to.pos) # anonymous local
                 {                     }:
                     line, char = lineFromPos(to.pos)
                     throw "assigning to '$(to.name)' is not yet supported"
