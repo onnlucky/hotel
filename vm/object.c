@@ -706,7 +706,7 @@ tlKind* tlUserObjectKind;
 tlKind* tlMutableUserObjectKind;
 
 // merge base classes mutable and fields into a single class
-bool collectFieldsAndMutable(tlList* extends, tlList** fields) {
+static bool collectFieldsAndMutable(tlList* extends, tlList** fields) {
     bool mutable = false;
     for (int i = 0; i < tlListSize(extends); i++) {
         tlUserClass* cls = tlUserClassCast(tlListGet(extends, i));
@@ -720,6 +720,15 @@ bool collectFieldsAndMutable(tlList* extends, tlList** fields) {
         *fields = tlListCat(*fields, cls->fields);
     }
     return mutable;
+}
+
+static bool isa(tlUserClass* base, tlUserClass* cls) {
+    if (base == cls) return true;
+    if (!cls) return false;
+    for (int i = 0; i < tlListSize(cls->extends); i++) {
+        if (isa(base, tlUserClassCast(tlListGet(cls->extends, i)))) return true;
+    }
+    return false;
 }
 
 // build a class from compiler generated pieces, a constructor, the fields, the methods, the extended objects, etc.
@@ -811,6 +820,17 @@ static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     assert(field < tlListSize(cls->fields));
     oop->fields[field] = v;
     return v;
+}
+
+static tlHandle _UserClass_isa(tlTask* task, tlArgs* args) {
+    tlUserClass* cls = tlUserClassCast(tlArgsGet(args, 0));
+    if (!cls) TL_THROW("isa expects a class as first argument");
+    tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 1));
+    return tlBOOL(oop && isa(cls, oop->cls));
+}
+
+static tlHandle _isUserClass(tlTask* task, tlArgs* args) {
+    return tlBOOL(tlUserClassIs(tlArgsGet(args, 0)));
 }
 
 static tlHandle g_userobject_set;
@@ -987,5 +1007,7 @@ void object_init() {
     tl_register_global("_class", tlNativeNew(_UserClass_call, tlSYM("_class")));
     tl_register_global("_setfield", tlNativeNew(_UserClass_setField, tlSYM("_setfield")));
     tl_register_global("_extend", tlNativeNew(_UserClass_extend, tlSYM("_extend")));
+    tl_register_global("_isa", tlNativeNew(_UserClass_isa, tlSYM("_isa")));
+    tl_register_global("isUserClass", tlNativeNew(_isUserClass, tlSYM("isUserClass")));
 }
 

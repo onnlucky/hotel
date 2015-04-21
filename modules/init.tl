@@ -536,6 +536,7 @@ _install(DeadlockError, "class", {
 })
 
 isa = o, class ->
+    if isUserClass(class): return _isa(class, o)
     var $cls = o.class
     while $cls:
         if $cls == class: return true
