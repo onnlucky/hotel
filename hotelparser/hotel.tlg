@@ -205,10 +205,13 @@ elifexpr: .."else". pos=pos "if". c=expr . b=block &eostm els=elifexpr     -> pr
 
   intro*: !reserved name
  newvar*: "var" sp. !opname !reserved pos=pos name=name type=<newvar>
-   field: pos=pos target=value .".". name=name type=<field>
+// target=value does not work, as that puts objects before guards
+//   field: pos=pos target=value .".". name=name type=<field>
+   field: pos=pos target=ref .".". name=name type=<field>
 
 selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !letter type=<ref>
   assign: newvar
+        | field
         | pos=pos name=intro type=<local>
    mexpr: guards
         | ifexpr
