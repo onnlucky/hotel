@@ -396,7 +396,7 @@ static tlHandle _fdiv(tlTask* task, tlArgs* args) {
 static tlHandle _mod(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) % tlIntToInt(r));
-    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) * tl_double(r));
+    if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(fmod(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
     TL_THROW("'%%' not implemented for: %s %% %s", tl_str(l), tl_str(r));
 }
