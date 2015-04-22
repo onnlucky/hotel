@@ -1,9 +1,9 @@
-Shape = { x, y ->
+Shape = { this.x, this.y ->
     toString = -> "Shape{$(this.x),$(this.y)}"
     dist = -> sqrt(x ** 2 + y ** 2)
 }
 
-Rectangle = { x, y, width, height ->
+Rectangle = { x, y, this.width, this.height ->
     extend Shape(x, y)
     toString = ->
         "Rectangle{$(this.x),$(this.y),$(this.width),$(this.height)}"
@@ -13,7 +13,7 @@ Rectangle = { x, y, width, height ->
         super.dist - sqrt((width / 2) ** 2 + (height / 2) ** 2)
 }
 
-Circle = { x, y, r ->
+Circle = { x, y, this.r ->
     extend Shape(x, y)
     toString = ->
         "Circle{$(this.x),$(this.y),$(this.r)}"

@@ -377,6 +377,17 @@ compile = (text, ast ->
             extends = Array.new
             classfields = HashMap.new
 
+            argfieldinit = (term?as or []).map(arg, n ->
+                { arg.type == "field" or arg.type == "varfield" }:
+                    if arg.type == "varfield": mutable = true
+                    field = arg.name
+                    value = lex(scope, {type="ref", pos=arg.pos, name=arg.name})
+                    #_setfield(this, "a", v)
+                    fields.add(field)
+                    return {type="call",target={type="global",pos=arg.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=arg.pos}
+                {                     }: continue
+            )
+
             body = term.body.map(stm, n ->
                 # split in object properties, class properties, and what is left over is constructor
                 # before lexing, check for class things, and _setfield etc
@@ -438,7 +449,7 @@ compile = (text, ast ->
             print "extends", json.toString(extends)
             print "classfields", json.toString(classfields)
 ###
-
+            body = argfieldinit + body
             constructor = {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
             _, fn = functions.add({name="_constructor",open=false,function=constructor})
             constructor = {type="function",function=fn}

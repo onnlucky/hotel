@@ -96,7 +96,9 @@ mfunction: pos=pos as=fargs .arrow.. body=bodynl                                
 
      type: "("."@". n=name ")" -> n
     deflt: "("."=". v=mexpr ")" -> v
-    farg*: "&&" pos=pos name=intro type=<lazycollect>
+    farg*: "this." pos=pos name=intro type=<field>
+         | "var"."this." pos=pos name=intro type=<varfield>
+         | "&&" pos=pos name=intro type=<lazycollect>
          | "&" pos=pos name=intro t=type? d=deflt? type=<lazy>
          | "*" pos=pos name=intro type=<collect>
          |  pos=pos name=intro t=type? d=deflt? type=<eager>
