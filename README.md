@@ -3,9 +3,8 @@ Hotel - A Programming language
 
 author: Onne Gorter
 
-Hotel is a dynamic programming languages, it borrows from functional languages
-and has concurrency built in. Language wise, it is inspired a lot by javascript
-and ruby and a little bit by erlang and ocaml.
+Hotel is a dynamic programming language, it borrows from functional languages
+and has concurrency built in. Language wise, it is inspired a lot by javascript, ruby and a little bit of erlang and also ocaml.
 
 High Level
 ----------
