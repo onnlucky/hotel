@@ -137,12 +137,12 @@ sudo make NO_PORTAUDIO=1 NO_GRAPHICS=1 PREFIX=/usr install
 ```
 
 OSX
-~~~
+---
 
 ```
-$ xcode-select --install
-$ brew install bdw-gc cairo portaudio
-$ make BUILD=release install
+xcode-select --install
+brew install bdw-gc cairo portaudio
+make BUILD=release install
 ```
 
 
