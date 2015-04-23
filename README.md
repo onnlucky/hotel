@@ -4,7 +4,8 @@ Hotel - A Programming language
 author: Onne Gorter
 
 Hotel is a dynamic programming language, it borrows from functional languages
-and has concurrency built in. Language wise, it is inspired a lot by javascript, ruby and a little bit of erlang and also ocaml.
+and has concurrency built in. Language wise, it is inspired a lot by
+javascript, ruby and a little bit of erlang and also ocaml.
 
 High Level
 ----------
@@ -59,19 +60,25 @@ var x = 0
   x += word.size
 print x
 ```
-Outputs 10. While not a bad solution, it can also be written without:
+
+Outputs 10. While not a bad solution, it can also be written without
+mutability:
+
 ```
 "hello world".split.map(word -> word.size).sum
 ```
+
 The choice is yours. But hotels default choices are immutable. Like in this
 example, `String.split` returns a `List` which is an immutable. Much like
 `Strings` in most languages.
 
 As a last example:
+
 ```
 page = html.parse(http.get("http://en.wikipedia.org/wiki/Hotel"))
 print(page.find("p").text)
 ```
+
 Which will print the first page of the wikipedia article on hotels. (Not this
 language, haha).
 
@@ -115,6 +122,7 @@ and for a graphics environment, either gtk or cocoa
 make
 sudo make PREFIX=/usr install
 ```
+
 That will install a `tl` command, the main interpreter. Also a `gtl` command,
 that last one is for opening windows in a desktop environemnt.
 
@@ -122,6 +130,7 @@ To disable building certain parts, you can use: `NO_PORTAUDIO=1`, `NO_CAIRO=1`,
 `NO_OPENSSL=1`, `NO_GRAPHICS=1`.
 
 a headless install:
+
 ```
 make NO_PORTAUDIO=1 NO_GRAPHICS=1
 sudo make NO_PORTAUDIO=1 NO_GRAPHICS=1 PREFIX=/usr install
@@ -129,6 +138,7 @@ sudo make NO_PORTAUDIO=1 NO_GRAPHICS=1 PREFIX=/usr install
 
 OSX
 ~~~
+
 ```
 $ xcode-select --install
 $ brew install bdw-gc cairo portaudio
