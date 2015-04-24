@@ -706,7 +706,7 @@ tlKind* tlUserObjectKind;
 tlKind* tlMutableUserObjectKind;
 
 // merge base classes mutable and fields into a single class
-static bool collectFieldsAndMutable(tlList* extends, tlList** fields) {
+static bool collectFieldsAndMutable(tlList* extends, tlSet** fields) {
     bool mutable = false;
     for (int i = 0; i < tlListSize(extends); i++) {
         tlUserClass* cls = tlUserClassCast(tlListGet(extends, i));
@@ -717,7 +717,7 @@ static bool collectFieldsAndMutable(tlList* extends, tlList** fields) {
 
         if (cls->mutable) mutable = true;
         // TODO error if duplicate
-        *fields = tlListCat(*fields, cls->fields);
+        *fields = tlSetUnion(*fields, cls->fields);
     }
     return mutable;
 }
@@ -737,7 +737,7 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     bool mutable = tl_bool(tlArgsGet(args, 1));
     tlHandle constructor = tlArgsGet(args, 2);
     tlList* extends = tlListCast(tlArgsGet(args, 3));
-    tlList* fields = tlListCast(tlArgsGet(args, 4));
+    tlSet* fields = tlSetFromList(tlListCast(tlArgsGet(args, 4)));
     tlObject* methods = tlObjectCast(tlArgsGet(args, 5));
     tlObject* classfields = tlObjectCast(tlArgsGet(args, 6));
     assert(constructor);
@@ -747,9 +747,9 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     assert(classfields);
 
     // ensure the class has all fields and mutability from extended classes
-    tlList* allfields = fields;
+    tlSet* allfields = fields;
     bool basemutable = collectFieldsAndMutable(extends, &allfields);
-    assert(tlListSize(allfields) >= tlListSize(fields));
+    assert(tlSetSize(allfields) >= tlSetSize(fields));
     trace("CLASS: %s fields=%s mutable=%d", tl_str(name), tl_repr(allfields), mutable || basemutable);
 
     tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
@@ -768,7 +768,7 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
 static tlHandle _userclass_call(tlTask* task, tlArgs* args) {
     TL_TARGET(tlUserClass, cls);
     assert(cls->fields);
-    int fields = tlListSize(cls->fields);
+    int fields = tlSetSize(cls->fields);
     tlKind* kind = cls->mutable? tlMutableUserObjectKind : tlUserObjectKind;
     tlUserObject* target = tlAlloc(kind, sizeof(tlUserObject) + sizeof(tlHandle) * fields);
     target->cls = cls;
@@ -809,15 +809,15 @@ static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 0));
     assert(oop);
     assert(oop->cls);
-    assert(tlListIs(oop->cls->fields));
+    assert(tlSetIs(oop->cls->fields));
     tlSym name = tlSymAs_(tlArgsGet(args, 1));
     tlHandle v = tlOR_NULL(tlArgsGet(args, 2));
 
     tlUserClass* cls = oop->cls;
     trace("setField: %s.%s = %s", tl_str(oop), tl_str(name), tl_str(v));
-    int field = tlListIndexOf(cls->fields, name);
+    int field = tlSetIndexof(cls->fields, name);
     if (field < 0) TL_THROW("not a field: '%s'", tl_str(name));
-    assert(field < tlListSize(cls->fields));
+    assert(field < tlSetSize(cls->fields));
     oop->fields[field] = v;
     return v;
 }
@@ -841,9 +841,9 @@ static tlHandle _userobject__set(tlTask* task, tlArgs* args) {
     tlSym name = tlSymCast(tlArgsGet(args, 0));
     tlHandle v = tlOR_NULL(tlArgsGet(args, 1));
 
-    int field = tlListIndexOf(cls->fields, name);
+    int field = tlSetIndexof(cls->fields, name);
     if (field < 0) TL_THROW("not a field: '%s'", tl_str(name));
-    assert(field < tlListSize(cls->fields));
+    assert(field < tlSetSize(cls->fields));
     oop->fields[field] = v;
     return v;
 }
@@ -856,9 +856,9 @@ static tlHandle _userclass_name(tlTask* task, tlArgs* args) {
 uint32_t tlUserObjectHash(tlUserObject* object, tlHandle* unhashable) {
     // if (object->hash) return object->hash;
     uint32_t hash = 4280703812; // 12.hash + 1
-    uint32_t size = tlListSize(object->cls->fields);
+    uint32_t size = tlSetSize(object->cls->fields);
     for (uint32_t i = 0; i < size; i++) {
-        uint32_t k = tlHandleHash(tlListGet(object->cls->fields, i), unhashable);
+        uint32_t k = tlHandleHash(tlSetGet(object->cls->fields, i), unhashable);
         uint32_t v = tlHandleHash(object->fields[i], unhashable);
         if (!k || !v) return 0;
         // rotate shift the hash then mix in the key, rotate, then value
@@ -887,12 +887,12 @@ tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
         if (v) return v;
         super = tlUserClassCast(tlListGet(super->extends, 0));
     }
-    int field = tlListIndexOf(cls->fields, name);
+    int field = tlSetIndexof(cls->fields, name);
     if (field < 0) {
         if (name != s__set) return null;
         return g_userobject_set;
     }
-    assert(field < tlListSize(cls->fields));
+    assert(field < tlSetSize(cls->fields));
     return tlOR_NULL(oop->fields[field]);
 }
 
@@ -915,7 +915,7 @@ static bool userobjectEquals(tlHandle _left, tlHandle _right) {
     tlUserObject* right = tlUserObjectAs(_right);
     if (left->cls != right->cls) return false;
 
-    int size = tlListSize(left->cls->fields);
+    int size = tlSetSize(left->cls->fields);
     for (int i = 0; i < size; i++) {
         if (!tlHandleEquals(left->fields[i], right->fields[i])) return false;
     }
@@ -933,7 +933,7 @@ static tlHandle userobjectCmp(tlHandle _left, tlHandle _right) {
 
     assert(left->cls == right->cls);
 
-    int size = tlListSize(left->cls->fields);
+    int size = tlSetSize(left->cls->fields);
     for (int i = 0; i < size; i++) {
         tlHandle cmp = tlHandleCompare(left->fields[i], right->fields[i]);
         if (cmp != tlEqual) return cmp;

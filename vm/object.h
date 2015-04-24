@@ -49,7 +49,7 @@ struct tlUserClass {
     bool mutable;
     tlHandle constructor;
     tlList* extends;
-    tlList* fields;
+    tlSet* fields;
     tlObject* methods;
     tlObject* classfields;
 };

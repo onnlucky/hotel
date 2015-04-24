@@ -40,9 +40,19 @@ tlSet* tlSetNew(int size) {
     return set;
 }
 
+tlSet* tlSetFromList(tlList* list) {
+    tlSet* set = tlSetNew(tlListSize(list));
+    for (int i = 0; i < tlListSize(list); i++) {
+        tlSym e = tlSymAs(tlListGet(list, i));
+        tlSetAdd_(set, e);
+    }
+    tlSetAssert(set);
+    return set;
+}
+
 tlSet* tlSetFromArrayOrdered(tlArray* array) {
     tlSet* set = tlSetNew(tlArraySize(array));
-    for (int i = 0; i < tlArraySize(array); i++){
+    for (int i = 0; i < tlArraySize(array); i++) {
         set->data[i] = tlArrayGet(array, i);
     }
     tlSetAssert(set);

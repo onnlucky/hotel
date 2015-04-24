@@ -9,6 +9,8 @@ struct tlSet {
     tlHandle data[];
 };
 
+tlSet* tlSetFromList(tlList* list);
+
 tlSet* tlSetCopy(tlSet* set, int size);
 tlSet* tlSetDel(tlSet* set, tlSym key, int* at);
 tlSet* tlSetUnion(tlSet* s1, tlSet* s2);
