@@ -822,6 +822,22 @@ static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     return v;
 }
 
+static tlHandle _UserClass_super(tlTask* task, tlArgs* args) {
+    tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 0));
+    if (!oop) TL_THROW("not an class based object");
+    tlSym name = tlSymAs_(tlArgsGet(args, 1));
+    if (!name) TL_THROW("require a name");
+
+    tlUserClass* super = tlUserClassCast(tlListGet(oop->cls->extends, 0));
+    while (super) {
+        tlHandle v = tlObjectGet(super->methods, name);
+        trace("user object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
+        if (v) return v;
+        super = tlUserClassCast(tlListGet(super->extends, 0));
+    }
+    TL_THROW("not a method: '%s'", tl_str(name));
+}
+
 static tlHandle _UserClass_isa(tlTask* task, tlArgs* args) {
     tlUserClass* cls = tlUserClassCast(tlArgsGet(args, 0));
     if (!cls) TL_THROW("isa expects a class as first argument");
@@ -1007,6 +1023,7 @@ void object_init() {
     tl_register_global("_class", tlNativeNew(_UserClass_call, tlSYM("_class")));
     tl_register_global("_setfield", tlNativeNew(_UserClass_setField, tlSYM("_setfield")));
     tl_register_global("_extend", tlNativeNew(_UserClass_extend, tlSYM("_extend")));
+    tl_register_global("_super", tlNativeNew(_UserClass_super, tlSYM("_super")));
     tl_register_global("_isa", tlNativeNew(_UserClass_isa, tlSYM("_isa")));
     tl_register_global("isUserClass", tlNativeNew(_isUserClass, tlSYM("isUserClass")));
 }
