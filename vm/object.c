@@ -706,8 +706,7 @@ tlKind* tlUserObjectKind;
 tlKind* tlMutableUserObjectKind;
 
 // merge base classes mutable and fields into a single class
-static bool collectFieldsAndMutable(tlList* extends, tlSet** fields) {
-    bool mutable = false;
+tlSet* collectFieldsAndMutable(tlTask* task, tlList* extends, tlSet* fields, bool* mutable) {
     for (int i = 0; i < tlListSize(extends); i++) {
         tlUserClass* cls = tlUserClassCast(tlListGet(extends, i));
         if (!cls) {
@@ -715,11 +714,15 @@ static bool collectFieldsAndMutable(tlList* extends, tlSet** fields) {
             continue;
         }
 
-        if (cls->mutable) mutable = true;
-        // TODO error if duplicate
-        *fields = tlSetUnion(*fields, cls->fields);
+        if (tlSetIntersects(fields, cls->fields)) {
+            tlSet* same = tlSetIntersect(fields, cls->fields);
+            TL_THROW("cannot extend '%s' field '%s' exists", tl_str(cls->name), tl_str(tlSetGet(same, 0)));
+        }
+
+        if (cls->mutable) *mutable = true;
+        fields = tlSetUnion(fields, cls->fields);
     }
-    return mutable;
+    return fields;
 }
 
 static bool isa(tlUserClass* base, tlUserClass* cls) {
@@ -747,14 +750,14 @@ static tlHandle _UserClass_call(tlTask* task, tlArgs* args) {
     assert(classfields);
 
     // ensure the class has all fields and mutability from extended classes
-    tlSet* allfields = fields;
-    bool basemutable = collectFieldsAndMutable(extends, &allfields);
+    tlSet* allfields = collectFieldsAndMutable(task, extends, fields, &mutable);
+    if (!allfields) return null; // above can throw
     assert(tlSetSize(allfields) >= tlSetSize(fields));
-    trace("CLASS: %s fields=%s mutable=%d", tl_str(name), tl_repr(allfields), mutable || basemutable);
+    trace("CLASS: %s fields=%s mutable=%d", tl_str(name), tl_repr(allfields), mutable);
 
     tlUserClass* cls = tlAlloc(tlUserClassKind, sizeof(tlUserClass));
     cls->name = name;
-    cls->mutable = mutable || basemutable;
+    cls->mutable = mutable;
     cls->constructor = constructor;
     cls->extends = extends;
     cls->fields = allfields;
