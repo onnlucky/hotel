@@ -10,8 +10,7 @@ Rectangle = { x, y, this.width, this.height ->
     area = ->
         this.width * this.height
     dist = ->
-        _super(this, "dist").call(this=this) - sqrt((this.width / 2) ** 2 + (this.height / 2) ** 2)
-        #super.dist - sqrt((this.width / 2) ** 2 + (this.height / 2) ** 2)
+        super.dist - sqrt((this.width / 2) ** 2 + (this.height / 2) ** 2)
 }
 
 Circle = { x, y, this.r ->
@@ -21,8 +20,7 @@ Circle = { x, y, this.r ->
     area = ->
         3.14159265359 * this.r ** 2
     dist = ->
-        _super(this, "dist").call(this=this) - this.r
-        #super.dist - this.r
+        super.dist - this.r
 }
 
 r1 = Rectangle(10, 10, 50, 50)

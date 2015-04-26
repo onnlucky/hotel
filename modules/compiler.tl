@@ -548,6 +548,13 @@ compile = (text, ast ->
                 s = lex(scope, {type="list",data=target.scope, pos=term?pos})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}, pos=term?pos}
             {type="call",{target,args,names,block},pos=term?pos}
+        { term.type == "method" and term.target?name == "super" }:
+            # super.foo(as) -> _super(this, "foo").call(this=this, method="foo", Args(as))
+            this = Object.set(term.target, "name", "this")
+            target = {type="call", target=Object.set(term.target, "name", "_super"), args=[{v=this},{v={type="string",data=term.method}}]}
+            callargs = {type="call", target=Object.set(term.target, "name", "Args"), args=term.args}
+            args = [{v=this,n="this"},{v={type="string",data=term.method},n="method"},{v=callargs}]
+            lex(scope, {type="method",method="call",pos=term.pos,{target,args}})
         { term.type == "method" or term.type == "safemethod" }:
             target = lex(scope, term.target)
             names = (term?args or []).map: stm -> stm?n
