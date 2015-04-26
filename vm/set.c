@@ -205,10 +205,14 @@ static tlHandle _set_size(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _set_intersect(tlTask* task, tlArgs* args) {
-    tlSet* set = tlSetAs(tlArgsTarget(args));
+    TL_TARGET(tlSet, set);
     tlSet* set2 = tlSetCast(tlArgsGet(args, 0));
     if (!set2) TL_THROW("expect a set as arg[1]");
 
+    return tlSetIntersect(set, set2);
+}
+
+tlSet* tlSetIntersect(tlSet* set, tlSet* set2) {
     tlArray* res = tlArrayNew();
     int i = 0;
     int j = 0;
@@ -220,6 +224,24 @@ static tlHandle _set_intersect(tlTask* task, tlArgs* args) {
         if (k == l) {
             tlArrayAdd(res, k);
             i++; j++;
+        } else if (k < l) {
+            j++;
+        } else {
+            i++;
+        }
+    }
+}
+
+bool tlSetIntersects(tlSet* set, tlSet* set2) {
+    int i = 0;
+    int j = 0;
+    while (true) {
+        if (i >= set->size) return false;
+        if (j >= set2->size) return false;
+        tlHandle k = set->data[i];
+        tlHandle l = set2->data[j];
+        if (k == l) {
+            return true;
         } else if (k < l) {
             j++;
         } else {
