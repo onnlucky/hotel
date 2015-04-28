@@ -821,29 +821,46 @@ static tlHandle _UserClass_setField(tlTask* task, tlArgs* args) {
     return v;
 }
 
+static tlHandle tlUserClassMethodResolve(tlUserClass* cls, tlSym name);
+
+static tlHandle tlUserClassListMethodResolve(tlList* extends, tlSym name) {
+    int size = tlListSize(extends);
+    for (int i = 0; i < size; i++) {
+        tlUserClass* cls = tlUserClassCast(tlListGet(extends, i));
+        if (!cls) continue;
+        tlHandle method = tlUserClassMethodResolve(cls, name);
+        if (method) return method;
+    }
+    return null;
+}
+
+static tlHandle tlUserClassMethodResolve(tlUserClass* cls, tlSym name) {
+    tlHandle method = tlObjectGet(cls->methods, name);
+    if (method) return method;
+    return tlUserClassListMethodResolve(cls->extends, name);
+}
+
 static tlHandle _UserClass_super(tlTask* task, tlArgs* args) {
     tlUserObject* oop = tlUserObjectCast(tlArgsGet(args, 0));
     if (!oop) TL_THROW("not an class based object");
     tlSym name = tlSymAs_(tlArgsGet(args, 1));
     if (!name) TL_THROW("require a name");
 
-    tlUserClass* super = tlUserClassCast(tlListGet(oop->cls->extends, 0));
-    while (super) {
-        trace("user object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
-        tlHandle v = tlObjectGet(super->methods, name);
-        if (v) return v;
-        super = tlUserClassCast(tlListGet(super->extends, 0));
-    }
+    tlList* extends = oop->cls->extends;
+    tlHandle method = tlUserClassListMethodResolve(extends, name);
+    if (method) return method;
 
-    super = tlUserClassCast(tlListGet(oop->cls->extends, 0));
-    while (super) {
-        trace("user field object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
-        if (tlSetIndexof(super->fields, name) >= 0) {
+    // every class commutes its extends, so we only have to check the first level
+    int size = tlListSize(extends);
+    for (int i = 0; i < size; i++) {
+        tlUserClass* cls = tlUserClassCast(tlListGet(extends, i));
+        if (!cls) continue;
+
+        if (tlSetIndexof(cls->fields, name) >= 0) {
             int field = tlSetIndexof(oop->cls->fields, name);
             assert(field >= 0);
             return tlBLazyDataNew(tlOR_NULL(oop->fields[field]));
         }
-        super = tlUserClassCast(tlListGet(super->extends, 0));
     }
     TL_THROW("'%s' is not a property of super('%s')", tl_str(name), tl_str(oop));
 }
@@ -903,22 +920,17 @@ tlHandle userclassResolveStatic(tlUserClass* cls, tlSym name) {
     return tlObjectGet(cls->classfields, name);
 }
 
-// resolve a name to a method, walking up the super hierarchy as needed; mixins go before methods
+// resolve a name to a method, walking up the super hierarchy as needed; methods before fields
 tlHandle userobjectResolve(tlUserObject* oop, tlSym name) {
-    tlUserClass* cls = oop->cls;
-    tlUserClass* super = cls;
-    while (super) {
-        tlHandle v = tlObjectGet(super->methods, name);
-        trace("user object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
-        if (v) return v;
-        super = tlUserClassCast(tlListGet(super->extends, 0));
-    }
-    int field = tlSetIndexof(cls->fields, name);
+    tlHandle method = tlUserClassMethodResolve(oop->cls, name);
+    if (method) return method;
+
+    int field = tlSetIndexof(oop->cls->fields, name);
     if (field < 0) {
         if (name != s__set) return null;
         return g_userobject_set;
     }
-    assert(field < tlSetSize(cls->fields));
+    assert(field >= 0 && field < tlSetSize(oop->cls->fields));
     return tlOR_NULL(oop->fields[field]);
 }
 

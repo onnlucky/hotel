@@ -19,19 +19,19 @@ test "objects resolve methods in extends left/depth first, then fields":
     assert Test().y == 200
 
 test "objects resolve left/depth first":
-    Base1 = { -> x = -> 100 }
-    Base2 = { -> x = -> 200 }
-    Base3 = { -> x = -> 300 }
-    Base4 = { -> x = -> 400 }
+    Base1 = { -> x = (-> 100) }
+    Base2 = { -> x = (-> 200) }
+    Base3 = { -> x = (-> 300) }
+    Base4 = { -> x = (-> 400) }
     Middle = { -> extend Base1; extend Base2; extend Base3 }
     Test = { -> extend Middle; extend Base4 }
     assert Test().x == 100
 
 test "objects resolve left/depth first and super works over multiple inheritance":
-    Base1 = { -> x = -> 100; base1 = 1 }
-    Base2 = { -> x = -> 200; base2 = -> 2 }
-    Base3 = { -> x = -> 300; base3 = 3 }
-    Base4 = { -> x = -> 400; base4 = -> 4 }
+    Base1 = { -> x = (-> 100); base1 = 1 }
+    Base2 = { -> x = (-> 200); base2 = (-> 2) }
+    Base3 = { -> x = (-> 300); base3 = 3 }
+    Base4 = { -> x = (-> 400); base4 = (-> 4) }
     Middle = { -> extend Base1; extend Base2; extend Base3 }
     Test = { -> extend Middle; extend Base4; base3 = (-> super.base3); base4 = (-> super.base4) }
     assert Test().x == 100
