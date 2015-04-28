@@ -98,6 +98,9 @@ void tlCodeFrameDump(tlFrame* frame);
 void tlDumpTraceEvents(int count);
 tlTask* tlDumpTraceGetTask(int count);
 
+// so _super(this, name) can resolve to a field
+tlBLazyData* tlBLazyDataNew(tlHandle data);
+
 void bcode_init();
 
 #endif

@@ -10,6 +10,7 @@
 #include "args.h"
 #include "string.h"
 #include "list.h"
+#include "bcode.h"
 
 tlKind* tlClassKind;
 
@@ -714,11 +715,6 @@ tlSet* collectFieldsAndMutable(tlTask* task, tlList* extends, tlSet* fields, boo
             continue;
         }
 
-        if (tlSetIntersects(fields, cls->fields)) {
-            tlSet* same = tlSetIntersect(fields, cls->fields);
-            TL_THROW("cannot extend '%s' field '%s' exists", tl_str(cls->name), tl_str(tlSetGet(same, 0)));
-        }
-
         if (cls->mutable) *mutable = true;
         fields = tlSetUnion(fields, cls->fields);
     }
@@ -833,12 +829,23 @@ static tlHandle _UserClass_super(tlTask* task, tlArgs* args) {
 
     tlUserClass* super = tlUserClassCast(tlListGet(oop->cls->extends, 0));
     while (super) {
-        tlHandle v = tlObjectGet(super->methods, name);
         trace("user object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
+        tlHandle v = tlObjectGet(super->methods, name);
         if (v) return v;
         super = tlUserClassCast(tlListGet(super->extends, 0));
     }
-    TL_THROW("not a method: '%s'", tl_str(name));
+
+    super = tlUserClassCast(tlListGet(oop->cls->extends, 0));
+    while (super) {
+        trace("user field object resolve: %s %s - %s", tl_str(oop), tl_str(super), tl_str(name));
+        if (tlSetIndexof(super->fields, name) >= 0) {
+            int field = tlSetIndexof(oop->cls->fields, name);
+            assert(field >= 0);
+            return tlBLazyDataNew(tlOR_NULL(oop->fields[field]));
+        }
+        super = tlUserClassCast(tlListGet(super->extends, 0));
+    }
+    TL_THROW("'%s' is not a property of super('%s')", tl_str(name), tl_str(oop));
 }
 
 static tlHandle _UserClass_isa(tlTask* task, tlArgs* args) {
