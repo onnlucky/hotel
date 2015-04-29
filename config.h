@@ -3,7 +3,7 @@
 #define TL_PREFIX_RAW /usr/local
 #endif
 #ifndef TL_VERSION_RAW
-#define TL_VERSION_RAW 0.3.1
+#define TL_VERSION_RAW 0.3.2
 #endif
 
 #define TL_PREFIX_STR_(x) #x
