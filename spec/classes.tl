@@ -4,6 +4,7 @@ test "objects resolve methods then fields":
         x = -> 100
     }
     assert Test().x == 100
+    assert Test() isa Test
 
 test "objects resolve methods in extends left/depth first, then fields":
     Base = { ->
@@ -26,6 +27,16 @@ test "objects resolve left/depth first":
     Middle = { -> extend Base1; extend Base2; extend Base3 }
     Test = { -> extend Middle; extend Base4 }
     assert Test().x == 100
+
+    # test isa operator
+    assert Test() isa Test
+    assert Test() isa Middle
+    assert Test() isa Base1
+    assert Test() isa Base2
+    assert Test() isa Base3
+    assert Test() isa Base4
+    assert not Middle() isa Base4
+    assert not Middle() isa Test
 
 test "objects resolve left/depth first and super works over multiple inheritance":
     Base1 = { -> x = (-> 100); base1 = 1 }
@@ -82,44 +93,30 @@ test "super when field or method is not in super, is an error":
     assert try(Test().tf2) == null
     assert try(Test().tm2) == null
 
+test "safe operator works for objects":
+    Base = { ->
+        f = 100
+        m = -> 200
+    }
+    Test = { -> extend Base; f2 = 300; m2 = (-> 400) }
+    o = Test()
+    assert o.f == 100
+    assert o?f == 100
+    assert o.m == 200
+    assert o?m == 200
+    assert o.f2 == 300
+    assert o?f2 == 300
+    assert o.m2 == 400
+    assert o?m2 == 400
 
-###
-Shape = { this.x, this.y ->
-    toString = -> "Shape{$(this.x),$(this.y)}"
-    dist = -> sqrt(this.x ** 2 + this.y ** 2)
-}
+    # first will throw, second will return null and so will the try wrapper
+    assert try(o.f3, "otherwise") == "otherwise"
+    assert try(o?f3, "otherwise") == null
 
-Rectangle = { x, y, this.width, this.height ->
-    extend Shape(x, y)
-    toString = ->
-        "Rectangle{$(this.x),$(this.y),$(this.width),$(this.height)}"
-    area = ->
-        this.width * this.height
-    dist = ->
-        super.dist - sqrt((this.width / 2) ** 2 + (this.height / 2) ** 2)
-}
-
-Circle = { x, y, this.r ->
-    extend Shape(x, y)
-    toString = ->
-        "Circle{$(this.x),$(this.y),$(this.r)}"
-    area = ->
-        3.14159265359 * this.r ** 2
-    dist = ->
-        super.dist - this.r
-}
-
-r1 = Rectangle(10, 10, 50, 50)
-c1 = Circle(100, 0, 10)
-
-assert r1.x == 10, r1.y == 10
-assert r1.area == 50 * 50
-assert r1.toString == "Rectangle{10,10,50,50}"
-assert r1 isa Rectangle
-assert r1 isa Shape
-
-assert c1 isa Circle
-assert c1 isa Shape
-assert c1.area > 20
-assert c1.dist == 90
-
+    Down = { -> extend Test; m3 = (-> super.m3) }
+    assert try(Down().f2, "otherwise") == 300
+    assert try(Down()?f2, "otherwise") == 300
+    assert try(Down().f3, "otherwise") == "otherwise"
+    assert try(Down()?f3, "otherwise") == null
+    assert try(Down().m3, "otherwise") == "otherwise"
+    assert try(Down()?m3, "otherwise") == "otherwise" # m3 exists, so safe operator does not help
