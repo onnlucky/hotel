@@ -12,6 +12,5 @@ make clean
 make BUILD=release test
 
 echo "all good, pushing"
-git push origin $VERSION
-git push
+git push origin $VERSION HEAD
 
