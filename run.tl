@@ -1,39 +1,19 @@
-Shape = { this.x, this.y ->
-    toString = -> "Shape{$(this.x),$(this.y)}"
-    dist = -> sqrt(this.x ** 2 + this.y ** 2)
+test "negative properties":
+    o = { x = 42 }
+    assert -o.x == -42
+
+Vector2d = { this.x, this.y ->
+    mul = l, r ->
+        { l isa Vector2d and r isa Vector2d }: Vector2d(l.x * r.x - l.y * b.y, l.x * r.y - l.y * b.x)
+        { l isa Vector2d and isNumber(r)    }: Vector2d(l.x * r, l.y * r)
+        { isNumber(l) and r isa Vector2d    }: Vector2d(r.x * l, r.y * l)
+        {                                   }: undefined
 }
 
-Rectangle = { x, y, this.width, this.height ->
-    extend Shape(x, y)
-    toString = ->
-        "Rectangle{$(this.x),$(this.y),$(this.width),$(this.height)}"
-    area = ->
-        this.width * this.height
-    dist = ->
-        super.dist - sqrt((this.width / 2) ** 2 + (this.height / 2) ** 2)
-}
+test "value class equality":
+    assert Vector2d(10, 10) == Vector2d(10, 10)
+    assert Vector2d(10, 10) == Vector2d(1, 1).mul(10)
 
-Circle = { x, y, this.r ->
-    extend Shape(x, y)
-    toString = ->
-        "Circle{$(this.x),$(this.y),$(this.r)}"
-    area = ->
-        3.14159265359 * this.r ** 2
-    dist = ->
-        super.dist - this.r
-}
-
-r1 = Rectangle(10, 10, 50, 50)
-c1 = Circle(100, 0, 10)
-
-assert r1.x == 10, r1.y == 10
-assert r1.area == 50 * 50
-assert r1.toString == "Rectangle{10,10,50,50}"
-assert r1 isa Rectangle
-assert r1 isa Shape
-
-assert c1 isa Circle
-assert c1 isa Shape
-assert c1.area > 20
-assert c1.dist == 90
+test "reimplement operators":
+    assert Vector2d(10, 10) * 10 == Vector2d(100, 100)
 
