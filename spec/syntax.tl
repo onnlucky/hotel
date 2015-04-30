@@ -27,3 +27,15 @@ test "multiple value returns assigning to fields":
     o.x, o.y = (->return 42, 43)()
     assert o.x == 42 and o.y == 43
 
+test "negative operator works for many different expressions":
+    o = { x = 42 }
+    f = n -> n
+    assert -42 == -1 * 42
+    assert -o.x == -42
+    assert -f(42) == -42
+    assert -f(-42) == 42
+    assert -f.call(Args(42)) == -42
+    assert -(42) == -42
+    # TODO? can this work?
+    # assert -(n->n)(42) == -42
+

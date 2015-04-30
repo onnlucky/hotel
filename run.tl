@@ -1,7 +1,3 @@
-test "negative properties":
-    o = { x = 42 }
-    assert -o.x == -42
-
 Vector2d = { this.x, this.y ->
     mul = l, r ->
         { l isa Vector2d and r isa Vector2d }: Vector2d(l.x * r.x - l.y * b.y, l.x * r.y - l.y * b.x)

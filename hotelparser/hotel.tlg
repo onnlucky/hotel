@@ -128,8 +128,8 @@ literal*: "true" | "false" | "null" | "undefined"
         | literal
         | ref
         | vparen
-        | pos=pos type="~" rhs=(num|ref|vparen)
-        | pos=pos type="-" rhs=(ref|vparen)
+        | pos=pos type="~" rhs=(num|vparen|call)
+        | pos=pos type="-" rhs=(vparen|call)
 
    margs: e=arg es=(.","..@"a value" arg)* &eostmb                           -> prepend(es, e)
         | e=mcallarg &eostmb                                                 -> tlListFrom1(e)
