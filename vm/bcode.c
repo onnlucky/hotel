@@ -1000,7 +1000,8 @@ tlHandle tlInvokeBinop(tlTask* task, tlArgs* call, bool lhs) {
     tlHandle fn = null;
 
     tlKind* kind = tl_kind(target);
-    if (kind->klass) fn = tlObjectGet(kind->klass, name);
+    if (tlUserObjectIs(target)) fn = userobjectResolve(tlUserObjectAs(target), name);
+    if (!fn && kind->klass) fn = tlObjectGet(kind->klass, name);
     if (!fn && kind->cls) fn = classResolve(kind->cls, name);
     if (!fn) return tlUndef();
 

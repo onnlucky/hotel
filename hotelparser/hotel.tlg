@@ -73,6 +73,7 @@ mlcomment*: "###" (!(nl sp* "###") _)* (nl sp* "###"|end)
    items: i=item is=(eov.. item)*                             -> prepend(is, i)
 mapitems: i=(n=key ."="..@"a value" v=mexpr) is=(eov.. item)* -> prepend(is, i)
     key*: name
+        | "\"" name=stext "\"" -> name
     dkey: pos=pos name=name type=<ref>
     item: "{"..@"a closing '}'" names=dkey+(eov ..) .."}"
         | n=key .@"a '='" "="..@"a value" v=mexpr
@@ -149,6 +150,8 @@ mcallarg: v=mcall
         | m="?" &(.. first) -> m
         | m="!" &(.. first) -> m
  method*: name
+        | op
+        | "\"" name=stext "\"" -> name
     tail: pos=pos ."(".. @"a closing ')'" CI args=args ..")" t=tail                  -> process_call(args, t, pos)
         | pos=pos .o=met.. m=method ."("..@"a closing ')'" CI args=args ..")" t=tail -> process_method(o, m, args, t, pos)
         | pos=pos .".".. m=method ."="!"=".. @"a value" value=setarg               -> process_set_field(m, value, pos)
@@ -215,6 +218,7 @@ selfref*: pos=pos !opname !reserved name=("return"|"goto"|"break"|"continue") !l
   assign: newvar
         | field
         | pos=pos name=intro type=<local>
+        | pos=pos "\"" name=stext "\"" type=<local>
    mexpr: guards
         | ifexpr
         | e=mfunction &eoexpr                                                -> e

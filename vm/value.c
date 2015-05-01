@@ -306,8 +306,19 @@ static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
 static tlHandle _int_add(tlTask* task, tlArgs* args) {
     if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
     if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
-
     return tlINT(tl_int(tlArgsGet(args, 0)) + tl_int(tlArgsGet(args, 1)));
+}
+
+static tlHandle _int_sub(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+    return tlINT(tl_int(tlArgsGet(args, 0)) - tl_int(tlArgsGet(args, 1)));
+}
+
+static tlHandle _int_mul(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+    return tlINT(tl_int(tlArgsGet(args, 0)) * tl_int(tlArgsGet(args, 1)));
 }
 
 static tlHandle _isUndefined(tlTask* task, tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
@@ -386,6 +397,8 @@ void value_init() {
         "times", null,
         "to", null,
         "+", _int_add,
+        "-", _int_sub,
+        "*", _int_mul,
         null
     );
     tlObject* intStatic= tlClassObjectFrom(
