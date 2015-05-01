@@ -219,13 +219,8 @@ compile = (text, ast ->
     functions = Array.new
     ids = Array.new
 
-    Scope = { parent, block ->
-        parent = parent
-        parentVisible = parent?locals.size or 0
-        block = block or false
-        names = HashMap.new
-        locals = Array.new
-        args = Array.new
+    var closefn
+    ScopeClass = {
         # TODO addOpen vs add, when function is named is clumsy, either collapse at assign, or do this
         addOpen = function, name, pos ->
             _, fn = functions.add({name=name or "",open=function,scope=this})
@@ -241,6 +236,9 @@ compile = (text, ast ->
                 _, at = this.locals.add(name)
                 this.names[name] = {arg=false,{at,id,fn,type}}
             return fn
+        addOpenClass = class, name ->
+            if this.open[name]: this.open[name].close
+            this.open[name] = class
         add = name, pos, type ->
             type = type or "local"
             if this.locals[-1] == name and this.names[name]?fn:
@@ -254,6 +252,7 @@ compile = (text, ast ->
             this.names.each(name, ref ->
                 if functions[ref?fn]?open: closefn(ref.fn)
             )
+            this.open.each(name, open -> open.close)
         localvars = ->
             this.locals.map(name -> this.names[name]?type == "var")
         addarg = name, pos ->
@@ -283,6 +282,8 @@ compile = (text, ast ->
             ref = this.names[name]
             if ref?fn and not args["peek"]:
                 if functions[ref.fn].open: closefn(ref.fn)
+            if ref and this.open[name] and not args["peek"]:
+                this.open.del(name).close
             if ref:
                 if ref.arg:
                     if not level: return {type="arg",at=ref.at,id=ref.id}
@@ -300,6 +301,16 @@ compile = (text, ast ->
                 return this.parent.ref(name, level + 1, pos)
             globals[name] = true
             return {type="global",{name,pos}}
+    }
+    Scope = parent, block -> {
+        class = ScopeClass
+        {parent, block}
+        parentVisible = parent?locals.size or 0
+        block = block or false
+        names = HashMap.new
+        open = HashMap.new
+        locals = Array.new
+        args = Array.new
     }
 
     closefn = n ->
@@ -359,7 +370,7 @@ compile = (text, ast ->
         { term.type == "class" }:
             outerscope = scope
             scope = Scope(scope)
-            args = ([{name="class",pos=term.pos}, {name="this",pos=term.pos}] + (term?as or [])).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
+            args = ([{name="class",pos=term.pos}] + (term?as or [])).map(arg, n -> scope.addarg(arg.name, arg.pos); argspec(arg))
 
             # object properties
             var mutable = false
@@ -371,12 +382,21 @@ compile = (text, ast ->
             extends = Array.new
             classfields = HashMap.new
 
+            argfieldinit = (term?as or []).map(arg, n ->
+                { arg.type == "field" or arg.type == "varfield" }:
+                    if arg.type == "varfield": mutable = true
+                    field = arg.name
+                    value = lex(scope, {type="ref", pos=arg.pos, name=arg.name})
+                    #_setfield(this, "a", v)
+                    fields.add(field)
+                    return {type="call",target={type="global",pos=arg.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=arg.pos}
+                {                     }: continue
+            )
+
             body = term.body.map(stm, n ->
-                print "--", n, "--"
-                print json.toString(stm)
                 # split in object properties, class properties, and what is left over is constructor
-                # before lexing
-                { stm.type == "assign" and stm.value?type == "function" }:
+                # before lexing, check for class things, and _setfield etc
+                { stm.type == "assign" and stm?value?type == "function" }:
                     _, fn = functions.add({name=stm.to.name, open=stm.value, scope=outerscope})
                     methods[stm.to.name] = fn
                     continue
@@ -389,32 +409,23 @@ compile = (text, ast ->
                 { stm.type == "assign" and stm.to.type == "newvar" }:
                     mutable = true
                     field = stm.to.name
-                    value = lex(scope, stm.value)
+                    value = lex(scope, stm?value)
                     #_setfield(this, "a", v)
                     fields.add(field)
                     return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
-                { stm.type == "assign" and stm.to.type == "newvarfield" }:
-                    mutable = true
-                    field = stm.to.name
-                    value = lex(scope, stm.value)
-                    #_setfield(this, "a", v)
-                    fields.add(field)
-                    return {type="call",target={type="global",pos=stm.to.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.to.pos}
-                { stm.type == "method" and stm.method == "_set" and stm.target?name == "this" }:
-                    field = stm.args[1].v.data
-                    value = lex(scope, stm.args[2].v)
-                    #_setfield(this, "a", v)
-                    fields.add(field)
-                    return {type="call",target={type="global",pos=stm.target.pos,name="_setfield"},args=[{type="this"},{type="data",data=field},value],pos=stm.target.pos}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "class" }:
                     if stm.args.size != 1 or not stm.args[1]?n:
                         line, char = lineFromPos(stm.pos)
                         throw "class specifier without a 'name = value' on line $line"
                     field = stm.args[1].n
-                    value = lex(outerscope, stm.args[1].v)
+                    value = stm.args[1].v
+                    if value.type == "function":
+                        _, fn = functions.add({name=field, open=value, scope=outerscope})
+                        classfields[field] = {type="function", function=fn}
+                        continue
+                    value = lex(outerscope, value)
                     classfields[field] = value
                     continue
-                # {"target":{"type":"ref","pos":102,"name":"extend"},"type":"call","pos":108,"args":[{"v":{"target":{"type":"ref","pos":109,"name":"Shape"},"type":"call","pos":114,"args":[]}}]}
                 { stm.type == "call" and stm.target.type == "ref" and stm.target.name == "extend" }:
                     if stm.args.size != 1 or stm.args[1]?n:
                         line, char = lineFromPos(stm.pos)
@@ -427,27 +438,36 @@ compile = (text, ast ->
                     extends.add(target)
                     cls = lex(scope, {type="ref",pos=stm.pos,name="class"})
                     ths = lex(scope, {type="ref",pos=stm.pos,name="this"})
-                    as = t?args or []
-                    return {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + as,pos=stm.pos}
+                    names = ([null, null, null] + (t?args or [])).map: stm -> stm?n
+                    args = (t?args or []).map: stm -> lex(scope, stm.v)
+                    return {type="call",target={type="global",pos=stm.pos,name="_extend"},args=[cls,ths,extends.size - 1] + args,pos=stm.pos,names=names}
                 { }: null
 
-                stm = lex(scope, stm)
-                print json.toString(stm)
-                stm
+                # otherwise just a constructor statement
+                lex(scope, stm)
             ).add(lex(scope, {type="ref",pos=term.pos,name="this"}))
+            ###
             print "class:", name, "mutable:", mutable
             print "constructor", json.toString(body)
             print "fields", json.toString(fields)
             print "methods", json.toString(methods)
             print "extends", json.toString(extends)
             print "classfields", json.toString(classfields)
-
+###
+            body = argfieldinit + body
             constructor = {type="function",{scope,args,body},locals=scope.locals.toList,pos=term.pos}
             _, fn = functions.add({name="_constructor",open=false,function=constructor})
             constructor = {type="function",function=fn}
-            methods.each: k, v -> closefn(v)
 
-            mfill = methods.map(k, v -> [k, {type="function", function=1}])
+            outerscope.addOpenClass({
+                methods = methods.toMap
+                classfields = classfields.map(k, v -> v?function).filter
+                close = ->
+                    this.methods.each(k, v -> closefn(v))
+                    this.classfields.each(v -> closefn(v))
+            }, name)
+
+            mfill = methods.map(k, v -> [k, {type="function", function=v}])
             methods.each(k, v -> methods[k] = null)
 
             cfill = classfields.map(k, v -> [k, v])
@@ -457,7 +477,7 @@ compile = (text, ast ->
             classfields = {type="object", fill=cfill, map=classfields.toMap}
 
             #Test = _class("Test", mutable, _constructor, extends, fields, methods, classfields)
-            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="UserClass"},args=[
+            {type="call",pos=term.pos,target={type="global",pos=term.pos,name="_class"},args=[
                 {type="string",data=(name or "<Anon>")}
                 bool(mutable,"true","false")
                 constructor
@@ -480,36 +500,43 @@ compile = (text, ast ->
                 value = lex(scope, term?value)
                 local, id = scope.add(term.to.name, term.to.pos, type="var")
                 {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
-            { term.to.type == "newvarfield" }:
+            { term.to.type == "field" }:
+                target = lex(scope, term.to.target)
                 value = lex(scope, term?value)
-                local, id = scope.add(term.to.name, term.to.pos, type="var")
-                {type="vset",target=scope.ref(term.to.name),{value},name=term.to.name,pos=term.to.pos}
-            { term.to.type == "var"    }:
-                value = lex(scope, term.value)
-                ref = scope.ref(term.to.name)
-                assert ids[ref.id].type == "var"
-                {type="vset",target=ref,{value},name=term.to.name,pos=term.to.pos}
+                name = {type="string",data=term.to.name}
+                {type="method",target=target,method="_set",args=[name,value],pos=term.to?pos}
         { term.type == "multiassign" }:
             # TODO perhaps function defined this way must stay open?
-            # TODO fixup for new var stuff
             value = lex(scope, term.value)
             locals = term.multi.map(to ->
-                { to.type == "local" }: scope.add(to.name, to.pos)
-                {                    }: scope.add("", to.pos) # anonymous locals for Var.new and var.set
-                                        assert false
+                { to.type == "local" }:
+                    ref = scope.ref(to.name, peek=true)
+                    type = ids[ref?id]
+                    if type?type == "var" or type?stype == "var":
+                        return ref
+                    scope.add(to.name, to.pos)
+                { to.type == "newvar" }:
+                    scope.add(to.name, to.pos, type="var")
+                    ref = scope.ref(to.name, peek=true)
+                    type = ids[ref?id]
+                    assert type?type == "var"
+                    return ref
+                { to.type == "field"  }:
+                    scope.add(".$(to.name)", to.pos) # anonymous local
+                {                     }:
+                    line, char = lineFromPos(to.pos)
+                    throw "assigning to '$(to.name)' is not yet supported"
             )
             assigns = locals.map(l, n ->
                 to = term.multi[n]
-                { to.type == "local" }: null # nothing to do
-                { to.type == "newvar" }:
-                    at, id = scope.add(to.name, to.pos)
-                    value = {type="method",target={type="global",name="Var", pos=to.pos},method="new",args=[{type="local",at=l.at,id=l.id}],pos=to.pos}
-                    to={type="local",name=to.name,pos=to.pos,{at,id}}
-                    {type="asign",{to,value},pos=to.pos}
-                { to.type == "var" }:
-                    ref = scope.ref(to.name)
-                    value = {type="local",at=l.at,id=l.id}
-                    {type="method",target=ref,method="set",args=[value],pos=to?pos}
+                { to.type == "local"  }: null
+                { to.type == "newvar" }: null
+                { to.type == "field"  }:
+                    target = lex(scope, to.target)
+                    value = {type="local", at=locals[n]}
+                    name = {type="string",data=to.name}
+                    {type="method",target=target,method="_set",args=[name,value],pos=to?pos}
+                {                     }: assert false # TODO this.x, this.y = ...
             )
             {type="multiassign",{value,locals,assigns}}
         { term.type == "call" }:
@@ -526,6 +553,13 @@ compile = (text, ast ->
                 s = lex(scope, {type="list",data=target.scope, pos=term?pos})
                 return {type="call",target=t,args=[s]+args,names=[null]+names,{block}, pos=term?pos}
             {type="call",{target,args,names,block},pos=term?pos}
+        { term.type == "method" and term.target?name == "super" }:
+            # super.foo(as) -> _super(this, "foo").call(this=this, method="foo", Args(as))
+            this = Object.set(term.target, "name", "this")
+            target = {type="call", target=Object.set(term.target, "name", "_super"), args=[{v=this},{v={type="string",data=term.method}}]}
+            callargs = {type="call", target=Object.set(term.target, "name", "Args"), args=term.args}
+            args = [{v=this,n="this"},{v={type="string",data=term.method},n="method"},{v=callargs}]
+            lex(scope, {type="method",method="call",pos=term.pos,{target,args}})
         { term.type == "method" and term.method == "_set" }:
             target = lex(scope, term.target)
             field = term.args[1].v.data
@@ -627,7 +661,11 @@ compile = (text, ast ->
             {                           }: emit(term.value) + ["vstore", term.target.at - 1]
         { term.type == "multiassign" }:
             v = emit(term.value)
-            ls = term.locals.map(l, n -> ["rstore", n - 1, l - 1]).flatten
+            ls = term.locals.map(l, n ->
+                { isNumber(l)     }: ["rstore", n - 1, l - 1]
+                { l.type == "env" }: ["evrstore", n - 1, l.up - 1, l.at - 1]
+                {                 }: ["vrstore", n - 1, l.at - 1]
+            ).flatten
             as = term.assigns.filter.map(a -> emit(a)).flatten
             v + ls + as
         { term.type == "field" }:
@@ -871,9 +909,9 @@ load = bytes ->
     bytes = { isBin(bytes)    }: Buffer.new(bytes)
             { isBuffer(bytes) }: bytes
             {                 }: ast = parse(bytes)
-                                 log.debug "parse", args["name"], (time() - start)
+                                 #print "parse", args["name"], (time() - start)
                                  buf = compile(bytes, ast, buffer=true, link=args["link"])
-                                 log.debug "compiled", args["name"], (time() - start)
+                                 #print "compiled", args["name"], (time() - start)
                                  buf
     m = _Module_new(bytes, args["name"] or "")
 
@@ -882,7 +920,7 @@ load = bytes ->
                            _module_link(m, links)
         {               }: m
 
-    log.debug "loaded", args["name"], "took", (time() - start).round, "seconds"
+    #print "loaded", args["name"], "took", (time() - start).round, "seconds"
     Module(m)
 
 _parse = text -> parse(text)
