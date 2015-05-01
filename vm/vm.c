@@ -176,6 +176,15 @@ static tlHandle _out(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _type(tlTask* task, tlArgs* args) {
+    tlHandle c = tlArgsGet(args, 0);
+    if (tlUserObjectIs(c)) return tlUserClassFor(c);
+    tlKind* kind = tl_kind(c);
+    if (kind->cls) return kind->cls;
+    if (kind->klass) return kind->klass; // TOOD for now only
+    return tlNull;
+}
+
 //. bool(v, t=true, f=false): return #t unless v is null or false or undefined
 static tlHandle _bool(tlTask* task, tlArgs* args) {
     tlHandle c = tlArgsGet(args, 0);
@@ -735,6 +744,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "out",  _out },
     { "bool", _bool },
     { "not",  _not },
+    { "type", _type },
 
     { "eq",   _eq },
     { "neq",  _neq },

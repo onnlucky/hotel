@@ -39,11 +39,16 @@ static tlHandle _Class_class(tlTask* task, tlArgs* args) {
     return _tl_class;
 }
 
+const char* classtoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "<Class@%p %s>", v, tl_str(tlClassAs(v)->name)); return buf;
+}
+
 tlKind _tlClassKind = {
     .name = "Class",
     // .hash = classHash,
     // .equals = classEquals,
     // .cmp = classCmp,
+    .toString = classtoString,
 };
 
 void class_init() {
@@ -705,6 +710,11 @@ static tlKind _tlObjectKind = {
 tlKind* tlUserClassKind;
 tlKind* tlUserObjectKind;
 tlKind* tlMutableUserObjectKind;
+
+tlUserClass* tlUserClassFor(tlUserObject* oop) {
+    assert(oop);
+    return oop->cls;
+}
 
 // merge base classes mutable and fields into a single class
 tlSet* collectFieldsAndMutable(tlTask* task, tlList* extends, tlSet* fields, bool* mutable) {

@@ -61,6 +61,8 @@ struct tlUserObject {
     tlHandle fields[];
 };
 
+tlUserClass* tlUserClassFor(tlUserObject* oop);
+
 tlHandle userobjectResolve(tlUserObject* oop, tlSym name);
 tlHandle userclassResolveStatic(tlUserClass* cls, tlSym name);
 
