@@ -303,22 +303,51 @@ static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
     return tlBinFromCopy((const char*)bytes, 4);
 }
 
+// TODO should handle overflow
 static tlHandle _int_add(tlTask* task, tlArgs* args) {
     if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
     if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
     return tlINT(tl_int(tlArgsGet(args, 0)) + tl_int(tlArgsGet(args, 1)));
 }
 
+// TODO should handle overflow
 static tlHandle _int_sub(tlTask* task, tlArgs* args) {
     if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
     if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
     return tlINT(tl_int(tlArgsGet(args, 0)) - tl_int(tlArgsGet(args, 1)));
 }
 
+// TODO should handle overflow
 static tlHandle _int_mul(tlTask* task, tlArgs* args) {
     if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
     if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
     return tlINT(tl_int(tlArgsGet(args, 0)) * tl_int(tlArgsGet(args, 1)));
+}
+
+// TODO should to return bigdecimal
+static tlHandle _int_div(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+    return tlFLOAT(tl_int(tlArgsGet(args, 0)) / (double)tl_int(tlArgsGet(args, 1)));
+}
+
+static tlHandle _int_idiv(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+    return tlINT(tl_int(tlArgsGet(args, 0)) / tl_int(tlArgsGet(args, 1)));
+}
+
+static tlHandle _int_fdiv(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+    return tlFLOAT(tl_int(tlArgsGet(args, 0)) / (double)tl_int(tlArgsGet(args, 1)));
+}
+
+// TODO this is actually remainder, and a real mod would be much more useful
+static tlHandle _int_mod(tlTask* task, tlArgs* args) {
+    if (!tlIntIs(tlArgsGet(args, 0))) return tlUndef();
+    if (!tlIntIs(tlArgsGet(args, 1))) return tlUndef();
+    return tlINT(tl_int(tlArgsGet(args, 0)) % tl_int(tlArgsGet(args, 1)));
 }
 
 static tlHandle _isUndefined(tlTask* task, tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
@@ -396,9 +425,14 @@ void value_init() {
         "ceil", _int_self,
         "times", null,
         "to", null,
+
         "+", _int_add,
         "-", _int_sub,
         "*", _int_mul,
+        "/", _int_div,
+        "//", _int_idiv,
+        "/.", _int_fdiv,
+        "%", _int_mul,
         null
     );
     tlObject* intStatic= tlClassObjectFrom(

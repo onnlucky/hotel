@@ -590,6 +590,10 @@ compile = (text, ast ->
         { term.type == "op"  }:
             lhs = lex(scope, term.lhs)
             rhs = lex(scope, term.rhs)
+            # ==, !=, "isa" are all buildins, they delegate to overloaded versions if needed
+            if term.op == "==" or term.op == "!=" or term.op == "isa":
+                op = lex(scope, {type="ref", name=opname(term.op), pos=term?pos})
+                return {type="call", target=op, args=[lhs, rhs], pos=term?pos}
             {type="op", op=term.op, {lhs, rhs}, pos=term.pos}
         { term.type == "ref" }:
             return scope.ref(term.name, pos=term?pos)
