@@ -490,6 +490,9 @@ void tlArgsSetMethod_(tlArgs* args, tlHandle msg);
 tlHandle tlArgsTarget(tlArgs* args);
 tlSym tlArgsMethod(tlArgs* args);
 tlHandle tlArgsBlock(tlArgs* args);
+// when operators are called, the lhs and rhs are given as named args
+tlHandle tlArgsLhs(tlArgs* args);
+tlHandle tlArgsRhs(tlArgs* args);
 
 tlHandle tlArgsFn(tlArgs* args);
 int tlArgsSize(tlArgs* args);

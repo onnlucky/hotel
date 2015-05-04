@@ -1005,7 +1005,16 @@ tlHandle tlInvokeBinop(tlTask* task, tlArgs* call, bool lhs) {
     if (!fn && kind->cls) fn = classResolve(kind->cls, name);
     if (!fn) return tlUndef();
 
-    return tlInvoke(task, tlArgsFrom(call, fn, name, target));
+    tlArgs* args = tlArgsNewNames(3, true, true);
+    tlArgsSetFn_(args, fn);
+    tlArgsSetTarget_(args, target);
+    tlArgsSetMethod_(args, name);
+    tlArgsSetNames_(args, TL_NAMED_NULL_LHS_RHS, 2);
+    tlArgsSet_(args, 0, tlArgsGet(call, lhs? 1 : 0));
+    tlArgsSet_(args, 1, tlArgsGet(call, 0));
+    tlArgsSet_(args, 2, tlArgsGet(call, 1));
+
+    return tlInvoke(task, args);
 }
 
 tlHandle tlInvoke(tlTask* task, tlArgs* call) {

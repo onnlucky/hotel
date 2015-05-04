@@ -9,9 +9,7 @@ assert 10 /. 20 == 0.5
 #assert 10.0 + 10 == 20
 
 Vector2d = { this.x, this.y ->
-    \"*\" = other, rhs ->
-        other = { this == other }: rhs
-                {               }: other
+    \"*\" = other ->
         { other isa Vector2d }: Vector2d(this.x * other.x - this.y * other.y, this.x * other.y - this.y * other.x)
         { isNumber(other)    }: Vector2d(this.x * other, this.y * other)
         {                    }: undefined

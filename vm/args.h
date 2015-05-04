@@ -5,6 +5,9 @@
 
 enum { kIsSetter = 1 };
 
+extern tlList* TL_NAMED_NULL_BLOCK;
+extern tlList* TL_NAMED_NULL_LHS_RHS;
+
 struct tlArgs {
     tlHead head;
     uint32_t size; // total data size

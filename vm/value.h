@@ -18,6 +18,8 @@ extern tlSym s__set;
 
 extern tlSym s_this;
 extern tlSym s_block;
+extern tlSym s_lhs;
+extern tlSym s_rhs;
 extern tlSym s_class;
 extern tlSym s_call;
 extern tlSym s_var;

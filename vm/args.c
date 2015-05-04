@@ -202,7 +202,18 @@ tlHandle tlArgsGetNamed(tlArgs* args, tlSym name) {
 }
 
 tlHandle tlArgsBlock(tlArgs* args) {
+    if (args->spec & 1 && args->data[0] == TL_NAMED_NULL_BLOCK) return args->data[1];
     return tlArgsGetNamed(args, s_block);
+}
+
+tlHandle tlArgsLhs(tlArgs* args) {
+    if (args->size == 7 && args->data[3] == TL_NAMED_NULL_LHS_RHS) return args->data[5];
+    return tlArgsGetNamed(args, s_lhs);
+}
+
+tlHandle tlArgsRhs(tlArgs* args) {
+    if (args->spec == 7 && args->data[3] == TL_NAMED_NULL_LHS_RHS) return args->data[6];
+    return tlArgsGetNamed(args, s_rhs);
 }
 
 void tlArgsSetNames_(tlArgs* args, tlList* names, int nsize) {
@@ -323,6 +334,22 @@ static tlHandle _args_block(tlTask* task, tlArgs* args) {
     return tlOR_UNDEF(res);
 }
 
+//. lhs: returns the lhs, useful for the args to an operator method
+//. `args["lhs"]`
+static tlHandle _args_lhs(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
+    tlHandle res = tlArgsLhs(as);
+    return tlOR_UNDEF(res);
+}
+
+//. rhs: returns the rhs, useful for the args to an operator method
+//. `args["rhs"]`
+static tlHandle _args_rhs(tlTask* task, tlArgs* args) {
+    tlArgs* as = tlArgsAs(tlArgsTarget(args));
+    tlHandle res = tlArgsRhs(as);
+    return tlOR_UNDEF(res);
+}
+
 //. names: return all the named arguments as an #Object
 static tlHandle _args_names(tlTask* task, tlArgs* args) {
     tlArgs* as = tlArgsAs(tlArgsTarget(args));
@@ -407,12 +434,20 @@ static size_t argsSize(tlHandle v) {
     return sizeof(tlArgs) + sizeof(tlHandle) * tlArgsAs(v)->size;
 }
 
+tlList* TL_NAMED_NULL_BLOCK;
+tlList* TL_NAMED_NULL_LHS_RHS;
+
 void args_init() {
+    TL_NAMED_NULL_BLOCK = tlListFrom2(tlNull, s_block);
+    TL_NAMED_NULL_LHS_RHS = tlListFrom(tlNull, s_lhs, s_rhs, null);
+
     tlClass* cls = tlCLASS("Args", tlNATIVE(_Args_call, "Args"),
     tlMETHODS(
         "this", _args_this,
         "msg", _args_msg,
         "block", _args_block,
+        "lhs", _args_lhs,
+        "rhs", _args_rhs,
         "names", _args_names,
         "toObject", _args_names,
         "toList", _args_slice,

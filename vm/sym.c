@@ -13,6 +13,8 @@
 tlSym s_string;
 tlSym s_block;
 tlSym s_else;
+tlSym s_lhs;
+tlSym s_rhs;
 
 tlSym s_this;
 tlSym s_class;
@@ -188,6 +190,8 @@ void sym_string_init() {
     s_string = tlSYM("string");
     s_block  = tlSYM("block");
     s_else   = tlSYM("else");
+    s_lhs    = tlSYM("lhs");
+    s_rhs    = tlSYM("rhs");
     s_this   = tlSYM("this");
     s_method = tlSYM("method");
     s_call   = tlSYM("call");
