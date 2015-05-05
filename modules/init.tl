@@ -577,9 +577,52 @@ test = ->
     catch: e -> print "TEST FAILED:", args.slice.join(" "); print toString(e)
     args.block.call
 
+#. object Mock: a very bare bones mock object
+#. A mock object will record any method called on it, or setter that ran, or when invoked as function.
+#. After a certain method should have been called, use #expect(method_name) to verify. Example:
+#. > m = Mock.new
+#. > objectToTest.setChangeHandler(m.observe)
+#. > objectToTest.doSomething
+#. > m.expect("onchanged")
+Mock = {
+#. new: create a new Mock object
+    new = ->
+        seen = Array.new
+        observer = { # must be here, Mock.new.observer will invoke .call
+            call = -> seen.add("call"); null
+            _get = -> seen.add(args.msg); null
+            _set = msg, value -> seen.add(msg); value
+        }
+        {
+#. observer: the object that will record what happens
+            observer = -> observer
+#. expect(method_name): will throw an exception, if #method_name was never invoked. Returns #true otherwise.
+#. Note: use expect("call") to verify the observer was invoked as function.
+            expect = name ->
+                loop:
+                    if seen.size == 0: Error("Expect failed, no '$(name)' observed").throw
+                    if seen.remove(1) == name: return true
+        }
+}
+
+#. module
+
 test "split":
     sp = "hello world".split
     assert sp.size == 2, sp[1] == "hello", sp[2] == "world"
+
+test "Mock object works":
+    m = Mock.new
+    assert m.observer
+    assert m.observer == m.observer # identity
+    m.observer.foobar
+    m.expect("foobar")
+    fn = m.observer
+    fn("hello")
+    m.expect("call")
+    assert try(m.expect("call"), "no-way") == "no-way"
+    assert try(m.expect("hmm"), "no-way") == "no-way"
+
 
 # TODO should be immutable
 _module_paths = Array.new
