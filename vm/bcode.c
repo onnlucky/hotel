@@ -10,6 +10,7 @@
 #include "args.h"
 #include "frame.h"
 #include "sym.h"
+#include "list.h"
 #include "object.h"
 #include "task.h"
 #include "lock.h"
@@ -445,6 +446,11 @@ tlList* readList(tlBuffer* buf, int size, tlList* data, const char** error) {
         if (!v) FAIL("unable to read value for list");
         trace("LIST: %d: %s", i, tl_str(v));
         tlListSet_(list, i, v);
+    }
+
+    // inline [null, "block"] to speed up if statements
+    if (tlListEquals(TL_NAMED_NULL_BLOCK, list)) {
+        return TL_NAMED_NULL_BLOCK;
     }
     return list;
 }

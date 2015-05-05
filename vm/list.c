@@ -352,18 +352,20 @@ static uint32_t listHash(tlHandle v, tlHandle* unhashable) {
     return hash | !hash;
 }
 
-static bool listEquals(tlHandle _left, tlHandle _right) {
-    if (_left == _right) return true;
-
-    tlList* left = tlListAs(_left);
-    tlList* right = tlListAs(_right);
+bool tlListEquals(tlList* left, tlList* right) {
+    if (left == right) return true;
     if (left->size != right->size) return false;
 
     for (int i = 0; i < left->size; i++) {
-        if (!tlHandleEquals(tlListGet(left, i), tlListGet(right, i))) return false;
+        if (!tlHandleEquals(left->data[i], right->data[i])) return false;
     }
     return true;
 }
+
+static bool listEquals(tlHandle left, tlHandle right) {
+    return tlListEquals(tlListAs(left), tlListAs(right));
+}
+
 static tlHandle listCmp(tlHandle _left, tlHandle _right) {
     if (_left == _right) return 0;
 

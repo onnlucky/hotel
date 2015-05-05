@@ -14,6 +14,8 @@ tlList* tlListFrom2(tlHandle v1, tlHandle v2);
 tlList* tlListFrom3(tlHandle v1, tlHandle v2, tlHandle v3);
 tlList* tlListFrom(tlHandle v1, ...);
 
+bool tlListEquals(tlList* left, tlList* right);
+
 int tlListIndexOf(const tlList* list, tlHandle needle);
 
 void list_init();

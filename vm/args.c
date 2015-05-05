@@ -202,17 +202,23 @@ tlHandle tlArgsGetNamed(tlArgs* args, tlSym name) {
 }
 
 tlHandle tlArgsBlock(tlArgs* args) {
-    if (args->spec & 1 && args->data[0] == TL_NAMED_NULL_BLOCK) return args->data[1];
+    if (args->spec == 0b101 && args->data[0] == TL_NAMED_NULL_BLOCK) return args->data[2];
+    if ((args->spec & 1) == 0) return null;
+    assert(tlArgsNames(args) != TL_NAMED_NULL_BLOCK);
     return tlArgsGetNamed(args, s_block);
 }
 
 tlHandle tlArgsLhs(tlArgs* args) {
-    if (args->size == 7 && args->data[3] == TL_NAMED_NULL_LHS_RHS) return args->data[5];
+    if (args->spec == 0b1011 && args->data[2] == TL_NAMED_NULL_LHS_RHS) return args->data[4];
+    if ((args->spec & 1) == 0) return null;
+    assert(tlArgsNames(args) != TL_NAMED_NULL_LHS_RHS);
     return tlArgsGetNamed(args, s_lhs);
 }
 
 tlHandle tlArgsRhs(tlArgs* args) {
-    if (args->spec == 7 && args->data[3] == TL_NAMED_NULL_LHS_RHS) return args->data[6];
+    if (args->spec == 0b1011 && args->data[2] == TL_NAMED_NULL_LHS_RHS) return args->data[5];
+    if ((args->spec & 1) == 0) return null;
+    assert(tlArgsNames(args) != TL_NAMED_NULL_LHS_RHS);
     return tlArgsGetNamed(args, s_rhs);
 }
 

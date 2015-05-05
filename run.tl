@@ -23,6 +23,7 @@ assert 10 * Vector2d(10, 10) == Vector2d(100, 100)
 
 print \"done\"
 test: true
+if true: print \"hello\"
 "
 
 m = testcompiler.load(in, _env)
