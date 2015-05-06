@@ -717,6 +717,42 @@ void string_init_first() {
     INIT_KIND(tlStringKind);
 }
 
+// TODO this one is likely better when implemented at the userlevel
+//. "+"(other): concatenate the string and toString(other) together, returning a new string
+static tlHandle _string_add(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    // at least one must be string, otherwise, why are we here?
+    assert(tlStringIs(lhs) || tlStringIs(rhs));
+
+    if (!tlStringIs(lhs)) lhs = tlStringFromCopy(tl_str(lhs), 0);
+    if (!tlStringIs(rhs)) rhs = tlStringFromCopy(tl_str(rhs), 0);
+    return tlStringCat(tlStringAs(lhs), tlStringAs(rhs));
+}
+
+//. "*"(n): returns a new string, with the string repeated n times
+static tlHandle _string_mul(tlTask* task, tlArgs* args) {
+    TL_TARGET(tlString, str);
+    if (!tlNumberIs(tlArgsGet(args, 0))) return tlUndef();
+
+    int times = tl_int(tlArgsGet(args, 0));
+    if (times < 0) TL_THROW("String.* requires a positive number");
+
+    int str_size = tlStringSize(str);
+    int size = str_size * times;
+    if (size == 0) return tlStringEmpty();
+
+    char* data = malloc_atomic(size + 1);
+    const char* str_data = tlStringData(str);
+
+    for (int i = 0; i < times; i++) {
+        memcpy(data + i * str_size, str_data, str_size);
+    }
+    data[size] = 0;
+    return tlStringFromTake(data, size);
+}
+
 void string_init() {
     tlClass* cls = tlCLASS("String", null,
     tlMETHODS(
@@ -746,6 +782,8 @@ void string_init() {
         "split", null,
         "replace", null,
         "eval", null,
+        "+", _string_add,
+        "*", _string_mul,
         null
     ), tlMETHODS(
         "cat", _String_cat,

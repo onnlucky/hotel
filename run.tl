@@ -21,6 +21,11 @@ assert Vector2d(10, 10) == Vector2d(1, 1).*(10)
 assert Vector2d(10, 10) * 10 == Vector2d(100, 100)
 assert 10 * Vector2d(10, 10) == Vector2d(100, 100)
 
+assert \"hello\" * 3 == \"hellohellohello\"
+assert 3 * \"hello\" == \"hellohellohello\"
+assert 42 + \"hello\" == \"42hello\"
+assert \"hello\" + 42 == \"hello42\"
+
 print \"done\"
 test: true
 if true: print \"hello\"
