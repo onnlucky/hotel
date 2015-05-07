@@ -203,8 +203,9 @@ tlHandle tlArgsGetNamed(tlArgs* args, tlSym name) {
 
 tlHandle tlArgsBlock(tlArgs* args) {
     if (args->spec == 0b101 && args->data[0] == TL_NAMED_NULL_BLOCK) return args->data[2];
+    if (args->spec == 0b111 && args->data[2] == TL_NAMED_NULL_BLOCK) return args->data[4];
     if ((args->spec & 1) == 0) return null;
-    //assert(tlArgsNames(args) != TL_NAMED_NULL_BLOCK);
+    assert(tlArgsNames(args) != TL_NAMED_NULL_BLOCK);
     return tlArgsGetNamed(args, s_block);
 }
 
