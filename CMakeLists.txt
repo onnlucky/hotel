@@ -8,8 +8,8 @@ find_library(GC gc)
 add_subdirectory(libmp)
 
 set(EV_FILES
-    ev/ev.c
-    ev/ev.h
+    libev/ev.c
+    libev/ev.h
 )
 add_library(libev ${EV_FILES})
 target_include_directories(libev PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/)
