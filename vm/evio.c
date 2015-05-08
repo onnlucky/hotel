@@ -231,13 +231,13 @@ static tlHandle _io_readlink(tlTask* task, tlArgs* args) {
 
     tlString* path = cwd_join(task, str);
     const char *p = tlStringData(path);
-    if (p[0] != '/') TL_THROW("unlink: invalid cwd");
+    if (p[0] != '/') TL_THROW("readlink: invalid cwd");
 
     char buf[PATH_MAX + 1];
     ssize_t len = readlink(p, buf, sizeof(buf) - 1);
     if (len == -1) {
         if (errno == EINVAL) return tlOR_NULL(tlArgsGet(args, 1)); // not a link
-        TL_THROW("unlink: %s", strerror(errno));
+        TL_THROW("readlink: %s", strerror(errno));
     }
     buf[len] = 0;
 

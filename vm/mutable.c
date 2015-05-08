@@ -25,7 +25,7 @@ tlMutable* tlMutableNew(tlObject* from) {
     return mut;
 }
 static tlHandle _Mutable_new(tlTask* task, tlArgs* args) {
-    tlObject* map = (tlObject*)tlObjectCast(tlArgsGet(args, 0));
+    tlObject* map = tlObjectCast(tlArgsGet(args, 0));
     if (!map) map = tlObjectEmpty();
     return tlMutableNew(map);
 }

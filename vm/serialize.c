@@ -250,7 +250,7 @@ static bool pprint(tlBuffer* buf, tlHandle h, bool askey, bool print, int depth)
         } else if (c == '\\') {
             n = snprintf(b, sizeof(b) - 1, "'\\\\'");
         } else {
-            n = snprintf(b, sizeof(b) - 1, "'%c'", (int)tl_int(h));
+            n = snprintf(b, sizeof(b) - 1, "'%c'", tl_int(h));
         }
         tlBufferWrite(buf, b, n);
         return false;
