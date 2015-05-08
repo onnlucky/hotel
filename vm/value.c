@@ -203,31 +203,6 @@ static tlKind _tlBoolKind = {
     .hash = boolHash
 };
 
-static const char* inttoString(tlHandle v, char* buf, int size) {
-    snprintf(buf, size, "%zd", tlIntToInt(v)); return buf;
-}
-static unsigned int intHash(tlHandle v, tlHandle* unhashable) {
-    intptr_t i = tlIntToInt(v);
-    return murmurhash2a(&i, sizeof(i));
-}
-static bool intEquals(tlHandle left, tlHandle right) {
-    return left == right;
-}
-static tlHandle intCmp(tlHandle left, tlHandle right) {
-    intptr_t l = tlIntToInt(left); intptr_t r = tlIntToInt(right);
-    if (l < r) return tlSmaller;
-    if (l > r) return tlLarger;
-    return tlEqual;
-}
-static tlKind _tlIntKind = {
-    .name = "Int",
-    .index = -3,
-    .toString = inttoString,
-    .hash = intHash,
-    .equals = intEquals,
-    .cmp = intCmp,
-};
-
 tlKind* tlUndefinedKind;
 tlKind* tlNullKind;
 tlKind* tlBoolKind;
@@ -240,114 +215,6 @@ static tlHandle _bool_toString(tlTask* task, tlArgs* args) {
 }
 static tlHandle _bool_hash(tlTask* task, tlArgs* args) {
     return tlINT(boolHash(tlArgsTarget(args), null));
-}
-static tlHandle _int_hash(tlTask* task, tlArgs* args) {
-    return tlINT(intHash(tlArgsTarget(args), null));
-}
-static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
-    intptr_t c = tlIntToInt(tlArgsTarget(args));
-    if (c < 0) c = 32;
-    if (c > 255) c = 32;
-    if (c < 0) TL_THROW("negative numbers cannot be a char");
-    if (c > 255) TL_THROW("utf8 not yet supported");
-    const char buf[] = { c, 0 };
-    return tlStringFromCopy(buf, 1);
-}
-static tlHandle _int_toString(tlTask* task, tlArgs* args) {
-    intptr_t c = tlIntToInt(tlArgsTarget(args));
-    int base = tl_int_or(tlArgsGet(args, 0), 10);
-    char buf[128];
-    int len = 0;
-    switch (base) {
-        case 2:
-        {
-            // TODO 7 == 0111; -7 = 1001; ~7 = 11111111111111111111111111111000
-            int at = 0;
-            bool zero = true;
-            for (int i = 31; i >= 0; i--) {
-                if ((c >> i) & 1) {
-                    zero = false;
-                    buf[at++] = '1';
-                } else {
-                    if (zero) continue;
-                    buf[at++] = '0';
-                }
-                len = at;
-                buf[len] = 0;
-            }
-        }
-        break;
-        case 10:
-        len = snprintf(buf, sizeof(buf), "%zd", c);
-        break;
-        case 16:
-        len = snprintf(buf, sizeof(buf), "%zx", c);
-        break;
-        default:
-        TL_THROW("base must be 10 (default), 2 or 16");
-    }
-    return tlStringFromCopy(buf, len);
-}
-static tlHandle _int_self(tlTask* task, tlArgs* args) {
-    return tlArgsTarget(args);
-}
-static tlHandle _int_abs(tlTask* task, tlArgs* args) {
-    intptr_t i = tlIntToInt(tlArgsTarget(args));
-    if (i < 0) return tlINT(-i);
-    return tlArgsTarget(args);
-}
-static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
-    intptr_t n = tlIntToInt(tlArgsTarget(args));
-    uint8_t bytes[4];
-    for (int i = 0; i < 4; i++) bytes[3 - i] = (uint8_t)(n >> (8 * i));
-    return tlBinFromCopy((const char*)bytes, 4);
-}
-
-// TODO should handle overflow
-static tlHandle _int_add(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlINT(tl_int(tlArgsLhs(args)) + tl_int(tlArgsRhs(args)));
-}
-
-// TODO should handle overflow
-static tlHandle _int_sub(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlINT(tl_int(tlArgsLhs(args)) - tl_int(tlArgsRhs(args)));
-}
-
-// TODO should handle overflow
-static tlHandle _int_mul(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlINT(tl_int(tlArgsLhs(args)) * tl_int(tlArgsRhs(args)));
-}
-
-// TODO should to return bigdecimal
-static tlHandle _int_div(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlFLOAT(tl_int(tlArgsLhs(args)) / (double)tl_int(tlArgsRhs(args)));
-}
-
-static tlHandle _int_idiv(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlINT(tl_int(tlArgsLhs(args)) / tl_int(tlArgsRhs(args)));
-}
-
-static tlHandle _int_fdiv(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlFLOAT(tl_int(tlArgsLhs(args)) / (double)tl_int(tlArgsRhs(args)));
-}
-
-// TODO this is actually remainder, and a real mod would be much more useful
-static tlHandle _int_mod(tlTask* task, tlArgs* args) {
-    if (!tlIntIs(tlArgsLhs(args))) return tlUndef();
-    if (!tlIntIs(tlArgsRhs(args))) return tlUndef();
-    return tlINT(tl_int(tlArgsLhs(args)) % tl_int(tlArgsRhs(args)));
 }
 
 static tlHandle _isUndefined(tlTask* task, tlArgs* args) { return tlBOOL(tlUndefinedIs(tlArgsGet(args, 0))); }
@@ -414,37 +281,9 @@ void value_init() {
         "toString", _bool_toString,
         null
     );
-    _tlIntKind.klass = tlClassObjectFrom(
-        "hash", _int_hash,
-        "bytes", _int_bytes,
-        "abs", _int_abs,
-        "toChar", _int_toChar,
-        "toString", _int_toString,
-        "floor", _int_self,
-        "round", _int_self,
-        "ceil", _int_self,
-        "times", null,
-        "to", null,
-
-        "+", _int_add,
-        "-", _int_sub,
-        "*", _int_mul,
-        "/", _int_div,
-        "//", _int_idiv,
-        "/.", _int_fdiv,
-        "%", _int_mul,
-        null
-    );
-    tlObject* intStatic= tlClassObjectFrom(
-        "_methods", null,
-        null
-    );
-    tlObjectSet_(intStatic, s__methods, _tlIntKind.klass);
-    tl_register_global("Int", intStatic);
 
     INIT_KIND(tlUndefinedKind);
     INIT_KIND(tlNullKind);
     INIT_KIND(tlBoolKind);
-    INIT_KIND(tlIntKind);
 }
 

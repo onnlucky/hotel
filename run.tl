@@ -5,8 +5,14 @@ assert 10 * 10 == 100
 assert 10 / 20 == 0.5
 assert 10 // 10 == 1
 assert 10 /. 20 == 0.5
+assert 10 % 20 == 10
+assert -10 % 20 == 10
 
-#assert 10.0 + 10 == 20
+assert 10.0 + 10 == 20
+assert 10.0 * 10 == 100
+assert 10.0 / 10 == 1
+assert 10.0 % 20 == 10
+assert -10.0 % 20 == 10
 
 Vector2d = { this.x, this.y ->
     \"*\" = other ->

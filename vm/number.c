@@ -14,6 +14,101 @@
 #include "string.h"
 #include "buffer.h"
 
+// ** int **
+
+static const char* inttoString(tlHandle v, char* buf, int size) {
+    snprintf(buf, size, "%zd", tlIntToInt(v)); return buf;
+}
+static unsigned int intHash(tlHandle v, tlHandle* unhashable) {
+    intptr_t i = tlIntToInt(v);
+    return murmurhash2a(&i, sizeof(i));
+}
+static bool intEquals(tlHandle left, tlHandle right) {
+    return left == right;
+}
+static tlHandle intCmp(tlHandle left, tlHandle right) {
+    intptr_t l = tlIntToInt(left); intptr_t r = tlIntToInt(right);
+    if (l < r) return tlSmaller;
+    if (l > r) return tlLarger;
+    return tlEqual;
+}
+static tlKind _tlIntKind = {
+        .name = "Int",
+        .index = -3,
+        .toString = inttoString,
+        .hash = intHash,
+        .equals = intEquals,
+        .cmp = intCmp,
+};
+
+static tlHandle _int_hash(tlTask* task, tlArgs* args) {
+    return tlINT(intHash(tlArgsTarget(args), null));
+}
+
+static tlHandle _int_toChar(tlTask* task, tlArgs* args) {
+    intptr_t c = tlIntToInt(tlArgsTarget(args));
+    if (c < 0) c = 32;
+    if (c > 255) c = 32;
+    if (c < 0) TL_THROW("negative numbers cannot be a char");
+    if (c > 255) TL_THROW("utf8 not yet supported");
+    const char buf[] = { c, 0 };
+    return tlStringFromCopy(buf, 1);
+}
+
+static tlHandle _int_toString(tlTask* task, tlArgs* args) {
+    intptr_t c = tlIntToInt(tlArgsTarget(args));
+    int base = tl_int_or(tlArgsGet(args, 0), 10);
+    char buf[128];
+    int len = 0;
+    switch (base) {
+        case 2:
+        {
+            // TODO 7 == 0111; -7 = 1001; ~7 = 11111111111111111111111111111000
+            int at = 0;
+            bool zero = true;
+            for (int i = 31; i >= 0; i--) {
+                if ((c >> i) & 1) {
+                    zero = false;
+                    buf[at++] = '1';
+                } else {
+                    if (zero) continue;
+                    buf[at++] = '0';
+                }
+                len = at;
+                buf[len] = 0;
+            }
+        }
+            break;
+        case 10:
+            len = snprintf(buf, sizeof(buf), "%zd", c);
+            break;
+        case 16:
+            len = snprintf(buf, sizeof(buf), "%zx", c);
+            break;
+        default:
+            TL_THROW("base must be 10 (default), 2 or 16");
+    }
+    return tlStringFromCopy(buf, len);
+}
+
+// TODO upto 8 bytes, this shouldn't be architecture dependend
+static tlHandle _int_bytes(tlTask* task, tlArgs* args) {
+    intptr_t n = tlIntToInt(tlArgsTarget(args));
+    uint8_t bytes[4];
+    for (int i = 0; i < 4; i++) bytes[3 - i] = (uint8_t)(n >> (8 * i));
+    return tlBinFromCopy((const char*)bytes, 4);
+}
+
+static tlHandle _int_self(tlTask* task, tlArgs* args) {
+    return tlArgsTarget(args);
+}
+
+static tlHandle _int_abs(tlTask* task, tlArgs* args) {
+    intptr_t i = tlIntToInt(tlArgsTarget(args));
+    if (i < 0) return tlINT(-i);
+    return tlArgsTarget(args);
+}
+
 // ** char **
 
 struct tlChar {
@@ -269,7 +364,15 @@ tlNum* tlNumDiv(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
     mp_int remainder; mp_init(&remainder);
     mp_div(&l->value, &r->value, &res, &remainder);
+    mp_clear(&remainder);
     return tlNumberFrom(res);
+}
+tlNum* tlNumRem(tlNum* l, tlNum* r) {
+    mp_int res; mp_init(&res);
+    mp_int remainder; mp_init(&remainder);
+    mp_div(&l->value, &r->value, &res, &remainder);
+    mp_clear(&res);
+    return tlNumberFrom(remainder);
 }
 tlNum* tlNumMod(tlNum* l, tlNum* r) {
     mp_int res; mp_init(&res);
@@ -492,6 +595,150 @@ double tl_double_or(tlHandle h, double d) {
     return d;
 }
 
+//// math operators
+
+static tlHandle _number_add(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        return tlNUM(tlIntToInt(lhs) + tlIntToInt(rhs));
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) {
+        return tlFLOAT(tl_double(lhs) + tl_double(rhs));
+    } else {
+        return tlNumAdd(tlNumTo(lhs), tlNumTo(rhs));
+    }
+}
+
+static tlHandle _number_sub(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        return tlNUM(tlIntToInt(lhs) - tlIntToInt(rhs));
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) {
+        return tlFLOAT(tl_double(lhs) - tl_double(rhs));
+    } else {
+        return tlNumSub(tlNumTo(lhs), tlNumTo(rhs));
+    }
+}
+
+#define TL_MIN_HALF (TL_MIN_INT >> (sizeof(intptr_t) * 8 / 2))
+#define TL_MAX_HALF (TL_MAX_INT >> (sizeof(intptr_t) * 8 / 2))
+
+static tlHandle _number_mul(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        intptr_t l = tlIntToInt(lhs);
+        intptr_t r = tlIntToInt(rhs);
+
+        // check for overflow
+        if (l > TL_MIN_HALF && l < TL_MAX_HALF && r > TL_MIN_HALF && r < TL_MAX_HALF) {
+            return tlINT(l * r);
+        }
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) {
+        return tlFLOAT(tl_double(lhs) * tl_double(rhs));
+    } else {
+        return tlNumMul(tlNumTo(lhs), tlNumTo(rhs));
+    }
+}
+
+// TODO should return bigdecimal's instead
+static tlHandle _number_div(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        return tlFLOAT(tlIntToInt(lhs) / (double)tlIntToInt(rhs));
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) {
+        return tlFLOAT(tl_double(lhs) / tl_double(rhs));
+    } else {
+        return tlFLOAT(tl_double(lhs) / tl_double(rhs));
+        // TODO when tlNum is bigdecimal
+        //return tlNumDiv(tlNumTo(lhs), tlNumTo(rhs));
+    }
+}
+
+static tlHandle _number_idiv(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        return tlINT(tlIntToInt(lhs) / tlIntToInt(rhs));
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    // TODO when tlNum is bigdecimal, must round
+    return tlNumDiv(tlNumTo(lhs), tlNumTo(rhs));
+}
+
+static tlHandle _number_fdiv(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        return tlFLOAT(tlIntToInt(lhs) / (double)tlIntToInt(rhs));
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    return tlFLOAT(tl_double(lhs) / tl_double(rhs));
+}
+
+static tlHandle _number_rem(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        return tlNUM(tlIntToInt(lhs) % tlIntToInt(rhs));
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) {
+        return tlFLOAT(fmod(tl_double(lhs), tl_double(rhs)));
+    } else {
+        return tlNumRem(tlNumTo(lhs), tlNumTo(rhs));
+    }
+}
+
+static tlHandle _number_mod(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (tlIntIs(lhs) && tlIntIs(rhs)) {
+        intptr_t res = tlIntToInt(lhs) % tlIntToInt(rhs);
+        return tlINT(res > 0? res : -res);
+    }
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) {
+        return tlFLOAT(fabs(fmod(tl_double(lhs), tl_double(rhs))));
+    } else {
+        return tlNumMod(tlNumTo(lhs), tlNumTo(rhs));
+    }
+}
+
 void number_init() {
     mp_init(&MIN_INT_BIGNUM);
     mp_init(&MAX_INT_BIGNUM);
@@ -557,6 +804,35 @@ void number_init() {
 
     mp_clear(&test);
 
+    _tlIntKind.klass = tlClassObjectFrom(
+            "hash", _int_hash,
+            "bytes", _int_bytes,
+            "abs", _int_abs,
+            "toChar", _int_toChar,
+            "toString", _int_toString,
+            "floor", _int_self,
+            "round", _int_self,
+            "ceil", _int_self,
+            "times", null,
+            "to", null,
+
+            "+", _number_add,
+            "-", _number_sub,
+            "*", _number_mul,
+            "/", _number_div,
+            "//", _number_idiv,
+            "/.", _number_fdiv,
+            "%", _number_mod,
+            null
+    );
+    tlObject* intStatic = tlClassObjectFrom(
+            "_methods", null,
+            null
+    );
+    tlObjectSet_(intStatic, s__methods, _tlIntKind.klass);
+    tl_register_global("Int", intStatic);
+    INIT_KIND(tlIntKind);
+
     _tlFloatKind.klass = tlClassObjectFrom(
         "hash", _float_hash,
         "bytes", _float_bytes,
@@ -565,6 +841,14 @@ void number_init() {
         "round", _float_round,
         "ceil", _float_ceil,
         "toString", _float_toString,
+
+        "+", _number_add,
+        "-", _number_sub,
+        "*", _number_mul,
+        "/", _number_div,
+        "//", _number_idiv,
+        "/.", _number_fdiv,
+        "%", _number_mod,
         null
     );
 
@@ -572,6 +856,14 @@ void number_init() {
         "toString", _num_toString,
         "abs", _num_abs,
         "bytes", _num_bytes,
+
+        "+", _number_add,
+        "-", _number_sub,
+        "*", _number_mul,
+        "/", _number_div,
+        "//", _number_idiv,
+        "/.", _number_fdiv,
+        "%", _number_mod,
         null
     );
     tlObject* nconstructor = tlClassObjectFrom(
