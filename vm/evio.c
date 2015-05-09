@@ -1030,7 +1030,7 @@ static tlHandle _io_launch(tlTask* task, tlArgs* args) {
     char** argv = malloc(sizeof(char*) * (tlListSize(as) + 1));
     for (int i = 0; i < tlListSize(as); i++) {
         tlString* str = tlStringCast(tlListGet(as, i));
-        if (!str) TL_THROW("expected a String");
+        if (!str) TL_THROW("expected a String as arg");
         argv[i] = (char*)tlStringData(str);
     }
     argv[tlListSize(as)] = 0;
