@@ -696,7 +696,7 @@ compile = (text, ast ->
         { term.type == "op"  }:
             lhs = emit(term.lhs)
             rhs = emit(term.rhs)
-            ["bcall", term?pos, 2, "global", term?pos, opname(term.op), lhs, rhs, "invoke", term?pos]
+            ["fcall", term?pos, 2, "global", term?pos, opname(term.op), lhs, rhs, "invoke", term?pos]
         { term.type == "guards" }:
             term.guards.map(term ->
                 [emit(term.cond), "ccall", term?pos, 0, emit(term.block), "invoke", term?pos]

@@ -1,5 +1,5 @@
 in = "
-assert 10 + 10 == 20
+assert 10 + 10 == 20 and not 10 + 10 != 20
 assert 10 - 10 == 0
 assert 10 * 10 == 100
 assert 10 / 20 == 0.5

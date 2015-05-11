@@ -182,37 +182,15 @@ writeCode = mod, c, scope ->
     if head.size + buf.size < 32: return Bin(0b1010_0000 | (head.size + buf.size), head, buf)
     return Bin(0b1110_0101, encodeInt(head.size + buf.size), head, buf)
 
-opname = op ->
+globalop = op ->
     { op == "or"  }: op
     { op == "and" }: op
     { op == "xor" }: op
     { op == "not" }: op
     { op == "isa" }: op
-
-    { op == "==" }: return "eq"
-    { op == "!=" }: return "neq"
-
-    { op == ">" }: return "gt"
-    { op == ">=" }: return "gte"
-    { op == "<" }: return "lt"
-    { op == "<=" }: return "lte"
-
-    { op == "~" }: return "bnot"
-    { op == "&" }: return "band"
-    { op == "|" }: return "bor"
-    { op == "^" }: return "bxor"
-    { op == "<<" }: return "lsh"
-    { op == ">>" }: return "rsh"
-    { op == ">>>" }: return "rrsh"
-
-    { op == "+" }: return "add"
-    { op == "-" }: return "sub"
-    { op == "*" }: return "mul"
-    { op == "/" }: return "div"
-    { op == "//"}: return "idiv"
-    { op == "/."}: return "fdiv"
-    { op == "%" }: return "mod"
-    { op == "**" }: return "pow"
+    { op == "=="  }: "eq"
+    { op == "!="  }: "neq"
+    {             }: null
 
 compile = (text, ast ->
     globals = HashMap.new
@@ -591,8 +569,8 @@ compile = (text, ast ->
             lhs = lex(scope, term.lhs)
             rhs = lex(scope, term.rhs)
             # ==, !=, "isa" are all buildins, they delegate to overloaded versions if needed
-            if term.op == "==" or term.op == "!=" or term.op == "isa":
-                op = lex(scope, {type="ref", name=opname(term.op), pos=term?pos})
+            if globalop(term.op):
+                op = lex(scope, {type="ref", name=globalop(term.op), pos=term?pos})
                 return {type="call", target=op, args=[lhs, rhs], pos=term?pos}
             {type="op", op=term.op, {lhs, rhs}, pos=term.pos}
         { term.type == "ref" }:
