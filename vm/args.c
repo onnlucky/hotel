@@ -59,7 +59,7 @@ tlArgs* tlArgsFromPrepend1(tlArgs* call, tlHandle fn, tlSym method, tlHandle tar
     tlArgs* args = tlArgsNewNames(size, !!names, method || target);
     int call_offset = call->spec & 3;
     int args_offset = args->spec & 3;
-    assert((args->spec & 3) == 2);
+    assert((args->spec & 2) == 2);
 
     args->data[args_offset] = arg1;
     for (int i = 0; i < size; i++) {
@@ -67,7 +67,7 @@ tlArgs* tlArgsFromPrepend1(tlArgs* call, tlHandle fn, tlSym method, tlHandle tar
     }
     tlArgsSetFn_(args, fn);
     if (names) {
-        tlArgsSetNames_(args, tlListPrepend(names, null), 0);
+        tlArgsSetNames_(args, tlListPrepend(names, tlNull), 0);
     }
     if (method || target) {
         tlArgsSetMethod_(args, method);
