@@ -414,7 +414,7 @@ compile = (text, ast ->
                         throw "class specifier without a 'name = value' on line $line"
                     field = stm.args[1].n
                     value = stm.args[1].v
-                    if value.type == "function":
+                    if value?type == "function":
                         _, fn = functions.add({name=field, open=value, scope=outerscope})
                         classfields[field] = {type="function", function=fn}
                         continue

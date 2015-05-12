@@ -120,3 +120,46 @@ test "safe operator works for objects":
     assert try(Down()?f3, "otherwise") == null
     assert try(Down().m3, "otherwise") == "otherwise"
     assert try(Down()?m3, "otherwise") == "otherwise" # m3 exists, so safe operator does not help
+
+test "named method":
+    Test = { ->
+        tocall = in -> in + 2
+    }
+    t = Test()
+    assert t.tocall(1, in=40, 2) == 42
+    assert t.tocall(40, x=1, y=2) == 42
+
+test "named constructors":
+    Test = { x, this.y -> z = x or 200 }
+    t = Test(y=100)
+    assert t.y == 100
+    assert try(t.x, "this") == "this"
+    assert t.z == 200
+
+test "named super":
+    Base = { ->
+        tocall = in -> in + 2
+    }
+    Test = { ->
+        extend Base
+        tocall = -> super.tocall(1, in=40, 2)
+    }
+    assert Test().tocall == 42
+
+test "named class method":
+    Test = { ->
+        class foo = in -> in + 2
+        class bar = 42
+    }
+    assert Test.foo(in=40, 1, 2) == 42
+    assert Test.foo(1, in=40, 2) == 42
+    assert Test.foo(1, 2, in=40) == 42
+    assert Test.foo(40, x=1, y=1) == 42
+    assert Test.foo(x=1, 40, y=1) == 42
+    assert Test.foo(x=1, y=1, 40) == 42
+
+    assert Test.bar == 42
+    assert Test.bar(100) == 42
+    assert Test.bar(x=100) == 42
+    assert Test.bar(1, 2, 3, x=1, y=2, z=3) == 42
+
