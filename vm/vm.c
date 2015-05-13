@@ -501,7 +501,7 @@ static tlHandle _urldecode(tlTask* task, tlArgs* args) {
     for (int i = 0; i < len; i++) if (data[i] == '%') percent++;
     if (!percent) return str;
 
-    char* res = malloc(len);
+    char* res = malloc_atomic(len);
     int i;
     int j = 0;
     for (i = 0; i < len; i++) {
@@ -521,17 +521,22 @@ static tlHandle _urldecode(tlTask* task, tlArgs* args) {
             i -= 2;
             continue;
         }
+
         if (c2 >= '0' && c2 <= '9') {
             c += c2 - '0';
         } else if (c2 >= 'A' && c2 <= 'F') {
-            c += c2 - 'A';
+            c += 10 + c2 - 'A';
         } else if (c2 >= 'a' && c2 <= 'f') {
-            c += c2 - 'a';
+            c += 10 + c2 - 'a';
         } else {
             i -= 2;
             continue;
         }
+
+        // TODO validate chars, how not to overflow utf8 bytes?
         if (c < 32 && c != '\n' && c != '\r' && c != '\t') continue;
+        if (c > 127) continue;
+
         res[j++] = c;
     }
     res[j] = 0;

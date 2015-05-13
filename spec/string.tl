@@ -152,3 +152,18 @@ test "startsWith":
 
     assert "hello".startsWith("ello", 2)
 
+test "url decode":
+    assert _urldecode("foo%2Fbar") == "foo/bar"
+    assert _urldecode("foo+bar") == "foo+bar"
+    assert _urldecode("%") == ""
+    assert _urldecode("%22Aardvark-._~s%20lurk%2C%20OK%3F%22") == "\"Aardvark-._~s lurk, OK?\""
+
+test "url encode":
+    assert _urlencode("foo/bar") == "foo%2Fbar"
+    assert _urlencode("foo+bar") == "foo+bar"
+    assert _urlencode("\"Aardvark-._~s lurk, OK?\"") == "%22Aardvark-._~s%20lurk%2C%20OK%3F%22"
+    assert _urlencode("//////////") == "%2f%2f%2f%2f%2f%2f%2f%2f%2f%2f"
+
+    x = "!!!foo bar/?&&&%%%%"
+    assert _urldecode(_urlencode(x)) == x
+
