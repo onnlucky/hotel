@@ -491,6 +491,36 @@ static tlHandle _int_parse(tlTask* task, tlArgs* args) {
     return tlNUM(res);
 }
 
+static tlHandle _urlencode(tlTask* task, tlArgs* args) {
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expect a String");
+
+    const char* data = tlStringData(str);
+    int len = tlStringSize(str);
+    int plen = 0;
+    for (int i = 0; i < len; i++) {
+        char c = data[i];
+        if (!(isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')) plen += 2;
+    }
+
+    char* res = malloc_atomic(len + plen);
+    int j = 0;
+    for (int i = 0; i < len; i++) {
+        char c = data[i];
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            res[j++] = c;
+        } else {
+            static char hex[] = "0123456789ABCDEF";
+            res[j++] = '%';
+            res[j++] = hex[(c >> 4) & 0x0F];
+            res[j++] = hex[c & 0x0F];
+        }
+    }
+
+    res[j] = 0;
+    return tlStringFromTake(res, j);
+}
+
 static tlHandle _urldecode(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
@@ -795,6 +825,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "_bless", _bless },
 
     { "_int_parse", _int_parse },
+    { "_urlencode", _urlencode },
     { "_urldecode", _urldecode },
 
     { "_Buffer_new", _Buffer_new },

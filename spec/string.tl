@@ -160,9 +160,9 @@ test "url decode":
 
 test "url encode":
     assert _urlencode("foo/bar") == "foo%2Fbar"
-    assert _urlencode("foo+bar") == "foo+bar"
+    assert _urlencode("foo+bar") == "foo%2Bbar"
     assert _urlencode("\"Aardvark-._~s lurk, OK?\"") == "%22Aardvark-._~s%20lurk%2C%20OK%3F%22"
-    assert _urlencode("//////////") == "%2f%2f%2f%2f%2f%2f%2f%2f%2f%2f"
+    assert _urlencode("//////////") == "%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F"
 
     x = "!!!foo bar/?&&&%%%%"
     assert _urldecode(_urlencode(x)) == x
