@@ -27,7 +27,8 @@ static bool intEquals(tlHandle left, tlHandle right) {
     return left == right;
 }
 static tlHandle intCmp(tlHandle left, tlHandle right) {
-    intptr_t l = tlIntToInt(left); intptr_t r = tlIntToInt(right);
+    intptr_t l = tlIntToInt(left);
+    intptr_t r = tlIntToInt(right);
     if (l < r) return tlSmaller;
     if (l > r) return tlLarger;
     return tlEqual;
@@ -739,6 +740,58 @@ static tlHandle _number_mod(tlTask* task, tlArgs* args) {
     }
 }
 
+static tlHandle _number_pow(tlTask* task, tlArgs* args) {
+    tlHandle lhs = tlArgsLhs(args);
+    tlHandle rhs = tlArgsRhs(args);
+
+    if (!tlNumberIs(lhs) || !tlNumberIs(rhs)) return tlUndef();
+
+    if ((tlFloatIs(lhs) || tlFloatIs(rhs))) {
+        return tlFLOAT(pow(tl_double(lhs), tl_double(rhs)));
+    }
+
+    // TODO check if really small? or will that work out as zero anyhow?
+    int p = tl_int(rhs);
+    if (p < 0) return tlFLOAT(pow(tl_double(lhs), p));
+    if (p < 1000) return tlNumPow(tlNumTo(lhs), p);
+    TL_THROW("'**' out of range: %s ** %d", tl_str(lhs), p);
+}
+
+static tlHandle number_cmp(tlHandle lhs, tlHandle rhs) {
+    if (tlIntIs(lhs) && tlIntIs(rhs)) return intCmp(lhs, rhs);
+    if (tlNumIs(lhs) || tlNumIs(rhs)) return numCmp(lhs, rhs);
+    if (tlFloatIs(lhs) || tlFloatIs(rhs)) return floatCmp(lhs, rhs);
+    return tlUndef();
+}
+
+static tlHandle _number_lt(tlTask* task, tlArgs* args) {
+    tlHandle res = number_cmp(tlArgsLhs(args), tlArgsRhs(args));
+    if (res == tlSmaller) return tlTrue;
+    if (res == tlEqual || res == tlLarger) return tlFalse;
+    return res;
+}
+
+static tlHandle _number_lte(tlTask* task, tlArgs* args) {
+    tlHandle res = number_cmp(tlArgsLhs(args), tlArgsRhs(args));
+    if (res == tlSmaller || tlEqual) return tlTrue;
+    if (res == tlLarger) return tlFalse;
+    return res;
+}
+
+static tlHandle _number_gt(tlTask* task, tlArgs* args) {
+    tlHandle res = number_cmp(tlArgsLhs(args), tlArgsRhs(args));
+    if (res == tlSmaller || tlEqual) return tlFalse;
+    if (res == tlLarger) return tlTrue;
+    return res;
+}
+
+static tlHandle _number_gte(tlTask* task, tlArgs* args) {
+    tlHandle res = number_cmp(tlArgsLhs(args), tlArgsRhs(args));
+    if (res == tlSmaller) return tlFalse;
+    if (res == tlEqual || res == tlLarger) return tlTrue;
+    return res;
+}
+
 void number_init() {
     mp_init(&MIN_INT_BIGNUM);
     mp_init(&MAX_INT_BIGNUM);
@@ -805,25 +858,31 @@ void number_init() {
     mp_clear(&test);
 
     _tlIntKind.klass = tlClassObjectFrom(
-            "hash", _int_hash,
-            "bytes", _int_bytes,
-            "abs", _int_abs,
-            "toChar", _int_toChar,
-            "toString", _int_toString,
-            "floor", _int_self,
-            "round", _int_self,
-            "ceil", _int_self,
-            "times", null,
-            "to", null,
+        "hash", _int_hash,
+        "bytes", _int_bytes,
+        "abs", _int_abs,
+        "toChar", _int_toChar,
+        "toString", _int_toString,
+        "floor", _int_self,
+        "round", _int_self,
+        "ceil", _int_self,
+        "times", null,
+        "to", null,
 
-            "+", _number_add,
-            "-", _number_sub,
-            "*", _number_mul,
-            "/", _number_div,
-            "//", _number_idiv,
-            "/.", _number_fdiv,
-            "%", _number_mod,
-            null
+        "+", _number_add,
+        "-", _number_sub,
+        "*", _number_mul,
+        "/", _number_div,
+        "//", _number_idiv,
+        "/.", _number_fdiv,
+        "%", _number_mod,
+        "**", _number_pow,
+
+        "<", _number_lt,
+        "<=", _number_lte,
+        ">", _number_gt,
+        ">=", _number_gte,
+        null
     );
     tlObject* intStatic = tlClassObjectFrom(
             "_methods", null,
@@ -849,6 +908,12 @@ void number_init() {
         "//", _number_idiv,
         "/.", _number_fdiv,
         "%", _number_mod,
+        "**", _number_pow,
+
+        "<", _number_lt,
+        "<=", _number_lte,
+        ">", _number_gt,
+        ">=", _number_gte,
         null
     );
 
@@ -864,6 +929,12 @@ void number_init() {
         "//", _number_idiv,
         "/.", _number_fdiv,
         "%", _number_mod,
+        "**", _number_pow,
+
+        "<", _number_lt,
+        "<=", _number_lte,
+        ">", _number_gt,
+        ">=", _number_gte,
         null
     );
     tlObject* nconstructor = tlClassObjectFrom(

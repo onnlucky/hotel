@@ -14,6 +14,11 @@ assert 10.0 / 10 == 1
 assert 10.0 % 20 == 10
 assert -10.0 % 20 == 10
 
+assert 2 ** 4 == 2 * 2 * 2 * 2
+assert 10 < 11
+assert 10 <= 11
+assert 11 <= 11
+
 Vector2d = { this.x, this.y ->
     \"*\" = other ->
         { other isa Vector2d }: Vector2d(this.x * other.x - this.y * other.y, this.x * other.y - this.y * other.x)

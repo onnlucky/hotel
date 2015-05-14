@@ -778,11 +778,12 @@ static const tlNativeCbs __vm_natives[] = {
     { "_undefined", _undefined },
     { "out",  _out },
     { "bool", _bool },
-    { "not",  _not },
     { "type", _type },
 
     { "eq",   _eq },
     { "neq",  _neq },
+    { "not",  _not },
+    { "neg",  _neg },
 
     { "compare", _compare },
     { "lt",   _lt },
@@ -798,7 +799,6 @@ static const tlNativeCbs __vm_natives[] = {
     { "rsh",  _brshift },
     { "rrsh", _brrshift },
 
-    { "neg",  _neg },
     { "add",  _add },
     { "sub",  _sub },
     { "mul",  _mul },
