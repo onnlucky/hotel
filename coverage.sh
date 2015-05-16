@@ -6,5 +6,4 @@ GCOV=1 make -j4 test || true
 cd vm
 gcovr -r . --html --html-details -o gcov.html -e '.*test.c'
 echo "create html report in vm/gcov.html"
-open gcov.html
 

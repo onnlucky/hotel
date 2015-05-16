@@ -1,7 +1,6 @@
 # LANGUAGE TODO
 
 instanceof operator, like "42 isa Number" and "42 isa Int", including for the new tlUserClass
-make "this.x, this.y = (-> return 10, 10)" work
 
 change and update "match" syntax, no more { ... }: instead something like "match x: 10 -> something ...\n      20 -> something ..."
 
