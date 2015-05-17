@@ -29,6 +29,9 @@ endif
 ifndef NO_CAIRO
 all: Image.mod
 endif
+ifndef NO_SDL
+all: sdl.mod
+endif
 all: zlib.mod
 
 openssl.mod: openssl.c Makefile ../include/tl.h
@@ -50,6 +53,10 @@ Image.mod: image.c image.h graphics.c graphics.h Makefile ../include/tl.h
 	$(CC) $(CFLAGS) -c graphics.c
 	$(CC) $(CFLAGS) -c image.c
 	$(CC) $(LINK) graphics.o image.o -o Image.mod $(LIMAGE)
+
+sdl.mod: sdl.c Makefile ../include/tl.h
+	$(CC) $(CFLAGS) -c sdl.c
+	$(CC) $(LINK) sdl.o -o sdl.mod -lsdl2
 
 clean:
 	rm -rf *.o *.mod
