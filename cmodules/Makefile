@@ -5,8 +5,12 @@ UNAME:=$(shell uname)
 ifneq ($(UNAME),Darwin)
 LINK=-shared
 CFLAGS:=$(CFLAGS) -fPIC
+SDL_CFLAGS:=$(shell pkg-config --cflags sdl2)
+SDL_LDFLAGS:=$(shell pkg-config --libs sdl2)
 else
 LINK=-dynamiclib -flat_namespace -undefined suppress
+SDL_CFLAGS:=
+SDL_LDFLAGS:=-lsdl2
 endif
 
 ifeq ($(BUILD),release)
@@ -55,8 +59,8 @@ Image.mod: image.c image.h graphics.c graphics.h Makefile ../include/tl.h
 	$(CC) $(LINK) graphics.o image.o -o Image.mod $(LIMAGE)
 
 sdl.mod: sdl.c Makefile ../include/tl.h
-	$(CC) $(CFLAGS) -c sdl.c
-	$(CC) $(LINK) sdl.o -o sdl.mod -lsdl2
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c sdl.c
+	$(CC) $(LINK) sdl.o -o sdl.mod $(SDL_LDFLAGS)
 
 clean:
 	rm -rf *.o *.mod
