@@ -6,8 +6,17 @@
 TL_REF_TYPE(sdlWindow);
 tlKind* sdlWindowKind;
 
+TL_REF_TYPE(sdlEvent);
+tlKind* sdlEventKind;
+
 struct sdlWindow {
+    tlLock* head;
     SDL_Window* window;
+};
+
+struct sdlEvent {
+    tlHead* head;
+    SDL_Event event;
 };
 
 static tlHandle _Window_new(tlTask* task, tlArgs* args) {
@@ -26,6 +35,24 @@ static tlHandle _window_close(tlTask* task, tlArgs* args) {
     return tlNull;
 }
 
+static tlHandle _event(tlTask* task, tlArgs* args) {
+    SDL_Event event;
+    if (tl_bool(tlArgsGet(args, 0))) {
+        if (!SDL_PollEvent(&event)) return tlNull;
+    } else {
+        if (!SDL_WaitEvent(&event)) return tlNull;
+    }
+
+    sdlEvent* e = tlAlloc(sdlEventKind, sizeof(sdlEvent));
+    e->event = event;
+    return e;
+}
+
+static tlHandle _event_type(tlTask* task, tlArgs* args) {
+    TL_TARGET(sdlEvent, e);
+    return tlINT(e->event.type);
+}
+
 tlObject* sdlStatic;
 
 tlHandle tl_load() {
@@ -35,8 +62,7 @@ tlHandle tl_load() {
 
     tlKind _sdlWindowKind = { .name = "Window", .locked = true };
     INIT_KIND(sdlWindowKind);
-
-    tlClass* cls = tlCLASS("Window", null,
+    tlClass* windowcls = tlCLASS("Window", null,
     tlMETHODS(
         "close", _window_close,
         null
@@ -44,10 +70,21 @@ tlHandle tl_load() {
         "new", _Window_new,
         null
     ));
-    sdlWindowKind->cls = cls;
+    sdlWindowKind->cls = windowcls;
+
+    tlKind _sdlEventKind = { .name = "Event" };
+    INIT_KIND(sdlEventKind);
+    tlClass* eventcls = tlCLASS("Event", null,
+    tlMETHODS(
+        "type", _event_type,
+        null
+    ), null);
+    sdlEventKind->cls = eventcls;
+
 
     sdlStatic = tlObjectFrom(
-        "Window", cls,
+        "Window", windowcls,
+        "event", tlNATIVE(_event, "event"),
         null
     );
     return sdlStatic;
