@@ -487,6 +487,7 @@ void tlArgsSetFn_(tlArgs* args, tlHandle fn);
 void tlArgsSetTarget_(tlArgs* args, tlHandle target);
 void tlArgsSetMethod_(tlArgs* args, tlHandle msg);
 
+bool tlArgsIsSetter(tlArgs* args);
 tlHandle tlArgsTarget(tlArgs* args);
 tlSym tlArgsMethod(tlArgs* args);
 tlHandle tlArgsBlock(tlArgs* args);

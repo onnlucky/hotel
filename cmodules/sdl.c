@@ -10,12 +10,12 @@ TL_REF_TYPE(sdlEvent);
 tlKind* sdlEventKind;
 
 struct sdlWindow {
-    tlLock* head;
+    tlLock head;
     SDL_Window* window;
 };
 
 struct sdlEvent {
-    tlHead* head;
+    tlHead head;
     SDL_Event event;
 };
 
@@ -33,6 +33,37 @@ static tlHandle _window_close(tlTask* task, tlArgs* args) {
     TL_TARGET(sdlWindow, w);
     SDL_DestroyWindow(w->window);
     return tlNull;
+}
+
+static tlHandle _window_show(tlTask* task, tlArgs* args) {
+    TL_TARGET(sdlWindow, w);
+    SDL_ShowWindow(w->window);
+    return tlNull;
+}
+
+static tlHandle _window_hide(tlTask* task, tlArgs* args) {
+    TL_TARGET(sdlWindow, w);
+    SDL_HideWindow(w->window);
+    return tlNull;
+}
+
+static tlHandle _window_raise(tlTask* task, tlArgs* args) {
+    TL_TARGET(sdlWindow, w);
+    SDL_RaiseWindow(w->window);
+    return tlNull;
+}
+
+static tlHandle _window_title(tlTask* task, tlArgs* args) {
+    TL_TARGET(sdlWindow, w);
+
+    if (tlArgsIsSetter(args) || tlArgsSize(args) >= 1) {
+        tlString* s = tlStringCast(tlArgsGet(args, 0));
+        if (s) SDL_SetWindowTitle(w->window, tlStringData(s));
+        return tlNull;
+    }
+
+    const char* s = SDL_GetWindowTitle(w->window);
+    return tlStringFromCopy(s, 0);
 }
 
 static tlHandle _event(tlTask* task, tlArgs* args) {
@@ -65,6 +96,10 @@ tlHandle tl_load() {
     tlClass* windowcls = tlCLASS("Window", null,
     tlMETHODS(
         "close", _window_close,
+        "show", _window_show,
+        "hide", _window_hide,
+        "raise", _window_raise,
+        "title", _window_title,
         null
     ), tlMETHODS(
         "new", _Window_new,

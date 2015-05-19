@@ -32,7 +32,7 @@ LIBMP:=libmp/libtommath.a
 TLG_MODULES=modules/sizzle.tl
 MODULES:=$(shell echo modules/*.tl) $(TLG_MODULES)
 BIN_MODULES:=$(MODULES:.tl=.tlb)
-C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod
+C_MODULES=cmodules/zlib.mod cmodules/openssl.mod cmodules/audio.mod cmodules/sdl.mod
 
 all: tl $(C_MODULES) $(TLG_MODULES) $(BIN_MODULES)
 
