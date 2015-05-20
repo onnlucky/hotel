@@ -93,6 +93,12 @@ test "super when field or method is not in super, is an error":
     assert try(Test().tf2) == null
     assert try(Test().tm2) == null
 
+test "objects can be Callable":
+    Base = { -> call = res -> res }
+    Test = { -> extend Base }
+    o = Test()
+    assert o("hello") == "hello"
+
 test "safe operator works for objects":
     Base = { ->
         f = 100

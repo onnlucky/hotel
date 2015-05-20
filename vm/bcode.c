@@ -1087,15 +1087,13 @@ tlHandle tlInvoke(tlTask* task, tlArgs* call) {
             return tlInvoke(task, tlArgsFrom(call, fn, s_call, newtarget));
         }
     }
-    /*
-    tlUserClass* cls2 = tlUserClassFor(fn);
-    if (cls2) {
-        fn = userclassResolve(cls2, s_call);
+    if (tlUserObjectIs(fn)) {
+        tlHandle newtarget = fn;
+        fn = userobjectResolve(fn, s_call);
         if (fn) {
-            return tlInvoke(task, tlArgsFrom(call, fn, s_call, target));
+            return tlInvoke(task, tlArgsFrom(call, fn, s_call, newtarget));
         }
     }
-    */
     TL_THROW("'%s' not callable", tl_str(fn));
 }
 
