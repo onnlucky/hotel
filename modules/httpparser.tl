@@ -82,6 +82,12 @@ parseHost = in ->
         slash = in.text.find("/", in.pos)
         if not colon: return in
         if slash and slash > colon: return in
+    # ipv6 like http://[::ffff:173.16.102.117]:8080/ ...
+    bracket = in.text.find("[", in.pos)
+    slash = in.text.find("/", in.pos)
+    if bracket and (not slash or bracket < slash):
+        in = pManyOne(pNotChars("]?/#;& \t\n\r"))(in).do(v -> v.toChar[2:])
+        return pOptional(pChar("]".get))(in).set(in.value)
     host = pManyOne(pNotChars(":/?#;& \t\n\r"))(in).do: v -> v.toChar
 
 parsePort = in ->
