@@ -164,6 +164,26 @@ test "url encode":
     assert _urlencode("\"Aardvark-._~s lurk, OK?\"") == "%22Aardvark-._~s%20lurk%2C%20OK%3F%22"
     assert _urlencode("//////////") == "%2F%2F%2F%2F%2F%2F%2F%2F%2F%2F"
 
+test "url self encode":
     x = "!!!foo bar/?&&&%%%%"
     assert _urldecode(_urlencode(x)) == x
 
+test "base64 decode":
+    assert _base64decode("aA==") == "h"
+    assert _base64decode("aGVsbG8=") == "hello"
+    assert _base64decode("aGVsbG8x") == "hello1"
+    assert _base64decode("aGVsbG8xMg==") == "hello12"
+    assert _base64decode("aGVsbG8xMjM=") == "hello123"
+    assert _base64decode("aGVsbG8xMjM0") == "hello1234"
+
+test "base64 encode":
+    assert _base64encode("h") == "aA=="
+    assert _base64encode("hello") == "aGVsbG8="
+    assert _base64encode("hello1") == "aGVsbG8x"
+    assert _base64encode("hello12") == "aGVsbG8xMg=="
+    assert _base64encode("hello123") == "aGVsbG8xMjM="
+    assert _base64encode("hello1234") == "aGVsbG8xMjM0"
+
+test "base64 self encode":
+    x = "!!!foo bar/?&&&%%%%"
+    assert _base64decode(_base64encode(x)) == x

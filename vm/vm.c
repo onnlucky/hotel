@@ -491,6 +491,48 @@ static tlHandle _int_parse(tlTask* task, tlArgs* args) {
     return tlNUM(res);
 }
 
+static tlHandle _base64encode(tlTask* task, tlArgs* args) {
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+    tlBin* bin = tlBinCast(tlArgsGet(args, 0));
+    if (!str && !bin) TL_THROW("expect a String or Bin");
+
+    const uint8_t* data = str? (const uint8_t*)tlStringData(str) : (const uint8_t*)tlBinData(bin);
+    int len = str? tlStringSize(str) : tlBinSize(bin);
+
+    int pad = len % 3;
+    uint8_t* out = malloc_atomic((len / 3) * 4 + pad + 1);
+
+    static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    int i = 0;
+    int j = 0;
+    for (; i < len - pad; i += 3, j += 4) {
+        uint32_t n = 0;
+        n |= data[i + 0] << 16;
+        n |= data[i + 1] <<  8;
+        n |= data[i + 2] <<  0;
+
+        out[j + 0] = b64[(n >> 18) & 63];
+        out[j + 1] = b64[(n >> 12) & 63];
+        out[j + 2] = b64[(n >>  6) & 63];
+        out[j + 3] = b64[(n >>  0) & 63];
+    }
+
+    for (; i < len; i += 3, j += 4) {
+        uint32_t n = 0;
+        n |= i + 0 < len? data[i + 0] << 16 : 0;
+        n |= i + 1 < len? data[i + 1] <<  8 : 0;
+        n |= i + 2 < len? data[i + 2] <<  0 : 0;
+
+        out[j + 0] = i + 0 < len? b64[(n >> 18) & 63] : '=';
+        out[j + 1] = i + 0 < len? b64[(n >> 12) & 63] : '=';
+        out[j + 2] = i + 1 < len? b64[(n >>  6) & 63] : '=';
+        out[j + 3] = i + 2 < len? b64[(n >>  0) & 63] : '=';
+    }
+    out[j] = 0;
+    return tlStringFromTake((char*)out, j);
+}
+
 static tlHandle _urlencode(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
@@ -827,6 +869,8 @@ static const tlNativeCbs __vm_natives[] = {
     { "_int_parse", _int_parse },
     { "_urlencode", _urlencode },
     { "_urldecode", _urldecode },
+    { "_base64encode", _base64encode },
+    //{ "_base64decode", _urldecode },
 
     { "_Buffer_new", _Buffer_new },
     { "_vm_get_compiler", _vm_get_compiler },
