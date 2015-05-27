@@ -555,7 +555,7 @@ static tlHandle _Socket_resolve(tlTask* task, tlArgs* args) {
     struct hostent *hp = gethostbyname(tlStringData(name));
     if (!hp) return tlNull;
     if (!hp->h_addr_list[0]) return tlNull;
-    return tlStringFromTake(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
+    return tlStringFromCopy(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
 }
 
 static tlHandle _Socket_udp(tlTask* task, tlArgs* args) {
@@ -615,7 +615,7 @@ static tlHandle _Socket_recvfrom(tlTask* task, tlArgs* args) {
     }
     didwrite(buf, r);
     trace("recvfrom: %s:%d - %d", inet_ntoa(from.sin_addr), ntohs(from.sin_port), r);
-    tlString* ip = tlStringFromTake(inet_ntoa(from.sin_addr), 0);
+    tlString* ip = tlStringFromCopy(inet_ntoa(from.sin_addr), 0);
     return tlResultFrom(buf, ip, tlINT(ntohs(from.sin_port)));
 }
 
