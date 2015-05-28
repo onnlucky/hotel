@@ -216,7 +216,7 @@ HttpConnection = conn ->
     }
 
 Server = {
-    new = port -> { sock = io.Socket.listen(port), class = this.class }
+    new = port -> { sock = io.Socket.listen(port, host=args.get("host", "::")), class = this.class }
     class = {
         port = -> this.sock.port
         ip = -> this.sock.ip

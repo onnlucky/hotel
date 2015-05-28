@@ -318,48 +318,68 @@ static tlFile* tlFileNew(int fd) {
 static tlHandle _file_port(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
 
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    socklen_t len = sizeof(sockaddr);
-    int r = getsockname(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    struct sockaddr_storage addr;
+    bzero(&addr, sizeof(addr));
+    socklen_t len = sizeof(addr);
+    int r = getsockname(file->ev.fd, (struct sockaddr *)&addr, &len);
     if (r < 0) TL_THROW("file.port: %s", strerror(errno));
-    return tlINT(ntohs(sockaddr.sin_port));
+
+    if (addr.ss_family == AF_INET) {
+        return tlINT(ntohs(((struct sockaddr_in*)&addr)->sin_port));
+    } else {
+        return tlINT(ntohs(((struct sockaddr_in6*)&addr)->sin6_port));
+    }
 }
 
 static tlHandle _file_ip(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
 
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    socklen_t len = sizeof(sockaddr);
-    int r = getsockname(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    struct sockaddr_storage addr;
+    bzero(&addr, sizeof(addr));
+    socklen_t len = sizeof(addr);
+    int r = getsockname(file->ev.fd, (struct sockaddr *)&addr, &len);
     if (r < 0) TL_THROW("file.ip: %s", strerror(errno));
-    return tlStringFromCopy(inet_ntoa(sockaddr.sin_addr), 0);
+
+    char str[INET6_ADDRSTRLEN];
+    if (addr.ss_family == AF_INET) {
+        return tlStringFromCopy(inet_ntop(AF_INET, &((struct sockaddr_in*)&addr)->sin_addr, str, sizeof(str)), 0);
+    } else {
+        return tlStringFromCopy(inet_ntop(AF_INET6, &((struct sockaddr_in6*)&addr)->sin6_addr, str, sizeof(str)), 0);
+    }
 }
 
 static tlHandle _file_peer_port(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
 
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    socklen_t len = sizeof(sockaddr);
-    int r = getpeername(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    struct sockaddr_storage addr;
+    bzero(&addr, sizeof(addr));
+    socklen_t len = sizeof(addr);
+    int r = getpeername(file->ev.fd, (struct sockaddr *)&addr, &len);
     if (r < 0) TL_THROW("file.port: %s", strerror(errno));
-    return tlINT(ntohs(sockaddr.sin_port));
+
+    if (addr.ss_family == AF_INET) {
+        return tlINT(ntohs(((struct sockaddr_in*)&addr)->sin_port));
+    } else {
+        return tlINT(ntohs(((struct sockaddr_in6*)&addr)->sin6_port));
+    }
 }
 
 static tlHandle _file_peer_ip(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
 
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    socklen_t len = sizeof(sockaddr);
-    int r = getpeername(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
+    struct sockaddr_storage addr;
+    bzero(&addr, sizeof(addr));
+    socklen_t len = sizeof(addr);
+    int r = getpeername(file->ev.fd, (struct sockaddr *)&addr, &len);
     if (r < 0) TL_THROW("file.peer_ip: %s", strerror(errno));
-    return tlStringFromCopy(inet_ntoa(sockaddr.sin_addr), 0);
+
+    char str[INET6_ADDRSTRLEN];
+    if (addr.ss_family == AF_INET) {
+        return tlStringFromCopy(inet_ntop(AF_INET, &((struct sockaddr_in*)&addr)->sin_addr, str, sizeof(str)), 0);
+    } else {
+        return tlStringFromCopy(inet_ntop(AF_INET6, &((struct sockaddr_in6*)&addr)->sin6_addr, str, sizeof(str)), 0);
+    }
 }
-
-
 
 static tlHandle _file_isClosed(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
@@ -502,7 +522,7 @@ static tlHandle _reader_accept(tlTask* task, tlArgs* args) {
 
     if (file->ev.fd < 0) return tlNull;
 
-    struct sockaddr_in sockaddr;
+    struct sockaddr_storage sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
     socklen_t len = sizeof(sockaddr);
     int fd = accept(file->ev.fd, (struct sockaddr *)&sockaddr, &len);
@@ -552,6 +572,26 @@ static tlHandle _Socket_resolve(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a String");
 
+    struct addrinfo* res;
+    struct addrinfo* rp;
+    struct addrinfo hints;
+    bzero(&hints, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
+
+    int error = getaddrinfo(tlStringData(name), null, null, &res);
+    if (!error) {
+        for (rp = res; rp != null; rp = rp->ai_next) {
+            char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+            if (getnameinfo(rp->ai_addr, rp->ai_addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+                freeaddrinfo(res);
+                return tlStringFromCopy(hbuf, 0);
+            }
+        }
+    }
+    freeaddrinfo(res);
+
+    // TODO remove?
     struct hostent *hp = gethostbyname(tlStringData(name));
     if (!hp) return tlNull;
     if (!hp->h_addr_list[0]) return tlNull;
@@ -568,6 +608,7 @@ static tlHandle _Socket_udp(tlTask* task, tlArgs* args) {
     if (fd < 0) TL_THROW("udp socket failed: %s", strerror(errno));
 
     if (port) {
+        // TODO upgrade to ipv6 support
         struct sockaddr_in sockaddr;
         bzero(&sockaddr, sizeof(sockaddr));
         sockaddr.sin_family = AF_INET;
@@ -606,7 +647,7 @@ static tlHandle _Socket_recvfrom(tlTask* task, tlArgs* args) {
     tlBufferBeforeWrite(buf, 65535); // max UDP packet
     assert(canwrite(buf));
 
-    struct sockaddr_in from;
+    struct sockaddr_storage from;
     unsigned int from_len = sizeof(from);
     int r = recvfrom(file->ev.fd, writebuf(buf), canwrite(buf), 0, (struct sockaddr*)&from, &from_len);
     if (r < 0) {
@@ -614,9 +655,23 @@ static tlHandle _Socket_recvfrom(tlTask* task, tlArgs* args) {
         TL_THROW("%d: recvfrom: failed: %s", file->ev.fd, strerror(errno));
     }
     didwrite(buf, r);
-    trace("recvfrom: %s:%d - %d", inet_ntoa(from.sin_addr), ntohs(from.sin_port), r);
-    tlString* ip = tlStringFromCopy(inet_ntoa(from.sin_addr), 0);
-    return tlResultFrom(buf, ip, tlINT(ntohs(from.sin_port)));
+
+    int port;
+    if (from.ss_family == AF_INET) {
+        port = ntohs(((struct sockaddr_in*)&from)->sin_port);
+    } else {
+        port = ntohs(((struct sockaddr_in6*)&from)->sin6_port);
+    }
+
+    char str[INET6_ADDRSTRLEN];
+    if (from.ss_family == AF_INET) {
+        inet_ntop(AF_INET, &((struct sockaddr_in*)&from)->sin_addr, str, sizeof(str));
+    } else {
+        inet_ntop(AF_INET6, &((struct sockaddr_in6*)&from)->sin6_addr, str, sizeof(str));
+    }
+    trace("recvfrom: %s:%d - %d", str, port, r);
+    tlString* ip = tlStringFromCopy(str, 0);
+    return tlResultFrom(buf, ip, tlINT(port));
 }
 
 static tlHandle _Socket_sendto(tlTask* task, tlArgs* args) {
@@ -634,6 +689,7 @@ static tlHandle _Socket_sendto(tlTask* task, tlArgs* args) {
     struct in_addr ip;
     if (!inet_aton(tlStringData(address), &ip)) TL_THROW("sendto: invalid ip: %s", tl_str(address));
 
+    // TODO upgrade to ipv6 support
     struct sockaddr_in sockaddr;
     bzero(&sockaddr, sizeof(sockaddr));
     sockaddr.sin_family = AF_INET;
@@ -656,32 +712,40 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
     int port = tl_int_or(tlArgsGet(args, 1), -1);
     if (port < 0) TL_THROW("expected a port");
 
-    trace("tcp_open: %s:%d", tl_str(address), port);
+    char pstr[10];
+    snprintf(pstr, sizeof(pstr), "%d", port);
 
-    struct in_addr ip;
-    if (!inet_aton(tlStringData(address), &ip)) TL_THROW("tcp_open: invalid ip: %s", tl_str(address));
+    trace("tcp_open: %s:%s", tl_str(address), pstr);
 
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    sockaddr.sin_family = AF_INET;
-    bcopy(&ip, &sockaddr.sin_addr.s_addr, sizeof(ip));
-    sockaddr.sin_port = htons(port);
+    struct addrinfo* res;
+    struct addrinfo* rp;
+    struct addrinfo hints;
+    bzero(&hints, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
 
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) TL_THROW("tcp_connect: failed: %s", strerror(errno));
-
-    if (nonblock(fd) < 0) {
-        close(fd);
-        TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
+    int error = getaddrinfo(tlStringData(address), pstr, null, &res);
+    if (error) {
+        TL_THROW("tcp_open: %s", gai_strerror(error));
     }
 
-    int r = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
-    if (r < 0 && errno != EINPROGRESS) {
-        close(fd);
-        TL_THROW("tcp_connect: connect failed: %s", strerror(errno));
+    int fd = -1;
+    for (rp = res; rp != null; rp = rp->ai_next) {
+        fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (fd < 0) continue;
+        if (nonblock(fd) < 0) {
+            close(fd);
+            TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
+        }
+        int r = connect(fd, rp->ai_addr, rp->ai_addrlen);
+        if (r < 0 && errno != EINPROGRESS) {
+            close(fd);
+            continue;
+        }
     }
+    freeaddrinfo(res);
 
-    if (errno == EINPROGRESS) trace("tcp_connect: EINPROGRESS");
     return tlFileNew(fd);
 }
 
@@ -724,20 +788,35 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
 
 // TODO make backlog configurable
 static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
+    static tlSym s_host;
+    if (!s_host) s_host = tlSYM("host");
+
     int port = tl_int_or(tlArgsGet(args, 0), 0);
-    trace("tcp_listen: 0.0.0.0:%d", port);
+    tlString* host = tlStringCast(tlArgsGetNamed(args, s_host));
 
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    sockaddr.sin_family = AF_INET;
-    sockaddr.sin_addr.s_addr = INADDR_ANY;
-    sockaddr.sin_port = htons(port);
+    const char* shost = host? tlStringData(host) : null;
 
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    trace("tcp_listen: %s:%d", shost, port);
+
+    struct addrinfo hints;
+    bzero(&hints, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    char sport[7];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    struct addrinfo* res;
+    getaddrinfo(shost, sport, &hints, &res);
+
+    // TODO perhaps loop?
+    int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (fd < 0) TL_THROW("tcp_listen: failed: %s", strerror(errno));
 
     if (nonblock(fd) < 0) {
         close(fd);
+        freeaddrinfo(res);
         TL_THROW("tcp_listen: nonblock failed: %s", strerror(errno));
     }
 
@@ -745,16 +824,25 @@ static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
     int r = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&flags, sizeof(flags));
     if (r < 0) {
         close(fd);
+        freeaddrinfo(res);
         TL_THROW("tcp_listen: so_reuseaddr failed: %s", strerror(errno));
     }
 
-    r = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    r = bind(fd, res->ai_addr, res->ai_addrlen);
     if (r < 0) {
         close(fd);
+        freeaddrinfo(res);
         TL_THROW("tcp_listen: bind failed: %s", strerror(errno));
     }
 
-    listen(fd, 1024); // backlog, configurable?
+    freeaddrinfo(res);
+
+    r = listen(fd, 1024); // backlog, configurable?
+    if (r < 0) {
+        close(fd);
+        TL_THROW("tcp_listen: listen failed: %s", strerror(errno));
+    }
+
     return tlFileNew(fd);
 }
 

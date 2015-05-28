@@ -275,7 +275,7 @@ Socket = {
         Stream.new(_Socket_connect(ip, port))
     #. listen(port?): listen on tcp/ip port, if no port is given, one is assigned
     listen = port ->
-        Server.new(_ServerSocket_listen(port))
+        Server.new(_ServerSocket_listen(port, host=args.get("host", "::")))
     #. unix(name): connect to a unix domain socket (a special file, e.g. /dev/log)
     unix = name, dgram ->
         Stream.new(_Socket_connect_unix(name, dgram))
