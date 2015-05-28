@@ -725,7 +725,7 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
 
-    int error = getaddrinfo(tlStringData(address), pstr, null, &res);
+    int error = getaddrinfo(tlStringData(address), pstr, &hints, &res);
     if (error) {
         TL_THROW("tcp_open: %s", gai_strerror(error));
     }
