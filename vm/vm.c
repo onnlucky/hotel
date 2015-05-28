@@ -533,6 +533,50 @@ static tlHandle _base64encode(tlTask* task, tlArgs* args) {
     return tlStringFromTake((char*)out, j);
 }
 
+static tlHandle _base64decode(tlTask* task, tlArgs* args) {
+    tlString* str = tlStringCast(tlArgsGet(args, 0));
+
+    int len = tlStringSize(str);
+    if (len == 0) return tlStringEmpty();
+    if (len < 3) return tlStringEmpty(); // error ...
+
+    const unsigned char* data = (const unsigned char*)tlStringData(str);
+    int padding = (data[len - 1] == '=') + (data[len - 2] == '=');
+    int outlen = len * 3 / 4; // allocate bit too much, so we can freely decode
+
+    unsigned char* out = malloc_atomic(outlen);
+
+    static const unsigned char lookup[256] = {
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63,
+        52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
+        64,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
+        15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64,
+        64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+        41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64
+    };
+
+    int i = 0;
+    int j = 0;
+    for (; i < len; i += 4, j += 3) {
+        out[j + 0] = lookup[data[i + 0]] << 2 | lookup[data[i + 1]] >> 4;
+        out[j + 1] = lookup[data[i + 1]] << 4 | lookup[data[i + 2]] >> 2;
+        out[j + 2] = lookup[data[i + 2]] << 6 | lookup[data[i + 3]] >> 0;
+    }
+
+    out[outlen - padding] = 0;
+    return tlStringFromTake((char*)out, outlen - padding);
+}
+
 static tlHandle _urlencode(tlTask* task, tlArgs* args) {
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     if (!str) TL_THROW("expect a String");
@@ -870,7 +914,7 @@ static const tlNativeCbs __vm_natives[] = {
     { "_urlencode", _urlencode },
     { "_urldecode", _urldecode },
     { "_base64encode", _base64encode },
-    //{ "_base64decode", _urldecode },
+    { "_base64decode", _base64decode },
 
     { "_Buffer_new", _Buffer_new },
     { "_vm_get_compiler", _vm_get_compiler },
