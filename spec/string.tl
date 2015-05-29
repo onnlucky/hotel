@@ -187,3 +187,15 @@ test "base64 encode":
 test "base64 self encode":
     x = "!!!foo bar/?&&&%%%%"
     assert _base64decode(_base64encode(x)) == x
+
+test "base64 invalid decodes":
+    assert not try(_base64decode("a"))
+    assert not try(_base64decode("aG"))
+    assert not try(_base64decode("aGV"))
+    assert not try(_base64decode("aGVsbG8!MjM="))
+    assert not try(_base64decode("aGVsbG8xMj!="))
+    assert not try(_base64decode("aGVsbG8xMj#="))
+    assert not try(_base64decode("#GVsbG8xMjM="))
+    assert not try(_base64decode("!!!!"))
+    assert not try(_base64decode("aA.="))
+    assert not try(_base64decode("aA=."))

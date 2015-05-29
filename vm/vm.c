@@ -492,6 +492,9 @@ static tlHandle _int_parse(tlTask* task, tlArgs* args) {
 }
 
 static tlHandle _base64encode(tlTask* task, tlArgs* args) {
+    static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    //static const char* u64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
     tlString* str = tlStringCast(tlArgsGet(args, 0));
     tlBin* bin = tlBinCast(tlArgsGet(args, 0));
     if (!str && !bin) TL_THROW("expect a String or Bin");
@@ -502,8 +505,6 @@ static tlHandle _base64encode(tlTask* task, tlArgs* args) {
     int pad = len % 3;
     uint8_t* out = malloc_atomic((len / 3) * 4 + pad + 1);
 
-    static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
     int i = 0;
     int j = 0;
     for (; i < len - pad; i += 3, j += 4) {
@@ -512,10 +513,10 @@ static tlHandle _base64encode(tlTask* task, tlArgs* args) {
         n |= data[i + 1] <<  8;
         n |= data[i + 2] <<  0;
 
-        out[j + 0] = b64[(n >> 18) & 63];
-        out[j + 1] = b64[(n >> 12) & 63];
-        out[j + 2] = b64[(n >>  6) & 63];
-        out[j + 3] = b64[(n >>  0) & 63];
+        out[j + 0] = b64[(n >> 18) & 0x3F];
+        out[j + 1] = b64[(n >> 12) & 0x3F];
+        out[j + 2] = b64[(n >>  6) & 0x3F];
+        out[j + 3] = b64[(n >>  0) & 0x3F];
     }
 
     for (; i < len; i += 3, j += 4) {
@@ -524,57 +525,74 @@ static tlHandle _base64encode(tlTask* task, tlArgs* args) {
         n |= i + 1 < len? data[i + 1] <<  8 : 0;
         n |= i + 2 < len? data[i + 2] <<  0 : 0;
 
-        out[j + 0] = i + 0 < len? b64[(n >> 18) & 63] : '=';
-        out[j + 1] = i + 0 < len? b64[(n >> 12) & 63] : '=';
-        out[j + 2] = i + 1 < len? b64[(n >>  6) & 63] : '=';
-        out[j + 3] = i + 2 < len? b64[(n >>  0) & 63] : '=';
+        out[j + 0] = i + 0 < len? b64[(n >> 18) & 0x3F] : '=';
+        out[j + 1] = i + 0 < len? b64[(n >> 12) & 0x3F] : '=';
+        out[j + 2] = i + 1 < len? b64[(n >>  6) & 0x3F] : '=';
+        out[j + 3] = i + 2 < len? b64[(n >>  0) & 0x3F] : '=';
     }
     out[j] = 0;
     return tlStringFromTake((char*)out, j);
 }
 
 static tlHandle _base64decode(tlTask* task, tlArgs* args) {
+
+    static const unsigned char lookup[256] = {
+    //  .0  .1  .2  .3   .4  .5  .6  .7    .8  .9  .A  .B   .C  .D  .E  .F
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // 0.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // 1.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 62,  64, 62,128, 63, // 2. 2D = - = 62
+        52, 53, 54, 55,  56, 57, 58, 59,   60, 61, 64, 64,  64,128, 64, 64, // 3.
+        64,  0,  1,  2,   3,  4,  5,  6,    7,  8,  9, 10,  11, 12, 13, 14, // 4.
+        15, 16, 17, 18,  19, 20, 21, 22,   23, 24, 25, 64,  64, 64, 64, 63, // 5. 5F = _ = 63
+        64, 26, 27, 28,  29, 30, 31, 32,   33, 34, 35, 36,  37, 38, 39, 40, // 6.
+        41, 42, 43, 44,  45, 46, 47, 48,   49, 50, 51, 64,  64, 64, 64, 64, // 7.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // 8.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // 9.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // A.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // B.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // C.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // D.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64, // E.
+        64, 64, 64, 64,  64, 64, 64, 64,   64, 64, 64, 64,  64, 64, 64, 64  // F.
+    };
+
     tlString* str = tlStringCast(tlArgsGet(args, 0));
 
     int len = tlStringSize(str);
     if (len == 0) return tlStringEmpty();
-    if (len < 3) return tlStringEmpty(); // error ...
+    if (len % 4 != 0) TL_THROW("invalid base64");
 
     const unsigned char* data = (const unsigned char*)tlStringData(str);
-    int padding = (data[len - 1] == '=') + (data[len - 2] == '=');
-    int outlen = len * 3 / 4; // allocate bit too much, so we can freely decode
+    int padding = (lookup[data[len - 1]] == 128) + (lookup[data[len - 2]] == 128);
+    if (padding == 2 && data[len - 1] != data[len - 2]) TL_THROW("invalid base64");
+    int outlen = len * 3 / 4 - padding;
 
-    unsigned char* out = malloc_atomic(outlen);
-
-    static const unsigned char lookup[256] = {
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64, 64, 63,
-        52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
-        64,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
-        15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 64,
-        64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-        41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
-        64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64
-    };
+    unsigned char* out = malloc_atomic(outlen + padding); // a bit over allocated, so we can safely decode
 
     int i = 0;
     int j = 0;
-    for (; i < len; i += 4, j += 3) {
-        out[j + 0] = lookup[data[i + 0]] << 2 | lookup[data[i + 1]] >> 4;
-        out[j + 1] = lookup[data[i + 1]] << 4 | lookup[data[i + 2]] >> 2;
-        out[j + 2] = lookup[data[i + 2]] << 6 | lookup[data[i + 3]] >> 0;
+    for (; i < len - 4; i += 4, j += 3) {
+        unsigned char d0 = lookup[data[i + 0]];
+        unsigned char d1 = lookup[data[i + 1]];
+        unsigned char d2 = lookup[data[i + 2]];
+        unsigned char d3 = lookup[data[i + 3]];
+        if ((d0 | d1 | d2 | d3) & 0xC0) TL_THROW("invalid base64");
+        out[j + 0] = d0 << 2 | d1 >> 4;
+        out[j + 1] = d1 << 4 | d2 >> 2;
+        out[j + 2] = d2 << 6 | d3 >> 0;
     }
 
-    out[outlen - padding] = 0;
-    return tlStringFromTake((char*)out, outlen - padding);
+    unsigned char d0 = lookup[data[i + 0]];
+    unsigned char d1 = lookup[data[i + 1]];
+    unsigned char d2 = lookup[data[i + 2]];
+    unsigned char d3 = lookup[data[i + 3]];
+    if ((d0 | d1 | d2 | d3) & 0x40) TL_THROW("invalid base64"); // here we allow = or .
+    out[j + 0] = d0 << 2 | d1 >> 4;
+    out[j + 1] = d1 << 4 | d2 >> 2;
+    out[j + 2] = d2 << 6 | d3 >> 0;
+
+    out[outlen] = 0;
+    return tlStringFromTake((char*)out, outlen);
 }
 
 static tlHandle _urlencode(tlTask* task, tlArgs* args) {
