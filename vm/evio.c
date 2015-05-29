@@ -3,7 +3,7 @@
 // basic io functions in hotel
 
 // TODO use runloop mutex to protect open() like syscalls in order to do CLOEXEC if available
-// TODO use getaddrinfo stuff to get ipv6 compat; take care when doing name resolutions though
+// TODO for above, all open/close/fork, from same thread or mutex
 
 //. module io:
 
@@ -408,6 +408,7 @@ static tlHandle _file_reader(tlTask* task, tlArgs* args) {
     if (file->reader) return file->reader;
     return tlNull;
 }
+
 static tlHandle _file_writer(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileAs(tlArgsTarget(args));
     if (file->writer) return file->writer;
@@ -423,6 +424,7 @@ static tlHandle _reader_isClosed(tlTask* task, tlArgs* args) {
 
     return tlBOOL(file->ev.fd < 0 || reader->closed);
 }
+
 static tlHandle _reader_close(tlTask* task, tlArgs* args) {
     tlReader* reader = tlReaderAs(tlArgsTarget(args));
     if (!tlLockIsOwner(tlLockAs(reader), task)) TL_THROW("expected a locked Reader");
@@ -436,6 +438,7 @@ static tlHandle _reader_close(tlTask* task, tlArgs* args) {
     if (r) trace("error in shutdown: %s", strerror(errno));
     return tlNull;
 }
+
 static tlHandle _reader_read(tlTask* task, tlArgs* args) {
     tlReader* reader = tlReaderAs(tlArgsTarget(args));
     tlBuffer* buf= tlBufferCast(tlArgsGet(args, 0));
@@ -474,6 +477,7 @@ static tlHandle _writer_isClosed(tlTask* task, tlArgs* args) {
 
     return tlBOOL(file->ev.fd < 0 || writer->closed);
 }
+
 static tlHandle _writer_close(tlTask* task, tlArgs* args) {
     tlWriter* writer = tlWriterAs(tlArgsTarget(args));
     if (!tlLockIsOwner(tlLockAs(writer), task)) TL_THROW("expected a locked Writer");
@@ -488,6 +492,7 @@ static tlHandle _writer_close(tlTask* task, tlArgs* args) {
     writer->closed = true;
     return tlNull;
 }
+
 static tlHandle _writer_write(tlTask* task, tlArgs* args) {
     tlWriter* writer = tlWriterAs(tlArgsTarget(args));
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 0));
@@ -567,59 +572,69 @@ static tlHandle _File_from(tlTask* task, tlArgs* args) {
 
 // ** sockets **
 
-// TODO this is a blocking call
+// NOTE this is a blocking call
 static tlHandle _Socket_resolve(tlTask* task, tlArgs* args) {
     tlString* name = tlStringCast(tlArgsGet(args, 0));
     if (!name) TL_THROW("expected a String");
 
     struct addrinfo* res;
     struct addrinfo* rp;
-    struct addrinfo hints;
-    bzero(&hints, sizeof(struct addrinfo));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
 
     int error = getaddrinfo(tlStringData(name), null, null, &res);
-    if (!error) {
-        for (rp = res; rp != null; rp = rp->ai_next) {
-            char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-            if (getnameinfo(rp->ai_addr, rp->ai_addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
-                freeaddrinfo(res);
-                return tlStringFromCopy(hbuf, 0);
-            }
+    if (error) TL_THROW("resolve: getaddrinfo failed: %s", gai_strerror(error));
+
+    for (rp = res; rp != null; rp = rp->ai_next) {
+        char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+        if (getnameinfo(rp->ai_addr, rp->ai_addrlen, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+            freeaddrinfo(res);
+            return tlStringFromCopy(hbuf, 0);
         }
     }
     freeaddrinfo(res);
-
-    // TODO remove?
-    struct hostent *hp = gethostbyname(tlStringData(name));
-    if (!hp) return tlNull;
-    if (!hp->h_addr_list[0]) return tlNull;
-    return tlStringFromCopy(inet_ntoa(*(struct in_addr*)(hp->h_addr_list[0])), 0);
+    return tlNull;
 }
 
 static tlHandle _Socket_udp(tlTask* task, tlArgs* args) {
+    static tlSym s_host;
+    if (!s_host) s_host = tlSYM("host");
+
     int port = tl_int_or(tlArgsGet(args, 0), 0);
-    bool broadcast = tl_bool_or(tlArgsGet(args, 0), false);
+    tlString* host = tlStringCast(tlArgsGetNamed(args, s_host));
+    bool broadcast = tl_bool_or(tlArgsGet(args, 1), false);
 
-    trace("udp_open: port: %d, broadcast: %d", port, broadcast);
+    const char* shost = host? tlStringData(host) : null;
 
-    int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (fd < 0) TL_THROW("udp socket failed: %s", strerror(errno));
+    trace("udp_open: %s:%d, broadcast: %s", shost, port, broadcast? "true":"false");
 
-    if (port) {
-        // TODO upgrade to ipv6 support
-        struct sockaddr_in sockaddr;
-        bzero(&sockaddr, sizeof(sockaddr));
-        sockaddr.sin_family = AF_INET;
-        sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        sockaddr.sin_port = htons(port);
-        int r = bind(fd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
+    struct addrinfo hints;
+    bzero(&hints, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    char sport[7];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    struct addrinfo* res;
+    int error = getaddrinfo(shost, sport, &hints, &res);
+    if (error) TL_THROW("udp socket: getaddrinfo failed: %s", gai_strerror(error));
+
+    // TODO perhaps loop?
+    int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (fd < 0) {
+        freeaddrinfo(res);
+        TL_THROW("udp socket failed: %s", strerror(errno));
+    }
+
+    if (tlIntIs(tlArgsGet(args, 0))) {
+        int r = bind(fd, res->ai_addr, res->ai_addrlen);
         if (r < 0) {
             close(fd);
+            freeaddrinfo(res);
             TL_THROW("udp bind failed: %s", strerror(errno));
         }
     }
+    freeaddrinfo(res);
 
     if (broadcast) {
         int r = setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
@@ -677,29 +692,41 @@ static tlHandle _Socket_recvfrom(tlTask* task, tlArgs* args) {
 static tlHandle _Socket_sendto(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expected a udp socket");
-    tlString* address = tlStringCast(tlArgsGet(args, 1));
-    if (!address) TL_THROW("expected a ip address");
+    tlString* host = tlStringCast(tlArgsGet(args, 1));
+    if (!host) TL_THROW("expected a host");
     int port = tl_int_or(tlArgsGet(args, 2), -1);
     if (port < 0) TL_THROW("expected a port");
     tlBuffer* buf = tlBufferCast(tlArgsGet(args, 3));
     if (!buf) TL_THROW("expected a buffer");
 
-    trace("sendto: %s:%d", tl_str(address), port);
+    trace("sendto: %s:%d", tl_str(host), port);
 
-    struct in_addr ip;
-    if (!inet_aton(tlStringData(address), &ip)) TL_THROW("sendto: invalid ip: %s", tl_str(address));
+    // we need to know our local socket family
+    struct sockaddr_storage addr;
+    bzero(&addr, sizeof(addr));
+    socklen_t addrlen = sizeof(addr);
+    int r = getsockname(file->ev.fd, (struct sockaddr *)&addr, &addrlen);
+    if (r < 0) TL_THROW("sendto: getsockname failed: %s", strerror(errno));
 
-    // TODO upgrade to ipv6 support
-    struct sockaddr_in sockaddr;
-    bzero(&sockaddr, sizeof(sockaddr));
-    sockaddr.sin_family = AF_INET;
-    bcopy(&ip, &sockaddr.sin_addr.s_addr, sizeof(ip));
-    sockaddr.sin_port = htons(port);
+    struct addrinfo* res;
+    struct addrinfo hints;
+    bzero(&hints, sizeof(struct addrinfo));
+    hints.ai_family = addr.ss_family;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
+
+    char sport[7];
+    snprintf(sport, sizeof(sport), "%d", port);
+
+    int error = getaddrinfo(tlStringData(host), sport, &hints, &res);
+    if (error) TL_THROW("sendto: getaddrinfo failed: %s", gai_strerror(error));
+    assert(res->ai_addr->sa_family == addr.ss_family);
 
     int len = tlBufferSize(buf);
-    int r = sendto(file->ev.fd, tlBufferData(buf), len, 0, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
+    r = sendto(file->ev.fd, tlBufferData(buf), len, 0, res->ai_addr, res->ai_addrlen);
+    freeaddrinfo(res);
     if (r < 0) {
-        TL_THROW("%d: sendto: failed: %s", file->ev.fd, strerror(errno));
+        TL_THROW("sendto: failed: %s", strerror(errno));
     }
     assert(len == r);
     didread(buf, len);
@@ -715,7 +742,7 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
     char pstr[10];
     snprintf(pstr, sizeof(pstr), "%d", port);
 
-    trace("tcp_open: %s:%s", tl_str(address), pstr);
+    trace("tcp_connect: %s:%s", tl_str(address), pstr);
 
     struct addrinfo* res;
     struct addrinfo* rp;
@@ -726,9 +753,7 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
     hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
 
     int error = getaddrinfo(tlStringData(address), pstr, &hints, &res);
-    if (error) {
-        TL_THROW("tcp_open: %s", gai_strerror(error));
-    }
+    if (error) TL_THROW("tcp_connect: getaddrinfo failed: %s", gai_strerror(error));
 
     int fd = -1;
     for (rp = res; rp != null; rp = rp->ai_next) {
@@ -736,6 +761,7 @@ static tlHandle _Socket_connect(tlTask* task, tlArgs* args) {
         if (fd < 0) continue;
         if (nonblock(fd) < 0) {
             close(fd);
+            freeaddrinfo(res);
             TL_THROW("tcp_connect: nonblock failed: %s", strerror(errno));
         }
         int r = connect(fd, rp->ai_addr, rp->ai_addrlen);
@@ -786,12 +812,12 @@ static tlHandle _Socket_connect_unix(tlTask* task, tlArgs* args) {
     return tlFileNew(fd);
 }
 
-// TODO make backlog configurable
 static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
     static tlSym s_host;
     if (!s_host) s_host = tlSYM("host");
 
     int port = tl_int_or(tlArgsGet(args, 0), 0);
+    int backlog = tl_int_or(tlArgsGet(args, 1), 256);
     tlString* host = tlStringCast(tlArgsGetNamed(args, s_host));
 
     const char* shost = host? tlStringData(host) : null;
@@ -808,11 +834,15 @@ static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
     snprintf(sport, sizeof(sport), "%d", port);
 
     struct addrinfo* res;
-    getaddrinfo(shost, sport, &hints, &res);
+    int error = getaddrinfo(shost, sport, &hints, &res);
+    if (error) TL_THROW("tcp_listen: getaddrinfo failed: %s", gai_strerror(error));
 
     // TODO perhaps loop?
     int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (fd < 0) TL_THROW("tcp_listen: failed: %s", strerror(errno));
+    if (fd < 0) {
+        freeaddrinfo(res);
+        TL_THROW("tcp_listen: failed: %s", strerror(errno));
+    }
 
     if (nonblock(fd) < 0) {
         close(fd);
@@ -837,7 +867,7 @@ static tlHandle _ServerSocket_listen(tlTask* task, tlArgs* args) {
 
     freeaddrinfo(res);
 
-    r = listen(fd, 1024); // backlog, configurable?
+    r = listen(fd, backlog);
     if (r < 0) {
         close(fd);
         TL_THROW("tcp_listen: listen failed: %s", strerror(errno));

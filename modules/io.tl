@@ -254,6 +254,8 @@ Path = {
 UdpSocket = {
     new = file -> { file = file, class = this.class }
     class = {
+        port = -> this.file.port
+        ip = -> this.file.ip
         send = ip, port, buf -> _Socket_sendto(this.file, ip, port, buf)
         receive = (buf ->
             buf = buf or Buffer.new
@@ -281,7 +283,7 @@ Socket = {
         Stream.new(_Socket_connect_unix(name, dgram))
     #. udp(port, broadcast=false): open a udp/ip socket, can be send or received from
     udp = port, broadcast ->
-        UdpSocket.new(_Socket_udp(port, broadcast))
+        UdpSocket.new(_Socket_udp(port, broadcast, host=args.get("host", "::")))
 }
 
 _run = arglist, env, check, dir ->
