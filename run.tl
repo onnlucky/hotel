@@ -1,4 +1,8 @@
 in = "
+assert 2 << 0 == 2
+assert 2 << 1 == 4
+assert 2 >> 1 == 1
+
 assert 10 + 10 == 20 and not 10 + 10 != 20
 assert 10 - 10 == 0
 assert 10 * 10 == 100

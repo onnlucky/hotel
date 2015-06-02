@@ -757,6 +757,46 @@ static tlHandle _number_pow(tlTask* task, tlArgs* args) {
     TL_THROW("'**' out of range: %s ** %d", tl_str(lhs), p);
 }
 
+// TODO shifting should work on arbitrary size number include tlNUM
+static tlHandle _number_lshift(tlTask* task, tlArgs* args) {
+    tlHandle l = tlArgsLhs(args);
+    tlHandle r = tlArgsRhs(args);
+
+    if (!tlNumberIs(l) || !tlNumberIs(r)) return tlUndef();
+
+    int64_t lhs = tlNumberToInt64(l);
+    int rhs = tl_int(r);
+    if (rhs <= -64 || rhs >= 64) return tlZero;
+    uint64_t res = rhs >= 0? lhs << rhs : lhs >> -rhs;
+    return tlNUM((intptr_t)res);
+}
+
+static tlHandle _number_rshift(tlTask* task, tlArgs* args) {
+    tlHandle l = tlArgsLhs(args);
+    tlHandle r = tlArgsRhs(args);
+
+    if (!tlNumberIs(l) || !tlNumberIs(r)) return tlUndef();
+
+    int64_t lhs = tlNumberToInt64(l);
+    int rhs = tl_int(r);
+    if (rhs <= -64 || rhs >= 64) return tlZero;
+    uint64_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
+    return tlNUM((intptr_t)res);
+}
+
+static tlHandle _number_rrshift(tlTask* task, tlArgs* args) {
+    tlHandle l = tlArgsLhs(args);
+    tlHandle r = tlArgsRhs(args);
+
+    if (!tlNumberIs(l) || !tlNumberIs(r)) return tlUndef();
+
+    uint32_t lhs = tlNumberToInt64(l);
+    int rhs = tl_int(r);
+    if (rhs < -64 || rhs > 64) return tlZero;
+    uint32_t res = rhs >= 0? lhs >> rhs : lhs << -rhs;
+    return tlNUM((uint32_t)res);
+}
+
 static tlHandle number_cmp(tlHandle lhs, tlHandle rhs) {
     if (tlIntIs(lhs) && tlIntIs(rhs)) return intCmp(lhs, rhs);
     if (tlNumIs(lhs) || tlNumIs(rhs)) return numCmp(lhs, rhs);
@@ -878,6 +918,10 @@ void number_init() {
         "%", _number_mod,
         "**", _number_pow,
 
+        "<<", _number_lshift,
+        ">>", _number_rshift,
+        ">>>", _number_rrshift,
+
         "<", _number_lt,
         "<=", _number_lte,
         ">", _number_gt,
@@ -910,6 +954,10 @@ void number_init() {
         "%", _number_mod,
         "**", _number_pow,
 
+        "<<", _number_lshift,
+        ">>", _number_rshift,
+        ">>>", _number_rrshift,
+
         "<", _number_lt,
         "<=", _number_lte,
         ">", _number_gt,
@@ -930,6 +978,11 @@ void number_init() {
         "/.", _number_fdiv,
         "%", _number_mod,
         "**", _number_pow,
+
+
+        "<<", _number_lshift,
+        ">>", _number_rshift,
+        ">>>", _number_rrshift,
 
         "<", _number_lt,
         "<=", _number_lte,
