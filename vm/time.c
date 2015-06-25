@@ -50,7 +50,7 @@ static void object_to_tm(tlObject* from, struct tm* tm) {
     tm->tm_mday = tl_int(tlObjectGet(from, _s_mday));
     tm->tm_yday = tl_int(tlObjectGet(from, _s_yday));
     tm->tm_isdst = tl_int(tlObjectGet(from, _s_isdst));
-    tlString* zone = tlStringCast(tlObjectGet(from, _s_isdst));
+    tlString* zone = tlStringCast(tlObjectGet(from, _s_zone));
     tm->tm_zone = zone? (char*)tlStringData(zone) : null;
     tm->tm_gmtoff = tl_int(tlObjectGet(from, _s_gmtoff));
 }
