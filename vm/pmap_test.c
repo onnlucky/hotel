@@ -419,27 +419,24 @@ int tlTransientMapSize(tlTransientMap* map) {
     return map->size;
 }
 
-static tlKind tlPersistentMapKind_ = {
+tlKind* tlPersistentMapKind;
+tlKind* tlTransientMapKind;
+tlKind* BitmapEntriesKind;
+tlKind* SamehashEntriesKind;
+
+static tlKind _tlPersistentMapKind = {
     .name = "PersistentMap",
 };
-tlKind* tlPersistentMapKind = &tlPersistentMapKind_;
-
-static tlKind tlTransientMapKind_ = {
+static tlKind _tlTransientMapKind = {
     .name = "TransientMap",
     .locked = true,
 };
-tlKind* tlTransientMapKind = &tlTransientMapKind_;
-
-static tlKind BitmapEntriesKind_ = {
+static tlKind _BitmapEntriesKind = {
     .name = "PersistentMapEntries",
 };
-tlKind* BitmapEntriesKind = &BitmapEntriesKind_;
-
-static tlKind SamehashEntriesKind_ = {
+static tlKind _SamehashEntriesKind = {
     .name = "SamehashEntries",
 };
-tlKind* SamehashEntriesKind = &SamehashEntriesKind_;
-
 
 
 // **** tests ****
@@ -471,7 +468,7 @@ TEST(setandget) {
     tlHandle key = null;
 
     char buf[1024];
-    for (int i =  17583933; i < 20*1000*1000; i++) {
+    for (int i = 10583933; i < 20*1000*1000; i++) {
         int len = snprintf(buf, sizeof(buf), "%dx", i);
         tlString* str = tlStringFromCopy(buf, len);
         uint32_t hash = tlHandleHash(str, null);
@@ -660,6 +657,10 @@ TEST(transient_setandget) {
 
 int main(int argc, char** argv) {
     tl_init();
+    INIT_KIND(tlPersistentMapKind);
+    INIT_KIND(tlTransientMapKind);
+    INIT_KIND(BitmapEntriesKind);
+    INIT_KIND(SamehashEntriesKind);
     RUN(setandget);
     RUN(grow_shrink);
 

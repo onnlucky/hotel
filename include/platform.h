@@ -119,6 +119,16 @@
   #define PLATFORM "linux"
   #define PLATFORM_LINUX
   #define CPU "x86_64"
+#elif defined(__arm__)
+  #define M32
+  #define PLATFORM "linux"
+  #define PLATFORM_LINUX
+  #define CPU "arm"
+#elif defined(__arm64__)
+  #define M64
+  #define PLATFORM "linux"
+  #define PLATFORM_LINUX
+  #define CPU "arm64"
 #elif defined(__powerpc__) && !defined(__powerpc64__)
   #define M32
   #define PLATFORM "linux"
@@ -188,7 +198,7 @@ static inline char* strndup(const char* s, size_t n) {
     return ret;
 }
 #endif
-#ifdef PLATFORM_LINUX
+#if defined(PLATFORM_LINUX)
 static inline char *strnstr(const char *s1, const char *s2, size_t len) {
    size_t l1 = len, l2;
 

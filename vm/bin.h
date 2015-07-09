@@ -8,6 +8,7 @@ struct tlBin {
     bool interned; // same as string; TODO remove, but for binEquals
     unsigned int hash;
     unsigned int len;
+    unsigned int chars; // same as string; TODO remobe, but for binEquals
     const char* data;
 };
 

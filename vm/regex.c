@@ -13,7 +13,7 @@ static tlKind _tlRegexKind = {
     .name = "Regex",
     .finalizer = regexFinalizer,
 };
-tlKind* tlRegexKind = &_tlRegexKind;
+tlKind* tlRegexKind;
 
 TL_REF_TYPE(tlMatch);
 struct tlMatch {
@@ -25,7 +25,7 @@ struct tlMatch {
 static tlKind _tlMatchKind = {
     .name = "Match"
 };
-tlKind* tlMatchKind = &_tlMatchKind;
+tlKind* tlMatchKind;
 
 //. object Regex: create posix compatible regular expressions to match strings
 
@@ -159,6 +159,7 @@ void regex_init_vm(tlVm* vm) {
             "match", _regex_match,
             null
         );
+        INIT_KIND(tlRegexKind);
     }
     tlObject* RegexStatic = tlClassObjectFrom(
         "call", _Regex_new,
@@ -174,6 +175,7 @@ void regex_init_vm(tlVm* vm) {
             "group", _match_group,
             null
         );
+        INIT_KIND(tlMatchKind);
     }
 }
 

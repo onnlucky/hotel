@@ -38,7 +38,7 @@ TEST(basic) {
 
 TEST(grow_shrink) {
     tlWeakMap* map = tlWeakMapNew();
-    print("heap: %ld", GC_get_heap_size());
+    print("heap: %zd", GC_get_heap_size());
 
     const int TESTSIZE = 10 * 1000;
     char buf[1024];
@@ -68,7 +68,7 @@ TEST(grow_shrink) {
         i = GC_collect_a_little();
         i = GC_collect_a_little();
         i = GC_collect_a_little();
-        print("heap: %ld", GC_get_heap_size());
+        print("heap: %zd", GC_get_heap_size());
         if (i == 0) break;
     }
     print("%d", tlWeakMapSize(map));
