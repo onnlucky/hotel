@@ -101,6 +101,7 @@ static tlHandle _regex_match(tlTask* task, tlArgs* args) {
     for (size = 0; size < msize; size++) {
         if (m[size].rm_so == -1) break;
     }
+
     tlMatch* match = tlAlloc(tlMatchKind, sizeof(tlMatch) + sizeof(regmatch_t) * size);
     match->string = str;
     match->size = size - 1;
@@ -117,6 +118,7 @@ static tlHandle _regex_match(tlTask* task, tlArgs* args) {
 //. main: the main result of the match, the part of the input string that actually matched the #Regex
 static tlHandle _match_main(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
+    if (match->groups[0].rm_eo == match->groups[0].rm_so) return tlStringEmpty();
     return tlStringFromCopy(tlStringData(match->string) + match->groups[0].rm_so, match->groups[0].rm_eo - match->groups[0].rm_so);
 }
 
@@ -135,18 +137,25 @@ static tlHandle _match_get(tlTask* task, tlArgs* args) {
     int at = at_offset(tlArgsGet(args, 0), match->size);
     if (at < 0) return tlUndef();
     at++;
+    if (match->groups[at].rm_eo == match->groups[at].rm_so) return tlStringEmpty();
     return tlStringFromCopy(tlStringData(match->string) + match->groups[at].rm_so, match->groups[at].rm_eo - match->groups[at].rm_so);
 }
 
-//. group(at): get begin and end of a subexpression
+//. group(at): get begin and end of a subexpression, group(0) will return the begin and end of the whole (main) match
 //. > m = Regex("\\[([^]]+)\\]\s*(.*)").match("[2014-01-01] hello world")
 //. > b, e = m.group(1)
 //. > assert b == 2 and e == 11
 static tlHandle _match_group(tlTask* task, tlArgs* args) {
     tlMatch* match = tlMatchAs(tlArgsTarget(args));
-    int at = at_offset(tlArgsGet(args, 0), match->size);
-    if (at < 0) return tlUndef();
-    at++;
+
+    int at;
+    if (tl_int_or(tlArgsGet(args, 0), -1) == 0) {
+        at = 0;
+    } else {
+        at = at_offset(tlArgsGet(args, 0), match->size);
+        if (at < 0) return tlUndef();
+        at++;
+    }
     return tlResultFrom(tlINT(tlStringCharForByte(match->string, match->groups[at].rm_so) + 1), tlINT(tlStringCharForByte(match->string, match->groups[at].rm_eo)), null);
 }
 
