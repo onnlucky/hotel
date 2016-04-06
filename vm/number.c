@@ -580,6 +580,7 @@ int tl_int_or(tlHandle h, int d) {
 }
 
 double tl_double(tlHandle h) {
+    if (tlNullIs(h)) return 0;
     if (tlFloatIs(h)) return tlFloatAs(h)->value;
     if (tlIntIs(h)) return tlIntToDouble(h);
     if (tlNumIs(h)) return tlNumToDouble(tlNumAs(h));

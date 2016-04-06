@@ -50,3 +50,21 @@ test "upto":
     assert res[3] == "fizz buzz" # 15
     assert res[-1] == "buzz" # 50
     assert res.size < 20
+
+test "null is almost 0":
+    assert isNull(null)
+    assert isNull(null + null)
+    assert isNull(null - null)
+    assert 1 + null == 1
+    assert null + 1 == 1
+    assert 1 - null == 1
+    assert null - 1 == -1
+
+    assert isNull(null * null)
+    assert not isNull(null * 1)
+    assert null * 1 == 0
+    assert null * 1.1 == 0
+    assert 1.1 * null == 0
+
+    assert sin(null) == sin(0)
+    assert cos(null) == cos(0)

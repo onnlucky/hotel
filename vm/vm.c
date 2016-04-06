@@ -341,6 +341,7 @@ static tlHandle _brrshift(tlTask* task, tlArgs* args) {
 // int/float/bigint
 static tlHandle _neg(tlTask* task, tlArgs* args) {
     tlHandle v = tlArgsGet(args, 0);
+    if (tlNullIs(v)) return tlINT(0);
     if (tlIntIs(v)) return tlINT(-tlIntToInt(v));
     if (tlFloatIs(v)) return tlFLOAT(-tl_double(v));
     if (tlNumberIs(v)) return tlNumNeg(tlNumTo(v));
@@ -348,6 +349,19 @@ static tlHandle _neg(tlTask* task, tlArgs* args) {
 }
 static tlHandle _add(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) {
+        if (tlNullIs(r)) return tlNull;
+        if (tlNumberIs(r)) return r;
+        if (tlStringIs(r)) return r;
+        if (tlBinIs(r)) return r;
+        if (tlListIs(r)) return r;
+    }
+    if (tlNullIs(r)) {
+        if (tlNumberIs(l)) return l;
+        if (tlStringIs(l)) return l;
+        if (tlBinIs(l)) return l;
+        if (tlListIs(l)) return l;
+    }
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) + tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) + tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumAdd(tlNumTo(l), tlNumTo(r));
@@ -368,6 +382,13 @@ static tlHandle _add(tlTask* task, tlArgs* args) {
 }
 static tlHandle _sub(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) {
+        if (tlNullIs(r)) return tlNull;
+        if (tlNumberIs(r)) l = tlZero;
+    }
+    if (tlNullIs(r)) {
+        if (tlNumberIs(l)) return l;
+    }
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) - tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(tl_double(l) - tl_double(r));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumSub(tlNumTo(l), tlNumTo(r));
@@ -375,6 +396,13 @@ static tlHandle _sub(tlTask* task, tlArgs* args) {
 }
 static tlHandle _mul(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) {
+        if (tlNullIs(r)) return tlNull;
+        if (tlNumberIs(r)) return tlZero;
+    }
+    if (tlNullIs(r)) {
+        if (tlNumberIs(l)) return tlZero;
+    }
     if (tlIntIs(l) && tlIntIs(r)) {
         // TODO figure out better limits, or let tlNum be smarter when to return small int
         if (tl_int(l) > -32000 && tl_int(l) < 32000 && tl_int(r) > -32000 && tl_int(r) < 32000) {
@@ -388,22 +416,30 @@ static tlHandle _mul(tlTask* task, tlArgs* args) {
 static tlHandle _div(tlTask* task, tlArgs* args) {
     // TODO normal div should return a big decimal
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) l = tlZero;
+    if (tlNullIs(r)) r = tlZero;
     if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
 static tlHandle _idiv(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) l = tlZero;
+    if (tlNullIs(r)) r = tlZero;
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) / tlIntToInt(r)); // TODO return remainder as well?
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumDiv(tlNumTo(l), tlNumTo(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
 static tlHandle _fdiv(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) l = tlZero;
+    if (tlNullIs(r)) r = tlZero;
     if (tlNumberIs(l) && tlNumberIs(r)) return tlFLOAT(tl_double(l) / tl_double(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
 }
 static tlHandle _mod(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(l)) l = tlZero;
+    if (tlNullIs(r) || r == tlZero) r = tlFLOAT(0);
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) % tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(fmod(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
@@ -411,6 +447,8 @@ static tlHandle _mod(tlTask* task, tlArgs* args) {
 }
 static tlHandle _pow(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
+    if (tlNullIs(r)) return tlOne;
+    if (tlNullIs(l)) return tlZero;
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(pow(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) {
         int p = tl_int(r); // TODO check if really small? or will that work out as zero anyhow?
@@ -421,9 +459,13 @@ static tlHandle _pow(tlTask* task, tlArgs* args) {
     TL_THROW("'**' not implemented for: %s ** %s", tl_str(l), tl_str(r));
 }
 static tlHandle _sqrt(tlTask* task, tlArgs* args) {
-    double res = sqrt(tl_double(tlArgsGet(args, 0)));
-    trace("SQRT: %d", res);
-    return tlFLOAT(res);
+    tlHandle a = tlArgsGet(args, 0);
+    if (tlNullIs(a)) return tlZero;
+    if (tlNumberIs(a)) {
+        double res = sqrt(tl_double(a));
+        return tlFLOAT(res);
+    }
+    TL_THROW("'sqrt' not implemented for: %s", tl_str(a));
 }
 
 //. random(n):
