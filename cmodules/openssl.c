@@ -9,7 +9,7 @@
 #include "trace-off.h"
 
 #ifdef __APPLE__
-#define SSLCONST
+#define SSLCONST const
 #else
 #define SSLCONST const
 #endif

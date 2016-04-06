@@ -11,6 +11,8 @@ else
 LINK=-dynamiclib -flat_namespace -undefined suppress
 SDL_CFLAGS:=
 SDL_LDFLAGS:=-lsdl2
+OPENSSL_CFLAGS:=-I/usr/local/opt/openssl/include
+OPENSSL_LDFLAGS:=-L/usr/local/opt/openssl/lib
 endif
 
 ifeq ($(BUILD),release)
@@ -39,8 +41,8 @@ endif
 all: zlib.mod
 
 openssl.mod: openssl.c Makefile ../include/tl.h
-	$(CC) $(CFLAGS) -c openssl.c
-	$(CC) $(LINK) openssl.o -o openssl.mod -lcrypto -lssl
+	$(CC) $(CFLAGS) $(OPENSSL_CFLAGS) -c openssl.c
+	$(CC) $(LINK) $(OPENSSL_LDFLAGS) openssl.o -o openssl.mod -lcrypto -lssl
 
 zlib.mod: zlib.c Makefile ../include/tl.h
 	$(CC) $(CFLAGS) -c zlib.c
