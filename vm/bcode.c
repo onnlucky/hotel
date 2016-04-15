@@ -2030,7 +2030,7 @@ static tlHandle _frame_run(tlTask* task, tlArgs* args) {
         return beval(task, frame, null);
     }
 
-    if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
+    if (other->state != TL_STATE_INIT) TL_THROW("cannot reuse a task");
     other->value = tlNull;
     other->stack = (tlFrame*)frame;
     other->state = TL_STATE_INIT;
@@ -2133,7 +2133,7 @@ static tlHandle _module_run(tlTask* task, tlArgs* args) {
         return beval(task, frame, null);
     }
 
-    if (!other->state == TL_STATE_INIT) TL_THROW("cannot reuse a task");
+    if (other->state != TL_STATE_INIT) TL_THROW("cannot reuse a task");
     other->value = tlNull;
     other->stack = (tlFrame*)frame;
     other->state = TL_STATE_INIT;
