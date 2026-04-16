@@ -333,6 +333,13 @@ Terminal = {
         measure = -> _tty_size(this.file)
         width = -> _tty_size(this.file)
         height = -> _, h = _tty_size(this.file); return h
+        #. readPassword: reads a line of input without echoing characters to the terminal, for password entry
+        #. returns a String (without the trailing newline), or null if the stream cannot be read
+        readPassword = ->
+            _tty_echoOff(this.file)
+            line = this.readLine
+            _tty_echoOn(this.file)
+            return line
     }
 }
 

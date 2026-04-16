@@ -1545,6 +1545,37 @@ static tlHandle _tty_restore(tlTask* task, tlArgs* args) {
     if (fd == tty_fd) tty_restore();
     return tlNull;
 }
+static struct termios echo_orig;
+static int echo_fd = -1;
+
+static tlHandle _tty_echoOff(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    int fd = file->ev.fd;
+    if (!isatty(fd)) return tlFalse;
+
+    struct termios noecho;
+    if (tcgetattr(fd, &echo_orig) == -1) return tlFalse;
+    noecho = echo_orig;
+    noecho.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
+    if (tcsetattr(fd, TCSAFLUSH, &noecho) < 0) return tlFalse;
+    echo_fd = fd;
+    return tlTrue;
+}
+
+static tlHandle _tty_echoOn(tlTask* task, tlArgs* args) {
+    tlFile* file = tlFileCast(tlArgsGet(args, 0));
+    if (!file) TL_THROW("expect a File");
+    int fd = file->ev.fd;
+    if (!isatty(fd)) return tlFalse;
+
+    if (fd == echo_fd) {
+        tcsetattr(fd, TCSAFLUSH, &echo_orig);
+        echo_fd = -1;
+    }
+    return tlNull;
+}
+
 static tlHandle _tty_size(tlTask* task, tlArgs* args) {
     tlFile* file = tlFileCast(tlArgsGet(args, 0));
     if (!file) TL_THROW("expect a File");
@@ -1590,6 +1621,8 @@ static const tlNativeCbs __evio_natives[] = {
     { "_tty_setup", _tty_setup },
     { "_tty_restore", _tty_restore },
     { "_tty_size", _tty_size },
+    { "_tty_echoOff", _tty_echoOff },
+    { "_tty_echoOn", _tty_echoOn },
 
     { "_io_exec", _io_exec },
     { "_io_launch", _io_launch },
