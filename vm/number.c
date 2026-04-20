@@ -814,14 +814,14 @@ static tlHandle _number_lt(tlTask* task, tlArgs* args) {
 
 static tlHandle _number_lte(tlTask* task, tlArgs* args) {
     tlHandle res = number_cmp(tlArgsLhs(args), tlArgsRhs(args));
-    if (res == tlSmaller || tlEqual) return tlTrue;
+    if (res == tlSmaller || res == tlEqual) return tlTrue;
     if (res == tlLarger) return tlFalse;
     return res;
 }
 
 static tlHandle _number_gt(tlTask* task, tlArgs* args) {
     tlHandle res = number_cmp(tlArgsLhs(args), tlArgsRhs(args));
-    if (res == tlSmaller || tlEqual) return tlFalse;
+    if (res == tlSmaller || res == tlEqual) return tlFalse;
     if (res == tlLarger) return tlTrue;
     return res;
 }
