@@ -547,7 +547,7 @@ static tlHandle _base64encode(tlTask* task, tlArgs* args) {
     int len = str? tlStringSize(str) : tlBinSize(bin);
 
     int pad = len % 3;
-    uint8_t* out = malloc_atomic((len / 3) * 4 + pad + 1);
+    uint8_t* out = malloc_atomic(((len + 2) / 3) * 4 + 1);
 
     int i = 0;
     int j = 0;

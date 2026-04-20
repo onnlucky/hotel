@@ -1,0 +1,8 @@
+out(_base64encode(""), "\n")
+out(_base64encode("a"), "\n")
+out(_base64encode("ab"), "\n")
+out(_base64encode("abc"), "\n")
+out(_base64encode("abcd"), "\n")
+out(_base64decode(_base64encode("a")), "\n")
+out(_base64decode(_base64encode("ab")), "\n")
+out(_base64decode(_base64encode("abc")), "\n")
