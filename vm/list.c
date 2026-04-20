@@ -44,7 +44,7 @@ tlList* tlListFrom3(tlHandle v1, tlHandle v2, tlHandle v3) {
     assert(tlListSize(list) == 3);
     tlListSet_(list, 0, v1);
     tlListSet_(list, 1, v2);
-    tlListSet_(list, 3, v3);
+    tlListSet_(list, 2, v3);
     return list;
 }
 
