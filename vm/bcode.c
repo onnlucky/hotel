@@ -899,6 +899,7 @@ tlHandle tlBCodeVerify(tlBCode* bcode, const char** error) {
             case OP_ARG: dreadsize(&code); break;
             case OP_BIND:
                 v = dreadref(&code, data);
+                if (!tlBCodeIs(v)) FAIL("OP_BIND requires a BCode");
                 tlBCodeVerify(tlBCodeAs(v), error); // TODO pass in our locals somehow for ENV
                 if (*error) return null;
                 break;
@@ -1863,7 +1864,7 @@ tlHandle _env_current(tlTask* task, tlArgs* args) {
     }
 
     tlObject* gs = tlVmGlobals(tlVmCurrent(task));
-    for (int i = 0;; i++) {
+    for (int i = 0; i < 10000; i++) {
         tlHandle key = null;
         tlHandle value = null;
         tlObjectKeyValueIter(gs, i, &key, &value);
@@ -1872,7 +1873,7 @@ tlHandle _env_current(tlTask* task, tlArgs* args) {
     }
 
     LHashMapIter* iter = lhashmapiter_new(globals);
-    for (int i = 0;; i++) {
+    for (int i = 0; i < 10000; i++) {
         void* key = null;
         tlHandle value = null;
         lhashmapiter_get(iter, &key, &value);
