@@ -11,6 +11,7 @@
 
 #define INIT_SIZE 128
 #define MAX_SIZE_INCREMENT (8*1024)
+#define MAX_BUFFER_SIZE (1024*1024*1024)
 
 static tlKind _tlBufferKind = {
     .name = "Buffer",
@@ -61,7 +62,11 @@ void tlBufferBeforeWrite(tlBuffer* buf, int len) {
     assert(len >= 0 && len < 100 * 1024 * 1024);
 
     tlBufferCompact(buf);
-    while (canwrite(buf) < len) buf->size += min(buf->size * 2, MAX_SIZE_INCREMENT);
+    while (canwrite(buf) < len) {
+        int inc = min(buf->size * 2, MAX_SIZE_INCREMENT);
+        if (buf->size > MAX_BUFFER_SIZE - inc) fatal("buffer too large");
+        buf->size += inc;
+    }
     trace("new size: %d", buf->size);
     buf->data = realloc(buf->data, buf->size);
     check(buf);
