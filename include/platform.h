@@ -183,32 +183,3 @@
   #error "unknown endian type, define BIG_ENDIAN or LITTLE_ENDIAN"
 #endif
 
-// don't ask, don't tell
-//char* strdup(const char*);
-#if defined(__DARWIN_C_LEVEL) && __DARWIN_C_LEVEL <= 200809L
-static inline size_t strnlen(const char* s, size_t n) {
-    char *p = memchr(s, 0, n);
-    return (p?p-s:n);
-}
-static inline char* strndup(const char* s, size_t n) {
-    size_t len = strnlen(s, n);
-    char* ret = malloc(len + 1);
-    memcpy(ret, s, len);
-    ret[len] = 0;
-    return ret;
-}
-#endif
-#if defined(PLATFORM_LINUX)
-static inline char *strnstr(const char *s1, const char *s2, size_t len) {
-   size_t l1 = len, l2;
-
-   l2 = strlen(s2);
-   if (!l2) return (char *)s1;
-   while (l1 >= l2) {
-       l1--;
-       if (!memcmp(s1, s2, l2)) return (char *)s1;
-       s1++;
-   }
-   return NULL;
-}
-#endif

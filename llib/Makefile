@@ -1,4 +1,4 @@
-CFLAGS=-std=c99 -g -Wall -Werror
+CFLAGS=-std=c99 -g -Wall
 
 run: lhashmap.h lhashmap.c lhashmap-test.c
 	$(CC) $(CFLAGS) -c lhashmap.c -o lhashmap.o

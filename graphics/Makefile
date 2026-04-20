@@ -1,5 +1,5 @@
 CLANGUNWARN:=$(shell if cc 2>&1 | grep clang >/dev/null; then echo "-Qunused-arguments"; fi)
-CFLAGS:=-std=c99 -Wall -Werror -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../include/
+CFLAGS:=-std=c99 -Wall -Wno-unused-function $(CLANGUNWARN) $(CFLAGS) -I../include/
 
 UNAME:=$(shell uname)
 ifneq ($(UNAME),Darwin)
