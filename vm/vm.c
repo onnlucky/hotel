@@ -425,6 +425,7 @@ static tlHandle _idiv(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNullIs(l)) l = tlZero;
     if (tlNullIs(r)) r = tlZero;
+    if (r == tlZero) TL_THROW("divide by zero");
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) / tlIntToInt(r)); // TODO return remainder as well?
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumDiv(tlNumTo(l), tlNumTo(r));
     TL_THROW("'/' not implemented for: %s / %s", tl_str(l), tl_str(r));
@@ -439,7 +440,8 @@ static tlHandle _fdiv(tlTask* task, tlArgs* args) {
 static tlHandle _mod(tlTask* task, tlArgs* args) {
     tlHandle l = tlArgsGet(args, 0); tlHandle r = tlArgsGet(args, 1);
     if (tlNullIs(l)) l = tlZero;
-    if (tlNullIs(r) || r == tlZero) r = tlFLOAT(0);
+    if (tlNullIs(r)) r = tlZero;
+    if (r == tlZero) TL_THROW("modulo by zero");
     if (tlIntIs(l) && tlIntIs(r)) return tlNUM(tlIntToInt(l) % tlIntToInt(r));
     if ((tlFloatIs(l) && tlNumberIs(r)) || (tlNumberIs(l) && tlFloatIs(r))) return tlFLOAT(fmod(tl_double(l), tl_double(r)));
     if (tlNumberIs(l) && tlNumberIs(r)) return tlNumMod(tlNumTo(l), tlNumTo(r));
