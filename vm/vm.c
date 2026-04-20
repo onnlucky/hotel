@@ -599,6 +599,7 @@ static tlHandle _base64decode(tlTask* task, tlArgs* args) {
     };
 
     tlString* str = tlStringCast(tlArgsGet(args, 0));
+    if (!str) TL_THROW("expect a String");
 
     int len = tlStringSize(str);
     if (len == 0) return tlStringEmpty();
@@ -609,7 +610,9 @@ static tlHandle _base64decode(tlTask* task, tlArgs* args) {
     if (padding == 2 && data[len - 1] != data[len - 2]) TL_THROW("invalid base64");
     int outlen = len * 3 / 4 - padding;
 
-    unsigned char* out = malloc_atomic(outlen + padding); // a bit over allocated, so we can safely decode
+    // outlen + padding == len*3/4; the tail block always writes 3 bytes into that space,
+    // so +1 ensures the null terminator at out[outlen] never writes past the allocation
+    unsigned char* out = malloc_atomic(outlen + padding + 1);
 
     int i = 0;
     int j = 0;

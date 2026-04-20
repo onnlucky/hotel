@@ -432,7 +432,7 @@ static tlHandle _buffer_startsWith(tlTask* task, tlArgs* args) {
 
     int bufsize = tlBufferSize(buf);
     int startsize = tlStringSize(start);
-    if (bufsize + from < startsize) return tlFalse;
+    if (bufsize - from < startsize) return tlFalse;
 
     int r = strncmp(tlBufferData(buf) + from, tlStringData(start), startsize);
     return tlBOOL(r == 0);

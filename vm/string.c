@@ -668,7 +668,7 @@ static tlHandle _string_startsWith(tlTask* task, tlArgs* args) {
 
     int strsize = tlStringSize(str);
     int startsize = tlStringSize(start);
-    if (strsize + from < startsize) return tlFalse;
+    if (strsize - from < startsize) return tlFalse;
 
     int r = strncmp(tlStringData(str) + from, tlStringData(start), startsize);
     return tlBOOL(r == 0);
@@ -740,6 +740,7 @@ static tlHandle _string_mul(tlTask* task, tlArgs* args) {
     if (times < 0) TL_THROW("String.* requires a positive number");
 
     int str_size = tlStringSize(str);
+    if (str_size > 0 && times > (1024*1024*1024) / str_size) TL_THROW("String.* result too large");
     int size = str_size * times;
     if (size == 0) return tlStringEmpty();
 
